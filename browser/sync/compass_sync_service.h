@@ -256,6 +256,11 @@ class CompassSyncService : public KeyedService,
   // from disk), records which directory is each profile of the chain, and
   // retires the copies earlier runs made (PlanProfileDirs()).
   void ScanProfileDirs();
+#if BUILDFLAG(IS_ANDROID)
+  // Loads and lists the chain's profiles this device has that the space
+  // directory doesn't list (ReconcileProfiles()).
+  void ListChainProfiles();
+#endif
   void OnProfileDirsScanned(std::vector<ProfileDir> dirs);
   // Leaves the chain with this profile only.
   void LeaveProfile();

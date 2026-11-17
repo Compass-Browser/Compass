@@ -1,0 +1,29 @@
+diff --git a/components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java b/components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
+index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..2fae6aa5259745c6f2b7e07e4676de61e891f820 100644
+--- a/components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
++++ b/components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
+@@ -58,8 +58,11 @@ public class GCMDriver {
+      */
+     @CalledByNative
+     private static GCMDriver create(long nativeGCMDriverAndroid) {
++        // Compass: a profile of the sync chain after the first gets a driver of
++        // its own, which doesn't receive messages: the first profile's stays
++        // the one messages go to (compass/docs/design/android.md, "Profiles").
+         if (sInstance != null) {
+-            throw new IllegalStateException("Already instantiated");
++            return new GCMDriver(nativeGCMDriverAndroid);
+         }
+         sInstance = new GCMDriver(nativeGCMDriverAndroid);
+         // TODO(crbug.com/40620351): This has been in added in M75 to migrate the
+@@ -75,8 +78,9 @@ public class GCMDriver {
+      */
+     @CalledByNative
+     private void destroy() {
+-        assert sInstance == this;
+-        sInstance = null;
++        if (sInstance == this) {
++            sInstance = null;
++        }
+         mNativeGCMDriverAndroid = 0;
+     }
+ 

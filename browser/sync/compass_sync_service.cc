@@ -1630,12 +1630,16 @@ void CompassSyncService::ReconcileProfiles() {
       EnrollProfile(profile, local.uuid);
     }
   }
+#if BUILDFLAG(IS_ANDROID)
+  // 1b. Android lists every profile of the chain it has (there's no removing
+  // one from the switcher there): one made here whose listing didn't reach
+  // the directory's file (the app was killed first) is loaded and listed
+  // again. A second profile needs the ProfileImpl patch
+  // (docs/design/android.md, "Profiles").
+  ListChainProfiles();
+#endif
   // 2. The chain's profiles this device doesn't have are created, already
-  // syncing (CompassProfileCreator). Not on Android yet: Chromium there has
-  // one profile (ProfileImpl takes its prefs from the startup data), and
-  // creating or loading a second one crashes (docs/design/android.md,
-  // "Profiles").
-#if !BUILDFLAG(IS_ANDROID)
+  // syncing (CompassProfileCreator).
   if (!chain_profiles_known_) {
     return;
   }
@@ -1696,8 +1700,44 @@ void CompassSyncService::ReconcileProfiles() {
         std::make_unique<MissingProfiles>(profile_creator_.get());
   }
   missing_profiles_->Update(chain_profiles_, local_uuids);
-#endif  // !BUILDFLAG(IS_ANDROID)
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void CompassSyncService::ListChainProfiles() {
+  ProfileManager* profile_manager = GetProfileManager();
+  SpaceDirectory* directory = SpaceDirectory::GetIfExists();
+  if (!profile_manager || !directory || !directory->IsFileLoaded()) {
+    return;
+  }
+  std::set<std::string> removed;
+  for (const base::Value& uuid : prefs_->GetList(prefs::kProfilesRemoved)) {
+    if (uuid.is_string()) {
+      removed.insert(uuid.GetString());
+    }
+  }
+  ProfileAttributesStorage& storage =
+      profile_manager->GetProfileAttributesStorage();
+  for (const auto [uuid, dir] : prefs_->GetDict(prefs::kProfileDirs)) {
+    if (!dir.is_string() || removed.contains(uuid)) {
+      continue;
+    }
+    const base::FilePath path =
+        profile_manager->user_data_dir().AppendASCII(dir.GetString());
+    if (directory->IsListedPath(path) ||
+        !storage.GetProfileAttributesWithPath(path)) {
+      continue;
+    }
+    profile_manager->LoadProfileByPath(
+        path, /*incognito=*/false, base::BindOnce([](Profile* profile) {
+          SpaceDirectory* directory = SpaceDirectory::GetIfExists();
+          if (profile && directory) {
+            directory->List(profile);
+            directory->Flush();
+          }
+        }));
+  }
+}
+#endif
 
 void CompassSyncService::ScanProfileDirs() {
   ProfileManager* profile_manager = GetProfileManager();

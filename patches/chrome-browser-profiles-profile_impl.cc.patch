@@ -1,0 +1,82 @@
+diff --git a/chrome/browser/profiles/profile_impl.cc b/chrome/browser/profiles/profile_impl.cc
+index cd7cb4e41199883ad37a43764536d5db1805f689..3b4c55a02b373898c82c15416662e22fd8c21bcd 100644
+--- a/chrome/browser/profiles/profile_impl.cc
++++ b/chrome/browser/profiles/profile_impl.cc
+@@ -6,6 +6,7 @@
+ 
+ #include <stddef.h>
+ 
++#include <map>
+ #include <memory>
+ #include <set>
+ #include <utility>
+@@ -139,6 +140,7 @@
+ #include "components/guest_view/buildflags/buildflags.h"
+ #include "components/heavy_ad_intervention/heavy_ad_service.h"
+ #include "components/history/core/common/pref_names.h"
++#include "components/leveldb_proto/public/proto_database_provider.h"
+ #include "components/keyed_service/content/browser_context_dependency_manager.h"
+ #include "components/keyed_service/core/simple_dependency_manager.h"
+ #include "components/keyed_service/core/simple_key_map.h"
+@@ -295,6 +297,20 @@ class ScopedAllowBlockingForProfile : public base::ScopedAllowBlocking {};
+ 
+ namespace {
+ 
++#if BUILDFLAG(IS_ANDROID)
++// Compass: the proto database providers of profiles after the startup one,
++// made with their ProfileKey (as StartupData makes the first one's) until
++// their storage partition takes them (compass/docs/design/android.md,
++// "Profiles").
++std::map<base::FilePath, std::unique_ptr<leveldb_proto::ProtoDatabaseProvider>>&
++CompassPendingProtoDbProviders() {
++  static base::NoDestructor<std::map<
++      base::FilePath, std::unique_ptr<leveldb_proto::ProtoDatabaseProvider>>>
++      providers;
++  return *providers;
++}
++#endif
++
+ #if BUILDFLAG(ENABLE_SESSION_SERVICE)
+ // Delay before we explicitly create the SessionService.
+ static constexpr base::TimeDelta kCreateSessionServiceDelay =
+@@ -531,9 +547,22 @@ ProfileImpl::ProfileImpl(
+ 
+ #if BUILDFLAG(IS_ANDROID)
+   auto* startup_data = g_browser_process->startup_data();
+-  DCHECK(startup_data && startup_data->GetProfileKey());
+-  TakePrefsFromStartupData();
+-  async_prefs = false;
++  // Compass: only the profile StartupData was built for takes its prefs;
++  // another one (a profile of the sync chain) loads its own, as on desktop
++  // (compass/docs/design/android.md, "Profiles").
++  if (startup_data && startup_data->GetProfileKey() &&
++      startup_data->GetProfileKey()->GetPath() == path_) {
++    TakePrefsFromStartupData();
++    async_prefs = false;
++  } else {
++    LoadPrefsForNormalStartup(async_prefs);
++    // Services built with the profile (the image fetcher, by GCM's factory)
++    // need the key's proto database provider at once.
++    auto provider = std::make_unique<leveldb_proto::ProtoDatabaseProvider>(
++        path_, /*is_in_memory=*/false);
++    key_->SetProtoDatabaseProvider(provider.get());
++    CompassPendingProtoDbProviders()[path_] = std::move(provider);
++  }
+ #else
+   LoadPrefsForNormalStartup(async_prefs);
+ #endif
+@@ -1519,6 +1548,14 @@ ProfileImpl::TakeDefaultProtoDatabaseProvider() {
+ #if BUILDFLAG(IS_ANDROID)
+   // On Android StartupData creates proto database provider for the profile
+   // before profile is created, so move ownership to storage partition.
++  // Compass: a later profile's was made with its key (above).
++  auto& pending = CompassPendingProtoDbProviders();
++  if (auto it = pending.find(GetPath()); it != pending.end()) {
++    std::unique_ptr<leveldb_proto::ProtoDatabaseProvider> provider =
++        std::move(it->second);
++    pending.erase(it);
++    return provider;
++  }
+   return g_browser_process->startup_data()->TakeProtoDatabaseProvider();
+ #else
+   return nullptr;

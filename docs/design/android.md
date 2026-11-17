@@ -189,18 +189,29 @@ It costs:
   wider gap where the profile changes, and the space header names the
   profile when there's more than one. `SidebarState.spaces` stays the
   window's profile's (moves, swipes, shortcuts), `allSpaces` is the row.
-  - **Blocked on Android: a second Chromium profile.** Chrome on Android
-    has one profile: `ProfileImpl` always takes its prefs from the startup
-    data (`TakePrefsFromStartupData()`), so loading or creating another one
-    crashes at once (SIGSEGV in `PrefService::UpdateExtensionPrefStore()`).
-    Until `ProfileImpl` loads a later profile's prefs normally
-    (`LoadPrefsForNormalStartup()`, which builds on Android) and the other
-    single-profile assumptions are checked, Android neither creates the
-    chain's other profiles (`ReconcileProfiles()`) nor loads listed ones
-    (`SpaceDirectory::LoadListedProfiles()`): it shows the home profile's
-    spaces. A profile with spaces is listed as it gets them
-    (`SpacesAndroid::Get()`), as the desktop lists a window's profile, and
-    the profile creator writes the directory's file at once.
+  - **A second Chromium profile on Android.** Chrome on Android has one
+    profile, made from `StartupData`. Three patches let the chain's other
+    profiles load:
+    - `ProfileImpl` takes the startup data's prefs only for the profile it
+      was built for; another profile loads its own
+      (`LoadPrefsForNormalStartup()`) and gets a proto database provider on
+      its key at once (services built with it, such as the image fetcher
+      GCM's factory asks for, need it), which its storage partition takes
+      later (`TakeDefaultProtoDatabaseProvider()`).
+    - `GCMDriver.create()` makes a second driver instead of throwing; the
+      first profile's stays the one messages go to (a later profile gets no
+      web push or GCM invalidations; Compass's own push is the home's).
+    - `ChromeBrowserMainPartsAndroid::PostProfileInit()` runs only the
+      common per-profile part for a later profile.
+    With them, Android creates the chain's profiles (`ReconcileProfiles()`),
+    loads the listed ones (`SpaceDirectory::LoadListedProfiles()`) and lists
+    the chain's profiles it has but doesn't list (`ListChainProfiles()`). A
+    profile with spaces is listed as it gets them (`SpacesAndroid::Get()`),
+    and the profile creator writes the directory's file at once. Tried on a
+    Pixel 8a with a three-profile chain: each profile's spaces sync in its
+    own account, and tapping another profile's space opens it in that
+    profile's window. Known: going back to the first profile opens a new
+    window rather than bringing the first one forward.
 - **Profiles, phase 2: a window per profile.** Chrome on Android gives a
   window one regular profile (`ActivityProfileProvider`:
   `getLastUsedRegularProfile()`) and two tab models, so a window shows one
