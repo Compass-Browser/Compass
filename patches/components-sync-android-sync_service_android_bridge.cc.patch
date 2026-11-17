@@ -1,0 +1,16 @@
+diff --git a/components/sync/android/sync_service_android_bridge.cc b/components/sync/android/sync_service_android_bridge.cc
+index 4149aae23e473c1f1b71817e1d8cfe15ee822192..c8eefb2fe6b350ff39a1e47a69b13423898cb19a 100644
+--- a/components/sync/android/sync_service_android_bridge.cc
++++ b/components/sync/android/sync_service_android_bridge.cc
+@@ -379,6 +379,11 @@ void SyncServiceAndroidBridge::KeepAccountSettingsPrefsOnlyForUsers(
+   for (const std::string& gaia_id_string : gaia_id_strings) {
+     gaia_ids.emplace_back(gaia_id_string);
+   }
++  // Compass: local sync has no account, so its transport data (cache GUID,
++  // birthday, ...) is keyed to the empty Gaia ID. Pruned to the OS accounts,
++  // it was cleared at every launch, and every launch synced as a new client
++  // (compass/docs/design/android.md, "Sync").
++  gaia_ids.emplace_back();
+   native_sync_service_->GetUserSettings()->KeepAccountSettingsPrefsOnlyForUsers(
+       gaia_ids);
+ }
