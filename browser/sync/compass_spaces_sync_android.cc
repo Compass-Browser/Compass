@@ -62,6 +62,12 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
       memory_ = memory->GetWeakPtr();
       memory->AddObserver(this);
     }
+    // The bridge starts once the spaces are in, as on the desktop
+    // (compass_spaces_sync.cc, OnLoaded()). Without it, the bridge never told
+    // sync it was ready and COMPASS_SPACES failed to configure ("Backend
+    // failed to download and configure type").
+    spaces->RunWhenLoaded(base::BindOnce(&SpacesSyncHolder::OnLoaded,
+                                         weak_factory_.GetWeakPtr()));
   }
   SpacesSyncHolder(const SpacesSyncHolder&) = delete;
   SpacesSyncHolder& operator=(const SpacesSyncHolder&) = delete;
@@ -192,10 +198,13 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
   }
 
  private:
+  void OnLoaded() { bridge_->OnModelLoaded(); }
+
   const raw_ptr<Profile> profile_;
   const raw_ptr<SpacesAndroid> spaces_;
   std::unique_ptr<CompassSpacesSyncBridge> bridge_;
   base::WeakPtr<claude::ClaudeMemory> memory_;
+  base::WeakPtrFactory<SpacesSyncHolder> weak_factory_{this};
 };
 
 // Runs COMPASS_SPACES only once the chain's passphrase is in place, as on the
