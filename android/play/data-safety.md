@@ -49,9 +49,9 @@ device), Google sign-in, UMA/UKM metrics, an advertising ID.
   **My app does not allow users to create an account** (sync has no
   accounts: a chain of paired devices).
 - Do you provide a way for users to request that their data is deleted?
-  **Yes**: leaving sync on the last device, or asking the developer, removes
-  the chain's data from the server. (No account deletion URL is needed
-  without accounts.)
+  **Yes**: leaving sync on the last device removes the chain's data from the
+  server. The sync server isn't public, so there's no request to the
+  developer to make. (No account deletion URL is needed without accounts.)
 
 **Data types**
 
@@ -86,8 +86,7 @@ deletion. Don't claim an independent security review.
 - **Device list entries.** The device's name could be the user's name ("Ada's
   Pixel"). If that seems like personal info, add **Personal info → Name**,
   collected, optional, App functionality.
-- **Privacy policy.** compassbrowser.org/privacy covers iPhone and iPad
-  today. Before review it needs the Android app: the same sync section, FCM
-  instead of APNs for push, Android's device name in the device list, Claude
-  with the user's key, passwords in other apps (Android Autofill), and no
-  TestFlight feedback (Play's instead).
+- **Privacy policy.** compassbrowser.org/privacy covers the Android app in
+  its "Compass for Android" section: sync's extra types and device name, FCM
+  for sent tabs, Claude with the user's key, passwords in other apps, and
+  the Play listing's contact email instead of TestFlight feedback.

@@ -61,9 +61,8 @@ This is a test release: things may break. Tell us what you think through Play's 
 - **App or game:** App. **Category:** Communication, where Play lists
   browsers (Chrome, Firefox and Edge are there).
 - **Tags:** Web browser, Productivity.
-- **Contact email:** the developer account's support address (Play shows it
+- **Contact email:** matteo.piccina@gmail.com (Play shows it
   publicly).
 - **Website:** https://compassbrowser.org
-- **Privacy policy:** https://compassbrowser.org/privacy (it must describe
-  the Android app before the first review: today it covers iPhone and iPad;
-  data-safety.md lists what an Android section has to say).
+- **Privacy policy:** https://compassbrowser.org/privacy (its "Compass for
+  Android" section covers the Android app).

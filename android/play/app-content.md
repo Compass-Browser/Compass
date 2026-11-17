@@ -24,8 +24,8 @@ that one, a draft for the developer to check.
 
 ## Other declarations
 
-- **Privacy policy:** https://compassbrowser.org/privacy (to update for
-  Android first: data-safety.md, "Judgment calls").
+- **Privacy policy:** https://compassbrowser.org/privacy (its "Compass for
+  Android" section covers the Android app).
 - **Ads:** No, the app contains no ads.
 - **App access:** All functionality is available without special access,
   except sync (it pairs with Compass on another device) and Claude (it needs
