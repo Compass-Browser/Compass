@@ -445,6 +445,23 @@ void SpacesAndroid::WindowClosed(const void* window) {
   }
 }
 
+std::vector<int> SpacesAndroid::ReleaseTabsOf(const SpaceModel& space) {
+  std::vector<int> released;
+  for (auto it = tabs_.begin(); it != tabs_.end();) {
+    SidebarNode* node = FindNode(it->second);
+    if (node && list_.FindSpaceOf(node) == &space) {
+      released.push_back(it->first);
+      it = tabs_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  if (!released.empty()) {
+    Changed();
+  }
+  return released;
+}
+
 void SpacesAndroid::TabClosed(int tab_id) {
   empty_tabs_.erase(tab_id);
   std::erase_if(pending_tabs_,

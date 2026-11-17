@@ -267,6 +267,28 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     }
 
     /** The space this window shows (each window has its own), or empty before they load. */
+    /** The chain's profiles and their spaces (Settings › Profiles), in the switcher's order. */
+    public java.util.List<CompassSettingsUi.ProfileRow> profileRows() {
+        java.util.LinkedHashMap<String, int[]> counts = new java.util.LinkedHashMap<>();
+        java.util.Map<String, String> names = new java.util.HashMap<>();
+        String own = "";
+        for (SidebarState.Space space : mState.getAllSpaces()) {
+            String key = space.profileDir.isEmpty() ? space.profile : space.profileDir;
+            counts.computeIfAbsent(key, k -> new int[1])[0]++;
+            names.put(key, space.profile);
+            if (space.own) own = key;
+        }
+        java.util.List<CompassSettingsUi.ProfileRow> rows = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<String, int[]> entry : counts.entrySet()) {
+            rows.add(
+                    new CompassSettingsUi.ProfileRow(
+                            names.get(entry.getKey()),
+                            entry.getValue()[0],
+                            entry.getKey().equals(own)));
+        }
+        return rows;
+    }
+
     public String shownSpaceId() {
         return mBridge.shownSpace();
     }
@@ -648,6 +670,16 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     public void onSetSpaceTheme(String spaceId, SpaceTheme theme) {
         mBridge.setSpaceTheme(
                 spaceId, theme.colorsCsv(), theme.intensity, theme.grain, theme.appearance.ordinal());
+    }
+
+    @Override
+    public void onMoveSpaceToProfile(String spaceId, String profileDir) {
+        // As the desktop's MoveSpaceToProfile(): the entries move, the tabs (which can't change
+        // profile) close, and the space shows in a window of its new profile.
+        int[] tabs = mBridge.moveSpaceToProfile(spaceId, profileDir);
+        for (int tabId : tabs) closeArchivedTab(tabId);
+        onDismiss();
+        it.cipi1965.compass.profiles.WindowProfiles.show(mActivity, profileDir, spaceId);
     }
 
     @Override

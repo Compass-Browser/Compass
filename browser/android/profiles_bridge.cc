@@ -7,12 +7,10 @@
 
 #include <string>
 
-#include "base/android/callback_android.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/files/file_path.h"
-#include "base/functional/bind.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
@@ -23,37 +21,29 @@
 
 namespace compass {
 
-static void JNI_ProfilesBridge_LoadProfile(
-    JNIEnv* env,
-    const std::string& dir,
-    const base::android::JavaRef<jobject>& callback) {
-  auto done = base::BindOnce(
-      [](base::android::ScopedJavaGlobalRef<jobject> callback,
-         Profile* profile) {
-        base::android::RunObjectCallbackAndroid(
-            callback, profile ? profile->GetJavaObject()
-                              : base::android::ScopedJavaLocalRef<jobject>());
-      },
-      base::android::ScopedJavaGlobalRef<jobject>(env, callback));
+static base::android::ScopedJavaLocalRef<jobject>
+JNI_ProfilesBridge_LoadProfileSync(JNIEnv* env, const std::string& dir) {
   ProfileManager* profile_manager =
       g_browser_process ? g_browser_process->profile_manager() : nullptr;
-  // A name, not a path: nothing outside the user data directory.
   const base::FilePath name = base::FilePath::FromASCII(dir);
   if (!profile_manager || dir.empty() || name.BaseName() != name ||
       name.ReferencesParent()) {
-    std::move(done).Run(nullptr);
-    return;
+    // A name, not a path: nothing outside the user data directory.
+    return nullptr;
   }
   const base::FilePath path = profile_manager->user_data_dir().Append(name);
   // Only a profile that exists: a window never makes one.
   if (!profile_manager->GetProfileAttributesStorage()
            .GetProfileAttributesWithPath(path)) {
-    std::move(done).Run(nullptr);
-    return;
+    return nullptr;
   }
-  // Runs |done| either way (with null if it can't load).
-  profile_manager->LoadProfileByPath(path, /*incognito=*/false,
-                                     std::move(done));
+  // Loads it now if it isn't loaded: a window made for this profile needs it
+  // at once, as Chrome's startup profile (ProfileManager::GetProfile()).
+  Profile* profile = profile_manager->GetProfileByPath(path);
+  if (!profile) {
+    profile = profile_manager->GetProfile(path);
+  }
+  return profile ? profile->GetJavaObject() : nullptr;
 }
 
 static std::string JNI_ProfilesBridge_GetProfileDir(JNIEnv* env,

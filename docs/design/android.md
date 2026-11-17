@@ -210,8 +210,7 @@ It costs:
     and the profile creator writes the directory's file at once. Tried on a
     Pixel 8a with a three-profile chain: each profile's spaces sync in its
     own account, and tapping another profile's space opens it in that
-    profile's window. Known: going back to the first profile opens a new
-    window rather than bringing the first one forward.
+    profile's window.
 - **Profiles, phase 2: a window per profile.** Chrome on Android gives a
   window one regular profile (`ActivityProfileProvider`:
   `getLastUsedRegularProfile()`) and two tab models, so a window shows one
@@ -220,15 +219,23 @@ It costs:
   - `ChromeTabbedActivity.createProfileProvider()` asks
     `CompassShellHook.createProfileProvider()` first (patch); the window
     has its ID by then. `WindowProfiles` keeps each window's profile (its
-    directory's name, by window ID, in app preferences; none is Chrome's
-    own) and, once Chrome's provider is ready, loads that profile
-    (`ProfilesBridge`: `ProfileManager::LoadProfileByPath()`, only an
-    existing profile in the user data directory) and provides it, with its
-    primary OTR profile for incognito. A profile that's gone gives the
-    window back to Chrome's.
-  - Tapping another profile's space (`Spaces.onSpaceClicked()`) sends
-    `ACTION_OPEN_SPACE` with the profile's directory to a window of that
-    profile (a shown one, else one closed with its tabs, through
+    directory's name, by window ID, in app preferences) and provides it,
+    with its primary OTR profile for incognito, as soon as the profile
+    manager is ready (`ProfileManager.Observer`, as
+    `ActivityProfileProvider`; a supplier's callbacks are posted, and a
+    window restored at launch asks for its profile before they'd run). A
+    window made for a profile, or relaunched for it, loads it then and
+    there (`ProfilesBridge.loadProfileSync()`: `ProfileManager::GetProfile()`,
+    only an existing profile in the user data directory); any other window
+    takes the last used profile and keeps it (Chrome's own provider follows
+    the last used profile, which another profile's window changes). A
+    profile that's gone gives the window the last used one.
+  - Tapping another profile's space (`Spaces.onSpaceClicked()`) shows it
+    in a window of that profile: a running one comes forward
+    (`AppTask.moveToFront()`) and shows the space itself
+    (`CompassBar.handleIntent()`, since Chrome makes a new task for a
+    window it didn't start), else `ACTION_OPEN_SPACE` with the profile's
+    directory goes to one closed with its tabs (through
     `MultiWindowUtils.launchIntentInMaybeClosedWindow()`), or opens a new
     window for it as Chrome's own new windows, without animation. The
     window left behind leaves Recents (`AppTask.setExcludeFromRecents()`)
@@ -238,7 +245,20 @@ It costs:
     follow. Chrome's own code that reads `getLastUsedRegularProfile()`
     (about 90 files: downloads, notifications, some settings) still acts
     on that profile; `PasswordSaveActivity` (saves from other apps) too.
-  - Still to come (phase 3): Move to Profile and Settings › Profiles.
+- **Profiles, phase 3.** A space's menu has "Move to <profile>" for each
+  other profile of the chain (not for the window's last space), after a
+  confirmation that its tabs leave their sites' sign-ins behind.
+  `SpacesBridge.moveSpaceToProfile()` is the desktop's
+  `MoveSpaceToProfile()` (spaces.md, "Assigning a profile"): a space of
+  the target profile takes its ID, name, icon, theme, archive delay,
+  entries and archive, and the old one goes. Open tabs can't change
+  profile, so the window closes them (`SpacesAndroid::ReleaseTabsOf()`
+  hands them back first, so the entries stay) and shows the space in the
+  target profile's window. Settings has a Profiles section when the chain
+  has more than one: each profile's name, its spaces, and which one this
+  window shows. Tried on the Pixel 8a: switching between profiles keeps
+  two windows, a cold start with both restored works, and a space moved
+  to another profile shows up there.
 - **Claude (C8).** The desktop's Claude client, key storage and page
   reader (`//compass/browser/claude`, without Claude Code) build for
   Android. `ClaudeBridge` runs a chat about the page on screen: each

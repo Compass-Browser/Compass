@@ -74,6 +74,7 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         mState.setPage(CompassSettingsUi.Page.MAIN);
         loadSearchEngines();
         mState.setSyncSummary(mBar.syncSummary());
+        mState.setProfiles(mBar.profileRows());
         mState.setOnLaunch(OnLaunch.get());
         mView.setVisibility(View.VISIBLE);
         mView.bringToFront();

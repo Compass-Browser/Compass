@@ -174,6 +174,10 @@ class SpacesAndroid : public base::SupportsUserData::Data,
 
   // The tab |node_id| is open in, or -1.
   int TabFor(const base::Uuid& node_id) const;
+  // The open tabs of |space|'s entries, which forget them: a space moving to
+  // another profile (SpacesBridge::MoveSpaceToProfile()) keeps its entries,
+  // and its tabs, which can't change profile, close without archiving them.
+  std::vector<int> ReleaseTabsOf(const SpaceModel& space);
   SidebarNode* FindNode(const base::Uuid& id);
 
   // SpaceList::Observer:

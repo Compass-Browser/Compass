@@ -13,6 +13,7 @@ import android.content.SharedPreferences;
 import android.provider.Browser;
 
 import it.cipi1965.compass.extras.CompassIntents;
+import it.cipi1965.compass.shell.CompassBar;
 
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.IntentUtils;
@@ -24,6 +25,7 @@ import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 
@@ -49,40 +51,56 @@ public final class WindowProfiles {
 
     private WindowProfiles() {}
 
-    /** The profile window |windowId| shows, or null for Chrome's own. */
-    public static @Nullable OneshotSupplier<ProfileProvider> createProvider(
-            Activity activity, int windowId, OneshotSupplier<ProfileProvider> chromes) {
+    /**
+     * The profile window |windowId| shows: the one it was made or relaunched for, else the one
+     * Chrome gives it first, kept from then on (Chrome's provider follows the last used profile,
+     * which another profile's window changes).
+     */
+    public static OneshotSupplier<ProfileProvider> createProvider(Activity activity, int windowId) {
         observeWindows();
         SharedPreferences prefs = prefs(activity);
         Intent intent = activity.getIntent();
         String dir = intent != null ? IntentUtils.safeGetStringExtra(intent, EXTRA_PROFILE_DIR) : null;
-        if (dir != null) {
-            prefs.edit().putString(key(windowId), dir).apply();
-        } else {
-            dir = prefs.getString(key(windowId), null);
-        }
-        if (dir == null || dir.isEmpty()) return null;
-        final String wanted = dir;
+        if (dir == null) dir = prefs.getString(key(windowId), null);
+        final @Nullable String wanted = dir == null || dir.isEmpty() ? null : dir;
         OneshotSupplierImpl<ProfileProvider> provider = new OneshotSupplierImpl<>();
-        chromes.onAvailable(
-                chrome -> {
-                    if (wanted.equals(ProfilesBridge.profileDir(chrome.getOriginalProfile()))) {
-                        provider.set(chrome);
-                        return;
-                    }
-                    ProfilesBridge.loadProfile(
-                            wanted,
-                            profile -> {
-                                if (profile == null) {
-                                    // Gone (deleted on this device): the window is Chrome's again.
-                                    prefs.edit().remove(key(windowId)).apply();
-                                    provider.set(chrome);
-                                } else {
-                                    provider.set(new BoundProvider(profile));
-                                }
-                            });
-                });
+        // Bound as soon as there are profiles, as Chrome's own provider (ActivityProfileProvider):
+        // Chrome asks for the window's profile right after, and a supplier's callbacks are posted.
+        if (ProfileManager.isInitialized()) {
+            bind(provider, wanted, prefs, windowId);
+        } else {
+            ProfileManager.addObserver(
+                    new ProfileManager.Observer() {
+                        @Override
+                        public void onProfileAdded(Profile profile) {
+                            ProfileManager.removeObserver(this);
+                            bind(provider, wanted, prefs, windowId);
+                        }
+
+                        @Override
+                        public void onProfileDestroyed(Profile profile) {}
+                    });
+        }
         return provider;
+    }
+
+    private static void bind(
+            OneshotSupplierImpl<ProfileProvider> provider,
+            @Nullable String wanted,
+            SharedPreferences prefs,
+            int windowId) {
+        if (provider.get() != null) return;
+        Profile chromes = ProfileManager.getLastUsedRegularProfile();
+        String chromesDir = ProfilesBridge.profileDir(chromes);
+        Profile profile = chromes;
+        if (wanted != null && !wanted.equals(chromesDir)) {
+            // It blocks: Chrome expects the window's profile at once.
+            Profile loaded = ProfilesBridge.loadProfileSync(wanted);
+            // Null: gone (deleted on this device), and the window is Chrome's again.
+            if (loaded != null) profile = loaded;
+        }
+        prefs.edit().putString(key(windowId), ProfilesBridge.profileDir(profile)).apply();
+        provider.set(new BoundProvider(profile));
     }
 
     /**
@@ -93,6 +111,17 @@ public final class WindowProfiles {
         Intent intent = new Intent(CompassIntents.ACTION_OPEN_SPACE);
         intent.putExtra(CompassIntents.EXTRA_SPACE_ID, spaceId);
         intent.putExtra(EXTRA_PROFILE_DIR, dir);
+        // A window of that profile that's running comes forward and shows the
+        // space itself: Chrome's launchIntentInMaybeClosedWindow() makes a new
+        // task for a window it didn't start (the launcher's first one).
+        ChromeTabbedActivity running = findRunningWindow(from, dir);
+        if (running != null) {
+            moveToFront(running);
+            CompassBar bar = CompassBar.forActivity(running);
+            if (bar != null) bar.handleIntent(intent);
+            setInRecents(from, false);
+            return;
+        }
         int windowId = findWindow(from, dir);
         Context context = from.getApplicationContext();
         if (windowId != TabWindowManager.INVALID_WINDOW_ID) {
@@ -112,14 +141,20 @@ public final class WindowProfiles {
         setInRecents(from, false);
     }
 
-    /** A window of the profile in |dir|: a shown one first, then one closed with its tabs. */
-    private static int findWindow(ChromeTabbedActivity from, String dir) {
-        int fallback = TabWindowManager.INVALID_WINDOW_ID;
+    /** A running window of the profile in |dir|, other than |from|. */
+    private static @Nullable ChromeTabbedActivity findRunningWindow(
+            ChromeTabbedActivity from, String dir) {
         for (Activity activity : ApplicationStatus.getRunningActivities()) {
             if (!(activity instanceof ChromeTabbedActivity window) || window == from) continue;
-            String shown = windowDir(window);
-            if (dir.equals(shown)) return window.getWindowId();
+            if (window.isFinishing() || window.isDestroyed()) continue;
+            if (dir.equals(windowDir(window))) return window;
         }
+        return null;
+    }
+
+    /** A closed window of the profile in |dir| that Chrome can relaunch with its tabs. */
+    private static int findWindow(ChromeTabbedActivity from, String dir) {
+        int fallback = TabWindowManager.INVALID_WINDOW_ID;
         for (Map.Entry<String, ?> entry : prefs(from).getAll().entrySet()) {
             if (dir.equals(entry.getValue()) && entry.getKey().startsWith("w")) {
                 try {
@@ -150,6 +185,24 @@ public final class WindowProfiles {
                         setInRecents(activity, true);
                     }
                 });
+    }
+
+    // Brings |activity|'s task to the front, as switching to it in Recents.
+    private static void moveToFront(Activity activity) {
+        ActivityManager manager =
+                (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
+        if (manager == null) return;
+        int taskId = activity.getTaskId();
+        for (ActivityManager.AppTask task : manager.getAppTasks()) {
+            try {
+                if (task.getTaskInfo().taskId == taskId) {
+                    task.moveToFront();
+                    return;
+                }
+            } catch (IllegalArgumentException e) {
+                // The task went meanwhile.
+            }
+        }
     }
 
     private static void setInRecents(Activity activity, boolean shown) {

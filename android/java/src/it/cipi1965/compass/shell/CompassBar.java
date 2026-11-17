@@ -436,6 +436,11 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         return mState.getSpaceTint();
     }
 
+    /** The chain's profiles and their spaces (Settings › Profiles). */
+    java.util.List<CompassSettingsUi.ProfileRow> profileRows() {
+        return mSpaces != null ? mSpaces.profileRows() : java.util.Collections.emptyList();
+    }
+
     /** The window's space's whole theme. */
     SpaceTheme spaceTheme() {
         return mSpaceTheme;

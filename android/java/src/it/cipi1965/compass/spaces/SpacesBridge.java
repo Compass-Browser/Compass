@@ -86,6 +86,15 @@ public class SpacesBridge {
     }
 
     /**
+     * Moves a space to the profile in |profileDir| (its directory's name), with its entries;
+     * returns the space's open tabs, which can't change profile and should close (without undo).
+     * Nothing for the window's last space.
+     */
+    public int[] moveSpaceToProfile(String spaceId, String profileDir) {
+        return SpacesBridgeJni.get().moveSpaceToProfile(mNativeSpacesBridge, spaceId, profileDir);
+    }
+
+    /**
      * Sets a space's theme: |colors| the color then the gradient ("#rrggbb", comma-separated,
      * empty for grey), intensity and grain 0 to 1, |appearance| 0 automatic, 1 light, 2 dark.
      */
@@ -234,6 +243,12 @@ public class SpacesBridge {
                 int appearance);
 
         void removeSpace(long nativeSpacesBridge, @JniType("std::string") String spaceId);
+
+        @JniType("std::vector<int32_t>")
+        int[] moveSpaceToProfile(
+                long nativeSpacesBridge,
+                @JniType("std::string") String spaceId,
+                @JniType("std::string") String profileDir);
 
         void pin(long nativeSpacesBridge, int tabId, boolean favorite);
 

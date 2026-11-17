@@ -36,7 +36,7 @@ public class CompassShellHookImpl implements CompassShellHook {
     @Override
     public @Nullable OneshotSupplier<ProfileProvider> createProfileProvider(
             Activity activity, int windowId, OneshotSupplier<ProfileProvider> chromes) {
-        return WindowProfiles.createProvider(activity, windowId, chromes);
+        return WindowProfiles.createProvider(activity, windowId);
     }
 
     @Override

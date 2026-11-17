@@ -8,7 +8,6 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
-import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -22,9 +21,13 @@ import org.chromium.chrome.browser.profiles.Profile;
 public final class ProfilesBridge {
     private ProfilesBridge() {}
 
-    /** Loads the profile in |dir| (the directory's name), or gives null if it can't. */
-    public static void loadProfile(String dir, Callback<@Nullable Profile> callback) {
-        ProfilesBridgeJni.get().loadProfile(dir, callback);
+    /**
+     * The profile in |dir| (its directory's name), loading it now if it isn't loaded (it blocks):
+     * for a window of it, which Chrome expects its profile for at once. Null if there's no such
+     * profile.
+     */
+    public static @Nullable Profile loadProfileSync(String dir) {
+        return ProfilesBridgeJni.get().loadProfileSync(dir);
     }
 
     /** The name of |profile|'s directory ("Default" for the first one). */
@@ -34,9 +37,9 @@ public final class ProfilesBridge {
 
     @NativeMethods
     interface Natives {
-        void loadProfile(@JniType("std::string") String dir, Callback<@Nullable Profile> callback);
-
         @JniType("std::string")
         String getProfileDir(@JniType("Profile*") Profile profile);
+
+        @Nullable Profile loadProfileSync(@JniType("std::string") String dir);
     }
 }

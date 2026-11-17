@@ -240,6 +240,9 @@ object SidebarUi {
 
         fun onRemoveSpace(spaceId: String)
 
+        /** Moves a space to another profile (its directory's name) with its entries. */
+        fun onMoveSpaceToProfile(spaceId: String, profileDir: String)
+
         fun onNewTab()
 
         fun onNewIncognitoTab()
@@ -513,6 +516,8 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
     var renaming by remember { mutableStateOf(false) }
     var theming by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
+    // The profile (name, directory) the space is about to move to, asked first.
+    var movingTo by remember { mutableStateOf<Pair<String, String>?>(null) }
     var archive by remember { mutableStateOf(false) }
     var archiveAfter by remember { mutableStateOf(false) }
     Row(
@@ -557,6 +562,19 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
                     menu = false
                     archiveAfter = true
                 }
+                // Move to Profile (docs/design/android.md, "Profiles"): the chain's other
+                // profiles; not the window's last space.
+                val others = state.allSpaces.filter { !it.own && it.profileDir.isNotEmpty() }
+                    .map { it.profile to it.profileDir }.distinct()
+                if (state.spaces.size > 1 && others.isNotEmpty()) {
+                    HorizontalDivider()
+                    for ((name, dir) in others) {
+                        MenuItem("Move to ${name.ifEmpty { "Profile" }}", R.drawable.compass_sym_stacks) {
+                            menu = false
+                            movingTo = name to dir
+                        }
+                    }
+                }
                 if (state.spaces.size > 1) {
                     HorizontalDivider()
                     MenuItem("Delete Space", R.drawable.compass_sym_delete, destructive = true) {
@@ -586,6 +604,22 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
             listener.onSetArchiveAfter(it)
             archiveAfter = false
         }) { archiveAfter = false }
+    }
+    movingTo?.let { (name, dir) ->
+        AlertDialog(
+            onDismissRequest = { movingTo = null },
+            title = { Text("Move “${space.name}” to ${name.ifEmpty { "this profile" }}?") },
+            text = {
+                Text("Its tabs will be signed out of sites, because each profile keeps its own cookies.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    movingTo = null
+                    listener.onMoveSpaceToProfile(space.id, dir)
+                }) { Text("Move") }
+            },
+            dismissButton = { TextButton(onClick = { movingTo = null }) { Text("Cancel") } },
+        )
     }
     if (deleting) {
         AlertDialog(

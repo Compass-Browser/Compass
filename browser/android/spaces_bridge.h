@@ -55,6 +55,15 @@ class SpacesBridge : public SpacesAndroid::Observer {
                      double grain,
                      int32_t appearance);
   void RemoveSpace(JNIEnv* env, const std::string& space_id);
+  // Moves |space_id| to the profile in |profile_dir|, as the desktop's
+  // MoveSpaceToProfile() (docs/design/spaces.md, "Assigning a profile"): a
+  // space of that profile takes its place with its ID, theme, entries and
+  // archive. Returns the space's open tabs, which can't change profile, for
+  // the window to close; its entries stay. Nothing for the window's last
+  // space, or a profile that isn't loaded.
+  std::vector<int32_t> MoveSpaceToProfile(JNIEnv* env,
+                                          const std::string& space_id,
+                                          const std::string& profile_dir);
   void Pin(JNIEnv* env, int32_t tab_id, bool favorite);
   // |section|: "pinned", "today" or "favorites" (SpacesAndroid::MoveNode()).
   void MoveNode(JNIEnv* env,

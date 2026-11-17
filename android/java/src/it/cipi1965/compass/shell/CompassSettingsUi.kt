@@ -145,8 +145,18 @@ object CompassSettingsUi {
         fun onDismiss()
     }
 
+    /** A profile of the sync chain (Settings › Profiles): its name and how many spaces it has. */
+    class ProfileRow(
+        @JvmField val name: String,
+        @JvmField val spaces: Int,
+        /** The profile this window shows. */
+        @JvmField val current: Boolean,
+    )
+
     class State {
         var open by mutableStateOf(false)
+        /** The chain's profiles, when there's more than one (docs/design/android.md, "Profiles"). */
+        var profiles by mutableStateOf<List<ProfileRow>>(emptyList())
         var version by mutableStateOf("")
         /** Sync's line under "Sync": on, off, last synced. */
         var syncSummary by mutableStateOf("")
@@ -239,6 +249,22 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                         open(CompassSettingsUi.Row.SYNC)
                     }) {
                         MenuIcon(R.drawable.compass_sym_sync)
+                    }
+                }
+                // Each profile of the chain and its spaces, as iOS's Settings › Profiles.
+                if (state.profiles.size > 1) {
+                    CardSection("Profiles") {
+                        state.profiles.forEachIndexed { i, profile ->
+                            val spaces = if (profile.spaces == 1) "1 space" else "${profile.spaces} spaces"
+                            CardRow(
+                                profile.name.ifEmpty { "Profile" },
+                                if (profile.current) "$spaces · This window" else spaces,
+                                first = i == 0,
+                                onClick = {},
+                            ) {
+                                MenuIcon(R.drawable.compass_sym_account_circle)
+                            }
+                        }
                     }
                 }
                 CardSection("Browsing") {

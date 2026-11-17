@@ -4,13 +4,17 @@
 
 #include "compass/browser/android/spaces_bridge.h"
 
+#include "base/files/file_path.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/uuid.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/space_directory.h"
 #include "url/gurl.h"
 
 // Must come after the class declaration.
@@ -169,6 +173,73 @@ void SpacesBridge::RemoveSpace(JNIEnv* env, const std::string& space_id) {
   if (space && list.spaces().size() > 1) {
     list.RemoveSpace(*space);
   }
+}
+
+std::vector<int32_t> SpacesBridge::MoveSpaceToProfile(
+    JNIEnv* env,
+    const std::string& space_id,
+    const std::string& profile_dir) {
+  ProfileManager* profile_manager =
+      g_browser_process ? g_browser_process->profile_manager() : nullptr;
+  SpaceDirectory* directory = SpaceDirectory::Get();
+  const base::FilePath name = base::FilePath::FromASCII(profile_dir);
+  if (!profile_manager || !directory || profile_dir.empty() ||
+      name.BaseName() != name || name.ReferencesParent()) {
+    return {};
+  }
+  Profile* to = profile_manager->GetProfileByPath(
+      profile_manager->user_data_dir().Append(name));
+  SpaceList& source_list = spaces_->list();
+  SpaceModel* space =
+      source_list.FindSpace(base::Uuid::ParseLowercase(space_id));
+  if (!to || !SpaceDirectory::IsListable(to) || !space ||
+      source_list.spaces().size() <= 1) {
+    return {};
+  }
+  SpacesAndroid* target = SpacesAndroid::Get(to);
+  if (target == spaces_.get() || !target->loaded()) {
+    return {};
+  }
+  directory->List(to);
+
+  // 1. Its copy in |to|: the same ID, so sync sees the same space leave one
+  // profile's account and come into the other's (docs/design/sync.md,
+  // "Profiles").
+  SpaceList& target_list = target->list();
+  const bool same_id = !target_list.FindSpace(space->id());
+  SpaceModel& moved = *target_list.AddSpace(
+      target_list.spaces().size(), space->name(),
+      same_id ? std::optional<base::Uuid>(space->id()) : std::nullopt);
+  moved.SetColor(space->color());
+  moved.SetGradient(space->gradient());
+  moved.SetIntensity(space->intensity());
+  moved.SetGrain(space->grain());
+  moved.SetAppearance(space->appearance());
+  moved.SetIcon(space->icon());
+  moved.SetArchiveAfter(space->archive_after());
+  moved.SetSynced(space->synced());
+  for (const ArchivedEntry& entry : space->archive()) {
+    moved.AddArchived(entry);
+  }
+  if (!same_id) {
+    directory->PlaceAfter(moved, *space);
+  }
+
+  // 2. Its tabs can't change profile: they forget their entries, which stay,
+  // and the window closes them.
+  std::vector<int> tabs = spaces_->ReleaseTabsOf(*space);
+
+  // 3. The entries move: the same nodes, as between spaces of a profile.
+  for (auto [from_root, to_root] :
+       {std::pair(space->pinned_root(), moved.pinned_root()),
+        std::pair(space->today_root(), moved.today_root())}) {
+    while (!from_root->children().empty()) {
+      space->MoveToSpace(from_root->children().front().get(), moved, to_root,
+                         to_root->children().size());
+    }
+  }
+  source_list.RemoveSpace(*space);
+  return std::vector<int32_t>(tabs.begin(), tabs.end());
 }
 
 void SpacesBridge::Pin(JNIEnv* env, int32_t tab_id, bool favorite) {
