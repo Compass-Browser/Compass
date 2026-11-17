@@ -26,14 +26,14 @@
 <body>
 <main>
 <h1>Compass Browser Privacy Policy</h1>
-<p class="meta">Effective 1 November 2026</p>
+<p class="meta">Effective 17 November 2026</p>
 
 <div class="summary">
-<p><strong>In short:</strong> Compass Browser has no ads, no analytics and no tracking. What you browse stays on your iPhone or iPad. If you turn on sync, your data is encrypted on your devices before it leaves them, and the sync server can't read it.</p>
+<p><strong>In short:</strong> Compass Browser has no ads, no analytics and no tracking. What you browse stays on your iPhone, iPad or Android device. If you turn on sync, your data is encrypted on your devices before it leaves them, and the sync server can't read it.</p>
 </div>
 
 <h2>Who this covers</h2>
-<p>This policy covers the Compass Browser app for iPhone and iPad ("the app"), its password AutoFill extension, and the Compass sync service run by the developer of the app ("we").</p>
+<p>This policy covers the Compass Browser app for iPhone and iPad and its password AutoFill extension, the Compass Browser app for Android and its password autofill service (together, "the app"), and the Compass sync service run by the developer of the app ("we"). The sections below describe the iPhone and iPad app; <a href="#android">Compass for Android</a> says where the Android app differs.</p>
 
 <h2>What stays on your iPhone or iPad</h2>
 <p>The app stores these only on your device:</p>
@@ -80,8 +80,22 @@
   <li><strong>Face ID or Touch ID:</strong> only to unlock your saved passwords and your recovery code. The app never gets your face or fingerprint data; iOS handles it.</li>
 </ul>
 
+<h2 id="android">Compass for Android</h2>
+<p>The Android app follows the rest of this policy: no ads, analytics or tracking, no account with us, and end-to-end encrypted sync. It differs in these ways.</p>
+<ul>
+  <li><strong>On your device.</strong> Your spaces, tabs, history, cookies and site data, downloads and settings stay on your device, as above. Saved passwords are kept in the app's own password storage on the device.</li>
+  <li><strong>Sync.</strong> Sync works as described above, and also syncs your settings, autofill data and the Claude memories below. A device entry holds the device name as Android reports it, which can be a name you gave your phone, its model, the app's version and when it last synced. To stop, leave sync in the app's settings; when the last device of your sync chain leaves, its data is removed from the server.</li>
+  <li><strong>Sent tabs.</strong> To show tabs you send from your other devices, the app registers with Firebase Cloud Messaging (FCM), Google's push service, through Google Play services, and gives the sync server the token FCM issues. The server sends a wake-up through FCM that says only that a tab is waiting; the tab itself comes by sync, encrypted. Leaving sync removes the token from the server.</li>
+  <li><strong>Passwords in other apps.</strong> If you choose Compass as Android's autofill service, it offers your saved passwords in other apps and can save logins you enter there. This happens on your device; the passwords sync only as described above.</li>
+  <li><strong>Claude (optional).</strong> If you add your own Anthropic API key, or an endpoint you choose, and ask Claude something, the app sends your question, the text of the page you're on and the results of what Claude does in the page directly to Anthropic or that endpoint, under their terms. It never goes through us. The key stays encrypted on your device. Facts Claude remembers about you (which you can see and delete, or turn off) are kept on your device and sync end-to-end encrypted.</li>
+  <li><strong>Google services in the browser.</strong> Like other Chromium-based browsers, the app contacts Google to update and install extensions and the Chrome Web Store (sending the browser's version and your extensions' identifiers), to update browser components such as certificate revocation lists, for Safe Browsing (which checks shortened hashes of web addresses, not the addresses themselves), and to deliver websites' push notifications if you allow them. There's no Google sign-in in the app, and no usage statistics or crash reports are sent.</li>
+  <li><strong>Extensions</strong> you install from the Chrome Web Store run under their own privacy policies.</li>
+  <li><strong>Permissions.</strong> Location, camera, microphone and contacts are used only when a website asks and you allow it, or to scan a pairing code with the camera (processed on your device). Location is never used in the background. Notifications show downloads, media and sent tabs. Your fingerprint or face unlock (Android's biometric prompt) can lock Incognito tabs and saved passwords; the app never gets your biometric data.</li>
+  <li><strong>Crash reports.</strong> Crash dumps stay on your device. If you've allowed Android to share usage and diagnostics with Google, Google Play may show us crash and performance statistics for the app, which don't include your browsing.</li>
+</ul>
+
 <h2>Crash reports</h2>
-<p>If you've allowed it in iOS, Apple may share crash reports with us. They help us fix the app and don't include your browsing.</p>
+<p>If you've allowed it in iOS, Apple may share crash reports with us. They help us fix the app and don't include your browsing. For Android, see <a href="#android">Compass for Android</a>.</p>
 
 <h2>Children</h2>
 <p>The app isn't directed at children under 13, and we don't knowingly collect data from them.</p>
@@ -90,7 +104,7 @@
 <p>If this policy changes, we'll update it on this page and change the date at the top.</p>
 
 <h2>Contact</h2>
-<p>Questions about privacy: send feedback from the app through TestFlight (take a screenshot, then Share Beta Feedback).</p>
+<p>Questions about privacy: on iPhone or iPad, send feedback from the app through TestFlight (take a screenshot, then Share Beta Feedback). On Android, write to the contact email on Compass Browser's Google Play page; you can also ask us there to delete your sync chain's data from our server.</p>
 </main>
 </body>
 </html>
