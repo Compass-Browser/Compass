@@ -79,6 +79,7 @@ public class CommandBar
         CompassBar bar = CompassBar.forActivity(mActivity);
         mState.setSpaceName(bar != null ? bar.spaceName() : "");
         mState.setTint(bar != null ? bar.spaceTint() : "");
+        mState.setTheme(bar != null ? bar.spaceTheme() : SpaceTheme.GREY);
         mState.setTypedIsAddress(pageUrl);
         updateEntries("");
         if (!incognito) {

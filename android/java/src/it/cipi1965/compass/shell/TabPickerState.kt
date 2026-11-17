@@ -26,8 +26,8 @@ class TabPickerState {
     var incognito by mutableStateOf(false)
     /** Whether the window has incognito tabs to switch to (or is showing them). */
     var hasIncognito by mutableStateOf(false)
-    /** The space's tint behind the cards ("#rrggbb", or empty). */
-    var tint by mutableStateOf("")
+    /** The space's theme behind the cards. */
+    var theme by mutableStateOf(SpaceTheme.GREY)
     /** Card ID -> its page as it was last shown. */
     val thumbnails = mutableStateMapOf<Int, Bitmap>()
     /** The content area's width / height, for the cards' shape. */

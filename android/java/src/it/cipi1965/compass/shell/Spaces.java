@@ -630,8 +630,14 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     }
 
     @Override
-    public void onEditSpace(String spaceId, String name, String emoji, String tint) {
-        mBridge.editSpace(spaceId, name, emoji, tint);
+    public void onEditSpace(String spaceId, String name, String emoji) {
+        mBridge.editSpace(spaceId, name, emoji);
+    }
+
+    @Override
+    public void onSetSpaceTheme(String spaceId, SpaceTheme theme) {
+        mBridge.setSpaceTheme(
+                spaceId, theme.colorsCsv(), theme.intensity, theme.grain, theme.appearance.ordinal());
     }
 
     @Override

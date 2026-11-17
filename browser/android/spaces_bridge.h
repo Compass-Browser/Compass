@@ -39,11 +39,21 @@ class SpacesBridge : public SpacesAndroid::Observer {
   void ShowSpace(JNIEnv* env, const std::string& space_id);
   void SetActiveSpace(JNIEnv* env, const std::string& space_id);
   std::string AddSpace(JNIEnv* env, const std::u16string& name);
+  // Its name and emoji (empty: none; a symbol icon stays unless an emoji
+  // replaces it).
   void EditSpace(JNIEnv* env,
                  const std::string& space_id,
                  const std::u16string& name,
-                 const std::string& emoji,
-                 const std::string& tint);
+                 const std::string& emoji);
+  // Its theme (docs/design/spaces.md, "Theme editor"): |colors| the color
+  // then the gradient, "#rrggbb" separated by commas, empty for grey;
+  // |appearance| 0 automatic, 1 light, 2 dark.
+  void SetSpaceTheme(JNIEnv* env,
+                     const std::string& space_id,
+                     const std::string& colors,
+                     double intensity,
+                     double grain,
+                     int32_t appearance);
   void RemoveSpace(JNIEnv* env, const std::string& space_id);
   void Pin(JNIEnv* env, int32_t tab_id, bool favorite);
   // |section|: "pinned", "today" or "favorites" (SpacesAndroid::MoveNode()).

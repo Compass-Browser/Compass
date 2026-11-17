@@ -70,6 +70,8 @@ class CommandBarState {
     var spaceName by mutableStateOf("")
     /** The space's tint ("#rrggbb", or empty). */
     var tint by mutableStateOf("")
+    /** The space's whole theme, behind the sheet. */
+    var theme by mutableStateOf(SpaceTheme.GREY)
     /** The typed text reads as an address, not a search. */
     var typedIsAddress by mutableStateOf(false)
 }

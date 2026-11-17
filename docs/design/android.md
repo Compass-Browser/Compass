@@ -292,7 +292,36 @@ It costs:
   buttons, menus with leading icons, a snackbar for undo, a FAB), with the
   space's tint behind the sidebar, the picker and the start page
   (`spaceTint`) and site icons from Chrome's favicon database (`Favicons`,
-  `SiteIcon`).
+  `SiteIcon`). `CompassTheme` provides `onSurface` as the content color:
+  the shell draws its own backgrounds rather than sitting in a `Surface`,
+  where text without a color of its own would be black.
+  - **Space themes** (spaces.md, "Gradients", "Intensity and grain",
+    "Theme editor"; the iOS app's `SpaceTheme`, ported in `SpaceTheme.kt`):
+    the snapshot carries each space's `colors` (the color, then the
+    gradient), `intensity`, `grain` and `appearance`
+    (`SpacesAndroid::Snapshot()`), and `SpacesBridge::SetSpaceTheme()` sets
+    them all. `SpaceThemed()` puts the tint on the backdrop of the theme's
+    mode (automatic follows the system unless the tint decides) and picks
+    the text's mode by contrast, as the desktop's `GetTintColorMode()` and
+    `GetTintTextMode()`; `spaceTint()` paints the three stops from the top
+    left to the bottom right at the intensity's opacity, with the desktop's
+    grain tile over them (overlay), fading over 280 ms. The sidebar (sheet
+    and pane), the start page, the tab picker and the command bar use them.
+    Above the default intensity, Material's `primary`, `onSurfaceVariant`
+    and outlines move toward the text's color in proportion (all the way at
+    full opacity): Material made them for its own surfaces, and on a strong
+    tint secondary text fell to about 2:1.
+  - **The theme editor** (`ThemeEditorUi.kt`, from the space's ⋯ menu,
+    after iOS's `ThemeEditor`): a full-height sheet in the theme being
+    edited, with the mode (automatic, light, dark), the pad (hue round the
+    center, saturation out; the big dot is the color and takes the
+    gradient along), − and + for one to three colors, the palette and a
+    lightness slider (with the pad, any color: Android has no system color
+    picker), the gradients (`SpaceTheme.PRESETS`), intensity and grain, and
+    the space's emoji. What changes goes to the space at most every 50 ms
+    and when the sheet closes. Renaming keeps a symbol icon picked on
+    another device (`SpacesBridge::EditSpace()`); symbols themselves don't
+    show on Android yet.
   - Icons are Material Symbols Rounded, weight 500, in place of SF Symbols
     (`android/res_symbols`, `android/material_symbols.md`).
   - **The bar** (`CompassBarUi.kt`) is the iOS app's: back, forward, the
@@ -364,7 +393,7 @@ It costs:
 | Floating bottom bar, collapses on scroll, swipe between tabs | A Compose bottom bar on Chromium's browser-controls offsets; a horizontal swipe on the bar switches tabs |
 | Tab picker, command bar | A Compose grid; an M3 search bar over Chromium's omnibox suggestions, history, spaces and "Tabs on <device>" |
 | Sidebar: spaces, favorites, pinned tree, Today, archive | A Compose drawer on phones and a permanent pane on tablets (window size classes), fed by the SpaceModel bridge |
-| Space themes and editor | A Compose editor; the theme drives the M3 color scheme and Chrome's theme colors |
+| Space themes and editor | A Compose editor (`ThemeEditorUi.kt`) with the mode, pad, palette, gradients, intensity and grain; the theme tints the sidebar, the picker and the start page and picks their light or dark mode |
 | Undo closing, incognito lock | Chromium's TabModel undo, shown as a snackbar; the incognito profile behind a BiometricPrompt lock |
 | Passwords and the AutoFill extension | Chromium's password manager on the PASSWORDS sync type, plus its Android Autofill and Credential Manager integration for other apps |
 | History, sessions, devices, sent tabs | Chromium's own sync types against `server/`; sent tabs arrive by FCM |

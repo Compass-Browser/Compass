@@ -164,6 +164,25 @@ std::string SpacesAndroid::Snapshot(const base::Uuid& space_id) const {
                                 SkColorGetG(*color), SkColorGetB(*color));
     }
     dict.Set("tint", tint);
+    // The whole theme (docs/design/spaces.md, "Theme editor"): the color
+    // then the gradient, intensity, grain and mode.
+    base::ListValue colors;
+    if (!tint.empty()) {
+      colors.Append(tint);
+      for (const SpaceColor& stop : space->gradient()) {
+        if (std::optional<SkColor> c = stop.tint()) {
+          colors.Append(base::StringPrintf("#%02x%02x%02x", SkColorGetR(*c),
+                                           SkColorGetG(*c), SkColorGetB(*c)));
+        }
+      }
+    }
+    dict.Set("colors", std::move(colors));
+    dict.Set("intensity", space->intensity());
+    dict.Set("grain", space->grain());
+    dict.Set("appearance",
+             space->appearance() == SpaceAppearance::kLight  ? 1
+             : space->appearance() == SpaceAppearance::kDark ? 2
+                                                             : 0);
     dict.Set("emoji", space->icon().kind() == SpaceIcon::Kind::kEmoji
                           ? space->icon().value()
                           : std::string());

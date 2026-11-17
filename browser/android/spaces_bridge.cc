@@ -5,6 +5,7 @@
 #include "compass/browser/android/spaces_bridge.h"
 
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "base/uuid.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/sidebar/sidebar_node.h"
@@ -79,8 +80,7 @@ std::string SpacesBridge::AddSpace(JNIEnv* env, const std::u16string& name) {
 void SpacesBridge::EditSpace(JNIEnv* env,
                              const std::string& space_id,
                              const std::u16string& name,
-                             const std::string& emoji,
-                             const std::string& tint) {
+                             const std::string& emoji) {
   SpaceModel* space =
       spaces_->list().FindSpace(base::Uuid::ParseLowercase(space_id));
   if (!space) {
@@ -89,20 +89,77 @@ void SpacesBridge::EditSpace(JNIEnv* env,
   if (!name.empty() && name != space->name()) {
     space->SetName(name);
   }
-  std::optional<SpaceIcon> icon =
-      emoji.empty() ? SpaceIcon() : SpaceIcon::Emoji(emoji);
-  if (icon && *icon != space->icon()) {
+  // Android edits emoji only: an empty field clears an emoji, but leaves a
+  // symbol picked on another device.
+  const SpaceIcon& current = space->icon();
+  if (emoji.empty()) {
+    if (current.kind() == SpaceIcon::Kind::kEmoji) {
+      space->SetIcon(SpaceIcon());
+    }
+  } else if (std::optional<SpaceIcon> icon = SpaceIcon::Emoji(emoji);
+             icon && *icon != current) {
     space->SetIcon(*icon);
   }
-  SpaceColor color;
+}
+
+namespace {
+
+// "#rrggbb", or grey for anything else.
+SpaceColor ParseColor(std::string_view hex) {
   uint32_t rgb = 0;
-  if (tint.size() == 7 && tint[0] == '#' &&
-      base::HexStringToUInt(std::string_view(tint).substr(1), &rgb)) {
-    color = SpaceColor::FromRGB((rgb >> 16) & 0xff, (rgb >> 8) & 0xff,
-                                rgb & 0xff);
+  if (hex.size() == 7 && hex[0] == '#' &&
+      base::HexStringToUInt(hex.substr(1), &rgb)) {
+    return SpaceColor::FromRGB((rgb >> 16) & 0xff, (rgb >> 8) & 0xff,
+                               rgb & 0xff);
   }
+  return SpaceColor();
+}
+
+}  // namespace
+
+void SpacesBridge::SetSpaceTheme(JNIEnv* env,
+                                 const std::string& space_id,
+                                 const std::string& colors,
+                                 double intensity,
+                                 double grain,
+                                 int32_t appearance) {
+  SpaceModel* space =
+      spaces_->list().FindSpace(base::Uuid::ParseLowercase(space_id));
+  if (!space) {
+    return;
+  }
+  std::vector<SpaceColor> parsed;
+  for (std::string_view hex : base::SplitStringPiece(
+           colors, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
+    SpaceColor color = ParseColor(hex);
+    if (!color.is_grey() && parsed.size() < kMaxSpaceGradientColors) {
+      parsed.push_back(color);
+    }
+  }
+  SpaceColor color = parsed.empty() ? SpaceColor() : parsed.front();
+  std::vector<SpaceColor> gradient;
+  if (parsed.size() > 1) {
+    gradient.assign(parsed.begin() + 1, parsed.end());
+  }
+  // The color first: turning a space grey drops its gradient, and a
+  // gradient needs a color.
   if (color != space->color()) {
     space->SetColor(color);
+  }
+  if (gradient != space->gradient()) {
+    space->SetGradient(std::move(gradient));
+  }
+  if (intensity != space->intensity()) {
+    space->SetIntensity(intensity);
+  }
+  if (grain != space->grain()) {
+    space->SetGrain(grain);
+  }
+  SpaceAppearance mode = appearance == 1   ? SpaceAppearance::kLight
+                         : appearance == 2 ? SpaceAppearance::kDark
+                                           : SpaceAppearance::kAuto;
+  if (mode != space->appearance()) {
+    space->SetAppearance(mode);
   }
 }
 

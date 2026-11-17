@@ -74,7 +74,7 @@ object StartPageUi {
         view.setViewTreeLifecycleOwner(lifecycleOwner)
         view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
         view.setContent {
-            CompassTheme(dark = isSystemInDarkTheme()) { StartPage(state, listener) }
+            SpaceThemed(state.activeSpace?.theme) { StartPage(state, listener) }
         }
         return view
     }
@@ -88,9 +88,10 @@ private fun StartPage(state: SidebarState, listener: StartPageUi.Listener) {
         IncognitoPage(listener)
         return
     }
-    val background = MaterialTheme.colorScheme.surface
+    // The backdrop's surface (the tint's mode), for the tab's own background before it draws.
+    val background = (LocalTintBackdrop.current ?: MaterialTheme.colorScheme).surface
     SideEffect { listener.onBackgroundColor(background.toArgb()) }
-    Box(Modifier.fillMaxSize().spaceTint(state.activeSpace?.tint ?: "", background))
+    Box(Modifier.fillMaxSize().spaceTint(state.activeSpace?.theme) { it.surface })
 }
 
 /** An incognito tab with no page, as iOS's: dark, the glasses, what incognito keeps. */

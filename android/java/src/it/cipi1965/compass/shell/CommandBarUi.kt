@@ -98,7 +98,7 @@ object CommandBarUi {
         view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
         view.setViewTreeOnBackPressedDispatcherOwner(backOwner)
         view.setContent {
-            CompassTheme(dark = state.incognito || isSystemInDarkTheme()) {
+            SpaceThemed(if (state.incognito) null else state.theme, forceDark = state.incognito) {
                 if (state.open) CommandBar(state, listener)
             }
         }
@@ -112,7 +112,7 @@ private fun CommandBar(state: CommandBarState, listener: CommandBarUi.Listener) 
     // Material's full-screen search: the field at the top, the results under it.
     Column(
         Modifier.fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .spaceTint(if (state.incognito) null else state.theme) { it.surface }
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
             .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime))
     ) {

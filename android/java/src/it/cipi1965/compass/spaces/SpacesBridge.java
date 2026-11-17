@@ -80,9 +80,19 @@ public class SpacesBridge {
         return SpacesBridgeJni.get().addSpace(mNativeSpacesBridge, name);
     }
 
-    /** Edits a space: its name, its emoji (empty for none), its tint ("#rrggbb", empty: grey). */
-    public void editSpace(String spaceId, String name, String emoji, String tint) {
-        SpacesBridgeJni.get().editSpace(mNativeSpacesBridge, spaceId, name, emoji, tint);
+    /** Edits a space: its name and its emoji (empty for none; a symbol icon stays). */
+    public void editSpace(String spaceId, String name, String emoji) {
+        SpacesBridgeJni.get().editSpace(mNativeSpacesBridge, spaceId, name, emoji);
+    }
+
+    /**
+     * Sets a space's theme: |colors| the color then the gradient ("#rrggbb", comma-separated,
+     * empty for grey), intensity and grain 0 to 1, |appearance| 0 automatic, 1 light, 2 dark.
+     */
+    public void setSpaceTheme(
+            String spaceId, String colors, double intensity, double grain, int appearance) {
+        SpacesBridgeJni.get()
+                .setSpaceTheme(mNativeSpacesBridge, spaceId, colors, intensity, grain, appearance);
     }
 
     /** Removes a space (not the last one); the space after it becomes active. */
@@ -213,8 +223,15 @@ public class SpacesBridge {
                 long nativeSpacesBridge,
                 @JniType("std::string") String spaceId,
                 @JniType("std::u16string") String name,
-                @JniType("std::string") String emoji,
-                @JniType("std::string") String tint);
+                @JniType("std::string") String emoji);
+
+        void setSpaceTheme(
+                long nativeSpacesBridge,
+                @JniType("std::string") String spaceId,
+                @JniType("std::string") String colors,
+                double intensity,
+                double grain,
+                int appearance);
 
         void removeSpace(long nativeSpacesBridge, @JniType("std::string") String spaceId);
 

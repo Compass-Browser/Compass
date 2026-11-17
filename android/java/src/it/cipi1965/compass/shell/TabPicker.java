@@ -89,10 +89,10 @@ public class TabPicker implements TabPickerUi.Listener {
         stopObserving();
     }
 
-    /** Opens the picker on the window's current tabs (regular or incognito), over |tint|. */
-    public void show(String tint) {
+    /** Opens the picker on the window's current tabs (regular or incognito), over |theme|. */
+    public void show(SpaceTheme theme) {
         if (mState.getOpen()) return;
-        mState.setTint(tint);
+        mState.setTheme(theme);
         View content = mActivity.getCompositorViewHolderSupplier().get();
         if (content != null && content.getWidth() > 0 && content.getHeight() > 0) {
             mState.setAspect((float) content.getWidth() / content.getHeight());

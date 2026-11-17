@@ -107,7 +107,7 @@ object TabPickerUi {
         view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
         view.setViewTreeOnBackPressedDispatcherOwner(backOwner)
         view.setContent {
-            CompassTheme(dark = isSystemInDarkTheme() || state.incognito) {
+            SpaceThemed(if (state.incognito) null else state.theme, forceDark = state.incognito) {
                 if (state.open) TabPicker(state, listener)
             }
         }
@@ -123,7 +123,7 @@ private fun TabPicker(state: TabPickerState, listener: TabPickerUi.Listener) {
     // The space's tint, a little darker (TabPicker.swift).
     Box(
         Modifier.fillMaxSize()
-            .spaceTint(if (state.incognito) "" else state.tint, MaterialTheme.colorScheme.surface)
+            .spaceTint(if (state.incognito) null else state.theme) { it.surface }
             .background(Color.Black.copy(alpha = 0.18f))
             // A drag down off the cards closes the picker.
             .pointerInput(Unit) {

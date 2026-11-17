@@ -58,6 +58,9 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     // The floating capsule (54) and its margins.
     private static final int HEIGHT_DP = 62;
 
+    /** The window's space's theme, for the tab picker. */
+    private SpaceTheme mSpaceTheme = SpaceTheme.GREY;
+
     private final ChromeTabbedActivity mActivity;
     private final BottomControlsStacker mBottomControls;
     private final CompassBarState mState = new CompassBarState();
@@ -173,6 +176,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
                                                     ? ""
                                                     : space.name.substring(0, 1).toUpperCase());
                     mState.setSpaceTint(space == null ? "" : space.tint);
+                    mSpaceTheme = space == null ? SpaceTheme.GREY : space.theme;
                 });
 
         // Registers itself with the tab provider.
@@ -432,6 +436,11 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         return mState.getSpaceTint();
     }
 
+    /** The window's space's whole theme. */
+    SpaceTheme spaceTheme() {
+        return mSpaceTheme;
+    }
+
     java.util.List<ExtensionsState.Action> extensionActions() {
         return mExtensions != null ? mExtensions.actions() : java.util.Collections.emptyList();
     }
@@ -492,7 +501,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
 
     @Override
     public void showTabs() {
-        if (mTabPicker != null) mTabPicker.show(mState.getSpaceTint());
+        if (mTabPicker != null) mTabPicker.show(mSpaceTheme);
     }
 
     /** Chrome's own tab switcher (tab groups). */

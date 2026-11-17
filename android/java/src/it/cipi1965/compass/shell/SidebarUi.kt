@@ -230,7 +230,10 @@ object SidebarUi {
 
         fun onAddSpace(name: String)
 
-        fun onEditSpace(spaceId: String, name: String, emoji: String, tint: String)
+        fun onEditSpace(spaceId: String, name: String, emoji: String)
+
+        /** The theme editor: the space's whole theme, at most every 50 ms while it's edited. */
+        fun onSetSpaceTheme(spaceId: String, theme: SpaceTheme)
 
         fun onRemoveSpace(spaceId: String)
 
@@ -286,7 +289,7 @@ object SidebarUi {
         view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
         view.setViewTreeOnBackPressedDispatcherOwner(backOwner)
         view.setContent {
-            CompassTheme(dark = isSystemInDarkTheme()) {
+            SpaceThemed(state.activeSpace?.theme) {
                 Sidebar(state, listener)
             }
         }
@@ -306,10 +309,10 @@ object SidebarUi {
         view.setViewTreeLifecycleOwner(lifecycleOwner)
         view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
         view.setContent {
-            CompassTheme(dark = isSystemInDarkTheme()) {
+            SpaceThemed(state.activeSpace?.theme) {
                 Box(
                     Modifier.fillMaxSize()
-                        .spaceTint(state.activeSpace?.tint ?: "", MaterialTheme.colorScheme.surfaceContainerLow)
+                        .spaceTint(state.activeSpace?.theme) { it.surfaceContainerLow }
                         .windowInsetsPadding(WindowInsets.safeDrawing)
                 ) {
                     SidebarContent(state, listener, Modifier.padding(top = 8.dp))
@@ -331,7 +334,7 @@ private fun Sidebar(state: SidebarState, listener: SidebarUi.Listener) {
     CompassSheet(state.open, onDismiss = { listener.onDismiss() }, dragHandle = false, edgeToEdge = true) {
         Column(
             Modifier.fillMaxSize()
-                .spaceTint(state.activeSpace?.tint ?: "", MaterialTheme.colorScheme.surfaceContainerLow)
+                .spaceTint(state.activeSpace?.theme) { it.surfaceContainerLow }
                 // Full height: the sheet goes under the status bar, its content doesn't.
                 .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.navigationBars))
         ) {
@@ -552,16 +555,17 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
     }
     if (renaming) {
         RenameDialog(space.name, onDone = {
-            listener.onEditSpace(space.id, it, space.emoji, space.tint)
+            listener.onEditSpace(space.id, it, space.emoji)
             renaming = false
         }) { renaming = false }
     }
-    if (theming) {
-        ThemeDialog(space, onDone = { emoji, tint ->
-            listener.onEditSpace(space.id, space.name, emoji, tint)
-            theming = false
-        }) { theming = false }
-    }
+    ThemeEditor(
+        theming,
+        space,
+        onTheme = { listener.onSetSpaceTheme(space.id, it) },
+        onEmoji = { listener.onEditSpace(space.id, space.name, it) },
+        onDismiss = { theming = false },
+    )
     ArchiveSheet(archive, state, listener) { archive = false }
     if (archiveAfter) {
         ArchiveAfterDialog(state.archiveAfterHours, onPick = {
@@ -690,50 +694,6 @@ private fun RenameDialog(name: String, onDone: (String) -> Unit, onDismiss: () -
         title = { Text("Rename Space") },
         text = { @Suppress("DEPRECATION") OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true) },
         confirmButton = { TextButton(onClick = { onDone(text.trim().ifEmpty { name }) }) { Text("Done") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
-}
-
-// The palette of the desktop's theme editor (space_model.h): grey, then the tints.
-private val PALETTE =
-    listOf("", "#3b82f6", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#eab308", "#22c55e")
-
-/** The space's icon and color (the desktop's theme editor's palette). */
-@Composable
-private fun ThemeDialog(space: SidebarState.Space, onDone: (String, String) -> Unit, onDismiss: () -> Unit) {
-    var emoji by remember { mutableStateOf(space.emoji) }
-    var tint by remember { mutableStateOf(space.tint) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit Theme") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                @Suppress("DEPRECATION") OutlinedTextField(
-                    value = emoji,
-                    onValueChange = { emoji = it.take(8) },
-                    label = { Text("Emoji") },
-                    singleLine = true,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (color in PALETTE) {
-                        val swatch = CompassStyle.parse(color) ?: CompassStyle.greyAccent
-                        Box(
-                            Modifier.size(28.dp)
-                                .clip(CircleShape)
-                                .background(swatch)
-                                .border(
-                                    if (color == tint) 3.dp else 0.5.dp,
-                                    if (color == tint) MaterialTheme.colorScheme.onSurface
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                                    CircleShape,
-                                )
-                                .clickable { tint = color }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = { onDone(emoji.trim(), tint) }) { Text("Done") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

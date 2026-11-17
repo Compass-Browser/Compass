@@ -5,6 +5,20 @@
 package it.cipi1965.compass.shell
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ImageShader
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -96,14 +110,11 @@ object CompassStyle {
 /** Material You: the wallpaper's dynamic colors (Android 12+), else Material's baseline. */
 @Composable
 internal fun CompassTheme(dark: Boolean, content: @Composable () -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val colors =
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            if (dark) androidx.compose.material3.dynamicDarkColorScheme(context)
-            else androidx.compose.material3.dynamicLightColorScheme(context)
-        } else {
-            if (dark) darkColorScheme() else lightColorScheme()
-        }
+    CompassTheme(compassColors(dark), content)
+}
+
+@Composable
+internal fun CompassTheme(colors: ColorScheme, content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = colors) {
         // Compass's screens and bars draw their own backgrounds rather than sit in a Surface,
         // where LocalContentColor would stay black: text and icons without a color of their own
@@ -115,20 +126,88 @@ internal fun CompassTheme(dark: Boolean, content: @Composable () -> Unit) {
     }
 }
 
+/** The light or dark color scheme: the wallpaper's (Android 12+), else Material's baseline. */
+@Composable
+internal fun compassColors(dark: Boolean): ColorScheme {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        if (dark) androidx.compose.material3.dynamicDarkColorScheme(context)
+        else androidx.compose.material3.dynamicLightColorScheme(context)
+    } else {
+        if (dark) darkColorScheme() else lightColorScheme()
+    }
+}
+
+/** The scheme of the mode under a space's tint (its backdrop), as opposed to its text's. */
+internal val LocalTintBackdrop = staticCompositionLocalOf<ColorScheme?> { null }
+
 /**
- * The space's tint behind a sheet (Theme.swift, SpaceTint): the system background under the
- * space color's tint, from the top left to the bottom right, fading to half; grey has none.
+ * A space's chrome (Theme.swift, spaceAppearance()): its tint sits on the light or dark
+ * background of its mode (the theme editor's Mode; automatic follows the system unless the tint
+ * decides), and its text takes whichever mode contrasts best with the result, so a dark tint in
+ * light mode gets light text. Web pages keep the system's. |forceDark|: incognito.
  */
-fun Modifier.spaceTint(tint: String, background: Color, intensity: Float = 0.31f): Modifier {
-    val color = CompassStyle.parse(tint) ?: return this.background(background)
-    val tinted = CompassStyle.tint(color)
-    val alpha = (intensity * 1.1f).coerceAtMost(1f)
-    return this.background(background)
-        .background(
-            Brush.linearGradient(
-                listOf(tinted.copy(alpha = alpha), tinted.copy(alpha = alpha * 0.5f))
-            )
+@Composable
+internal fun SpaceThemed(theme: SpaceTheme?, forceDark: Boolean = false, content: @Composable () -> Unit) {
+    val system = isSystemInDarkTheme()
+    val base = forceDark || (theme?.dark ?: system)
+    val text = if (forceDark || theme == null) base else theme.darkText(base)
+    val backdrop = compassColors(base)
+    var colors = compassColors(text)
+    // Material's secondary text and outlines are made for its own surfaces: on a strong tint they
+    // fall to about 2:1 (Dusk at 90%). From the default intensity's opacity up, they move toward
+    // the text's color, all the way at full opacity; the default keeps Material's.
+    val strength = if (theme == null || theme.isGrey || forceDark) 0f
+        else ((theme.alpha - DEFAULT_TINT_ALPHA) / (1f - DEFAULT_TINT_ALPHA)).coerceIn(0f, 1f)
+    if (strength > 0f) {
+        colors = colors.copy(
+            // Section titles and text buttons ("Today", "Clear"): Material's primary is often the
+            // tint's own hue.
+            primary = lerp(colors.primary, colors.onSurface, strength * 0.8f),
+            onSurfaceVariant = lerp(colors.onSurfaceVariant, colors.onSurface, strength),
+            outline = lerp(colors.outline, colors.onSurface, strength * 0.6f),
+            outlineVariant = lerp(colors.outlineVariant, colors.onSurface, strength * 0.4f),
         )
+    }
+    CompassTheme(colors) {
+        CompositionLocalProvider(LocalTintBackdrop provides backdrop, content = content)
+    }
+}
+
+/** The tint's opacity at the default intensity. */
+private val DEFAULT_TINT_ALPHA = (SpaceTheme.DEFAULT_INTENSITY * SpaceTheme.MAX_OPACITY).toFloat()
+
+/**
+ * The space's tint (Theme.swift, SpaceTint; the desktop's SidebarTint): |background| from the
+ * backdrop's scheme, the theme's stops as one gradient from the top left corner to the bottom
+ * right as strong as its intensity, and its grain over it. Grey tints nothing. Changes fade over
+ * 280 ms, as the desktop's.
+ */
+@Composable
+fun Modifier.spaceTint(theme: SpaceTheme?, background: (ColorScheme) -> Color): Modifier {
+    val scheme = LocalTintBackdrop.current ?: MaterialTheme.colorScheme
+    val base by animateColorAsState(background(scheme), tween(280), label = "backdrop")
+    val stops = theme?.stops.orEmpty()
+    val alpha = theme?.alpha ?: 0f
+    val tinted = List(SpaceTheme.MAX_COLORS) { i ->
+        val c by animateColorAsState(
+            stops.getOrNull(i)?.tint?.color?.copy(alpha = alpha) ?: Color.Transparent,
+            tween(280),
+            label = "stop$i",
+        )
+        c
+    }
+    val grain by animateFloatAsState(
+        if (stops.isEmpty()) 0f else (theme?.grain?.toFloat() ?: 0f) * SpaceTheme.MAX_GRAIN,
+        tween(280),
+        label = "grain",
+    )
+    val grainBrush = remember { ShaderBrush(ImageShader(Grain.tile, TileMode.Repeated, TileMode.Repeated)) }
+    return this.drawBehind {
+        drawRect(base)
+        drawRect(Brush.linearGradient(tinted, start = Offset.Zero, end = Offset(size.width, size.height)))
+        if (grain > 0f) drawRect(grainBrush, alpha = grain, blendMode = BlendMode.Overlay)
+    }
 }
 
 /** A bar floating over the page: a tonal surface (surfaceContainer) with a soft shadow. */

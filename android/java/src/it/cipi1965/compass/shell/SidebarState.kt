@@ -21,6 +21,8 @@ class SidebarState {
         /** Its pinned tree's root, and that tree's folders (live ones aside), for Pin to Compass. */
         @JvmField val pinnedId: String = "",
         @JvmField val folders: List<Folder> = emptyList(),
+        /** Its whole theme: colors, gradient, intensity, grain, mode (SpaceTheme.kt). */
+        @JvmField val theme: SpaceTheme = SpaceTheme.GREY,
     )
 
     /** A folder of a space's pinned tree; |depth| 0 is in the root. */
@@ -110,6 +112,7 @@ class SidebarState {
                     it.optJSONArray("folders").objects().map { folder ->
                         Folder(folder.optString("id"), folder.optString("title"), folder.optInt("depth"))
                     },
+                    SpaceTheme.fromJson(it),
                 )
             }
         favorites = nodes(data.optJSONArray("favorites"))
