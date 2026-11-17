@@ -157,9 +157,7 @@ It costs:
 - **Sync (C2, C5).** `CompassSyncService` runs on Android as on the
   desktop (chain, pairing, Nigori, the notifier), without what needs
   windows: the refresh on a window's activation becomes the app coming
-  back (`ApplicationStatusListener`), there's no space directory
-  (`space_directory_android.cc`: one profile) and no creation of the
-  chain's other profiles. COMPASS_SPACES runs the desktop's bridge on
+  back (`ApplicationStatusListener`). COMPASS_SPACES runs the desktop's bridge on
   `SpacesAndroid` (`compass_spaces_sync_android.cc`): an entry is in use
   while it has a tab. The sync screen (`SyncScreen`, from the sidebar's
   Sync row) joins a chain with a pairing code or the recovery code,
@@ -168,6 +166,24 @@ It costs:
   desktop's pairing QR code (`compass-pair:?server=…&code=…`, sync.md)
   opens in Compass from the camera (`PairInviteActivity`, which registers
   the scheme) and joins with it.
+- **Profiles (P7), phase 1.** As on the desktop (sync.md, "Profiles"),
+  every profile of the chain is a Chromium profile with its own sync
+  account: the home's COMPASS_SPACES bridge carries the chain's profile
+  list (`GetLocalProfiles()`, `OnChainProfiles()`), and
+  `CompassSyncService` creates the ones this device doesn't have
+  (`CompassProfileCreator`). The desktop's `SpaceDirectory` keeps every
+  profile's spaces in one order; on Android it's built with
+  `SpacesAndroid` in place of `SpaceService` (`//compass/browser/android:spaces`),
+  which reports to it as it's created, loaded and destroyed. The snapshot
+  lists every profile's spaces (`own` for the window's profile, `profile`
+  its name, `profile_count`); the sidebar's row shows them all with a
+  wider gap where the profile changes, and the space header names the
+  profile when there's more than one. `SidebarState.spaces` stays the
+  window's profile's (moves, swipes, shortcuts), `allSpaces` is the row.
+  Still to come: a window takes the profile of the space it shows
+  (phase 2: a window per profile, brought forward in place of the other,
+  as the desktop's window swap), and Move to Profile and Settings ›
+  Profiles (phase 3).
 - **Claude (C8).** The desktop's Claude client, key storage and page
   reader (`//compass/browser/claude`, without Claude Code) build for
   Android. `ClaudeBridge` runs a chat about the page on screen: each

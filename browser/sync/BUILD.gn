@@ -8,7 +8,6 @@
 # drives it through SyncController.
 source_set("sync") {
   sources = [
-    # Android builds only its kLocalSyncDirName.
     "compass_profile_creator.h",
     "compass_spaces_sync.h",
     "compass_sync_service.cc",
@@ -28,13 +27,14 @@ source_set("sync") {
     "//url",
   ]
   if (is_android) {
-    # One profile and window: the spaces are SpacesAndroid's, and there's no
-    # space directory or profile creation (docs/design/android.md).
+    # The spaces are SpacesAndroid's, and the space directory is built with
+    # them (//compass/browser/android:spaces; docs/design/android.md,
+    # "Profiles").
     sources += [
+      "compass_profile_creator.cc",
       "compass_push_android.cc",
       "compass_push_android.h",
       "compass_spaces_sync_android.cc",
-      "space_directory_android.cc",
     ]
   } else {
     sources += [

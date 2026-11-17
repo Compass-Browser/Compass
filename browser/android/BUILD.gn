@@ -49,12 +49,20 @@ source_set("spaces") {
     "spaces_android.h",
     "spaces_bridge.cc",
     "spaces_bridge.h",
+
+    # The browser-wide list of every profile's spaces, the desktop's, here
+    # over SpacesAndroid (docs/design/android.md, "Profiles").
+    "//compass/browser/window_sync/space_directory.cc",
+    "//compass/browser/window_sync/space_directory.h",
   ]
   # The archiver asks Chrome's tab models which tabs play sound (their
   # headers come with //chrome/browser, which this links into).
   deps = [
     "//base",
+    "//chrome/browser:browser_process",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/profiles:profile_manager",
+    "//chrome/browser/profiles/keep_alive",
     "//compass/android:jni_headers",
     "//compass/browser/sidebar",
     "//content/public/browser",

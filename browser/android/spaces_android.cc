@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/sidebar_store.h"
+#include "compass/browser/window_sync/space_directory.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "url/gurl.h"
@@ -113,7 +114,7 @@ SpacesAndroid* SpacesAndroid::GetIfExists(Profile* profile) {
   return static_cast<SpacesAndroid*>(profile->GetUserData(kUserDataKey));
 }
 
-SpacesAndroid::SpacesAndroid(Profile* profile) {
+SpacesAndroid::SpacesAndroid(Profile* profile) : profile_(profile) {
   list_.AddObserver(this);
   list_.favorites().AddObserver(this);
   for (const auto& space : list_.spaces()) {
@@ -123,9 +124,19 @@ SpacesAndroid::SpacesAndroid(Profile* profile) {
       profile->GetPath().Append(kStoreFileName), &list_);
   store_->Load(base::BindOnce(&SpacesAndroid::OnLoaded,
                               weak_factory_.GetWeakPtr()));
+  // Every profile's spaces are in the browser-wide list, as on the desktop
+  // (docs/design/android.md, "Profiles").
+  if (SpaceDirectory::IsListable(profile)) {
+    if (SpaceDirectory* directory = SpaceDirectory::Get()) {
+      directory->OnServiceCreated(profile, this);
+    }
+  }
 }
 
 SpacesAndroid::~SpacesAndroid() {
+  if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
+    directory->OnServiceDestroyed(this);
+  }
   sync_attachment_.reset();
   store_.reset();
   for (const auto& space : list_.spaces()) {
@@ -154,8 +165,33 @@ std::string SpacesAndroid::Snapshot(const base::Uuid& space_id) const {
   snapshot.Set("loaded", loaded_);
   snapshot.Set("active", shown.id().AsLowercaseString());
   base::ListValue spaces;
-  for (const auto& space : list_.spaces()) {
+  // Every profile's spaces, in the browser-wide order (the space directory),
+  // each with its profile; this profile's alone while the directory isn't in
+  // or has no other profile (docs/design/android.md, "Profiles").
+  std::vector<std::pair<const SpaceModel*, Profile*>> listed;
+  SpaceDirectory* directory = SpaceDirectory::GetIfExists();
+  if (directory && directory->IsLoaded()) {
+    for (const SpaceDirectory::Entry& entry : directory->GetSpaces()) {
+      listed.emplace_back(entry.space.get(), entry.profile.get());
+    }
+  }
+  const bool has_own = std::ranges::any_of(
+      listed, [this](const auto& item) { return item.second == profile_; });
+  if (!has_own) {
+    listed.clear();
+    for (const auto& space : list_.spaces()) {
+      listed.emplace_back(space.get(), profile_.get());
+    }
+  }
+  std::set<const Profile*> profiles;
+  for (const auto& [space, profile] : listed) {
+    profiles.insert(profile);
+  }
+  snapshot.Set("profile_count", static_cast<int>(profiles.size()));
+  for (const auto& [space, profile] : listed) {
     base::DictValue dict;
+    dict.Set("own", profile == profile_);
+    dict.Set("profile", base::UTF16ToUTF8(SpaceDirectory::GetProfileName(profile)));
     dict.Set("id", space->id().AsLowercaseString());
     dict.Set("name", base::UTF16ToUTF8(space->name()));
     std::string tint;
@@ -750,6 +786,9 @@ void SpacesAndroid::OnLoaded() {
                              &SpacesAndroid::ArchiveIdleEntries);
   archive_timer_.Start(FROM_HERE, kArchiveInterval, this,
                        &SpacesAndroid::ArchiveIdleEntries);
+  if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
+    directory->OnServiceLoaded(this);
+  }
   std::vector<base::OnceClosure> callbacks;
   callbacks.swap(on_loaded_);
   for (base::OnceClosure& callback : callbacks) {

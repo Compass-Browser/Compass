@@ -22,6 +22,7 @@
 #include "base/scoped_observation.h"
 #include "base/uuid.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile_manager_observer.h"
 #include "compass/browser/sidebar/space_list.h"
 
@@ -33,7 +34,15 @@ class ScopedProfileKeepAlive;
 namespace compass {
 
 class SpaceModel;
+#if BUILDFLAG(IS_ANDROID)
+// On Android a profile's spaces are SpacesAndroid's, which reports to the
+// directory as the desktop's SpaceService does (docs/design/android.md,
+// "Profiles").
+class SpacesAndroid;
+using SpaceService = SpacesAndroid;
+#else
 class SpaceService;
+#endif
 
 // The switcher's spaces, browser-wide, as in Arc: one list in the user's
 // order, each space belonging to a profile. A space's entries live in its

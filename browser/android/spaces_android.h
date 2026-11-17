@@ -65,6 +65,8 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   ~SpacesAndroid() override;
 
   SpaceList& list() { return list_; }
+  // The name SpaceDirectory uses (the desktop's SpaceService's).
+  SpaceList& space_list() { return list_; }
   bool loaded() const { return loaded_; }
   // Runs |callback| once the saved spaces are in (now, if they are).
   void RunWhenLoaded(base::OnceClosure callback);
@@ -233,6 +235,8 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   std::vector<base::OnceClosure> on_loaded_;
   bool notify_pending_ = false;
   // Destroyed first: sync's holder observes the list.
+  // Whose spaces these are.
+  const raw_ptr<Profile> profile_;
   std::unique_ptr<Attachment> sync_attachment_;
   base::ObserverList<Observer> observers_;
   base::WeakPtrFactory<SpacesAndroid> weak_factory_{this};

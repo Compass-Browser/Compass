@@ -350,10 +350,7 @@ class CompassSyncService : public KeyedService,
   // Home profile: the chain's profiles as its bridge last had them.
   std::vector<ChainProfile> chain_profiles_;
   bool chain_profiles_known_ = false;
-#if !BUILDFLAG(IS_ANDROID)
-  // Android has one profile: the chain's others aren't created there.
   std::unique_ptr<CompassProfileCreator> profile_creator_;
-#endif
   std::unique_ptr<MissingProfiles> missing_profiles_;
   bool scanning_dirs_ = false;
   bool dirs_scanned_ = false;

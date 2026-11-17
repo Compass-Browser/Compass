@@ -48,7 +48,7 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
                          public claude::ClaudeMemory::Observer {
  public:
   SpacesSyncHolder(Profile* profile, SpacesAndroid* spaces)
-      : spaces_(spaces) {
+      : profile_(profile), spaces_(spaces) {
     bridge_ = std::make_unique<CompassSpacesSyncBridge>(
         std::make_unique<syncer::ClientTagBasedDataTypeProcessor>(
             syncer::COMPASS_SPACES,
@@ -174,7 +174,25 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
     spaces_->TransferTab(from.id(), to.id());
   }
 
+  // The chain's profiles, as on the desktop (compass_spaces_sync.cc): the
+  // home's bridge carries the list, and CompassSyncService creates the ones
+  // this device doesn't have (docs/design/android.md, "Profiles").
+  std::optional<std::vector<sync_pb::CompassProfile>> GetLocalProfiles()
+      override {
+    CompassSyncService* service =
+        CompassSyncServiceFactory::GetForProfileIfExists(profile_);
+    return service ? service->GetLocalChainProfiles() : std::nullopt;
+  }
+  void OnChainProfiles(
+      const std::vector<sync_pb::CompassProfile>& profiles) override {
+    if (CompassSyncService* service =
+            CompassSyncServiceFactory::GetForProfileIfExists(profile_)) {
+      service->OnChainProfiles(profiles);
+    }
+  }
+
  private:
+  const raw_ptr<Profile> profile_;
   const raw_ptr<SpacesAndroid> spaces_;
   std::unique_ptr<CompassSpacesSyncBridge> bridge_;
   base::WeakPtr<claude::ClaudeMemory> memory_;

@@ -349,9 +349,7 @@ void CompassSyncService::Shutdown() {
   host_.reset();
   joiner_.reset();
   missing_profiles_.reset();
-#if !BUILDFLAG(IS_ANDROID)
   profile_creator_.reset();
-#endif
   attributes_observation_.Reset();
   // The directory goes with the profile manager, maybe first.
   if (SpaceDirectory* directory = SpaceDirectory::GetIfExists();
@@ -663,9 +661,7 @@ void CompassSyncService::LeaveProfile() {
   prefs_->ClearPref(prefs::kProfileDirs);
   prefs_->ClearPref(prefs::kProfilesRemoved);
   missing_profiles_.reset();
-#if !BUILDFLAG(IS_ANDROID)
   profile_creator_.reset();
-#endif
   chain_profiles_.clear();
   chain_profiles_known_ = false;
   prefs_->SetBoolean(syncer::prefs::kEnableLocalSyncBackend, false);
@@ -1635,8 +1631,8 @@ void CompassSyncService::ReconcileProfiles() {
     }
   }
   // 2. The chain's profiles this device doesn't have are created, already
-  // syncing (CompassProfileCreator). Not on Android, which has one profile.
-#if !BUILDFLAG(IS_ANDROID)
+  // syncing (CompassProfileCreator); on Android too, where a window shows one
+  // profile's spaces at a time (docs/design/android.md, "Profiles").
   if (!chain_profiles_known_) {
     return;
   }
@@ -1697,7 +1693,6 @@ void CompassSyncService::ReconcileProfiles() {
         std::make_unique<MissingProfiles>(profile_creator_.get());
   }
   missing_profiles_->Update(chain_profiles_, local_uuids);
-#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void CompassSyncService::ScanProfileDirs() {

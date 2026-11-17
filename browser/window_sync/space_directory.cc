@@ -26,7 +26,12 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/sidebar/sidebar_store.h"
+#include "build/build_config.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "compass/browser/android/spaces_android.h"
+#else
 #include "compass/browser/window_sync/space_service.h"
+#endif
 
 namespace compass {
 

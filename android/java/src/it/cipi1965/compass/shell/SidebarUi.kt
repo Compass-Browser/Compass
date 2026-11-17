@@ -99,6 +99,9 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import it.cipi1965.compass.R
 import kotlin.math.abs
 
@@ -517,8 +520,19 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(space.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.weight(1f))
+        Column(Modifier.weight(1f)) {
+            Text(space.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Its profile, when the chain has more than one (as iOS's space header).
+            if (state.profileCount > 1 && space.profile.isNotEmpty()) {
+                Text(
+                    space.profile,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         Box {
             Box(
                 Modifier.size(32.dp).clip(CircleShape).background(CompassStyle.fill).clickable { menu = true },
@@ -979,12 +993,16 @@ private fun SpacesBar(state: SidebarState, listener: SidebarUi.Listener) {
             contentPadding = PaddingValues(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            items(state.spaces, key = { it.id }) { space ->
+            // Every profile's spaces, a wider gap where the profile changes (as iOS's page dots).
+            itemsIndexed(state.allSpaces, key = { _, it -> it.id }) { i, space ->
                 val selected = space.id == state.activeId
+                val newProfile = i > 0 && state.allSpaces[i - 1].profile != space.profile
                 val scale = remember { Animatable(1f) }
                 LaunchedEffect(selected) { scale.animateTo(if (selected) 1.15f else 1f, spring(dampingRatio = 0.6f)) }
                 Box(
-                    Modifier.size(34.dp).scale(scale.value).clip(CircleShape).clickable { listener.onSpaceClicked(space.id) },
+                    Modifier.padding(start = if (newProfile) 10.dp else 0.dp)
+                        .size(34.dp).scale(scale.value).clip(CircleShape).clickable { listener.onSpaceClicked(space.id) }
+                        .semantics { contentDescription = if (state.profileCount > 1) "${space.name}, ${space.profile}" else space.name },
                     contentAlignment = Alignment.Center,
                 ) {
                     SpaceIcon(

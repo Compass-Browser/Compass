@@ -23,6 +23,9 @@ class SidebarState {
         @JvmField val folders: List<Folder> = emptyList(),
         /** Its whole theme: colors, gradient, intensity, grain, mode (SpaceTheme.kt). */
         @JvmField val theme: SpaceTheme = SpaceTheme.GREY,
+        /** Its profile's name, and whether it's this window's profile (docs/design/android.md, "Profiles"). */
+        @JvmField val profile: String = "",
+        @JvmField val own: Boolean = true,
     )
 
     /** A folder of a space's pinned tree; |depth| 0 is in the root. */
@@ -66,7 +69,12 @@ class SidebarState {
     /** An incognito tab's page (the start page): no spaces. */
     var incognito by mutableStateOf(false)
     var loaded by mutableStateOf(false)
+    /** This window's profile's spaces. */
     var spaces by mutableStateOf<List<Space>>(emptyList())
+    /** Every profile's spaces, in the browser-wide order (the switcher's row). */
+    var allSpaces by mutableStateOf<List<Space>>(emptyList())
+    /** How many profiles have spaces: more than one shows profile names. */
+    var profileCount by mutableStateOf(1)
     var activeId by mutableStateOf("")
     var favorites by mutableStateOf<List<Node>>(emptyList())
     var pinned by mutableStateOf<List<Node>>(emptyList())
@@ -101,7 +109,7 @@ class SidebarState {
         val data = JSONObject(json)
         loaded = data.optBoolean("loaded")
         activeId = data.optString("active")
-        spaces =
+        allSpaces =
             data.optJSONArray("spaces").objects().map {
                 Space(
                     it.optString("id"),
@@ -113,8 +121,12 @@ class SidebarState {
                         Folder(folder.optString("id"), folder.optString("title"), folder.optInt("depth"))
                     },
                     SpaceTheme.fromJson(it),
+                    it.optString("profile"),
+                    it.optBoolean("own", true),
                 )
             }
+        spaces = allSpaces.filter { it.own }
+        profileCount = data.optInt("profile_count", 1)
         favorites = nodes(data.optJSONArray("favorites"))
         pinned = nodes(data.optJSONArray("pinned"))
         today = nodes(data.optJSONArray("today"))
