@@ -166,6 +166,15 @@ It costs:
   desktop's pairing QR code (`compass-pair:?server=…&code=…`, sync.md)
   opens in Compass from the camera (`PairInviteActivity`, which registers
   the scheme) and joins with it.
+- **Sync's transport data.** Android's `SyncServiceImpl` prunes per-account
+  sync prefs to the OS's Google accounts (at startup and when they change);
+  local sync has no account, so its cache GUID and birthday are keyed to the
+  empty Gaia ID and were dropped, and every launch synced as a new client
+  (a new device each time, every type's data downloaded again). The
+  `components-sync-android-sync_service_android_bridge.cc` patch keeps the
+  empty Gaia ID's entry. Together with the spaces bridge starting once the
+  spaces load (`compass_spaces_sync_android.cc`), a paired Pixel 8a gets the
+  chain's spaces, favorites and profile list.
 - **Profiles (P7), phase 1.** As on the desktop (sync.md, "Profiles"),
   every profile of the chain is a Chromium profile with its own sync
   account: the home's COMPASS_SPACES bridge carries the chain's profile
@@ -180,6 +189,18 @@ It costs:
   wider gap where the profile changes, and the space header names the
   profile when there's more than one. `SidebarState.spaces` stays the
   window's profile's (moves, swipes, shortcuts), `allSpaces` is the row.
+  - **Blocked on Android: a second Chromium profile.** Chrome on Android
+    has one profile: `ProfileImpl` always takes its prefs from the startup
+    data (`TakePrefsFromStartupData()`), so loading or creating another one
+    crashes at once (SIGSEGV in `PrefService::UpdateExtensionPrefStore()`).
+    Until `ProfileImpl` loads a later profile's prefs normally
+    (`LoadPrefsForNormalStartup()`, which builds on Android) and the other
+    single-profile assumptions are checked, Android neither creates the
+    chain's other profiles (`ReconcileProfiles()`) nor loads listed ones
+    (`SpaceDirectory::LoadListedProfiles()`): it shows the home profile's
+    spaces. A profile with spaces is listed as it gets them
+    (`SpacesAndroid::Get()`), as the desktop lists a window's profile, and
+    the profile creator writes the directory's file at once.
 - **Profiles, phase 2: a window per profile.** Chrome on Android gives a
   window one regular profile (`ActivityProfileProvider`:
   `getLastUsedRegularProfile()`) and two tab models, so a window shows one

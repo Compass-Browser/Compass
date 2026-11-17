@@ -149,6 +149,9 @@ void CompassProfileCreator::OnProfileLoaded(
   on_created_.Run(uuid, profile);
   // Listed: kept loaded, and in the switcher.
   directory->List(profile);
+  // Written now: a listing that waits for the file's timer is lost if the
+  // app is killed meanwhile (Android), and the profile stays unlisted.
+  directory->Flush();
   std::move(done).Run(true);
 }
 

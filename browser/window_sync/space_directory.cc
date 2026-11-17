@@ -388,6 +388,18 @@ void SpaceDirectory::LoadListedProfiles() {
   if (!profile_manager) {
     return;
   }
+#if BUILDFLAG(IS_ANDROID)
+  // Chromium on Android can't load a second profile yet (ProfileImpl takes
+  // its prefs from the startup data, and crashes): a listed profile that
+  // isn't loaded stays listed, and shows once it can (docs/design/android.md,
+  // "Profiles").
+  for (const base::FilePath& path : listed_) {
+    if (Profile* profile = profile_manager->GetProfileByPath(path)) {
+      Attach(profile);
+    }
+  }
+  return;
+#else
   for (auto it = listed_.begin(); it != listed_.end();) {
     if (Profile* profile = profile_manager->GetProfileByPath(*it)) {
       Attach(profile);
@@ -401,6 +413,7 @@ void SpaceDirectory::LoadListedProfiles() {
       it = listed_.erase(it);
     }
   }
+#endif
 }
 
 void SpaceDirectory::Attach(Profile* profile, SpaceService* service) {

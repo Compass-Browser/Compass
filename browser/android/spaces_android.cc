@@ -105,6 +105,14 @@ SpacesAndroid* SpacesAndroid::Get(Profile* profile) {
     auto owned = std::make_unique<SpacesAndroid>(profile);
     spaces = owned.get();
     profile->SetUserData(kUserDataKey, std::move(owned));
+    // A profile with spaces is in the switcher's list, as the desktop lists
+    // a window's profile (window_features.cc); once stored, so the directory
+    // finds this one (docs/design/android.md, "Profiles").
+    if (SpaceDirectory::IsListable(profile)) {
+      if (SpaceDirectory* directory = SpaceDirectory::Get()) {
+        directory->List(profile);
+      }
+    }
   }
   return spaces;
 }
