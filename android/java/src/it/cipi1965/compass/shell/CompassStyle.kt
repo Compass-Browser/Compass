@@ -104,7 +104,15 @@ internal fun CompassTheme(dark: Boolean, content: @Composable () -> Unit) {
         } else {
             if (dark) darkColorScheme() else lightColorScheme()
         }
-    MaterialTheme(colorScheme = colors, content = content)
+    MaterialTheme(colorScheme = colors) {
+        // Compass's screens and bars draw their own backgrounds rather than sit in a Surface,
+        // where LocalContentColor would stay black: text and icons without a color of their own
+        // (the settings' titles, the bar's address) were black on dark backgrounds.
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.material3.LocalContentColor provides colors.onSurface,
+            content = content,
+        )
+    }
 }
 
 /**
