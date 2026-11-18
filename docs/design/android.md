@@ -586,19 +586,19 @@ controls that count are the bottom ones, where Compass's bar is
 | C2 | SpaceModel bridge; sync joins a chain from a debug pairing screen | Done |
 | C3 | Sidebar, spaces, favorites, pinned tree, Today and archive in Compose | Done |
 | C4 | Bottom-bar gestures, tab picker, command bar, theme editor, undo closing, incognito lock | Done (the bar scrolls away, a swipe on its address switches tabs; incognito lock and undo are Chrome's) |
-| C5 | Pairing UI (QR code, code, recovery code), profiles, and Settings sections for Compass | Pairing by code, recovery code and QR code (from the camera) done; one profile; no Compose settings yet |
+| C5 | Pairing UI (QR code, code, recovery code), profiles, and Settings sections for Compass | Done: pairing by code, recovery code and QR code (from the camera); profiles (P7); Compass's own Settings screens (P8) |
 | C6 | Passwords and Autofill for other apps, history, sessions, devices; sent tabs over FCM (`server/push/fcm.go`) | Done; other apps fill but can't save into Compass |
 | C7 | Extensions: Web Store installs, 1Password, uBlock, and the desktop's extension list | Web Store installs and the extensions sheet done (uBlock Origin Lite tested); 1Password not tried |
 | C8 | Claude: chat sheet, page tools, browser tools | Done (page tools; list, open, select and close tabs); not yet tried with a real key |
 | C9 | Widgets, Quick Settings tile, shortcuts, share target | Done |
 | C10 | Tablets and foldables, keyboard shortcuts, multiple windows | Done |
-| C11 | Release pipeline: official build, Play testing tracks, APK on the GitHub release | Working on it: the app bundle (`compass_bundle`), versionCodes from the release version, `compass play upload` to a track, and the listing and App content drafts in `android/play/` (building.md, "Android releases (Google Play)"); the app isn't on Play yet |
+| C11 | Release pipeline: official build, Play testing tracks, APK on the GitHub release | Working on it: the app bundle (`compass_bundle`), versionCodes from the release version, `compass play upload` to a track, and the listing and App content drafts in `android/play/` (building.md, "Android releases (Google Play)"); on internal testing since 2026-11-18, closed testing in Google's review. Not yet: the APK on the GitHub release, and `compass play upload` (no Play service account yet) |
 
 ## Parity with iOS
 
 What the iOS app (ios.md) does that Android doesn't yet, in the order
-planned. The first group is mostly shell work; splits and profiles are the
-two large pieces.
+planned. The first group is mostly shell work; splits and Claude in the
+sidebar are the large pieces left.
 
 | # | Scope | Notes |
 |---|---|---|
@@ -608,10 +608,22 @@ two large pieces.
 | P4 | Tab picker gesture | **Done** (C4: `CompassBarUi.kt`, "The bar"; the picker opens when the swipe ends rather than following the finger). Swiping up on the bar left of the address pill opens the tab picker, as on iOS (pill: sidebar; right: command bar) |
 | P5 | Sidebar drag and drop | **Done**, within the shown space and into the favorites (above, "Drag and drop"); onto other spaces through the menu. Reorder entries and move them between folders, Pinned and Today, and onto other spaces |
 | P6 | Splits | "Split with…" and "Add to split" in the long-press menu; a split of two shows both panes on the phone (stacked, side by side in landscape), three or four one pane at a time under a pane picker |
-| P7 | Profiles | Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |
+| P7 | Profiles | **Done** (above, "Profiles", phases 1–3). Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |
 | P8 | Compass settings | **Done** (above, "Settings"): search engine, privacy, site settings; a site's own exceptions and the rest on Chrome's pages. Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |
 | P9 | System extras | The share target picks a space and folder (done, above, "Extras"). Today, Quick Actions and Other Devices widgets (done, above); app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
 | P10 | Passwords from other apps | **Done** (above, "Passwords in other apps"). Other apps' logins save into Compass (Autofill's save request), not only fill |
+| P11 | Link folders | A link opened in the background gathers with its page in a Today folder, by the desktop's rules (sidebar.md, "Link folders"; ios.md, "Link folders") |
+| P12 | Claude in the sidebar | Names for link folders, Tidy Today, shorter tab titles, Ask in the command bar (ai-sidebar.md, A2–A5; ios.md); needs P11 for the names |
+| P13 | Links routed to spaces | A web link from another app on a domain with a rule opens as a new Today tab of the rule's space (link-routing.md; ios.md, "Links routed to spaces"); needs P15 for links without a rule |
+| P14 | Peek | Long-press a link to look at it in a card over the page without opening a tab (peek.md; ios.md, "Peek") |
+| P15 | Little windows | With Compass as the default browser, a web link from another app opens in Peek's card over what the window shows, not among the tabs (little-window.md; ios.md, "Little windows"); needs P14 |
+| P16 | Reader mode | The desktop's Reader on the shared package (`common/reader/`) for a page that reads as an article (reader-mode.md; ios.md, "Reader mode") |
+| P17 | Auto picture-in-picture | As on the desktop (picture-in-picture.md): leaving a tab whose video plays with sound, or leaving the app, shows the video in picture-in-picture; a setting turns it off (ios.md, "Auto picture-in-picture"). Chromium's own PiP didn't start in the emulator |
+
+Profiles, still the last used profile's: Chrome's own code that reads
+`getLastUsedRegularProfile()` (downloads, notifications, some settings),
+and saves from other apps (`PasswordSaveActivity`), act on the last used
+profile rather than the window's; only the first profile gets web push.
 
 Still Chrome's look, to restyle in Material You with the shell's layout:
 a link's long-press menu, page info and permission prompts, and the "Save
