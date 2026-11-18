@@ -44,6 +44,7 @@ public class PageMenu implements PageMenuUi.Listener {
         mState.setCanGoForward(tab != null && tab.canGoForward());
         mState.setIncognito(tab != null && tab.isIncognito());
         mState.setPinned(tab != null && mBar.pinnedNodeFor(tab.getId()) != null);
+        mState.setInReader(mBar.inReader());
         mState.setTint(mBar.spaceTint());
         mState.setExtensions(
                 tab != null && tab.isIncognito() ? Collections.emptyList() : mBar.extensionActions());
@@ -89,6 +90,11 @@ public class PageMenu implements PageMenuUi.Listener {
     @Override
     public void onFind() {
         then(mBar::findInPage);
+    }
+
+    @Override
+    public void onReader() {
+        then(mBar::toggleReader);
     }
 
     @Override

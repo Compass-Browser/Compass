@@ -18,6 +18,8 @@ class PageMenuState {
     var incognito by mutableStateOf(false)
     /** The page is a pinned entry or a favorite. */
     var pinned by mutableStateOf(false)
+    /** Reader mode: the tab is in Reader (the tile is selected). */
+    var inReader by mutableStateOf(false)
     /** The space's tint behind the sheet ("#rrggbb", or empty). */
     var tint by mutableStateOf("")
     /** The window's extension actions. */

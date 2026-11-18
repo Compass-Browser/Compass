@@ -48,6 +48,7 @@ generate_jni("jni_headers") {
     "java/src/it/cipi1965/compass/autofill/PasswordsBridge.java",
     "java/src/it/cipi1965/compass/shell/PeekBridge.java",
     "java/src/it/cipi1965/compass/shell/PipBridge.java",
+    "java/src/it/cipi1965/compass/shell/ReaderBridge.java",
   ]
 }
 
@@ -112,6 +113,8 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/PeekBridge.java",
     "java/src/it/cipi1965/compass/shell/PeekUi.kt",
     "java/src/it/cipi1965/compass/shell/PipBridge.java",
+    "java/src/it/cipi1965/compass/shell/Reader.java",
+    "java/src/it/cipi1965/compass/shell/ReaderBridge.java",
     "java/src/it/cipi1965/compass/shell/PinPickerUi.kt",
     "java/src/it/cipi1965/compass/shell/SidebarState.kt",
     "java/src/it/cipi1965/compass/shell/SidebarUi.kt",
@@ -267,6 +270,7 @@ android_resources("symbols_resources") {
     "res_symbols/drawable/compass_sym_light_mode.xml",
     "res_symbols/drawable/compass_sym_link.xml",
     "res_symbols/drawable/compass_sym_lock.xml",
+    "res_symbols/drawable/compass_sym_menu_book.xml",
     "res_symbols/drawable/compass_sym_more_horiz.xml",
     "res_symbols/drawable/compass_sym_open_in_browser.xml",
     "res_symbols/drawable/compass_sym_palette.xml",

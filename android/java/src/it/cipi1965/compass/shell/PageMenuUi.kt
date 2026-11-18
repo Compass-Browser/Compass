@@ -69,6 +69,8 @@ object PageMenuUi {
 
         fun onFind()
 
+        fun onReader()
+
         fun onAskClaude()
 
         fun onTogglePin()
@@ -121,6 +123,15 @@ private fun PageMenuSheet(state: PageMenuState, listener: PageMenuUi.Listener) {
         AddressCard(state, listener)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Tile("Find", R.drawable.compass_sym_find_in_page) { listener.onFind() }
+            // Reader: on any web page, as on the desktop (one without an article says so).
+            Tile(
+                "Reader",
+                R.drawable.compass_sym_menu_book,
+                enabled = state.url.startsWith("http"),
+                selected = state.inReader,
+            ) {
+                listener.onReader()
+            }
             if (!state.incognito) Tile("Ask Claude", R.drawable.compass_sym_auto_awesome) { listener.onAskClaude() }
             Tile(
                 if (state.pinned) "Unpin" else "Pin",

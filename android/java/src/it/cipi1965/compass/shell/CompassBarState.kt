@@ -23,4 +23,7 @@ class CompassBarState {
     var spaceLabel by mutableStateOf("")
     /** The active space's tint ("#rrggbb"), or empty. */
     var spaceTint by mutableStateOf("")
+    /** Reader mode: the page reads as an article, and the tab is in Reader. */
+    var readerable by mutableStateOf(false)
+    var inReader by mutableStateOf(false)
 }

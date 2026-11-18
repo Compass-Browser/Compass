@@ -252,6 +252,38 @@ It costs:
     waits for it.
   - Tried on a Pixel 8a (Android 16): switching away from a playing video
     opens the window, and switching back closes it.
+- **Reader mode (P16)** (reader-mode.md; ios.md, "Reader mode"): a page
+  that reads as an article gets a book at the end of the bar's address
+  pill; a tap shows the article over the tab in the desktop's reader page,
+  and again goes back to the page, untouched underneath.
+  - **The reader page** is the desktop's `chrome-untrusted://compass-reader`
+    (`ReaderUntrustedUI`, its CSP and `ReaderArticleStore`), built for
+    Android in `//compass/browser/android:reader` and registered by
+    `compass::RegisterAndroidWebUIConfigs()` from the Android branch of
+    `RegisterChromeWebUIConfigs()` (the `chrome_web_ui_configs.cc` patch;
+    the desktop's registry is desktop-only). It's a WebContents of the
+    tab's profile in a ThinWebView over the page and under the bar
+    (`Reader`), so the look, the toolbar (×, Listen, Aa), the settings and
+    their storage (the reader page's localStorage, per profile) are the
+    desktop's.
+  - **Is this an article?** `ReaderBridge.check()` (`reader_bridge.cc`)
+    runs `Readability-readerable.js` and `reader.js` `check()` in the
+    page's isolated world, as the desktop's `ReaderTabState`: when the
+    shown tab finishes loading (and 2 s later), 1 s after a same-document
+    navigation, and when a tab is shown that wasn't checked for its URL.
+    `parse()` reads the article into the store and gives its token.
+  - **Where:** the book in the pill (tinted while in Reader), Show/Hide
+    Reader in the pill's long-press menu, a Reader tile in the page menu
+    (any web page: one without an article shows the reader page's "no
+    article" message), and Shift+Alt+R with a keyboard (the desktop's keys
+    on Windows and Linux).
+  - **Leaving:** the book or Shift+Alt+R again, the reader's × (its
+    `window.close()`), Back, Esc, or a new document in the tab. A link in
+    the article loads in the tab (which leaves Reader); one that opens a
+    tab opens one. Reader is per tab: switching away takes the view away
+    and coming back shows it again.
+  - Tried on a Pixel 8a: Wikipedia's book, the article with Listen and Aa,
+    ×, Back, and a link loading in the tab.
 - **On Launch (P3)** (`OnLaunch`), as on iOS: Settings → On Launch is
   **Sidebar** (the default: the sidebar comes up over the restored tab) or
   **Last Tab** (the tab last shown, sidebar down; if there's none once
@@ -801,7 +833,7 @@ piece left.
 | P13 | Links routed to spaces | A web link from another app on a domain with a rule opens as a new Today tab of the rule's space (link-routing.md; ios.md, "Links routed to spaces"); links without a rule go to the little window (P15). The little window's ⌄ menu gets **Always Open <domain> in ›** with it |
 | P14 | Peek | **Done** (above, "Peek"). Long-press a link to look at it in a card over the page without opening a tab; a pinned tab's links peek; Open keeps the page (peek.md; ios.md, "Peek") |
 | P15 | Little windows | **Done** (above, "Little windows"). With Compass as the default browser, a web link from another app opens in Peek's card over what the window shows, not among the tabs (little-window.md; ios.md, "Little windows") |
-| P16 | Reader mode | The desktop's Reader on the shared package (`common/reader/`) for a page that reads as an article (reader-mode.md; ios.md, "Reader mode") |
+| P16 | Reader mode | **Done** (above, "Reader mode"). The desktop's Reader on the shared package (`common/reader/`) for a page that reads as an article (reader-mode.md; ios.md, "Reader mode") |
 | P17 | Auto picture-in-picture | **Tab switches done** (above, "Auto picture-in-picture"): leaving a tab whose video plays with sound shows it in picture-in-picture, and coming back puts it back; Site Settings turns it off. Not yet: leaving the app, which Android blocks as it's started (a background activity launch) |
 
 Profiles, still the last used profile's: Chrome's own code that reads

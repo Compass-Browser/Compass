@@ -8,6 +8,7 @@ import android.content.Context
 import android.view.View
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -27,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,6 +93,9 @@ object CompassBarUi {
         fun share()
 
         fun findInPage()
+
+        /** Reader mode: shows the article, or goes back to the page. */
+        fun toggleReader()
 
         fun toggleDesktopSite()
 
@@ -251,7 +256,29 @@ private fun AddressPill(state: CompassBarState, actions: CompassBarUi.Actions, m
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
+                // Reader: a book at the pill's end while the page is an article or in Reader
+                // (iOS's), on a tinted circle while in Reader.
+                if (state.readerable || state.inReader) {
+                    Box(
+                        Modifier.size(32.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (state.inReader) MaterialTheme.colorScheme.primaryContainer
+                                else Color.Transparent
+                            )
+                            .clickable { actions.toggleReader() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Sym(
+                            R.drawable.compass_sym_menu_book,
+                            14f,
+                            if (state.inReader) MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -270,6 +297,12 @@ private fun AddressPill(state: CompassBarState, actions: CompassBarUi.Actions, m
             MenuItem("Find on Page", R.drawable.compass_sym_search) {
                 menu = false
                 actions.findInPage()
+            }
+            if (state.readerable || state.inReader) {
+                MenuItem(if (state.inReader) "Hide Reader" else "Show Reader", R.drawable.compass_sym_menu_book) {
+                    menu = false
+                    actions.toggleReader()
+                }
             }
             if (state.desktopSite) {
                 MenuItem("Request Mobile Site", R.drawable.compass_sym_smartphone) {

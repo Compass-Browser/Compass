@@ -16,6 +16,7 @@ group("android") {
     ":passwords_bridge",
     ":peek_bridge",
     ":pip_bridge",
+    ":reader",
     ":spaces",
     ":sync_bridge",
   ]
@@ -152,5 +153,28 @@ source_set("pip_bridge") {
     "//chrome/browser/picture_in_picture",
     "//compass/android:jni_headers",
     "//content/public/browser",
+  ]
+}
+
+# Reader mode (docs/design/android.md, "Reader mode"): the desktop's reader
+# page (chrome-untrusted://compass-reader, registered on Android by the
+# chrome_web_ui_configs.cc patch) and scripts, and their bridge.
+source_set("reader") {
+  sources = [
+    "android_web_ui_configs.h",
+    "reader_bridge.cc",
+    "//compass/browser/ui/webui/reader/reader_untrusted_ui.cc",
+    "//compass/browser/ui/webui/reader/reader_untrusted_ui.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/common",
+    "//compass/android:jni_headers",
+    "//compass/browser/reader:assets",
+    "//content/public/browser",
+    "//content/public/common",
+    "//services/network/public/mojom",
+    "//ui/webui",
+    "//url",
   ]
 }

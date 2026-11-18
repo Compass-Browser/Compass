@@ -1,7 +1,8 @@
 # Reader mode
 
 Status: shared package done (`common/reader/`); desktop (Mac, Windows,
-Linux) done; iOS done, on the same package ("iOS" below). Based on
+Linux) done; iOS done, on the same package ("iOS" below); Android done,
+on the desktop's reader page (android.md, "Reader mode"). Based on
 Chromium 157.0.8103.51.
 
 ## Goal

@@ -41,12 +41,14 @@ import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabModelObserver;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.components.browser_ui.display_cutout.DisplayCutoutController;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.GestureListenerManager;
 import org.chromium.content_public.browser.GestureStateListener;
+import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.GURL;
 import org.chromium.url.Origin;
@@ -151,6 +153,9 @@ public class CompassBar implements CompassBarUi.Actions {
     private @Nullable UndoToast mUndoToast;
     // Peek's card, also the little window's (docs/design/android.md, "Peek", "Little windows").
     private @Nullable Peek mPeek;
+    // Reader mode (docs/design/android.md, "Reader mode").
+    private @Nullable Reader mReader;
+    private @Nullable TabModelSelectorTabModelObserver mReaderTabsObserver;
     // Claude in the sidebar and the command bar (docs/design/ai-sidebar.md), on the regular profile.
     private @Nullable ClaudeSidebarBridge mClaudeSidebar;
     private ActivityTabProvider.@Nullable ActivityTabTabObserver mTabObserver;
@@ -220,6 +225,23 @@ public class CompassBar implements CompassBarUi.Actions {
         mSettings = settings;
         mFindBar = new FindBar(mActivity, coordinator);
         mPeek = new Peek(mActivity, coordinator, spaces);
+        Reader reader =
+                new Reader(
+                        mActivity,
+                        coordinator,
+                        frame,
+                        (readerable, showing) -> {
+                            mState.setReaderable(readerable);
+                            mState.setInReader(showing);
+                        });
+        mReader = reader;
+        mReaderTabsObserver =
+                new TabModelSelectorTabModelObserver(mActivity.getTabModelSelector()) {
+                    @Override
+                    public void willCloseTab(Tab tab, boolean didCloseAlone) {
+                        reader.onTabClosed(tab.getId());
+                    }
+                };
         // Clear of the bar, as iOS's toast over its bar.
         mUndoToast =
                 new UndoToast(
@@ -301,6 +323,7 @@ public class CompassBar implements CompassBarUi.Actions {
                         watchScroll(tab);
                         // Another tab shown closes Peek, as on iOS.
                         if (mPeek != null) mPeek.onTabShown(tab);
+                        if (mReader != null) mReader.onTabShown(tab);
                     }
 
                     @Override
@@ -313,6 +336,17 @@ public class CompassBar implements CompassBarUi.Actions {
                     @Override
                     public void onContentChanged(Tab tab) {
                         watchScroll(tab);
+                    }
+
+                    @Override
+                    public void onPageLoadFinished(Tab tab, GURL url) {
+                        if (mReader != null) mReader.onPageLoaded(tab);
+                    }
+
+                    @Override
+                    public void onDidFinishNavigationInPrimaryMainFrame(
+                            Tab tab, NavigationHandle navigation) {
+                        if (mReader != null) mReader.onNavigated(tab, navigation);
                     }
 
                     @Override
@@ -403,6 +437,10 @@ public class CompassBar implements CompassBarUi.Actions {
         mUndoToast = null;
         if (mPeek != null) mPeek.destroy();
         mPeek = null;
+        if (mReaderTabsObserver != null) mReaderTabsObserver.destroy();
+        mReaderTabsObserver = null;
+        if (mReader != null) mReader.destroy();
+        mReader = null;
         mTabObserver = null;
         mSpaces = null;
         mSync = null;
@@ -492,6 +530,22 @@ public class CompassBar implements CompassBarUi.Actions {
      */
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (mPeek != null && mPeek.dispatchKeyEvent(event)) return true;
+        // Reader: Shift+Alt+R, the desktop's keys on Windows and Linux; Esc goes back to the page.
+        if (mReader != null
+                && ((event.getKeyCode() == KeyEvent.KEYCODE_R
+                                && event.isShiftPressed()
+                                && event.isAltPressed()
+                                && !event.isCtrlPressed())
+                        || (event.getKeyCode() == KeyEvent.KEYCODE_ESCAPE && mReader.isShowing()))) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                if (event.getKeyCode() == KeyEvent.KEYCODE_ESCAPE) {
+                    mReader.leave();
+                } else {
+                    mReader.toggle();
+                }
+            }
+            return true;
+        }
         if (mExtensions != null && mExtensions.dispatchKeyEvent(event)) return true;
         if (!event.isCtrlPressed() || event.isAltPressed() || event.isMetaPressed()) return false;
         boolean shift = event.isShiftPressed();
@@ -750,6 +804,16 @@ public class CompassBar implements CompassBarUi.Actions {
     @Override
     public void share() {
         chromeAction("share_menu_id");
+    }
+
+    /** The tab shown is in Reader. */
+    boolean inReader() {
+        return mReader != null && mReader.isShowing();
+    }
+
+    @Override
+    public void toggleReader() {
+        if (mReader != null) mReader.toggle();
     }
 
     @Override
