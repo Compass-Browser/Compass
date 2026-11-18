@@ -5,6 +5,8 @@
 #include "compass/browser/android/spaces_bridge.h"
 
 #include "base/files/file_path.h"
+#include "base/json/json_writer.h"
+#include "base/values.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -12,6 +14,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -420,6 +423,58 @@ std::string SpacesBridge::BackToSavedUrl(JNIEnv* env,
     }
   }
   return node->saved_url().spec();
+}
+
+// The space |url|'s rule names, if it has one and the space is in this
+// profile: what a link from another app opens in.
+std::string SpacesBridge::LinkRuleSpace(JNIEnv* env, const std::string& url) {
+  if (!spaces_->loaded()) {
+    return std::string();
+  }
+  SpaceList& list = spaces_->list();
+  std::optional<LinkRule> rule = list.link_rules().Match(GURL(url));
+  // A rule whose space is gone routes nothing.
+  if (!rule || !list.FindSpace(rule->space_id)) {
+    return std::string();
+  }
+  return rule->space_id.AsLowercaseString();
+}
+
+std::string SpacesBridge::NormalizeLinkDomain(JNIEnv* env,
+                                              const std::string& input) {
+  return NormalizeLinkRuleDomain(input).value_or(std::string());
+}
+
+std::string SpacesBridge::LinkRuleFor(JNIEnv* env, const std::string& domain) {
+  const base::Uuid* space = spaces_->list().link_rules().Find(domain);
+  return space ? space->AsLowercaseString() : std::string();
+}
+
+bool SpacesBridge::SetLinkRule(JNIEnv* env,
+                               const std::string& domain,
+                               const std::string& space_id) {
+  SpaceList& list = spaces_->list();
+  SpaceModel* space = list.FindSpace(base::Uuid::ParseLowercase(space_id));
+  // Rules name only spaces (never incognito, which isn't one here).
+  return space && list.SetLinkRule(domain, space->id());
+}
+
+void SpacesBridge::RemoveLinkRule(JNIEnv* env, const std::string& domain) {
+  spaces_->list().RemoveLinkRule(domain);
+}
+
+// [{"domain", "space"}], by domain (Settings' Sites in Spaces; the space's
+// name and look come from the snapshot, and a missing one is "deleted").
+std::string SpacesBridge::LinkRules(JNIEnv* env) {
+  base::ListValue rules;
+  for (const LinkRule& rule : spaces_->list().link_rules().rules()) {
+    rules.Append(base::DictValue()
+                     .Set("domain", rule.domain)
+                     .Set("space", rule.space_id.AsLowercaseString()));
+  }
+  std::string json;
+  base::JSONWriter::Write(rules, &json);
+  return json;
 }
 
 void SpacesBridge::OnSpacesChanged() {

@@ -127,6 +127,10 @@ public class CompassSettings implements CompassSettingsUi.Listener {
                 mState.setPage(CompassSettingsUi.Page.SITE_SETTINGS);
             }
             case ALL_SITES -> chromeSettings(SettingsFragment.SITE);
+            case SITES_IN_SPACES -> {
+                loadLinkRules();
+                mState.setPage(CompassSettingsUi.Page.SITES_IN_SPACES);
+            }
             case PRIVACY -> {
                 loadPrivacy();
                 mState.setPage(CompassSettingsUi.Page.PRIVACY);
@@ -395,6 +399,54 @@ public class CompassSettings implements CompassSettingsUi.Listener {
     public void onSetOnLaunch(String value) {
         OnLaunch.set(value);
         mState.setOnLaunch(OnLaunch.get());
+    }
+
+    // Sites in Spaces (link-routing.md): this window's profile's rules and spaces.
+    private void loadLinkRules() {
+        Spaces spaces = mBar.spaces();
+        if (spaces == null) return;
+        java.util.Map<String, CompassSettingsUi.SpaceChoice> byId = new java.util.HashMap<>();
+        List<CompassSettingsUi.SpaceChoice> choices = new ArrayList<>();
+        for (SidebarState.Space space : spaces.state().getSpaces()) {
+            CompassSettingsUi.SpaceChoice choice =
+                    new CompassSettingsUi.SpaceChoice(space.id, space.name, space.emoji, space.tint);
+            choices.add(choice);
+            byId.put(space.id, choice);
+        }
+        List<CompassSettingsUi.LinkRuleRow> rules = new ArrayList<>();
+        try {
+            org.json.JSONArray array = new org.json.JSONArray(spaces.bridge().linkRules());
+            for (int i = 0; i < array.length(); i++) {
+                org.json.JSONObject rule = array.getJSONObject(i);
+                rules.add(
+                        new CompassSettingsUi.LinkRuleRow(
+                                rule.optString("domain"), byId.get(rule.optString("space"))));
+            }
+        } catch (org.json.JSONException e) {
+            // None, then.
+        }
+        mState.setRuleSpaces(choices);
+        mState.setLinkRules(rules);
+    }
+
+    @Override
+    public String normalizeLinkDomain(String input) {
+        Spaces spaces = mBar.spaces();
+        return spaces == null ? "" : spaces.bridge().normalizeLinkDomain(input);
+    }
+
+    @Override
+    public void onSetLinkRule(String domain, String spaceId) {
+        Spaces spaces = mBar.spaces();
+        if (spaces != null) spaces.bridge().setLinkRule(domain, spaceId);
+        loadLinkRules();
+    }
+
+    @Override
+    public void onRemoveLinkRule(String domain) {
+        Spaces spaces = mBar.spaces();
+        if (spaces != null) spaces.bridge().removeLinkRule(domain);
+        loadLinkRules();
     }
 
     @Override

@@ -374,6 +374,23 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
         return mState;
     }
 
+    /** The window's profile's spaces model (its link rules among others). */
+    public SpacesBridge bridge() {
+        return mBridge;
+    }
+
+    // What waits for the spaces to load (a link from another app at a cold start: its rule).
+    private final List<Runnable> mWhenLoaded = new java.util.ArrayList<>();
+
+    /** Runs |task| now if the spaces are loaded, else once they are. */
+    public void runWhenLoaded(Runnable task) {
+        if (mState.getLoaded()) {
+            task.run();
+        } else {
+            mWhenLoaded.add(task);
+        }
+    }
+
     /** The space this window shows (each window has its own), or empty before they load. */
     /** The chain's profiles and their spaces (Settings › Profiles), in the switcher's order. */
     public java.util.List<CompassSettingsUi.ProfileRow> profileRows() {
@@ -540,6 +557,11 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
 
     private void onModelChanged() {
         mState.update(mBridge.snapshot(), currentTabId());
+        if (mState.getLoaded() && !mWhenLoaded.isEmpty()) {
+            List<Runnable> waiting = new java.util.ArrayList<>(mWhenLoaded);
+            mWhenLoaded.clear();
+            for (Runnable task : waiting) task.run();
+        }
         // The shown space may have changed: whether its tidy waits.
         refreshClaude();
         showPinPicker();

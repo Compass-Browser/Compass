@@ -1,7 +1,7 @@
 # Link routing
 
-Status: done on macOS, Windows and Linux (desktop) and on iPhone and iPad
-(see "iOS"). The rules sync; Android keeps them but doesn't route yet.
+Status: done on macOS, Windows and Linux (desktop), on iPhone and iPad
+(see "iOS") and on Android (android.md, "Links routed to spaces").
 
 ## Goal
 
@@ -163,7 +163,6 @@ profile's rules (the shown space's profile wins, else the home profile).
 
 ## Not done
 
-- Routing on Android (the rules sync there already).
 - Rules by path or by the app the link came from (Arc routes by app too).
 - Routing to another profile's space on the desktop: rules name the
   profile's own spaces.

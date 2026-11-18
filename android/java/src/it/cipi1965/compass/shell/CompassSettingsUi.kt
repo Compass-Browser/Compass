@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.foundation.layout.ColumnScope
@@ -81,6 +82,8 @@ object CompassSettingsUi {
         MORE_PRIVACY,
         /** Chrome's site settings: every site, and each permission's exceptions. */
         ALL_SITES,
+        /** Sites in Spaces: links from other apps routed by domain (link-routing.md). */
+        SITES_IN_SPACES,
         ACCESSIBILITY,
         LANGUAGES,
         MORE,
@@ -93,7 +96,19 @@ object CompassSettingsUi {
         SEARCH_ENGINE,
         PRIVACY,
         SITE_SETTINGS,
+        SITES_IN_SPACES,
     }
+
+    /** A space a rule can name: this window's profile's. */
+    class SpaceChoice(
+        @JvmField val id: String,
+        @JvmField val name: String,
+        @JvmField val emoji: String,
+        @JvmField val tint: String,
+    )
+
+    /** A link rule (Sites in Spaces): its domain and space, or null when the space is gone. */
+    class LinkRuleRow(@JvmField val domain: String, @JvmField val space: SpaceChoice?)
 
     /** A permission's default on the Site Settings page: on asks first (or allows), off blocks. */
     class SitePermission(
@@ -150,6 +165,14 @@ object CompassSettingsUi {
         /** Settings → Open in a Little Window (LittleWindow). */
         fun onSetLittleWindow(on: Boolean)
 
+        /** Sites in Spaces: |input| (a domain or a URL) as a rule's domain, or empty. */
+        fun normalizeLinkDomain(input: String): String
+
+        /** Sites in Spaces: |domain|'s rule names |spaceId| (made or changed). */
+        fun onSetLinkRule(domain: String, spaceId: String)
+
+        fun onRemoveLinkRule(domain: String)
+
         fun onDismiss()
     }
 
@@ -187,6 +210,9 @@ object CompassSettingsUi {
         var privacyOn by mutableStateOf<Set<PrivacySwitch>>(emptySet())
         var privacyManaged by mutableStateOf<Set<PrivacySwitch>>(emptySet())
         var sitePermissions by mutableStateOf<List<SitePermission>>(emptyList())
+        /** Sites in Spaces: the rules, by domain, and the spaces they can name. */
+        var linkRules by mutableStateOf<List<LinkRuleRow>>(emptyList())
+        var ruleSpaces by mutableStateOf<List<SpaceChoice>>(emptyList())
         /** Automatic picture-in-picture also when Compass is left for another app. */
         var pipOnLeaving by mutableStateOf(true)
     }
@@ -211,6 +237,7 @@ object CompassSettingsUi {
                         Page.SEARCH_ENGINE -> SearchEnginePage(state, listener)
                         Page.PRIVACY -> PrivacyPage(state, listener)
                         Page.SITE_SETTINGS -> SiteSettingsPage(state, listener)
+                        Page.SITES_IN_SPACES -> SitesInSpacesPage(state, listener)
                         Page.MAIN -> Settings(state, listener)
                     }
                 }
@@ -299,6 +326,13 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                         enabled = true,
                     ) {
                         listener.onSetLittleWindow(it)
+                    }
+                    SettingsRow(
+                        "Sites in Spaces",
+                        R.drawable.compass_sym_link,
+                        subtitle = "Links from other apps to these sites open in their space",
+                    ) {
+                        open(CompassSettingsUi.Row.SITES_IN_SPACES)
                     }
                     SettingsRow(
                         "Search Engine",
@@ -512,6 +546,146 @@ private fun SiteSettingsPage(state: CompassSettingsUi.State, listener: CompassSe
             )
         }
     }
+}
+
+/**
+ * Sites in Spaces (link-routing.md; ios.md, "Links routed to spaces"): links from other apps to a
+ * site open as a Today tab of its space. The rules by domain, each with its space (or "Space
+ * deleted"); a tap changes or deletes one, Add Site makes one.
+ */
+@Composable
+private fun SitesInSpacesPage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
+    // The rule being edited: its domain, or "" for a new one; null: no dialog.
+    var editing by remember { mutableStateOf<String?>(null) }
+    SubPage("Sites in Spaces", listener) {
+        CardSection("Links from other apps open in") {
+            if (state.linkRules.isEmpty()) {
+                Text(
+                    "No sites yet. Add one, or pick Always Open in the little window's menu.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+            for (rule in state.linkRules) {
+                CardRow(
+                    rule.domain,
+                    rule.space?.name?.ifEmpty { "Space" } ?: "Space deleted",
+                    onClick = { editing = rule.domain },
+                ) {
+                    RuleSpaceBadge(rule.space)
+                }
+            }
+        }
+        CardSection("") {
+            SettingsRow("Add Site", R.drawable.compass_sym_add, first = true) { editing = "" }
+        }
+    }
+    val domain = editing
+    if (domain != null) {
+        LinkRuleDialog(
+            domain,
+            state.linkRules.firstOrNull { it.domain == domain }?.space?.id ?: "",
+            state.ruleSpaces,
+            listener,
+            onDone = { editing = null },
+        )
+    }
+}
+
+@Composable
+private fun RuleSpaceBadge(space: CompassSettingsUi.SpaceChoice?) {
+    val color = space?.let { CompassStyle.parse(it.tint) } ?: MaterialTheme.colorScheme.surfaceContainerHighest
+    Box(Modifier.size(28.dp).clip(CircleShape).background(color), contentAlignment = Alignment.Center) {
+        Text(
+            space?.emoji?.ifEmpty { null } ?: space?.name?.take(1)?.uppercase() ?: "?",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (space?.emoji.isNullOrEmpty()) Color.White else Color.Unspecified,
+        )
+    }
+}
+
+/** A rule's form: the site (a domain or a URL, for a new rule) and its space. */
+// OutlinedTextField's String overload, as the shell's other fields.
+@Suppress("DEPRECATION")
+@Composable
+private fun LinkRuleDialog(
+    domain: String,
+    spaceId: String,
+    spaces: List<CompassSettingsUi.SpaceChoice>,
+    listener: CompassSettingsUi.Listener,
+    onDone: () -> Unit,
+) {
+    val adding = domain.isEmpty()
+    var site by remember { mutableStateOf(domain) }
+    var space by remember { mutableStateOf(spaceId.ifEmpty { spaces.firstOrNull()?.id ?: "" }) }
+    val normalized = if (site.isBlank()) "" else listener.normalizeLinkDomain(site)
+    AlertDialog(
+        onDismissRequest = onDone,
+        title = { Text(if (adding) "Add Site" else domain) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (adding) {
+                    OutlinedTextField(
+                        value = site,
+                        onValueChange = { site = it },
+                        label = { Text("Site") },
+                        placeholder = { Text("github.com") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (site.isNotBlank() && normalized.isEmpty()) {
+                        Text(
+                            "That isn't a site's domain (for example github.com).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    } else if (normalized.isNotEmpty() && normalized != site.trim()) {
+                        Text(
+                            "Links to $normalized and its subdomains",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                for (choice in spaces) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { space = choice.id },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = choice.id == space, onClick = { space = choice.id })
+                        RuleSpaceBadge(choice)
+                        Text(
+                            choice.name.ifEmpty { "Space" },
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = 12.dp),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = space.isNotEmpty() && (if (adding) normalized.isNotEmpty() else true),
+                onClick = {
+                    listener.onSetLinkRule(if (adding) normalized else domain, space)
+                    onDone()
+                },
+            ) { Text("Save") }
+        },
+        dismissButton = {
+            Row {
+                if (!adding) {
+                    TextButton(onClick = {
+                        listener.onRemoveLinkRule(domain)
+                        onDone()
+                    }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                }
+                TextButton(onClick = onDone) { Text("Cancel") }
+            }
+        },
+    )
 }
 
 /** One of Compass's settings pages: the top app bar (back, title) over a scrolling column. */

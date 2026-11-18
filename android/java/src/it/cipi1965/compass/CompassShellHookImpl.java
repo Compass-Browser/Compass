@@ -39,7 +39,7 @@ public class CompassShellHookImpl implements CompassShellHook {
         mBar = new CompassBar((ChromeTabbedActivity) activity, bottomControls);
         mBar.attach();
         if (mPendingLittleWindow != null) {
-            mBar.openLittleWindow(mPendingLittleWindow);
+            mBar.openLinkFromOtherApp(mPendingLittleWindow);
             mPendingLittleWindow = null;
         }
     }
@@ -53,7 +53,7 @@ public class CompassShellHookImpl implements CompassShellHook {
         GURL url = new GURL(link);
         if (!url.isValid()) return false;
         if (mBar != null) {
-            mBar.openLittleWindow(url);
+            mBar.openLinkFromOtherApp(url);
         } else {
             mPendingLittleWindow = url;
         }

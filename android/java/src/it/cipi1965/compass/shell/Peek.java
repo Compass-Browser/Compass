@@ -197,6 +197,22 @@ public class Peek implements PeekUi.Listener {
         mState.setUrl(url.getSpec());
         mState.setCanGoBack(contents.getNavigationController().canGoBack());
         mState.setLoading(contents.isLoading());
+        // The little window's Always Open <domain> in (link-routing.md): the page's domain as a
+        // rule's, and the space its rule names.
+        String domain =
+                mState.getLittle() && UrlUtilities.isHttpOrHttps(url)
+                        ? mSpaces.bridge().normalizeLinkDomain(url.getSpec())
+                        : "";
+        mState.setRuleDomain(domain);
+        mState.setRuleSpaceId(domain.isEmpty() ? "" : mSpaces.bridge().linkRuleFor(domain));
+    }
+
+    /** Always Open <domain> in <space>: makes (or changes) the rule, and opens the page there. */
+    @Override
+    public void onAlwaysOpenIn(String spaceId) {
+        String domain = mState.getRuleDomain();
+        if (!domain.isEmpty()) mSpaces.bridge().setLinkRule(domain, spaceId);
+        onOpen(spaceId);
     }
 
     /**

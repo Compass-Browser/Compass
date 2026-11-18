@@ -54,6 +54,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -120,6 +121,9 @@ object PeekUi {
         fun onAddressChanged(text: String)
 
         fun onGo(text: String)
+
+        /** Always Open <domain> in <space>: the domain's rule, then Open there. */
+        fun onAlwaysOpenIn(spaceId: String)
     }
 
     /** A space of the window's profile, for Open in <space>'s menu. */
@@ -146,6 +150,9 @@ object PeekUi {
         var spaceId by mutableStateOf("")
         var spaceName by mutableStateOf("")
         var spaces by mutableStateOf<List<SpaceRow>>(emptyList())
+        /** The page's domain as a link rule's (empty: none), and the space its rule names. */
+        var ruleDomain by mutableStateOf("")
+        var ruleSpaceId by mutableStateOf("")
         /** The shown space's theme, which tints the little window's bar. */
         var theme by mutableStateOf<SpaceTheme?>(null)
     }
@@ -340,10 +347,16 @@ private fun LittleBar(state: PeekUi.State, listener: PeekUi.Listener, dragBar: M
     }
 }
 
-/** "Open in <space>", and ⌄ with the window's profile's spaces when it has more than one. */
+/**
+ * "Open in <space>", and ⌄ with the window's profile's spaces when it has more than one, and
+ * Always Open <domain> in › (link-routing.md) when the page has a domain.
+ */
 @Composable
 private fun OpenInSpace(state: PeekUi.State, listener: PeekUi.Listener) {
     var menu by remember { mutableStateOf(false) }
+    // The menu's second level: the spaces for Always Open <domain> in.
+    var always by remember { mutableStateOf(false) }
+    val showMenu = state.spaces.size > 1 || state.ruleDomain.isNotEmpty()
     Row(
         Modifier.height(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
         verticalAlignment = Alignment.CenterVertically,
@@ -357,13 +370,16 @@ private fun OpenInSpace(state: PeekUi.State, listener: PeekUi.Listener) {
             modifier =
                 Modifier.widthIn(max = 160.dp)
                     .clickable { listener.onOpen("") }
-                    .padding(start = 14.dp, end = if (state.spaces.size > 1) 6.dp else 14.dp)
+                    .padding(start = 14.dp, end = if (showMenu) 6.dp else 14.dp)
                     .padding(vertical = 10.dp),
         )
-        if (state.spaces.size > 1) {
+        if (showMenu) {
             Box {
                 Box(
-                    Modifier.size(40.dp).clickable { menu = true },
+                    Modifier.size(40.dp).clickable {
+                        always = false
+                        menu = true
+                    },
                     contentAlignment = Alignment.Center,
                 ) {
                     Sym(
@@ -374,18 +390,57 @@ private fun OpenInSpace(state: PeekUi.State, listener: PeekUi.Listener) {
                     )
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    for (space in state.spaces) {
+                    if (always) {
                         DropdownMenuItem(
-                            text = { Text(space.name.ifEmpty { "Space" }) },
-                            leadingIcon = { SpaceBadge(space) },
-                            trailingIcon = {
-                                if (space.id == state.spaceId) Sym(R.drawable.compass_sym_check, 14f)
+                            text = {
+                                Text(
+                                    "Always Open ${state.ruleDomain} in",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             },
-                            onClick = {
-                                menu = false
-                                listener.onOpen(space.id)
+                            leadingIcon = {
+                                Sym(R.drawable.compass_sym_chevron_right, 14f, modifier = Modifier.rotate(180f))
                             },
+                            onClick = { always = false },
                         )
+                        for (space in state.spaces) {
+                            DropdownMenuItem(
+                                text = { Text(space.name.ifEmpty { "Space" }) },
+                                leadingIcon = { SpaceBadge(space) },
+                                trailingIcon = {
+                                    if (space.id == state.ruleSpaceId) Sym(R.drawable.compass_sym_check, 14f)
+                                },
+                                onClick = {
+                                    menu = false
+                                    listener.onAlwaysOpenIn(space.id)
+                                },
+                            )
+                        }
+                    } else {
+                        if (state.spaces.size > 1) {
+                            for (space in state.spaces) {
+                                DropdownMenuItem(
+                                    text = { Text(space.name.ifEmpty { "Space" }) },
+                                    leadingIcon = { SpaceBadge(space) },
+                                    trailingIcon = {
+                                        if (space.id == state.spaceId) Sym(R.drawable.compass_sym_check, 14f)
+                                    },
+                                    onClick = {
+                                        menu = false
+                                        listener.onOpen(space.id)
+                                    },
+                                )
+                            }
+                        }
+                        if (state.ruleDomain.isNotEmpty()) {
+                            if (state.spaces.size > 1) HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("Always Open ${state.ruleDomain} in") },
+                                trailingIcon = { Sym(R.drawable.compass_sym_chevron_right, 14f) },
+                                onClick = { always = true },
+                            )
+                        }
                     }
                 }
             }

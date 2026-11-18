@@ -226,6 +226,33 @@ It costs:
     app preference `compass_little_window`): off, links from other apps
     open as tabs, as Chrome does.
   - Tests: `LittleWindowTest` (which intents, the setting).
+- **Links routed to spaces (P13)** (link-routing.md; ios.md, "Links
+  routed to spaces"): a web link from another app on a domain with a rule
+  opens as a new Today tab of the rule's space, which the window shows,
+  instead of the little window.
+  - **Which links:** those the little window takes
+    (`LittleWindow.linkFromOtherApp()`), whatever its setting. With no rule
+    (or the rule's space gone), the little window, or with Open in a
+    Little Window off a new Today tab of the shown space
+    (`CompassBar.openLinkFromOtherApp()`). Never incognito.
+  - **The rules** are the window's profile's, the desktop's `LinkRules` on
+    its `SpaceList` (the sidebar file, synced with the spaces);
+    `SpacesBridge` matches a link (`LinkRuleSpace()`: its host, then each
+    parent domain), normalizes a domain (`NormalizeLinkRuleDomain()`), and
+    sets, removes and lists them. At a cold start the link waits for the
+    spaces to load (`Spaces.runWhenLoaded()`). Another profile's rules
+    don't route a link that arrives in this window.
+  - **The little window's ⌄ menu** has **Always Open <domain> in ›** for a
+    page with a domain (so ⌄ shows with one space too): the profile's
+    spaces, the rule's checked; picking one makes or changes the rule and
+    opens the page there.
+  - **Settings → Browsing → Sites in Spaces:** the rules by domain with
+    their space (its emoji or initial on its color) or "Space deleted"; a
+    tap changes the space or deletes the rule; Add Site takes a domain or a
+    URL (a note when it isn't a site's domain, or what it will match).
+  - Tried on a Pixel 8a: a link with no rule in the little window, Always
+    Open example.com in Main, the next example.com link from another app
+    straight to a Main tab, and the rule in Settings, deleted there.
 - **Auto picture-in-picture (P17)** (picture-in-picture.md; ios.md, "Auto
   picture-in-picture"): leaving a tab whose video plays with sound shows
   the video in picture-in-picture, and coming back to the tab puts it back
@@ -830,7 +857,7 @@ piece left.
 | P10 | Passwords from other apps | **Done** (above, "Passwords in other apps"). Other apps' logins save into Compass (Autofill's save request), not only fill |
 | P11 | Link folders | **Done** (above, "Link folders"). A link opened in the background gathers with its page in a Today folder, by the desktop's rules (sidebar.md, "Link folders"; ios.md, "Link folders") |
 | P12 | Claude in the sidebar | **Done** (above, "Claude in the sidebar"). Names for link folders (automatic, Suggest a Name and Undo Name), Tidy Today, shorter tab titles, Ask in the command bar (ai-sidebar.md, A2–A5; ios.md) |
-| P13 | Links routed to spaces | A web link from another app on a domain with a rule opens as a new Today tab of the rule's space (link-routing.md; ios.md, "Links routed to spaces"); links without a rule go to the little window (P15). The little window's ⌄ menu gets **Always Open <domain> in ›** with it |
+| P13 | Links routed to spaces | **Done** (above, "Links routed to spaces"). A web link from another app on a domain with a rule opens as a new Today tab of the rule's space; **Always Open <domain> in ›** in the little window's ⌄ menu; Settings → Sites in Spaces (link-routing.md; ios.md, "Links routed to spaces") |
 | P14 | Peek | **Done** (above, "Peek"). Long-press a link to look at it in a card over the page without opening a tab; a pinned tab's links peek; Open keeps the page (peek.md; ios.md, "Peek") |
 | P15 | Little windows | **Done** (above, "Little windows"). With Compass as the default browser, a web link from another app opens in Peek's card over what the window shows, not among the tabs (little-window.md; ios.md, "Little windows") |
 | P16 | Reader mode | **Done** (above, "Reader mode"). The desktop's Reader on the shared package (`common/reader/`) for a page that reads as an article (reader-mode.md; ios.md, "Reader mode") |

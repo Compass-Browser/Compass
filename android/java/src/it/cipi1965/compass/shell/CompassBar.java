@@ -593,11 +593,51 @@ public class CompassBar implements CompassBarUi.Actions {
         return true;
     }
 
-    /** A link from another app, in the little window: Peek's card, of the window's profile. */
-    public void openLittleWindow(GURL url) {
-        if (mPeek == null) return;
-        if (mSpaces != null) mSpaces.onDismiss();
-        mPeek.showLittleWindow(mActivity.getTabModelSelector().getModel(false).getProfile(), url);
+    /**
+     * A link from another app (docs/design/android.md, "Links routed to spaces"): a new Today tab
+     * of the space its domain's rule names, shown; else the little window (Peek's card, of the
+     * window's profile), or with that off a new Today tab of the shown space. Never incognito. At
+     * a cold start it waits for the spaces, which hold the rules.
+     */
+    public void openLinkFromOtherApp(GURL url) {
+        Spaces spaces = mSpaces;
+        if (spaces == null || mPeek == null) return;
+        spaces.runWhenLoaded(
+                () -> {
+                    if (mPeek == null) return;
+                    spaces.onDismiss();
+                    String ruleSpace = spaces.bridge().linkRuleSpace(url.getSpec());
+                    if (!ruleSpace.isEmpty()) {
+                        openInSpace(ruleSpace, url);
+                    } else if (LittleWindow.isOn()) {
+                        mPeek.showLittleWindow(
+                                mActivity.getTabModelSelector().getModel(false).getProfile(),
+                                url);
+                    } else {
+                        openInSpace(spaces.shownSpaceId(), url);
+                    }
+                });
+    }
+
+    // A new Today tab of |spaceId| (this window's profile), shown; the window switches to it.
+    private void openInSpace(String spaceId, GURL url) {
+        if (mSpaces != null && !spaceId.isEmpty() && !spaceId.equals(mSpaces.shownSpaceId())) {
+            mSpaces.onSpaceClicked(spaceId);
+        }
+        mActivity
+                .getTabCreator(false)
+                .createNewTab(
+                        new org.chromium.content_public.browser.LoadUrlParams(
+                                url,
+                                org.chromium.ui.base.PageTransition.LINK
+                                        | org.chromium.ui.base.PageTransition.FROM_API),
+                        org.chromium.chrome.browser.tab.TabLaunchType.FROM_EXTERNAL_APP,
+                        null);
+    }
+
+    /** The window's spaces (Settings' Sites in Spaces). */
+    @Nullable Spaces spaces() {
+        return mSpaces;
     }
 
     /** Shows the extensions sheet; false if the window has none. */

@@ -230,6 +230,38 @@ public class SpacesBridge {
         return SpacesBridgeJni.get().backToSavedUrl(mNativeSpacesBridge, nodeId);
     }
 
+    // Link routing (docs/design/link-routing.md; android.md, "Links routed to spaces"): this
+    // profile's rules.
+
+    /** The space |url|'s rule names (a space of this profile), or empty: none, or it's gone. */
+    public String linkRuleSpace(String url) {
+        return SpacesBridgeJni.get().linkRuleSpace(mNativeSpacesBridge, url);
+    }
+
+    /** |input| (a domain or a URL) as a rule's domain, or empty if it can't be one. */
+    public String normalizeLinkDomain(String input) {
+        return SpacesBridgeJni.get().normalizeLinkDomain(mNativeSpacesBridge, input);
+    }
+
+    /** The space |domain|'s own rule names (gone or not), or empty. */
+    public String linkRuleFor(String domain) {
+        return SpacesBridgeJni.get().linkRuleFor(mNativeSpacesBridge, domain);
+    }
+
+    /** Sets |domain|'s rule (normalized) to |spaceId|; false if either isn't one. */
+    public boolean setLinkRule(String domain, String spaceId) {
+        return SpacesBridgeJni.get().setLinkRule(mNativeSpacesBridge, domain, spaceId);
+    }
+
+    public void removeLinkRule(String domain) {
+        SpacesBridgeJni.get().removeLinkRule(mNativeSpacesBridge, domain);
+    }
+
+    /** The rules, as JSON: [{"domain", "space"}], by domain. */
+    public String linkRules() {
+        return SpacesBridgeJni.get().linkRules(mNativeSpacesBridge);
+    }
+
     @NativeMethods
     interface Natives {
         long init(SpacesBridge caller, @JniType("Profile*") Profile profile);
@@ -342,5 +374,24 @@ public class SpacesBridge {
 
         @JniType("std::string")
         String backToSavedUrl(long nativeSpacesBridge, @JniType("std::string") String nodeId);
+
+        @JniType("std::string")
+        String linkRuleSpace(long nativeSpacesBridge, @JniType("std::string") String url);
+
+        @JniType("std::string")
+        String normalizeLinkDomain(long nativeSpacesBridge, @JniType("std::string") String input);
+
+        @JniType("std::string")
+        String linkRuleFor(long nativeSpacesBridge, @JniType("std::string") String domain);
+
+        boolean setLinkRule(
+                long nativeSpacesBridge,
+                @JniType("std::string") String domain,
+                @JniType("std::string") String spaceId);
+
+        void removeLinkRule(long nativeSpacesBridge, @JniType("std::string") String domain);
+
+        @JniType("std::string")
+        String linkRules(long nativeSpacesBridge);
     }
 }

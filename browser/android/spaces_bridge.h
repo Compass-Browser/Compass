@@ -123,6 +123,17 @@ class SpacesBridge : public SpacesAndroid::Observer {
   void UseCurrentPageAsSavedUrl(JNIEnv* env, const std::string& node_id);
   std::string BackToSavedUrl(JNIEnv* env, const std::string& node_id);
 
+  // Link routing (docs/design/link-routing.md; android.md, "Links routed to
+  // spaces"): this profile's rules.
+  std::string LinkRuleSpace(JNIEnv* env, const std::string& url);
+  std::string NormalizeLinkDomain(JNIEnv* env, const std::string& input);
+  std::string LinkRuleFor(JNIEnv* env, const std::string& domain);
+  bool SetLinkRule(JNIEnv* env,
+                   const std::string& domain,
+                   const std::string& space_id);
+  void RemoveLinkRule(JNIEnv* env, const std::string& domain);
+  std::string LinkRules(JNIEnv* env);
+
   // SpacesAndroid::Observer:
   void OnSpacesChanged() override;
   void OnTabsArchived(const std::vector<int>& tab_ids) override;

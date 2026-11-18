@@ -29,7 +29,10 @@ public final class LittleWindow {
 
     private LittleWindow() {}
 
-    /** Settings → Open in a Little Window (on by default, as on iOS). */
+    /**
+     * Settings → Open in a Little Window (on by default, as on iOS). Off, a link from another app
+     * without a rule opens as a new Today tab of the shown space (CompassBar).
+     */
     public static boolean isOn() {
         return ContextUtils.getAppSharedPreferences().getBoolean(PREF, true);
     }
@@ -39,12 +42,13 @@ public final class LittleWindow {
     }
 
     /**
-     * |intent|'s web link, if it's a link from another app that opens in a little window: a VIEW
-     * intent for an http(s) page that Chrome would open in a new tab, not from Compass itself (its
-     * own intents, Chrome's trusted ones, its widgets and shortcuts) and not for incognito.
+     * |intent|'s web link, if it's a link from another app, which Compass routes itself (a rule's
+     * space, else the little window or a Today tab): a VIEW intent for an http(s) page that Chrome
+     * would open in a new tab, not from Compass itself (its own intents, Chrome's trusted ones,
+     * its widgets and shortcuts) and not for incognito.
      */
     public static @Nullable String linkFromOtherApp(Context context, @Nullable Intent intent) {
-        if (intent == null || !isOn()) return null;
+        if (intent == null) return null;
         if (!Intent.ACTION_VIEW.equals(intent.getAction())) return null;
         if (CompassIntents.isCompassIntent(intent)) return null;
         if (IntentHandler.wasIntentSenderChrome(intent)) return null;

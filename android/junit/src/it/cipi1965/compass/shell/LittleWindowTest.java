@@ -91,8 +91,11 @@ public class LittleWindowTest {
     }
 
     @Test
-    public void offOpensTabs() {
+    public void offStillRoutesTheLink() {
+        // Compass still takes the link: a rule's space, else a Today tab instead of the card.
         LittleWindow.setOn(false);
-        assertNull(LittleWindow.linkFromOtherApp(mContext, view("https://example.com/")));
+        assertEquals(
+                "https://example.com/",
+                LittleWindow.linkFromOtherApp(mContext, view("https://example.com/")));
     }
 }
