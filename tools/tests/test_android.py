@@ -65,5 +65,35 @@ class MacHostTest(unittest.TestCase):
       self.assertFalse(android.use_sdk_aapt2(Path(tmp)))
 
 
+
+class ReleaseApkTest(unittest.TestCase):
+
+  def test_parse_version_code(self):
+    self.assertEqual(1263220819, android.parse_version_code(
+        "package: name='it.cipi1965.compass' versionCode='1263220819' "
+        "versionName='157.0.8103.51'"))
+    with self.assertRaises(android.ApkError):
+      android.parse_version_code("package: name='x'")
+
+  def test_signer_and_keystore_digests_compare(self):
+    digest = '2a33a6aae3e4f8bc5f560dc176eb049cb72f4f5977ccc5cb2d3856794c712c66'
+    apksigner = ('Signer #1 certificate DN: CN=Compass, O=Compass Browser\n'
+                 'Signer #1 certificate SHA-256 digest: %s\n' % digest)
+    keytool = ('Certificate fingerprints:\n\t SHA1: 00:11\n\t SHA256: %s\n'
+               % ':'.join(digest[i:i + 2] for i in range(0, 64, 2)).upper())
+    self.assertEqual(digest, android.parse_signer_sha256(apksigner))
+    self.assertEqual(digest, android.parse_keytool_sha256(keytool))
+    with self.assertRaises(android.ApkError):
+      android.parse_signer_sha256('DOES NOT VERIFY')
+
+  def test_build_tools_picks_the_newest(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      root = Path(tmp) / 'third_party/android_sdk/public/build-tools'
+      for version in ('9.0.0', '36.1.0', '37.0.0'):
+        (root / version).mkdir(parents=True)
+        (root / version / 'apksigner').write_text('')
+      self.assertEqual('37.0.0', android.build_tools(Path(tmp)).name)
+
+
 if __name__ == '__main__':
   unittest.main()

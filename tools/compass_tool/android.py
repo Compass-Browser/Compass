@@ -75,3 +75,130 @@ def prepare_mac_host(src: Path) -> None:
     print('android: linked jdk/current/%s' % name)
   if use_sdk_aapt2(src):
     print('android: using the SDK\'s Mac aapt2')
+
+
+# Release APKs (docs/building.md, "Android releases"): the GitHub release's
+# APK is signed with the release key, the one Play App Signing signs with, so
+# either can update the other.
+
+class ApkError(Exception):
+  pass
+
+
+def build_tools(src: Path) -> Path:
+  """The newest SDK build tools in the checkout (apksigner, aapt2)."""
+  root = src / 'third_party' / 'android_sdk' / 'public' / 'build-tools'
+  found = sorted((p for p in root.glob('*') if (p / 'apksigner').is_file()),
+                 key=lambda p: [int(x) if x.isdigit() else x
+                                for x in p.name.split('.')])
+  if not found:
+    raise ApkError('no SDK build tools with apksigner in %s' % root)
+  return found[-1]
+
+
+def java_env(src: Path) -> dict:
+  """The checkout's JDK first on PATH: apksigner and keytool need one."""
+  env = dict(os.environ)
+  jdk = src / 'third_party' / 'jdk' / 'current'
+  env['JAVA_HOME'] = str(jdk)
+  env['PATH'] = str(jdk / 'bin') + os.pathsep + env.get('PATH', '')
+  return env
+
+
+def _run(cmd: List[str], src: Path) -> str:
+  import subprocess
+  done = subprocess.run(cmd, capture_output=True, text=True, env=java_env(src))
+  if done.returncode != 0:
+    raise ApkError('%s failed: %s' % (Path(cmd[0]).name,
+                                      (done.stderr or done.stdout).strip()[-400:]))
+  return done.stdout
+
+
+def parse_version_code(badging: str) -> int:
+  """versionCode from `aapt2 dump badging`'s first line."""
+  import re
+  match = re.search(r"versionCode='(\d+)'", badging)
+  if not match:
+    raise ApkError('no versionCode in the APK\'s badging')
+  return int(match.group(1))
+
+
+def apk_version_code(src: Path, apk: Path) -> int:
+  return parse_version_code(
+      _run([str(build_tools(src) / 'aapt2'), 'dump', 'badging', str(apk)], src))
+
+
+def parse_signer_sha256(output: str) -> str:
+  """The first signer's certificate SHA-256 from `apksigner verify
+  --print-certs`, lowercase hex."""
+  import re
+  match = re.search(r'certificate SHA-256 digest: ([0-9a-fA-F]{64})', output)
+  if not match:
+    raise ApkError('the APK has no signer apksigner could read')
+  return match.group(1).lower()
+
+
+def parse_keytool_sha256(output: str) -> str:
+  """The certificate SHA-256 from `keytool -list -v`, lowercase hex."""
+  import re
+  match = re.search(r'SHA256:\s*([0-9A-Fa-f:]{95})', output)
+  if not match:
+    raise ApkError('keytool printed no SHA-256 fingerprint')
+  return match.group(1).replace(':', '').lower()
+
+
+def apk_signer_sha256(src: Path, apk: Path) -> str:
+  return parse_signer_sha256(_run(
+      [str(build_tools(src) / 'apksigner'), 'verify', '--print-certs',
+       str(apk)], src))
+
+
+def keystore_sha256(src: Path, keystore: Path, alias: str,
+                    password_file: Path) -> str:
+  password = password_file.read_text().strip()
+  return parse_keytool_sha256(_run(
+      ['keytool', '-list', '-v', '-keystore', str(keystore), '-alias', alias,
+       '-storepass', password], src))
+
+
+def sign_apk(src: Path, apk: Path, out: Path, keystore: Path, alias: str,
+             password_file: Path) -> None:
+  """|apk| signed with |keystore|'s |alias| (v2 and v3 signatures, as the
+  build's), written to |out|."""
+  _run([str(build_tools(src) / 'apksigner'), 'sign', '--ks', str(keystore),
+        '--ks-key-alias', alias, '--ks-pass', 'file:%s' % password_file,
+        '--out', str(out), str(apk)], src)
+  idsig = out.with_name(out.name + '.idsig')
+  if idsig.exists():
+    idsig.unlink()
+
+
+def sign_bundle(src: Path, aab: Path, out: Path, keystore: Path, alias: str,
+                password_file: Path) -> None:
+  """|aab| signed as a JAR with |keystore|'s |alias| (Play's upload key),
+  written to |out|. The build signs bundles with Chromium's debug key, whose
+  signature goes first: a JAR holds one signer here."""
+  import zipfile
+  tmp = out.with_name(out.name + '.unsigned')
+  with zipfile.ZipFile(aab) as zin, zipfile.ZipFile(tmp, 'w') as zout:
+    for item in zin.infolist():
+      name = item.filename
+      if name.startswith('META-INF/') and (
+          name == 'META-INF/MANIFEST.MF' or
+          name.rsplit('.', 1)[-1] in ('SF', 'RSA', 'DSA', 'EC')):
+        continue
+      zout.writestr(item, zin.read(name))
+  try:
+    password = password_file.read_text().strip()
+    _run(['jarsigner', '-keystore', str(keystore), '-storepass', password,
+          '-sigalg', 'SHA256withRSA', '-digestalg', 'SHA-256',
+          '-signedjar', str(out), str(tmp), alias], src)
+  finally:
+    if tmp.exists():
+      tmp.unlink()
+
+
+def bundle_signer_sha256(src: Path, aab: Path) -> str:
+  """The SHA-256 of the certificate |aab| is signed with, as a JAR."""
+  return parse_keytool_sha256(_run(['keytool', '-printcert', '-jarfile',
+                                    str(aab)], src))

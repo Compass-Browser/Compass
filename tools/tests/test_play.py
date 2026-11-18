@@ -323,7 +323,7 @@ class CliTest(unittest.TestCase):
   def test_parses(self):
     args = parser().parse_args(['play', 'upload', '--aab', 'x.aab',
                                 '--version', '20261114.1530'])
-    self.assertEqual(('upload', 'beta', 'completed'),
+    self.assertEqual(('upload', 'internal', 'completed'),
                      (args.action, args.track, args.status))
 
   def test_dry_run_sends_nothing(self):
@@ -353,6 +353,41 @@ class CliTest(unittest.TestCase):
                    '20261114.1530', '--credentials', str(work / 'k.json')])
     self.assertEqual(1, code)
     self.assertIn(str(work / 'k.json'), err.getvalue())
+
+
+
+class TracksTest(unittest.TestCase):
+
+  def test_describe_tracks(self):
+    lines = play.describe_tracks([
+        {'track': 'production'},
+        {'track': 'internal', 'releases': [
+            {'name': '20261118.0819', 'status': 'completed',
+             'versionCodes': ['1263220819']}]},
+        {'track': 'beta', 'releases': [
+            {'name': '20261119.1000', 'status': 'inProgress',
+             'userFraction': 0.2, 'versionCodes': ['1263231000']}]},
+    ])
+    self.assertEqual([
+        'production: no release',
+        'internal: 20261118.0819 (completed) versionCode 1263220819',
+        'beta: 20261119.1000 (inProgress, 20% of users) versionCode 1263231000',
+    ], lines)
+
+  def test_tracks_throws_its_edit_away(self):
+    calls = []
+
+    def transport(method, url, body, headers, timeout):
+      calls.append((method, url.rsplit('/', 2)[-2:]))
+      if method == 'POST':
+        return {'id': 'e1'}
+      if method == 'GET':
+        return {'tracks': [{'track': 'internal'}]}
+      return {}
+
+    client = play.Client(lambda: 'token', transport=transport)
+    self.assertEqual([{'track': 'internal'}], play.tracks(client))
+    self.assertEqual(['POST', 'GET', 'DELETE'], [c[0] for c in calls])
 
 
 if __name__ == '__main__':

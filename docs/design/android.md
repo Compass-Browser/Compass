@@ -808,7 +808,7 @@ controls that count are the bottom ones, where Compass's bar is
 | C8 | Claude: chat sheet, page tools, browser tools | Done (page tools; list, open, select and close tabs); not yet tried with a real key |
 | C9 | Widgets, Quick Settings tile, shortcuts, share target | Done |
 | C10 | Tablets and foldables, keyboard shortcuts, multiple windows | Done |
-| C11 | Release pipeline: official build, Play testing tracks, APK on the GitHub release | Working on it: the app bundle (`compass_bundle`), versionCodes from the release version, `compass play upload` to a track, and the listing and App content drafts in `android/play/` (building.md, "Android releases (Google Play)"); on internal testing since 2026-11-18, closed testing in Google's review. Not yet: the APK on the GitHub release, and `compass play upload` (no Play service account yet) |
+| C11 | Release pipeline: official build, Play testing tracks, APK on the GitHub release | Working on it: the app bundle (`compass_bundle`), versionCodes from the release version, `compass play upload` to a track, and the listing and App content drafts in `android/play/` (building.md, "Android releases (Google Play)"); on internal testing since 2026-11-18, closed testing in Google's review; `compass release publish-android` signs the release APK with the release key and puts it on the version's GitHub prerelease. `compass play upload` (internal testing by default, `--track production` for the store) and `compass play status` run as a service account since 2026-11-18 (building.md, "Android releases") |
 
 ## Parity with iOS
 

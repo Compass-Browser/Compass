@@ -335,9 +335,38 @@ version=$(date +%Y%m%d.%H%M)
 tools/compass gen release --cpu android-arm64
 tools/compass play prepare --version $version    # the versionCode, in args.gn
 tools/compass build -c release --cpu android-arm64 compass_bundle compass_apk
-# sign (below), check, then:
-tools/compass play upload --aab Compass-$version.aab --version $version
+# update android/play/whatsnew-en-US.txt, then:
+
+# A test build: Play's internal testing (or --track alpha, closed testing),
+# and a GitHub prerelease.
+tools/compass play upload --version $version
+tools/compass release publish-android $version
+
+# A stable release: Play's production track, and GitHub's latest release.
+tools/compass play upload --version $version --track production
+tools/compass release publish-android $version --channel stable
+
+tools/compass play status    # every track and its releases
 ```
+
+- **Test or stable.** `play upload` goes to internal testing unless
+  `--track` names another track (`alpha` is the closed test, `beta` open
+  testing, `production` the store); a staged production rollout is
+  `--status inProgress --user-fraction 0.1`. `release publish-android`
+  makes a GitHub prerelease unless `--channel stable`, which also makes it
+  the latest release. The two are independent: a test build can go to Play
+  only, or to GitHub only. Production needs the closed test first
+  (Play's rule for new personal accounts: 12 testers for 14 days).
+
+- **The GitHub APK** (`compass release publish-android <version>`): the
+  release build's `apks/Compass.apk` (or `--apk`), signed with the release
+  key into `apks/Compass-<version>-android-arm64.apk`, as an asset of the
+  `v<version>` prerelease (made if it's not there yet, tagging HEAD, as
+  `publish-linux` does). It refuses an APK whose versionCode isn't the
+  version's (`play prepare` wasn't run for it) or whose certificate isn't
+  the release key's (`keytool` on the keystore against `apksigner`).
+  `--no-upload` signs and checks only. It sideloads over a Play install and
+  the other way round, since both are signed with the release key.
 
 - **Versions.** A release's version is the date and time, `YYYYMMDD.HHMM`,
   as on the other platforms. Its **versionCode** is `1YYDDDHHMM`: a 1, the
@@ -365,7 +394,9 @@ tools/compass play upload --aab Compass-$version.aab --version $version
   debug key, drop that signature first (`zip -d Compass.aab 'META-INF/*.SF'
   'META-INF/*.RSA' 'META-INF/MANIFEST.MF'`), then sign it as a JAR:
   `jarsigner -keystore compass-upload.jks -sigalg SHA256withRSA -digestalg
-  SHA-256 Compass.aab upload`.
+  SHA-256 Compass.aab upload`. `play upload` does this itself for the
+  release build's `apks/Compass.aab` (into `Compass-<version>.aab` next to
+  it, checked against the keystore); `--aab` takes one signed already.
 - **Checks** before the upload, with the bundletool Chromium ships
   (`third_party/android_build_tools/bundletool/cipd/bundletool.jar`):
   `validate --bundle=Compass.aab`, `dump manifest --bundle=Compass.aab
@@ -411,7 +442,12 @@ Setting up Play once:
    Google Play Android Developer API, create a service account, and
    download a JSON key for it. In Play Console, Users and permissions,
    invite the service account's address with "Release to testing tracks"
-   (and "Release apps to production" if it should) for the app.
+   (and "Release apps to production" if it should) for the app. Done on
+   2026-11-18: project `compass-play-515116` ("Compass Play", in the
+   developer account's Google account), service account
+   `compass-play-upload@compass-play-515116.iam.gserviceaccount.com`, no
+   Cloud roles; in Play Console, for Compass Browser only: production and
+   testing releases and tester lists. `compass play status` checks it.
 6. Put the key on the release Mac at
    `~/Library/Application Support/Compass Release/android/play-service-account.json`
    (`chmod 600`), never in a repository.

@@ -278,6 +278,9 @@ class Client:
                                             urllib.parse.quote(body['track'])),
                       json.dumps(body).encode(), 'application/json')
 
+  def list_tracks(self, edit: str) -> List[dict]:
+    return self._call('GET', self._edit_url(edit, '/tracks')).get('tracks', [])
+
   def validate(self, edit: str) -> None:
     self._call('POST', self._edit_url(edit, ':validate'))
 
@@ -356,6 +359,37 @@ def upload(client: Client, aab: Path, body: dict, commit: bool = True,
       except CommandError:
         pass
   return code
+
+
+def tracks(client: Client) -> List[dict]:
+  """Every track and its releases, read in an edit that's then thrown
+  away: nothing changes."""
+  edit = client.insert_edit()
+  try:
+    return client.list_tracks(edit)
+  finally:
+    try:
+      client.delete_edit(edit)
+    except CommandError:
+      pass
+
+
+def describe_tracks(tracks: List[dict]) -> List[str]:
+  """One line per release: its track, name, status, versionCodes and, for a
+  staged rollout, its share of users."""
+  lines = []
+  for track in tracks:
+    releases = track.get('releases') or []
+    if not releases:
+      lines.append('%s: no release' % track.get('track'))
+    for release in releases:
+      share = release.get('userFraction')
+      lines.append('%s: %s (%s%s) versionCode %s' % (
+          track.get('track'), release.get('name', '?'),
+          release.get('status', '?'),
+          ', %d%% of users' % round(share * 100) if share else '',
+          ', '.join(release.get('versionCodes') or ['none'])))
+  return lines
 
 
 def describe(package: str, aab: Path, body: dict) -> List[str]:

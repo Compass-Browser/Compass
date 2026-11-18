@@ -756,9 +756,75 @@ def release_packages(args) -> None:
     raise CommandError('%s has no macOS or Windows build' % args.version)
 
 
+# The GitHub release's APK (docs/building.md, "Android releases"): signed
+# with the release key, which Play App Signing signs with too, so the APK and
+# Play's builds update each other.
+ANDROID_RELEASE_DIR = (Path.home() / 'Library' / 'Application Support' /
+                       'Compass Release' / 'android')
+ANDROID_RELEASE_KEYSTORE = ANDROID_RELEASE_DIR / 'compass-release.jks'
+ANDROID_RELEASE_ALIAS = 'compass'
+ANDROID_RELEASE_PASSWORD = ANDROID_RELEASE_DIR / 'password'
+
+
+def android_apk_name(version: str) -> str:
+  return 'Compass-%s-android-arm64.apk' % version
+
+
+def publish_android(layout: Layout, args) -> None:
+  """An Android release on GitHub: the release build's APK (`compass_apk`,
+  built after `compass play prepare --version <version>`), signed with the
+  release key, as an asset of the version's prerelease. Its versionCode must
+  be the version's, and its certificate the release key's."""
+  if not args.version:
+    raise CommandError('publish-android: which version? (the one `compass '
+                       'play prepare --version` set)')
+  version = args.version
+  out = layout.out_dir('release', PLAY_CPU)
+  built = Path(args.apk) if args.apk else out / 'apks' / 'Compass.apk'
+  if not built.is_file():
+    raise CommandError('publish-android: no APK at %s (build compass_apk)'
+                       % built)
+  for path in (ANDROID_RELEASE_KEYSTORE, ANDROID_RELEASE_PASSWORD):
+    if not path.is_file():
+      raise CommandError('publish-android: the release key is missing (%s)'
+                         % path)
+  src = layout.src
+  try:
+    code = android.apk_version_code(src, built)
+    if code != play.version_code(version):
+      raise CommandError(
+          'publish-android: %s has versionCode %d, not %s\'s %d (run `compass '
+          'play prepare --version %s` and build again)' % (
+              built.name, code, version, play.version_code(version), version))
+    signed = out / 'apks' / android_apk_name(version)
+    android.sign_apk(src, built, signed, ANDROID_RELEASE_KEYSTORE,
+                     ANDROID_RELEASE_ALIAS, ANDROID_RELEASE_PASSWORD)
+    expected = android.keystore_sha256(src, ANDROID_RELEASE_KEYSTORE,
+                                       ANDROID_RELEASE_ALIAS,
+                                       ANDROID_RELEASE_PASSWORD)
+    if android.apk_signer_sha256(src, signed) != expected:
+      raise CommandError('publish-android: %s isn\'t signed with the release '
+                         'key' % signed.name)
+  except android.ApkError as e:
+    raise CommandError('publish-android: %s' % e)
+  print('%s: versionCode %d, signed with the release key' % (signed, code))
+  if args.no_upload:
+    print('would upload %s to %s' % (signed.name, release.github_tag(version)))
+    return
+  release.publish_assets(
+      {'version': version, 'chromium': layout.chromium_version(),
+       'channel': args.channel, 'notes': args.notes or ''},
+      [signed], git_commit(layout.root, short=False))
+  print('published %s on GitHub (%s)' % (signed.name,
+                                         release.github_tag(version)))
+
+
 def _release(layout: Layout, args) -> None:
   if args.action == 'publish-linux':
     publish_linux(args)
+    return
+  if args.action == 'publish-android':
+    publish_android(layout, args)
     return
   if args.action == 'packages':
     release_packages(args)
@@ -1021,9 +1087,59 @@ PLAY_CPU = 'android-arm64'
 # upload keystore.
 PLAY_CREDENTIALS = (Path.home() / 'Library' / 'Application Support' /
                     'Compass Release' / 'android' / 'play-service-account.json')
+# Play's upload key, which signs what goes to Play (Play signs what devices get
+# with the release key).
+PLAY_UPLOAD_KEYSTORE = ANDROID_RELEASE_DIR / 'compass-upload.jks'
+PLAY_UPLOAD_ALIAS = 'upload'
+PLAY_UPLOAD_PASSWORD = ANDROID_RELEASE_DIR / 'upload-password'
+
+
+def play_client(args) -> tuple:
+  credentials = Path(args.credentials) if args.credentials else \
+      PLAY_CREDENTIALS
+  info = play.load_credentials(credentials)
+  token = []
+
+  def access_token() -> str:
+    if not token:
+      token.append(play.service_account_token(info))
+    return token[0]
+
+  return play.Client(access_token, args.package), info
+
+
+def signed_bundle(layout: Layout, aab: Path, version: str) -> Path:
+  """The release build's bundle signed with the upload key, next to it as
+  Compass-<version>.aab, checked against the keystore."""
+  for path in (PLAY_UPLOAD_KEYSTORE, PLAY_UPLOAD_PASSWORD):
+    if not path.is_file():
+      raise CommandError('upload: the upload key is missing (%s)' % path)
+  out = aab.with_name('Compass-%s.aab' % version)
+  try:
+    android.sign_bundle(layout.src, aab, out, PLAY_UPLOAD_KEYSTORE,
+                        PLAY_UPLOAD_ALIAS, PLAY_UPLOAD_PASSWORD)
+    expected = android.keystore_sha256(layout.src, PLAY_UPLOAD_KEYSTORE,
+                                       PLAY_UPLOAD_ALIAS, PLAY_UPLOAD_PASSWORD)
+    if android.bundle_signer_sha256(layout.src, out) != expected:
+      raise CommandError('upload: %s isn\'t signed with the upload key'
+                         % out.name)
+  except android.ApkError as e:
+    raise CommandError('upload: %s' % e)
+  print('%s: signed with the upload key' % out)
+  return out
 
 
 def cmd_play(layout: Layout, args) -> None:
+  if args.action == 'status':
+    try:
+      client, info = play_client(args)
+      print('as %s, %s:' % (info['client_email'], args.package))
+      for line in play.describe_tracks(play.tracks(client)):
+        print('  ' + line)
+    except play.ApiError as e:
+      hint = play.explain(e)
+      raise CommandError(str(e) + ('\n' + hint if hint else ''))
+    return
   version = args.version or release.new_version()
   code = play.version_code(version)
   if args.action == 'version-code':
@@ -1045,9 +1161,14 @@ def cmd_play(layout: Layout, args) -> None:
   # upload
   if not args.version:
     raise CommandError('upload: give the --version the bundle was built as')
-  aab = Path(args.aab) if args.aab else None
-  if not aab or not aab.is_file():
-    raise CommandError('upload: no app bundle at %s' % args.aab)
+  # The release build's bundle by default, signed here with the upload key;
+  # --aab takes one signed already.
+  aab = Path(args.aab) if args.aab else \
+      layout.out_dir('release', PLAY_CPU) / 'apks' / 'Compass.aab'
+  if not aab.is_file():
+    raise CommandError('upload: no app bundle at %s' % aab)
+  if not args.aab and not args.dry_run:
+    aab = signed_bundle(layout, aab, version)
   notes = play.release_notes(Path(args.notes_dir) if args.notes_dir else
                              layout.root / 'android' / 'play')
   body = play.track_release(args.track, version, code, args.status, notes,
@@ -1060,15 +1181,7 @@ def cmd_play(layout: Layout, args) -> None:
     for line in play.describe(args.package, aab, body):
       print(line)
     return
-  info = play.load_credentials(credentials)
-  token = []
-
-  def access_token() -> str:
-    if not token:
-      token.append(play.service_account_token(info))
-    return token[0]
-
-  client = play.Client(access_token, args.package)
+  client, info = play_client(args)
   print('uploading as %s to %s, track %s' % (info['client_email'],
                                              args.package, args.track))
   try:
@@ -1442,7 +1555,8 @@ def parser() -> argparse.ArgumentParser:
                      'list them, redo one\'s Homebrew cask and winget '
                      'pull request (packages), or symbolicate a crash from one')
   s.add_argument('action', choices=['publish', 'build-win', 'publish-win',
-                                    'publish-linux', 'promote', 'list',
+                                    'publish-linux', 'publish-android',
+                                    'promote', 'list',
                                     'feeds', 'packages', 'symbolicate'],
                  nargs='?', default='publish')
   s.add_argument('version', nargs='?',
@@ -1465,6 +1579,9 @@ def parser() -> argparse.ArgumentParser:
   s.add_argument('--notes', help='publish: release notes')
   s.add_argument('--installer',
                  help='publish-win: the mini_installer.exe to publish')
+  s.add_argument('--apk',
+                 help='publish-android: the release build\'s APK (default: '
+                 '<out>/apks/Compass.apk of the release android-arm64 build)')
   s.add_argument('--tarball',
                  help='publish-linux: the Compass-<version>-linux-x64.tar.xz '
                  'from `package` (its .json, Flatpak bundle and OCI image '
@@ -1507,14 +1624,17 @@ def parser() -> argparse.ArgumentParser:
   s = sub.add_parser('play', help='Compass for Android on Google Play: the '
                      'versionCode of a release, set it for the release build, '
                      'or upload the app bundle to a testing track')
-  s.add_argument('action', choices=['version-code', 'prepare', 'upload'])
+  s.add_argument('action',
+                 choices=['version-code', 'prepare', 'upload', 'status'])
   s.add_argument('--version', help='the release, YYYYMMDD.HHMM (default for '
                  'version-code and prepare: now)')
-  s.add_argument('--aab', help='upload: the signed app bundle')
-  s.add_argument('--track', default='beta',
+  s.add_argument('--aab', help='upload: an app bundle signed with the upload '
+                 'key (default: the release build\'s, signed here)')
+  s.add_argument('--track', default='internal',
                  help='upload: internal, alpha (closed testing), beta (open '
                  'testing), production or a closed track\'s name (default: '
-                 '%(default)s)')
+                 '%(default)s: test builds go to testers; stable releases '
+                 'name production)')
   s.add_argument('--status', default='completed', choices=play.STATUSES,
                  help='upload: the release\'s status (default: %(default)s; '
                  'an app never published takes only draft)')
