@@ -9,6 +9,12 @@
    actions, Today and Other Devices widgets, and a "Pin to Compass" share
    target; and its passwords in other apps (it.cipi1965.compass.autofill). #}
 
+{# Screen sharing (getDisplayMedia) is on only on desktop Android
+   (chrome_browser_field_trials.cc, IS_DESKTOP_ANDROID), so Compass doesn't
+   ask for the mediaProjection foreground service, which Google Play wants a
+   demonstration of. #}
+{% set enable_screen_capture = "false" %}
+
 {% block application_label %}Compass{% endblock %}
 
 {% block extra_application_definitions %}

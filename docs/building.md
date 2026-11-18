@@ -352,20 +352,20 @@ tools/compass play upload --aab Compass-$version.aab --version $version
   Android's `version_info` reads the browser's version from the manifest,
   so it's what the user agent, extensions' `minimum_chrome_version` and the
   Web Store see. The Compass version is the name of the release on Play.
-- **Signing.** Play App Signing holds the key that signs what devices
-  install; the build is signed with the upload key, the release keystore
-  in `~/Library/Application Support/Compass Release/android/`
-  (`compass-release.jks`, alias `compass`, its password in `password`). The
-  build signs the bundle with Chromium's debug key, so the release drops
-  that signature (`zip -d Compass.aab 'META-INF/*.SF' 'META-INF/*.RSA'
-  'META-INF/MANIFEST.MF'`) and signs it as a JAR: `jarsigner -keystore
-  compass-release.jks -sigalg SHA256withRSA -digestalg SHA-256 Compass.aab
-  compass`. The APK is signed with `apksigner` and the same key.
-  An app Play signs with its own key and an APK signed with the upload key
-  can't update each other: someone moving from the GitHub APK to Play
-  reinstalls. To keep them interchangeable, give Play the release key as
-  the app signing key when enrolling (Play Console's "Use a different key"
-  with Google's PEPK tool) and make a new upload key.
+- **Signing.** Play App Signing signs what devices install with the
+  release key, `compass-release.jks` (alias `compass`, its password in
+  `password`) in `~/Library/Application Support/Compass Release/android/`,
+  which also signs the GitHub APK (`apksigner`), so either can update the
+  other. Play got it through Google's PEPK tool (Play Console, App signing,
+  "Export and upload a key from Java keystore"; the encrypted export and
+  the tool are in `play-app-signing/` there). Bundles go to Play signed
+  with the upload key next to it, `compass-upload.jks` (alias `upload`, its
+  password in `upload-password`); Play Console can reset a lost upload key,
+  not a lost release key. If the build signed the bundle with Chromium's
+  debug key, drop that signature first (`zip -d Compass.aab 'META-INF/*.SF'
+  'META-INF/*.RSA' 'META-INF/MANIFEST.MF'`), then sign it as a JAR:
+  `jarsigner -keystore compass-upload.jks -sigalg SHA256withRSA -digestalg
+  SHA-256 Compass.aab upload`.
 - **Checks** before the upload, with the bundletool Chromium ships
   (`third_party/android_build_tools/bundletool/cipd/bundletool.jar`):
   `validate --bundle=Compass.aab`, `dump manifest --bundle=Compass.aab
