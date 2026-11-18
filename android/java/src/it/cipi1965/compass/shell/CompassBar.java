@@ -544,7 +544,9 @@ public class CompassBar implements CompassBarUi.Actions {
             String nodeId = intent.getStringExtra(CompassIntents.EXTRA_NODE_ID);
             String url = intent.getStringExtra(CompassIntents.EXTRA_URL);
             if (url != null && mSpaces != null) {
-                mSpaces.openEntry(nodeId != null ? nodeId : "", url);
+                String spaceId = intent.getStringExtra(CompassIntents.EXTRA_SPACE_ID);
+                mSpaces.openEntry(
+                        nodeId != null ? nodeId : "", url, spaceId != null ? spaceId : "");
             }
         } else if (CompassIntents.ACTION_PAIR.equals(action)) {
             String server = intent.getStringExtra(CompassIntents.EXTRA_SERVER);

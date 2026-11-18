@@ -479,6 +479,24 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
      * its page in a new tab.
      */
     public void openEntry(String nodeId, String url) {
+        openEntry(nodeId, url, "");
+    }
+
+    /**
+     * An entry from app search (a launcher shortcut): a favorite or Pinned entry shows its tab,
+     * in its space (|spaceId|, shown first if it's another); a Today entry as openEntry(); else
+     * its page in a new tab.
+     */
+    public void openEntry(String nodeId, String url, String spaceId) {
+        if (!nodeId.isEmpty() && mState.findNode(nodeId) == null && !spaceId.isEmpty()
+                && !spaceId.equals(shownSpaceId())) {
+            mBridge.setActiveSpace(spaceId);
+            onModelChanged();
+        }
+        if (!nodeId.isEmpty() && isFavoriteOrPinned(nodeId)) {
+            onNodeClicked(nodeId, url);
+            return;
+        }
         boolean inToday = false;
         for (SidebarState.Node node : mState.getToday()) {
             if (node.id.equals(nodeId)) inToday = true;
@@ -603,11 +621,25 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
         if (mOnChanged != null) mOnChanged.run();
     }
 
-    // A launcher shortcut per space (the first few), to open it.
+    /**
+     * Launcher shortcuts (docs/design/android.md, "App search"): one per space, to open it, then
+     * the favorites and the shown space's Pinned entries, which the launcher's search finds (as
+     * Spotlight finds them on iOS) and which open the entry. Android caps an app's dynamic
+     * shortcuts (getMaxShortcutCountPerActivity(), usually 15, Chrome's two static ones count):
+     * the spaces come first, then the favorites, then Pinned, in the sidebar's order.
+     */
     private void updateShortcuts() {
+        List<SidebarState.Node> entries = new ArrayList<>();
+        collectEntries(mState.getFavorites(), entries);
+        collectEntries(mState.getPinned(), entries);
         StringBuilder key = new StringBuilder();
         for (SidebarState.Space space : mState.getSpaces()) {
             key.append(space.id).append(space.emoji).append(space.name).append('\n');
+        }
+        String shownSpace = shownSpaceId();
+        key.append(shownSpace).append('\n');
+        for (SidebarState.Node node : entries) {
+            key.append(node.id).append(node.title).append(node.url).append('\n');
         }
         if (key.toString().equals(mShortcutSpaces)) return;
         mShortcutSpaces = key.toString();
@@ -635,11 +667,55 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
                             .setRank(rank++)
                             .build());
         }
+        for (SidebarState.Node node : entries) {
+            if (shortcuts.size() >= max) break;
+            Intent intent = CompassIntents.create(mActivity, CompassIntents.ACTION_OPEN_ENTRY);
+            intent.putExtra(CompassIntents.EXTRA_NODE_ID, node.id);
+            intent.putExtra(CompassIntents.EXTRA_URL, node.url);
+            intent.putExtra(CompassIntents.EXTRA_SPACE_ID, shownSpace);
+            String title = !node.title.isEmpty() ? node.title : Favicons.INSTANCE.hostOf(node.url);
+            if (title.isEmpty()) title = node.url;
+            android.graphics.Bitmap favicon = Favicons.INSTANCE.icon(node.url);
+            shortcuts.add(
+                    new ShortcutInfo.Builder(mActivity, "entry-" + node.id)
+                            .setShortLabel(title.length() > 24 ? title.substring(0, 24) : title)
+                            .setLongLabel(title)
+                            .setIcon(
+                                    favicon != null
+                                            ? Icon.createWithBitmap(favicon)
+                                            : Icon.createWithResource(mActivity, icon))
+                            .setIntent(intent)
+                            .setRank(rank++)
+                            .build());
+        }
         try {
             manager.setDynamicShortcuts(shortcuts);
         } catch (IllegalArgumentException | IllegalStateException e) {
             // Rate-limited or over the limit: the next change tries again.
             mShortcutSpaces = "";
+        }
+    }
+
+    private boolean isFavoriteOrPinned(String nodeId) {
+        List<SidebarState.Node> entries = new ArrayList<>();
+        collectEntries(mState.getFavorites(), entries);
+        collectEntries(mState.getPinned(), entries);
+        for (SidebarState.Node node : entries) {
+            if (node.id.equals(nodeId)) return true;
+        }
+        return false;
+    }
+
+    // The entries with a page under |nodes|, in the sidebar's order (folders' too, not live ones).
+    private static void collectEntries(
+            List<SidebarState.Node> nodes, List<SidebarState.Node> into) {
+        for (SidebarState.Node node : nodes) {
+            if (node.isLiveFolder()) continue;
+            if (node.isFolder()) {
+                collectEntries(node.children, into);
+            } else if (node.url.startsWith("http")) {
+                into.add(node);
+            }
         }
     }
 

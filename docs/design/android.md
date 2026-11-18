@@ -614,7 +614,15 @@ It costs:
   devices' open tabs, which `DevicesWidget` publishes from Chrome's
   `ForeignSessionHelper`; both through `ListWidgetProvider`), a "Pin to
   Compass" share target, and a
-  launcher shortcut per space (dynamic, from `Spaces`). They reach the
+  launcher shortcut per space (dynamic, from `Spaces`).
+  **App search** (Spotlight's role on iOS): after the spaces, the
+  favorites and the shown space's Pinned entries are launcher shortcuts
+  too, with their favicons, so the launcher's search finds them; one opens
+  its entry (its tab, in its space, `Spaces.openEntry()`). Android caps an
+  app's dynamic shortcuts (`getMaxShortcutCountPerActivity()`, usually 15,
+  two of them Chrome's), so it's the first dozen or so in the sidebar's
+  order; other spaces' Pinned entries aren't in the snapshot and aren't
+  listed. They reach the
   shell through `CompassIntents` (its own actions to Chrome's launcher
   alias), which `CompassBar` handles at launch and on new intents.
   Pin to Compass opens the shared link and pins it to the active space,
@@ -970,7 +978,7 @@ piece left.
 | P6 | Splits | **Done** (above, "Splits"). "Split With…" and "Add to Split…" in the long-press menu; a split of two shows both panes (stacked, side by side in landscape), three or four one pane at a time under a pane picker |
 | P7 | Profiles | **Done** (above, "Profiles", phases 1–3). Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |
 | P8 | Compass settings | **Done** (above, "Settings"): search engine, privacy, site settings; a site's own exceptions and the rest on Chrome's pages. Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |
-| P9 | System extras | The share target picks a space and folder (done, above, "Extras"). Today, Quick Actions and Other Devices widgets (done, above); app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
+| P9 | System extras | The share target picks a space and folder (done, above, "Extras"). Today, Quick Actions and Other Devices widgets (done, above); app search for favorites and Pinned entries (done, above, "Extras": launcher shortcuts, the first dozen or so); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
 | P10 | Passwords from other apps | **Done** (above, "Passwords in other apps"). Other apps' logins save into Compass (Autofill's save request), not only fill |
 | P11 | Link folders | **Done** (above, "Link folders"). A link opened in the background gathers with its page in a Today folder, by the desktop's rules (sidebar.md, "Link folders"; ios.md, "Link folders") |
 | P12 | Claude in the sidebar | **Done** (above, "Claude in the sidebar"). Names for link folders (automatic, Suggest a Name and Undo Name), Tidy Today, shorter tab titles, Ask in the command bar (ai-sidebar.md, A2–A5; ios.md) |
