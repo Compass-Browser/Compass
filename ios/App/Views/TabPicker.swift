@@ -125,6 +125,9 @@ struct TabPicker: View {
         Color.black.opacity(0.22 * min(stacked, 1) * progress)
       }
       .frame(width: width, height: height)
+      .overlay(alignment: .bottomLeading) {
+        badge(for: node).padding(10).opacity(progress)
+      }
       .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
       // Only near the middle: a dozen live shadows cost frames.
       .shadow(color: .black.opacity(abs(d) < 1.5 ? 0.3 * progress : 0), radius: 16, y: 6)
@@ -140,8 +143,40 @@ struct TabPicker: View {
     .accessibilityElement(children: .ignore)
     .accessibilityAddTraits(.isButton)
     .accessibilityLabel(node.displayTitle)
+    .accessibilityValue(place(of: node))
     .accessibilityIdentifier("PickerCard")
     .accessibilityAction(named: "Close") { app.closeFromPicker(node.id) }
+  }
+
+  /// Where the card's tab lives, at its bottom left corner (still showing on
+  /// stacked cards): its space's icon and name on its accent, or Favorites
+  /// (a profile's, shown with every space of it, so no space's).
+  @ViewBuilder private func badge(for node: SidebarNode) -> some View {
+    if let space = app.store.space(of: node) {
+      badge(name: space.name, color: space.theme.accent) { SpaceIcon(space: space, size: 13) }
+    } else {
+      badge(name: "Favorites", color: .gray) {
+        Image(systemName: "star.fill").font(.system(size: 11.5, weight: .semibold))
+      }
+    }
+  }
+
+  private func badge(name: String, color: Color, @ViewBuilder icon: () -> some View) -> some View {
+    HStack(spacing: 5) {
+      icon()
+      Text(name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+    }
+    .foregroundStyle(.white)
+    .padding(.horizontal, 9)
+    .padding(.vertical, 5)
+    .background(Capsule().fill(color))
+    .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
+    .accessibilityHidden(true)
+  }
+
+  /// The badge's words for VoiceOver.
+  private func place(of node: SidebarNode) -> String {
+    app.store.space(of: node)?.name ?? "Favorites"
   }
 
   /// Sideways: scrolls the row. Up on a card: flicks it away. Down: closes

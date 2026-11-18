@@ -635,10 +635,8 @@ final class AppModel {
   func preparePicker() {
     pickerHolding = false
     if let shown = shownTab { tabs.snapshot(shown.id) }
-    // Locked incognito tabs aren't shown.
-    pickerTabs = tabs.loadedOrder.filter {
-      store.node(id: $0) != nil && !(services.incognitoLocked && tabs.isIncognito($0))
-    }
+    // Incognito tabs aren't shown: the picker is the regular spaces' tabs.
+    pickerTabs = tabs.loadedOrder.filter { store.node(id: $0) != nil && !tabs.isIncognito($0) }
     let index = shownTab.flatMap { pickerTabs.firstIndex(of: $0.id) } ?? pickerTabs.count - 1
     pickerPosition = CGFloat(max(index, 0))
   }
