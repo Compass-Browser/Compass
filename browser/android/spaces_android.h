@@ -20,6 +20,7 @@
 #include "base/timer/timer.h"
 #include "base/values.h"
 #include "base/uuid.h"
+#include "compass/browser/sidebar/link_folders.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "url/gurl.h"
@@ -104,11 +105,19 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   // desktop's empty tab (command-bar.md, "No new tab page"). A new entry
   // goes in |space_id|'s Today (the window's space; SpaceOrActive()). A tab
   // that moved here from another window keeps its entry.
+  //
+  // A link opened in the background from a page in the sidebar (the link's
+  // long-press "Open in new tab", Ctrl+click, middle click) passes its
+  // opener's tab as |opener_tab_id| and the window as |window|: it gathers
+  // with the opener in a Today folder (docs/design/sidebar.md, "Link
+  // folders"; LinkFolders, one per window).
   void TabOpened(int tab_id,
                  const GURL& url,
                  const std::u16string& title,
                  bool restored,
-                 const base::Uuid& space_id = base::Uuid());
+                 const base::Uuid& space_id = base::Uuid(),
+                 int opener_tab_id = -1,
+                 const void* window = nullptr);
   // A tab the shell opened from |node_id| (a pinned tab, favorite or Today
   // entry with no tab).
   void TabOpenedForNode(int tab_id, const base::Uuid& node_id);
@@ -118,7 +127,8 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   // active: the archiver's clock starts as an entry leaves the screen
   // (docs/design/sidebar.md, "Today auto-archive").
   void TabSelected(int tab_id, const void* window = nullptr);
-  // |window| is gone: what it showed may be archived.
+  // |window| is gone: what it showed may be archived, and its link folders
+  // are forgotten.
   void WindowClosed(const void* window);
   // A Today entry goes to its space's archive when its tab closes
   // (docs/design/android.md, P1); pinned tabs and favorites stay, unloaded,
@@ -221,6 +231,16 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   std::map<int, base::Uuid> tabs_;
   // Tabs on the new tab page, with no entry yet.
   std::set<int> empty_tabs_;
+  // Links opened in the background whose tab had no page yet, by tab: their
+  // opener's tab, window and its space, for when it gets one (TabUpdated()).
+  struct LinkOpener {
+    int opener_tab_id;
+    raw_ptr<const void> window;
+    base::Uuid space_id;
+  };
+  std::map<int, LinkOpener> link_openers_;
+  // Each window's link folders.
+  std::map<const void*, std::unique_ptr<LinkFolders>> link_folders_;
   // Tabs reported before the saved spaces were in: they're matched to saved
   // entries once they are (OnLoaded()).
   struct PendingTab {

@@ -475,9 +475,8 @@ The desktop's C++ (android.md, "Claude in the sidebar (P12)"):
 sparkle, Tidy with its toast and Undo, and Ask to the Compose shell. The
 switches and models are in the Claude sheet's ⋯ menu, Claude in the
 Sidebar. Folders got a long-press menu: Rename, Undo Name or Suggest a
-Name. Android makes no link folders yet (android.md, P11), so a folder's
-name comes from Claude only when asked there, or from the device that made
-it. Tried in the emulator against a fake Messages API; no unit tests of
+Name. Android's own link folders (android.md, P11) are named
+automatically, as on the desktop. Tried in the emulator against a fake Messages API; no unit tests of
 the Android side yet.
 
 ## Milestones
@@ -490,7 +489,7 @@ the Android side yet.
 | A4 | Shorter tab titles |
 | A5 | Ask in the command bar |
 | A6 | iOS: A1–A5 (done) |
-| A7 | Android: A1–A5 (done; automatic names wait for Android's link folders) |
+| A7 | Android: A1–A5 (done) |
 
 ## Tests
 

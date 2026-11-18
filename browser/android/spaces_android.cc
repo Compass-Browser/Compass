@@ -327,12 +327,19 @@ void SpacesAndroid::TabOpened(int tab_id,
                               const GURL& url,
                               const std::u16string& title,
                               bool restored,
-                              const base::Uuid& space_id) {
+                              const base::Uuid& space_id,
+                              int opener_tab_id,
+                              const void* window) {
   if (tabs_.contains(tab_id)) {
     return;
   }
-  if (IsNewTabPage(url)) {
+  if (IsNewTabPage(url) || (url.is_empty() && opener_tab_id != -1)) {
+    // No page yet: an entry once it has one (TabUpdated()), with its
+    // opener's folder if it's a link.
     empty_tabs_.insert(tab_id);
+    if (opener_tab_id != -1) {
+      link_openers_[tab_id] = {opener_tab_id, window, space_id};
+    }
     return;
   }
   if (!loaded_) {
@@ -347,8 +354,22 @@ void SpacesAndroid::TabOpened(int tab_id,
       return;
     }
   }
+  SidebarNode* node = nullptr;
+  // A link from a page in the sidebar gathers with it in a Today folder.
+  auto opener = tabs_.find(opener_tab_id);
+  if (!restored && opener != tabs_.end()) {
+    if (SidebarNode* opener_node = FindNode(opener->second)) {
+      std::unique_ptr<LinkFolders>& folders = link_folders_[window];
+      if (!folders) {
+        folders = std::make_unique<LinkFolders>();
+      }
+      node = folders->AddLink(space, *opener_node, url, title);
+    }
+  }
   // New tabs go at the top of Today, as on the desktop.
-  SidebarNode* node = space.AddTab(space.today_root(), 0, url, title);
+  if (!node) {
+    node = space.AddTab(space.today_root(), 0, url, title);
+  }
   if (node) {
     tabs_[tab_id] = node->id();
   }
@@ -374,12 +395,23 @@ void SpacesAndroid::TabUpdated(int tab_id,
     }
   }
   if (empty_tabs_.contains(tab_id)) {
-    // The start page's tab went somewhere: now it's an entry.
-    if (IsNewTabPage(url)) {
+    // The start page's tab (or a link's, before its page) went somewhere:
+    // now it's an entry.
+    if (IsNewTabPage(url) || url.is_empty()) {
       return;
     }
     empty_tabs_.erase(tab_id);
-    TabOpened(tab_id, url, title, /*restored=*/false);
+    int opener_tab_id = -1;
+    const void* window = nullptr;
+    base::Uuid space_id;
+    if (auto link = link_openers_.find(tab_id); link != link_openers_.end()) {
+      opener_tab_id = link->second.opener_tab_id;
+      window = link->second.window.get();
+      space_id = link->second.space_id;
+      link_openers_.erase(link);
+    }
+    TabOpened(tab_id, url, title, /*restored=*/false, space_id, opener_tab_id,
+              window);
     return;
   }
   auto it = tabs_.find(tab_id);
@@ -443,6 +475,9 @@ void SpacesAndroid::TabSelected(int tab_id, const void* window) {
 }
 
 void SpacesAndroid::WindowClosed(const void* window) {
+  link_folders_.erase(window);
+  std::erase_if(link_openers_,
+                [&](const auto& link) { return link.second.window == window; });
   auto shown = shown_tabs_.find(window);
   if (shown == shown_tabs_.end()) {
     return;
@@ -477,6 +512,7 @@ std::vector<int> SpacesAndroid::ReleaseTabsOf(const SpaceModel& space) {
 
 void SpacesAndroid::TabClosed(int tab_id) {
   empty_tabs_.erase(tab_id);
+  link_openers_.erase(tab_id);
   std::erase_if(pending_tabs_,
                 [&](const PendingTab& pending) { return pending.id == tab_id; });
   auto it = tabs_.find(tab_id);

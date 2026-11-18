@@ -1099,6 +1099,11 @@ folder, so a page's tabs stay together:
   (the tab before it in the strip, which upstream already puts after the
   opener's other links), else right after the opener.
 
+Android adds a link's entry itself, with `LinkFolders`
+(`browser/sidebar/link_folders.h`; android.md, "Link folders (P11)"): the
+same rules, with the opener's previous link remembered rather than read off
+the strip. iOS has the same in Swift.
+
 `TabStripBridge::GetLinkFolderPlace()` decides, when the strip inserts the
 tab: not active, a `PAGE_TRANSITION_LINK` navigation, and an opener with a
 node (upstream sets the opener for links). Foreground links (target=_blank,
@@ -1122,7 +1127,7 @@ new names with a sparkle on the folder's icon (`Page.FolderNamed()`).
 
 **Tests:** `TabStripBridgeTest.LinksGatherWithTheirOpenerInAFolder`,
 `LinksFromPinnedEntriesGatherAtTheTopOfToday`,
-`ForegroundAndTypedTabsDontMakeFolders`.
+`ForegroundAndTypedTabsDontMakeFolders`; `LinkFoldersTest` (Android's).
 
 ## Renaming tabs
 

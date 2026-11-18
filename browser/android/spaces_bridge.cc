@@ -333,8 +333,10 @@ void SpacesBridge::TabOpened(JNIEnv* env,
                              int32_t tab_id,
                              const std::string& url,
                              const std::u16string& title,
-                             bool restored) {
-  spaces_->TabOpened(tab_id, GURL(url), title, restored, space_id_);
+                             bool restored,
+                             int32_t opener_tab_id) {
+  spaces_->TabOpened(tab_id, GURL(url), title, restored, space_id_,
+                     opener_tab_id, this);
 }
 
 void SpacesBridge::TabOpenedForNode(JNIEnv* env,

@@ -136,7 +136,11 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
                                 type == TabLaunchType.FROM_RESTORE
                                         || creationState == TabCreationState.FROZEN_ON_RESTORE;
                         mBridge.tabOpened(
-                                tab.getId(), tab.getUrl().getSpec(), tab.getTitle(), restored);
+                                tab.getId(),
+                                tab.getUrl().getSpec(),
+                                tab.getTitle(),
+                                restored,
+                                linkOpener(tab, type, markedForSelection));
                     }
 
                     @Override
@@ -185,6 +189,22 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         onModelChanged();
         setUpDocking(parent);
+    }
+
+    /**
+     * The page a link opened in the background came from (the link's long-press "Open in new
+     * tab", Ctrl+click, middle click), whose link folder it joins (docs/design/sidebar.md, "Link
+     * folders"), or {@link Tab#INVALID_TAB_ID}. Links opened in the foreground, typed URLs and
+     * other tabs open as before.
+     */
+    private static int linkOpener(
+            Tab tab, @TabLaunchType int type, boolean markedForSelection) {
+        if (markedForSelection) return Tab.INVALID_TAB_ID;
+        if (type != TabLaunchType.FROM_LONGPRESS_BACKGROUND
+                && type != TabLaunchType.FROM_LONGPRESS_BACKGROUND_IN_GROUP) {
+            return Tab.INVALID_TAB_ID;
+        }
+        return tab.getParentId();
     }
 
     /** Whether the sidebar is a permanent pane (wide windows). */

@@ -43,6 +43,7 @@
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "compass/browser/sidebar/closed_entries.h"
+#include "compass/browser/sidebar/link_folders.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
 #include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/window_sync/live_tab_registry.h"
@@ -59,18 +60,6 @@
 namespace compass {
 
 namespace {
-
-// A link folder is named after the page its links came from.
-std::u16string GetLinkFolderTitle(const SidebarNode& opener) {
-  const SidebarNode* tab = opener.type() == SidebarNode::Type::kSplit &&
-                                   !opener.children().empty()
-                               ? opener.children()[0].get()
-                               : &opener;
-  if (!tab->display_title().empty()) {
-    return tab->display_title();
-  }
-  return base::UTF8ToUTF16(tab->url().host());
-}
 
 // How long an upstream tab group lives before it becomes a folder.
 constexpr base::TimeDelta kConvertGroupsDelay = base::Milliseconds(500);

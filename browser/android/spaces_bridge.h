@@ -85,11 +85,14 @@ class SpacesBridge : public SpacesAndroid::Observer {
   // Undo Name: a folder Claude named gets its name from before back.
   void UndoFolderName(JNIEnv* env, const std::string& folder_id);
   int32_t TabFor(JNIEnv* env, const std::string& node_id);
+  // |opener_tab_id|: the page a link opened in the background came from, or
+  // -1 (SpacesAndroid::TabOpened(), link folders).
   void TabOpened(JNIEnv* env,
                  int32_t tab_id,
                  const std::string& url,
                  const std::u16string& title,
-                 bool restored);
+                 bool restored,
+                 int32_t opener_tab_id);
   void TabOpenedForNode(JNIEnv* env,
                         int32_t tab_id,
                         const std::string& node_id);

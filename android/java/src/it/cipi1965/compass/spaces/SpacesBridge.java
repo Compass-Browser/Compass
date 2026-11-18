@@ -11,6 +11,7 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tab.Tab;
 
 /**
  * Java side of the profile's spaces (//compass/browser/android: SpacesAndroid, the desktop's
@@ -155,7 +156,17 @@ public class SpacesBridge {
     }
 
     public void tabOpened(int tabId, String url, String title, boolean restored) {
-        SpacesBridgeJni.get().tabOpened(mNativeSpacesBridge, tabId, url, title, restored);
+        tabOpened(tabId, url, title, restored, Tab.INVALID_TAB_ID);
+    }
+
+    /**
+     * A tab opened. {@code openerTabId}: the page a link opened in the background came from,
+     * whose link folder it joins (docs/design/sidebar.md, "Link folders"), or
+     * {@link Tab#INVALID_TAB_ID}.
+     */
+    public void tabOpened(int tabId, String url, String title, boolean restored, int openerTabId) {
+        SpacesBridgeJni.get()
+                .tabOpened(mNativeSpacesBridge, tabId, url, title, restored, openerTabId);
     }
 
     public void tabOpenedForNode(int tabId, String nodeId) {
@@ -293,7 +304,8 @@ public class SpacesBridge {
                 int tabId,
                 @JniType("std::string") String url,
                 @JniType("std::u16string") String title,
-                boolean restored);
+                boolean restored,
+                int openerTabId);
 
         void tabOpenedForNode(
                 long nativeSpacesBridge, int tabId, @JniType("std::string") String nodeId);

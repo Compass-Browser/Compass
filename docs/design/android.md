@@ -143,6 +143,23 @@ It costs:
   tab. Not yet: dropping on another space's icon (the menu's "Move to"
   does that), dragging favorites or a split's panes, and scrolling the
   list while dragging.
+- **Link folders (P11)** (sidebar.md, "Link folders"), the desktop's
+  rules: a link opened in the background from a page in the sidebar (the
+  link's long-press "Open in new tab", Ctrl+click or middle click with a
+  keyboard: Chrome's `FROM_LONGPRESS_BACKGROUND` launch types, not
+  selected) gathers with that page in a Today folder. The shell passes the
+  tab's parent with it (`Spaces.linkOpener()`, `SpacesBridge.tabOpened()`),
+  and `SpacesAndroid::TabOpened()` places it with the window's
+  `LinkFolders` (`browser/sidebar/link_folders.h`, the desktop's rules for
+  clients that add a link's entry themselves; one per window, not saved).
+  An opener loose in Today gets a folder in its place (a split goes in
+  whole), one in a Today folder adds the link there, and a pinned entry,
+  favorite or another space's entry gets a folder at the top of Today,
+  reused while it's there. Inside it, a link goes after its opener's
+  previous link, else right after the opener. A link whose tab has no page
+  yet keeps its opener until it does (`link_openers_`). The folders are
+  marked as this device's (`MarkLinkFolder()`), so "Name Link Folders"
+  names them (P12). Tests: `LinkFoldersTest`.
 - **On Launch (P3)** (`OnLaunch`), as on iOS: Settings → On Launch is
   **Sidebar** (the default: the sidebar comes up over the restored tab) or
   **Last Tab** (the tab last shown, sidebar down; if there's none once
@@ -296,8 +313,8 @@ It costs:
     it again), and Undo Name while its name is Claude's, else Suggest a
     Name (a folder with entries, not a live one, the switch on). A name
     from Claude sparkles: the folder's icon turns to ✦ and the name fades
-    in (`onFolderNamed()`). Android doesn't make link folders yet (P11), so
-    names come on request, or from another device's link folders.
+    in (`onFolderNamed()`). Link folders this device makes (P11) are named
+    on their own at 3, 6 and 12 entries, as on the desktop.
   - **Tidy Today:** "Tidy" before Clear in Today's header, dimmed below 5
     loose entries, "Tidying…" while Claude answers. The result ("Tidied
     into N folders", with Undo, or why not) shows for 8 s: in the sidebar
@@ -659,8 +676,8 @@ piece left.
 | P8 | Compass settings | **Done** (above, "Settings"): search engine, privacy, site settings; a site's own exceptions and the rest on Chrome's pages. Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |
 | P9 | System extras | The share target picks a space and folder (done, above, "Extras"). Today, Quick Actions and Other Devices widgets (done, above); app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
 | P10 | Passwords from other apps | **Done** (above, "Passwords in other apps"). Other apps' logins save into Compass (Autofill's save request), not only fill |
-| P11 | Link folders | A link opened in the background gathers with its page in a Today folder, by the desktop's rules (sidebar.md, "Link folders"; ios.md, "Link folders") |
-| P12 | Claude in the sidebar | **Done** (above, "Claude in the sidebar"). Names for link folders (Suggest a Name and Undo Name; automatic names wait for P11's link folders), Tidy Today, shorter tab titles, Ask in the command bar (ai-sidebar.md, A2–A5; ios.md) |
+| P11 | Link folders | **Done** (above, "Link folders"). A link opened in the background gathers with its page in a Today folder, by the desktop's rules (sidebar.md, "Link folders"; ios.md, "Link folders") |
+| P12 | Claude in the sidebar | **Done** (above, "Claude in the sidebar"). Names for link folders (automatic, Suggest a Name and Undo Name), Tidy Today, shorter tab titles, Ask in the command bar (ai-sidebar.md, A2–A5; ios.md) |
 | P13 | Links routed to spaces | A web link from another app on a domain with a rule opens as a new Today tab of the rule's space (link-routing.md; ios.md, "Links routed to spaces"); needs P15 for links without a rule |
 | P14 | Peek | Long-press a link to look at it in a card over the page without opening a tab (peek.md; ios.md, "Peek") |
 | P15 | Little windows | With Compass as the default browser, a web link from another app opens in Peek's card over what the window shows, not among the tabs (little-window.md; ios.md, "Little windows"); needs P14 |
