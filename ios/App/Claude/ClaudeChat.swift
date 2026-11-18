@@ -244,7 +244,7 @@ final class ClaudeChat {
     let settings = ClaudeSettings.shared
     guard let endpoint = settings.endpoint else {
       conversation.startReply()
-      conversation.finishReply(error: "Add an API key in Settings → Claude.")
+      conversation.finishReply(error: "Add an API key in Settings → AI.")
       return
     }
     if endpoint.needsTokenRisksAccepted {

@@ -33,7 +33,7 @@ public struct ClaudeFiles: Sendable {
   public static let notPermittedOff =
     "Not permitted: the user hasn't turned on file access (Compass settings, Claude, Files). Tell the user if the task needs it."
   public static let notPermittedSaveOnly =
-    "Not permitted: Claude can only save new files. \"Use a Folder\" in Compass's Claude settings (Files) lets Claude list, read and write files in one folder; tell the user if the task needs it."
+    "Not permitted: you can only save new files. \"Use a Folder\" in Compass's AI settings (Files) lets you list, read and write files in one folder; tell the user if the task needs it."
   public static let notPermittedNoFolder =
     "Not permitted: no folder is chosen for Claude (Compass settings, Claude, Files). Tell the user if the task needs it."
   public static let denied = "The user didn't allow it."

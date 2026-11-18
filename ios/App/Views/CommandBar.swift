@@ -216,7 +216,7 @@ struct CommandBar: View {
   /// "Ask Claude", and "About this page" when a page is shown.
   private var askCard: some View {
     Card {
-      Row(title: "Ask Claude", subtitle: Self.short(text), trailing: "return", action: ask) {
+      Row(title: ClaudeSettings.shared.provider.askTitle, subtitle: Self.short(text), trailing: "return", action: ask) {
         Image(systemName: "sparkles")
           .font(.system(size: 15, weight: .semibold))
           .foregroundStyle(.white)

@@ -152,12 +152,17 @@ public final class ClaudeQuick {
       if recent.count >= Self.maxBackgroundPerHour { return .failure(.rateLimited) }
       recent.append(start)
     }
-    let body = Self.body(
-      request, model: request.model.isEmpty ? Self.defaultModel : request.model,
+    let fallback = endpoint.provider == .anthropic ? Self.defaultModel : endpoint.provider.defaultQuickModel
+    let messages = Self.body(
+      request, model: request.model.isEmpty ? fallback : request.model,
       cacheLevel: cacheLevel(endpoint), oauthToken: endpoint.usesOAuthToken)
-    var urlRequest = endpoint.request("v1/messages", body: body.encoded())
+    // Another provider: Chat Completions, asking for one JSON object
+    // (docs/design/ai-providers.md).
+    let openAI = endpoint.provider.usesOpenAIFormat
+    let body = openAI ? OpenAIEdge.request(from: messages, provider: endpoint.provider, jsonReply: true) : messages
+    var urlRequest = endpoint.request(endpoint.chatPath, body: body.encoded())
     urlRequest.timeoutInterval = timeout
-    let result = await Self.send(urlRequest, transport: transport, timeout: timeout)
+    let result = await Self.send(urlRequest, transport: transport, timeout: timeout, openAI: openAI ? endpoint.provider : nil)
     switch result {
     case .success:
       failures = 0
@@ -177,13 +182,13 @@ public final class ClaudeQuick {
 
   /// One request through `transport`, given up after `timeout`.
   nonisolated static func send(
-    _ request: URLRequest, transport: @escaping Transport, timeout: TimeInterval
+    _ request: URLRequest, transport: @escaping Transport, timeout: TimeInterval, openAI: AIProvider? = nil
   ) async -> Result<[String: JSONValue], Failure> {
     await withTaskGroup(of: Result<[String: JSONValue], Failure>.self) { group in
       group.addTask {
         do {
           let (data, status) = try await transport(request)
-          return parseResponse(data, status: status)
+          return openAI.map { parseOpenAIResponse(data, status: status, provider: $0) } ?? parseResponse(data, status: status)
         } catch {
           return .failure(Task.isCancelled ? .timeout : .failed)
         }
@@ -211,6 +216,21 @@ public final class ClaudeQuick {
       .joined()
     guard text.utf8.count <= maxReplyText, let reply = parseReply(text) else { return .failure(.badReply) }
     return .success(reply)
+  }
+
+  /// A Chat Completions (or, for OpenAI, Responses) response as this client takes it, as
+  /// `parseResponse`.
+  nonisolated static func parseOpenAIResponse(
+    _ data: Data, status: Int, provider: AIProvider = .gemini
+  ) -> Result<[String: JSONValue], Failure> {
+    guard status == 200 else { return .failure(.failed) }
+    switch OpenAIEdge.replyText(data, provider: provider) {
+    case .failed: return .failure(.failed)
+    case .refused: return .failure(.refused)
+    case .text(let text):
+      guard text.utf8.count <= maxReplyText, let reply = parseReply(text) else { return .failure(.badReply) }
+      return .success(reply)
+    }
   }
 
   /// The Messages API body: the model, no tools, no thinking, not streamed;

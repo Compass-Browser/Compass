@@ -32,12 +32,15 @@ public struct ClaudeModel: Equatable, Sendable, Identifiable {
 }
 
 /// Where requests go and how they're signed: the desktop's Endpoint
-/// (browser/claude/claude_api.cc).
+/// (browser/claude/claude_api.cc). With another provider than Anthropic
+/// (docs/design/ai-providers.md) the paths, headers and errors are Chat
+/// Completions' (`OpenAIChat` translates the bodies).
 public struct ClaudeEndpoint: Sendable {
   public static let defaultBaseURL = URL(string: "https://api.anthropic.com")!
   public static let apiVersion = "2026-10-21"
   public static let defaultModel = "claude-opus-5-5"
 
+  public var provider: AIProvider
   public var baseURL: URL
   public var authStyle: ClaudeAuthStyle
   public var apiKey: String
@@ -45,9 +48,10 @@ public struct ClaudeEndpoint: Sendable {
   public var allowOAuthToken: Bool
 
   public init(
-    baseURL: URL = Self.defaultBaseURL, authStyle: ClaudeAuthStyle = .apiKey, apiKey: String,
-    allowOAuthToken: Bool = false
+    provider: AIProvider = .anthropic, baseURL: URL = Self.defaultBaseURL, authStyle: ClaudeAuthStyle = .apiKey,
+    apiKey: String, allowOAuthToken: Bool = false
   ) {
+    self.provider = provider
     self.baseURL = baseURL
     self.authStyle = authStyle
     self.apiKey = apiKey
@@ -60,7 +64,7 @@ public struct ClaudeEndpoint: Sendable {
   /// Whether `apiKey` is an OAuth token from `claude setup-token`
   /// (sk-ant-oat01-…), not an API key.
   public var isOAuthToken: Bool {
-    apiKey.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("sk-ant-oat")
+    provider == .anthropic && apiKey.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("sk-ant-oat")
   }
 
   /// Such a token, with the risks accepted: sent as Bearer, with
@@ -73,20 +77,29 @@ public struct ClaudeEndpoint: Sendable {
 
   public static let tokenRisksMessage =
     "This is a token from `claude setup-token`, which uses your Claude subscription. To use it, turn on "
-    + "\"Accept the Risks of Subscription Tokens\" in Settings → Claude."
+    + "\"Accept the Risks of Subscription Tokens\" in Settings → AI."
 
   /// The Claude API itself, not a custom endpoint (server-side fallbacks
   /// are the Claude API's).
 
-  public var isClaudeAPI: Bool { baseURL == Self.defaultBaseURL }
+  public var isClaudeAPI: Bool { provider == .anthropic && baseURL == Self.defaultBaseURL }
+
+  /// The chat's path: the Messages API's, or Chat Completions'.
+  public var chatPath: String {
+    provider.usesResponsesAPI ? "responses" : provider.usesOpenAIFormat ? "chat/completions" : "v1/messages"
+  }
+
+  /// The model list's path.
+  public var modelsPath: String { provider.usesOpenAIFormat ? "models" : "v1/models?limit=100" }
 
   /// A typed base URL, checked as the desktop's `ParseBaseUrl()`: empty is
   /// the Claude API; https, or http only to this device (local gateways); no
   /// query, fragment or credentials, since the key goes with every request.
   /// A path is kept, for gateways that serve the API under one.
-  public static func parseBaseURL(_ text: String) -> URL? {
+  /// Empty is the provider's own (none for `compatible`, which needs one).
+  public static func parseBaseURL(_ text: String, provider: AIProvider = .anthropic) -> URL? {
     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    if trimmed.isEmpty { return defaultBaseURL }
+    if trimmed.isEmpty { return provider.defaultBaseURL }
     guard var components = URLComponents(string: trimmed), let scheme = components.scheme?.lowercased(),
       let host = components.host, !host.isEmpty,
       components.query == nil, components.fragment == nil, components.user == nil, components.password == nil
@@ -111,6 +124,17 @@ public struct ClaudeEndpoint: Sendable {
   public func request(_ path: String, body: Data? = nil, betas: [String] = []) -> URLRequest {
     var request = URLRequest(url: url(path))
     request.httpMethod = body == nil ? "GET" : "POST"
+    if provider.usesOpenAIFormat {
+      // Chat Completions: a Bearer key (none for a local server without
+      // one), no Anthropic headers.
+      let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+      if !key.isEmpty { request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }
+      if let body {
+        request.httpBody = body
+        request.setValue("application/json", forHTTPHeaderField: "content-type")
+      }
+      return request
+    }
     request.setValue(Self.apiVersion, forHTTPHeaderField: "anthropic-version")
     if authStyle == .bearer || usesOAuthToken {
       request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -129,9 +153,13 @@ public struct ClaudeEndpoint: Sendable {
 
   /// What the user reads for a failed request: the API's own message, else
   /// one per status. 0 means the server couldn't be reached.
-  public static func describeError(status: Int, body: Data) -> String {
+  public static func describeError(status: Int, body: Data, provider: AIProvider = .anthropic) -> String {
     if status == 0 { return "Couldn't reach the server. Check the connection and the endpoint URL." }
     if let message = JSONValue.parse(body)?["error"]?["message"]?.string, !message.isEmpty { return message }
+    // Gemini's: [{"error": {…}}].
+    if let message = JSONValue.parse(body)?.array?.first?["error"]?["message"]?.string, !message.isEmpty {
+      return message
+    }
     // A gateway's own shapes: {"message": …}, {"error": "…"}, {"detail": …}.
     if let json = JSONValue.parse(body) {
       for message in [json["message"]?.string, json["error"]?.string, json["detail"]?.string] {
@@ -144,13 +172,16 @@ public struct ClaudeEndpoint: Sendable {
       return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     switch status {
+    case 401 where provider != .anthropic:
+      return "The key was refused (401). Check it."
     case 401:
       return "The key was refused (401). Check it, and the auth style. A token from `claude setup-token` may have "
         + "expired: make a new one."
     case 403: return "The key isn't allowed to do this (403)."
     case 404: return "Nothing answers at that URL (404). Check the endpoint URL."
     case 429: return "Too many requests (429). Wait a moment and try again."
-    case 529: return "Claude is overloaded (529). Try again in a moment."
+    case 529 where provider == .anthropic: return "Claude is overloaded (529). Try again in a moment."
+    case 503, 529: return "The server is overloaded (\(status)). Try again in a moment."
     default: return "The server answered with HTTP \(status)."
     }
   }
@@ -163,7 +194,8 @@ public struct ClaudeEndpoint: Sendable {
   }
 
   /// `GET /v1/models`' list; nil if it isn't one.
-  public static func parseModels(_ data: Data) -> [ClaudeModel]? {
+  public static func parseModels(_ data: Data, provider: AIProvider = .anthropic) -> [ClaudeModel]? {
+    if provider.usesOpenAIFormat { return OpenAIChat.parseModels(data, provider: provider) }
     guard let list = JSONValue.parse(data)?["data"]?.array else { return nil }
     return list.compactMap { item in
       guard let id = item["id"]?.string, !id.isEmpty else { return nil }

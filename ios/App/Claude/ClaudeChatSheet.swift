@@ -37,7 +37,7 @@ struct ClaudeChatSheet: View {
       .safeAreaInset(edge: .bottom) {
         if settings.hasKey, app.shownTab.map({ app.tabs.isIncognito($0.id) }) != true { composer }
       }
-      .navigationTitle("Claude")
+      .navigationTitle(ClaudeSettings.shared.provider.assistantName)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .topBarLeading) {
@@ -129,7 +129,7 @@ struct ClaudeChatSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
       }
       HStack(alignment: .bottom, spacing: 8) {
-        TextField("Ask Claude", text: $text, axis: .vertical)
+        TextField(ClaudeSettings.shared.provider.askTitle, text: $text, axis: .vertical)
           .lineLimit(1...6)
           .focused($focused)
           .submitLabel(.send)

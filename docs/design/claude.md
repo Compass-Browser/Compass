@@ -21,7 +21,8 @@ yet.
 - **No key ships with Compass.** Settings take an Anthropic API key, plus
   an optional endpoint (base URL and auth header style) for Bedrock, Vertex
   or a compatible gateway. A subscription is used through the user's own
-  Claude Code ("Claude Code mode").
+  Claude Code ("Claude Code mode"). OpenAI, Gemini and OpenAI-compatible
+  servers can answer instead: docs/design/ai-providers.md.
 
 ## Shared core: `common/claude/`
 

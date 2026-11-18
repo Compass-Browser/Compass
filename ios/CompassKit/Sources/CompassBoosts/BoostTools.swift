@@ -11,7 +11,7 @@ public enum BoostTools {
   public static let settingKey = "compass.claude.boosts"
 
   public static let notPermitted =
-    "Not permitted: the user hasn't turned on \"Let Claude Make Boosts\" (Compass settings, Claude). Tell the user if the task needs it."
+    "Not permitted: the user hasn't turned on \"Let AI Make Boosts\" (Compass settings, AI). Tell the user if the task needs it."
   public static let denied = "The user didn't allow this Boost's JavaScript. Nothing was saved."
   public static let deleteDenied = "The user didn't allow deleting this Boost. It's still there."
 

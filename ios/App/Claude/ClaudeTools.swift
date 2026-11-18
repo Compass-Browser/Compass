@@ -36,10 +36,10 @@ final class ClaudeTools {
   }
 
   static let notPermitted =
-    "Not permitted: the user hasn't turned on \"Let Claude use the whole browser\" (Compass settings, Claude). Without it, Claude can only use the tab the chat is about. Tell the user if the task needs more."
+    "Not permitted: the user hasn't turned on \"Let AI use the whole browser\" (Compass settings, AI). Without it, you can only use the tab the chat is about. Tell the user if the task needs more."
   /// The desktop's kDevToolsOff.
   static let devtoolsOff =
-    "Not permitted: the user hasn't turned on \"Let Claude use developer tools\" (Compass settings, Claude). Tell the user if the task needs it."
+    "Not permitted: the user hasn't turned on \"Let AI use developer tools\" (Compass settings, AI). Tell the user if the task needs it."
   static let screenshotMaxEdge: CGFloat = 1280
   static let maxJSChars = 20000
 
@@ -225,7 +225,7 @@ final class ClaudeTools {
   private func runMemoryTool(_ name: String, input: JSONValue) -> Result {
     let settings = ClaudeSettings.shared
     guard settings.memoryEnabled && settings.memorySave else {
-      return .error("The user turned off \"Let Claude Save Memories\" in Compass's Claude settings.")
+      return .error("The user turned off \"Let AI Save Memories\" in Compass's AI settings.")
     }
     let memory = ClaudeMemoryStore.shared
     let text = input["text"]?.string ?? ""
@@ -261,7 +261,7 @@ final class ClaudeTools {
   }
 
   /// list_boosts, save_boost, delete_boost: the Boosts, no tab needed, while
-  /// "Let Claude Make Boosts" is on (docs/design/boosts.md). JavaScript
+  /// "Let AI Make Boosts" is on (docs/design/boosts.md). JavaScript
   /// that's new, changed or moved, and deleting a Boost that has some, ask
   /// the user first; the rest saves at once, with Undo in the chat.
   private func runBoostTool(_ name: String, input: JSONValue) async -> Result {

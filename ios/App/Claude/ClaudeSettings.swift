@@ -7,27 +7,51 @@ import CompassClaude
 import Foundation
 import Observation
 
-/// Settings → Claude (docs/design/claude.md, "iOS"): the API key, kept in
+/// Settings → AI (docs/design/claude.md, "iOS"): the API key, kept in
 /// this device's Keychain only (not shared with the extensions, never in
 /// iCloud), and the rest in UserDefaults: the endpoint, its auth style, the
 /// model and the whole-browser permission. No key ships with Compass.
+///
+/// The provider (docs/design/ai-providers.md) picks which key, base URL and
+/// models are in use: each provider keeps its own, Anthropic's under the
+/// keys it always had, another's with `.<provider>` after them.
 @MainActor
 @Observable
 final class ClaudeSettings {
   static let shared = ClaudeSettings()
 
-  private static let keyAccount = "claude-api-key"
   private let defaults = UserDefaults.standard
+
+  /// Who answers: Anthropic unless the user picked another.
+  var provider: AIProvider {
+    didSet {
+      guard provider != oldValue else { return }
+      defaults.set(provider.rawValue, forKey: "AIProvider")
+      load()
+      revision += 1
+    }
+  }
+
+  /// A provider's Keychain account: Anthropic's is the one it always had.
+  private static func keyAccount(_ provider: AIProvider) -> String {
+    provider == .anthropic ? "claude-api-key" : "ai-api-key-\(provider.rawValue)"
+  }
+
+  /// A per-provider setting's UserDefaults key: Anthropic's as it always
+  /// was, another's with its name after it.
+  private func key(_ base: String) -> String {
+    provider == .anthropic ? base : base + "." + provider.rawValue
+  }
 
   /// "sk-ant-…a1b2" for a saved key; nil without one.
   private(set) var keyHint: String?
   var hasKey: Bool { keyHint != nil }
 
   /// As typed; empty is the Claude API (`ClaudeEndpoint.parseBaseURL`).
-  var baseURLText: String { didSet { defaults.set(baseURLText, forKey: "ClaudeBaseURL") } }
+  var baseURLText: String { didSet { defaults.set(baseURLText, forKey: key("ClaudeBaseURL")) } }
   var authStyle: ClaudeAuthStyle { didSet { defaults.set(authStyle.rawValue, forKey: "ClaudeAuthStyle") } }
-  var model: String { didSet { defaults.set(model, forKey: "ClaudeModel") } }
-  /// "Let Claude use the whole browser" (off by default; the tab tools come
+  var model: String { didSet { defaults.set(model, forKey: key("ClaudeModel")) } }
+  /// "Let AI use the whole browser" (off by default; the tab tools come
   /// with I4).
   var browserScope: Bool { didSet { defaults.set(browserScope, forKey: "ClaudeBrowserScope") } }
   /// "Accept the Risks of Subscription Tokens": a token from `claude
@@ -41,9 +65,9 @@ final class ClaudeSettings {
   /// "Use Memory": what Claude saved goes into each new chat (on by
   /// default; docs/design/claude.md, "Memory").
   var memoryEnabled: Bool { didSet { defaults.set(memoryEnabled, forKey: "ClaudeMemoryEnabled") } }
-  /// "Let Claude Save Memories": the memory tools are sent.
+  /// "Let AI Save Memories": the memory tools are sent.
   var memorySave: Bool { didSet { defaults.set(memorySave, forKey: "ClaudeMemorySave") } }
-  /// "Let Claude Use Developer Tools" (off by default; docs/design/claude.md,
+  /// "Let AI Use Developer Tools" (off by default; docs/design/claude.md,
   /// "Developer tools", iOS): the devtools tools are sent and work, the
   /// pages record their requests, and the profiles' connections go through
   /// Compass's local proxy (DevToolsNetwork).
@@ -53,10 +77,10 @@ final class ClaudeSettings {
       NotificationCenter.default.post(name: .claudeDevToolsChanged, object: nil)
     }
   }
-  /// "Let Claude Make Boosts" (off by default; docs/design/boosts.md): the
+  /// "Let AI Make Boosts" (off by default; docs/design/boosts.md): the
   /// Boost tools are sent and work. Boosts made by hand don't need it.
   var boosts: Bool { didSet { defaults.set(boosts, forKey: BoostTools.settingKey) } }
-  /// Settings → Claude → Files: what the file tools may do (off by
+  /// Settings → AI → Files: what the file tools may do (off by
   /// default; docs/design/claude.md, "Files").
   var fileAccess: ClaudeFileAccess { didSet { defaults.set(fileAccess.rawValue, forKey: "ClaudeFilesAccess") } }
   /// The picked folder's name; nil without one (Save Files then uses the
@@ -73,21 +97,21 @@ final class ClaudeSettings {
     didSet { defaults.set(nameLinkFolders, forKey: ClaudeQuick.nameLinkFoldersKey) }
   }
   var nameLinkFoldersModel: String {
-    didSet { defaults.set(nameLinkFoldersModel, forKey: ClaudeQuick.nameLinkFoldersModelKey) }
+    didSet { defaults.set(nameLinkFoldersModel, forKey: key(ClaudeQuick.nameLinkFoldersModelKey)) }
   }
   /// "Tidy Today" (off by default) and the model it asks.
   var tidyToday: Bool {
     didSet { defaults.set(tidyToday, forKey: ClaudeQuick.tidyTodayKey) }
   }
   var tidyTodayModel: String {
-    didSet { defaults.set(tidyTodayModel, forKey: ClaudeQuick.tidyTodayModelKey) }
+    didSet { defaults.set(tidyTodayModel, forKey: key(ClaudeQuick.tidyTodayModelKey)) }
   }
   /// "Shorter Tab Titles" (off by default) and the model it asks.
   var shortTabTitles: Bool {
     didSet { defaults.set(shortTabTitles, forKey: ClaudeQuick.shortTabTitlesKey) }
   }
   var shortTabTitlesModel: String {
-    didSet { defaults.set(shortTabTitlesModel, forKey: ClaudeQuick.shortTabTitlesModelKey) }
+    didSet { defaults.set(shortTabTitlesModel, forKey: key(ClaudeQuick.shortTabTitlesModelKey)) }
   }
   /// "Answer Questions in the Command Bar" (off by default) and the model
   /// it asks.
@@ -95,7 +119,7 @@ final class ClaudeSettings {
     didSet { defaults.set(commandBarAsk, forKey: ClaudeQuick.commandBarAskKey) }
   }
   var commandBarAskModel: String {
-    didSet { defaults.set(commandBarAskModel, forKey: ClaudeQuick.commandBarAskModelKey) }
+    didSet { defaults.set(commandBarAskModel, forKey: key(ClaudeQuick.commandBarAskModelKey)) }
   }
   /// What "Test connection" listed, else the known models.
   var models: [ClaudeModel] = ClaudeModel.known
@@ -104,9 +128,16 @@ final class ClaudeSettings {
   private(set) var revision = 0
 
   private init() {
-    baseURLText = defaults.string(forKey: "ClaudeBaseURL") ?? ""
+    let provider = UserDefaults.standard.string(forKey: "AIProvider").flatMap(AIProvider.init(rawValue:)) ?? .anthropic
+    self.provider = provider
+    // Set again by load(), for the provider.
+    baseURLText = ""
+    model = ""
+    nameLinkFoldersModel = ""
+    tidyTodayModel = ""
+    shortTabTitlesModel = ""
+    commandBarAskModel = ""
     authStyle = defaults.string(forKey: "ClaudeAuthStyle").flatMap(ClaudeAuthStyle.init(rawValue:)) ?? .apiKey
-    model = defaults.string(forKey: "ClaudeModel") ?? ClaudeEndpoint.defaultModel
     browserScope = defaults.bool(forKey: "ClaudeBrowserScope")
     acceptTokenRisks = defaults.bool(forKey: "ClaudeAcceptTokenRisks")
     memoryEnabled = defaults.object(forKey: "ClaudeMemoryEnabled") as? Bool ?? true
@@ -114,18 +145,32 @@ final class ClaudeSettings {
     devtools = defaults.bool(forKey: "ClaudeDevTools")
     boosts = defaults.bool(forKey: BoostTools.settingKey)
     nameLinkFolders = defaults.bool(forKey: ClaudeQuick.nameLinkFoldersKey)
-    nameLinkFoldersModel = defaults.string(forKey: ClaudeQuick.nameLinkFoldersModelKey) ?? ClaudeQuick.defaultModel
     tidyToday = defaults.bool(forKey: ClaudeQuick.tidyTodayKey)
-    tidyTodayModel = defaults.string(forKey: ClaudeQuick.tidyTodayModelKey) ?? ClaudeQuick.defaultModel
     shortTabTitles = defaults.bool(forKey: ClaudeQuick.shortTabTitlesKey)
-    shortTabTitlesModel = defaults.string(forKey: ClaudeQuick.shortTabTitlesModelKey) ?? ClaudeQuick.defaultModel
     commandBarAsk = defaults.bool(forKey: ClaudeQuick.commandBarAskKey)
-    commandBarAskModel = defaults.string(forKey: ClaudeQuick.commandBarAskModelKey) ?? ClaudeQuick.defaultAskModel
-    keyHint = Self.storedKey.map(ClaudeEndpoint.keyHint)
     fileAccess = ClaudeFileAccess(rawValue: defaults.integer(forKey: "ClaudeFilesAccess")) ?? .off
     folderBookmark = defaults.data(forKey: "ClaudeFilesFolder")
     folderName = folderBookmark.flatMap(Self.resolve)?.url.lastPathComponent
+    load()
   }
+
+  /// The provider's key, base URL and models (each provider keeps its own).
+  private func load() {
+    baseURLText = defaults.string(forKey: key("ClaudeBaseURL")) ?? ""
+    model = defaults.string(forKey: key("ClaudeModel")) ?? provider.defaultModel
+    let quick = provider == .anthropic ? ClaudeQuick.defaultModel : provider.defaultQuickModel
+    let ask = provider == .anthropic ? ClaudeQuick.defaultAskModel : provider.defaultAskModel
+    nameLinkFoldersModel = defaults.string(forKey: key(ClaudeQuick.nameLinkFoldersModelKey)) ?? quick
+    tidyTodayModel = defaults.string(forKey: key(ClaudeQuick.tidyTodayModelKey)) ?? quick
+    shortTabTitlesModel = defaults.string(forKey: key(ClaudeQuick.shortTabTitlesModelKey)) ?? quick
+    commandBarAskModel = defaults.string(forKey: key(ClaudeQuick.commandBarAskModelKey)) ?? ask
+    keyHint = storedKey.map(ClaudeEndpoint.keyHint)
+    models = provider.knownModels
+  }
+
+  /// A sidebar feature's model: its own, else (empty, "Same as Chat") the
+  /// chat's.
+  func featureModel(_ chosen: String) -> String { chosen.isEmpty ? model : chosen }
 
   // MARK: Files
 
@@ -206,13 +251,13 @@ final class ClaudeSettings {
     }
   }
 
-  private static var storedKey: String? {
-    Keychain.data(keyAccount).flatMap { String(data: $0, encoding: .utf8) }.flatMap { $0.isEmpty ? nil : $0 }
+  private var storedKey: String? {
+    Keychain.data(Self.keyAccount(provider)).flatMap { String(data: $0, encoding: .utf8) }.flatMap { $0.isEmpty ? nil : $0 }
   }
 
   func setKey(_ key: String) {
     let key = key.trimmingCharacters(in: .whitespacesAndNewlines)
-    Keychain.set(key.isEmpty ? nil : Data(key.utf8), Self.keyAccount)
+    Keychain.set(key.isEmpty ? nil : Data(key.utf8), Self.keyAccount(provider))
     keyHint = key.isEmpty ? nil : ClaudeEndpoint.keyHint(key)
     revision += 1
   }
@@ -220,12 +265,19 @@ final class ClaudeSettings {
   func removeKey() { setKey("") }
 
   /// The typed endpoint URL is usable (or empty).
-  var baseURLIsValid: Bool { ClaudeEndpoint.parseBaseURL(baseURLText) != nil }
+  var baseURLIsValid: Bool {
+    // An OpenAI-compatible server has no URL of its own: empty isn't valid.
+    ClaudeEndpoint.parseBaseURL(baseURLText, provider: provider) != nil
+      || (provider == .compatible && baseURLText.trimmingCharacters(in: .whitespaces).isEmpty)
+  }
 
-  /// Where requests go, with the key; nil without a key or with a bad URL.
+  /// Where requests go, with the key; nil without a key (an
+  /// OpenAI-compatible server may take none) or with a bad URL.
   var endpoint: ClaudeEndpoint? {
-    guard let key = Self.storedKey, let base = ClaudeEndpoint.parseBaseURL(baseURLText) else { return nil }
-    return ClaudeEndpoint(baseURL: base, authStyle: authStyle, apiKey: key, allowOAuthToken: acceptTokenRisks)
+    guard let base = ClaudeEndpoint.parseBaseURL(baseURLText, provider: provider) else { return nil }
+    guard let key = storedKey ?? (provider == .compatible ? "" : nil) else { return nil }
+    return ClaudeEndpoint(
+      provider: provider, baseURL: base, authStyle: authStyle, apiKey: key, allowOAuthToken: acceptTokenRisks)
   }
 
   func endpointChanged() { revision += 1 }
@@ -236,12 +288,16 @@ final class ClaudeSettings {
 
   /// The same for another picker's choice (a sidebar feature's model).
   func pickerModels(including chosen: String) -> [ClaudeModel] {
-    models.contains { $0.id == chosen } ? models : [ClaudeModel(id: chosen, displayName: chosen)] + models
+    if chosen.isEmpty { return [ClaudeModel(id: "", displayName: "Same as Chat")] + models }
+    return models.contains { $0.id == chosen } ? models : [ClaudeModel(id: chosen, displayName: chosen)] + models
   }
 
   /// Whether Claude can answer the sidebar's small requests: a key is saved
-  /// (and usable) and the endpoint URL is valid.
-  var isSetUp: Bool { hasKey && (endpoint.map { !$0.needsTokenRisksAccepted } ?? false) }
+  /// (and usable; an OpenAI-compatible server may need none) and the
+  /// endpoint URL is valid.
+  var isSetUp: Bool {
+    (hasKey || provider == .compatible) && !model.isEmpty && (endpoint.map { !$0.needsTokenRisksAccepted } ?? false)
+  }
 
   /// A sidebar feature's switch, by its key (`ClaudeQuick`).
   func isOn(_ feature: String) -> Bool {
@@ -267,12 +323,12 @@ final class ClaudeSettings {
   /// out; an entry without `platforms` is for every platform.
   static let tools: [JSONValue] = toolEntries.filter { !["memory", "devtools", "boosts"].contains($0["scope"]?.string ?? "") }
     .compactMap { $0["definition"] }
-  /// The developer tools, sent while "Let Claude Use Developer Tools" is
+  /// The developer tools, sent while "Let AI Use Developer Tools" is
   /// on (and for the rest of a chat that had them).
   static let devtoolsTools: [JSONValue] = toolEntries.filter { $0["scope"]?.string == "devtools" }
     .compactMap { $0["definition"] }
   /// The Boost tools (list_boosts, save_boost, delete_boost), sent while
-  /// "Let Claude Make Boosts" is on (and for the rest of a chat that had
+  /// "Let AI Make Boosts" is on (and for the rest of a chat that had
   /// them).
   static let boostTools: [JSONValue] = toolEntries.filter { $0["scope"]?.string == "boosts" }
     .compactMap { $0["definition"] }

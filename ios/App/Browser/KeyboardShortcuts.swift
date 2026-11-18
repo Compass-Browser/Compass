@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassClaude
 import SwiftUI
 import WebKit
 
@@ -55,7 +56,7 @@ struct BrowserCommands: Commands {
       Button("Find…") { app?.findOnPage() }
         .keyboardShortcut("f")
       // The desktop's default for the Claude panel.
-      Button("Ask Claude") { if app?.isIncognito != true { app?.showingClaude.toggle() } }
+      Button(ClaudeSettings.shared.provider.askTitle) { if app?.isIncognito != true { app?.showingClaude.toggle() } }
         .keyboardShortcut("e", modifiers: [.command, .shift])
     }
     CommandGroup(before: .sidebar) {

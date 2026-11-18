@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import CompassBoosts
+import CompassClaude
 import CompassModel
 import SwiftUI
 import WebKit
@@ -40,7 +41,7 @@ struct PageMenu: View {
         .accessibilityIdentifier("MenuReader")
         // Not in incognito (as the desktop).
         if !(tab.map { app.tabs.isIncognito($0.id) } ?? false) {
-        Tile(title: "Ask Claude", symbol: "sparkles") {
+        Tile(title: ClaudeSettings.shared.provider.askTitle, symbol: "sparkles") {
           dismiss()
           // After the menu has gone: a view shows one sheet at a time.
           Task {

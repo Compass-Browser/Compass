@@ -100,7 +100,9 @@ public final class CommandBarAsker {
     let body = Self.body(
       question: question, page: page,
       system: SidebarPrompts.section(Self.promptID, in: prompts, locale: locale()),
-      model: model().isEmpty ? ClaudeQuick.defaultAskModel : model(), cacheLevel: quick.cacheLevel(endpoint),
+      model: model().isEmpty
+        ? (endpoint.provider == .anthropic ? ClaudeQuick.defaultAskModel : endpoint.provider.defaultAskModel)
+        : model(), cacheLevel: quick.cacheLevel(endpoint),
       oauthToken: endpoint.usesOAuthToken)
     generation += 1
     let current = generation

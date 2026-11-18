@@ -48,7 +48,7 @@ struct SettingsView: View {
           }
           NavigationLink { ClaudeSettingsView() } label: {
             HStack {
-              SettingsLabel("Claude", "sparkles", .orange)
+              SettingsLabel("AI", "sparkles", .orange)
               Spacer()
               Text(ClaudeSettings.shared.hasKey ? "On" : "Off").foregroundStyle(.secondary)
             }
