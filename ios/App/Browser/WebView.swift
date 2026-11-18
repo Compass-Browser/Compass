@@ -19,6 +19,10 @@ import WebKit
 /// `topInset` is the status bar over the page's top edge. The page scrolls
 /// under it too, but WebKit lays out fixed and sticky elements (YouTube's
 /// header) below it, as in Safari (`obscuredContentInsets`, iOS 26).
+/// A page with `viewport-fit=cover` (YouTube) loses the safe area's inset
+/// on its scroll view, so its top would sit under the status bar, hidden
+/// by its own header: the container adds the missing part as a content
+/// inset (`keepTop`).
 /// Before iOS 26 WebKit has no public way to do that, so the page starts
 /// below the status bar instead, and the strip behind the status bar takes
 /// the page's theme color (or its background), as Safari does on iOS 18.
@@ -46,7 +50,7 @@ struct WebView: UIViewRepresentable {
       container.addSubview(webView)
       container.watch(webView)
     }
-    if #unavailable(iOS 26.0) { container.statusHeight = topInset }
+    if #available(iOS 26.0, *) { container.topInset = topInset } else { container.statusHeight = topInset }
     container.setNeedsLayout()
     apply(to: webView)
   }
@@ -54,6 +58,10 @@ struct WebView: UIViewRepresentable {
   /// Holds the page. Before iOS 26 it lays the page out below the status
   /// bar and fills the status bar's strip with the page's color.
   final class Container: UIView {
+    /// What the page's top edge is kept below (iOS 26 and later).
+    var topInset: CGFloat = 0 {
+      didSet { if topInset != oldValue { keepTop() } }
+    }
     var statusHeight: CGFloat = 0 {
       didSet { if statusHeight != oldValue { setNeedsLayout(); updateColor() } }
     }
@@ -63,7 +71,15 @@ struct WebView: UIViewRepresentable {
     func watch(_ view: WKWebView) {
       page = view
       observations = []
-      if #unavailable(iOS 26.0) {
+      if #available(iOS 26.0, *) {
+        // WebKit switches the safe area's inset off and on as a page's
+        // viewport (viewport-fit) comes in; each layout changes the size.
+        observations = [
+          view.scrollView.observe(\.contentSize) { [weak self] _, _ in
+            MainActor.assumeIsolated { self?.keepTop() }
+          }
+        ]
+      } else {
         observations = [
           view.observe(\.themeColor) { [weak self] _, _ in self?.updateColor() },
           view.observe(\.underPageBackgroundColor) { [weak self] _, _ in self?.updateColor() },
@@ -77,11 +93,27 @@ struct WebView: UIViewRepresentable {
       backgroundColor = page.themeColor ?? page.underPageBackgroundColor
     }
 
+    /// The page's top edge stays below `topInset`: the scroll view's inset
+    /// is the safe area's part (none with viewport-fit=cover) plus a content
+    /// inset for the rest. A page at its top stays at its top.
+    func keepTop() {
+      guard #available(iOS 26.0, *), let page else { return }
+      let scroll = page.scrollView
+      let fromSafeArea = scroll.adjustedContentInset.top - scroll.contentInset.top
+      let wanted = max(topInset - fromSafeArea, 0)
+      guard abs(scroll.contentInset.top - wanted) > 0.5 else { return }
+      let atTop = scroll.contentOffset.y <= -scroll.adjustedContentInset.top + 0.5
+      scroll.contentInset.top = wanted
+      scroll.verticalScrollIndicatorInsets.top = wanted
+      if atTop { scroll.contentOffset.y = -scroll.adjustedContentInset.top }
+    }
+
     override func layoutSubviews() {
       super.layoutSubviews()
       guard let page, page.superview === self else { return }
       let top = min(statusHeight, bounds.height)
       page.frame = CGRect(x: 0, y: top, width: bounds.width, height: bounds.height - top)
+      keepTop()
     }
   }
 
