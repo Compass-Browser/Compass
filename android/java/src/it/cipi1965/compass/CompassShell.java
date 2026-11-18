@@ -10,6 +10,9 @@ import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
+import org.chromium.content_public.browser.WebContents;
+import org.chromium.url.GURL;
+import org.chromium.url.Origin;
 
 /**
  * Whether this app has Compass's shell (compass_apk does, chrome_public_apk doesn't). Chrome's
@@ -32,5 +35,18 @@ public final class CompassShell {
     /** The shell's start page for |tab|, or null (Chrome's new tab page). */
     public static @Nullable NativePage createStartPage(Activity activity, Tab tab) {
         return isPresent() && sHook != null ? sHook.createStartPage(activity, tab) : null;
+    }
+
+    /** "Peek" in |tab|'s link menu: true if the shell peeks |url| (CompassShellHook.peekLink). */
+    public static boolean peekLink(Tab tab, GURL url, @Nullable Origin initiator) {
+        return isPresent() && sHook != null && sHook.peekLink(tab, url, initiator);
+    }
+
+    /** A page |tab| opens in a new tab: true if the shell peeks it (and owns |contents|). */
+    public static boolean peekNewContents(
+            Tab tab, WebContents contents, int disposition, boolean userGesture) {
+        return isPresent()
+                && sHook != null
+                && sHook.peekNewContents(tab, contents, disposition, userGesture);
     }
 }

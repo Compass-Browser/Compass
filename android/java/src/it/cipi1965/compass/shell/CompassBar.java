@@ -44,7 +44,9 @@ import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.components.browser_ui.widget.ViewResourceFrameLayout;
 import org.chromium.components.user_prefs.UserPrefs;
+import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.GURL;
+import org.chromium.url.Origin;
 
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -85,6 +87,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private @Nullable CompassSettings mSettings;
     private @Nullable FindBar mFindBar;
     private @Nullable UndoToast mUndoToast;
+    // Peek's card, also the little window's (docs/design/android.md, "Peek", "Little windows").
+    private @Nullable Peek mPeek;
     // Claude in the sidebar and the command bar (docs/design/ai-sidebar.md), on the regular profile.
     private @Nullable ClaudeSidebarBridge mClaudeSidebar;
     private ActivityTabProvider.@Nullable ActivityTabTabObserver mTabObserver;
@@ -149,6 +153,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         CompassSettings settings = new CompassSettings(mActivity, coordinator, this);
         mSettings = settings;
         mFindBar = new FindBar(mActivity, coordinator);
+        mPeek = new Peek(mActivity, coordinator, spaces);
         // Clear of the bar, as iOS's toast over its bar.
         mUndoToast =
                 new UndoToast(
@@ -227,6 +232,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
                     @Override
                     protected void onObservingDifferentTab(@Nullable Tab tab) {
                         update(tab);
+                        // Another tab shown closes Peek, as on iOS.
+                        if (mPeek != null) mPeek.onTabShown(tab);
                     }
 
                     @Override
@@ -288,6 +295,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mFindBar = null;
         if (mUndoToast != null) mUndoToast.destroy();
         mUndoToast = null;
+        if (mPeek != null) mPeek.destroy();
+        mPeek = null;
         mTabObserver = null;
         mSpaces = null;
         mSync = null;
@@ -376,6 +385,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
      * one. The rest are Chrome's (KeyboardShortcuts).
      */
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (mPeek != null && mPeek.dispatchKeyEvent(event)) return true;
         if (mExtensions != null && mExtensions.dispatchKeyEvent(event)) return true;
         if (!event.isCtrlPressed() || event.isAltPressed() || event.isMetaPressed()) return false;
         boolean shift = event.isShiftPressed();
@@ -402,6 +412,32 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
             openAddress();
         }
         return true;
+    }
+
+    /** "Peek" in a link's long-press menu in |source|: the link in Peek's card. */
+    public boolean peekLink(Tab source, GURL url, @Nullable Origin initiator) {
+        if (mPeek == null) return false;
+        mPeek.showUrl(source, url, initiator);
+        return true;
+    }
+
+    /**
+     * A page |source| opens in a new tab: peeked if |source| is a pinned tab or favorite, so a
+     * pinned app stays put (docs/design/peek.md, "Links from pinned tabs"); else false.
+     */
+    public boolean peekNewContents(Tab source, WebContents contents) {
+        if (mPeek == null || source.isIncognito() || pinnedNodeFor(source.getId()) == null) {
+            return false;
+        }
+        mPeek.showContents(source, contents);
+        return true;
+    }
+
+    /** A link from another app, in the little window: Peek's card, of the window's profile. */
+    public void openLittleWindow(GURL url) {
+        if (mPeek == null) return;
+        if (mSpaces != null) mSpaces.onDismiss();
+        mPeek.showLittleWindow(mActivity.getTabModelSelector().getModel(false).getProfile(), url);
     }
 
     /** Shows the extensions sheet; false if the window has none. */

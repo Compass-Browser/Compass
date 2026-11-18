@@ -201,3 +201,6 @@ and Linux `LinkFromAnotherApp` and `LinksFromAnotherApp` through the
 process singleton's path, and `ShortcutOpensOne`), and macOS's
 (`little_window_browsertest_mac.mm`), including the real
 `application:openURLs:` path.
+
+iOS: ios.md, "Little windows". Android: android.md, "Little windows"
+(Peek's card over the window).

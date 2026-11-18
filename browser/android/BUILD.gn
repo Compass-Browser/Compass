@@ -14,6 +14,7 @@ group("android") {
     ":claude_bridge",
     ":claude_sidebar",
     ":passwords_bridge",
+    ":peek_bridge",
     ":spaces",
     ":sync_bridge",
   ]
@@ -127,5 +128,16 @@ source_set("passwords_bridge") {
     "//components/keyed_service/core",
     "//components/password_manager/core/browser/password_store:password_store_interface",
     "//compass/android:jni_headers",
+  ]
+}
+
+# Peek's page, readied for a tab to adopt (docs/design/android.md, "Peek").
+source_set("peek_bridge") {
+  sources = [ "peek_bridge.cc" ]
+  deps = [
+    "//base",
+    "//components/blocked_content",
+    "//compass/android:jni_headers",
+    "//content/public/browser",
   ]
 }

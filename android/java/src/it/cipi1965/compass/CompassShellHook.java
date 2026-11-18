@@ -14,6 +14,9 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
+import org.chromium.content_public.browser.WebContents;
+import org.chromium.url.GURL;
+import org.chromium.url.Origin;
 
 /**
  * Lets Compass's shell into Chrome's tabbed activity. ChromeTabbedActivity looks the
@@ -57,4 +60,29 @@ public interface CompassShellHook {
         return null;
     }
 
+    /**
+     * "Peek" in a link's long-press menu in |tab| (docs/design/android.md, "Peek"): true if the
+     * shell shows the link in Peek's card, else Chrome's preview page opens.
+     */
+    default boolean peekLink(Tab tab, GURL url, @Nullable Origin initiator) {
+        return false;
+    }
+
+    /**
+     * A page |tab| opens in a new tab (target=_blank, window.open()): true if the shell peeks it
+     * instead, and owns |contents| (a pinned tab's or favorite's links).
+     */
+    default boolean peekNewContents(
+            Tab tab, WebContents contents, int disposition, boolean userGesture) {
+        return false;
+    }
+
+    /**
+     * A link for the activity (a VIEW intent), before Chrome opens it: true if the shell opens it
+     * in a little window (docs/design/android.md, "Little windows"). Called on the activity's
+     * instance, maybe before onFinishNativeInitialization() (a cold start with the link).
+     */
+    default boolean openLinkFromOtherApp(Intent intent) {
+        return false;
+    }
 }

@@ -1,0 +1,25 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ChromeContextMenuPopulator.java b/chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ChromeContextMenuPopulator.java
+index 97bd52057ec0e8cc661d8175d36adc2481749c96..f2f9209623d75191f7c862ebf18dcf77bdb4d52a 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ChromeContextMenuPopulator.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ChromeContextMenuPopulator.java
+@@ -623,6 +623,12 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
+                     && !isEmptyUrl(mParams.getUrl())
+                     && UrlUtilities.isAcceptedScheme(mParams.getUrl())) {
+                 if (mMode == ContextMenuMode.NORMAL) {
++                    // Compass: Peek first, in place of the preview page (docs/design/android.md).
++                    if (it.cipi1965.compass.CompassShell.isPresent()
++                            && !mParams.getUrl().getScheme().equals(UrlConstants.DATA_SCHEME)) {
++                        linkGroup.add(
++                                createListItem(Item.OPEN_IN_EPHEMERAL_TAB, "Peek", true));
++                    }
+                     boolean isIncognitoForced = IncognitoUtils.isIncognitoModeForced(getProfile());
+                     ListItem openInNewTabItem =
+                             createManagedListItem(Item.OPEN_IN_NEW_TAB, isIncognitoForced);
+@@ -681,6 +687,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
+                     maybeRecordBooleanUkm("ContextMenuAndroid.Shown", "LinkWithInterestFor");
+                 }
+                 if ((mMode == ContextMenuMode.NORMAL
++                                        && !it.cipi1965.compass.CompassShell.isPresent()
+                                 || mMode == ContextMenuMode.CUSTOM_TAB
+                                 || (mMode == ContextMenuMode.THIN_WEB_VIEW
+                                         && mItemDelegate.supportsOpenInEphemeralTab()))

@@ -87,6 +87,7 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         mState.setSyncSummary(mBar.syncSummary());
         mState.setProfiles(mBar.profileRows());
         mState.setOnLaunch(OnLaunch.get());
+        mState.setLittleWindow(LittleWindow.isOn());
         loadDefaultBrowser();
         mView.setVisibility(View.VISIBLE);
         mView.bringToFront();
@@ -381,6 +382,12 @@ public class CompassSettings implements CompassSettingsUi.Listener {
     public void onSetOnLaunch(String value) {
         OnLaunch.set(value);
         mState.setOnLaunch(OnLaunch.get());
+    }
+
+    @Override
+    public void onSetLittleWindow(boolean on) {
+        LittleWindow.setOn(on);
+        mState.setLittleWindow(LittleWindow.isOn());
     }
 
     @Override

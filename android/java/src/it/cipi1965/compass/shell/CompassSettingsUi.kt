@@ -144,6 +144,9 @@ object CompassSettingsUi {
         /** Settings → On Launch: OnLaunch.SIDEBAR or OnLaunch.LAST_TAB. */
         fun onSetOnLaunch(value: String)
 
+        /** Settings → Open in a Little Window (LittleWindow). */
+        fun onSetLittleWindow(on: Boolean)
+
         fun onDismiss()
     }
 
@@ -166,6 +169,8 @@ object CompassSettingsUi {
         var syncSummary by mutableStateOf("")
         /** What a launch shows: OnLaunch.SIDEBAR or OnLaunch.LAST_TAB. */
         var onLaunch by mutableStateOf(OnLaunch.SIDEBAR)
+        /** Links from other apps open in a little window (LittleWindow). */
+        var littleWindow by mutableStateOf(true)
         var page by mutableStateOf(Page.MAIN)
         var searchEngines by mutableStateOf<List<Engine>>(emptyList())
         /** The default search engine's keyword. */
@@ -281,6 +286,14 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                         first = true,
                     ) {
                         open(CompassSettingsUi.Row.DEFAULT_BROWSER)
+                    }
+                    SwitchRow(
+                        "Open in a Little Window",
+                        "Links from other apps open over what you're doing, not among your tabs",
+                        checked = state.littleWindow,
+                        enabled = true,
+                    ) {
+                        listener.onSetLittleWindow(it)
                     }
                     SettingsRow(
                         "Search Engine",

@@ -116,3 +116,6 @@ viewer) still open tabs.
 - Hover cards, the pill and the command bar don't know about the page.
 
 Tests: `PeekBrowserTest.*` (`browser/ui/views/peek/peek_browsertest.cc`).
+
+iOS: ios.md, "Peek". Android: android.md, "Peek" (a long press's
+**Peek**, a card over the window).

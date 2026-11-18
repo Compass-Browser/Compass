@@ -160,6 +160,72 @@ It costs:
   yet keeps its opener until it does (`link_openers_`). The folders are
   marked as this device's (`MarkLinkFolder()`), so "Name Link Folders"
   names them (P12). Tests: `LinkFoldersTest`.
+- **Peek (P14)** (peek.md; ios.md, "Peek"; `Peek`, `PeekUi.kt`): a
+  link's page in a card over the window, without a tab.
+  - **Long-press a link:** Chrome's menu starts with **Peek**, which
+    shows the link in the card (the "Preview page" item, renamed and moved
+    to the top; Chrome's preview page is left out of a Compass window's
+    menu). Chrome's other items stay.
+  - **Links from pinned tabs and favorites** that open a new tab
+    (`target=_blank`, `window.open()` on a tap) peek too, as on the desktop
+    and iOS: `addNewContents()` offers the new WebContents to the shell first
+    (a foreground tab with a user gesture, from a tab that's a pinned entry
+    or favorite), so the page keeps its opener.
+  - **The card** is a sheet up from the bottom on a phone (to just under the
+    status bar) and a centered card in a wide window (840dp and up), over
+    the dimmed window. Its bar has a grabber, the page's icon, title (only
+    its host until it has one) and host, **Open** and ×; a bar under it shows
+    loading.
+  - **Close:** ×, back, Esc, Ctrl+W, a tap on the dim, dragging the bar
+    down, `window.close()`, or another tab shown. The page goes.
+  - **Open** (Ctrl+O): the page becomes the window's active tab, a new
+    Today entry of its space, with its history, scroll position and form
+    state: `ChromeTabCreator.createTabWithWebContents()` adopts the same
+    WebContents, as Chrome does for a page's popups.
+  - Inside the card, links load in the card; one that opens a new tab or
+    window opens a tab of the window (from its URL), and the card closes.
+  - How: the page is a WebContents of the source tab's profile (incognito
+    too) in a `ThinWebView`, as Chrome's preview page
+    (`EphemeralTabCoordinator`): a view with its own compositor, which
+    attaches the tab helpers a tab has (`TabHelpers::AttachTabHelpers()`,
+    permission prompts on), so a tab adopting it has them. Open moves the
+    page to the window's compositor and the ThinWebView goes after.
+    ThinWebView already makes the page a tab for the performance manager,
+    which the adopting tab's `TabFeatures` would do again (a `CHECK`, seen
+    in the emulator) unless the page has the popup blocker it attaches with
+    it; `PeekBridge.prepareForTab()` (`peek_bridge.cc`) gives the card's
+    page that helper as it comes in.
+  - Tried in the emulator: a long press's Peek, × and Open; a link from
+    another app at a cold start and with Compass running, Open in Home (a
+    Today entry, no reload) and back to close. Not yet tried: a pinned
+    tab's links, the ⌄ menu, a wide window.
+- **Little windows (P15)** (little-window.md; ios.md, "Little windows"):
+  with Compass as the default browser, a web link from another app opens
+  in Peek's card over what the window shows, not among the tabs.
+  - `maybeHandleUrlIntent()` asks the shell first
+    (`openLinkFromOtherApp()`, `LittleWindow.linkFromOtherApp()`): a VIEW
+    intent for an http(s) page that Chrome would open in a new tab, not
+    Compass's own intents or Chrome's trusted ones (its other windows,
+    Custom Tabs' "Open in Compass"), not its widgets or shortcuts, not for
+    incognito. Apps that open links in a Custom Tab keep it: that's their
+    own little window.
+  - At a cold start the link comes before the shell; it waits for it, and
+    Chrome restores the tabs as for a plain launch, under the card. The
+    sidebar doesn't come up (On Launch is for the launcher's launches).
+  - The page is of the window's regular profile (never incognito). The bar
+    has ×, back, the address (the title and host; a tap or Ctrl+L edits the
+    URL, and Go loads what's typed, an address or else a search, in the
+    card) and **Open in <space>**, naming the space shown, with ⌄ listing
+    the window's profile's spaces when it has more than one (same profile
+    only: the page can't change its website data). Either makes the page
+    the newest Today entry of that space, as it is; another space is shown
+    first. The bar takes the shown space's tint.
+  - A second link replaces the first. Ctrl+[ (or Alt+←) goes back, Ctrl+R
+    reloads, Ctrl+O opens.
+  - **Settings → Browsing → Open in a Little Window** (on by default; the
+    app preference `compass_little_window`): off, links from other apps
+    open as tabs, as Chrome does.
+  - Tests: `LittleWindowTest` (which intents, the setting).
 - **On Launch (P3)** (`OnLaunch`), as on iOS: Settings → On Launch is
   **Sidebar** (the default: the sidebar comes up over the restored tab) or
   **Last Tab** (the tab last shown, sidebar down; if there's none once
@@ -678,9 +744,9 @@ piece left.
 | P10 | Passwords from other apps | **Done** (above, "Passwords in other apps"). Other apps' logins save into Compass (Autofill's save request), not only fill |
 | P11 | Link folders | **Done** (above, "Link folders"). A link opened in the background gathers with its page in a Today folder, by the desktop's rules (sidebar.md, "Link folders"; ios.md, "Link folders") |
 | P12 | Claude in the sidebar | **Done** (above, "Claude in the sidebar"). Names for link folders (automatic, Suggest a Name and Undo Name), Tidy Today, shorter tab titles, Ask in the command bar (ai-sidebar.md, A2–A5; ios.md) |
-| P13 | Links routed to spaces | A web link from another app on a domain with a rule opens as a new Today tab of the rule's space (link-routing.md; ios.md, "Links routed to spaces"); needs P15 for links without a rule |
-| P14 | Peek | Long-press a link to look at it in a card over the page without opening a tab (peek.md; ios.md, "Peek") |
-| P15 | Little windows | With Compass as the default browser, a web link from another app opens in Peek's card over what the window shows, not among the tabs (little-window.md; ios.md, "Little windows"); needs P14 |
+| P13 | Links routed to spaces | A web link from another app on a domain with a rule opens as a new Today tab of the rule's space (link-routing.md; ios.md, "Links routed to spaces"); links without a rule go to the little window (P15). The little window's ⌄ menu gets **Always Open <domain> in ›** with it |
+| P14 | Peek | **Done** (above, "Peek"). Long-press a link to look at it in a card over the page without opening a tab; a pinned tab's links peek; Open keeps the page (peek.md; ios.md, "Peek") |
+| P15 | Little windows | **Done** (above, "Little windows"). With Compass as the default browser, a web link from another app opens in Peek's card over what the window shows, not among the tabs (little-window.md; ios.md, "Little windows") |
 | P16 | Reader mode | The desktop's Reader on the shared package (`common/reader/`) for a page that reads as an article (reader-mode.md; ios.md, "Reader mode") |
 | P17 | Auto picture-in-picture | As on the desktop (picture-in-picture.md): leaving a tab whose video plays with sound, or leaving the app, shows the video in picture-in-picture; a setting turns it off (ios.md, "Auto picture-in-picture"). Chromium's own PiP didn't start in the emulator |
 
@@ -690,8 +756,16 @@ and saves from other apps (`PasswordSaveActivity`), act on the last used
 profile rather than the window's; only the first profile gets web push.
 
 Still Chrome's look, to restyle in Material You with the shell's layout:
-a link's long-press menu, page info and permission prompts, and the "Save
-password?" message. Chrome's own top toolbar also
+a link's long-press menu (iOS's Open in Background, Open in Little Window
+and Pin among its items), page info and permission prompts, and the "Save
+password?" message.
+
+Peek and little windows, not yet: a long press inside the card (no menu
+there yet, so a link can't be peeked in the card), the opener for a link
+the card opens in a tab (it opens from its URL), password filling in the
+card before Open, the address's suggestions, and other profiles' spaces in
+Open in <space>'s menu. A pinned tab's links that Chrome sends as a
+navigation in a new tab (not a new WebContents) still open tabs. Chrome's own top toolbar also
 shows for a few seconds on a cold start before the shell hides it.
 
 Built but not yet tried end to end: the Claude tool loop with a real key,
