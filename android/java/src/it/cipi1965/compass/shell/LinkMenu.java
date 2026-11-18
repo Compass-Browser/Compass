@@ -48,21 +48,21 @@ import java.util.List;
  */
 public class LinkMenu implements ContextMenuUi, LinkMenuUi.Listener {
     /** Compass's names for some of Chrome's items, in its title case. */
-    private static final java.util.Map<Integer, String> TITLES =
-            java.util.Map.of(
-                    org.chromium.chrome.R.id.contextmenu_open_in_new_window, "Open in New Window",
-                    org.chromium.chrome.R.id.contextmenu_copy_link_address, "Copy Link",
-                    org.chromium.chrome.R.id.contextmenu_copy_link_text, "Copy Link Text",
-                    org.chromium.chrome.R.id.contextmenu_save_link_as, "Download Link",
-                    org.chromium.chrome.R.id.contextmenu_share_link, "Share Link…",
-                    org.chromium.chrome.R.id.contextmenu_save_image, "Download Image",
-                    org.chromium.chrome.R.id.contextmenu_copy_image, "Copy Image",
-                    org.chromium.chrome.R.id.contextmenu_share_image, "Share Image…",
-                    org.chromium.chrome.R.id.contextmenu_open_image_in_new_tab,
-                            "Open Image in New Tab",
-                    // Chrome's preview page for the image: Peek's card under Compass.
-                    org.chromium.chrome.R.id.contextmenu_open_image_in_ephemeral_tab,
-                            "Peek Image");
+    private static final java.util.Map<Integer, String> TITLES = new java.util.HashMap<>();
+
+    static {
+        TITLES.put(org.chromium.chrome.R.id.contextmenu_open_in_new_window, "Open in New Window");
+        TITLES.put(org.chromium.chrome.R.id.contextmenu_copy_link_address, "Copy Link");
+        TITLES.put(org.chromium.chrome.R.id.contextmenu_copy_link_text, "Copy Link Text");
+        TITLES.put(org.chromium.chrome.R.id.contextmenu_save_link_as, "Download Link");
+        TITLES.put(org.chromium.chrome.R.id.contextmenu_share_link, "Share Link…");
+        TITLES.put(org.chromium.chrome.R.id.contextmenu_save_image, "Download Image");
+        TITLES.put(org.chromium.chrome.R.id.contextmenu_copy_image, "Copy Image");
+        TITLES.put(org.chromium.chrome.R.id.contextmenu_share_image, "Share Image…");
+        TITLES.put(org.chromium.chrome.R.id.contextmenu_open_image_in_new_tab, "Open Image in New Tab");
+        TITLES.put(org.chromium.chrome.R.id.contextmenu_open_image_in_ephemeral_tab, "Peek Image");
+        TITLES.put(org.chromium.chrome.R.id.contextmenu_open_in_ephemeral_tab, "Peek");
+    }
 
     private final ChromeTabbedActivity mActivity;
     private final Spaces mSpaces;
@@ -192,6 +192,11 @@ public class LinkMenu implements ContextMenuUi, LinkMenuUi.Listener {
                                                     () -> mSpaces.pinLink(link)));
                                 };
                     }
+                    continue;
+                }
+                if (id == org.chromium.chrome.R.id.contextmenu_open_in_new_tab) {
+                    // A page without a tab (Peek's card): it opens in the background.
+                    group.add(chrome(item, "Open in Background", R.drawable.compass_sym_tab));
                     continue;
                 }
                 if (id == org.chromium.chrome.R.id.contextmenu_open_in_incognito_tab) {

@@ -202,6 +202,7 @@ android_library("java") {
     "//components/search_engines/android:java",
     "//components/thin_webview:factory_java",
     "//components/thin_webview:java",
+    "//components/thin_webview/internal:internal_java",
     "//components/url_formatter/android:url_formatter_java",
     "//components/user_prefs/android:java",
     "//content/public/android:content_java",

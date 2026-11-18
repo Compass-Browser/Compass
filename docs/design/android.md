@@ -189,6 +189,12 @@ It costs:
   Chrome's page for the site (stored data, every permission). It reads and
   writes through `WebsitePreferenceBridge`. Compass's own pages and
   chrome:// pages still get Chrome's page info.
+- **A long press inside Peek's card** opens the link menu too (Chrome's
+  populator for a page without a tab, `ContextMenuMode.THIN_WEB_VIEW`, with
+  a `ThinWebViewContextMenuItemDelegate` naming the window's activity):
+  Open in Background, Open in Incognito and Open in New Window open tabs of
+  the window (`Peek.CardLinkOpener`), **Peek** loads the link in the card
+  itself, and the copy, download and share items are Chrome's.
 - **Messages** (Chrome's banners: "Save password?", "Pop-up blocked",
   downloads, ...): they rise from the bottom of the window to just above
   Compass's bar, as iOS's save banner, rather than drop from the top, and a
@@ -1010,8 +1016,7 @@ with the bar (above, "The link menu", "The Site sheet", "Messages",
 "Dialogs"). Still Chrome's: its settings pages (re-themed), the keyboard's
 password and address bar above it, and app-modal dialogs.
 
-Peek and little windows, not yet: a long press inside the card (no menu
-there yet, so a link can't be peeked in the card), the opener for a link
+Peek and little windows, not yet: the opener for a link
 the card opens in a tab (it opens from its URL), password filling in the
 card before Open, the address's suggestions, and other profiles' spaces in
 Open in <space>'s menu. A pinned tab's links that Chrome sends as a

@@ -17,6 +17,8 @@ import org.chromium.base.version_info.VersionInfo;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.content.WebContentsFactory;
+import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulator;
+import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulatorFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.tab.Tab;
@@ -29,6 +31,7 @@ import org.chromium.components.thinwebview.ThinWebView;
 import org.chromium.components.thinwebview.ThinWebViewAttachParams;
 import org.chromium.components.thinwebview.ThinWebViewConstraints;
 import org.chromium.components.thinwebview.ThinWebViewFactory;
+import org.chromium.components.thinwebview.internal.ThinWebViewContextMenuItemDelegate;
 import org.chromium.components.url_formatter.UrlFormatter;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
@@ -151,11 +154,27 @@ public class Peek implements PeekUi.Listener {
                         mActivity, constraints, tracker, /* enablePermissionRequests= */ true);
         mThinWebView = thinWebView;
         mDelegate = new Delegate();
+        // A long press in the card: Compass's link menu (LinkMenu), with Chrome's items for a
+        // page without a tab; links open as tabs of this window, and Peek peeks in the card.
+        ChromeContextMenuPopulatorFactory menu =
+                new ChromeContextMenuPopulatorFactory(
+                        new ThinWebViewContextMenuItemDelegate(
+                                contents,
+                                // Names the window's activity: Chrome offers opening links (in
+                                // tabs, which CardLinkOpener makes) only with one.
+                                mActivity.getClass().getName(),
+                                (url, title) -> loadInCard(url),
+                                new CardLinkOpener(),
+                                /* readLaterOpener= */ null),
+                        mActivity.getShareDelegateSupplier(),
+                        ChromeContextMenuPopulator.ContextMenuMode.THIN_WEB_VIEW,
+                        java.util.Collections.emptyList());
         thinWebView.attachWebContents(
                 contents,
                 contentView,
                 new ThinWebViewAttachParams.Builder()
                         .setWebContentsDelegate(mDelegate)
+                        .setContextMenuPopulatorFactory(menu)
                         .setSupportTheming(true)
                         .build());
         PeekBridge.prepareForTab(contents);
@@ -417,6 +436,61 @@ public class Peek implements PeekUi.Listener {
         @Override
         public void closeContents() {
             onClose();
+        }
+    }
+
+    // The card's link menu's Peek: the link in the card itself.
+    private void loadInCard(GURL url) {
+        WebContents contents = mContents;
+        if (contents == null || !UrlUtilities.isHttpOrHttps(url)) return;
+        contents.getNavigationController().loadUrl(new LoadUrlParams(url, PageTransition.LINK));
+    }
+
+    // The card's link menu: links open as tabs of this window (the card stays).
+    private class CardLinkOpener implements ThinWebViewContextMenuItemDelegate.LinkOpener {
+        private void open(GURL url, boolean incognito, @TabLaunchType int type) {
+            if (!url.isValid()) return;
+            mActivity
+                    .getTabCreator(incognito)
+                    .createNewTab(new LoadUrlParams(url, PageTransition.LINK), type, null);
+        }
+
+        @Override
+        public void openInNewTab(
+                GURL url,
+                org.chromium.content_public.browser.@Nullable AdditionalNavigationParams params) {
+            open(url, mIncognito, TabLaunchType.FROM_LONGPRESS_BACKGROUND);
+        }
+
+        @Override
+        public void openInNewTabInGroup(
+                GURL url,
+                org.chromium.content_public.browser.@Nullable AdditionalNavigationParams params) {
+            open(url, mIncognito, TabLaunchType.FROM_LONGPRESS_BACKGROUND);
+        }
+
+        @Override
+        public void openInNewIncognitoTab(GURL url) {
+            open(url, true, TabLaunchType.FROM_LONGPRESS_FOREGROUND);
+            onClose();
+        }
+
+        @Override
+        public void openInNewWindow(
+                GURL url,
+                org.chromium.content_public.browser.@Nullable AdditionalNavigationParams params) {
+            open(url, mIncognito, TabLaunchType.FROM_LONGPRESS_FOREGROUND);
+            onClose();
+        }
+
+        @Override
+        public void openInIncognitoWindow(GURL url) {
+            openInNewIncognitoTab(url);
+        }
+
+        @Override
+        public boolean isIncognitoSupported() {
+            return !mIncognito;
         }
     }
 
