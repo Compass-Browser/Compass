@@ -66,6 +66,8 @@ object CompassSettingsUi {
     /** The rows, by what they open. */
     enum class Row {
         SYNC,
+        /** Android's choice of browser app: Compass, or another. */
+        DEFAULT_BROWSER,
         SEARCH_ENGINE,
         PASSWORDS,
         AUTOFILL_APPS,
@@ -158,6 +160,8 @@ object CompassSettingsUi {
         /** The chain's profiles, when there's more than one (docs/design/android.md, "Profiles"). */
         var profiles by mutableStateOf<List<ProfileRow>>(emptyList())
         var version by mutableStateOf("")
+        /** Compass is Android's browser app (RoleManager.ROLE_BROWSER). */
+        var isDefaultBrowser by mutableStateOf(false)
         /** Sync's line under "Sync": on, off, last synced. */
         var syncSummary by mutableStateOf("")
         /** What a launch shows: OnLaunch.SIDEBAR or OnLaunch.LAST_TAB. */
@@ -269,10 +273,19 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                 }
                 CardSection("Browsing") {
                     SettingsRow(
+                        "Default Browser",
+                        R.drawable.compass_sym_open_in_browser,
+                        subtitle =
+                            if (state.isDefaultBrowser) "Compass opens links from other apps"
+                            else "Open links from other apps in Compass",
+                        first = true,
+                    ) {
+                        open(CompassSettingsUi.Row.DEFAULT_BROWSER)
+                    }
+                    SettingsRow(
                         "Search Engine",
                         R.drawable.compass_sym_search,
                         subtitle = state.searchEngines.firstOrNull { it.keyword == state.searchEngine }?.name ?: "",
-                        first = true,
                     ) {
                         open(CompassSettingsUi.Row.SEARCH_ENGINE)
                     }

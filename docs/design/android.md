@@ -458,6 +458,18 @@ It costs:
     downloads, sound, JavaScript; `WebsitePreferenceBridge`'s categories:
     on asks first or allows, off blocks), and All Sites and Exceptions on
     Chrome's page.
+  - **Default Browser**, the first row of Browsing, says whether Compass
+    is Android's browser app (`RoleManager.ROLE_BROWSER`) and asks for it
+    with Android's own dialog (`createRequestRoleIntent()`, as Chrome's
+    `DefaultBrowserPromoManager`). When Compass already is the browser app,
+    the row opens Android's Default apps settings
+    (`ACTION_MANAGE_DEFAULT_APPS_SETTINGS`) instead, to pick another; so
+    does an answer in under half a second, which isn't the user's (a
+    dialog Android didn't show, after "Don't ask again" on versions that
+    honor it; Android 16 in the emulator showed the dialog again). The row
+    reads the role again when the window comes back. Tried in the
+    emulator: set, cancelled, and already set. Chrome's own startup promo (from the third
+    launch, `TabbedRootUiCoordinator`) is upstream's and may still show.
 - **Branding so far.** The app is "Compass" with its own launcher icon (an
   adaptive icon from the glyph, `android/res/`, overlaying Chrome's
   `ic_launcher`), and there's no first-run experience.

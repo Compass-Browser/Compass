@@ -4,6 +4,9 @@
 
 package it.cipi1965.compass.shell;
 
+import android.app.Activity;
+import android.app.role.RoleManager;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.view.View;
@@ -11,6 +14,8 @@ import android.view.ViewGroup;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
+import org.chromium.base.ActivityState;
+import org.chromium.base.ApplicationStatus;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesSettingsBridge;
@@ -68,6 +73,12 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         } catch (android.content.pm.PackageManager.NameNotFoundException e) {
             // No version line.
         }
+        // Back from Android's settings (the default browser), the row says what's chosen now.
+        ApplicationStatus.registerStateListenerForActivity(
+                (a, state) -> {
+                    if (state == ActivityState.RESUMED && mState.getOpen()) loadDefaultBrowser();
+                },
+                activity);
     }
 
     public void show() {
@@ -76,6 +87,7 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         mState.setSyncSummary(mBar.syncSummary());
         mState.setProfiles(mBar.profileRows());
         mState.setOnLaunch(OnLaunch.get());
+        loadDefaultBrowser();
         mView.setVisibility(View.VISIBLE);
         mView.bringToFront();
         mState.setOpen(true);
@@ -92,6 +104,7 @@ public class CompassSettings implements CompassSettingsUi.Listener {
                 onDismiss();
                 mBar.showSync();
             }
+            case DEFAULT_BROWSER -> chooseDefaultBrowser();
             case SEARCH_ENGINE -> {
                 loadSearchEngines();
                 mState.setPage(CompassSettingsUi.Page.SEARCH_ENGINE);
@@ -130,6 +143,57 @@ public class CompassSettings implements CompassSettingsUi.Listener {
                                 TabLaunchType.FROM_CHROME_UI,
                                 mActivity.getActivityTab());
             }
+        }
+    }
+
+    private RoleManager roles() {
+        return (RoleManager) mActivity.getSystemService(Context.ROLE_SERVICE);
+    }
+
+    private void loadDefaultBrowser() {
+        RoleManager roles = roles();
+        mState.setDefaultBrowser(roles != null && roles.isRoleHeld(RoleManager.ROLE_BROWSER));
+    }
+
+    /**
+     * Settings → Default Browser: Android's dialog that makes Compass the browser app, as Chrome's
+     * own promo asks (DefaultBrowserPromoManager). Android stops showing it to an app the user
+     * turned down twice and answers at once, so then, and when Compass already is the browser
+     * app, Android's Default apps settings open instead, where the user picks one.
+     */
+    private void chooseDefaultBrowser() {
+        RoleManager roles = roles();
+        if (roles == null
+                || !roles.isRoleAvailable(RoleManager.ROLE_BROWSER)
+                || roles.isRoleHeld(RoleManager.ROLE_BROWSER)) {
+            openDefaultAppsSettings();
+            return;
+        }
+        long asked = android.os.SystemClock.elapsedRealtime();
+        boolean shown =
+                mActivity
+                        .getWindowAndroid()
+                        .showIntent(
+                                roles.createRequestRoleIntent(RoleManager.ROLE_BROWSER),
+                                (resultCode, data) -> {
+                                    loadDefaultBrowser();
+                                    // An answer this quick isn't the user's: the dialog didn't show.
+                                    if (resultCode != Activity.RESULT_OK
+                                            && android.os.SystemClock.elapsedRealtime() - asked
+                                                    < 500) {
+                                        openDefaultAppsSettings();
+                                    }
+                                },
+                                null);
+        if (!shown) openDefaultAppsSettings();
+    }
+
+    private void openDefaultAppsSettings() {
+        try {
+            mActivity.startActivity(
+                    new Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS));
+        } catch (android.content.ActivityNotFoundException e) {
+            mActivity.startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));
         }
     }
 
