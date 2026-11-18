@@ -23,6 +23,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
@@ -122,9 +124,19 @@ object PeekUi {
 
         fun onGo(text: String)
 
+        /** A suggestion under the address, tapped: its page in the card. */
+        fun onSuggestion(index: Int)
+
         /** Always Open <domain> in <space>: the domain's rule, then Open there. */
         fun onAlwaysOpenIn(spaceId: String)
     }
+
+    /** A suggestion for the address being edited (Chrome's autocomplete, as the command bar's). */
+    class Suggestion(
+        @JvmField val title: String,
+        @JvmField val subtitle: String,
+        @JvmField val isSearch: Boolean,
+    )
 
     /** A space of the window's profile, for Open in <space>'s menu. */
     class SpaceRow(
@@ -146,6 +158,7 @@ object PeekUi {
         /** The little window's address is being edited, and what's typed. */
         var editing by mutableStateOf(false)
         var address by mutableStateOf("")
+        var suggestions by mutableStateOf<List<Suggestion>>(emptyList())
         /** The space Open opens into, and the window's profile's spaces. */
         var spaceId by mutableStateOf("")
         var spaceName by mutableStateOf("")
@@ -245,16 +258,23 @@ private fun PeekOverlay(state: PeekUi.State, pageHost: View, listener: PeekUi.Li
                 Box(Modifier.fillMaxWidth().height(2.dp)) {
                     if (state.loading) LinearProgressIndicator(Modifier.fillMaxSize())
                 }
-                AndroidView(
-                    factory = {
-                        (pageHost.parent as? ViewGroup)?.removeView(pageHost)
-                        pageHost
-                    },
-                    modifier =
-                        Modifier.fillMaxWidth().weight(1f).then(
-                            if (wide) Modifier else Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-                        ),
-                )
+                Box(
+                    Modifier.fillMaxWidth().weight(1f).then(
+                        if (wide) Modifier else Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+                    )
+                ) {
+                    AndroidView(
+                        factory = {
+                            (pageHost.parent as? ViewGroup)?.removeView(pageHost)
+                            pageHost
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    // The address's suggestions, over the page while it's edited.
+                    if (state.little && state.editing && state.suggestions.isNotEmpty()) {
+                        Suggestions(state, listener)
+                    }
+                }
             }
         }
     }
@@ -286,6 +306,47 @@ private fun PeekBar(state: PeekUi.State, listener: PeekUi.Listener, dragBar: Mod
             }
             FilledTonalButton(onClick = { listener.onOpen("") }) { Text("Open") }
             IconCircle(R.drawable.compass_sym_close) { listener.onClose() }
+        }
+    }
+}
+
+@Composable
+private fun Suggestions(state: PeekUi.State, listener: PeekUi.Listener) {
+    Column(
+        Modifier.fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        for ((index, suggestion) in state.suggestions.withIndex()) {
+            Row(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { listener.onSuggestion(index) }
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                MenuIcon(if (suggestion.isSearch) R.drawable.compass_sym_search else R.drawable.compass_sym_public)
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        suggestion.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (suggestion.subtitle.isNotEmpty()) {
+                        Text(
+                            suggestion.subtitle,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
         }
     }
 }

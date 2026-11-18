@@ -18,6 +18,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.content.WebContentsFactory;
 import org.chromium.chrome.browser.keyboard_accessory.ManualFillingComponent;
+import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulator;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulatorFactory;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -28,6 +29,10 @@ import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.embedder_support.view.ContentView;
+import org.chromium.components.omnibox.AutocompleteInput;
+import org.chromium.components.omnibox.AutocompleteMatch;
+import org.chromium.components.omnibox.AutocompleteResult;
+import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.components.thinwebview.ThinWebView;
 import org.chromium.components.thinwebview.ThinWebViewAttachParams;
 import org.chromium.components.thinwebview.ThinWebViewConstraints;
@@ -67,7 +72,15 @@ public class Peek implements PeekUi.Listener {
     private final FrameLayout mPageHost;
     private final Spaces mSpaces;
 
+    private static final int MAX_SUGGESTIONS = 6;
+
     private @Nullable WebContents mContents;
+    // The address's suggestions while it's edited.
+    private @Nullable AutocompleteController mAutocomplete;
+    private final AutocompleteInput mInput = new AutocompleteInput(OmniboxFocusReason.OMNIBOX_TAP);
+    private final List<AutocompleteMatch> mMatches = new ArrayList<>();
+    private final AutocompleteController.OnSuggestionsReceivedListener mOnSuggestions =
+            this::onSuggestionsReceived;
     private @Nullable ContentView mContentView;
     private @Nullable ThinWebView mThinWebView;
     private @Nullable WebContentsDelegateAndroid mDelegate;
@@ -305,11 +318,76 @@ public class Peek implements PeekUi.Listener {
     public void onEditAddress(boolean editing) {
         mState.setAddress(editing ? mState.getUrl() : "");
         mState.setEditing(editing);
+        if (!editing) stopSuggestions();
     }
 
     @Override
     public void onAddressChanged(String text) {
         mState.setAddress(text);
+        suggest(text);
+    }
+
+    // The address's suggestions: Chrome's autocomplete for the card's profile, as the command
+    // bar's (CommandBar), for what's typed.
+    private void suggest(String text) {
+        WebContents contents = mContents;
+        if (contents == null || text.trim().isEmpty()) {
+            mMatches.clear();
+            mState.setSuggestions(new ArrayList<>());
+            return;
+        }
+        if (mAutocomplete == null) {
+            Profile profile = Profile.fromWebContents(contents);
+            if (profile == null) return;
+            mAutocomplete = AutocompleteController.getForProfile(profile);
+            if (mAutocomplete == null) return;
+            mAutocomplete.addOnSuggestionsReceivedListener(mOnSuggestions);
+        }
+        mInput.setPageUrl(contents.getVisibleUrl()).setUserText(text);
+        mAutocomplete.start(contents, mInput, text.length(), /* preventInlineAutocomplete= */ true);
+    }
+
+    private void stopSuggestions() {
+        AutocompleteController controller = mAutocomplete;
+        mAutocomplete = null;
+        if (controller != null) {
+            controller.removeOnSuggestionsReceivedListener(mOnSuggestions);
+            controller.stop(org.chromium.components.omnibox.AutocompleteStopReason.CLOBBERED);
+        }
+        mMatches.clear();
+        mState.setSuggestions(new ArrayList<>());
+    }
+
+    private void onSuggestionsReceived(AutocompleteResult result, boolean isFinal) {
+        if (!mState.getEditing()) return;
+        mMatches.clear();
+        List<PeekUi.Suggestion> rows = new ArrayList<>();
+        for (AutocompleteMatch match : result.getSuggestionsList()) {
+            if (rows.size() >= MAX_SUGGESTIONS) break;
+            if (!UrlUtilities.isHttpOrHttps(match.getUrl())) continue;
+            boolean search = match.isSearchSuggestion();
+            String title = match.getDisplayText();
+            String subtitle = search ? "" : match.getDescription();
+            // Pages show their title first, with the URL below, as in the command bar.
+            if (!search && !subtitle.isEmpty()) {
+                String url = title;
+                title = subtitle;
+                subtitle = url;
+            }
+            mMatches.add(match);
+            rows.add(new PeekUi.Suggestion(title, subtitle, search));
+        }
+        mState.setSuggestions(rows);
+    }
+
+    @Override
+    public void onSuggestion(int index) {
+        WebContents contents = mContents;
+        if (contents == null || index < 0 || index >= mMatches.size()) return;
+        GURL url = mMatches.get(index).getUrl();
+        mState.setEditing(false);
+        stopSuggestions();
+        contents.getNavigationController().loadUrl(new LoadUrlParams(url, PageTransition.TYPED));
     }
 
     /** Go in the address: an address, or else a search, in the card. */
@@ -319,6 +397,7 @@ public class Peek implements PeekUi.Listener {
         if (contents == null) return;
         String typed = text.trim();
         mState.setEditing(false);
+        stopSuggestions();
         if (typed.isEmpty()) return;
         GURL url = UrlFormatter.fixupUrl(typed);
         if (!typed.contains(" ") && url.isValid() && UrlUtilities.isHttpOrHttps(url)
@@ -385,6 +464,7 @@ public class Peek implements PeekUi.Listener {
 
     // Lets go of the card's page view, and of the page unless a tab took it.
     private void letGo(boolean destroy) {
+        stopSuggestions();
         WebContents contents = mContents;
         mContents = null;
         ManualFillingComponent.CompassPage.setSupplier(null);
