@@ -48,6 +48,9 @@ object ExtensionsUi {
     interface Listener {
         fun onRunAction(id: String)
 
+        /** Forget the extension's saved unlock password (ExtensionUnlock). */
+        fun onForgetUnlock(id: String)
+
         fun onManage()
 
         fun onWebStore()
@@ -127,7 +130,15 @@ private fun ActionRow(action: ExtensionsState.Action, listener: ExtensionsUi.Lis
         }
         Column(Modifier.weight(1f)) {
             Text(action.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (action.title.isNotEmpty() && action.title != action.name) {
+            if (action.unlockSaved) {
+                Text(
+                    "Unlocks with your fingerprint or face",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else if (action.title.isNotEmpty() && action.title != action.name) {
                 Text(
                     action.title,
                     style = MaterialTheme.typography.bodySmall,
@@ -136,6 +147,10 @@ private fun ActionRow(action: ExtensionsState.Action, listener: ExtensionsUi.Lis
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+        if (action.unlockSaved) {
+            // Turning it back on: type the password once.
+            TextButton(onClick = { listener.onForgetUnlock(action.id) }) { Text("Forget password") }
         }
     }
 }

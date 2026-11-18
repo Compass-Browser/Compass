@@ -813,6 +813,28 @@ less the margins, as the most it may take (`ExtensionActionPopupContents`'s
 `setMaxSize()`). The card's corners clip the page, so it draws into a
 TextureView rather than a SurfaceView.
 
+**Unlock with biometrics** (`ExtensionUnlock`), as iOS's Face ID unlock
+(docs/design/ios.md, "Web extensions"): desktop 1Password unlocks with its
+desktop app's biometrics over native messaging, which nothing offers on a
+phone. The same script as iOS's watches the extension's pages (its popup,
+and its pages in the shown tab) for a visible password field. It runs in an
+isolated world of the page (`ExtensionUnlockBridge`, only on
+`chrome-extension://` pages), which can't post to the browser, so the
+browser asks it for news every 400 ms while such a page is shown. After the
+user types the password and the field goes away, Compass offers "Unlock
+<name> with biometrics?". The password is sealed with the public half of a
+new RSA key pair in the Android Keystore whose private half needs a strong
+biometric for each use and is dropped when a fingerprint or face is added
+(sealing needs no prompt, as iOS's Keychain write needs no Face ID); the
+sealed bytes are in the app's preferences. When the field shows up again,
+the biometric prompt opens the password and the script types it in and
+submits it as iOS does (Enter, then the button beside the field, then the
+form). If the field is still there 10 s later, the password is forgotten
+and a dialog says so. "Not now" stops the offers for that extension. The
+extensions sheet shows "Unlocks with your fingerprint or face" and a
+"Forget password" button; removing (or turning off) the extension forgets
+it too. Needs Android 11 (strong-biometric keys).
+
 The Web Store offers installs only to a desktop browser, so the shell gives
 chromewebstore.google.com a "Desktop site" exception the first time it runs
 (`Extensions`); the user can change it in site settings. The install prompt
@@ -882,7 +904,7 @@ controls that count are the bottom ones, where Compass's bar is
 | C4 | Bottom-bar gestures, tab picker, command bar, theme editor, undo closing, incognito lock | Done (the bar scrolls away, a swipe on its address switches tabs; incognito lock and undo are Chrome's) |
 | C5 | Pairing UI (QR code, code, recovery code), profiles, and Settings sections for Compass | Done: pairing by code, recovery code and QR code (from the camera); profiles (P7); Compass's own Settings screens (P8) |
 | C6 | Passwords and Autofill for other apps, history, sessions, devices; sent tabs over FCM (`server/push/fcm.go`) | Done; other apps fill but can't save into Compass |
-| C7 | Extensions: Web Store installs, 1Password, uBlock, and the desktop's extension list | Web Store installs and the extensions sheet done (uBlock Origin Lite tested); 1Password not tried |
+| C7 | Extensions: Web Store installs, 1Password, uBlock, and the desktop's extension list | Web Store installs, the extensions sheet and biometric unlock (`ExtensionUnlock`) done; uBlock Origin Lite and 1Password's popup tested |
 | C8 | Claude: chat sheet, page tools, browser tools | Done (page tools; list, open, select and close tabs); not yet tried with a real key |
 | C9 | Widgets, Quick Settings tile, shortcuts, share target | Done |
 | C10 | Tablets and foldables, keyboard shortcuts, multiple windows | Done |

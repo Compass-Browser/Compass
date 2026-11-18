@@ -13,6 +13,7 @@ group("android") {
   deps = [
     ":claude_bridge",
     ":claude_sidebar",
+    ":extension_unlock_bridge",
     ":passwords_bridge",
     ":peek_bridge",
     ":pip_bridge",
@@ -140,6 +141,18 @@ source_set("peek_bridge") {
   deps = [
     "//base",
     "//components/blocked_content",
+    "//compass/android:jni_headers",
+    "//content/public/browser",
+  ]
+}
+
+# Unlocking an extension (1Password) with biometrics: its script in the
+# extension's pages (docs/design/android.md, "Extensions").
+source_set("extension_unlock_bridge") {
+  sources = [ "extension_unlock_bridge.cc" ]
+  deps = [
+    "//base",
+    "//chrome/common",
     "//compass/android:jni_headers",
     "//content/public/browser",
   ]

@@ -17,6 +17,8 @@ class ExtensionsState {
         /** The action's title for the current page (its tooltip on the desktop). */
         @JvmField val title: String,
         @JvmField val icon: Bitmap?,
+        /** Whether it unlocks with biometrics (ExtensionUnlock). */
+        @JvmField val unlockSaved: Boolean = false,
     )
 
     var open by mutableStateOf(false)

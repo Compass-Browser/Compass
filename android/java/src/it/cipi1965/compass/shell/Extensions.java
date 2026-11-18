@@ -16,6 +16,8 @@ import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
 import org.chromium.chrome.browser.toolbar.extensions.ExtensionActionPopup;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskTrackerFactory;
@@ -30,6 +32,7 @@ import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.url.GURL;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,6 +59,8 @@ public class Extensions
     private final View mView;
     private @Nullable ExtensionsToolbarBridge mBridge;
     private @Nullable ExtensionActionPopup mPopup;
+    private @Nullable ExtensionUnlock mUnlock;
+    private @Nullable TabModelSelectorTabObserver mTabObserver;
 
     public Extensions(ChromeTabbedActivity activity, ViewGroup parent, View anchor) {
         mActivity = activity;
@@ -81,6 +86,34 @@ public class Extensions
         // which here is this sheet: Chrome's own menu, which would be the delegate, isn't made
         // under the shell, and the bridge calls it unchecked.
         mBridge.setMenuDelegate(this::onDismiss);
+
+        // Unlocking with biometrics, in the popup and in an extension's pages in tabs.
+        mUnlock =
+                new ExtensionUnlock(
+                        activity,
+                        this::extensionName,
+                        () -> {
+                            Tab tab = activity.getActivityTab();
+                            return tab != null ? tab.getWebContents() : null;
+                        });
+        mTabObserver =
+                new TabModelSelectorTabObserver(activity.getTabModelSelector()) {
+                    @Override
+                    public void onShown(Tab tab, @TabSelectionType int type) {
+                        if (mUnlock != null) mUnlock.kick();
+                    }
+
+                    @Override
+                    public void onPageLoadFinished(Tab tab, GURL url) {
+                        if (mUnlock != null) mUnlock.kick();
+                    }
+                };
+    }
+
+    /** The extension's name, for the unlock prompts. */
+    private String extensionName(String id) {
+        ExtensionAction action = mBridge != null ? mBridge.getAction(id, null) : null;
+        return action != null && !action.getName().isEmpty() ? action.getName() : "the extension";
     }
 
     /**
@@ -101,6 +134,14 @@ public class Extensions
 
     public void destroy() {
         closePopup();
+        if (mTabObserver != null) {
+            mTabObserver.destroy();
+            mTabObserver = null;
+        }
+        if (mUnlock != null) {
+            mUnlock.destroy();
+            mUnlock = null;
+        }
         if (mBridge != null) {
             mBridge.setActionListDelegate(null);
             mBridge.setMenuDelegate(null);
@@ -144,7 +185,8 @@ public class Extensions
                             id,
                             action.getName(),
                             action.getTitle(),
-                            mBridge.getIcon(id, webContents, ICON_DP, ICON_DP, scale)));
+                            mBridge.getIcon(id, webContents, ICON_DP, ICON_DP, scale),
+                            ExtensionUnlock.isSaved(mActivity, id)));
         }
         mState.setActions(actions);
     }
@@ -163,6 +205,7 @@ public class Extensions
         ExtensionActionPopup popup = mPopup;
         // Cleared first: destroying it calls the dismiss listener.
         mPopup = null;
+        if (mUnlock != null) mUnlock.setPopup(null);
         if (popup != null) popup.destroy();
     }
 
@@ -172,6 +215,12 @@ public class Extensions
     public void onRunAction(String id) {
         onDismiss();
         if (mBridge != null) mBridge.executeUserAction(id, InvocationSource.MENU_ENTRY);
+    }
+
+    @Override
+    public void onForgetUnlock(String id) {
+        ExtensionUnlock.forget(mActivity, id);
+        refresh();
     }
 
     @Override
@@ -204,6 +253,10 @@ public class Extensions
 
     @Override
     public void onActionRemoved(String actionId) {
+        // Removed (or turned off): its saved unlock password goes, as on iOS.
+        if (mBridge != null && !java.util.Arrays.asList(mBridge.getAllActionIds()).contains(actionId)) {
+            ExtensionUnlock.forget(mActivity, actionId);
+        }
         if (mState.getOpen()) refresh();
     }
 
@@ -237,6 +290,7 @@ public class Extensions
                         mActivity.getTabModelSelector(),
                         inspectWithDevTools);
         mPopup = popup;
+        if (mUnlock != null) mUnlock.setPopup(popupContents.getWebContents());
         popup.loadInitialPage();
         popup.addOnDismissListener(this::closePopup);
     }
