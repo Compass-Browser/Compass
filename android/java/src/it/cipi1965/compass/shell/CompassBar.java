@@ -14,8 +14,11 @@ import android.view.KeyEvent;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import it.cipi1965.compass.claude.ClaudeSidebarBridge;
 import it.cipi1965.compass.extras.CompassIntents;
@@ -24,10 +27,8 @@ import org.chromium.base.Callback;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
-import org.chromium.chrome.browser.compositor.CompositorViewHolder;
-import org.chromium.chrome.browser.compositor.layouts.LayoutManagerChrome;
+import org.chromium.cc.mojom.RootScrollOffsetUpdateFrequency;
 import org.chromium.chrome.browser.browser_controls.BottomControlsLayer;
-import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerScrollBehavior;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerType;
@@ -38,12 +39,13 @@ import org.chromium.chrome.browser.lifecycle.DestroyObserver;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
-import org.chromium.chrome.browser.toolbar.bottom.ScrollingBottomViewSceneLayer;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
-import org.chromium.components.browser_ui.widget.ViewResourceFrameLayout;
+import org.chromium.components.browser_ui.display_cutout.DisplayCutoutController;
 import org.chromium.components.user_prefs.UserPrefs;
+import org.chromium.content_public.browser.GestureListenerManager;
+import org.chromium.content_public.browser.GestureStateListener;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.GURL;
 import org.chromium.url.Origin;
@@ -52,12 +54,48 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * Compass's bottom bar (CompassBarUi.kt) in Chrome's tabbed activity. It sits in the bottom
- * controls stack, so web content makes room for it, and follows the activity's current tab.
- *
- * <p>Shell spike (milestone C1): Chrome's own toolbar stays for now.
+ * Compass's bottom bar (CompassBarUi.kt) in Chrome's tabbed activity, which follows the activity's
+ * current tab. It floats over the page, as on iOS: it isn't one of Chrome's bottom controls (which
+ * the page would end above), and it slides away as the page scrolls down and back as it scrolls up
+ * (docs/design/android.md, "The bar").
  */
-public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
+public class CompassBar implements CompassBarUi.Actions {
+    private final BottomControlsStacker mBottomControls;
+    // The bar's color, for the strip Chrome paints under the system's navigation bar (its bottom
+    // chin), which takes the stack's color.
+    private @Nullable Integer mBackgroundColor;
+    private final BottomControlsLayer mColorLayer =
+            new BottomControlsLayer() {
+                @Override
+                public @LayerType int getType() {
+                    return LayerType.COMPASS_BAR;
+                }
+
+                @Override
+                public @LayerScrollBehavior int getScrollBehavior() {
+                    return LayerScrollBehavior.NEVER_SCROLL_OFF;
+                }
+
+                // No height: the page runs under the bar.
+                @Override
+                public int getHeight() {
+                    return 0;
+                }
+
+                @Override
+                public @LayerVisibility int getLayerVisibility() {
+                    return LayerVisibility.VISIBLE;
+                }
+
+                @Override
+                public void onBrowserControlsOffsetUpdate(int layerYOffset) {}
+
+                @Override
+                public @Nullable Integer getBackgroundColor() {
+                    return mBackgroundColor;
+                }
+            };
+
     // The floating capsule (54) and its margins.
     private static final int HEIGHT_DP = 62;
 
@@ -65,18 +103,41 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private SpaceTheme mSpaceTheme = SpaceTheme.GREY;
 
     private final ChromeTabbedActivity mActivity;
-    private final BottomControlsStacker mBottomControls;
     private final CompassBarState mState = new CompassBarState();
     private final int mHeightPx;
     private @Nullable View mView;
-    // The bar in a frame that the compositor can draw a copy of, which scrolls off with the page
-    // (as Chrome's bottom toolbar does), and that copy; null if the compositor wasn't up.
-    private @Nullable BarFrame mFrame;
-    private @Nullable ScrollingBottomViewSceneLayer mSceneLayer;
+    // The bar's frame, which slides away while the page scrolls down.
+    private @Nullable FrameLayout mFrame;
+    private boolean mBarHidden;
+    // The page the bar follows the scrolling of.
+    private @Nullable WebContents mScrollContents;
+    private final GestureStateListener mScrollListener =
+            new GestureStateListener() {
+                @Override
+                public void onVerticalScrollDirectionChanged(
+                        boolean directionUp, float currentScrollRatio) {
+                    setBarHidden(!directionUp);
+                }
+
+                // Also at the start of each scroll: a page Peek handed to a tab hears no direction
+                // changes (its GestureListenerManager listens to the card's view delegate, which
+                // the tab replaced). Not at a fling's start, whose direction Chromium reads from
+                // the scroll-begin fields a fling doesn't fill (gesture_listener_manager.cc).
+                @Override
+                public void onScrollStarted(
+                        int scrollOffsetY, int scrollExtentY, boolean isDirectionUp) {
+                    setBarHidden(!isDirectionUp);
+                }
+
+                @Override
+                public void onScrollOffsetOrExtentChanged(int scrollOffsetY, int scrollExtentY) {
+                    // Back at the top of the page.
+                    if (scrollOffsetY <= 0) setBarHidden(false);
+                }
+            };
     private @Nullable CommandBar mCommandBar;
     private @Nullable Spaces mSpaces;
     private @Nullable ClaudeChat mClaude;
-    private @Nullable Integer mBackgroundColor;
     private @Nullable SyncScreen mSync;
     private @Nullable DevicesWidget mDevicesWidget;
     private @Nullable HistoryScreen mHistory;
@@ -106,6 +167,10 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         return sBars.get(activity);
     }
 
+    /**
+     * |bottomControls|: Chrome's stack, where the bar has a layer of no height only for its color
+     * (it floats over the page).
+     */
     public CompassBar(ChromeTabbedActivity activity, BottomControlsStacker bottomControls) {
         mActivity = activity;
         mBottomControls = bottomControls;
@@ -115,9 +180,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     public void attach() {
         sBars.put(mActivity, this);
         View view = CompassBarUi.createView(mActivity, mActivity, mActivity, mState, this);
-        // Chrome's bottom layers (the chin, its bottom toolbar, the mini player) live at the
-        // bottom of its coordinator, which the stack's offsets are relative to; Chrome pads it or
-        // not for the system navigation bar.
+        // At the bottom of Chrome's coordinator, over the page, which runs under it.
         ViewGroup coordinator =
                 mActivity.findViewById(
                         mActivity
@@ -126,16 +189,18 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         CoordinatorLayout.LayoutParams params =
                 new CoordinatorLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, mHeightPx);
         params.gravity = Gravity.START | Gravity.BOTTOM;
-        BarFrame frame = new BarFrame(mActivity);
-        frame.setId(View.generateViewId());
+        FrameLayout frame = new FrameLayout(mActivity);
         frame.addView(
                 view,
                 new ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         coordinator.addView(frame, params);
         mFrame = frame;
+        // Clear of the system's navigation bar: Chrome's views take the window insets before the
+        // bar would see them, so it reads the window's own as the coordinator lays out.
+        coordinator.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> keepClearOfNavBar());
+        keepClearOfNavBar();
         mView = view;
-        attachCompositedCopy(frame);
         mCommandBar = new CommandBar(mActivity, coordinator);
         Spaces spaces = new Spaces(mActivity, coordinator);
         mSpaces = spaces;
@@ -232,6 +297,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
                     @Override
                     protected void onObservingDifferentTab(@Nullable Tab tab) {
                         update(tab);
+                        watchScroll(tab);
                         // Another tab shown closes Peek, as on iOS.
                         if (mPeek != null) mPeek.onTabShown(tab);
                     }
@@ -239,6 +305,13 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
                     @Override
                     public void onUrlUpdated(Tab tab) {
                         update(tab);
+                        // Another page: the bar comes back.
+                        setBarHidden(false);
+                    }
+
+                    @Override
+                    public void onContentChanged(Tab tab) {
+                        watchScroll(tab);
                     }
 
                     @Override
@@ -262,7 +335,7 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mTabs = tabs;
         tabs.getTabCountSupplier().addSyncObserverAndCall(mTabCountObserver);
 
-        mBottomControls.addLayer(this);
+        mBottomControls.addLayer(mColorLayer);
         mBottomControls.requestLayerUpdate(false);
         mActivity.getLifecycleDispatcher().register((DestroyObserver) this::destroy);
     }
@@ -273,7 +346,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         sBars.remove(mActivity);
         if (mTabObserver != null) mTabObserver.destroy();
         if (mTabs != null) mTabs.getTabCountSupplier().removeObserver(mTabCountObserver);
-        mBottomControls.removeLayer(this);
+        watchScroll(null);
+        mBottomControls.removeLayer(mColorLayer);
         if (mSpaces != null) mSpaces.destroy();
         if (mSync != null) mSync.destroy();
         if (mDevicesWidget != null) mDevicesWidget.destroy();
@@ -664,87 +738,76 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         mBottomControls.requestLayerUpdate(false);
     }
 
-    // BottomControlsLayer:
-
-    @Override
-    public @LayerType int getType() {
-        return LayerType.COMPASS_BAR;
+    // Follows |tab|'s page's scrolling, and shows the bar.
+    private void watchScroll(@Nullable Tab tab) {
+        WebContents contents = tab != null ? tab.getWebContents() : null;
+        if (contents != mScrollContents) {
+            if (mScrollContents != null && !mScrollContents.isDestroyed()) {
+                GestureListenerManager.fromWebContents(mScrollContents)
+                        .removeListener(mScrollListener);
+            }
+            mScrollContents = contents;
+            if (contents != null) {
+                GestureListenerManager.fromWebContents(contents)
+                        .addListener(mScrollListener, RootScrollOffsetUpdateFrequency.ON_SCROLL_END);
+            }
+        }
+        setBarHidden(false);
     }
 
-    @Override
-    public @LayerScrollBehavior int getScrollBehavior() {
-        // Scrolling off needs the composited copy of the bar.
-        return mSceneLayer != null
-                ? LayerScrollBehavior.DEFAULT_SCROLL_OFF
-                : LayerScrollBehavior.NEVER_SCROLL_OFF;
-    }
-
-    @Override
-    public int getHeight() {
-        return mHeightPx;
-    }
-
-    @Override
-    public @LayerVisibility int getLayerVisibility() {
-        return LayerVisibility.VISIBLE;
-    }
-
-    @Override
-    public void onBrowserControlsOffsetUpdate(int layerYOffset) {
+    // The bar's margin over the system's navigation bar (gesture handle or buttons).
+    private void keepClearOfNavBar() {
         if (mFrame == null) return;
-        if (mSceneLayer != null) mSceneLayer.setYOffset(layerYOffset);
-        // While the bar scrolls, the compositor draws its copy in step with the page; the view
-        // comes back once it's all the way in (BottomControlsMediator does the same).
-        boolean scrolled =
-                mSceneLayer != null
-                        && mActivity.getBrowserControlsManager().getBottomControlOffset() != 0;
-        mFrame.setVisibility(scrolled ? View.INVISIBLE : View.VISIBLE);
-        // Negative to move up; positive only mid-animation, as for Chrome's mini player.
-        if (!scrolled) mFrame.setTranslationY(Math.min(0, layerYOffset));
-    }
-
-    @Override
-    public int updateOffsetTag(BrowserControlsOffsetTagsInfo offsetTagsInfo) {
-        // With browser controls in viz, viz moves the copy by this tag.
-        if (mSceneLayer != null) {
-            mSceneLayer.setOffsetTag(offsetTagsInfo.getBottomControlsOffsetTag());
+        WindowInsetsCompat insets =
+                ViewCompat.getRootWindowInsets(mActivity.getWindow().getDecorView());
+        int bottom =
+                insets == null
+                        ? 0
+                        : insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
+        ViewGroup.MarginLayoutParams params =
+                (ViewGroup.MarginLayoutParams) mFrame.getLayoutParams();
+        // The coordinator may end above the navigation bar already.
+        View coordinator = (View) mFrame.getParent();
+        int[] at = new int[2];
+        coordinator.getLocationInWindow(at);
+        int below = mActivity.getWindow().getDecorView().getHeight() - (at[1] + coordinator.getHeight());
+        int margin = Math.max(0, bottom - Math.max(0, below));
+        if (params.bottomMargin != margin) {
+            params.bottomMargin = margin;
+            mFrame.setLayoutParams(params);
         }
-        return 0;
+        pushSafeArea();
     }
 
-    @Override
-    public void clearOffsetTag() {
-        if (mSceneLayer != null) mSceneLayer.setOffsetTag(null);
-    }
-
-    private void attachCompositedCopy(BarFrame frame) {
-        CompositorViewHolder compositor = mActivity.getCompositorViewHolderSupplier().get();
-        LayoutManagerChrome layouts = mActivity.getLayoutManager();
-        if (compositor == null || layouts == null || compositor.getResourceManager() == null) {
-            return;
+    // A viewport-fit=cover page's bottom safe area takes in the bar while it shows, so its fixed
+    // bottom UI (bottom: env(safe-area-inset-bottom)) sits above it, as in Safari.
+    private void pushSafeArea() {
+        if (mFrame == null) return;
+        int covered = 0;
+        if (!mBarHidden) {
+            int[] at = new int[2];
+            mFrame.getLocationInWindow(at);
+            // Where the bar's capsule ends at the top, without the slide's translation.
+            int top = at[1] - Math.round(mFrame.getTranslationY());
+            covered = Math.max(0, mActivity.getWindow().getDecorView().getHeight() - top);
         }
-        compositor
-                .getResourceManager()
-                .getDynamicResourceLoader()
-                .registerResource(frame.getId(), frame.getResourceAdapter());
-        ScrollingBottomViewSceneLayer layer =
-                new ScrollingBottomViewSceneLayer(frame, /* topShadowHeightPx= */ 0);
-        layer.setShowShadow(false);
-        layouts.addSceneOverlay(layer);
-        mSceneLayer = layer;
+        DisplayCutoutController.setCompassBottomInset(mActivity.getWindow(), covered);
     }
 
-    /** A frame the compositor can copy (Chrome's ViewResourceFrameLayout, made in code). */
-    private static class BarFrame extends ViewResourceFrameLayout {
-        BarFrame(Context context) {
-            super(context, null);
-            // Inflation would make the resource adapter.
-            onFinishInflate();
-        }
-    }
-
-    @Override
-    public @Nullable Integer getBackgroundColor() {
-        return mBackgroundColor;
+    // Slides the bar away below the window's bottom, or back.
+    private void setBarHidden(boolean hidden) {
+        if (mFrame == null || hidden == mBarHidden) return;
+        mBarHidden = hidden;
+        pushSafeArea();
+        mFrame.animate()
+                .translationY(
+                        hidden
+                                ? mFrame.getHeight()
+                                        + ((ViewGroup.MarginLayoutParams) mFrame.getLayoutParams())
+                                                .bottomMargin
+                                        + mHeightPx / 4f
+                                : 0)
+                .setDuration(200)
+                .start();
     }
 }

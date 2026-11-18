@@ -451,12 +451,40 @@ It costs:
   moves it to the favorites, another space's pinned tree or one of its
   folders (live folders aside; the snapshot lists each space's
   `pinned_id` and `folders`).
-- **The bar scrolls away** with the page, as on iOS: it's a layer of
-  Chrome's bottom controls that scrolls off (`DEFAULT_SCROLL_OFF`), and
-  while it moves the compositor draws a copy of it in step with the page
-  (`ScrollingBottomViewSceneLayer` over the bar's `ViewResourceFrameLayout`,
-  as Chrome's own bottom toolbar does); the view comes back once the bar is
-  all the way in.
+- **The bar floats over the page**, as on iOS: the page runs under the
+  capsule, with no strip behind it. It isn't one of Chrome's bottom
+  controls, which the page would end above (the renderer's compositor
+  clips the viewport to the controls' shown height whatever
+  `controlsResizeView` says), but a view at the bottom of Chrome's
+  coordinator, kept clear of the system's navigation bar from the window's
+  root insets (Chrome's views take the insets before the bar would see
+  them). It slides away as the page scrolls down and back as it scrolls up,
+  at the top of the page, on another page and on another tab
+  (`GestureStateListener.onVerticalScrollDirectionChanged()` on the shown
+  tab's WebContents). The bar keeps a layer of no height in Chrome's stack
+  (`COMPASS_BAR`), only so the strip Chrome paints under the navigation bar
+  (its bottom chin) takes the bar's color.
+  - **Safe area.** As in Safari, a page that asks for
+    `viewport-fit=cover` gets the bar in its bottom safe area while the
+    bar shows: `env(safe-area-inset-bottom)` is how much of the window the
+    bar covers, and 0 (or the navigation bar's) while it's slid away, so a
+    footer at `bottom: env(safe-area-inset-bottom)` sits above the bar and
+    follows it. `CompassBar.pushSafeArea()` hands the value to Chrome's
+    `DisplayCutoutController` (`setCompassBottomInset()`, a patch), which
+    merges it into what it pushes to Blink (`setDisplayCutoutSafeArea()`).
+    Other pages' fixed footers (no `viewport-fit=cover`, or no `env()`) sit
+    under the bar while it shows. A page Peek or a little window handed to
+    a tab gets the safe area from its next load: the tab never heard the
+    page's `viewport-fit`.
+  - **Scrolling.** `onVerticalScrollDirectionChanged()` and each scroll's
+    start (`onScrollStarted()`'s direction) move the bar. A page Peek
+    handed to a tab only has the second: its `GestureListenerManager`
+    listens for direction changes on the card's view delegate, which the
+    tab replaced. A fling's start isn't used: Chromium reads its direction
+    from fields a fling doesn't fill (`gesture_listener_manager.cc`).
+  - Tried in the emulator with a `viewport-fit=cover` page whose footer
+    uses `env(safe-area-inset-bottom)`: 63 CSS px with the bar, 0 without;
+    alerts still show.
 - **Tab picker (C4)** (`TabPicker`, `TabPickerUi.kt`), from a swipe up on
   the bar left of the address, as on iOS: the window's tabs as cards in a row over the space's
   tint, least recently shown at the left and the tab on screen centered.

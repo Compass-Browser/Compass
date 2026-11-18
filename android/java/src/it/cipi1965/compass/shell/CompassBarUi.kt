@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,7 +38,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -81,6 +81,9 @@ object CompassBarUi {
 
         fun showMenu()
 
+        /** The bar's color, for the strip Chrome paints under the system's navigation bar. */
+        fun backgroundColorChanged(color: Int)
+
         fun reload()
 
         fun copyUrl()
@@ -91,8 +94,6 @@ object CompassBarUi {
 
         fun toggleDesktopSite()
 
-        /** The bar's background, for the strip under the navigation bar. */
-        fun backgroundColorChanged(color: Int)
     }
 
     /** The bar as a view for Chrome's layout. */
@@ -109,7 +110,6 @@ object CompassBarUi {
         view.setViewTreeSavedStateRegistryOwner(savedStateOwner)
         view.setContent {
             CompassTheme(dark = state.incognito || isSystemInDarkTheme()) {
-                // Chrome paints the strip under the navigation bar in the bar's color.
                 val background = MaterialTheme.colorScheme.surface.toArgb()
                 SideEffect { actions.backgroundColorChanged(background) }
                 Bar(state, actions)
@@ -123,8 +123,9 @@ object CompassBarUi {
 private fun Bar(state: CompassBarState, actions: CompassBarUi.Actions) {
     var pill by remember { mutableStateOf<Rect?>(null) }
     Box(
+        // No strip behind the capsule: it floats over the page, which runs under it (CompassBar
+        // keeps it clear of the system's navigation bar).
         Modifier.fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
             .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
         contentAlignment = Alignment.Center,
     ) {

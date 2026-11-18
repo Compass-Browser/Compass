@@ -1,0 +1,72 @@
+diff --git a/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java b/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java
+index 4ca18055922cb14c5ba2dbc971ba9cf40113527f..fc0d06eac597f9dbba514911529c2769430d86f0 100644
+--- a/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java
++++ b/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java
+@@ -41,6 +41,12 @@ import org.chromium.ui.base.WindowAndroid;
+ import org.chromium.ui.insets.InsetObserver;
+ import org.chromium.ui.mojom.VirtualKeyboardMode;
+ 
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.Map;
++import java.util.Set;
++import java.util.WeakHashMap;
++
+ /**
+  * Controls the display safe area for a {@link WebContents} and the cutout mode for an {@link
+  * Activity} window.
+@@ -87,6 +93,24 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
+     private final SafeAreaInsetsTrackerImpl mSafeAreaInsetsTracker;
+ 
+     private Rect mCachedSafeAreaInsets = new Rect();
++
++    // Compass: how much of each window's bottom its shell's floating bar covers, in px, which a
++    // viewport-fit=cover page's bottom safe area takes in (docs/design/android.md, "The bar").
++    private static final Map<Window, Integer> sCompassBottomInsets = new WeakHashMap<>();
++    private static final Set<DisplayCutoutController> sCompassControllers =
++            Collections.newSetFromMap(new WeakHashMap<>());
++
++    /** Compass: what its bar covers at |window|'s bottom (px); pushes it to cover pages. */
++    public static void setCompassBottomInset(Window window, int px) {
++        Integer old = sCompassBottomInsets.put(window, px);
++        if (old != null && old == px) return;
++        for (DisplayCutoutController controller : new ArrayList<>(sCompassControllers)) {
++            if (controller.mWindow == window) {
++                controller.maybePushSafeAreaInsets(controller.mCachedSafeAreaInsets);
++            }
++        }
++    }
++
+     private Rect mCachedBrowserSafeAreaInsets = new Rect();
+     private int mCachedBrowserSafeAreaInsetsRotation = INVALID_DISPLAY_ROTATION;
+ 
+@@ -238,6 +262,7 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
+     public DisplayCutoutController(Delegate delegate) {
+         mDelegate = delegate;
+         mSafeAreaInsetsTracker = new SafeAreaInsetsTrackerImpl();
++        sCompassControllers.add(this);
+         maybeAddObservers();
+     }
+ 
+@@ -323,6 +348,7 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
+ 
+     @Override
+     public void destroy() {
++        sCompassControllers.remove(this);
+         removeObservers();
+     }
+ 
+@@ -402,7 +428,12 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
+         if (webContents.getTopLevelNativeWindow() == null) return;
+ 
+         mCachedSafeAreaInsets = area;
+-        Rect mergedSafeAreaInsets = maybeMergeWithBrowserSafeAreaInsets(area);
++        Rect mergedSafeAreaInsets = new Rect(maybeMergeWithBrowserSafeAreaInsets(area));
++        // Compass: a cover page keeps its fixed bottom UI clear of the shell's floating bar.
++        Integer compassBottom = mWindow != null ? sCompassBottomInsets.get(mWindow) : null;
++        if (compassBottom != null && shouldTreatViewportFitAsCover(mViewportFit)) {
++            mergedSafeAreaInsets.bottom = Math.max(mergedSafeAreaInsets.bottom, compassBottom);
++        }
+         float dipScale = getDipScale();
+         Rect safeArea =
+                 new Rect(
