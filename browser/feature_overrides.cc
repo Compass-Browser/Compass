@@ -27,7 +27,12 @@ void RegisterFeatureOverrides(variations::FeatureOverrides& overrides) {
   // (docs/design/picture-in-picture.md).
   overrides.EnableFeature(
       blink::features::kBrowserInitiatedAutomaticPictureInPicture);
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+  // Android's tab helper for it (TabFeatures), which follows the tab models;
+  // leaving the app goes through //compass/browser/android's PipBridge
+  // (docs/design/android.md, "Auto picture-in-picture").
+  overrides.EnableFeature(media::kAutoPictureInPictureAndroid);
+#else
   // ...and when its window is covered or minimized, or Compass is left for
   // another app, unless the user turned that off (prefs::kPipOnLeavingWindow,
   // checked in the auto_picture_in_picture_tab_helper.cc patch).

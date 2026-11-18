@@ -15,6 +15,7 @@ group("android") {
     ":claude_sidebar",
     ":passwords_bridge",
     ":peek_bridge",
+    ":pip_bridge",
     ":spaces",
     ":sync_bridge",
   ]
@@ -137,6 +138,18 @@ source_set("peek_bridge") {
   deps = [
     "//base",
     "//components/blocked_content",
+    "//compass/android:jni_headers",
+    "//content/public/browser",
+  ]
+}
+
+# Auto picture-in-picture when Compass is left for another app
+# (docs/design/android.md, "Auto picture-in-picture").
+source_set("pip_bridge") {
+  sources = [ "pip_bridge.cc" ]
+  deps = [
+    "//base",
+    "//chrome/browser/picture_in_picture",
     "//compass/android:jni_headers",
     "//content/public/browser",
   ]

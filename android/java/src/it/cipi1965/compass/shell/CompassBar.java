@@ -36,6 +36,7 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerV
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.lifecycle.DestroyObserver;
+import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
@@ -337,7 +338,36 @@ public class CompassBar implements CompassBarUi.Actions {
 
         mBottomControls.addLayer(mColorLayer);
         mBottomControls.requestLayerUpdate(false);
+        mActivity.addOnUserLeaveHintListener(mLeaveHint);
+        mActivity.getLifecycleDispatcher().register(mPipResume);
         mActivity.getLifecycleDispatcher().register((DestroyObserver) this::destroy);
+    }
+
+    // Auto picture-in-picture when Compass is left for another app (docs/design/android.md, "Auto
+    // picture-in-picture"): the shown tab's playing video goes into picture-in-picture, as the
+    // desktop's does when its window is covered, and comes back with the app. A fullscreen video
+    // is Chrome's own (FullscreenVideoPictureInPictureController, which turns the whole window).
+    private @Nullable WebContents mPipLeftContents;
+    private final Runnable mLeaveHint = this::onLeavingApp;
+    private final PauseResumeWithNativeObserver mPipResume =
+            new PauseResumeWithNativeObserver() {
+                @Override
+                public void onResumeWithNative() {
+                    WebContents left = mPipLeftContents;
+                    mPipLeftContents = null;
+                    if (left != null && !left.isDestroyed()) PipBridge.setWindowLeft(left, false);
+                }
+
+                @Override
+                public void onPauseWithNative() {}
+            };
+
+    private void onLeavingApp() {
+        Tab tab = mActivity.getActivityTab();
+        if (tab == null || tab.getWebContents() == null) return;
+        if (mActivity.getFullscreenManager().getPersistentFullscreenMode()) return;
+        mPipLeftContents = tab.getWebContents();
+        PipBridge.setWindowLeft(tab.getWebContents(), true);
     }
 
     // The activity is going away (a window closed, or Android recreating it): the native bridges
@@ -348,6 +378,8 @@ public class CompassBar implements CompassBarUi.Actions {
         if (mTabs != null) mTabs.getTabCountSupplier().removeObserver(mTabCountObserver);
         watchScroll(null);
         mBottomControls.removeLayer(mColorLayer);
+        mActivity.removeOnUserLeaveHintListener(mLeaveHint);
+        mActivity.getLifecycleDispatcher().unregister(mPipResume);
         if (mSpaces != null) mSpaces.destroy();
         if (mSync != null) mSync.destroy();
         if (mDevicesWidget != null) mDevicesWidget.destroy();

@@ -347,7 +347,13 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         {ContentSettingsType.AUTOMATIC_DOWNLOADS, "Automatic Downloads", "Ask first"},
         {ContentSettingsType.SOUND, "Sound", "Allowed"},
         {ContentSettingsType.JAVASCRIPT, "JavaScript", "Allowed"},
+        // A playing video goes into picture-in-picture when its tab is left (docs/design/
+        // android.md, "Auto picture-in-picture"); Compass allows it by default.
+        {ContentSettingsType.AUTO_PICTURE_IN_PICTURE, "Automatic Picture in Picture", "Allowed"},
     };
+
+    // The desktop's "Also when you leave the window" (compass::prefs::kPipOnLeavingWindow).
+    private static final String PIP_ON_LEAVING_WINDOW = "compass.pip.on_leaving_window";
 
     private void loadSitePermissions() {
         Profile profile = profile();
@@ -363,6 +369,13 @@ public class CompassSettings implements CompassSettingsUi.Listener {
                             WebsitePreferenceBridge.isContentSettingManaged(profile, type)));
         }
         mState.setSitePermissions(permissions);
+        mState.setPipOnLeaving(UserPrefs.get(profile).getBoolean(PIP_ON_LEAVING_WINDOW));
+    }
+
+    @Override
+    public void onSetPipOnLeaving(boolean on) {
+        UserPrefs.get(profile()).setBoolean(PIP_ON_LEAVING_WINDOW, on);
+        loadSitePermissions();
     }
 
     @Override

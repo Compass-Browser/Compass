@@ -138,6 +138,9 @@ object CompassSettingsUi {
         /** Site Settings: a permission's default (SitePermission.type, Chrome's ContentSettingsType). */
         fun onSetSitePermission(type: Int, on: Boolean)
 
+        /** Site Settings: picture-in-picture also when Compass is left for another app. */
+        fun onSetPipOnLeaving(on: Boolean)
+
         /** Back from a page to the list. */
         fun onBack()
 
@@ -184,6 +187,8 @@ object CompassSettingsUi {
         var privacyOn by mutableStateOf<Set<PrivacySwitch>>(emptySet())
         var privacyManaged by mutableStateOf<Set<PrivacySwitch>>(emptySet())
         var sitePermissions by mutableStateOf<List<SitePermission>>(emptyList())
+        /** Automatic picture-in-picture also when Compass is left for another app. */
+        var pipOnLeaving by mutableStateOf(true)
     }
 
     @JvmStatic
@@ -484,6 +489,8 @@ private fun SiteSettingsPage(state: CompassSettingsUi.State, listener: CompassSe
                 ) {
                     listener.onSetSitePermission(permission.type, it)
                 }
+                // "When You Leave Compass" (state.pipOnLeaving) comes with leaving the app, which
+                // Android doesn't let start yet (docs/design/android.md, "Auto picture-in-picture").
             }
         }
         CardSection("Sites") {

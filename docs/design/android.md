@@ -226,6 +226,32 @@ It costs:
     app preference `compass_little_window`): off, links from other apps
     open as tabs, as Chrome does.
   - Tests: `LittleWindowTest` (which intents, the setting).
+- **Auto picture-in-picture (P17)** (picture-in-picture.md; ios.md, "Auto
+  picture-in-picture"): leaving a tab whose video plays with sound shows
+  the video in picture-in-picture, and coming back to the tab puts it back
+  in the page. Upstream does it on Android behind
+  `media::kAutoPictureInPictureAndroid` (`AutoPictureInPictureTabHelper`,
+  made by `TabFeatures`, following the tab models), which
+  `compass::RegisterFeatureOverrides()` turns on, with the desktop's
+  browser-initiated auto picture-in-picture and the content setting allowed
+  by default (picture-in-picture.md). The window is Chrome's
+  `PictureInPictureActivity`. Settings → Site Settings → Automatic Picture
+  in Picture turns it off (the content setting's default).
+  - **Leaving the app, not yet.** The shell tells the tab helper when the
+    window is left (`addOnUserLeaveHintListener`) and back
+    (`PipBridge.setWindowLeft()`, `pip_bridge.cc`: the desktop's window
+    hidden and shown again, `OnOcclusionStateChanged()`), and Chrome does
+    start its picture-in-picture activity, but Android refuses it: Home
+    stops the app's activity starts for a few seconds ("Background activity
+    launch blocked! … appSwitchState: 0"), and the start comes after the
+    page's round trip. Android's own way is the activity entering
+    picture-in-picture as it's left (`setAutoEnterEnabled`), which takes
+    the whole window, page and all; Chrome uses it only for a video already
+    in fullscreen (`FullscreenVideoPictureInPictureController`). Its
+    setting row ("When You Leave Compass", `compass.pip.on_leaving_window`)
+    waits for it.
+  - Tried on a Pixel 8a (Android 16): switching away from a playing video
+    opens the window, and switching back closes it.
 - **On Launch (P3)** (`OnLaunch`), as on iOS: Settings → On Launch is
   **Sidebar** (the default: the sidebar comes up over the restored tab) or
   **Last Tab** (the tab last shown, sidebar down; if there's none once
@@ -776,7 +802,7 @@ piece left.
 | P14 | Peek | **Done** (above, "Peek"). Long-press a link to look at it in a card over the page without opening a tab; a pinned tab's links peek; Open keeps the page (peek.md; ios.md, "Peek") |
 | P15 | Little windows | **Done** (above, "Little windows"). With Compass as the default browser, a web link from another app opens in Peek's card over what the window shows, not among the tabs (little-window.md; ios.md, "Little windows") |
 | P16 | Reader mode | The desktop's Reader on the shared package (`common/reader/`) for a page that reads as an article (reader-mode.md; ios.md, "Reader mode") |
-| P17 | Auto picture-in-picture | As on the desktop (picture-in-picture.md): leaving a tab whose video plays with sound, or leaving the app, shows the video in picture-in-picture; a setting turns it off (ios.md, "Auto picture-in-picture"). Chromium's own PiP didn't start in the emulator |
+| P17 | Auto picture-in-picture | **Tab switches done** (above, "Auto picture-in-picture"): leaving a tab whose video plays with sound shows it in picture-in-picture, and coming back puts it back; Site Settings turns it off. Not yet: leaving the app, which Android blocks as it's started (a background activity launch) |
 
 Profiles, still the last used profile's: Chrome's own code that reads
 `getLastUsedRegularProfile()` (downloads, notifications, some settings),
