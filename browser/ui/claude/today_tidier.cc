@@ -16,7 +16,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/claude/claude_prefs.h"
-#include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/ui/claude/sidebar_spaces.h"
 #include "components/prefs/pref_service.h"
 
 namespace compass {
@@ -259,7 +259,7 @@ void TodayTidier::Shutdown() {
 }
 
 SpaceModel* TodayTidier::FindSpace(const base::Uuid& space_id) {
-  SpaceService* spaces = SpaceService::Get(profile_);
+  SidebarSpaces* spaces = SidebarSpaces::Get(profile_);
   return spaces ? spaces->space_list().FindSpace(space_id) : nullptr;
 }
 

@@ -23,13 +23,13 @@
 #include "compass/browser/claude/claude_quick.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/claude/sidebar_spaces.h"
 #include "components/keyed_service/core/keyed_service.h"
 
 class Profile;
 
 namespace compass {
 
-class SpaceService;
 
 // Names link folders with Claude (docs/design/ai-sidebar.md, "Names for
 // link folders"): a link folder this device made (TabStripBridge), in Today,
@@ -113,7 +113,7 @@ class LinkFolderNamer : public KeyedService,
 
   const raw_ptr<Profile> profile_;
   const raw_ptr<claude::ClaudeQuick> quick_;
-  base::WeakPtr<SpaceService> space_service_;
+  base::WeakPtr<SidebarSpaces> space_service_;
   base::TimeDelta debounce_ = kDebounce;
   // The highest threshold each folder was asked at.
   std::map<base::Uuid, size_t> asked_at_;

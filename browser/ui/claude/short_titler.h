@@ -25,6 +25,7 @@
 #include "compass/browser/claude/claude_quick.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/claude/sidebar_spaces.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/prefs/pref_change_registrar.h"
 
@@ -33,7 +34,6 @@ class Profile;
 
 namespace compass {
 
-class SpaceService;
 
 // Shorter Tab Titles (docs/design/ai-sidebar.md, "Shorter tab titles"):
 // with "Shorter Tab Titles" on (prefs::kShortTabTitles, and Claude set up),
@@ -83,7 +83,7 @@ class ShortTitler : public KeyedService,
   // for tests, which follow a space of their own.
   void Observe(SpaceModel& space);
   // Follows the profile's spaces, when they're loaded.
-  void ObserveSpaces(SpaceService* spaces);
+  void ObserveSpaces(SidebarSpaces* spaces);
 
   base::WeakPtr<ShortTitler> GetWeakPtr() {
     return weak_factory_.GetWeakPtr();
@@ -138,7 +138,7 @@ class ShortTitler : public KeyedService,
   const raw_ptr<PrefService> prefs_;
   const raw_ptr<claude::ClaudeQuick> quick_;
   const GetLocale get_locale_;
-  base::WeakPtr<SpaceService> space_service_;
+  base::WeakPtr<SidebarSpaces> space_service_;
   // The spaces followed.
   std::vector<raw_ptr<SpaceModel>> spaces_;
   // Tabs waiting for the next request, by id, and the space each is in; in

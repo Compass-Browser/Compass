@@ -82,6 +82,12 @@ object ClaudeChatUi {
 
         fun onRemoveAllMemories()
 
+        /** Claude in the sidebar: a feature's switch (ClaudeChatState.Feature's key). */
+        fun onSetFeature(feature: String, on: Boolean)
+
+        /** Claude in the sidebar: a feature's model. */
+        fun onSetFeatureModel(feature: String, model: String)
+
         fun onDismiss()
     }
 
@@ -121,15 +127,16 @@ private fun modelName(id: String): String = KNOWN_MODELS.firstOrNull { it.first 
 
 @Composable
 private fun ClaudeSheet(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
-    var memoryPage by remember { mutableStateOf(false) }
+    // The page under the chat: "memory" or "sidebar" (Claude in the Sidebar), or none.
+    var page by remember { mutableStateOf("") }
     Column(
         Modifier.fillMaxWidth().fillMaxHeight(0.7f).padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (memoryPage) {
-            MemoryPage(state, listener) { memoryPage = false }
-        } else {
-            ChatPage(state, listener) { memoryPage = true }
+        when (page) {
+            "memory" -> MemoryPage(state, listener) { page = "" }
+            "sidebar" -> SidebarFeaturesPage(state, listener) { page = "" }
+            else -> ChatPage(state, listener, onMemory = { page = "memory" }, onSidebar = { page = "sidebar" })
         }
     }
 }
@@ -140,6 +147,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.ChatPage(
     state: ClaudeChatState,
     listener: ClaudeChatUi.Listener,
     onMemory: () -> Unit,
+    onSidebar: () -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("✦ Claude", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
@@ -157,6 +165,10 @@ private fun androidx.compose.foundation.layout.ColumnScope.ChatPage(
                 DropdownMenuItem(text = { Text("Memory") }, onClick = {
                     menu = false
                     onMemory()
+                })
+                DropdownMenuItem(text = { Text("Claude in the Sidebar") }, onClick = {
+                    menu = false
+                    onSidebar()
                 })
                 if (state.hasKey) {
                     DropdownMenuItem(text = { Text("Change Key") }, onClick = {
@@ -191,6 +203,96 @@ private fun ModelMenu(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
                     onClick = {
                         open = false
                         listener.onSetModel(id)
+                    },
+                )
+            }
+        }
+    }
+}
+
+// Claude in the sidebar's features, as the desktop's Claude settings list them
+// (claude_page.ts, SIDEBAR_FEATURES): key, title, what it does.
+private val SIDEBAR_FEATURES =
+    listOf(
+        Triple(
+            "name_link_folders",
+            "Name Link Folders",
+            "Folders get a short name from their tabs' titles. Suggest a Name in a folder's menu.",
+        ),
+        Triple(
+            "tidy_today",
+            "Tidy Today",
+            "Tidy in Today's header groups its tabs into named folders, with Undo.",
+        ),
+        Triple(
+            "short_tab_titles",
+            "Shorter Tab Titles",
+            "Long tab titles read shorter in the sidebar. Only there: the page keeps its title.",
+        ),
+        Triple(
+            "command_bar_ask",
+            "Answer Questions in the Command Bar",
+            "A question typed in the command bar gets a short answer there.",
+        ),
+    )
+
+/**
+ * Claude in the sidebar (docs/design/ai-sidebar.md, "Settings and privacy"): each feature's switch,
+ * off by default, and its own model. Only titles and hosts go (the page's title for Ask's "About
+ * this page"), never in incognito. Off until a key is saved.
+ */
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.SidebarFeaturesPage(
+    state: ClaudeChatState,
+    listener: ClaudeChatUi.Listener,
+    onBack: () -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = onBack) { Text("‹ Chat") }
+        Text("Claude in the Sidebar", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+    }
+    LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            Text(
+                if (state.hasKey) "Small requests that send tab titles and hosts, never the pages themselves, and never in incognito."
+                else "Add an Anthropic API key in the chat first.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        items(SIDEBAR_FEATURES, key = { it.first }) { (key, title, about) ->
+            val feature = state.features.firstOrNull { it.key == key }
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = state.hasKey && feature?.on == true,
+                        enabled = state.hasKey,
+                        onCheckedChange = { listener.onSetFeature(key, it) },
+                    )
+                }
+                Text(about, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                FeatureModelMenu(feature?.model ?: "", enabled = state.hasKey) { listener.onSetFeatureModel(key, it) }
+            }
+        }
+    }
+}
+
+/** A feature's model: the known models, and its own if it's another (a gateway's). */
+@Composable
+private fun FeatureModelMenu(model: String, enabled: Boolean, onPick: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { open = true }, enabled = enabled) { Text("Model: ${modelName(model)}", maxLines = 1) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            val models =
+                if (model.isEmpty() || KNOWN_MODELS.any { it.first == model }) KNOWN_MODELS else KNOWN_MODELS + (model to model)
+            for ((id, name) in models) {
+                DropdownMenuItem(
+                    text = { Text(if (id == model) "✓ $name" else name) },
+                    onClick = {
+                        open = false
+                        onPick(id)
                     },
                 )
             }

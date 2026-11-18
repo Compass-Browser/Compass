@@ -17,6 +17,7 @@ import android.view.ViewGroup;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
+import it.cipi1965.compass.claude.ClaudeSidebarBridge;
 import it.cipi1965.compass.extras.CompassIntents;
 
 import org.chromium.base.Callback;
@@ -84,6 +85,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
     private @Nullable CompassSettings mSettings;
     private @Nullable FindBar mFindBar;
     private @Nullable UndoToast mUndoToast;
+    // Claude in the sidebar and the command bar (docs/design/ai-sidebar.md), on the regular profile.
+    private @Nullable ClaudeSidebarBridge mClaudeSidebar;
     private ActivityTabProvider.@Nullable ActivityTabTabObserver mTabObserver;
     private @Nullable TabModel mTabs;
     private final Callback<Integer> mTabCountObserver =
@@ -155,6 +158,44 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
                                 + Math.round(
                                         10 * mActivity.getResources().getDisplayMetrics().density));
         Favicons.init(mActivity.getTabModelSelector().getModel(false).getProfile());
+        CommandBar commandBar = mCommandBar;
+        ClaudeSidebarBridge claudeSidebar =
+                new ClaudeSidebarBridge(
+                        mActivity.getTabModelSelector().getModel(false).getProfile(),
+                        new ClaudeSidebarBridge.Listener() {
+                            @Override
+                            public void onChanged() {
+                                spaces.refreshClaude();
+                            }
+
+                            @Override
+                            public void onFolderNamed(String folderId) {
+                                spaces.onFolderNamed(folderId);
+                            }
+
+                            @Override
+                            public void onTidied(String spaceId, int undoId, int folders) {
+                                spaces.onTidied(spaceId, undoId, folders);
+                            }
+
+                            @Override
+                            public void onTidyFailed(String spaceId, String message) {
+                                spaces.onTidyFailed(spaceId, message);
+                            }
+
+                            @Override
+                            public void onAnswer(String text) {
+                                commandBar.onAnswer(text);
+                            }
+
+                            @Override
+                            public void onAnswerDone(String text, String error) {
+                                commandBar.onAnswerDone(text, error);
+                            }
+                        });
+        mClaudeSidebar = claudeSidebar;
+        spaces.setClaudeSidebar(claudeSidebar, mUndoToast);
+        commandBar.setClaudeSidebar(claudeSidebar);
         spaces.setOnOpenSettings(settings::show);
         // Compass has no browser sign-in (as on the desktop): no sign-in promos either.
         UserPrefs.get(mActivity.getTabModelSelector().getModel(false).getProfile())
@@ -235,6 +276,8 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
         if (mDownloads != null) mDownloads.destroy();
         mDownloads = null;
         if (mClaude != null) mClaude.destroy();
+        if (mClaudeSidebar != null) mClaudeSidebar.destroy();
+        mClaudeSidebar = null;
         if (mExtensions != null) mExtensions.destroy();
         mExtensions = null;
         if (mTabPicker != null) mTabPicker.destroy();
@@ -526,6 +569,11 @@ public class CompassBar implements BottomControlsLayer, CompassBarUi.Actions {
 
     public void showClaude() {
         if (mClaude != null) mClaude.show();
+    }
+
+    /** Continue in Chat (Ask in the command bar): the Claude sheet, on that exchange. */
+    public void continueClaude(String question, String sent, String answer) {
+        if (mClaude != null) mClaude.continueWith(question, sent, answer);
     }
 
     @Override

@@ -9,6 +9,8 @@ import android.view.ViewGroup;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
+import it.cipi1965.compass.claude.ClaudeSidebarBridge;
+
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController;
@@ -45,6 +47,13 @@ public class CommandBar
     private boolean mInNewTab;
     // Tabs on other devices (sync's SESSIONS), while open and not Incognito.
     private @Nullable ForeignSessionHelper mSessions;
+    // Ask in the command bar (docs/design/ai-sidebar.md): the window's Claude, whether Ask is on,
+    // the page "About this page" names, and the message Claude got (for Continue in Chat).
+    private @Nullable ClaudeSidebarBridge mClaude;
+    private boolean mAskEnabled;
+    private String mPageTitle = "";
+    private String mPageHost = "";
+    private String mSent = "";
 
     public CommandBar(ChromeTabbedActivity activity, ViewGroup parent) {
         mActivity = activity;
@@ -54,6 +63,35 @@ public class CommandBar
                 mView,
                 new CoordinatorLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    /** Ask in the command bar's Claude (CompassBar sets it). */
+    public void setClaudeSidebar(ClaudeSidebarBridge claude) {
+        mClaude = claude;
+    }
+
+    /** Ask's answer so far (ClaudeSidebarBridge.Listener). */
+    public void onAnswer(String text) {
+        if (mState.getAsked().isEmpty()) return;
+        mState.setAnswer(text);
+    }
+
+    /** Ask's answer is done: all of it, or why not. */
+    public void onAnswerDone(String text, String error) {
+        if (mState.getAsked().isEmpty()) return;
+        if (!text.isEmpty()) mState.setAnswer(text);
+        mState.setAnswerError(error);
+        mState.setAnswerDone(true);
+    }
+
+    // Back to the results: the answer on its way is dropped.
+    private void clearAnswer() {
+        if (mClaude != null) mClaude.cancelAsk();
+        mState.setAsked("");
+        mState.setAnswer("");
+        mState.setAnswerDone(false);
+        mState.setAnswerError("");
+        mSent = "";
     }
 
     /** Opens the command bar, for the current tab or for a new one. */
@@ -81,6 +119,27 @@ public class CommandBar
         mState.setTint(bar != null ? bar.spaceTint() : "");
         mState.setTheme(bar != null ? bar.spaceTheme() : SpaceTheme.GREY);
         mState.setTypedIsAddress(pageUrl);
+        // Ask: never in incognito; "About this page" for a web page (its title and host only).
+        clearAnswer();
+        mAskEnabled = false;
+        if (!incognito && mClaude != null) {
+            try {
+                mAskEnabled = new org.json.JSONObject(mClaude.snapshot()).optBoolean("ask");
+            } catch (org.json.JSONException e) {
+                // Not offered.
+            }
+        }
+        GURL page = tab != null ? tab.getUrl() : GURL.emptyGURL();
+        boolean web =
+                tab != null
+                        && !incognito
+                        && page.isValid()
+                        && (page.getScheme().equals("http") || page.getScheme().equals("https"));
+        mPageTitle = web ? tab.getTitle() : "";
+        mPageHost = web ? page.getHost() : "";
+        mState.setAboutPageTitle(mPageTitle);
+        mState.setAboutPage(true);
+        mState.setAskOffered(false);
         updateEntries("");
         if (!incognito) {
             mSessions = new ForeignSessionHelper(profile);
@@ -104,7 +163,11 @@ public class CommandBar
 
     @Override
     public void onTextChanged(String text) {
+        // Typing goes back to the results.
+        if (!mState.getAsked().isEmpty()) clearAnswer();
         mState.setText(text);
+        mState.setAskOffered(
+                mAskEnabled && mClaude != null && mClaude.looksLikeQuestion(text.trim()));
         mState.setTypedIsAddress(looksLikeAddress(text.trim()));
         updateEntries(text.trim());
         updateDeviceTabs(text.trim());
@@ -199,12 +262,53 @@ public class CommandBar
     public void onSubmit(String text) {
         String trimmed = text.trim();
         if (trimmed.isEmpty()) return;
+        // With Claude's answer there, Return continues in the chat; with Ask offered, it asks.
+        if (!mState.getAsked().isEmpty()) {
+            if (mState.getAnswerDone() && !mState.getAnswer().isEmpty()) onContinueInChat();
+            return;
+        }
+        if (mState.getAskOffered()) {
+            onAsk();
+            return;
+        }
         AutocompleteMatch match = mController != null ? mController.classify(trimmed) : null;
         if (match != null) {
             navigate(match.getUrl());
         } else if (!mMatches.isEmpty()) {
             navigate(mMatches.get(0).getUrl());
         }
+    }
+
+    @Override
+    public void onAsk() {
+        String question = mState.getText().trim();
+        if (mClaude == null || question.isEmpty()) return;
+        boolean about = mState.getAboutPage() && !mPageTitle.isEmpty();
+        mState.setAsked(question);
+        mState.setAnswer("");
+        mState.setAnswerDone(false);
+        mState.setAnswerError("");
+        mSent = mClaude.ask(question, about ? mPageTitle : "", about ? mPageHost : "");
+        if (mSent.isEmpty()) {
+            mState.setAnswerError("Claude isn't set up.");
+            mState.setAnswerDone(true);
+        }
+    }
+
+    @Override
+    public void onAboutPage(boolean on) {
+        mState.setAboutPage(on);
+    }
+
+    @Override
+    public void onContinueInChat() {
+        String question = mState.getAsked();
+        String answer = mState.getAnswer();
+        String sent = mSent;
+        if (question.isEmpty() || answer.isEmpty()) return;
+        close();
+        CompassBar bar = CompassBar.forActivity(mActivity);
+        if (bar != null) bar.continueClaude(question, sent, answer);
     }
 
     @Override
@@ -264,6 +368,7 @@ public class CommandBar
     }
 
     private void close() {
+        clearAnswer();
         if (mController != null) {
             mController.removeOnSuggestionsReceivedListener(this);
             mController.resetSession();

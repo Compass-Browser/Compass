@@ -69,6 +69,27 @@ public class ClaudeBridge {
         ClaudeBridgeJni.get().setModel(mNativeClaudeBridge, model);
     }
 
+    /**
+     * Claude in the sidebar: a feature's switch ("name_link_folders", "tidy_today",
+     * "short_tab_titles", "command_bar_ask").
+     */
+    public void setFeature(String feature, boolean on) {
+        ClaudeBridgeJni.get().setFeature(mNativeClaudeBridge, feature, on);
+    }
+
+    /** A feature's model. */
+    public void setFeatureModel(String feature, String model) {
+        ClaudeBridgeJni.get().setFeatureModel(mNativeClaudeBridge, feature, model);
+    }
+
+    /**
+     * Continue in Chat: a new chat that starts with |question| (|sent|: as Claude got it) and
+     * |answer|.
+     */
+    public void seed(String question, String sent, String answer) {
+        ClaudeBridgeJni.get().seed(mNativeClaudeBridge, question, sent, answer);
+    }
+
     /** "Use memory": what Claude remembers goes with each new chat. */
     public void setMemoryEnabled(boolean enabled) {
         ClaudeBridgeJni.get().setMemoryEnabled(mNativeClaudeBridge, enabled);
@@ -119,6 +140,20 @@ public class ClaudeBridge {
         void clear(long nativeClaudeBridge);
 
         void setModel(long nativeClaudeBridge, @JniType("std::string") String model);
+
+        void setFeature(
+                long nativeClaudeBridge, @JniType("std::string") String feature, boolean on);
+
+        void setFeatureModel(
+                long nativeClaudeBridge,
+                @JniType("std::string") String feature,
+                @JniType("std::string") String model);
+
+        void seed(
+                long nativeClaudeBridge,
+                @JniType("std::string") String question,
+                @JniType("std::string") String sent,
+                @JniType("std::string") String answer);
 
         void setMemoryEnabled(long nativeClaudeBridge, boolean enabled);
 

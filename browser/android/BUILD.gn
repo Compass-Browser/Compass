@@ -12,6 +12,7 @@ assert(is_android)
 group("android") {
   deps = [
     ":claude_bridge",
+    ":claude_sidebar",
     ":passwords_bridge",
     ":spaces",
     ":sync_bridge",
@@ -38,6 +39,35 @@ source_set("claude_bridge") {
     "//content/public/browser",
     "//services/network/public/cpp",
     "//url",
+  ]
+}
+
+# Claude in the sidebar (docs/design/ai-sidebar.md; docs/design/android.md,
+# P12): the desktop's services, over SpacesAndroid in place of SpaceService
+# (//compass/browser/ui/claude/sidebar_spaces.h), and their bridge.
+source_set("claude_sidebar") {
+  sources = [
+    "claude_sidebar_bridge.cc",
+    "claude_sidebar_bridge.h",
+    "//compass/browser/ui/claude/link_folder_namer.cc",
+    "//compass/browser/ui/claude/link_folder_namer.h",
+    "//compass/browser/ui/claude/short_titler.cc",
+    "//compass/browser/ui/claude/short_titler.h",
+    "//compass/browser/ui/claude/sidebar_spaces.h",
+    "//compass/browser/ui/claude/today_tidier.cc",
+    "//compass/browser/ui/claude/today_tidier.h",
+  ]
+  deps = [
+    ":spaces",
+    "//base",
+    "//chrome/browser:browser_process",
+    "//chrome/browser/profiles:profile",
+    "//components/keyed_service/core",
+    "//components/prefs",
+    "//compass/android:jni_headers",
+    "//compass/browser/claude",
+    "//compass/browser/claude:prefs",
+    "//compass/browser/sidebar",
   ]
 }
 

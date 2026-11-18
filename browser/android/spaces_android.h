@@ -70,6 +70,10 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   bool loaded() const { return loaded_; }
   // Runs |callback| once the saved spaces are in (now, if they are).
   void RunWhenLoaded(base::OnceClosure callback);
+  // For Claude's sidebar services (compass/browser/ui/claude/sidebar_spaces.h).
+  base::WeakPtr<SpacesAndroid> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
 
   Attachment* sync_attachment() { return sync_attachment_.get(); }
   void SetSyncAttachment(std::unique_ptr<Attachment> attachment) {
@@ -193,6 +197,7 @@ class SpacesAndroid : public base::SupportsUserData::Data,
                    const SidebarNode& old_parent,
                    size_t old_index) override;
   void OnNodeChanged(const SidebarNode& node) override;
+  void OnNodeShortTitleChanged(const SidebarNode& node) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
   void OnSpaceChanged(const SpaceModel& space) override;
   void OnArchiveChanged(const SpaceModel& space) override;

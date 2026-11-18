@@ -35,6 +35,10 @@ public class UndoToast implements UndoToastUi.Listener {
     private @Nullable TabModel mModel;
     private final List<Integer> mTabIds = new ArrayList<>();
     private final Runnable mTimeout = this::onDismiss;
+    // A message's own Undo (showMessage()), instead of a closure's.
+    private @Nullable Runnable mUndo;
+    // Tidy Today's toast stays longer (docs/design/ai-sidebar.md: 8 s).
+    private static final long MESSAGE_DURATION_MS = 8000;
 
     /** |aboveBarPx|: how far over the bottom it floats (the bar's height). */
     public UndoToast(ChromeTabbedActivity activity, ViewGroup parent, int aboveBarPx) {
@@ -71,6 +75,7 @@ public class UndoToast implements UndoToastUi.Listener {
         finish(false);
         mModel = model;
         for (Tab tab : tabs) mTabIds.add(tab.getId());
+        mState.setUndoable(true);
         mState.setText(
                 tabs.size() == 1
                         ? "Closed “" + tabs.get(0).getTitle() + "”"
@@ -105,6 +110,24 @@ public class UndoToast implements UndoToastUi.Listener {
             }
         }
         mTabIds.clear();
+        Runnable undoMessage = mUndo;
+        mUndo = null;
+        if (undo && undoMessage != null) undoMessage.run();
+    }
+
+    /**
+     * Shows |text|, with Undo running |undo| (null: no Undo), for eight seconds: Tidy Today's
+     * result (docs/design/ai-sidebar.md).
+     */
+    public void showMessage(String text, @Nullable Runnable undo) {
+        finish(false);
+        mUndo = undo;
+        mState.setText(text);
+        mState.setUndoable(undo != null);
+        mState.setShown(true);
+        mView.bringToFront();
+        mView.removeCallbacks(mTimeout);
+        mView.postDelayed(mTimeout, MESSAGE_DURATION_MS);
     }
 
     @Override

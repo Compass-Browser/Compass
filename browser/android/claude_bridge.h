@@ -63,7 +63,8 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer {
   // "undone"), whether a reply streams, the last error, whether there's a
   // key, whether Claude may use the whole browser, the model in use, and
   // the memory: "memory_enabled", "memory_save" and the "memories" (id,
-  // text; oldest first), as JSON.
+  // text; oldest first), and Claude in the sidebar's "features" (key, on,
+  // model), as JSON.
   std::string Snapshot(JNIEnv* env);
   void SetApiKey(JNIEnv* env, const std::string& key);
   // "Let Claude use the whole browser" (the desktop's setting).
@@ -78,6 +79,21 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer {
   // The model the next reply uses (the desktop's compass.claude.model; empty:
   // the default).
   void SetModel(JNIEnv* env, const std::string& model);
+
+  // Claude in the sidebar (docs/design/ai-sidebar.md): a feature's switch and
+  // its model, by the feature's key ("name_link_folders", "tidy_today",
+  // "short_tab_titles", "command_bar_ask"; the snapshot's "features").
+  void SetFeature(JNIEnv* env, const std::string& feature, bool on);
+  void SetFeatureModel(JNIEnv* env,
+                       const std::string& feature,
+                       const std::string& model);
+  // Continue in Chat (Ask in the command bar): a new chat whose first
+  // exchange is |question| (as shown; |sent| as Claude got it, with the page
+  // line) and |answer|. Nothing is sent until the user writes.
+  void Seed(JNIEnv* env,
+            const std::string& question,
+            const std::string& sent,
+            const std::string& answer);
 
   // Memory (docs/design/claude.md, "Memory"): the settings, Undo of a
   // change Claude made, and the user's own changes to the list.

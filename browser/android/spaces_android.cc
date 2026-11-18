@@ -285,6 +285,14 @@ base::ListValue SpacesAndroid::SnapshotSection(const SidebarNode& root) const {
         if (node.is_live_folder()) {
           dict.Set("live", node.live_source()->plugin_id);
         }
+        // Claude's name (docs/design/ai-sidebar.md): Undo Name goes back to
+        // the one before, when it's known.
+        if (node.name_source() == SidebarNode::NameSource::kClaude) {
+          dict.Set("claude_name", true);
+          if (!node.name_before_claude().empty()) {
+            dict.Set("can_undo_name", true);
+          }
+        }
         break;
       case SidebarNode::Type::kSplit:
         dict.Set("type", "split");
@@ -293,6 +301,11 @@ base::ListValue SpacesAndroid::SnapshotSection(const SidebarNode& root) const {
         dict.Set("type", "tab");
         if (node.unseen()) {
           dict.Set("unseen", true);
+        }
+        // Claude's short title, which the row shows (display only); the
+        // user's own name wins.
+        if (!node.short_title().empty() && node.custom_title().empty()) {
+          dict.Set("short_title", base::UTF16ToUTF8(node.short_title()));
         }
         break;
     }
@@ -873,6 +886,10 @@ void SpacesAndroid::OnNodeMoved(const SidebarNode& node,
 }
 
 void SpacesAndroid::OnNodeChanged(const SidebarNode& node) {
+  Changed();
+}
+
+void SpacesAndroid::OnNodeShortTitleChanged(const SidebarNode& node) {
   Changed();
 }
 

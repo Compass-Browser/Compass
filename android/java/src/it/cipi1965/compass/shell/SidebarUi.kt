@@ -278,6 +278,21 @@ object SidebarUi {
 
         fun onOpenSettings()
 
+        /** Renames a folder, as the user: Claude doesn't name it again. */
+        fun onRenameFolder(folderId: String, name: String)
+
+        /** Undo Name: a folder Claude named gets its name from before back. */
+        fun onUndoName(folderId: String)
+
+        /** Suggest a Name: Claude names the folder from its tabs. */
+        fun onSuggestName(folderId: String)
+
+        /** Tidy Today: Claude groups the shown space's loose Today entries into named folders. */
+        fun onTidyToday()
+
+        /** Undo on Tidy Today's toast in the sidebar. */
+        fun onToastUndo()
+
         fun onDismiss()
     }
 
@@ -380,6 +395,7 @@ private fun SidebarContent(state: SidebarState, listener: SidebarUi.Listener, mo
         ) { _ ->
             SpacePage(state, listener)
         }
+        if (state.toast.isNotEmpty()) SidebarToast(state, listener)
         SpacesBar(state, listener)
     }
 }
@@ -441,7 +457,20 @@ private fun SpacePage(state: SidebarState, listener: SidebarUi.Listener) {
         }
         item(key = "today-header") {
             Box(Modifier.dropMark(drag, "today-header")) {
-                SectionHeader("Today", trailing = if (state.today.isEmpty()) null else "Clear") { listener.onClearToday() }
+                SectionHeader(
+                    "Today",
+                    trailing = if (state.today.isEmpty()) null else "Clear",
+                    onTrailing = { listener.onClearToday() },
+                    // Tidy Today (docs/design/ai-sidebar.md): Claude's folders, with Undo.
+                    extra =
+                        when {
+                            state.incognito || !state.tidyAvailable -> null
+                            state.tidyBusy -> "Tidying…"
+                            else -> "Tidy"
+                        },
+                    extraEnabled = !state.tidyBusy && state.looseTodayEntries >= 5,
+                    onExtra = { listener.onTidyToday() },
+                )
             }
         }
         item(key = "new-tab") { Box(Modifier.dropMark(drag, "new-tab")) { NewTabRow(listener) } }
@@ -735,20 +764,60 @@ private fun ArchiveAfterDialog(hours: Int, onPick: (Int) -> Unit, onDismiss: () 
 }
 
 @Composable
-private fun RenameDialog(name: String, onDone: (String) -> Unit, onDismiss: () -> Unit) {
+private fun RenameDialog(
+    name: String,
+    title: String = "Rename Space",
+    onDone: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
     var text by remember { mutableStateOf(name) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Rename Space") },
+        title = { Text(title) },
         text = { @Suppress("DEPRECATION") OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true) },
         confirmButton = { TextButton(onClick = { onDone(text.trim().ifEmpty { name }) }) { Text("Done") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
-/** "PINNED", "TODAY": small, uppercase, dimmed; Today's has Clear. */
+/** Tidy Today's result over the bar of spaces, as the window's toast (UndoToastUi.kt). */
 @Composable
-private fun SectionHeader(title: String, trailing: String? = null, onTrailing: () -> Unit = {}) {
+private fun SidebarToast(state: SidebarState, listener: SidebarUi.Listener) {
+    Row(
+        Modifier.fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.inverseSurface)
+            .padding(start = 16.dp, end = 8.dp)
+            .heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            state.toast,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.inverseOnSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).padding(vertical = 8.dp),
+        )
+        if (state.toastUndoable) {
+            TextButton(onClick = { listener.onToastUndo() }) {
+                Text("Undo", color = MaterialTheme.colorScheme.inversePrimary)
+            }
+        }
+    }
+}
+
+/** "PINNED", "TODAY": small, uppercase, dimmed; Today's has Clear, and Tidy before it. */
+@Composable
+private fun SectionHeader(
+    title: String,
+    trailing: String? = null,
+    onTrailing: () -> Unit = {},
+    extra: String? = null,
+    extraEnabled: Boolean = true,
+    onExtra: () -> Unit = {},
+) {
     Row(
         Modifier.fillMaxWidth().padding(start = 12.dp, end = 6.dp, top = 14.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -759,6 +828,17 @@ private fun SectionHeader(title: String, trailing: String? = null, onTrailing: (
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
+        if (extra != null) {
+            Text(
+                extra,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = if (extraEnabled) 1f else 0.4f),
+                modifier =
+                    Modifier.clip(CircleShape)
+                        .clickable(enabled = extraEnabled, onClick = onExtra)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+        }
         if (trailing != null) {
             Text(
                 trailing,
@@ -871,7 +951,7 @@ private fun NodeRow(
                 .combinedClickable(
                     interactionSource = interaction,
                     indication = null,
-                    onLongClick = { if (node.type == "tab") menu = true },
+                    onLongClick = { if (node.type == "tab" || node.isFolder) menu = true },
                     onClick = {
                         if (node.isFolder) listener.onToggleFolder(node.id, !node.collapsed)
                         else if (node.type == "tab") listener.onNodeClicked(node.id, node.url)
@@ -906,18 +986,38 @@ private fun NodeRow(
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     Modifier.rotate(if (node.collapsed) 0f else 90f),
                 )
-                Sym(
-                    when {
-                        // A live folder: a plugin fills it, on the devices that run
-                        // plugins (not Android yet: docs/design/live-folders.md).
-                        node.isLiveFolder -> R.drawable.compass_sym_sync
-                        node.collapsed -> R.drawable.compass_sym_folder
-                        else -> R.drawable.compass_sym_folder_fill
-                    },
-                    15f,
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                // Claude just named it: sparkles for a moment, and the name fades in.
+                val sparkling = node.id == state.sparkleId
+                val nameAlpha = remember { Animatable(1f) }
+                LaunchedEffect(sparkling) {
+                    if (sparkling) {
+                        nameAlpha.snapTo(0f)
+                        nameAlpha.animateTo(1f, tween(600))
+                    }
+                }
+                Box {
+                    Sym(
+                        when {
+                            sparkling -> R.drawable.compass_sym_auto_awesome
+                            // A live folder: a plugin fills it, on the devices that run
+                            // plugins (not Android yet: docs/design/live-folders.md).
+                            node.isLiveFolder -> R.drawable.compass_sym_sync
+                            node.collapsed -> R.drawable.compass_sym_folder
+                            else -> R.drawable.compass_sym_folder_fill
+                        },
+                        15f,
+                        if (sparkling) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    )
+                    FolderMenu(menu, { menu = false }, node, state, listener)
+                }
+                Text(
+                    node.title,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.alpha(nameAlpha.value),
                 )
-                Text(node.title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             } else {
                 Box(Modifier.alpha(if (dim) 0.55f else 1f)) {
                     SiteIcon(node.url, CompassStyle.favicon)
@@ -925,7 +1025,8 @@ private fun NodeRow(
                     EntryMenu(menu, { menu = false }, node, place, state, listener)
                 }
                 Text(
-                    node.title.ifEmpty { "Untitled" },
+                    // Claude's short title (Shorter Tab Titles), only here: the page keeps its own.
+                    node.shortTitle.ifEmpty { node.title }.ifEmpty { "Untitled" },
                     style = MaterialTheme.typography.labelLarge,
                     color = if (shown) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -948,6 +1049,42 @@ private fun NodeRow(
                 Sym(R.drawable.compass_sym_close, 12f, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f))
             }
         }
+    }
+}
+
+/**
+ * A folder's long-press menu: Rename, and Claude's names (docs/design/ai-sidebar.md): Undo Name
+ * while its name is Claude's, else Suggest a Name (a folder with entries, not a live one).
+ */
+@Composable
+private fun FolderMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    node: SidebarState.Node,
+    state: SidebarState,
+    listener: SidebarUi.Listener,
+) {
+    var renaming by remember { mutableStateOf(false) }
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        @Composable
+        fun Item(label: String, icon: Int, action: () -> Unit) {
+            MenuItem(label, icon) {
+                onDismiss()
+                action()
+            }
+        }
+        Item("Rename", R.drawable.compass_sym_edit) { renaming = true }
+        if (node.canUndoName) {
+            Item("Undo Name", R.drawable.compass_sym_undo) { listener.onUndoName(node.id) }
+        } else if (state.suggestNames && !state.incognito && !node.isLiveFolder && node.children.isNotEmpty()) {
+            Item("Suggest a Name", R.drawable.compass_sym_auto_awesome) { listener.onSuggestName(node.id) }
+        }
+    }
+    if (renaming) {
+        RenameDialog(node.title, title = "Rename Folder", onDone = {
+            listener.onRenameFolder(node.id, it)
+            renaming = false
+        }) { renaming = false }
     }
 }
 

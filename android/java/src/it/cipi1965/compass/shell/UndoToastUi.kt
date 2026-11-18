@@ -23,6 +23,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -60,6 +62,8 @@ object UndoToastUi {
     class State {
         var shown by mutableStateOf(false)
         var text by mutableStateOf("")
+        /** Whether it has Undo (a message alone, such as Tidy Today's errors, hasn't). */
+        var undoable by mutableStateOf(true)
     }
 
     @JvmStatic
@@ -106,12 +110,16 @@ private fun Toast(state: UndoToastUi.State, listener: UndoToastUi.Listener) {
                     state.text,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.inverseOnSurface,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = { listener.onUndo() }) {
-                    Text("Undo", color = MaterialTheme.colorScheme.inversePrimary)
+                if (state.undoable) {
+                    TextButton(onClick = { listener.onUndo() }) {
+                        Text("Undo", color = MaterialTheme.colorScheme.inversePrimary)
+                    }
+                } else {
+                    Spacer(Modifier.height(48.dp))
                 }
             }
         }

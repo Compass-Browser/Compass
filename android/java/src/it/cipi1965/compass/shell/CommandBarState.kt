@@ -74,4 +74,18 @@ class CommandBarState {
     var theme by mutableStateOf(SpaceTheme.GREY)
     /** The typed text reads as an address, not a search. */
     var typedIsAddress by mutableStateOf(false)
+
+    // Ask in the command bar (docs/design/ai-sidebar.md, "Ask in the command bar").
+    /** The typed text reads as a question and Ask is on: "Ask Claude" comes first. */
+    var askOffered by mutableStateOf(false)
+    /** The page "About this page" names (its title), or empty when there's no web page. */
+    var aboutPageTitle by mutableStateOf("")
+    /** "About this page": the page's title and host go with the question. On by default. */
+    var aboutPage by mutableStateOf(true)
+    /** The question asked, while its answer shows in place of the results; empty: none. */
+    var asked by mutableStateOf("")
+    /** The answer so far, whether it's all there, and why it isn't (empty: no error). */
+    var answer by mutableStateOf("")
+    var answerDone by mutableStateOf(false)
+    var answerError by mutableStateOf("")
 }

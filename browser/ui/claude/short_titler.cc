@@ -17,7 +17,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/claude/claude_prefs.h"
-#include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/ui/claude/sidebar_spaces.h"
 #include "components/prefs/pref_service.h"
 
 namespace compass {
@@ -109,7 +109,7 @@ void ShortTitler::Observe(SpaceModel& space) {
   ConsiderTree(space, *space.today_root());
 }
 
-void ShortTitler::ObserveSpaces(SpaceService* spaces) {
+void ShortTitler::ObserveSpaces(SidebarSpaces* spaces) {
   space_service_ = spaces->GetWeakPtr();
   spaces->RunWhenLoaded(base::BindOnce(&ShortTitler::OnSpacesLoaded,
                                        weak_factory_.GetWeakPtr()));
@@ -444,14 +444,14 @@ ShortTitlerFactory::BuildServiceInstanceForBrowserContext(
       profile->GetPrefs(), quick, base::BindRepeating([] {
         return g_browser_process->GetApplicationLocale();
       }));
-  // Not while the profile is being made: SpaceService reads the sidebar.
+  // Not while the profile is being made: its spaces read the sidebar.
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(
                      [](base::WeakPtr<ShortTitler> titler, Profile* profile) {
                        if (!titler) {
                          return;
                        }
-                       if (SpaceService* spaces = SpaceService::Get(profile)) {
+                       if (SidebarSpaces* spaces = SidebarSpaces::Get(profile)) {
                          titler->ObserveSpaces(spaces);
                        }
                      },

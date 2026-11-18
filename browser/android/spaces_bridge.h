@@ -77,6 +77,13 @@ class SpacesBridge : public SpacesAndroid::Observer {
                   const std::string& before_id);
   void RemoveNode(JNIEnv* env, const std::string& node_id);
   void SetCollapsed(JNIEnv* env, const std::string& folder_id, bool collapsed);
+  // Renames a folder, as the user (docs/design/ai-sidebar.md: Claude never
+  // names it again); nothing if the name doesn't change.
+  void RenameFolder(JNIEnv* env,
+                    const std::string& folder_id,
+                    const std::u16string& name);
+  // Undo Name: a folder Claude named gets its name from before back.
+  void UndoFolderName(JNIEnv* env, const std::string& folder_id);
   int32_t TabFor(JNIEnv* env, const std::string& node_id);
   void TabOpened(JNIEnv* env,
                  int32_t tab_id,

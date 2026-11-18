@@ -119,6 +119,25 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
     }
 
     @Override
+    public void onSetFeature(String feature, boolean on) {
+        mBridge.setFeature(feature, on);
+    }
+
+    @Override
+    public void onSetFeatureModel(String feature, String model) {
+        mBridge.setFeatureModel(feature, model);
+    }
+
+    /**
+     * Continue in Chat (Ask in the command bar): the sheet, on a new chat that starts with the
+     * question and Claude's answer.
+     */
+    public void continueWith(String question, String sent, String answer) {
+        mBridge.seed(question, sent, answer);
+        show();
+    }
+
+    @Override
     public void onDismiss() {
         mState.setOpen(false);
         mView.setVisibility(View.GONE);

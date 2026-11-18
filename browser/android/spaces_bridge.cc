@@ -7,6 +7,7 @@
 #include "base/files/file_path.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/uuid.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
@@ -293,6 +294,34 @@ void SpacesBridge::SetCollapsed(JNIEnv* env,
   }
   if (SpaceModel* space = spaces_->list().FindSpaceOf(node)) {
     space->SetCollapsed(node, collapsed);
+  }
+}
+
+void SpacesBridge::RenameFolder(JNIEnv* env,
+                                const std::string& folder_id,
+                                const std::u16string& name) {
+  SidebarNode* node =
+      spaces_->FindNode(base::Uuid::ParseLowercase(folder_id));
+  std::u16string trimmed(
+      base::TrimWhitespace(name, base::TrimPositions::TRIM_ALL));
+  if (!node || node->type() != SidebarNode::Type::kFolder || trimmed.empty() ||
+      trimmed == node->title()) {
+    return;
+  }
+  if (SpaceModel* space = spaces_->list().FindSpaceOf(node)) {
+    space->SetFolderName(node, std::move(trimmed),
+                         SidebarNode::NameSource::kUser);
+  }
+}
+
+void SpacesBridge::UndoFolderName(JNIEnv* env, const std::string& folder_id) {
+  SidebarNode* node =
+      spaces_->FindNode(base::Uuid::ParseLowercase(folder_id));
+  if (!node || node->type() != SidebarNode::Type::kFolder) {
+    return;
+  }
+  if (SpaceModel* space = spaces_->list().FindSpaceOf(node)) {
+    space->UndoFolderName(node);
   }
 }
 

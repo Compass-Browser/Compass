@@ -48,6 +48,11 @@ class SidebarState {
         @JvmField val unseen: Boolean = false,
         /** A pinned tab's or favorite's pinned URL, or empty (docs/design/sidebar.md, "Pinned URL"). */
         @JvmField val savedUrl: String = "",
+        /** Claude's short title, which the row shows (Shorter Tab Titles); empty: none. */
+        @JvmField val shortTitle: String = "",
+        /** A folder Claude named, and whether Undo Name can take its name back. */
+        @JvmField val claudeName: Boolean = false,
+        @JvmField val canUndoName: Boolean = false,
     ) {
         val isFolder: Boolean
             get() = type == "folder"
@@ -91,6 +96,26 @@ class SidebarState {
     var archiveAfterHours by mutableStateOf(12)
     /** The tab on screen, to highlight its entry. */
     var currentTab by mutableStateOf(-1)
+
+    // Claude in the sidebar (docs/design/ai-sidebar.md), from ClaudeSidebarBridge's snapshot.
+    /** Suggest a Name in a folder's menu ("Name Link Folders" on, Claude set up). */
+    var suggestNames by mutableStateOf(false)
+    /** Tidy in Today's header ("Tidy Today" on, Claude set up). */
+    var tidyAvailable by mutableStateOf(false)
+    /** A tidy of the shown space waits for Claude. */
+    var tidyBusy by mutableStateOf(false)
+    /** The folder Claude just named, which sparkles for a moment; empty: none. */
+    var sparkleId by mutableStateOf("")
+    /**
+     * Tidy Today's result while the sidebar is open (it's a window of its own, over the toast):
+     * the text, and whether it has Undo; empty: none.
+     */
+    var toast by mutableStateOf("")
+    var toastUndoable by mutableStateOf(false)
+
+    /** Today's loose entries (tabs and splits at its top), which Tidy groups; at least 5 to tidy. */
+    val looseTodayEntries: Int
+        get() = today.count { it.type == "tab" || it.type == "split" }
 
     /** The pinned entry or favorite showing |tab|, or null (a Today tab, or none). */
     fun pinnedNodeFor(tab: Int): Node? {
@@ -162,6 +187,9 @@ class SidebarState {
                 it.optString("live"),
                 it.optBoolean("unseen"),
                 it.optString("saved_url"),
+                it.optString("short_title"),
+                it.optBoolean("claude_name"),
+                it.optBoolean("can_undo_name"),
             )
         }
 

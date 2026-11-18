@@ -139,6 +139,16 @@ public class SpacesBridge {
         SpacesBridgeJni.get().setCollapsed(mNativeSpacesBridge, folderId, collapsed);
     }
 
+    /** Renames a folder as the user: Claude doesn't name it again. */
+    public void renameFolder(String folderId, String name) {
+        SpacesBridgeJni.get().renameFolder(mNativeSpacesBridge, folderId, name);
+    }
+
+    /** Undo Name: a folder Claude named gets its name from before back. */
+    public void undoFolderName(String folderId) {
+        SpacesBridgeJni.get().undoFolderName(mNativeSpacesBridge, folderId);
+    }
+
     /** The tab showing a node, or -1. */
     public int tabFor(String nodeId) {
         return SpacesBridgeJni.get().tabFor(mNativeSpacesBridge, nodeId);
@@ -268,6 +278,13 @@ public class SpacesBridge {
 
         void setCollapsed(
                 long nativeSpacesBridge, @JniType("std::string") String folderId, boolean collapsed);
+
+        void renameFolder(
+                long nativeSpacesBridge,
+                @JniType("std::string") String folderId,
+                @JniType("std::u16string") String name);
+
+        void undoFolderName(long nativeSpacesBridge, @JniType("std::string") String folderId);
 
         int tabFor(long nativeSpacesBridge, @JniType("std::string") String nodeId);
 

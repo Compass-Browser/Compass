@@ -21,6 +21,7 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import it.cipi1965.compass.extras.CompassIntents;
 import it.cipi1965.compass.extras.ListWidgetProvider;
 import it.cipi1965.compass.extras.TodayWidgetProvider;
+import it.cipi1965.compass.claude.ClaudeSidebarBridge;
 import it.cipi1965.compass.spaces.SpacesBridge;
 
 import org.chromium.build.annotations.Nullable;
@@ -86,6 +87,15 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     private final PinPickerUi.State mPinPicker = new PinPickerUi.State();
     private @Nullable String mPinnedNode;
     private @Nullable View mPinView;
+    // Claude in the sidebar (docs/design/ai-sidebar.md): the window's bridge, and the toast that
+    // shows how Tidy Today went.
+    private @Nullable ClaudeSidebarBridge mClaude;
+    private @Nullable UndoToast mToast;
+    private static final long SPARKLE_MS = 1500;
+    // Tidy Today's toast in the sidebar: its Undo, and how long it stays.
+    private @Nullable Runnable mToastUndo;
+    private static final long TOAST_MS = 8000;
+    private final Runnable mHideToast = this::hideToast;
 
     public Spaces(ChromeTabbedActivity activity, ViewGroup parent) {
         mActivity = activity;
@@ -250,6 +260,84 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
         mTabs.removeObserver(mTabModelObserver);
         mTabObserver.destroy();
         mBridge.destroy();
+    }
+
+    /** Claude in the sidebar: Suggest a Name, Tidy Today and its toast (CompassBar sets them). */
+    public void setClaudeSidebar(ClaudeSidebarBridge claude, UndoToast toast) {
+        mClaude = claude;
+        mToast = toast;
+        refreshClaude();
+    }
+
+    /** What Claude offers in the sidebar now (ClaudeSidebarBridge's snapshot). */
+    public void refreshClaude() {
+        if (mClaude == null) return;
+        try {
+            JSONObject data = new JSONObject(mClaude.snapshot());
+            mState.setSuggestNames(data.optBoolean("suggest_names"));
+            mState.setTidyAvailable(data.optBoolean("tidy"));
+            JSONArray busy = data.optJSONArray("busy");
+            String shown = shownSpaceId();
+            boolean tidying = false;
+            for (int i = 0; busy != null && i < busy.length(); i++) {
+                if (busy.optString(i).equals(shown)) tidying = true;
+            }
+            mState.setTidyBusy(tidying);
+        } catch (JSONException e) {
+            // Nothing offered.
+        }
+    }
+
+    /** Claude just named |folderId|: it sparkles for a moment. */
+    public void onFolderNamed(String folderId) {
+        mState.setSparkleId(folderId);
+        mView.postDelayed(
+                () -> {
+                    if (folderId.equals(mState.getSparkleId())) mState.setSparkleId("");
+                },
+                SPARKLE_MS);
+    }
+
+    /** Tidy Today of |spaceId| made |folders| folders: the toast, with Undo, if it's shown here. */
+    public void onTidied(String spaceId, int undoId, int folders) {
+        if (mToast == null || mClaude == null || !spaceId.equals(shownSpaceId())) return;
+        ClaudeSidebarBridge claude = mClaude;
+        showToast(
+                folders == 1 ? "Tidied into 1 folder" : "Tidied into " + folders + " folders",
+                () -> claude.undoTidy(undoId));
+    }
+
+    // The sidebar on a phone is a sheet in a window of its own, over the window's toast: while
+    // it's open, the toast is in it.
+    private void showToast(String text, @Nullable Runnable undo) {
+        if (mState.getOpen() && !mDocked) {
+            mToastUndo = undo;
+            mState.setToast(text);
+            mState.setToastUndoable(undo != null);
+            mView.removeCallbacks(mHideToast);
+            mView.postDelayed(mHideToast, TOAST_MS);
+        } else if (mToast != null) {
+            mToast.showMessage(text, undo);
+        }
+    }
+
+    private void hideToast() {
+        mView.removeCallbacks(mHideToast);
+        mToastUndo = null;
+        mState.setToast("");
+    }
+
+    @Override
+    public void onToastUndo() {
+        Runnable undo = mToastUndo;
+        hideToast();
+        if (undo != null) undo.run();
+    }
+
+    /** Tidy Today of |spaceId| didn't work: why, without Undo. */
+    public void onTidyFailed(String spaceId, String message) {
+        if (!spaceId.equals(shownSpaceId())) return;
+        showToast(message, null);
     }
 
     /** Runs when the spaces change (the bar shows the active space's icon). */
@@ -432,6 +520,8 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
 
     private void onModelChanged() {
         mState.update(mBridge.snapshot(), currentTabId());
+        // The shown space may have changed: whether its tidy waits.
+        refreshClaude();
         showPinPicker();
         publishToday();
         updateShortcuts();
@@ -736,6 +826,26 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
                 mBridge.archiveNode(node.id);
             }
         }
+    }
+
+    @Override
+    public void onRenameFolder(String folderId, String name) {
+        mBridge.renameFolder(folderId, name);
+    }
+
+    @Override
+    public void onUndoName(String folderId) {
+        mBridge.undoFolderName(folderId);
+    }
+
+    @Override
+    public void onSuggestName(String folderId) {
+        if (mClaude != null) mClaude.suggestName(folderId);
+    }
+
+    @Override
+    public void onTidyToday() {
+        if (mClaude != null) mClaude.tidy(shownSpaceId());
     }
 
     @Override

@@ -280,6 +280,41 @@ It costs:
   keeps memories as on the desktop (claude.md, "Memory"): the memory
   tools, a "Saved to memory" line with Undo, and Memory in the sheet's ⋯
   menu to see, add and delete them; they sync with the spaces.
+- **Claude in the sidebar (P12)** (ai-sidebar.md, A7): the desktop's
+  services, `LinkFolderNamer`, `TodayTidier` and `ShortTitler`, build for
+  Android as they are, over `SpacesAndroid` in place of `SpaceService`
+  (`browser/ui/claude/sidebar_spaces.h`, the `claude_sidebar` target), on
+  the desktop's `ClaudeQuick`, prompts and prefs. `ClaudeSidebarBridge`
+  (one per window, on its regular profile) makes them and passes on what
+  they do.
+  - **Settings:** the sheet's ⋯ menu has Claude in the Sidebar: each
+    feature's switch (off by default, and off until a key is saved) and its
+    model (`ClaudeBridge::SetFeature()`, `SetFeatureModel()`; the snapshot's
+    `features`).
+  - **Names:** a folder's long-press menu (new: folders had none) has
+    Rename (the user's name: `SetFolderName(kUser)`, so Claude doesn't name
+    it again), and Undo Name while its name is Claude's, else Suggest a
+    Name (a folder with entries, not a live one, the switch on). A name
+    from Claude sparkles: the folder's icon turns to ✦ and the name fades
+    in (`onFolderNamed()`). Android doesn't make link folders yet (P11), so
+    names come on request, or from another device's link folders.
+  - **Tidy Today:** "Tidy" before Clear in Today's header, dimmed below 5
+    loose entries, "Tidying…" while Claude answers. The result ("Tidied
+    into N folders", with Undo, or why not) shows for 8 s: in the sidebar
+    when it's open (on a phone it's a sheet, a window over the window's
+    toast), else in the toast over the bar (`UndoToast.showMessage()`).
+  - **Shorter tab titles:** the snapshot's tab rows carry
+    `short_title`, which the row shows; `SpacesAndroid` passes on
+    `OnNodeShortTitleChanged()`.
+  - **Ask in the command bar:** a question (`LooksLikeQuestion()`, the
+    browser's language) gets "Ask Claude" first, with "About this page"
+    for a web page (its title and host). Return or a tap asks; the answer
+    streams into a card in place of the results; typing goes back to them.
+    Continue in Chat (or Return once answered) opens the sheet on a new
+    chat that starts with the exchange (`ClaudeBridge::Seed()`).
+  - Never in incognito. Tried in the emulator against a fake Claude
+    server (each feature's request: titles and hosts only, the feature's
+    model).
 - **Wide windows (C10).** At 840dp and wider (tablets, unfolded
   foldables, desktop windows), the sidebar is a pane on the left, as on the
   desktop: `Spaces` moves Chrome's coordinator over by its width and puts
@@ -609,8 +644,8 @@ controls that count are the bottom ones, where Compass's bar is
 ## Parity with iOS
 
 What the iOS app (ios.md) does that Android doesn't yet, in the order
-planned. The first group is mostly shell work; splits and Claude in the
-sidebar are the large pieces left.
+planned. The first group is mostly shell work; splits are the large
+piece left.
 
 | # | Scope | Notes |
 |---|---|---|
@@ -625,7 +660,7 @@ sidebar are the large pieces left.
 | P9 | System extras | The share target picks a space and folder (done, above, "Extras"). Today, Quick Actions and Other Devices widgets (done, above); app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |
 | P10 | Passwords from other apps | **Done** (above, "Passwords in other apps"). Other apps' logins save into Compass (Autofill's save request), not only fill |
 | P11 | Link folders | A link opened in the background gathers with its page in a Today folder, by the desktop's rules (sidebar.md, "Link folders"; ios.md, "Link folders") |
-| P12 | Claude in the sidebar | Names for link folders, Tidy Today, shorter tab titles, Ask in the command bar (ai-sidebar.md, A2–A5; ios.md); needs P11 for the names |
+| P12 | Claude in the sidebar | **Done** (above, "Claude in the sidebar"). Names for link folders (Suggest a Name and Undo Name; automatic names wait for P11's link folders), Tidy Today, shorter tab titles, Ask in the command bar (ai-sidebar.md, A2–A5; ios.md) |
 | P13 | Links routed to spaces | A web link from another app on a domain with a rule opens as a new Today tab of the rule's space (link-routing.md; ios.md, "Links routed to spaces"); needs P15 for links without a rule |
 | P14 | Peek | Long-press a link to look at it in a card over the page without opening a tab (peek.md; ios.md, "Peek") |
 | P15 | Little windows | With Compass as the default browser, a web link from another app opens in Peek's card over what the window shows, not among the tabs (little-window.md; ios.md, "Little windows"); needs P14 |

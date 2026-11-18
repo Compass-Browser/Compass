@@ -23,6 +23,12 @@ class ClaudeChatState {
         @JvmField val undone: Boolean = false,
     )
 
+    /**
+     * A feature of Claude in the sidebar (docs/design/ai-sidebar.md): its key ("name_link_folders",
+     * "tidy_today", "short_tab_titles", "command_bar_ask"), its switch and its model.
+     */
+    class Feature(@JvmField val key: String, @JvmField val on: Boolean, @JvmField val model: String)
+
     /** A fact Claude remembers (docs/design/claude.md, "Memory"). */
     class Memory(@JvmField val id: String, @JvmField val text: String)
 
@@ -39,6 +45,7 @@ class ClaudeChatState {
     var memorySave by mutableStateOf(true)
     /** What Claude remembers, oldest first. */
     var memories by mutableStateOf<List<Memory>>(emptyList())
+    var features by mutableStateOf<List<Feature>>(emptyList())
 
     fun update(json: String) {
         val data = JSONObject(json)
@@ -66,6 +73,13 @@ class ClaudeChatState {
         memories =
             (0 until (list?.length() ?: 0)).mapNotNull { i ->
                 list?.optJSONObject(i)?.let { Memory(it.optString("id"), it.optString("text")) }
+            }
+        val featureList = data.optJSONArray("features")
+        features =
+            (0 until (featureList?.length() ?: 0)).mapNotNull { i ->
+                featureList?.optJSONObject(i)?.let {
+                    Feature(it.optString("key"), it.optBoolean("on"), it.optString("model"))
+                }
             }
     }
 }

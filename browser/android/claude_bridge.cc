@@ -18,6 +18,7 @@
 #include "compass/browser/claude/claude_client.h"
 #include "compass/browser/claude/claude_credentials.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/claude/claude_quick.h"
 #include "compass/browser/claude/claude_request.h"
 #include "compass/browser/claude/claude_tools.h"
 #include "compass/browser/android/claude_tabs_android.h"
@@ -71,6 +72,34 @@ constexpr char kSystemPrompt[] =
 
 // Tool rounds for one question, at most.
 constexpr int kMaxToolRounds = 20;
+
+// Claude in the sidebar's features (docs/design/ai-sidebar.md, "Settings
+// and privacy"): each one's key, switch, model and default model.
+struct Feature {
+  const char* key;
+  const char* pref;
+  const char* model_pref;
+  const char* default_model;
+};
+constexpr Feature kFeatures[] = {
+    {"name_link_folders", claude::prefs::kNameLinkFolders,
+     claude::prefs::kNameLinkFoldersModel, claude::kDefaultQuickModel},
+    {"tidy_today", claude::prefs::kTidyToday, claude::prefs::kTidyTodayModel,
+     claude::kDefaultQuickModel},
+    {"short_tab_titles", claude::prefs::kShortTabTitles,
+     claude::prefs::kShortTabTitlesModel, claude::kDefaultQuickModel},
+    {"command_bar_ask", claude::prefs::kCommandBarAsk,
+     claude::prefs::kCommandBarAskModel, claude::prefs::kDefaultAskModel},
+};
+
+const Feature* FindFeature(std::string_view key) {
+  for (const Feature& feature : kFeatures) {
+    if (key == feature.key) {
+      return &feature;
+    }
+  }
+  return nullptr;
+}
 
 }  // namespace
 
@@ -135,6 +164,18 @@ std::string ClaudeBridge::Snapshot(JNIEnv* env) {
     }
   }
   snapshot.Set("memories", std::move(memories));
+  base::ListValue features;
+  for (const Feature& feature : kFeatures) {
+    std::string feature_model =
+        profile_->GetPrefs()->GetString(feature.model_pref);
+    features.Append(
+        base::DictValue()
+            .Set("key", feature.key)
+            .Set("on", profile_->GetPrefs()->GetBoolean(feature.pref))
+            .Set("model",
+                 feature_model.empty() ? feature.default_model : feature_model));
+  }
+  snapshot.Set("features", std::move(features));
   return base::WriteJson(snapshot).value_or("{}");
 }
 
@@ -517,6 +558,41 @@ void ClaudeBridge::SetModel(JNIEnv* env, const std::string& model) {
     return;
   }
   profile_->GetPrefs()->SetString(claude::prefs::kModel, model);
+  Changed();
+}
+
+void ClaudeBridge::SetFeature(JNIEnv* env,
+                              const std::string& feature,
+                              bool on) {
+  if (const Feature* found = FindFeature(feature)) {
+    profile_->GetPrefs()->SetBoolean(found->pref, on);
+    Changed();
+  }
+}
+
+void ClaudeBridge::SetFeatureModel(JNIEnv* env,
+                                   const std::string& feature,
+                                   const std::string& model) {
+  if (const Feature* found = FindFeature(feature)) {
+    profile_->GetPrefs()->SetString(found->model_pref, model);
+    Changed();
+  }
+}
+
+void ClaudeBridge::Seed(JNIEnv* env,
+                        const std::string& question,
+                        const std::string& sent,
+                        const std::string& answer) {
+  if (question.empty() || answer.empty()) {
+    return;
+  }
+  Clear(env);
+  messages_.push_back({"user", question});
+  messages_.push_back({"assistant", answer});
+  conversation_.Append(base::DictValue().Set("role", "user").Set(
+      "content", sent.empty() ? question : sent));
+  conversation_.Append(
+      base::DictValue().Set("role", "assistant").Set("content", answer));
   Changed();
 }
 

@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -35,7 +38,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,6 +86,15 @@ object CommandBarUi {
         fun onDeviceTabClicked(url: String)
 
         fun onSubmit(text: String)
+
+        /** Ask Claude the typed question (Ask in the command bar). */
+        fun onAsk()
+
+        /** "About this page" on Ask's row: the page's title and host go with the question. */
+        fun onAboutPage(on: Boolean)
+
+        /** Continue in Chat: the Claude sheet, on a chat that starts with the question and answer. */
+        fun onContinueInChat()
 
         fun onDismiss()
     }
@@ -193,6 +208,45 @@ private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
     }
 }
 
+/**
+ * Claude's answer to the question (Ask in the command bar): plain text as it streams, about six
+ * lines then it scrolls; "Claude is answering…" until the first words, or why it failed; and
+ * Continue in Chat.
+ */
+@Composable
+private fun AnswerCard(state: CommandBarState, listener: CommandBarUi.Listener) {
+    Card(Modifier.padding(top = 4.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Sym(R.drawable.compass_sym_auto_awesome, 16f, MaterialTheme.colorScheme.primary)
+                Text(
+                    state.asked,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            when {
+                state.answerError.isNotEmpty() && state.answer.isEmpty() ->
+                    Text(state.answerError, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                state.answer.isEmpty() ->
+                    Text("Claude is answering…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                else ->
+                    Text(
+                        state.answer,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.heightIn(max = 160.dp).verticalScroll(rememberScrollState()),
+                    )
+            }
+            if (state.answerDone && state.answer.isNotEmpty()) {
+                TextButton(onClick = { listener.onContinueInChat() }) { Text("Continue in Chat") }
+            }
+        }
+    }
+}
+
 @Composable
 private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
     val text = state.text.trim()
@@ -203,6 +257,42 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        // Claude's answer replaces the results until the text changes.
+        if (state.asked.isNotEmpty()) {
+            item(key = "answer") { AnswerCard(state, listener) }
+            return@LazyColumn
+        }
+        if (state.askOffered && text.isNotEmpty()) {
+            item(key = "ask") {
+                Card(Modifier.padding(bottom = 8.dp)) {
+                    CardRow(
+                        "Ask Claude",
+                        subtitle = text,
+                        first = true,
+                        trailing = R.drawable.compass_sym_keyboard_return,
+                        onClick = { listener.onAsk() },
+                    ) {
+                        MenuIcon(R.drawable.compass_sym_auto_awesome)
+                    }
+                    if (state.aboutPageTitle.isNotEmpty()) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(start = 72.dp, end = 16.dp, bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "About this page: ${state.aboutPageTitle}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Switch(checked = state.aboutPage, onCheckedChange = { listener.onAboutPage(it) })
+                        }
+                    }
+                }
+            }
+        }
         if (text.isNotEmpty()) {
             item(key = "typed") {
                 Card(Modifier.padding(bottom = 8.dp)) {

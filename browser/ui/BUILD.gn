@@ -36,6 +36,7 @@ source_set("ui") {
     "claude/claude_tabs.h",
     "claude/link_folder_namer.cc",
     "claude/link_folder_namer.h",
+    "claude/sidebar_spaces.h",
     "claude/short_titler.cc",
     "claude/short_titler.h",
     "claude/today_tidier.cc",

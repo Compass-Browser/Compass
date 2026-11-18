@@ -8,7 +8,7 @@ claude.md's; this doc reuses its endpoint, credentials and request code.
 Status: A1, A2 and A3 (Tidy Today) done on the desktop and on iOS (14
 November 2026); A4 (Shorter tab titles) and A5 (Ask in the command bar)
 done on the desktop and on iOS (14 November 2026), so A6 is done; A7
-planned. Desktop first, then iOS and Android.
+(Android) done on 18 November 2026. Desktop first, then iOS and Android.
 
 ## Goal
 
@@ -466,6 +466,20 @@ then Tidy Today (A3), shorter tab titles (A4) and Ask in the command bar
   switch off or in incognito, errors, the timeout, cancel, the switch
   turned off mid-answer, Continue in Chat's conversation).
 
+## As built on Android (A7)
+
+The desktop's C++ (android.md, "Claude in the sidebar (P12)"):
+`LinkFolderNamer`, `TodayTidier` and `ShortTitler` build for Android over
+`SpacesAndroid` (`browser/ui/claude/sidebar_spaces.h`), and
+`ClaudeSidebarBridge` (`browser/android/`) brings Suggest a Name, the
+sparkle, Tidy with its toast and Undo, and Ask to the Compose shell. The
+switches and models are in the Claude sheet's ⋯ menu, Claude in the
+Sidebar. Folders got a long-press menu: Rename, Undo Name or Suggest a
+Name. Android makes no link folders yet (android.md, P11), so a folder's
+name comes from Claude only when asked there, or from the device that made
+it. Tried in the emulator against a fake Messages API; no unit tests of
+the Android side yet.
+
 ## Milestones
 
 | # | Scope |
@@ -476,7 +490,7 @@ then Tidy Today (A3), shorter tab titles (A4) and Ask in the command bar
 | A4 | Shorter tab titles |
 | A5 | Ask in the command bar |
 | A6 | iOS: A1–A5 (done) |
-| A7 | Android: A1–A5 |
+| A7 | Android: A1–A5 (done; automatic names wait for Android's link folders) |
 
 ## Tests
 

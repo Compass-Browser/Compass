@@ -17,7 +17,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/claude/claude_prefs.h"
-#include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/ui/claude/sidebar_spaces.h"
 #include "components/prefs/pref_service.h"
 
 namespace compass {
@@ -54,14 +54,14 @@ const SidebarNode* FolderOf(const SidebarNode* node) {
 
 LinkFolderNamer::LinkFolderNamer(Profile* profile, claude::ClaudeQuick* quick)
     : profile_(profile), quick_(quick) {
-  // Not while the profile is being made: SpaceService reads the sidebar.
+  // Not while the profile is being made: its spaces read the sidebar.
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(
                      [](base::WeakPtr<LinkFolderNamer> namer) {
                        if (!namer) {
                          return;
                        }
-                       SpaceService* spaces = SpaceService::Get(namer->profile_);
+                       SidebarSpaces* spaces = SidebarSpaces::Get(namer->profile_);
                        if (!spaces) {
                          return;
                        }
