@@ -391,8 +391,19 @@ It costs:
     `Unsplit()`), Pin, Archive, Move and Close, which archives it whole.
     Not in the favorites, live folders or incognito. `SpacesBridge.split()`
     and `unsplit()` are `SpaceModel::Split()` and `Unsplit()`.
-  - Not yet: resizing the panes, dragging a pane, and a split in a
-    window's other profile's space.
+  - **Resizing:** a handle on the line between two panes drags it (each
+    pane 20% to 80% of the window); a double tap shares the window evenly
+    again. The share is kept by split while the app runs, as the desktop's
+    pane sizes (not saved).
+  - **Dragging panes:** a long press on a pane's strip picks it up;
+    dropped on the other pane, the two swap. In the picker, a long press
+    on a segment picks it up and it drops at the place it's dragged to.
+    Both are moves in the model (`Spaces.onMoveNodeTo()` into the split),
+    so the sidebar's row and other devices follow.
+  - **Other profiles:** a window shows one profile's spaces and its
+    `SplitView` reads that window's model, so a split in another
+    profile's space shows in that profile's window, as its entries do (not
+    tried with two profiles).
   - Tried on the emulator: Split With and Add to Split, both panes stacked
     and side by side (beside the docked sidebar too), swapping the front
     pane both ways, three panes under the picker, Separate Tabs, and an
@@ -975,7 +986,7 @@ piece left.
 | P3 | On Launch | **Done** (above, "On Launch"). Settings → On Launch: Sidebar (default) or Last Tab; the last shown tab and space are kept as they change, and a launch opens on the last space |
 | P4 | Tab picker gesture | **Done** (C4: `CompassBarUi.kt`, "The bar"; the picker opens when the swipe ends rather than following the finger). Swiping up on the bar left of the address pill opens the tab picker, as on iOS (pill: sidebar; right: command bar) |
 | P5 | Sidebar drag and drop | **Done**, within the shown space and into the favorites (above, "Drag and drop"); onto other spaces through the menu. Reorder entries and move them between folders, Pinned and Today, and onto other spaces |
-| P6 | Splits | **Done** (above, "Splits"). "Split With…" and "Add to Split…" in the long-press menu; a split of two shows both panes (stacked, side by side in landscape), three or four one pane at a time under a pane picker |
+| P6 | Splits | **Done** (above, "Splits"). "Split With…" and "Add to Split…" in the long-press menu; a split of two shows both panes (stacked, side by side in landscape) with a handle to resize them, three or four one pane at a time under a pane picker; panes drag to reorder |
 | P7 | Profiles | **Done** (above, "Profiles", phases 1–3). Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |
 | P8 | Compass settings | **Done** (above, "Settings"): search engine, privacy, site settings; a site's own exceptions and the rest on Chrome's pages. Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |
 | P9 | System extras | The share target picks a space and folder (done, above, "Extras"). Today, Quick Actions and Other Devices widgets (done, above); app search for favorites and Pinned entries (done, above, "Extras": launcher shortcuts, the first dozen or so); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |

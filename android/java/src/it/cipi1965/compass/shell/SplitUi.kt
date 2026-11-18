@@ -10,6 +10,17 @@ import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.zIndex
+import kotlin.math.roundToInt
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,6 +75,15 @@ object SplitUi {
     interface Listener {
         /** A tap on a pane's strip, or in the picker: that pane comes to the front. */
         fun onFront(paneId: String)
+
+        /** The handle between two panes dragged: the first pane's share of the window. */
+        fun onResize(fraction: Float)
+
+        /** The handle double-tapped: the panes share the window evenly again. */
+        fun onResetSize()
+
+        /** A pane's strip (or picker segment) dragged onto another's place: before |beforeId|. */
+        fun onMovePane(paneId: String, beforeId: String)
     }
 
     class State {
@@ -73,6 +93,8 @@ object SplitUi {
         var pickerPx by mutableIntStateOf(0)
         /** The space's accent (ARGB); 0: the theme's primary. */
         var accent by mutableIntStateOf(0)
+        /** Two panes side by side (else stacked). */
+        var sideBySide by mutableStateOf(false)
 
         fun show(mode: Mode, panes: List<Pane>, stripPx: Int, pickerPx: Int) {
             this.mode = mode
@@ -109,7 +131,11 @@ private fun SplitOverlay(state: SplitUi.State, listener: SplitUi.Listener) {
     when (state.mode) {
         SplitUi.Mode.NONE -> {}
         SplitUi.Mode.TOGETHER -> Box(Modifier.fillMaxSize()) {
-            for (pane in state.panes) PaneFrame(pane, state.stripPx, accent, listener)
+            val panes = state.panes
+            for ((i, pane) in panes.withIndex()) {
+                PaneFrame(pane, state.stripPx, accent, listener, other = panes.getOrNull(1 - i))
+            }
+            if (panes.size == 2) ResizeHandle(state, accent, listener)
         }
         // In a box: the view's own constraints are exact, which a height alone can't change.
         SplitUi.Mode.PICKER -> Box(Modifier.fillMaxSize()) { PanePicker(state, accent, listener) }
@@ -118,11 +144,22 @@ private fun SplitOverlay(state: SplitUi.State, listener: SplitUi.Listener) {
 
 /** A pane of a split of two: its strip, and the outline when it's in front. */
 @Composable
-private fun PaneFrame(pane: SplitUi.Pane, stripPx: Int, accent: Color, listener: SplitUi.Listener) {
+private fun PaneFrame(
+    pane: SplitUi.Pane,
+    stripPx: Int,
+    accent: Color,
+    listener: SplitUi.Listener,
+    other: SplitUi.Pane?,
+) {
     val density = LocalDensity.current
     val r = pane.rect
+    // A long press on the strip picks the pane up; dropped on the other pane, they swap.
+    var drag by remember(pane.id) { mutableStateOf(Offset.Zero) }
+    var dragging by remember(pane.id) { mutableStateOf(false) }
     Box(
-        Modifier.offset { IntOffset(r.left, r.top) }
+        Modifier.zIndex(if (dragging) 1f else 0f)
+            .offset { IntOffset(r.left + drag.x.roundToInt(), r.top + drag.y.roundToInt()) }
+            .graphicsLayer { alpha = if (dragging) 0.85f else 1f }
             .size(with(density) { r.width().toDp() }, with(density) { r.height().toDp() })
             .then(if (pane.front) Modifier.border(2.dp, accent) else Modifier)
     ) {
@@ -133,6 +170,35 @@ private fun PaneFrame(pane: SplitUi.Pane, stripPx: Int, accent: Color, listener:
                     if (pane.front) accent.copy(alpha = 0.18f).compositeOver(MaterialTheme.colorScheme.surface)
                     else MaterialTheme.colorScheme.surfaceContainerHigh
                 )
+                .pointerInput(pane.id, other?.id) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { dragging = true },
+                        onDrag = { change, amount ->
+                            change.consume()
+                            drag += amount
+                        },
+                        onDragEnd = {
+                            val target = other
+                            if (target != null) {
+                                // Where the strip's middle ended up.
+                                val x = r.left + r.width() / 2f + drag.x
+                                val y = r.top + stripPx / 2f + drag.y
+                                if (target.rect.contains(x.roundToInt(), y.roundToInt())) {
+                                    // Two panes: the dragged one goes where the other was.
+                                    val dropsAfter =
+                                        target.rect.left > r.left || target.rect.top > r.top
+                                    listener.onMovePane(pane.id, if (dropsAfter) "" else target.id)
+                                }
+                            }
+                            drag = Offset.Zero
+                            dragging = false
+                        },
+                        onDragCancel = {
+                            drag = Offset.Zero
+                            dragging = false
+                        },
+                    )
+                }
                 .clickable { if (!pane.front) listener.onFront(pane.id) }
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -148,6 +214,59 @@ private fun PaneFrame(pane: SplitUi.Pane, stripPx: Int, accent: Color, listener:
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+/**
+ * The handle on the line between two panes: dragged, it moves the line (the first pane's share,
+ * 20% to 80%); a double tap shares the window evenly again.
+ */
+@Composable
+private fun ResizeHandle(state: SplitUi.State, accent: Color, listener: SplitUi.Listener) {
+    val density = LocalDensity.current
+    val first = state.panes[0].rect
+    val second = state.panes[1].rect
+    val total = if (state.sideBySide) second.right - first.left else second.bottom - first.top
+    val boundary = if (state.sideBySide) first.right else first.bottom
+    val touchPx = with(density) { 28.dp.roundToPx() }
+    var line by remember { mutableStateOf(boundary.toFloat()) }
+    var active by remember { mutableStateOf(false) }
+    if (!active) line = boundary.toFloat()
+    val horizontalHandle = !state.sideBySide
+    Box(
+        Modifier.offset {
+                if (horizontalHandle) IntOffset(0, boundary - touchPx / 2)
+                else IntOffset(boundary - touchPx / 2, 0)
+            }
+            .then(
+                if (horizontalHandle) Modifier.fillMaxWidth().height(with(density) { touchPx.toDp() })
+                else Modifier.fillMaxHeight().width(with(density) { touchPx.toDp() })
+            )
+            .pointerInput(state.sideBySide, total) {
+                detectTapGestures(onDoubleTap = { listener.onResetSize() })
+            }
+            .pointerInput(state.sideBySide, total) {
+                detectDragGestures(
+                    onDragStart = { active = true },
+                    onDrag = { change, amount ->
+                        change.consume()
+                        line += if (horizontalHandle) amount.y else amount.x
+                        if (total > 0) listener.onResize(line / total)
+                    },
+                    onDragEnd = { active = false },
+                    onDragCancel = { active = false },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier.then(
+                    if (horizontalHandle) Modifier.size(width = 40.dp, height = 5.dp)
+                    else Modifier.size(width = 5.dp, height = 40.dp)
+                )
+                .clip(RoundedCornerShape(50))
+                .background(if (active) accent else MaterialTheme.colorScheme.outline)
+        )
     }
 }
 
@@ -168,9 +287,35 @@ private fun PanePicker(state: SplitUi.State, accent: Color, listener: SplitUi.Li
                 .padding(3.dp),
             horizontalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            for (pane in state.panes) {
+            val panes = state.panes
+            for ((index, pane) in panes.withIndex()) {
+                // A long press picks the segment up; dropped, the pane moves to that place.
+                var drag by remember(pane.id) { mutableStateOf(0f) }
+                var width by remember(pane.id) { mutableIntStateOf(1) }
                 Row(
                     Modifier.weight(1f)
+                        .zIndex(if (drag != 0f) 1f else 0f)
+                        .onSizeChanged { width = it.width.coerceAtLeast(1) }
+                        .offset { IntOffset(drag.roundToInt(), 0) }
+                        .pointerInput(pane.id, panes.size) {
+                            detectDragGesturesAfterLongPress(
+                                onDrag = { change, amount ->
+                                    change.consume()
+                                    drag += amount.x
+                                },
+                                onDragEnd = {
+                                    val to = (index + (drag / width).roundToInt()).coerceIn(0, panes.size - 1)
+                                    if (to != index) {
+                                        val order = panes.map { it.id }.toMutableList()
+                                        order.removeAt(index)
+                                        order.add(to, pane.id)
+                                        listener.onMovePane(pane.id, order.getOrNull(to + 1) ?: "")
+                                    }
+                                    drag = 0f
+                                },
+                                onDragCancel = { drag = 0f },
+                            )
+                        }
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(50))
                         .background(if (pane.front) MaterialTheme.colorScheme.surface else Color.Transparent)

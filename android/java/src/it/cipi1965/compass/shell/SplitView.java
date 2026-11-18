@@ -55,6 +55,8 @@ import java.util.Set;
 public class SplitView implements SplitUi.Listener {
     private static final int STRIP_DP = 36;
     private static final int PICKER_DP = 52;
+    // The smallest share a pane can be resized to.
+    private static final float MIN_SHARE = 0.2f;
 
     private final ChromeTabbedActivity mActivity;
     private final ViewGroup mCoordinator;
@@ -97,6 +99,10 @@ public class SplitView implements SplitUi.Listener {
 
     private @Nullable Tab mBorrowed;
     private @Nullable ThinWebView mThinWebView;
+    // Each split's first pane's share of the window, by split (as the desktop's pane sizes: kept
+    // while the app runs, not saved).
+    private final java.util.Map<String, Float> mShares = new java.util.HashMap<>();
+    private @Nullable String mSplitId;
     // Panes whose page is opening in a background tab, so it's asked once.
     private final Set<String> mOpening = new HashSet<>();
     private boolean mUpdatePosted;
@@ -193,6 +199,7 @@ public class SplitView implements SplitUi.Listener {
             clear();
             return;
         }
+        mSplitId = split.id;
         int width = mCoordinator.getWidth();
         int height = mCoordinator.getHeight();
         if (width == 0 || height == 0) return;
@@ -221,14 +228,19 @@ public class SplitView implements SplitUi.Listener {
 
         SidebarState.Node other = panes.get(1 - frontIndex);
         boolean sideBySide = width > height;
+        Float stored = mShares.get(split.id);
+        float share = stored != null ? stored : 0.5f;
         Rect[] rects = new Rect[2];
         if (sideBySide) {
-            rects[0] = new Rect(0, 0, width / 2, height);
-            rects[1] = new Rect(width / 2, 0, width, height);
+            int line = Math.round(width * share);
+            rects[0] = new Rect(0, 0, line, height);
+            rects[1] = new Rect(line, 0, width, height);
         } else {
-            rects[0] = new Rect(0, 0, width, height / 2);
-            rects[1] = new Rect(0, height / 2, width, height);
+            int line = Math.round(height * share);
+            rects[0] = new Rect(0, 0, width, line);
+            rects[1] = new Rect(0, line, width, height);
         }
+        mState.setSideBySide(sideBySide);
         for (int i = 0; i < 2; i++) {
             SidebarState.Node pane = panes.get(i);
             shown.add(new SplitUi.Pane(pane.id, pane.title, pane.url, i == frontIndex, rects[i]));
@@ -292,6 +304,7 @@ public class SplitView implements SplitUi.Listener {
     }
 
     private void clear() {
+        mSplitId = null;
         mState.hide();
         release();
         mOpening.clear();
@@ -355,6 +368,27 @@ public class SplitView implements SplitUi.Listener {
     }
 
     // SplitUi.Listener:
+
+    @Override
+    public void onResize(float fraction) {
+        if (mSplitId == null) return;
+        mShares.put(mSplitId, Math.max(MIN_SHARE, Math.min(1 - MIN_SHARE, fraction)));
+        postUpdate();
+    }
+
+    @Override
+    public void onResetSize() {
+        if (mSplitId == null) return;
+        mShares.remove(mSplitId);
+        postUpdate();
+    }
+
+    @Override
+    public void onMovePane(String paneId, String beforeId) {
+        if (mSplitId == null) return;
+        mSpaces.onMoveNodeTo(paneId, mSplitId, beforeId);
+        postUpdate();
+    }
 
     @Override
     public void onFront(String paneId) {
