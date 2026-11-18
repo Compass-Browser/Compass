@@ -17,6 +17,7 @@ import org.chromium.base.version_info.VersionInfo;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.content.WebContentsFactory;
+import org.chromium.chrome.browser.keyboard_accessory.ManualFillingComponent;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulator;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulatorFactory;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -178,6 +179,9 @@ public class Peek implements PeekUi.Listener {
                         .setSupportTheming(true)
                         .build());
         PeekBridge.prepareForTab(contents);
+        // Passwords and addresses fill in the card as in a tab: the keyboard's accessory takes
+        // the card's page for the current one while it shows.
+        ManualFillingComponent.CompassPage.setSupplier(() -> mContents);
         mPageHost.removeAllViews();
         mPageHost.addView(
                 thinWebView.getView(),
@@ -383,6 +387,7 @@ public class Peek implements PeekUi.Listener {
     private void letGo(boolean destroy) {
         WebContents contents = mContents;
         mContents = null;
+        ManualFillingComponent.CompassPage.setSupplier(null);
         mPageHost.removeAllViews();
         ThinWebView thinWebView = mThinWebView;
         mThinWebView = null;

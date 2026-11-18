@@ -160,6 +160,7 @@ android_library("java") {
     "//chrome/android:chrome_java",
     "//chrome/browser/android/content:java",
     "//chrome/browser/browser_controls/android:java",
+    "//chrome/browser/keyboard_accessory/android/java",
     "//chrome/browser/tab:java",
     "//chrome/browser/tab_ui/android:java",
     "//chrome/browser/tabmodel:java",

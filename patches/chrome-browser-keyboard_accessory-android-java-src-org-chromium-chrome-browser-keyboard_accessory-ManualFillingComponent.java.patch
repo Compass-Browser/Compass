@@ -1,0 +1,31 @@
+diff --git a/chrome/browser/keyboard_accessory/android/java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingComponent.java b/chrome/browser/keyboard_accessory/android/java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingComponent.java
+index c265fd384cb213d37d5afafc7a78678c0c01c869..5c2ff7d2cf8d00b5e84bbec2bd74bcf1ff259bde 100644
+--- a/chrome/browser/keyboard_accessory/android/java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingComponent.java
++++ b/chrome/browser/keyboard_accessory/android/java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingComponent.java
+@@ -36,6 +36,26 @@ import java.util.function.Supplier;
+ /** This component handles the new, non-popup filling UI. */
+ @NullMarked
+ public interface ManualFillingComponent extends BackPressHandler {
++    /**
++     * Compass: a page without a tab that has the keyboard (Peek's card) fills as the window's tab
++     * would: while the supplier gives it, the accessory takes it for the current page
++     * (docs/design/android.md, "Peek").
++     */
++    final class CompassPage {
++        private static java.util.function.@Nullable Supplier<@Nullable WebContents> sSupplier;
++
++        private CompassPage() {}
++
++        public static void setSupplier(
++                java.util.function.@Nullable Supplier<@Nullable WebContents> supplier) {
++            sSupplier = supplier;
++        }
++
++        public static @Nullable WebContents get() {
++            return sSupplier != null ? sSupplier.get() : null;
++        }
++    }
++
+     /**
+      * Observers are added with {@link #addObserver} and removed with {@link #removeObserver}. They
+      * are notified when the {@link ManualFillingComponent} is destroyed.

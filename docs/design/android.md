@@ -195,6 +195,12 @@ It costs:
   Open in Background, Open in Incognito and Open in New Window open tabs of
   the window (`Peek.CardLinkOpener`), **Peek** loads the link in the card
   itself, and the copy, download and share items are Chrome's.
+- **Filling in Peek's card**: the keyboard's accessory (passwords,
+  addresses, cards) keys its state to the window's current page
+  (`getCurrentWebContents()`), so suggestions for the card's page never
+  showed. While the card shows, `Peek` hands it the card's page
+  (`ManualFillingComponent.CompassPage`, which `ManualFillingMediator`
+  asks first). Not tried yet: the emulator has no saved logins to offer.
 - **Messages** (Chrome's banners: "Save password?", "Pop-up blocked",
   downloads, ...): they rise from the bottom of the window to just above
   Compass's bar, as iOS's save banner, rather than drop from the top, and a
@@ -1017,8 +1023,8 @@ with the bar (above, "The link menu", "The Site sheet", "Messages",
 password and address bar above it, and app-modal dialogs.
 
 Peek and little windows, not yet: the opener for a link
-the card opens in a tab (it opens from its URL), password filling in the
-card before Open, the address's suggestions, and other profiles' spaces in
+the card opens in a tab (it opens from its URL), the address's
+suggestions, and other profiles' spaces in
 Open in <space>'s menu. A pinned tab's links that Chrome sends as a
 navigation in a new tab (not a new WebContents) still open tabs. Chrome's own top toolbar also
 shows for a few seconds on a cold start before the shell hides it.
