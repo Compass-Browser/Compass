@@ -202,4 +202,31 @@ public class SidebarStateTest {
         assertEquals("P2", spaces.get(1).pinnedId);
         assertTrue(spaces.get(1).folders.isEmpty());
     }
+    @Test
+    public void findsTheSplitOfAShownPane() {
+        // Today: a split of two in a folder, one pane with a tab and one without.
+        SidebarState state = new SidebarState();
+        state.update(
+                "{\"loaded\": true, \"active\": \"s1\", \"favorites\": [], \"pinned\": [],"
+                        + " \"today\": [{\"id\": \"f\", \"type\": \"folder\", \"title\": \"F\","
+                        + "  \"url\": \"\", \"collapsed\": false, \"tab\": -1, \"children\": ["
+                        + "  {\"id\": \"s\", \"type\": \"split\", \"title\": \"\", \"url\": \"\","
+                        + "   \"tab\": -1, \"children\": ["
+                        + "    {\"id\": \"p1\", \"type\": \"tab\", \"title\": \"One\","
+                        + "     \"url\": \"https://one.example/\", \"tab\": 4},"
+                        + "    {\"id\": \"p2\", \"type\": \"tab\", \"title\": \"Two\","
+                        + "     \"url\": \"https://two.example/\", \"tab\": -1}]}]}]}",
+                4);
+        SidebarState.Node split = state.splitOf(4);
+        assertNotNull(split);
+        assertEquals("s", split.id);
+        assertEquals(2, split.children.size());
+        // A tab that's no pane, and none.
+        assertNull(state.splitOf(5));
+        assertNull(state.splitOf(-1));
+        SidebarState.Node pane = state.findNode("p2");
+        assertNotNull(pane);
+        assertEquals("https://two.example/", pane.url);
+        assertNull(state.findNode("nope"));
+    }
 }

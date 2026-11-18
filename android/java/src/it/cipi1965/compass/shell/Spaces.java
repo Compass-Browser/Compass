@@ -481,6 +481,23 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
                         null);
     }
 
+    /**
+     * Opens |nodeId|'s page in a background tab of this window (a split's other pane, which
+     * SplitView shows once it has one).
+     */
+    public void openInBackground(String nodeId, String url) {
+        GURL gurl = new GURL(url);
+        if (!gurl.isValid()) return;
+        mOpeningNode = nodeId;
+        mActivity
+                .getTabCreator(false)
+                .createNewTab(
+                        new LoadUrlParams(gurl.getSpec(), PageTransition.AUTO_BOOKMARK),
+                        TabLaunchType.FROM_LONGPRESS_BACKGROUND,
+                        null);
+        mOpeningNode = null;
+    }
+
     // The Today widget (TodayWidgetProvider): the shown space's Today entries, as they change.
     private void publishToday() {
         if (!mState.getLoaded()) return;
@@ -690,6 +707,22 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
             mOpeningNode = null;
         }
         onDismiss();
+    }
+
+    @Override
+    public void onSplit(String targetId, String tabId) {
+        // The split shows, with |targetId|'s page in front (docs/design/android.md, "Splits").
+        String split = mBridge.split(targetId, tabId);
+        if (split.isEmpty()) return;
+        SidebarState.Node target = mState.findNode(targetId);
+        SidebarState.Node tab = mState.findNode(tabId);
+        SidebarState.Node front = target != null && target.type.equals("tab") ? target : tab;
+        if (front != null) onNodeClicked(front.id, front.url);
+    }
+
+    @Override
+    public void onUnsplit(String splitId) {
+        mBridge.unsplit(splitId);
     }
 
     @Override

@@ -1,0 +1,14 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/fullscreen/BrowserControlsManager.java b/chrome/android/java/src/org/chromium/chrome/browser/fullscreen/BrowserControlsManager.java
+index 02a0afa364e6ff9341f459d6c07362225f76c586..d2720babac07298ce48b217c751d74120b846774 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/fullscreen/BrowserControlsManager.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/fullscreen/BrowserControlsManager.java
+@@ -189,6 +189,9 @@ public class BrowserControlsManager implements ActivityStateListener, BrowserCon
+ 
+     private void updateVisibility() {
+         int visibility = shouldShowAndroidControls() ? View.VISIBLE : View.INVISIBLE;
++        // Compass: its shell replaces the toolbar; the top controls are a split's panes
++        // (docs/design/android.md, "Splits").
++        if (it.cipi1965.compass.CompassShell.isPresent()) visibility = View.INVISIBLE;
+         if (mControlContainer == null
+                 || mControlContainer.getView().getVisibility() == visibility) {
+             return;

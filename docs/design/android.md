@@ -311,6 +311,48 @@ It costs:
     and coming back shows it again.
   - Tried on a Pixel 8a: Wikipedia's book, the article with Listen and Aa,
     ×, Back, and a link loading in the tab.
+- **Splits (P6)** (ios.md, splits on the phone; sidebar.md, "Split tabs"):
+  the desktop's split entries (two to four tabs, synced) open on the phone
+  as on iOS. A split of two shows both panes, one above the other (side by
+  side when the window is wider than tall), each under a title strip; the
+  front pane is outlined in the space's accent and the bar acts on it; a
+  tap on the other pane's strip brings it to the front. A split of three or
+  four shows one pane at a time under a pane picker. `SplitView`,
+  `SplitUi.kt`.
+  - **Two pages at once.** Chrome draws one tab, the window's active one:
+    the front pane. The other pane's page is borrowed into a ThinWebView
+    (a compositor of its own, as Peek's and Reader's), with no delegate of
+    its own, so it keeps its tab's, its helpers and its place in the tab
+    model; it takes touches and scrolls by itself. The space it takes is
+    Chrome's browser controls': a `COMPASS_SPLIT` top layer (the strips,
+    and the top pane when the bottom one is in front) and `CompassBar`'s
+    bottom layer (the bottom pane when the top one is), so Chrome's page
+    ends at the pane; side by side, `CompositorViewHolder` leaves the other
+    pane's width beside the page (`setCompassSideInsets()`). Only the bottom
+    pane runs under the bar. Chrome's toolbar, which those controls would
+    show, isn't drawn under the shell.
+  - **Handing the page back.** The borrowed page goes back to the window
+    (`setTopLevelNativeWindow()`) when its tab is about to show
+    (`TabObserver.onShown()`, so before Chrome attaches its view), closes,
+    or the split ends; its layer goes back into its tab's content layer
+    (`SplitBridge.returnLayerToTab()`: the ThinWebView's compositor took it
+    as its root, and the tab puts it there only once). A pane with no tab
+    opens in a background tab (`Spaces.openInBackground()`), and shows once
+    it has one; a tab restored frozen loads.
+  - **The sidebar:** a split's row holds its panes side by side, the one on
+    screen in bold; a tap on one opens the split with it in front. The
+    long-press menu has, as on iOS, **Split With…** (a tab beside it),
+    **Add to Split…** (a tab into a split beside it with room, or on a
+    split a tab beside it), and on a split **Separate Tabs** (the desktop's
+    `Unsplit()`), Pin, Archive, Move and Close, which archives it whole.
+    Not in the favorites, live folders or incognito. `SpacesBridge.split()`
+    and `unsplit()` are `SpaceModel::Split()` and `Unsplit()`.
+  - Not yet: resizing the panes, dragging a pane, and a split in a
+    window's other profile's space.
+  - Tried on the emulator: Split With and Add to Split, both panes stacked
+    and side by side (beside the docked sidebar too), swapping the front
+    pane both ways, three panes under the picker, Separate Tabs, and an
+    archived split restored (its second pane opening in the background).
 - **On Launch (P3)** (`OnLaunch`), as on iOS: Settings → On Launch is
   **Sidebar** (the default: the sidebar comes up over the restored tab) or
   **Last Tab** (the tab last shown, sidebar down; if there's none once
@@ -850,7 +892,7 @@ piece left.
 | P3 | On Launch | **Done** (above, "On Launch"). Settings → On Launch: Sidebar (default) or Last Tab; the last shown tab and space are kept as they change, and a launch opens on the last space |
 | P4 | Tab picker gesture | **Done** (C4: `CompassBarUi.kt`, "The bar"; the picker opens when the swipe ends rather than following the finger). Swiping up on the bar left of the address pill opens the tab picker, as on iOS (pill: sidebar; right: command bar) |
 | P5 | Sidebar drag and drop | **Done**, within the shown space and into the favorites (above, "Drag and drop"); onto other spaces through the menu. Reorder entries and move them between folders, Pinned and Today, and onto other spaces |
-| P6 | Splits | "Split with…" and "Add to split" in the long-press menu; a split of two shows both panes on the phone (stacked, side by side in landscape), three or four one pane at a time under a pane picker |
+| P6 | Splits | **Done** (above, "Splits"). "Split With…" and "Add to Split…" in the long-press menu; a split of two shows both panes (stacked, side by side in landscape), three or four one pane at a time under a pane picker |
 | P7 | Profiles | **Done** (above, "Profiles", phases 1–3). Every profile of the chain synced in its own account, as iOS M8 and the desktop do; their spaces in one sidebar, favorites per profile |
 | P8 | Compass settings | **Done** (above, "Settings"): search engine, privacy, site settings; a site's own exceptions and the rest on Chrome's pages. Compass's own Settings screens for what's still Chrome's: search engine, privacy, site settings; Chrome's screens stay for the rest |
 | P9 | System extras | The share target picks a space and folder (done, above, "Extras"). Today, Quick Actions and Other Devices widgets (done, above); app search for favorites and Pinned entries (Spotlight's role); a space per Do Not Disturb mode or work profile if Android allows it (the Focus filter's role) |

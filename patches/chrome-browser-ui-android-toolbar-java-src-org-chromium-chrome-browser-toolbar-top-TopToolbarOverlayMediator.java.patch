@@ -1,0 +1,17 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarOverlayMediator.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarOverlayMediator.java
+index efb0d70c8c9ce10a6021afc9ab2647d59cf575a0..f815207d894100dcb6e39615d9244efec85bf521 100644
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarOverlayMediator.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarOverlayMediator.java
+@@ -587,6 +587,12 @@ public class TopToolbarOverlayMediator implements ThemeColorObserver {
+     /** Update the visibility of the overlay. */
+     private void updateVisibility() {
+         Tab tab = mTabSupplier.get();
++        // Compass: its shell replaces the toolbar; the top controls are a split's panes
++        // (docs/design/android.md, "Splits").
++        if (it.cipi1965.compass.CompassShell.isPresent()) {
++            mModel.set(TopToolbarOverlayProperties.VISIBLE, false);
++            return;
++        }
+         if (mSuppressToolbarSceneLayerSupplier.get()
+                 || (tab != null && tab.isNativePage() && tab.isDisplayingBackForwardAnimation())
+                 || (tab != null

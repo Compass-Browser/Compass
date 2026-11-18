@@ -274,6 +274,32 @@ bool SpacesBridge::MoveNodeTo(JNIEnv* env,
                              base::Uuid::ParseLowercase(before_id));
 }
 
+std::string SpacesBridge::Split(JNIEnv* env,
+                                const std::string& target_id,
+                                const std::string& tab_id) {
+  SidebarNode* target = spaces_->FindNode(base::Uuid::ParseLowercase(target_id));
+  SidebarNode* tab = spaces_->FindNode(base::Uuid::ParseLowercase(tab_id));
+  SpaceModel* space = target ? spaces_->list().FindSpaceOf(target) : nullptr;
+  if (!space || !tab || !space->Contains(tab) || !space->CanSplit(target, tab)) {
+    return std::string();
+  }
+  return space->Split(target, tab)->id().AsLowercaseString();
+}
+
+void SpacesBridge::Unsplit(JNIEnv* env, const std::string& split_id) {
+  SidebarNode* split = spaces_->FindNode(base::Uuid::ParseLowercase(split_id));
+  if (split && split->type() != SidebarNode::Type::kSplit) {
+    split = split->parent();
+  }
+  if (!split || split->type() != SidebarNode::Type::kSplit) {
+    return;
+  }
+  SpaceModel* space = spaces_->list().FindSpaceOf(split);
+  if (space) {
+    space->Unsplit(split);
+  }
+}
+
 void SpacesBridge::RemoveNode(JNIEnv* env, const std::string& node_id) {
   SidebarNode* node = spaces_->FindNode(base::Uuid::ParseLowercase(node_id));
   if (!node) {

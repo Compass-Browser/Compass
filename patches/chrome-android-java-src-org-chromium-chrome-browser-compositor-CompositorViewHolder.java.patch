@@ -1,0 +1,35 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorViewHolder.java b/chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorViewHolder.java
+index 84deb2ad657f142b4bc889145f06648b268e9363..e9a790e195035e56c59d0419e9bab6f6206dd82c 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorViewHolder.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorViewHolder.java
+@@ -1222,6 +1222,9 @@ public class CompositorViewHolder extends FrameLayout
+             horizontalViewportInsets =
+                     sideUiLeftMargin + sideUiSpecs.getReservedWidth(AnchorSide.RIGHT);
+         }
++        // Compass: a split's other pane beside the page (docs/design/android.md, "Splits").
++        sideUiLeftMargin += mCompassLeftInset;
++        horizontalViewportInsets += mCompassLeftInset + mCompassRightInset;
+         ContentView cv = getContentView();
+         if (cv != null) cv.setContentOffsetXPix(sideUiLeftMargin);
+ 
+@@ -1815,6 +1818,20 @@ public class CompositorViewHolder extends FrameLayout
+         }
+     }
+ 
++    // Compass: the widths a split's other pane takes on the left and right of the page.
++    private int mCompassLeftInset;
++    private int mCompassRightInset;
++
++    /** Compass: leaves |left| and |right| px beside the page to a split's other pane. */
++    public void setCompassSideInsets(int left, int right) {
++        if (left == mCompassLeftInset && right == mCompassRightInset) return;
++        mCompassLeftInset = left;
++        mCompassRightInset = right;
++        if (mLayoutManager != null) mLayoutManager.setContentOffsetX(left);
++        updateWebContentsSize();
++        onViewportChanged();
++    }
++
+     private void onViewportChanged() {
+         if (mLayoutManager != null) mLayoutManager.onViewportChanged();
+     }

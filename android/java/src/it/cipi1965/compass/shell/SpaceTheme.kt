@@ -6,6 +6,7 @@ package it.cipi1965.compass.shell
 
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlin.math.abs
@@ -125,6 +126,8 @@ class SpaceTheme(
 
     /** Controls' color: the space's color, or a neutral grey. */
     val accent: Color get() = color?.color ?: CompassStyle.greyAccent
+    /** The accent as ARGB, for Java. */
+    val accentArgb: Int get() = accent.toArgb()
 
     override fun equals(other: Any?) =
         other is SpaceTheme && colors == other.colors && intensity == other.intensity &&

@@ -67,6 +67,8 @@ public class CompassBar implements CompassBarUi.Actions {
     // The bar's color, for the strip Chrome paints under the system's navigation bar (its bottom
     // chin), which takes the stack's color.
     private @Nullable Integer mBackgroundColor;
+    private int mSplitHeight;
+    private @Nullable SplitView mSplit;
     private final BottomControlsLayer mColorLayer =
             new BottomControlsLayer() {
                 @Override
@@ -79,10 +81,10 @@ public class CompassBar implements CompassBarUi.Actions {
                     return LayerScrollBehavior.NEVER_SCROLL_OFF;
                 }
 
-                // No height: the page runs under the bar.
+                // No height, the page runs under the bar; a split's bottom pane's when one shows.
                 @Override
                 public int getHeight() {
-                    return 0;
+                    return mSplitHeight;
                 }
 
                 @Override
@@ -225,6 +227,17 @@ public class CompassBar implements CompassBarUi.Actions {
         mSettings = settings;
         mFindBar = new FindBar(mActivity, coordinator);
         mPeek = new Peek(mActivity, coordinator, spaces);
+        mSplit =
+                new SplitView(
+                        mActivity,
+                        coordinator,
+                        frame,
+                        spaces,
+                        height -> {
+                            if (mSplitHeight == height) return;
+                            mSplitHeight = height;
+                            mBottomControls.requestLayerUpdate(false);
+                        });
         Reader reader =
                 new Reader(
                         mActivity,
@@ -311,6 +324,10 @@ public class CompassBar implements CompassBarUi.Actions {
                                                     : space.name.substring(0, 1).toUpperCase());
                     mState.setSpaceTint(space == null ? "" : space.tint);
                     mSpaceTheme = space == null ? SpaceTheme.GREY : space.theme;
+                    if (mSplit != null) {
+                        mSplit.setAccent(mSpaceTheme.getAccentArgb());
+                        mSplit.postUpdate();
+                    }
                 });
 
         // Registers itself with the tab provider.
@@ -324,6 +341,7 @@ public class CompassBar implements CompassBarUi.Actions {
                         // Another tab shown closes Peek, as on iOS.
                         if (mPeek != null) mPeek.onTabShown(tab);
                         if (mReader != null) mReader.onTabShown(tab);
+                        if (mSplit != null) mSplit.postUpdate();
                     }
 
                     @Override
@@ -437,6 +455,8 @@ public class CompassBar implements CompassBarUi.Actions {
         mUndoToast = null;
         if (mPeek != null) mPeek.destroy();
         mPeek = null;
+        if (mSplit != null) mSplit.destroy();
+        mSplit = null;
         if (mReaderTabsObserver != null) mReaderTabsObserver.destroy();
         mReaderTabsObserver = null;
         if (mReader != null) mReader.destroy();

@@ -76,6 +76,16 @@ class SpacesBridge : public SpacesAndroid::Observer {
                   const std::string& parent_id,
                   const std::string& before_id);
   void RemoveNode(JNIEnv* env, const std::string& node_id);
+
+  // Splits (docs/design/android.md, "Splits"): |tab_id| (a tab entry) and
+  // |target_id| (a tab, a split or a pane) become a split, or |tab_id| joins
+  // |target_id|'s split (SpaceModel::Split()). Returns the split's ID, or
+  // empty if they can't.
+  std::string Split(JNIEnv* env,
+                    const std::string& target_id,
+                    const std::string& tab_id);
+  // Puts a split's panes in its place (|split_id|: the split or a pane).
+  void Unsplit(JNIEnv* env, const std::string& split_id);
   void SetCollapsed(JNIEnv* env, const std::string& folder_id, bool collapsed);
   // Renames a folder, as the user (docs/design/ai-sidebar.md: Claude never
   // names it again); nothing if the name doesn't change.

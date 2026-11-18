@@ -136,6 +136,20 @@ public class SpacesBridge {
         SpacesBridgeJni.get().removeNode(mNativeSpacesBridge, nodeId);
     }
 
+    /**
+     * Splits (docs/design/android.md, "Splits"): the tab entry |tabId| and |targetId| (a tab, a
+     * split or a pane) become a split, or |tabId| joins |targetId|'s split. Returns the split's
+     * ID, or empty if they can't.
+     */
+    public String split(String targetId, String tabId) {
+        return SpacesBridgeJni.get().split(mNativeSpacesBridge, targetId, tabId);
+    }
+
+    /** Puts a split's panes in its place (|splitId|: the split or one of its panes). */
+    public void unsplit(String splitId) {
+        SpacesBridgeJni.get().unsplit(mNativeSpacesBridge, splitId);
+    }
+
     public void setCollapsed(String folderId, boolean collapsed) {
         SpacesBridgeJni.get().setCollapsed(mNativeSpacesBridge, folderId, collapsed);
     }
@@ -318,6 +332,14 @@ public class SpacesBridge {
                 @JniType("std::string") String beforeId);
 
         void removeNode(long nativeSpacesBridge, @JniType("std::string") String nodeId);
+
+        @JniType("std::string")
+        String split(
+                long nativeSpacesBridge,
+                @JniType("std::string") String targetId,
+                @JniType("std::string") String tabId);
+
+        void unsplit(long nativeSpacesBridge, @JniType("std::string") String splitId);
 
         void setCollapsed(
                 long nativeSpacesBridge, @JniType("std::string") String folderId, boolean collapsed);

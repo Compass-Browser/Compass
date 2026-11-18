@@ -49,6 +49,7 @@ generate_jni("jni_headers") {
     "java/src/it/cipi1965/compass/shell/PeekBridge.java",
     "java/src/it/cipi1965/compass/shell/PipBridge.java",
     "java/src/it/cipi1965/compass/shell/ReaderBridge.java",
+    "java/src/it/cipi1965/compass/shell/SplitBridge.java",
   ]
 }
 
@@ -120,6 +121,9 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/SidebarUi.kt",
     "java/src/it/cipi1965/compass/shell/SpaceTheme.kt",
     "java/src/it/cipi1965/compass/shell/Spaces.java",
+    "java/src/it/cipi1965/compass/shell/SplitBridge.java",
+    "java/src/it/cipi1965/compass/shell/SplitUi.kt",
+    "java/src/it/cipi1965/compass/shell/SplitView.java",
     "java/src/it/cipi1965/compass/shell/StartPage.java",
     "java/src/it/cipi1965/compass/shell/StartPageUi.kt",
     "java/src/it/cipi1965/compass/shell/SyncScreen.java",
@@ -240,6 +244,7 @@ android_resources("symbols_resources") {
     "res_symbols/drawable/compass_sym_arrow_forward.xml",
     "res_symbols/drawable/compass_sym_auto_awesome.xml",
     "res_symbols/drawable/compass_sym_check.xml",
+    "res_symbols/drawable/compass_sym_chevron_left.xml",
     "res_symbols/drawable/compass_sym_chevron_right.xml",
     "res_symbols/drawable/compass_sym_close.xml",
     "res_symbols/drawable/compass_sym_cloud_done.xml",
@@ -288,6 +293,9 @@ android_resources("symbols_resources") {
     "res_symbols/drawable/compass_sym_share.xml",
     "res_symbols/drawable/compass_sym_shield.xml",
     "res_symbols/drawable/compass_sym_smartphone.xml",
+    "res_symbols/drawable/compass_sym_split.xml",
+    "res_symbols/drawable/compass_sym_split_add.xml",
+    "res_symbols/drawable/compass_sym_split_off.xml",
     "res_symbols/drawable/compass_sym_stacks.xml",
     "res_symbols/drawable/compass_sym_star.xml",
     "res_symbols/drawable/compass_sym_star_fill.xml",

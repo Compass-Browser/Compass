@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -216,6 +217,15 @@ object SidebarUi {
 
         /** Closes a Today entry's tab (and the entry). */
         fun onCloseNode(nodeId: String)
+
+        /**
+         * Split With / Add to Split: the tab entry |tabId| and |targetId| (a tab or a split) become a
+         * split, or |tabId| joins it; the split shows.
+         */
+        fun onSplit(targetId: String, tabId: String)
+
+        /** Separate Tabs: a split's panes go in its place. */
+        fun onUnsplit(splitId: String)
 
         fun onUnpinNode(nodeId: String)
 
@@ -902,9 +912,8 @@ private fun LazyListScope.tree(
 ) {
     for (node in nodes) {
         item(key = node.id) { NodeRow(node, depth, place, state, listener, drag) }
+        // A split's panes share its row (NodeRow).
         if (node.isFolder && !node.collapsed) tree(node.children, depth + 1, place, state, listener, drag)
-        // A split shows its panes.
-        if (node.type == "split") tree(node.children, depth + 1, place, state, listener, drag)
     }
 }
 
@@ -918,7 +927,10 @@ private fun NodeRow(
     listener: SidebarUi.Listener,
     drag: SidebarUi.RowDrag,
 ) {
-    val shown = node.tab >= 0 && node.tab == state.currentTab
+    val split = node.type == "split"
+    val shown =
+        if (split) node.children.any { it.tab >= 0 && it.tab == state.currentTab }
+        else node.tab >= 0 && node.tab == state.currentTab
     val dragged = drag.state().nodeId == node.id
     val threshold = with(LocalDensity.current) { 12.dp.toPx() }
     val today = place == SidebarUi.EntryPlace.TODAY && node.type == "tab"
@@ -951,10 +963,11 @@ private fun NodeRow(
                 .combinedClickable(
                     interactionSource = interaction,
                     indication = null,
-                    onLongClick = { if (node.type == "tab" || node.isFolder) menu = true },
+                    onLongClick = { if (node.type == "tab" || node.isFolder || split) menu = true },
                     onClick = {
                         if (node.isFolder) listener.onToggleFolder(node.id, !node.collapsed)
                         else if (node.type == "tab") listener.onNodeClicked(node.id, node.url)
+                        else if (split) node.children.firstOrNull()?.let { listener.onNodeClicked(it.id, it.url) }
                     },
                 )
                 // Inside the click: it sees the moves first, and the long press's menu goes once
@@ -1018,6 +1031,38 @@ private fun NodeRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.alpha(nameAlpha.value),
                 )
+            } else if (split) {
+                Box { EntryMenu(menu, { menu = false }, node, place, state, listener) }
+                // Its panes side by side, the one on screen marked; a tap opens that pane.
+                node.children.forEachIndexed { i, pane ->
+                    if (i > 0) {
+                        Box(
+                            Modifier.size(width = 1.dp, height = 20.dp)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f))
+                        )
+                    }
+                    val front = pane.tab >= 0 && pane.tab == state.currentTab
+                    Row(
+                        Modifier.weight(1f)
+                            .fillMaxHeight()
+                            .combinedClickable(
+                                onLongClick = { menu = true },
+                                onClick = { listener.onNodeClicked(pane.id, pane.url) },
+                            ),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        SiteIcon(pane.url, 16.dp)
+                        Text(
+                            pane.shortTitle.ifEmpty { pane.title }.ifEmpty { "Untitled" },
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (front) FontWeight.SemiBold else null,
+                            color = if (shown) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             } else {
                 Box(Modifier.alpha(if (dim) 0.55f else 1f)) {
                     SiteIcon(node.url, CompassStyle.favicon)
@@ -1098,13 +1143,50 @@ private fun EntryMenu(
     state: SidebarState,
     listener: SidebarUi.Listener,
 ) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    // Split With and Add to Split list entries beside it (sub: which list shows).
+    var sub by remember { mutableStateOf("") }
+    val splits = remember(expanded, state.pinned, state.today) { splitChoices(node, place, state) }
+    DropdownMenu(expanded = expanded, onDismissRequest = {
+        sub = ""
+        onDismiss()
+    }) {
         @Composable
         fun Item(label: String, icon: Int, destructive: Boolean = false, action: () -> Unit) {
             MenuItem(label, icon, destructive) {
+                sub = ""
                 onDismiss()
                 action()
             }
+        }
+        if (sub.isNotEmpty()) {
+            MenuItem(if (sub == "with") "Split With" else "Add to Split", R.drawable.compass_sym_chevron_left) { sub = "" }
+            HorizontalDivider()
+            when {
+                sub == "with" -> for (tab in splits.first) {
+                    Item(tab.title.ifEmpty { "Untitled" }, R.drawable.compass_sym_split) { listener.onSplit(node.id, tab.id) }
+                }
+                node.type == "split" -> for (tab in splits.first) {
+                    Item(tab.title.ifEmpty { "Untitled" }, R.drawable.compass_sym_split) { listener.onSplit(node.id, tab.id) }
+                }
+                else -> for (split in splits.second) {
+                    Item(split.children.joinToString(" · ") { it.title.ifEmpty { "Untitled" } }, R.drawable.compass_sym_split) {
+                        listener.onSplit(split.id, node.id)
+                    }
+                }
+            }
+            return@DropdownMenu
+        }
+        // Splits (docs/design/android.md, "Splits").
+        if (node.type == "tab" && splits.first.isNotEmpty()) {
+            MenuItem("Split With…", R.drawable.compass_sym_split) { sub = "with" }
+        }
+        if ((node.type == "tab" && splits.second.isNotEmpty()) ||
+            (node.type == "split" && node.children.size < MAX_SPLIT_PANES && splits.first.isNotEmpty())
+        ) {
+            MenuItem("Add to Split…", R.drawable.compass_sym_split_add) { sub = "add" }
+        }
+        if (node.type == "split") {
+            Item("Separate Tabs", R.drawable.compass_sym_split_off) { listener.onUnsplit(node.id) }
         }
         // A pinned tab's or favorite's pinned URL, while it's on another page (sidebar.md, "Pinned URL").
         if (place != SidebarUi.EntryPlace.TODAY && node.isAwayFromSavedUrl) {
@@ -1217,4 +1299,27 @@ private fun SpaceIcon(space: SidebarState.Space, color: Color) {
             color = color,
         )
     }
+}
+
+/** A split holds at most four panes (SpaceModel's kMaxSplitPanes). */
+private const val MAX_SPLIT_PANES = 4
+
+/**
+ * What |node| can split with, as on iOS: the tabs beside it (Split With; for a split, Add to
+ * Split), and the splits beside it with room (Add to Split). Not in the favorites or a live folder.
+ */
+private fun splitChoices(
+    node: SidebarState.Node,
+    place: SidebarUi.EntryPlace,
+    state: SidebarState,
+): Pair<List<SidebarState.Node>, List<SidebarState.Node>> {
+    val none = Pair(emptyList<SidebarState.Node>(), emptyList<SidebarState.Node>())
+    if (place == SidebarUi.EntryPlace.FAVORITES || state.incognito) return none
+    val (parentId, siblings) = SidebarUi.entryPlaces(state)[node.id] ?: return none
+    if (state.findNode(parentId)?.isLiveFolder == true) return none
+    val others = siblings.filter { it.id != node.id }
+    return Pair(
+        others.filter { it.type == "tab" },
+        others.filter { it.type == "split" && it.children.size < MAX_SPLIT_PANES },
+    )
 }

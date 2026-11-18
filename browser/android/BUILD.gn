@@ -18,6 +18,7 @@ group("android") {
     ":pip_bridge",
     ":reader",
     ":spaces",
+    ":split_bridge",
     ":sync_bridge",
   ]
 }
@@ -141,6 +142,18 @@ source_set("peek_bridge") {
     "//components/blocked_content",
     "//compass/android:jni_headers",
     "//content/public/browser",
+  ]
+}
+
+# A split's borrowed page back in its tab (docs/design/android.md, "Splits").
+source_set("split_bridge") {
+  sources = [ "split_bridge.cc" ]
+  deps = [
+    "//base",
+    "//cc/slim",
+    "//compass/android:jni_headers",
+    "//content/public/browser",
+    "//ui/android",
   ]
 }
 

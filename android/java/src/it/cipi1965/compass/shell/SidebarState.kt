@@ -117,6 +117,30 @@ class SidebarState {
     val looseTodayEntries: Int
         get() = today.count { it.type == "tab" || it.type == "split" }
 
+    /** The split one of whose panes shows |tab| (in Pinned or Today), or null. */
+    fun splitOf(tab: Int): Node? {
+        fun find(nodes: List<Node>): Node? {
+            for (node in nodes) {
+                if (node.type == "split" && node.children.any { it.tab == tab }) return node
+                find(node.children)?.let { return it }
+            }
+            return null
+        }
+        return if (tab < 0) null else find(pinned) ?: find(today)
+    }
+
+    /** The node |id| of the shown space or the favorites, or null. */
+    fun findNode(id: String): Node? {
+        fun find(nodes: List<Node>): Node? {
+            for (node in nodes) {
+                if (node.id == id) return node
+                find(node.children)?.let { return it }
+            }
+            return null
+        }
+        return find(pinned) ?: find(today) ?: find(favorites)
+    }
+
     /** The pinned entry or favorite showing |tab|, or null (a Today tab, or none). */
     fun pinnedNodeFor(tab: Int): Node? {
         fun find(nodes: List<Node>): Node? {
