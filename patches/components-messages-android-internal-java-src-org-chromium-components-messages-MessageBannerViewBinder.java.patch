@@ -1,0 +1,39 @@
+diff --git a/components/messages/android/internal/java/src/org/chromium/components/messages/MessageBannerViewBinder.java b/components/messages/android/internal/java/src/org/chromium/components/messages/MessageBannerViewBinder.java
+index 1bbe7047b0cb249e9d5ac831198aae6c5e706c77..39b1d17a1524919d8414c77b27035b90d17fbd02 100644
+--- a/components/messages/android/internal/java/src/org/chromium/components/messages/MessageBannerViewBinder.java
++++ b/components/messages/android/internal/java/src/org/chromium/components/messages/MessageBannerViewBinder.java
+@@ -132,11 +132,19 @@ public class MessageBannerViewBinder {
+                                         view.getResources()
+                                                 .getDimensionPixelSize(
+                                                         R.dimen.message_banner_radius);
++                                // Compass: from the bottom, it unfolds upward.
++                                int height = view.getHeight();
++                                int top =
++                                        MessageContainer.isFromBottom()
++                                                ? (int) (height * (1 - p))
++                                                : 0;
+                                 outline.setRoundRect(
+                                         0,
+-                                        0,
++                                        top,
+                                         view.getWidth(),
+-                                        (int) (view.getHeight() * p),
++                                        MessageContainer.isFromBottom()
++                                                ? height
++                                                : (int) (height * p),
+                                         cornerRadius);
+                             }
+                         };
+@@ -146,7 +154,11 @@ public class MessageBannerViewBinder {
+         } else if (propertyKey == TRANSLATION_X) {
+             view.setTranslationX(model.get(TRANSLATION_X));
+         } else if (propertyKey == TRANSLATION_Y) {
+-            view.setTranslationY(model.get(TRANSLATION_Y));
++            // Compass: from the bottom, hidden is below (MessageContainer.isFromBottom()).
++            view.setTranslationY(
++                    MessageContainer.isFromBottom()
++                            ? -model.get(TRANSLATION_Y)
++                            : model.get(TRANSLATION_Y));
+         } else if (propertyKey == ELEVATION) {
+             view.setElevation(model.get(ELEVATION));
+         } else if (propertyKey == MARGIN_TOP) {

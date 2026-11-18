@@ -10,6 +10,8 @@ import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuNativeDelegate;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuUi;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.GURL;
 import org.chromium.url.Origin;
@@ -40,6 +42,14 @@ public final class CompassShell {
     /** "Peek" in |tab|'s link menu: true if the shell peeks |url| (CompassShellHook.peekLink). */
     public static boolean peekLink(Tab tab, GURL url, @Nullable Origin initiator) {
         return isPresent() && sHook != null && sHook.peekLink(tab, url, initiator);
+    }
+
+    /** The shell's long-press menu for |activity|, or null (Chrome's). */
+    public static @Nullable ContextMenuUi createContextMenu(
+            Activity activity, ContextMenuNativeDelegate nativeDelegate) {
+        return isPresent() && sHook != null
+                ? sHook.createContextMenu(activity, nativeDelegate)
+                : null;
     }
 
     /** A page |tab| opens in a new tab: true if the shell peeks it (and owns |contents|). */

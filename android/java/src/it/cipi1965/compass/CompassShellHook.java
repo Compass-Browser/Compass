@@ -14,6 +14,8 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuNativeDelegate;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuUi;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.GURL;
 import org.chromium.url.Origin;
@@ -66,6 +68,15 @@ public interface CompassShellHook {
      */
     default boolean peekLink(Tab tab, GURL url, @Nullable Origin initiator) {
         return false;
+    }
+
+    /**
+     * The shell's long-press menu for |activity|'s pages, in place of Chrome's (docs/design/
+     * android.md, "The link menu"); null for Chrome's. Called on CompassShell's instance.
+     */
+    default @Nullable ContextMenuUi createContextMenu(
+            Activity activity, ContextMenuNativeDelegate nativeDelegate) {
+        return null;
     }
 
     /**

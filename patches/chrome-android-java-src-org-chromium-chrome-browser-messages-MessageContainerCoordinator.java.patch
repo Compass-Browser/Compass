@@ -1,0 +1,102 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/messages/MessageContainerCoordinator.java b/chrome/android/java/src/org/chromium/chrome/browser/messages/MessageContainerCoordinator.java
+index 1e8efe7f8474b708b98103719774815b6c71d837..1ee96ae4fd50ea28892955c2f993a50e5b6f145c 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/messages/MessageContainerCoordinator.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/messages/MessageContainerCoordinator.java
+@@ -26,6 +26,11 @@ import org.chromium.ui.base.ViewUtils;
+ public class MessageContainerCoordinator implements BrowserControlsStateProvider.Observer {
+     private @Nullable MessageContainer mContainer;
+     private BrowserControlsManager mControlsManager;
++    // Compass: the bar shows, hides or changes height.
++    private final Runnable mCompassInsetObserver =
++            () -> {
++                if (mContainer != null) updateMargins();
++            };
+ 
+     /** The list of observers for the message container. */
+     private final ObserverList<MessageContainerObserver> mObservers = new ObserverList<>();
+@@ -35,10 +40,18 @@ public class MessageContainerCoordinator implements BrowserControlsStateProvider
+         mContainer = container;
+         mControlsManager = controlsManager;
+         mControlsManager.addObserver(this);
++        // Compass: messages rise above the shell's bar (docs/design/android.md, "Messages").
++        MessageContainer.setFromBottom(it.cipi1965.compass.CompassShell.isPresent());
++        if (MessageContainer.isFromBottom()) {
++            org.chromium.components.browser_ui.display_cutout.DisplayCutoutController
++                    .addCompassBottomInsetObserver(mCompassInsetObserver);
++        }
+     }
+ 
+     @SuppressWarnings("NullAway")
+     public void destroy() {
++        org.chromium.components.browser_ui.display_cutout.DisplayCutoutController
++                .removeCompassBottomInsetObserver(mCompassInsetObserver);
+         mControlsManager.removeObserver(this);
+         mContainer = null;
+         mControlsManager = null;
+@@ -62,6 +75,18 @@ public class MessageContainerCoordinator implements BrowserControlsStateProvider
+         }
+         ViewGroup.MarginLayoutParams params =
+                 (ViewGroup.MarginLayoutParams) mContainer.getLayoutParams();
++        if (MessageContainer.isFromBottom()) {
++            // Compass: at the bottom, above the shell's bar where it shows.
++            if (params instanceof androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams lp) {
++                lp.gravity = android.view.Gravity.START | android.view.Gravity.BOTTOM;
++            } else if (params instanceof android.widget.FrameLayout.LayoutParams lp) {
++                lp.gravity = android.view.Gravity.START | android.view.Gravity.BOTTOM;
++            }
++            params.topMargin = 0;
++            params.bottomMargin = getContainerBottomOffset();
++            mContainer.setLayoutParams(params);
++            return;
++        }
+         params.topMargin = getContainerTopOffset();
+         mContainer.setLayoutParams(params);
+     }
+@@ -171,6 +196,12 @@ public class MessageContainerCoordinator implements BrowserControlsStateProvider
+         updateMargins();
+     }
+ 
++    @Override
++    public void onBottomControlsHeightChanged(
++            int bottomControlsHeight, int bottomControlsMinHeight) {
++        updateMargins();
++    }
++
+     /**
+      * Adds an observer.
+      * @param observer The observer to add.
+@@ -187,11 +218,34 @@ public class MessageContainerCoordinator implements BrowserControlsStateProvider
+         mObservers.removeObserver(observer);
+     }
+ 
++    /**
++     * Compass: how far above its parent's bottom the container sits: over what the shell's bar
++     * covers of the window (DisplayCutoutController.getCompassBottomInset()), with a gap.
++     */
++    private int getContainerBottomOffset() {
++        assert mContainer != null;
++        android.app.Activity activity =
++                org.chromium.base.ContextUtils.activityFromContext(mContainer.getContext());
++        View parent = (View) mContainer.getParent();
++        if (activity == null || parent == null) return 0;
++        int covered =
++                org.chromium.components.browser_ui.display_cutout.DisplayCutoutController
++                        .getCompassBottomInset(activity.getWindow());
++        int[] at = new int[2];
++        parent.getLocationInWindow(at);
++        int belowParent =
++                activity.getWindow().getDecorView().getHeight() - (at[1] + parent.getHeight());
++        int gap = Math.round(8 * mContainer.getResources().getDisplayMetrics().density);
++        return Math.max(0, covered - belowParent) + gap;
++    }
++
+     /**
+      * @return Offset of the message container from the top of the screen.
+      */
+     private int getContainerTopOffset() {
+         assert mContainer != null;
++        // Compass: from the bottom, the distance it slides is the bar's (what's below it).
++        if (MessageContainer.isFromBottom()) return getContainerBottomOffset();
+ 
+         int contentOffset = mControlsManager.getContentOffset();
+         if (contentOffset == 0

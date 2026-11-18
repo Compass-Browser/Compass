@@ -1,0 +1,31 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ContextMenuHelper.java b/chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ContextMenuHelper.java
+index da35c1cd4695e78ee67adfc7ea003215ea78d0ce..11dd3905c8d49d12fdfe081e3cf5af4e9b88e3e6 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ContextMenuHelper.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ContextMenuHelper.java
+@@ -215,6 +215,26 @@ public class ContextMenuHelper {
+                 && mCurrentContextMenuParams != null
+                 && mOnMenuShown != null;
+ 
++        // Compass: the shell's own menu, for a long press (a mouse's or a highlight's menu stays
++        // Chrome's popup; docs/design/android.md, "The link menu").
++        if (!ContextMenuUtils.isMouseOrHighlightPopup(mCurrentContextMenuParams)) {
++            ContextMenuUi compassMenu =
++                    it.cipi1965.compass.CompassShell.createContextMenu(
++                            activity, mCurrentNativeDelegate);
++            if (compassMenu != null) {
++                mCurrentContextMenu = compassMenu;
++                compassMenu.displayMenu(
++                        mWindow,
++                        mWebContents,
++                        mCurrentContextMenuParams,
++                        items,
++                        mCallback,
++                        mOnMenuShown,
++                        mOnMenuClosed);
++                return;
++            }
++        }
++
+         boolean isCustomItemPresent =
+                 ChromeFeatureList.sCctContextualMenuItems.isEnabled()
+                         && mCurrentPopulator.hasCustomItems();

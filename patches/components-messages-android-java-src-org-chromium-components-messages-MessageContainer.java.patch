@@ -1,0 +1,25 @@
+diff --git a/components/messages/android/java/src/org/chromium/components/messages/MessageContainer.java b/components/messages/android/java/src/org/chromium/components/messages/MessageContainer.java
+index b1c307510ccdae6a8d82eeb03ad48f651a34e187..2ec07d8bf216ac18dcd283de69bf3f258fb028d6 100644
+--- a/components/messages/android/java/src/org/chromium/components/messages/MessageContainer.java
++++ b/components/messages/android/java/src/org/chromium/components/messages/MessageContainer.java
+@@ -73,6 +73,20 @@ public class MessageContainer extends FrameLayout {
+     private boolean mIsInitializingLayout;
+     private int mA11yDismissActionId = NO_ID;
+ 
++    // Compass: messages rise from the bottom of the window, above the shell's bar, rather than
++    // drop from the top (docs/design/android.md, "Messages").
++    private static boolean sFromBottom;
++
++    /** Messages rise from the bottom of the window (Compass's shell). */
++    public static void setFromBottom(boolean fromBottom) {
++        sFromBottom = fromBottom;
++    }
++
++    /** Whether messages rise from the bottom of the window. */
++    public static boolean isFromBottom() {
++        return sFromBottom;
++    }
++
+     public MessageContainer(Context context, @Nullable AttributeSet attrs) {
+         super(context, attrs);
+         setAccessibilityDelegate(mA11yDelegateProxy);

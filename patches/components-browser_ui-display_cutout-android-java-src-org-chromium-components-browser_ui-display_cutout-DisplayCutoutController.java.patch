@@ -1,13 +1,14 @@
 diff --git a/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java b/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java
-index 4ca18055922cb14c5ba2dbc971ba9cf40113527f..fc0d06eac597f9dbba514911529c2769430d86f0 100644
+index 4ca18055922cb14c5ba2dbc971ba9cf40113527f..747a47761a75ac1736af4f91118b2952eb31d86b 100644
 --- a/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java
 +++ b/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java
-@@ -41,6 +41,12 @@ import org.chromium.ui.base.WindowAndroid;
+@@ -41,6 +41,13 @@ import org.chromium.ui.base.WindowAndroid;
  import org.chromium.ui.insets.InsetObserver;
  import org.chromium.ui.mojom.VirtualKeyboardMode;
  
 +import java.util.ArrayList;
 +import java.util.Collections;
++import java.util.List;
 +import java.util.Map;
 +import java.util.Set;
 +import java.util.WeakHashMap;
@@ -15,7 +16,7 @@ index 4ca18055922cb14c5ba2dbc971ba9cf40113527f..fc0d06eac597f9dbba514911529c2769
  /**
   * Controls the display safe area for a {@link WebContents} and the cutout mode for an {@link
   * Activity} window.
-@@ -87,6 +93,24 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
+@@ -87,6 +94,42 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
      private final SafeAreaInsetsTrackerImpl mSafeAreaInsetsTracker;
  
      private Rect mCachedSafeAreaInsets = new Rect();
@@ -26,10 +27,28 @@ index 4ca18055922cb14c5ba2dbc971ba9cf40113527f..fc0d06eac597f9dbba514911529c2769
 +    private static final Set<DisplayCutoutController> sCompassControllers =
 +            Collections.newSetFromMap(new WeakHashMap<>());
 +
++    private static final List<Runnable> sCompassBottomInsetObservers = new ArrayList<>();
++
++    /** Compass: what its bar covers at |window|'s bottom (px), 0 if nothing. */
++    public static int getCompassBottomInset(Window window) {
++        Integer px = sCompassBottomInsets.get(window);
++        return px != null ? px : 0;
++    }
++
++    /** Compass: |observer| runs when what the bar covers changes (Chrome's messages). */
++    public static void addCompassBottomInsetObserver(Runnable observer) {
++        sCompassBottomInsetObservers.add(observer);
++    }
++
++    public static void removeCompassBottomInsetObserver(Runnable observer) {
++        sCompassBottomInsetObservers.remove(observer);
++    }
++
 +    /** Compass: what its bar covers at |window|'s bottom (px); pushes it to cover pages. */
 +    public static void setCompassBottomInset(Window window, int px) {
 +        Integer old = sCompassBottomInsets.put(window, px);
 +        if (old != null && old == px) return;
++        for (Runnable observer : new ArrayList<>(sCompassBottomInsetObservers)) observer.run();
 +        for (DisplayCutoutController controller : new ArrayList<>(sCompassControllers)) {
 +            if (controller.mWindow == window) {
 +                controller.maybePushSafeAreaInsets(controller.mCachedSafeAreaInsets);
@@ -40,7 +59,7 @@ index 4ca18055922cb14c5ba2dbc971ba9cf40113527f..fc0d06eac597f9dbba514911529c2769
      private Rect mCachedBrowserSafeAreaInsets = new Rect();
      private int mCachedBrowserSafeAreaInsetsRotation = INVALID_DISPLAY_ROTATION;
  
-@@ -238,6 +262,7 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
+@@ -238,6 +281,7 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
      public DisplayCutoutController(Delegate delegate) {
          mDelegate = delegate;
          mSafeAreaInsetsTracker = new SafeAreaInsetsTrackerImpl();
@@ -48,7 +67,7 @@ index 4ca18055922cb14c5ba2dbc971ba9cf40113527f..fc0d06eac597f9dbba514911529c2769
          maybeAddObservers();
      }
  
-@@ -323,6 +348,7 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
+@@ -323,6 +367,7 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
  
      @Override
      public void destroy() {
@@ -56,7 +75,7 @@ index 4ca18055922cb14c5ba2dbc971ba9cf40113527f..fc0d06eac597f9dbba514911529c2769
          removeObservers();
      }
  
-@@ -402,7 +428,12 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
+@@ -402,7 +447,12 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
          if (webContents.getTopLevelNativeWindow() == null) return;
  
          mCachedSafeAreaInsets = area;

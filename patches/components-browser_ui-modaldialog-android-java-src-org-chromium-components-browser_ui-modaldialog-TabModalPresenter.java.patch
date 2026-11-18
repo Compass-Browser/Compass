@@ -1,0 +1,40 @@
+diff --git a/components/browser_ui/modaldialog/android/java/src/org/chromium/components/browser_ui/modaldialog/TabModalPresenter.java b/components/browser_ui/modaldialog/android/java/src/org/chromium/components/browser_ui/modaldialog/TabModalPresenter.java
+index 620c5c11834ad5c4f1cd758eefcfdf8d0a223d17..639a84850143aa3f29fb78dd7687c164cb6756cd 100644
+--- a/components/browser_ui/modaldialog/android/java/src/org/chromium/components/browser_ui/modaldialog/TabModalPresenter.java
++++ b/components/browser_ui/modaldialog/android/java/src/org/chromium/components/browser_ui/modaldialog/TabModalPresenter.java
+@@ -44,6 +44,16 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
+  */
+ @NullMarked
+ public abstract class TabModalPresenter extends ModalDialogManager.Presenter {
++    // Compass: how far above the dialog container's bottom tab-modal dialogs dock; null: they're
++    // centered, as Chrome's.
++    private static java.util.function.@Nullable ToIntFunction<View> sCompassBottomDock;
++
++    /** Compass: tab-modal dialogs dock at the bottom, |dock| above the container's bottom. */
++    public static void setCompassBottomDock(
++            java.util.function.@Nullable ToIntFunction<View> dock) {
++        sCompassBottomDock = dock;
++    }
++
+     /** Enter and exit animation duration. */
+     private static final int ENTER_EXIT_ANIMATION_DURATION_MS = 200;
+ 
+@@ -271,6 +281,18 @@ public abstract class TabModalPresenter extends ModalDialogManager.Presenter {
+             params.setMargins(horizontalMargin, /* top= */ 0, horizontalMargin, /* bottom= */ 0);
+         }
+ 
++        // Compass: docked at the bottom, above the shell's bar, as its sheets are (docs/design/
++        // android.md, "Dialogs").
++        if (sCompassBottomDock != null) {
++            int side = Math.round(12 * mContext.getResources().getDisplayMetrics().density);
++            params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
++            params.setMargins(
++                    side,
++                    /* top= */ 0,
++                    side,
++                    sCompassBottomDock.applyAsInt(mDialogContainer) + side);
++        }
++
+         assumeNonNull(mDialogView).setBackgroundResource(R.drawable.dialog_bg_no_shadow);
+         mDialogContainer.addView(mDialogView, params);
+         mDialogContainer.setAlpha(0f);

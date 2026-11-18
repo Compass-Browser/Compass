@@ -1,0 +1,15 @@
+diff --git a/components/messages/android/internal/java/src/org/chromium/components/messages/MessageBannerMediator.java b/components/messages/android/internal/java/src/org/chromium/components/messages/MessageBannerMediator.java
+index 75f725deed4c8ef76807feafdb210e59aae9aa23..4ee067f6d6e2163ab43fab86651c2622cfba67eb 100644
+--- a/components/messages/android/internal/java/src/org/chromium/components/messages/MessageBannerMediator.java
++++ b/components/messages/android/internal/java/src/org/chromium/components/messages/MessageBannerMediator.java
+@@ -238,7 +238,9 @@ class MessageBannerMediator implements SwipeHandler {
+     public void onSwipeUpdated(
+             MotionEvent current, float tx, float ty, float distanceX, float distanceY) {
+         if (isVertical(mSwipeDirection)) {
+-            final float currentGesturePositionY = mSwipeStartTranslation + ty;
++            // Compass: from the bottom, a swipe down hides it (MessageContainer.isFromBottom()).
++            final float currentGesturePositionY =
++                    mSwipeStartTranslation + (MessageContainer.isFromBottom() ? -ty : ty);
+             final float currentTranslationY =
+                     MathUtils.clamp(currentGesturePositionY, -mMaxTranslationYSupplier.get(), 0);
+             mModel.set(TRANSLATION_Y, currentTranslationY);

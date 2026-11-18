@@ -435,6 +435,22 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
         if (tab != null && !tab.isIncognito()) mBridge.pin(tab.getId(), favorite);
     }
 
+    /**
+     * "Pin" in a link's long-press menu (LinkMenu): the link in a background tab, pinned to the
+     * shown space's Pinned, as iOS's.
+     */
+    public void pinLink(GURL url) {
+        Tab tab =
+                mActivity
+                        .getTabCreator(false)
+                        .createNewTab(
+                                new LoadUrlParams(url.getSpec(), PageTransition.LINK),
+                                TabLaunchType.FROM_LONGPRESS_BACKGROUND,
+                                // No opener: it's pinned, not a link of |source|'s link folder.
+                                null);
+        if (tab != null) mBridge.pin(tab.getId(), false);
+    }
+
     /** Shows a space (a launcher shortcut's), with its sidebar. */
     public void openSpace(String spaceId) {
         mBridge.setActiveSpace(spaceId);

@@ -160,6 +160,50 @@ It costs:
   yet keeps its opener until it does (`link_openers_`). The folders are
   marked as this device's (`MarkLinkFolder()`), so "Name Link Folders"
   names them (P12). Tests: `LinkFoldersTest`.
+- **The link menu** (`LinkMenu`, `LinkMenuUi.kt`): a long press on a
+  link, an image or the page opens Compass's sheet in place of Chrome's
+  dialog, as iOS's context menu: the link (or the image's thumbnail) at the
+  top, then its items in cards, each with its Material Symbol. Chrome's
+  populator still builds the items and runs them
+  (`ContextMenuHelper` asks `CompassShell.createContextMenu()` for the menu
+  and hands it the items; a mouse's or a highlight's menu stays Chrome's
+  popup), so its actions, the extensions' items and their submenus all
+  work. On a link: Peek, **Open in New Tab** (Compass's: a new tab, shown),
+  **Open in Background** (Chrome's "Open in new tab", which opens in the
+  background and joins the page's link folder), Open in Incognito, **Open
+  in Little Window** and **Pin** (Compass's: a new Pinned entry of the
+  shown space, without a link folder), Open in New Window; then Copy Link,
+  Copy Link Text, Download Link and Share Link in a card of their own; an
+  image's items after them ("Preview image" is Peek Image: Peek's card). In
+  an incognito tab Little Window and Pin aren't offered. Tab groups' and the
+  reading list's items are left out.
+- **The Site sheet** (`SiteSheet`, `SiteSheetUi.kt`): the page menu's
+  Site Settings opens Compass's sheet in place of Chrome's page info,
+  which drops from the top toolbar Compass doesn't have. It shows the site
+  and its connection (secure, not secure, dangerous:
+  `SecurityStateModel`), the permissions the site was given or denied (a
+  switch each, and Reset Permissions; a permission still at "ask" isn't
+  listed), the site's own settings as iOS's Site Settings has them
+  (Desktop Site, which reloads the page, Sound, Pop-ups and Redirects,
+  Automatic Picture-in-Picture, JavaScript), and All Site Settings,
+  Chrome's page for the site (stored data, every permission). It reads and
+  writes through `WebsitePreferenceBridge`. Compass's own pages and
+  chrome:// pages still get Chrome's page info.
+- **Messages** (Chrome's banners: "Save password?", "Pop-up blocked",
+  downloads, ...): they rise from the bottom of the window to just above
+  Compass's bar, as iOS's save banner, rather than drop from the top, and a
+  swipe down dismisses them. Chrome still queues, times and runs them
+  (`MessageContainer.setFromBottom()`, set by `MessageContainerCoordinator`
+  under the shell): the container sits at the bottom, over what the bar
+  covers of the window (`DisplayCutoutController.getCompassBottomInset()`,
+  and its observer as the bar shows and hides); the banners' translation and
+  the swipe are mirrored, and a banner unfolds upward.
+- **Dialogs**: tab-modal dialogs (permission prompts, a page's `alert()`,
+  the extension install prompt) dock at the bottom of the window as a card,
+  12dp off its edges, over the bar as Compass's sheets are, rather than in
+  the middle (`TabModalPresenter.setCompassBottomDock()`, set by the bar).
+  Their contents stay Chrome's (Material 3 already, with the precise or
+  approximate location choice).
 - **Peek (P14)** (peek.md; ios.md, "Peek"; `Peek`, `PeekUi.kt`): a
   link's page in a card over the window, without a tab.
   - **Long-press a link:** Chrome's menu starts with **Peek**, which
@@ -941,10 +985,11 @@ Profiles, still the last used profile's: Chrome's own code that reads
 and saves from other apps (`PasswordSaveActivity`), act on the last used
 profile rather than the window's; only the first profile gets web push.
 
-Still Chrome's look, to restyle in Material You with the shell's layout:
-a link's long-press menu (iOS's Open in Background, Open in Little Window
-and Pin among its items), page info and permission prompts, and the "Save
-password?" message.
+Chrome's look is restyled where it showed most: the link menu and page
+info are Compass's, and messages and tab-modal dialogs sit at the bottom
+with the bar (above, "The link menu", "The Site sheet", "Messages",
+"Dialogs"). Still Chrome's: its settings pages (re-themed), the keyboard's
+password and address bar above it, and app-modal dialogs.
 
 Peek and little windows, not yet: a long press inside the card (no menu
 there yet, so a link can't be peeked in the card), the opener for a link

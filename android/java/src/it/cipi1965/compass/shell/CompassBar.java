@@ -155,6 +155,8 @@ public class CompassBar implements CompassBarUi.Actions {
     private @Nullable UndoToast mUndoToast;
     // Peek's card, also the little window's (docs/design/android.md, "Peek", "Little windows").
     private @Nullable Peek mPeek;
+    private @Nullable LinkMenu mLinkMenu;
+    private @Nullable SiteSheet mSiteSheet;
     // Reader mode (docs/design/android.md, "Reader mode").
     private @Nullable Reader mReader;
     private @Nullable TabModelSelectorTabModelObserver mReaderTabsObserver;
@@ -187,6 +189,10 @@ public class CompassBar implements CompassBarUi.Actions {
 
     public void attach() {
         sBars.put(mActivity, this);
+        // Tab-modal dialogs (permission prompts, alerts) dock above the bar, as its sheets
+        // (docs/design/android.md, "Dialogs").
+        org.chromium.components.browser_ui.modaldialog.TabModalPresenter.setCompassBottomDock(
+                CompassBar::aboveBar);
         View view = CompassBarUi.createView(mActivity, mActivity, mActivity, mState, this);
         // At the bottom of Chrome's coordinator, over the page, which runs under it.
         ViewGroup coordinator =
@@ -227,6 +233,8 @@ public class CompassBar implements CompassBarUi.Actions {
         mSettings = settings;
         mFindBar = new FindBar(mActivity, coordinator);
         mPeek = new Peek(mActivity, coordinator, spaces);
+        mLinkMenu = new LinkMenu(mActivity, coordinator, spaces, mPeek);
+        mSiteSheet = new SiteSheet(mActivity, coordinator);
         mSplit =
                 new SplitView(
                         mActivity,
@@ -453,6 +461,10 @@ public class CompassBar implements CompassBarUi.Actions {
         mFindBar = null;
         if (mUndoToast != null) mUndoToast.destroy();
         mUndoToast = null;
+        if (mLinkMenu != null) mLinkMenu.destroy();
+        mLinkMenu = null;
+        if (mSiteSheet != null) mSiteSheet.destroy();
+        mSiteSheet = null;
         if (mPeek != null) mPeek.destroy();
         mPeek = null;
         if (mSplit != null) mSplit.destroy();
@@ -594,6 +606,14 @@ public class CompassBar implements CompassBarUi.Actions {
         return true;
     }
 
+    /** Compass's long-press menu in place of Chrome's (LinkMenu); null: Chrome's. */
+    public org.chromium.components.embedder_support.contextmenu.@Nullable ContextMenuUi
+            createContextMenu(
+                    org.chromium.components.embedder_support.contextmenu.ContextMenuNativeDelegate
+                            nativeDelegate) {
+        return mLinkMenu != null ? mLinkMenu.prepare(nativeDelegate) : null;
+    }
+
     /** "Peek" in a link's long-press menu in |source|: the link in Peek's card. */
     public boolean peekLink(Tab source, GURL url, @Nullable Origin initiator) {
         if (mPeek == null) return false;
@@ -691,6 +711,13 @@ public class CompassBar implements CompassBarUi.Actions {
     }
 
     /** Runs one of Chrome's menu actions (its menu item's ID, by name). */
+    /** The page's site: Compass's Site sheet, else (a Compass or chrome:// page) Chrome's info. */
+    void showSiteInfo() {
+        Tab tab = mActivity.getActivityTab();
+        if (tab != null && mSiteSheet != null && mSiteSheet.show(tab)) return;
+        chromeAction("info_menu_id");
+    }
+
     void chromeAction(String idName) {
         int id = mActivity.getResources().getIdentifier(idName, "id", mActivity.getPackageName());
         if (id != 0) mActivity.getMenuOrKeyboardActionController().onMenuOrKeyboardAction(id, true);
@@ -933,6 +960,20 @@ public class CompassBar implements CompassBarUi.Actions {
             mFrame.setLayoutParams(params);
         }
         pushSafeArea();
+    }
+
+    /**
+     * How far above |view|'s bottom what the bar covers of its window ends (px, 0 if it covers
+     * none of it): where a dialog or message docks.
+     */
+    static int aboveBar(View view) {
+        Activity activity = org.chromium.base.ContextUtils.activityFromContext(view.getContext());
+        if (activity == null) return 0;
+        int covered = DisplayCutoutController.getCompassBottomInset(activity.getWindow());
+        int[] at = new int[2];
+        view.getLocationInWindow(at);
+        int below = activity.getWindow().getDecorView().getHeight() - (at[1] + view.getHeight());
+        return Math.max(0, covered - below);
     }
 
     // A viewport-fit=cover page's bottom safe area takes in the bar while it shows, so its fixed

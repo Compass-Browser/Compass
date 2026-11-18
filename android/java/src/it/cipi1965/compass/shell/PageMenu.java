@@ -134,7 +134,7 @@ public class PageMenu implements PageMenuUi.Listener {
 
     @Override
     public void onSiteSettings() {
-        then(() -> mBar.chromeAction("info_menu_id"));
+        then(mBar::showSiteInfo);
     }
 
     @Override

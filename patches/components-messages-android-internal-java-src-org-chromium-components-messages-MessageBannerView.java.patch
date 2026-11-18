@@ -1,0 +1,19 @@
+diff --git a/components/messages/android/internal/java/src/org/chromium/components/messages/MessageBannerView.java b/components/messages/android/internal/java/src/org/chromium/components/messages/MessageBannerView.java
+index e428a5b72bc92b8875976e6713723849b7c9d32f..317d96bbfed04c8d1091d8dafdbec086d7d36921 100644
+--- a/components/messages/android/internal/java/src/org/chromium/components/messages/MessageBannerView.java
++++ b/components/messages/android/internal/java/src/org/chromium/components/messages/MessageBannerView.java
+@@ -349,6 +349,14 @@ public class MessageBannerView extends RelativeLayout {
+ 
+     void setMarginTop(int val) {
+         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) getLayoutParams();
++        // Compass: from the bottom, the margin is below the banner (the one behind peeks above).
++        if (MessageContainer.isFromBottom()) {
++            params.gravity = android.view.Gravity.BOTTOM;
++            params.topMargin = 0;
++            params.bottomMargin = val;
++            setLayoutParams(params);
++            return;
++        }
+         params.topMargin = val;
+         setLayoutParams(params);
+     }

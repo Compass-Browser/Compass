@@ -21,6 +21,8 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuNativeDelegate;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuUi;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.mojom.WindowOpenDisposition;
 import org.chromium.url.GURL;
@@ -71,6 +73,13 @@ public class CompassShellHookImpl implements CompassShellHook {
     public boolean peekLink(Tab tab, GURL url, @Nullable Origin initiator) {
         CompassBar bar = barOf(tab);
         return bar != null && bar.peekLink(tab, url, initiator);
+    }
+
+    @Override
+    public @Nullable ContextMenuUi createContextMenu(
+            Activity activity, ContextMenuNativeDelegate nativeDelegate) {
+        CompassBar bar = CompassBar.forActivity(activity);
+        return bar != null ? bar.createContextMenu(nativeDelegate) : null;
     }
 
     @Override
