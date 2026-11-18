@@ -77,6 +77,10 @@ public class Extensions
         mBridge = new ExtensionsToolbarBridge(task, profile);
         mBridge.addObserver(this);
         mBridge.setActionListDelegate(this);
+        // Running an action (a popup's, or one that runs at once) closes the extensions menu,
+        // which here is this sheet: Chrome's own menu, which would be the delegate, isn't made
+        // under the shell, and the bridge calls it unchecked.
+        mBridge.setMenuDelegate(this::onDismiss);
     }
 
     /**
@@ -99,6 +103,7 @@ public class Extensions
         closePopup();
         if (mBridge != null) {
             mBridge.setActionListDelegate(null);
+            mBridge.setMenuDelegate(null);
             mBridge.removeObserver(this);
             mBridge.destroy();
             mBridge = null;
