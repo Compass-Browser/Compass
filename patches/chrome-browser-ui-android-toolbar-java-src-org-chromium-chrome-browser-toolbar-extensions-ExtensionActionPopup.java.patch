@@ -1,8 +1,22 @@
 diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java
-index 157f6a21a919023ea9aa73819c28218a28bbef4e..73f5193180b5ddeb8c2c8bf99bcd5847068209e7 100644
+index 157f6a21a919023ea9aa73819c28218a28bbef4e..d8022fa4ca76eb8b117f58cd1c4bbdbb22cfb46e 100644
 --- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java
 +++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java
-@@ -53,7 +53,8 @@ import org.chromium.ui.widget.ViewRectProvider;
+@@ -7,10 +7,12 @@ package org.chromium.chrome.browser.toolbar.extensions;
+ import android.app.Activity;
+ import android.content.res.Resources;
+ import android.graphics.Color;
+-import android.graphics.drawable.ColorDrawable;
++import android.graphics.Outline;
++import android.graphics.drawable.GradientDrawable;
+ import android.os.Build;
+ import android.view.KeyEvent;
+ import android.view.View;
++import android.view.ViewOutlineProvider;
+ import android.view.WindowManager;
+ import android.widget.PopupWindow.OnDismissListener;
+ 
+@@ -53,7 +55,8 @@ import org.chromium.ui.widget.ViewRectProvider;
   * managed by the nested {@link ContentsFrame}.
   */
  @NullMarked
@@ -12,3 +26,112 @@ index 157f6a21a919023ea9aa73819c28218a28bbef4e..73f5193180b5ddeb8c2c8bf99bcd5847
  
      /** The activity to use for creating views. */
      private final Activity mActivity;
+@@ -77,6 +80,12 @@ class ExtensionActionPopup implements Destroyable {
+     private final ContentView mContentView;
+ 
+     private final TabModelSelector mTabModelSelector;
++
++    // Compass: how far the popup keeps off the window's edges and its anchor.
++    private static final int COMPASS_MARGIN_DP = 12;
++    private static final int COMPASS_GAP_DP = 8;
++    private static final int COMPASS_RADIUS_DP = 16;
++    private final int mMarginPx;
+     private final Callback<@Nullable Tab> mCurrentTabObserver;
+ 
+     /**
+@@ -132,9 +141,10 @@ class ExtensionActionPopup implements Destroyable {
+                     }
+                 };
+ 
+-        mThinWebView =
+-                ThinWebViewFactory.create(
+-                        activity, new ThinWebViewConstraints(), mPopupWindowAndroid);
++        // Compass: a TextureView, which the card's rounded corners clip; a SurfaceView isn't.
++        ThinWebViewConstraints constraints = new ThinWebViewConstraints();
++        constraints.supportsOpacity = true;
++        mThinWebView = ThinWebViewFactory.create(activity, constraints, mPopupWindowAndroid);
+ 
+         if (contextMenuPopulatorFactory != null) {
+             ThinWebViewContextMenuItemDelegate itemDelegate =
+@@ -151,13 +161,31 @@ class ExtensionActionPopup implements Destroyable {
+                         .build());
+ 
+         Resources resources = mActivity.getResources();
++        // Compass: a card off the window's edges, its page laid out to fit (docs/design/android.md).
++        mMarginPx = ViewUtils.dpToPx(activity, COMPASS_MARGIN_DP);
++        int radiusPx = ViewUtils.dpToPx(activity, COMPASS_RADIUS_DP);
++        GradientDrawable card = new GradientDrawable();
++        card.setColor(Color.WHITE);
++        card.setCornerRadius(radiusPx);
++        View page = mThinWebView.getView();
++        page.setOutlineProvider(
++                new ViewOutlineProvider() {
++                    @Override
++                    public void getOutline(View view, Outline outline) {
++                        outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radiusPx);
++                    }
++                });
++        page.setClipToOutline(true);
++        ViewRectProvider anchorRect = new ViewRectProvider(anchorView);
++        int gapPx = ViewUtils.dpToPx(activity, COMPASS_GAP_DP);
++        anchorRect.setMarginPx(0, gapPx, 0, gapPx);
+         mPopupWindow =
+                 new AnchoredPopupWindow.Builder(
+                                 activity,
+                                 activity.getWindow().getDecorView(),
+-                                new ColorDrawable(Color.WHITE),
++                                card, // Compass
+                                 () -> mThinWebView.getView(),
+-                                new ViewRectProvider(anchorView))
++                                anchorRect) // Compass
+                         .setHorizontalOverlapAnchor(true)
+                         // The popup should close on focus loss only if it's not being inspected.
+                         // Otherwise, opening the devtools window would automatically close the
+@@ -175,7 +203,9 @@ class ExtensionActionPopup implements Destroyable {
+                                 resources.getDimensionPixelSize(
+                                         R.dimen.extension_action_popup_min_height))
+                         .setFocusable(!inspectWithDevTools)
++                        .setMargin(mMarginPx) // Compass
+                         .build();
++        compassCapPageSize(anchorView);
+ 
+         mTabModelSelector = tabModelSelector;
+         mCurrentTabObserver =
+@@ -192,6 +222,25 @@ class ExtensionActionPopup implements Destroyable {
+         contents.setDelegate(new ContentsDelegate());
+     }
+ 
++    // Compass: the page lays itself out within the space the popup has, rather than at up to
++    // 800x600dp and then cut by the window: as wide as the window less the margins, as tall as the
++    // larger side of the anchor less the margins and the system bars.
++    private void compassCapPageSize(View anchorView) {
++        View decorView = mActivity.getWindow().getDecorView();
++        if (decorView.getWidth() <= 0 || decorView.getHeight() <= 0) return;
++        android.graphics.Rect frame = new android.graphics.Rect();
++        decorView.getWindowVisibleDisplayFrame(frame);
++        int[] anchor = new int[2];
++        anchorView.getLocationInWindow(anchor);
++        int above = anchor[1] - frame.top;
++        int below = frame.bottom - (anchor[1] + anchorView.getHeight());
++        int widthPx = Math.min(decorView.getWidth(), frame.width()) - 2 * mMarginPx;
++        int heightPx =
++                Math.max(above, below) - 2 * mMarginPx - ViewUtils.dpToPx(mActivity, COMPASS_GAP_DP);
++        float density = mActivity.getResources().getDisplayMetrics().density;
++        mContents.setMaxSize((int) (widthPx / density), (int) (heightPx / density));
++    }
++
+     /** Cleans up resources used by this popup. */
+     @Override
+     public void destroy() {
+@@ -234,8 +283,9 @@ class ExtensionActionPopup implements Destroyable {
+             int targetHeightPx = ViewUtils.dpToPx(mActivity, height);
+ 
+             View decorView = mActivity.getWindow().getDecorView();
+-            int maxAvailableWidthPx = decorView.getWidth();
+-            int maxAvailableHeightPx = decorView.getHeight();
++            // Compass: less the margins.
++            int maxAvailableWidthPx = decorView.getWidth() - 2 * mMarginPx;
++            int maxAvailableHeightPx = decorView.getHeight() - 2 * mMarginPx;
+ 
+             if (maxAvailableWidthPx > 0) {
+                 targetWidthPx = Math.min(targetWidthPx, maxAvailableWidthPx);

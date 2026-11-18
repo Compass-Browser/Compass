@@ -1,0 +1,31 @@
+diff --git a/chrome/browser/ui/android/extensions/extension_action_popup_contents.h b/chrome/browser/ui/android/extensions/extension_action_popup_contents.h
+index 83130402d0d8bafa90f390831627e5c4ee4fbcd9..6283f71c575f759b0ca15fc1568cc1b00f5c74cb 100644
+--- a/chrome/browser/ui/android/extensions/extension_action_popup_contents.h
++++ b/chrome/browser/ui/android/extensions/extension_action_popup_contents.h
+@@ -11,6 +11,7 @@
+ #include "chrome/browser/extensions/extension_view.h"
+ #include "chrome/browser/ui/extensions/extension_popup_types.h"
+ #include "content/public/browser/web_contents_observer.h"
++#include "ui/gfx/geometry/size.h"
+ 
+ namespace content {
+ class RenderFrameHost;
+@@ -63,6 +64,10 @@ class ExtensionActionPopupContents : public content::WebContentsObserver,
+   // hosted WebContents.
+   void LoadInitialPage();
+ 
++  // Compass: called from Java to cap the popup's size below kMaxSize, so its
++  // page lays itself out within the window.
++  void SetMaxSize(int width, int height);
++
+  private:
+   // Starts receiving callbacks from `host_`. Deferred until `java_object_` is
+   // set because those callbacks are forwarded to Java.
+@@ -74,6 +79,7 @@ class ExtensionActionPopupContents : public content::WebContentsObserver,
+   const bool inspect_with_devtools_;
+   ShowPopupCallback shown_callback_;
+   base::android::ScopedJavaGlobalRef<jobject> java_object_;
++  gfx::Size max_size_;  // Compass
+ };
+ 
+ }  // namespace extensions

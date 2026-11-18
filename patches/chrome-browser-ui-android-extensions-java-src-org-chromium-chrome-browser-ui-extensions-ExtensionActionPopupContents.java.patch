@@ -1,0 +1,25 @@
+diff --git a/chrome/browser/ui/android/extensions/java/src/org/chromium/chrome/browser/ui/extensions/ExtensionActionPopupContents.java b/chrome/browser/ui/android/extensions/java/src/org/chromium/chrome/browser/ui/extensions/ExtensionActionPopupContents.java
+index 980475e9fdc043036218d8f852f3906d09c78267..e614be3bdf1efea84d22ed63cdc4fa27adb6a1ad 100644
+--- a/chrome/browser/ui/android/extensions/java/src/org/chromium/chrome/browser/ui/extensions/ExtensionActionPopupContents.java
++++ b/chrome/browser/ui/android/extensions/java/src/org/chromium/chrome/browser/ui/extensions/ExtensionActionPopupContents.java
+@@ -77,6 +77,12 @@ public class ExtensionActionPopupContents implements Destroyable {
+         ExtensionActionPopupContentsJni.get().loadInitialPage(mNative);
+     }
+ 
++    // Compass: the popup's page lays itself out within the window (docs/design/android.md).
++    /** Caps the size the popup's page may take (dp), below the platform's 800x600; call first. */
++    public void setMaxSize(int width, int height) {
++        ExtensionActionPopupContentsJni.get().setMaxSize(mNative, width, height);
++    }
++
+     /**
+      * Sets the delegate to receive UI-related callbacks for this popup.
+      *
+@@ -152,5 +158,7 @@ public class ExtensionActionPopupContents implements Destroyable {
+          * @param self The pointer to the native object.
+          */
+         void loadInitialPage(JniPtr<NativeExtensionActionPopupContents> self);
++
++        void setMaxSize(JniPtr<NativeExtensionActionPopupContents> self, int width, int height);
+     }
+ }

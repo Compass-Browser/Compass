@@ -804,6 +804,15 @@ links to chrome://extensions and the Chrome Web Store. There is one actions
 model per window, so under the shell Chrome doesn't make its own
 (`ToolbarManager` patch). `compass_apk` needs `is_desktop_android`.
 
+A popup is a card apart from the page: rounded, 12dp off the window's edges
+and 8dp off the bar. Its page lays itself out within that space: upstream
+lets a popup's page grow to 800x600dp and then cuts the window to the
+screen, which on a phone hid half of a wide popup like 1Password's. The
+popup gives its page the window's width and the larger side of the bar,
+less the margins, as the most it may take (`ExtensionActionPopupContents`'s
+`setMaxSize()`). The card's corners clip the page, so it draws into a
+TextureView rather than a SurfaceView.
+
 The Web Store offers installs only to a desktop browser, so the shell gives
 chromewebstore.google.com a "Desktop site" exception the first time it runs
 (`Extensions`); the user can change it in site settings. The install prompt
