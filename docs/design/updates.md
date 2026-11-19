@@ -392,7 +392,9 @@ leave updates to Compass's own updaters.
   and `zap` paths for the profile, caches and preferences.
   `brew audit --strict --online` reports one problem we accept: the
   release is a GitHub prerelease, as every canary is.
-- **winget:** the package `Compass.Browser` in
+- **winget:** paused since 2026-11-19: `WINGET_ENABLED = False` in
+  `package_managers.py` makes releases (and `release packages`) send no pull
+  request until it's set back. When on: the package `Compass.Browser` in
   [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs), one
   version per Windows release (the Compass version, e.g. 20261115.1718).
   The installer is `CompassSetup-<version>.exe` (mini_installer: `exe`,

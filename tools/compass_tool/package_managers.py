@@ -13,6 +13,7 @@ gh's own sign-in: no token is kept here.
 Neither ever fails a release: what goes wrong is printed as a warning, and
 can be redone by hand (`compass release packages <version>`).
 COMPASS_SKIP_PACKAGE_MANAGERS=1 (or --no-package-managers) skips both.
+WINGET_ENABLED (below) turns the winget pull requests off on its own.
 
 The text generators are pure functions, tested in
 tools/tests/test_package_managers.py.
@@ -32,6 +33,10 @@ HOMEPAGE = 'https://compassbrowser.org/'
 SOURCE_REPO = 'Compass-Browser/Compass'
 SHORT_DESCRIPTION = 'Open-source Arc alternative built on Chromium'
 SKIP_ENV = 'COMPASS_SKIP_PACKAGE_MANAGERS'
+# winget-pkgs pull requests are paused (2026-11-19, until the maintainer says
+# otherwise): releases leave winget alone, `release packages` too. Homebrew
+# isn't affected. Set back to True to send them again.
+WINGET_ENABLED = False
 
 # Homebrew ------------------------------------------------------------------
 
@@ -486,6 +491,9 @@ def after_win_release(release: Dict, skip: bool = False,
   raises."""
   if skipped(skip):
     print('package managers skipped')
+    return
+  if not WINGET_ENABLED:
+    print('winget: pull requests are paused (package_managers.WINGET_ENABLED)')
     return
   try:
     url = submit_winget(release, api)

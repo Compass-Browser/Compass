@@ -339,8 +339,18 @@ class AfterReleaseTest(unittest.TestCase):
     out = self.run_quietly(pm.after_mac_release, mac_release(), api=broken)
     self.assertIn('warning: updating the Homebrew cask failed: no network',
                   out)
-    out = self.run_quietly(pm.after_win_release, win_release(), api=broken)
+    with mock.patch.object(pm, 'WINGET_ENABLED', True):
+      out = self.run_quietly(pm.after_win_release, win_release(), api=broken)
     self.assertIn('warning: the winget pull request failed', out)
+
+  def test_winget_paused(self):
+    # While WINGET_ENABLED is off, a Windows release sends nothing to
+    # winget-pkgs; Homebrew still runs.
+    def unused(*_args, **_kwargs):
+      raise AssertionError('called')
+    with mock.patch.object(pm, 'WINGET_ENABLED', False):
+      out = self.run_quietly(pm.after_win_release, win_release(), api=unused)
+    self.assertIn('paused', out)
 
   def test_skipped(self):
     def unused(*_args, **_kwargs):
