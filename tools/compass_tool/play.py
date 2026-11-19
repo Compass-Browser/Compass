@@ -106,6 +106,21 @@ def release_notes(notes_dir: Path) -> List[Dict[str, str]]:
   return notes
 
 
+# Compass's channels (docs/design/updates.md) as Play's tracks: canary builds
+# go to internal testing (the maintainer's list, no review), beta to closed
+# testing ("alpha", whose Google Group the website links to), stable to
+# production. `release promote` and `play promote` move a build up these
+# without uploading it again.
+CHANNEL_TRACKS = {'canary': 'internal', 'beta': 'alpha', 'stable': 'production'}
+
+
+def track_for(channel: str) -> str:
+  if channel not in CHANNEL_TRACKS:
+    raise CommandError('channel %r: one of %s' % (channel,
+                                                   ', '.join(CHANNEL_TRACKS)))
+  return CHANNEL_TRACKS[channel]
+
+
 def track_release(track: str, name: str, code: int, status: str,
                   notes: List[Dict[str, str]],
                   user_fraction: Optional[float] = None) -> dict:
@@ -359,6 +374,29 @@ def upload(client: Client, aab: Path, body: dict, commit: bool = True,
       except CommandError:
         pass
   return code
+
+
+def promote(client: Client, body: dict,
+            log: Callable[[str], None] = print) -> None:
+  """Puts the versionCode |body| names, uploaded before, on the track |body|
+  describes: one edit, no upload. Play refuses a versionCode it doesn't
+  have."""
+  edit = client.insert_edit()
+  done = False
+  try:
+    client.update_track(edit, body)
+    log('track %s: release %s, versionCode %s (%s)' % (
+        body['track'], body['releases'][0]['name'],
+        body['releases'][0]['versionCodes'][0], body['releases'][0]['status']))
+    client.commit(edit)
+    done = True
+    log('committed')
+  finally:
+    if not done:
+      try:
+        client.delete_edit(edit)
+      except CommandError:
+        pass
 
 
 def tracks(client: Client) -> List[dict]:

@@ -819,6 +819,28 @@ def publish_android(layout: Layout, args) -> None:
                                          release.github_tag(version)))
 
 
+def promote_android(version: str, channel: str, dry_run: bool) -> None:
+  """`release promote`'s Android part: the same version on the channel's
+  Play track, when this machine has the Play key (the release Macs may
+  not); otherwise what to run where it is. Never fails the promotion."""
+  track = play.track_for(channel)
+  command = 'compass play promote --version %s --channel %s' % (version,
+                                                                 channel)
+  if dry_run:
+    print('Android: would put %s on Play\'s %s track' % (version, track))
+    return
+  if not PLAY_CREDENTIALS.is_file():
+    print('Android: no Play key here; where it is, run `%s`' % command)
+    return
+  args = argparse.Namespace(credentials=None, package=play.PACKAGE,
+                            notes_dir=None, status='completed',
+                            user_fraction=None)
+  try:
+    play_promote(args, version, track)
+  except CommandError as e:
+    print('warning: Android on Play: %s (redo it with `%s`)' % (e, command))
+
+
 def _release(layout: Layout, args) -> None:
   if args.action == 'publish-linux':
     publish_linux(args)
@@ -864,6 +886,7 @@ def _release(layout: Layout, args) -> None:
       release.promote_on_github(found)
       release.upload(feeds)
     print('%s is on %s' % (args.version, to))
+    promote_android(args.version, to, args.no_upload)
     return
   if args.action == 'feeds':
     feeds = release.write_feeds(manifest)
@@ -1129,6 +1152,23 @@ def signed_bundle(layout: Layout, aab: Path, version: str) -> Path:
   return out
 
 
+def play_promote(args, version: str, track: str) -> None:
+  """Release |version|, uploaded to Play before, on |track| too."""
+  notes = play.release_notes(Path(args.notes_dir) if args.notes_dir else
+                             Path(__file__).resolve().parents[2] / 'android' /
+                             'play')
+  body = play.track_release(track, version, play.version_code(version),
+                            args.status, notes, args.user_fraction)
+  client, info = play_client(args)
+  print('promoting as %s on %s: %s to %s' % (info['client_email'],
+                                            args.package, version, track))
+  try:
+    play.promote(client, body)
+  except play.ApiError as e:
+    hint = play.explain(e)
+    raise CommandError(str(e) + ('\n' + hint if hint else ''))
+
+
 def cmd_play(layout: Layout, args) -> None:
   if args.action == 'status':
     try:
@@ -1158,6 +1198,12 @@ def cmd_play(layout: Layout, args) -> None:
     set_gn_arg(args_file, PLAY_VERSION_CODE_ARG, code)
     print('version %s, versionCode %d (%s)' % (version, code, args_file))
     return
+  if args.action == 'promote':
+    if not args.version or not (args.channel or args.track):
+      raise CommandError('promote: give the --version and the --channel (or '
+                         '--track) to put it on')
+    play_promote(args, version, args.track or play.track_for(args.channel))
+    return
   # upload
   if not args.version:
     raise CommandError('upload: give the --version the bundle was built as')
@@ -1171,7 +1217,8 @@ def cmd_play(layout: Layout, args) -> None:
     aab = signed_bundle(layout, aab, version)
   notes = play.release_notes(Path(args.notes_dir) if args.notes_dir else
                              layout.root / 'android' / 'play')
-  body = play.track_release(args.track, version, code, args.status, notes,
+  track = args.track or play.track_for(args.channel or 'canary')
+  body = play.track_release(track, version, code, args.status, notes,
                             args.user_fraction)
   credentials = Path(args.credentials) if args.credentials else \
       PLAY_CREDENTIALS
@@ -1183,7 +1230,7 @@ def cmd_play(layout: Layout, args) -> None:
     return
   client, info = play_client(args)
   print('uploading as %s to %s, track %s' % (info['client_email'],
-                                             args.package, args.track))
+                                             args.package, track))
   try:
     play.upload(client, aab, body, commit=not args.validate_only,
                 not_sent_for_review=args.not_sent_for_review)
@@ -1625,16 +1672,20 @@ def parser() -> argparse.ArgumentParser:
                      'versionCode of a release, set it for the release build, '
                      'or upload the app bundle to a testing track')
   s.add_argument('action',
-                 choices=['version-code', 'prepare', 'upload', 'status'])
+                 choices=['version-code', 'prepare', 'upload', 'promote',
+                          'status'])
   s.add_argument('--version', help='the release, YYYYMMDD.HHMM (default for '
                  'version-code and prepare: now)')
   s.add_argument('--aab', help='upload: an app bundle signed with the upload '
                  'key (default: the release build\'s, signed here)')
-  s.add_argument('--track', default='internal',
-                 help='upload: internal, alpha (closed testing), beta (open '
-                 'testing), production or a closed track\'s name (default: '
-                 '%(default)s: test builds go to testers; stable releases '
-                 'name production)')
+  s.add_argument('--channel', choices=sorted(play.CHANNEL_TRACKS),
+                 help='upload, promote: the Compass channel, as its track '
+                 '(canary: internal, beta: alpha, stable: production; '
+                 'default for upload: canary)')
+  s.add_argument('--track',
+                 help='upload, promote: a track by name instead: internal, '
+                 'alpha (closed testing), beta (open testing), production or '
+                 'a closed track\'s name')
   s.add_argument('--status', default='completed', choices=play.STATUSES,
                  help='upload: the release\'s status (default: %(default)s; '
                  'an app never published takes only draft)')

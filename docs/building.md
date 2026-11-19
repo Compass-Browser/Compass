@@ -337,20 +337,31 @@ tools/compass play prepare --version $version    # the versionCode, in args.gn
 tools/compass build -c release --cpu android-arm64 compass_bundle compass_apk
 # update android/play/whatsnew-en-US.txt, then:
 
-# A test build: Play's internal testing (or --track alpha, closed testing),
-# and a GitHub prerelease.
+# A canary build: Play's internal testing, and a GitHub prerelease.
 tools/compass play upload --version $version
 tools/compass release publish-android $version
 
+# Up a channel later, without uploading again: beta is closed testing.
+tools/compass play promote --version $version --channel beta
+
 # A stable release: Play's production track, and GitHub's latest release.
-tools/compass play upload --version $version --track production
+tools/compass play upload --version $version --channel stable
 tools/compass release publish-android $version --channel stable
 
 tools/compass play status    # every track and its releases
 ```
 
+- **Channels and tracks.** Compass's channels are Play's tracks
+  (`play.CHANNEL_TRACKS`): **canary** is internal testing (the maintainer's
+  email list: instant, no review), **beta** closed testing (`alpha`, open to
+  anyone in its Google Group, which the website's Android card links to),
+  **stable** production. `play upload --channel` picks the track (canary by
+  default); `play promote --version V --channel C` puts a build Play has
+  already on another track, in one edit with no upload; and `release
+  promote` does that for the version's Android build too, on a machine with
+  the Play key (elsewhere it prints the `play promote` to run).
 - **Test or stable.** `play upload` goes to internal testing unless
-  `--track` names another track (`alpha` is the closed test, `beta` open
+  `--channel` or `--track` names another track (`alpha` is the closed test, `beta` open
   testing, `production` the store); a staged production rollout is
   `--status inProgress --user-fraction 0.1`. `release publish-android`
   makes a GitHub prerelease unless `--channel stable`, which also makes it

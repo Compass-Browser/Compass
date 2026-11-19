@@ -318,13 +318,74 @@ class ExplainTest(unittest.TestCase):
     self.assertEqual('Bad gateway', e.message)
 
 
+class ChannelTest(unittest.TestCase):
+
+  def test_tracks(self):
+    self.assertEqual(('internal', 'alpha', 'production'),
+                     tuple(play.track_for(c) for c in
+                           ('canary', 'beta', 'stable')))
+    with self.assertRaises(CommandError):
+      play.track_for('nightly')
+
+
+class PromoteTest(unittest.TestCase):
+
+  def setUp(self):
+    self.body = play.track_release('alpha', '20261114.1530', 1263181530,
+                                   'completed', [{'language': 'en-US',
+                                                  'text': 'New.'}])
+
+  def test_one_edit_without_an_upload(self):
+    api = FakePlay()
+    client = play.Client(lambda: 'tok', transport=api)
+    play.promote(client, self.body, log=lambda _: None)
+    self.assertEqual([
+        ('POST', 'it.cipi1965.compass/edits'),
+        ('PUT', 'it.cipi1965.compass/edits/e1/tracks/alpha'),
+        ('POST', 'it.cipi1965.compass/edits/e1:commit'),
+    ], api.calls)
+    self.assertEqual(self.body, api.track)
+
+  def test_error_deletes_the_edit(self):
+    api = FakePlay(fail_on='/tracks/')
+    client = play.Client(lambda: 'tok', transport=api)
+    with self.assertRaises(play.ApiError):
+      play.promote(client, self.body, log=lambda _: None)
+    self.assertEqual(('DELETE', 'it.cipi1965.compass/edits/e1'), api.calls[-1])
+
+
 class CliTest(unittest.TestCase):
 
   def test_parses(self):
     args = parser().parse_args(['play', 'upload', '--aab', 'x.aab',
                                 '--version', '20261114.1530'])
-    self.assertEqual(('upload', 'internal', 'completed'),
-                     (args.action, args.track, args.status))
+    # No track or channel: canary's track, internal (cmd_play).
+    self.assertEqual(('upload', None, None, 'completed'),
+                     (args.action, args.track, args.channel, args.status))
+    args = parser().parse_args(['play', 'promote', '--version',
+                                '20261114.1530', '--channel', 'beta'])
+    self.assertEqual(('promote', 'beta'), (args.action, args.channel))
+
+  def test_dry_run_uses_the_channels_track(self):
+    work = Path(tempfile.mkdtemp())
+    self.addCleanup(shutil.rmtree, work)
+    aab = work / 'Compass.aab'
+    aab.write_bytes(b'PK')
+    for extra, track in (([], 'internal'), (['--channel', 'beta'], 'alpha'),
+                         (['--channel', 'beta', '--track', 'qa'], 'qa')):
+      out = io.StringIO()
+      with contextlib.redirect_stdout(out):
+        main(['play', 'upload', '--aab', str(aab), '--version',
+              '20261114.1530', '--dry-run', '--credentials',
+              str(work / 'none.json')] + extra)
+      self.assertIn('"track": "%s"' % track, out.getvalue())
+
+  def test_promote_needs_a_channel(self):
+    err = io.StringIO()
+    with contextlib.redirect_stderr(err):
+      code = main(['play', 'promote', '--version', '20261114.1530'])
+    self.assertEqual(1, code)
+    self.assertIn('--channel', err.getvalue())
 
   def test_dry_run_sends_nothing(self):
     work = Path(tempfile.mkdtemp())
