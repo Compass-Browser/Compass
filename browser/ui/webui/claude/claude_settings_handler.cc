@@ -18,6 +18,7 @@
 #include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_paths_internal.h"
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_client.h"
 #include "compass/browser/claude/claude_credentials.h"
 #include "compass/browser/claude/claude_memory.h"
@@ -130,9 +131,25 @@ void ClaudeSettingsHandler::SetLoaderFactoryForTesting(
 
 void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   const PrefService* prefs = profile_->GetPrefs();
+  const AIProvider provider = prefs::CurrentProvider(*prefs);
+  // The provider's own setting of |name| (its key, base URL, models).
+  const auto current = [prefs](const char* name) {
+    return prefs->GetString(prefs::CurrentPref(*prefs, name));
+  };
   auto state = mojom::SettingsState::New();
-  state->backend = prefs->GetInteger(prefs::kBackend) ==
-                           static_cast<int>(Backend::kClaudeCode)
+  state->provider = std::string(ProviderId(provider));
+  for (AIProvider choice : kAllProviders) {
+    state->providers.push_back(
+        mojom::Provider::New(std::string(ProviderId(choice)),
+                             std::string(ProviderDisplayName(choice))));
+  }
+  state->privacy_note = std::string(PrivacyNote(provider));
+  state->key_placeholder = std::string(KeyPlaceholder(provider));
+  state->default_base_url = std::string(DefaultBaseUrl(provider));
+  // Claude Code is Claude's: another provider's chat runs on its API.
+  state->backend = provider == AIProvider::kAnthropic &&
+                           prefs->GetInteger(prefs::kBackend) ==
+                               static_cast<int>(Backend::kClaudeCode)
                        ? mojom::Backend::kClaudeCode
                        : mojom::Backend::kApiKey;
   state->claude_code_path = prefs->GetString(prefs::kClaudeCodePath);
@@ -141,9 +158,10 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
 #endif
   state->has_key = ClaudeCredentials::HasApiKey(profile_);
   state->key_hint = ClaudeCredentials::GetApiKeyHint(profile_);
-  state->base_url = prefs->GetString(prefs::kBaseUrl);
+  state->set_up = ClaudeCredentials::IsSetUp(*prefs);
+  state->base_url = current(prefs::kBaseUrl);
   state->auth_style = ToMojo(EndpointFromPrefs(*prefs).auth_style);
-  state->model = prefs->GetString(prefs::kModel);
+  state->model = current(prefs::kModel);
   state->browser_scope = prefs->GetBoolean(prefs::kBrowserScope);
   state->accept_token_risks = prefs->GetBoolean(prefs::kAcceptTokenRisks);
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN)
@@ -172,21 +190,26 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->boosts = prefs->GetBoolean(prefs::kBoosts);
   state->sidebar_supported = ClaudeQuick::Get(profile_) != nullptr;
   state->name_link_folders = prefs->GetBoolean(prefs::kNameLinkFolders);
-  state->name_link_folders_model =
-      prefs->GetString(prefs::kNameLinkFoldersModel);
+  state->name_link_folders_model = current(prefs::kNameLinkFoldersModel);
   state->tidy_today = prefs->GetBoolean(prefs::kTidyToday);
-  state->tidy_today_model = prefs->GetString(prefs::kTidyTodayModel);
+  state->tidy_today_model = current(prefs::kTidyTodayModel);
   state->short_tab_titles = prefs->GetBoolean(prefs::kShortTabTitles);
-  state->short_tab_titles_model =
-      prefs->GetString(prefs::kShortTabTitlesModel);
+  state->short_tab_titles_model = current(prefs::kShortTabTitlesModel);
   state->command_bar_ask = prefs->GetBoolean(prefs::kCommandBarAsk);
-  state->command_bar_ask_model = prefs->GetString(prefs::kCommandBarAskModel);
+  state->command_bar_ask_model = current(prefs::kCommandBarAskModel);
   for (const base::Value& client : prefs->GetList(prefs::kMcpAllowedClients)) {
     if (client.is_string()) {
       state->mcp_allowed_clients.push_back(client.GetString());
     }
   }
   std::move(callback).Run(std::move(state));
+}
+
+void ClaudeSettingsHandler::SetProvider(const std::string& provider) {
+  if (const std::optional<AIProvider> parsed = ParseProvider(provider)) {
+    profile_->GetPrefs()->SetString(prefs::kProvider,
+                                    std::string(ProviderId(*parsed)));
+  }
 }
 
 void ClaudeSettingsHandler::SetApiKey(const std::string& key,
@@ -197,33 +220,38 @@ void ClaudeSettingsHandler::SetApiKey(const std::string& key,
 void ClaudeSettingsHandler::SetEndpoint(const std::string& base_url,
                                         mojom::AuthStyle auth_style,
                                         SetEndpointCallback callback) {
+  PrefService* prefs = profile_->GetPrefs();
+  const AIProvider provider = prefs::CurrentProvider(*prefs);
+  const std::string pref = prefs::ProviderPref(prefs::kBaseUrl, provider);
   const std::string_view trimmed =
       base::TrimWhitespaceASCII(base_url, base::TRIM_ALL);
-  std::optional<GURL> url = ParseBaseUrl(trimmed);
-  if (!url) {
-    std::move(callback).Run(false);
-    return;
+  // An OpenAI-compatible server has no URL of its own: empty clears it
+  // (there's no server until one is given) rather than being refused.
+  std::optional<GURL> url;
+  if (!trimmed.empty() || provider != AIProvider::kCompatible) {
+    url = ParseBaseUrl(trimmed, provider);
+    if (!url) {
+      std::move(callback).Run(false);
+      return;
+    }
   }
-  PrefService* prefs = profile_->GetPrefs();
-  // The Claude API is the default, kept as no URL.
-  if (trimmed.empty() || *url == GURL(kDefaultBaseUrl)) {
-    prefs->ClearPref(prefs::kBaseUrl);
+  // The provider's own API is the default, kept as no URL.
+  if (!url || trimmed.empty() || *url == GURL(DefaultBaseUrl(provider))) {
+    prefs->ClearPref(pref);
   } else {
-    prefs->SetString(prefs::kBaseUrl, url->spec());
+    prefs->SetString(pref, url->spec());
   }
-  prefs->SetInteger(prefs::kAuthStyle,
-                    static_cast<int>(FromMojo(auth_style)));
+  // The auth style is Anthropic's (gateways); another provider sends a
+  // bearer token.
+  if (provider == AIProvider::kAnthropic) {
+    prefs->SetInteger(prefs::kAuthStyle,
+                      static_cast<int>(FromMojo(auth_style)));
+  }
   std::move(callback).Run(true);
 }
 
 void ClaudeSettingsHandler::SetModel(const std::string& model) {
-  const std::string_view trimmed =
-      base::TrimWhitespaceASCII(model, base::TRIM_ALL);
-  if (trimmed.empty()) {
-    profile_->GetPrefs()->ClearPref(prefs::kModel);
-  } else {
-    profile_->GetPrefs()->SetString(prefs::kModel, std::string(trimmed));
-  }
+  SetProviderModel(prefs::kModel, model);
 }
 
 void ClaudeSettingsHandler::SetBackend(mojom::Backend backend) {
@@ -283,7 +311,7 @@ void ClaudeSettingsHandler::SetNameLinkFolders(bool enabled) {
 
 void ClaudeSettingsHandler::SetNameLinkFoldersModel(
     const std::string& model) {
-  SetFeatureModel(prefs::kNameLinkFoldersModel, model);
+  SetProviderModel(prefs::kNameLinkFoldersModel, model);
 }
 
 void ClaudeSettingsHandler::SetTidyToday(bool enabled) {
@@ -291,7 +319,7 @@ void ClaudeSettingsHandler::SetTidyToday(bool enabled) {
 }
 
 void ClaudeSettingsHandler::SetTidyTodayModel(const std::string& model) {
-  SetFeatureModel(prefs::kTidyTodayModel, model);
+  SetProviderModel(prefs::kTidyTodayModel, model);
 }
 
 void ClaudeSettingsHandler::SetShortTabTitles(bool enabled) {
@@ -299,7 +327,7 @@ void ClaudeSettingsHandler::SetShortTabTitles(bool enabled) {
 }
 
 void ClaudeSettingsHandler::SetShortTabTitlesModel(const std::string& model) {
-  SetFeatureModel(prefs::kShortTabTitlesModel, model);
+  SetProviderModel(prefs::kShortTabTitlesModel, model);
 }
 
 void ClaudeSettingsHandler::SetCommandBarAsk(bool enabled) {
@@ -307,11 +335,12 @@ void ClaudeSettingsHandler::SetCommandBarAsk(bool enabled) {
 }
 
 void ClaudeSettingsHandler::SetCommandBarAskModel(const std::string& model) {
-  SetFeatureModel(prefs::kCommandBarAskModel, model);
+  SetProviderModel(prefs::kCommandBarAskModel, model);
 }
 
-void ClaudeSettingsHandler::SetFeatureModel(const char* pref,
-                                            const std::string& model) {
+void ClaudeSettingsHandler::SetProviderModel(const char* name,
+                                             const std::string& model) {
+  const std::string pref = prefs::CurrentPref(*profile_->GetPrefs(), name);
   const std::string_view trimmed =
       base::TrimWhitespaceASCII(model, base::TRIM_ALL);
   if (trimmed.empty()) {
@@ -433,8 +462,10 @@ void ClaudeSettingsHandler::RemoveAllMemories() {
 
 void ClaudeSettingsHandler::TestConnection(TestConnectionCallback callback) {
   const PrefService* prefs = profile_->GetPrefs();
-  if (prefs->GetInteger(prefs::kBackend) ==
-      static_cast<int>(Backend::kClaudeCode)) {
+  // Claude Code mode is Anthropic's only.
+  if (prefs::CurrentProvider(*prefs) == AIProvider::kAnthropic &&
+      prefs->GetInteger(prefs::kBackend) ==
+          static_cast<int>(Backend::kClaudeCode)) {
     base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
         base::BindOnce(
@@ -461,10 +492,16 @@ void ClaudeSettingsHandler::OnKeyForTest(TestConnectionCallback callback,
                                          std::optional<std::string> key) {
   auto result = mojom::ConnectionResult::New();
   if (!key) {
-    result->error = ClaudeCredentials::HasApiKey(profile_)
-                        ? "The saved key can't be read any more. Enter it "
-                          "again."
-                        : "Enter an API key first.";
+    if (ClaudeCredentials::HasApiKey(profile_)) {
+      result->error =
+          "The saved key can't be read any more. Enter it again.";
+    } else if (prefs::CurrentProvider(*profile_->GetPrefs()) ==
+               AIProvider::kCompatible) {
+      // A key may not be needed, but the server's URL is.
+      result->error = "Enter the server's base URL first.";
+    } else {
+      result->error = "Enter an API key first.";
+    }
     std::move(callback).Run(std::move(result));
     return;
   }

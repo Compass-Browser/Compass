@@ -9,6 +9,8 @@
 # //compass/browser/prefs).
 source_set("prefs") {
   sources = [
+    "ai_provider.cc",
+    "ai_provider.h",
     "claude_prefs.cc",
     "claude_prefs.h",
   ]
@@ -83,6 +85,8 @@ source_set("claude") {
     "devtools_session.h",
     "key_events.cc",
     "key_events.h",
+    "openai_edge.cc",
+    "openai_edge.h",
     "page_reader.cc",
     "page_reader.h",
     "sse_parser.cc",
@@ -137,6 +141,7 @@ if (!is_android) {
       "claude_request_unittest.cc",
       "devtools_format_unittest.cc",
       "key_events_unittest.cc",
+      "openai_edge_unittest.cc",
       "sse_parser_unittest.cc",
     ]
     deps = [

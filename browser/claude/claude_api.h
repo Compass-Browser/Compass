@@ -10,6 +10,7 @@
 #include <string_view>
 #include <vector>
 
+#include "compass/browser/claude/ai_provider.h"
 #include "url/gurl.h"
 
 namespace net {
@@ -39,7 +40,8 @@ enum class AuthStyle {
 // `claude setup-token` prints (sk-ant-oat01-…).
 inline constexpr char kOAuthBeta[] = "oauth-2025-04-20";
 
-// Whether |key| is such a token, not an API key. With the user's
+// Whether |key| is such a token, not an API key (only Anthropic's endpoints
+// ever take it as one). With the user's
 // "Accept the risks of subscription tokens" (Endpoint::allow_oauth_token) it
 // goes as "Authorization: Bearer" with kOAuthBeta whatever the auth style
 // says; without, it isn't sent (NeedsTokenRisksAccepted()).
@@ -52,6 +54,10 @@ struct Endpoint {
   Endpoint& operator=(const Endpoint&);
   ~Endpoint();
 
+  // Who answers (docs/design/ai-providers.md): another provider than
+  // Anthropic gets its own paths and headers here, and its bodies and
+  // streams translated (openai_edge.h).
+  AIProvider provider = AIProvider::kAnthropic;
   GURL base_url;
   AuthStyle auth_style = AuthStyle::kApiKey;
   std::string api_key;
@@ -76,25 +82,37 @@ inline constexpr char kTokenRisksMessage[] =
 // The base URL the user typed, normalized: https (http only to this
 // computer, for local gateways and tests), no query or fragment, no trailing
 // slash. A path is kept, for gateways that serve the API under one. Empty
-// text means the Claude API. Null if it isn't such a URL.
-std::optional<GURL> ParseBaseUrl(std::string_view text);
+// text means |provider|'s own (DefaultBaseUrl()); none for kCompatible, which
+// needs one. Null if it isn't such a URL.
+std::optional<GURL> ParseBaseUrl(
+    std::string_view text,
+    AIProvider provider = AIProvider::kAnthropic);
 
 // |path| ("v1/messages") under |base_url|, after its own path.
 GURL EndpointUrl(const GURL& base_url, std::string_view path);
 
-// The headers every request carries: the version and the key (and, for an
+// The chat's path under the base URL: "v1/messages", "responses" (OpenAI)
+// or "chat/completions".
+std::string_view ChatPath(AIProvider provider);
+// The model list's URL ("v1/models?limit=100", or "models").
+GURL ModelsUrl(const Endpoint& endpoint);
+
+// The headers every request carries. Another provider: "Authorization:
+// Bearer <key>" (none without a key, for a local server), nothing else.
+// Anthropic: the version and the key (and, for an
 // OAuth token, kOAuthBeta; add the request's own betas with AddBetas()).
 void AddRequestHeaders(const Endpoint& endpoint,
                        net::HttpRequestHeaders& headers);
 
-// Sets "anthropic-beta" to |betas|, and kOAuthBeta too if |endpoint|'s key is
+// Anthropic only: sets "anthropic-beta" to |betas|, and kOAuthBeta too if |endpoint|'s key is
 // an OAuth token. Sets nothing if that comes to no beta.
 void AddBetas(const Endpoint& endpoint,
               const std::vector<std::string>& betas,
               net::HttpRequestHeaders& headers);
 
-// The endpoint the profile's settings describe (the key not included; it's
-// stored encrypted, see ClaudeCredentials).
+// The endpoint the profile's settings describe, for the provider they name
+// (the key not included; it's stored encrypted, see ClaudeCredentials). An
+// OpenAI-compatible server without a URL has an empty base_url.
 Endpoint EndpointFromPrefs(const PrefService& prefs);
 
 // How many cache_control breakpoints a chat request carries. A gateway (a
@@ -133,13 +151,21 @@ struct ModelInfo {
 };
 
 // The models in a GET /v1/models reply, as the API lists them (newest
-// first). Null if |json| isn't one.
-std::optional<std::vector<ModelInfo>> ParseModelList(std::string_view json);
+// first). Another provider's list is sorted by id; OpenAI's is cut to chat
+// models (no embeddings, audio, images, moderation, realtime...), Gemini's
+// ids lose "models/". Null if |json| isn't one.
+std::optional<std::vector<ModelInfo>> ParseModelList(
+    std::string_view json,
+    AIProvider provider = AIProvider::kAnthropic);
 
 // What went wrong, for the user: the API's own message for an error reply
 // ({"type": "error", "error": {"type": ..., "message": ...}}), otherwise
-// what the status means. |http_status| 0 is a network error.
-std::string DescribeError(int http_status, std::string_view body);
+// what the status means, in |provider|'s words ("The server is overloaded",
+// not "Claude is overloaded"). Gemini's [{"error": …}] too. |http_status| 0
+// is a network error.
+std::string DescribeError(int http_status,
+                          std::string_view body,
+                          AIProvider provider = AIProvider::kAnthropic);
 
 // What settings show of a saved key: its start and last four characters
 // ("sk-ant-…a1b2"), never the whole of it.

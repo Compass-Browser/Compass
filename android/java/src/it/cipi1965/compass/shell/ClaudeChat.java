@@ -139,6 +139,11 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
     }
 
     @Override
+    public void onSetProvider(String provider) {
+        mBridge.setProvider(provider);
+    }
+
+    @Override
     public void onUndoMemory(int undoId) {
         mBridge.undoMemory(undoId);
     }

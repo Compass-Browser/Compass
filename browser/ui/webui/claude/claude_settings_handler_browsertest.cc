@@ -15,6 +15,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "compass/browser/claude/claude_api.h"
+#include "compass/browser/claude/claude_code.h"
 #include "compass/browser/claude/claude_credentials.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "components/prefs/pref_service.h"
@@ -32,9 +33,18 @@ namespace {
 constexpr char kGoodKey[] = "sk-ant-api03-test-key-0000-1234";
 
 // A stand-in for the Claude API: GET /v1/models answers with two models to
-// kGoodKey, and with the API's error to any other.
+// kGoodKey, and with the API's error to any other. Under /compat, an
+// OpenAI-compatible server that takes no key: GET /compat/models lists one.
 std::unique_ptr<net::test_server::HttpResponse> FakeApi(
     const net::test_server::HttpRequest& request) {
+  if (request.relative_url == "/compat/models") {
+    auto response = std::make_unique<net::test_server::BasicHttpResponse>();
+    response->set_content_type("application/json");
+    response->set_code(net::HTTP_OK);
+    response->set_content(
+        R"({"object": "list", "data": [{"id": "llama-4", "object": "model"}]})");
+    return response;
+  }
   if (!base::StartsWith(request.relative_url, "/v1/models")) {
     return nullptr;
   }
@@ -254,6 +264,143 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, EndpointRules) {
   state = State();
   EXPECT_EQ(state->model, "claude-haiku-5-5");
   EXPECT_TRUE(state->browser_scope);
+}
+
+// Other AI providers (docs/design/ai-providers.md, "Settings"): each keeps
+// its own key, base URL and models, under its own pref names; Anthropic's
+// are the names they always had.
+IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest,
+                       ProvidersKeepTheirOwnKeysAndModels) {
+  mojom::SettingsStatePtr state = State();
+  EXPECT_EQ(state->provider, "anthropic");
+  ASSERT_EQ(state->providers.size(), 4u);
+  EXPECT_EQ(state->providers[2]->id, "gemini");
+  EXPECT_EQ(state->providers[2]->display_name, "Google Gemini");
+  ASSERT_TRUE(SetKey(kGoodKey));
+  const std::string anthropic_key = prefs()->GetString(prefs::kApiKey);
+  ASSERT_FALSE(anthropic_key.empty());
+
+  remote_->SetProvider("openai");
+  state = State();
+  EXPECT_EQ(state->provider, "openai");
+  EXPECT_EQ(prefs()->GetString(prefs::kProvider), "openai");
+  // Anthropic's key isn't OpenAI's.
+  EXPECT_FALSE(state->has_key);
+  EXPECT_FALSE(state->set_up);
+  EXPECT_EQ(state->key_placeholder, "sk-…");
+  EXPECT_EQ(state->default_base_url, "https://api.openai.com/v1");
+  EXPECT_EQ(state->model, "gpt-6.1-terra");
+  EXPECT_EQ(state->name_link_folders_model, "gpt-6-luna");
+  EXPECT_EQ(state->command_bar_ask_model, "gpt-6-luna");
+
+  ASSERT_TRUE(SetKey("sk-proj-openai-test-key-5678"));
+  state = State();
+  EXPECT_TRUE(state->has_key);
+  EXPECT_TRUE(state->set_up);
+  EXPECT_TRUE(base::EndsWith(state->key_hint, "5678"));
+  EXPECT_FALSE(prefs()->GetString("compass.claude.api_key.openai").empty());
+  EXPECT_EQ(prefs()->GetString(prefs::kApiKey), anthropic_key);
+  base::test::TestFuture<std::optional<std::string>> key;
+  ClaudeCredentials::GetApiKey(browser()->GetProfile(), key.GetCallback());
+  EXPECT_EQ(key.Get(), "sk-proj-openai-test-key-5678");
+
+  // The setters write OpenAI's prefs, and leave Anthropic's alone.
+  remote_->SetModel("gpt-6.2-sol");
+  remote_->SetNameLinkFoldersModel("gpt-6.2-astra");
+  remote_->SetTidyTodayModel(" gpt-6.2-sol ");
+  remote_->SetShortTabTitlesModel("gpt-6.1-terra");
+  remote_->SetCommandBarAskModel("gpt-6.2-astra");
+  state = State();
+  EXPECT_EQ(state->model, "gpt-6.2-sol");
+  EXPECT_EQ(prefs()->GetString("compass.claude.model.openai"), "gpt-6.2-sol");
+  EXPECT_EQ(prefs()->GetString("compass.claude.name_link_folders_model.openai"),
+            "gpt-6.2-astra");
+  EXPECT_EQ(prefs()->GetString("compass.claude.tidy_today_model.openai"),
+            "gpt-6.2-sol");
+  EXPECT_EQ(prefs()->GetString("compass.claude.short_tab_titles_model.openai"),
+            "gpt-6.1-terra");
+  EXPECT_EQ(prefs()->GetString("compass.claude.command_bar_ask_model.openai"),
+            "gpt-6.2-astra");
+  EXPECT_EQ(prefs()->GetString(prefs::kModel), kDefaultModel);
+  EXPECT_EQ(prefs()->GetString(prefs::kNameLinkFoldersModel),
+            "claude-haiku-5-5");
+  EXPECT_EQ(prefs()->GetString(prefs::kTidyTodayModel), "claude-haiku-5-5");
+  EXPECT_EQ(prefs()->GetString(prefs::kShortTabTitlesModel),
+            "claude-haiku-5-5");
+  EXPECT_EQ(prefs()->GetString(prefs::kCommandBarAskModel),
+            prefs::kDefaultAskModel);
+  // Empty goes back to OpenAI's default.
+  remote_->SetTidyTodayModel("");
+  EXPECT_EQ(State()->tidy_today_model, "gpt-6-luna");
+
+  // OpenAI's own API is kept as no URL; its auth style isn't Anthropic's.
+  EXPECT_TRUE(SetEndpoint("https://api.openai.com/v1/",
+                          mojom::AuthStyle::kBearer));
+  EXPECT_EQ(State()->base_url, "");
+  EXPECT_EQ(prefs()->GetInteger(prefs::kAuthStyle),
+            static_cast<int>(AuthStyle::kApiKey));
+  EXPECT_TRUE(SetEndpoint("https://proxy.example.com/openai/v1"));
+  EXPECT_EQ(State()->base_url, "https://proxy.example.com/openai/v1");
+  EXPECT_EQ(prefs()->GetString("compass.claude.base_url.openai"),
+            "https://proxy.example.com/openai/v1");
+  EXPECT_EQ(prefs()->GetString(prefs::kBaseUrl), "");
+
+  // An unknown provider changes nothing.
+  remote_->SetProvider("mistral");
+  EXPECT_EQ(State()->provider, "openai");
+
+  // Back to Anthropic: its key and models as they were.
+  remote_->SetProvider("anthropic");
+  state = State();
+  EXPECT_TRUE(state->has_key);
+  EXPECT_EQ(state->key_hint, "sk-ant-…1234");
+  EXPECT_EQ(state->model, kDefaultModel);
+  EXPECT_EQ(state->tidy_today_model, "claude-haiku-5-5");
+  EXPECT_EQ(state->base_url, "");
+  base::test::TestFuture<std::optional<std::string>> anthropic;
+  ClaudeCredentials::GetApiKey(browser()->GetProfile(),
+                               anthropic.GetCallback());
+  EXPECT_EQ(anthropic.Get(), kGoodKey);
+}
+
+// An OpenAI-compatible server: set up by its URL alone (a key is optional),
+// its model typed, its features' models the chat's by default; Claude Code
+// mode doesn't apply.
+IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, CompatibleServer) {
+  prefs()->SetInteger(prefs::kBackend, static_cast<int>(Backend::kClaudeCode));
+  EXPECT_EQ(State()->backend, mojom::Backend::kClaudeCode);
+  remote_->SetProvider("compatible");
+  mojom::SettingsStatePtr state = State();
+  EXPECT_EQ(state->backend, mojom::Backend::kApiKey);
+  EXPECT_FALSE(state->set_up);
+  EXPECT_EQ(state->default_base_url, "");
+  EXPECT_EQ(state->model, "");
+  EXPECT_EQ(state->name_link_folders_model, "");
+  mojom::ConnectionResultPtr result = Test();
+  EXPECT_FALSE(result->ok);
+  EXPECT_EQ(result->error, "Enter the server's base URL first.");
+
+  EXPECT_FALSE(SetEndpoint("http://gateway.example.com/v1"));
+  const std::string url = embedded_test_server()->GetURL("/compat").spec();
+  ASSERT_TRUE(SetEndpoint(url));
+  state = State();
+  EXPECT_TRUE(state->set_up);
+  EXPECT_FALSE(state->has_key);
+  EXPECT_EQ(prefs()->GetString("compass.claude.base_url.compatible"),
+            state->base_url);
+  EXPECT_EQ(prefs()->GetString(prefs::kBaseUrl), "");
+  result = Test();
+  ASSERT_TRUE(result->ok) << result->error;
+  ASSERT_EQ(result->models.size(), 1u);
+  EXPECT_EQ(result->models[0]->id, "llama-4");
+
+  remote_->SetModel("llama-4");
+  EXPECT_EQ(prefs()->GetString("compass.claude.model.compatible"), "llama-4");
+  EXPECT_EQ(prefs()->GetString(prefs::kModel), kDefaultModel);
+
+  // Empty is no server, not a bad URL.
+  EXPECT_TRUE(SetEndpoint(""));
+  EXPECT_FALSE(State()->set_up);
 }
 
 }  // namespace

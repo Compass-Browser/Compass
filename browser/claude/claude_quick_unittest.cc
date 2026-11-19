@@ -17,6 +17,7 @@
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/claude/claude_request.h"
 #include "components/prefs/testing_pref_service.h"
@@ -538,6 +539,99 @@ TEST_F(ClaudeQuickTest, StreamsAnswers) {
   EXPECT_EQ(*(*content)[0].GetDict().FindString("text"),
             "I'm looking at a page titled \"Fox page\" on fox.test.\n\n"
             "what is a fox?");
+}
+
+// docs/design/ai-providers.md: the sidebar's requests on Gemini go as Chat
+// Completions, with its key, its sidebar model and a JSON reply asked for;
+// the streamed chunks come back as the reply's text.
+TEST_F(ClaudeQuickTest, OnGemini) {
+  prefs_.SetString(prefs::kProvider, "gemini");
+  prefs_.SetString(prefs::ProviderPref(prefs::kApiKey, AIProvider::kGemini),
+                   "encrypted");
+  key_ = "AIza-test";
+  constexpr char kUrl[] =
+      "https://generativelanguage.googleapis.com/v1beta/openai/"
+      "chat/completions";
+  factory_.AddResponse(
+      kUrl,
+      "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\","
+      "\"content\":\"{\\\"name\\\": \"}}]}\n\n"
+      "data: {\"choices\":[{\"delta\":{\"content\":\"\\\"Rust Async\\\"}\"},"
+      "\"finish_reason\":\"stop\"}]}\n\n"
+      "data: [DONE]\n\n");
+  QuickRequest request;
+  request.feature_pref = prefs::kNameLinkFolders;
+  request.model = prefs_.GetString(
+      prefs::CurrentPref(prefs_, prefs::kNameLinkFoldersModel));
+  ClaudeQuick::Result result = Ask(request);
+  ASSERT_TRUE(result.has_value()) << static_cast<int>(result.error());
+  EXPECT_EQ(*result->FindString("name"), "Rust Async");
+
+  ASSERT_EQ(requests_.size(), 1u);
+  EXPECT_EQ(requests_[0].url, GURL(kUrl));
+  EXPECT_EQ(requests_[0].headers.GetHeader("Authorization"),
+            "Bearer AIza-test");
+  EXPECT_FALSE(requests_[0].headers.HasHeader("x-api-key"));
+  base::DictValue body = LastBody();
+  EXPECT_EQ(*body.FindString("model"), "gemini-2.5-flash");
+  EXPECT_EQ(*body.FindStringByDottedPath("response_format.type"),
+            "json_object");
+  EXPECT_EQ(*body.FindString("reasoning_effort"), "low");
+  EXPECT_FALSE(body.Find("max_tokens"));
+  EXPECT_FALSE(body.Find("cache_control"));
+  EXPECT_FALSE(body.Find("system"));
+}
+
+// On OpenAI: the Responses API, Luna by default.
+TEST_F(ClaudeQuickTest, OnOpenAI) {
+  prefs_.SetString(prefs::kProvider, "openai");
+  prefs_.SetString(prefs::ProviderPref(prefs::kApiKey, AIProvider::kOpenAI),
+                   "encrypted");
+  key_ = "sk-test";
+  constexpr char kUrl[] = "https://api.openai.com/v1/responses";
+  factory_.AddResponse(
+      kUrl,
+      "event: response.output_text.delta\n"
+      "data: {\"type\":\"response.output_text.delta\",\"output_index\":0,"
+      "\"delta\":\"{\\\"name\\\": \\\"Rust Async\\\"}\"}\n\n"
+      "event: response.completed\n"
+      "data: {\"type\":\"response.completed\",\"response\":"
+      "{\"status\":\"completed\"}}\n\n");
+  ClaudeQuick::Result result = Ask();
+  ASSERT_TRUE(result.has_value()) << static_cast<int>(result.error());
+  EXPECT_EQ(*result->FindString("name"), "Rust Async");
+  base::DictValue body = LastBody();
+  EXPECT_EQ(*body.FindString("model"), "gpt-6-luna");
+  EXPECT_EQ(*body.FindStringByDottedPath("reasoning.effort"), "low");
+  EXPECT_EQ(*body.FindStringByDottedPath("text.format.type"), "json_object");
+  EXPECT_EQ(body.FindBool("store"), false);
+}
+
+// An OpenAI-compatible server may take no key, and its sidebar requests use
+// the chat's model.
+TEST_F(ClaudeQuickTest, OnCompatibleServerWithoutKey) {
+  prefs_.SetString(prefs::kProvider, "compatible");
+  EXPECT_FALSE(quick_->IsSetUp());
+  prefs_.SetString(
+      prefs::ProviderPref(prefs::kBaseUrl, AIProvider::kCompatible),
+      "http://localhost:11434/v1");
+  prefs_.SetString(prefs::ProviderPref(prefs::kModel, AIProvider::kCompatible),
+                   "llama4");
+  EXPECT_TRUE(quick_->IsSetUp());
+  key_.clear();
+  constexpr char kUrl[] = "http://localhost:11434/v1/chat/completions";
+  factory_.AddResponse(
+      kUrl,
+      "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"name\\\": "
+      "\\\"Rust\\\"}\"},\"finish_reason\":\"stop\"}]}\n\n"
+      "data: [DONE]\n\n");
+  ClaudeQuick::Result result = Ask();
+  ASSERT_TRUE(result.has_value()) << static_cast<int>(result.error());
+  EXPECT_EQ(*result->FindString("name"), "Rust");
+  EXPECT_FALSE(requests_.back().headers.HasHeader("Authorization"));
+  base::DictValue body = LastBody();
+  EXPECT_EQ(*body.FindString("model"), "llama4");
+  EXPECT_FALSE(body.Find("response_format"));
 }
 
 // Nothing is sent with the switch off; a cancelled answer calls nothing.

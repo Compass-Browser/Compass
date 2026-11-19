@@ -51,6 +51,7 @@
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/claude/claude_quick.h"
 #include "compass/browser/sidebar/closed_entries.h"
@@ -344,7 +345,9 @@ SidebarPageHandler::SidebarPageHandler(
           &SidebarPageHandler::SendTidyState, base::Unretained(this),
           /*force=*/false);
       tidy_prefs_.Add(claude::prefs::kTidyToday, send);
-      tidy_prefs_.Add(claude::prefs::kApiKey, send);
+      claude::prefs::ObserveProviderPrefs(
+          tidy_prefs_, {claude::prefs::kApiKey, claude::prefs::kBaseUrl},
+          send);
     }
   }
   if (page_contents_) {

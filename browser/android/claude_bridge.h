@@ -21,6 +21,7 @@
 #include "base/scoped_observation.h"
 #include "base/types/expected.h"
 #include "base/values.h"
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/claude/claude_tools.h"
@@ -28,6 +29,7 @@
 #include "compass/browser/android/claude_tabs_android.h"
 #include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/claude/sse_parser.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "url/gurl.h"
 
 class Profile;
@@ -67,10 +69,15 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer,
   // used, and "memory", for a change to its memory: "kind" "saved",
   // "updated" or "forgot", the text, its "undo" id and whether it was
   // "undone"), whether a reply streams, the last error, whether there's a
-  // key, whether Claude may use the whole browser, the model in use, and
+  // key ("has_key", "key_hint") and whether the chat can ask ("set_up"),
+  // the provider (docs/design/ai-providers.md: "provider", the "providers"
+  // to pick from, id and name, its "key_placeholder", "default_base_url", "privacy_note" and
+  // "known_models", id and name; none for Anthropic, whose list the sheet
+  // keeps), whether Claude may use the whole browser, the model in use, and
   // the memory: "memory_enabled", "memory_save" and the "memories" (id,
   // text; oldest first), and Claude in the sidebar's "features" (key, on,
-  // model), as JSON.
+  // model; empty is the chat's), as JSON. The key, server and models are
+  // the provider's.
   std::string Snapshot(JNIEnv* env);
   void SetApiKey(JNIEnv* env, const std::string& key);
   // "Let Claude use the whole browser" (the desktop's setting).
@@ -82,9 +89,12 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer,
             content::WebContents* contents);
   void Stop(JNIEnv* env);
   void Clear(JNIEnv* env);
-  // The model the next reply uses (the desktop's compass.claude.model; empty:
-  // the default).
+  // The model the next reply uses (the desktop's compass.claude.model, or
+  // the provider's variant; empty: the default).
   void SetModel(JNIEnv* env, const std::string& model);
+  // Who answers: a claude::ProviderId() ("anthropic", "openai", "gemini",
+  // "compatible"). Each provider keeps its own key, server and models.
+  void SetProvider(JNIEnv* env, const std::string& provider);
 
   // Claude in the sidebar (docs/design/ai-sidebar.md): a feature's switch and
   // its model, by the feature's key ("name_link_folders", "tidy_today",
@@ -112,9 +122,10 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer,
   void RemoveMemory(JNIEnv* env, const std::string& id);
   void RemoveAllMemories(JNIEnv* env);
 
-  // The endpoint (docs/design/claude.md, "Settings"): a base URL (empty for
-  // the Claude API) and how the key is sent (claude::AuthStyle). False, with
-  // the error in the snapshot, for a URL ParseBaseUrl() refuses.
+  // The endpoint (docs/design/claude.md, "Settings"), the provider's: a base
+  // URL (empty for its own server; for a compatible server, none) and, for
+  // Anthropic, how the key is sent (claude::AuthStyle). False, with the
+  // error in the snapshot, for a URL ParseBaseUrl() refuses.
   bool SetEndpoint(JNIEnv* env, const std::string& base_url, int32_t auth_style);
   // Test Connection: the key and endpoint, through the model list (the
   // snapshot's "testing", "test_ok", "test_result" and "api_models").
@@ -256,6 +267,8 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer,
   // its own) refused them (claude::CacheLevelFor()). |stepped_down_|: the
   // level that gets through is remembered.
   GURL base_url_;
+  // Who answers the chat's requests (the endpoint's when the question went).
+  claude::AIProvider provider_ = claude::AIProvider::kAnthropic;
   claude::CacheLevel cache_level_ = claude::CacheLevel::kNormal;
   bool stepped_down_ = false;
   // The key is a subscription token the user accepted the risks of: it goes
@@ -301,6 +314,8 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer,
   // The latest screenshots, by tool_use id.
   std::map<std::string, std::string> images_;
   std::vector<std::string> image_order_;
+  // The provider and its key, base URL and chat model.
+  PrefChangeRegistrar prefs_;
   base::ScopedObservation<claude::ClaudeMemory, claude::ClaudeMemory::Observer>
       memory_observation_{this};
   base::ScopedObservation<boosts::BoostStore, boosts::BoostStore::Observer>

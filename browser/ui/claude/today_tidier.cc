@@ -15,6 +15,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/ui/claude/sidebar_spaces.h"
 #include "components/prefs/pref_service.h"
@@ -142,8 +143,9 @@ void TodayTidier::Tidy(SpaceModel& space) {
   }
   claude::QuickRequest request;
   request.feature_pref = claude::prefs::kTidyToday;
-  request.model =
-      profile_->GetPrefs()->GetString(claude::prefs::kTidyTodayModel);
+  const PrefService& prefs = *profile_->GetPrefs();
+  request.model = prefs.GetString(
+      claude::prefs::CurrentPref(prefs, claude::prefs::kTidyTodayModel));
   request.system = claude::SidebarPrompt(
       "tidy_today", g_browser_process->GetApplicationLocale());
   request.user = DescribeEntries(entries);

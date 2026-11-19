@@ -29,7 +29,28 @@ enum FilesAccess {
   kFolder,
 };
 
+// A provider the picker offers (compass::claude::AIProvider).
+struct Provider {
+  // "anthropic", "openai", "gemini", "compatible" (ProviderId()).
+  string id;
+  // "Google Gemini" (ProviderDisplayName()).
+  string display_name;
+};
+
 struct SettingsState {
+  // Who answers (docs/design/ai-providers.md): the key, the base URL and
+  // the models below are this provider's; each keeps its own.
+  string provider;
+  // The picker's choices, Anthropic first.
+  array<Provider> providers;
+  // Where what's sent goes, for under the picker (PrivacyNote()).
+  string privacy_note;
+  // What the provider's key looks like ("sk-…"), for the key field.
+  string key_placeholder;
+  // The provider's own base URL, used when base_url is empty; empty for an
+  // OpenAI-compatible server, which needs one.
+  string default_base_url;
+  // kApiKey whenever the provider isn't Anthropic: Claude Code is Claude's.
   Backend backend;
   // Claude Code's path as set; empty to look in the usual places.
   string claude_code_path;
@@ -39,7 +60,10 @@ struct SettingsState {
   bool has_key;
   // "sk-ant-…a1b2" while a key is saved.
   string key_hint;
-  // Empty for the Claude API.
+  // Requests can go: a key is saved, or an OpenAI-compatible server's URL
+  // is (which may need no key). The sidebar's switches need it.
+  bool set_up;
+  // Empty for the provider's own API (default_base_url).
   string base_url;
   AuthStyle auth_style;
   string model;
@@ -74,10 +98,11 @@ struct SettingsState {
   bool boosts;
   // Claude in the sidebar (docs/design/ai-sidebar.md): false where the
   // profile can't use it (Guest). Each feature has its own switch, which
-  // needs a saved key (has_key). "Name Link Folders":
+  // needs the provider set up (set_up). "Name Link Folders":
   bool sidebar_supported;
   bool name_link_folders;
-  // The model it asks (each feature has its own).
+  // The model it asks (each feature has its own); empty, with an
+  // OpenAI-compatible server, is the chat's.
   string name_link_folders_model;
   // "Tidy Today", and its model.
   bool tidy_today;
@@ -115,11 +140,16 @@ struct ConnectionResult {
 // "Settings".
 interface SettingsHandler {
   GetState() => (SettingsState state);
+  // Picks who answers (a Provider's id; another is ignored). The state read
+  // next is the new provider's.
+  SetProvider(string provider);
   // Saves |key|, encrypted; an empty one removes the saved key. |saved| is
   // false when the OS's storage refused it.
   SetApiKey(string key) => (bool saved);
   // |ok| is false, and nothing changes, if |base_url| isn't https (or http to
-  // this computer).
+  // this computer). Empty is the provider's own API, or, for an
+  // OpenAI-compatible server, no server yet. |auth_style| is Anthropic's
+  // only; another provider's is left as it was.
   SetEndpoint(string base_url, AuthStyle auth_style) => (bool ok);
   SetModel(string model);
   SetBackend(Backend backend);
@@ -139,8 +169,8 @@ interface SettingsHandler {
   UpdateMemory(string id, string text) => (string error);
   RemoveMemory(string id);
   RemoveAllMemories();
-  // Lists the models with the saved key and endpoint; in Claude Code mode,
-  // finds Claude Code and says whether it's signed in.
+  // Lists the models with the saved key and endpoint; in Claude Code mode
+  // (Anthropic only), finds Claude Code and says whether it's signed in.
   TestConnection() => (ConnectionResult result);
   SetFilesAccess(FilesAccess access);
   // Shows the system's folder picker; |folder| is the one chosen and saved,
@@ -152,7 +182,8 @@ interface SettingsHandler {
   SetDevTools(bool enabled);
   SetBoosts(bool enabled);
   SetNameLinkFolders(bool enabled);
-  // Empty goes back to the default (Claude Haiku).
+  // Empty goes back to the provider's default (Claude Haiku; the chat's
+  // model for an OpenAI-compatible server). The same for the others.
   SetNameLinkFoldersModel(string model);
   SetTidyToday(bool enabled);
   // Empty goes back to the default (Claude Haiku).

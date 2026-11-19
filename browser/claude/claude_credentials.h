@@ -10,11 +10,13 @@
 
 #include "base/functional/callback_forward.h"
 
+class PrefService;
 class Profile;
 
 namespace compass::claude {
 
-// A profile's API key. It's stored encrypted with the OS's safe storage
+// A profile's API key, for the provider in use (each provider keeps its own:
+// prefs::ProviderPref(), docs/design/ai-providers.md). It's stored encrypted with the OS's safe storage
 // (os_crypt_async: the "Compass Safe Storage" Keychain item on macOS) in the
 // profile's prefs, and only the browser process ever reads it: pages get
 // KeyHint() at most. See docs/design/claude.md, "Settings".
@@ -27,12 +29,17 @@ class ClaudeCredentials {
                         base::OnceCallback<void(bool)> callback);
 
   // The saved key, or null if none is saved or it can't be decrypted (the
-  // OS's storage was reset).
+  // OS's storage was reset). An empty key for an OpenAI-compatible server set
+  // up without one.
   static void GetApiKey(
       Profile* profile,
       base::OnceCallback<void(std::optional<std::string>)> callback);
 
   static bool HasApiKey(Profile* profile);
+  // Whether requests can go: a key saved, or an OpenAI-compatible server's
+  // URL (which may need no key).
+  static bool IsSetUp(Profile* profile);
+  static bool IsSetUp(const PrefService& prefs);
   // KeyHint() of the saved key; empty if none.
   static std::string GetApiKeyHint(Profile* profile);
 };

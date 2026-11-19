@@ -76,6 +76,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -133,7 +134,12 @@ object ClaudeChatUi {
         /** The model the next reply uses (the model menu). */
         fun onSetModel(model: String)
 
-        /** The endpoint: base URL ("" for the Claude API) and how the key is sent. */
+        /**
+         * Who answers: "anthropic", "openai", "gemini" or "compatible" (docs/design/ai-providers.md).
+         */
+        fun onSetProvider(provider: String)
+
+        /** The provider's endpoint: base URL ("" for its own server) and how the key is sent. */
         fun onSetEndpoint(baseUrl: String, authStyle: Int)
 
         /** Test Connection: lists the models the key can use. */
@@ -277,14 +283,28 @@ private val KNOWN_MODELS =
         "claude-fable-5-1" to "Claude Fable 5.1",
     )
 
-private fun modelName(id: String, more: List<Pair<String, String>> = emptyList()): String =
-    (KNOWN_MODELS + more).firstOrNull { it.first == id }?.second?.takeIf { it.isNotEmpty() } ?: id
+/** The provider's known models: Anthropic's from the list above, another's from the bridge. */
+private val ClaudeChatState.known: List<Pair<String, String>>
+    get() = if (provider == "anthropic") KNOWN_MODELS else knownModels
 
-/** The known models, then the endpoint's (Test Connection), then |current| if it's another. */
-private fun modelChoices(current: String, apiModels: List<Pair<String, String>>): List<Pair<String, String>> {
-    val list = KNOWN_MODELS.toMutableList()
-    for ((id, name) in apiModels) if (list.none { it.first == id }) list.add(id to name.ifEmpty { id })
+/** The provider's name, as the settings' picker shows it. */
+private val ClaudeChatState.providerName: String
+    get() = providers.firstOrNull { it.first == provider }?.second ?: "Anthropic"
+
+private fun modelName(id: String, models: List<Pair<String, String>>): String =
+    if (id.isEmpty()) "Same as chat"
+    else models.firstOrNull { it.first == id }?.second?.takeIf { it.isNotEmpty() } ?: id
+
+/**
+ * The provider's known models, then the endpoint's (Test Connection), then |current| if it's
+ * another; "Same as chat" first where empty means the chat's model (a sidebar feature with a
+ * compatible server).
+ */
+private fun modelChoices(state: ClaudeChatState, current: String, sameAsChat: Boolean = false): List<Pair<String, String>> {
+    val list = state.known.toMutableList()
+    for ((id, name) in state.apiModels) if (list.none { it.first == id }) list.add(id to name.ifEmpty { id })
     if (current.isNotEmpty() && list.none { it.first == current }) list.add(current to current)
+    if (sameAsChat) list.add(0, "" to "Same as chat")
     return list
 }
 
@@ -316,7 +336,7 @@ private fun ClaudeSheet(state: ClaudeChatState, listener: ClaudeChatUi.Listener)
             "boosts" -> BoostsPage(state, listener) { page = "" }
             else -> {
                 Header(state, listener, tall, onTall = { tall = !tall }, onPage = { page = it })
-                if (!state.hasKey) KeyEntry(state, listener) else Chat(state, listener)
+                if (!state.setUp) KeyEntry(state, listener) { page = "settings" } else Chat(state, listener)
             }
         }
     }
@@ -340,7 +360,7 @@ private fun Header(
         }
         Column(Modifier.weight(1f)) {
             Text("Claude", style = MaterialTheme.typography.titleLarge)
-            if (state.hasKey) ModelMenu(state, listener)
+            if (state.setUp) ModelMenu(state, listener)
         }
         if (state.messages.isNotEmpty()) {
             IconButton(onClick = { listener.onClear() }, enabled = !state.streaming) {
@@ -390,7 +410,7 @@ private fun Header(
 }
 
 /**
- * The model menu (docs/design/claude.md: the chat's model menu): the known models, the endpoint's
+ * The model menu (docs/design/claude.md: the chat's model menu): the provider's known models, the endpoint's
  * (once Test Connection listed them), and the one in use. Off while Claude replies.
  */
 @Composable
@@ -402,7 +422,7 @@ private fun ModelMenu(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                modelName(state.model, state.apiModels).removePrefix("Claude "),
+                modelName(state.model, state.known + state.apiModels).removePrefix("Claude "),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
@@ -410,7 +430,7 @@ private fun ModelMenu(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
             SymIcon(R.drawable.compass_sym_expand_more, null, Modifier.size(16.dp), MaterialTheme.colorScheme.primary)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            for ((id, name) in modelChoices(state.model, state.apiModels)) {
+            for ((id, name) in modelChoices(state, state.model)) {
                 DropdownMenuItem(
                     text = { Text(name) },
                     trailingIcon = {
@@ -500,8 +520,12 @@ private fun ColumnScope.SidebarFeaturesPage(state: ClaudeChatState, listener: Cl
     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             Text(
-                if (state.hasKey) "Small requests that send tab titles and hosts, never the pages themselves, and never in incognito."
-                else "Add an Anthropic API key in the chat first.",
+                if (state.setUp) {
+                    "Small requests to ${state.providerName} that send tab titles and hosts, never the pages themselves, " +
+                        "and never in incognito."
+                } else {
+                    "Set up ${state.providerName} in Settings first."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -510,8 +534,10 @@ private fun ColumnScope.SidebarFeaturesPage(state: ClaudeChatState, listener: Cl
         items(SIDEBAR_FEATURES, key = { it.first }) { (key, title, about) ->
             val feature = state.features.firstOrNull { it.key == key }
             Group {
-                SwitchRow(title, about, state.hasKey && feature?.on == true, state.hasKey) { listener.onSetFeature(key, it) }
-                FeatureModelMenu(feature?.model ?: "", state.apiModels, enabled = state.hasKey) {
+                val model = feature?.model ?: ""
+                SwitchRow(title, about, state.setUp && feature?.on == true, state.setUp) { listener.onSetFeature(key, it) }
+                // A compatible server's features can ask the chat's model (empty).
+                ModelMenuButton(model, modelChoices(state, model, sameAsChat = state.provider == "compatible"), state.setUp) {
                     listener.onSetFeatureModel(key, it)
                 }
             }
@@ -519,16 +545,16 @@ private fun ColumnScope.SidebarFeaturesPage(state: ClaudeChatState, listener: Cl
     }
 }
 
-/** A feature's model. */
+/** A model picker in a settings group (a sidebar feature's, the chat's): |choices| is id to name. */
 @Composable
-private fun FeatureModelMenu(model: String, apiModels: List<Pair<String, String>>, enabled: Boolean, onPick: (String) -> Unit) {
+private fun ModelMenuButton(model: String, choices: List<Pair<String, String>>, enabled: Boolean, onPick: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box(Modifier.padding(start = 8.dp, bottom = 6.dp)) {
         TextButton(onClick = { open = true }, enabled = enabled) {
-            Text("Model: ${modelName(model, apiModels)}", maxLines = 1)
+            Text("Model: ${modelName(model, choices)}", maxLines = 1)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            for ((id, name) in modelChoices(model, apiModels)) {
+            for ((id, name) in choices) {
                 DropdownMenuItem(
                     text = { Text(name) },
                     trailingIcon = { if (id == model) SymIcon(R.drawable.compass_sym_check, null) },
@@ -654,50 +680,194 @@ private fun ColumnScope.MemoryPage(state: ClaudeChatState, listener: ClaudeChatU
 }
 
 /**
- * Claude's settings (docs/design/claude.md, "Settings", "Files", "Developer tools"): the connection
- * with Test Connection, files, developer tools and subscription tokens.
+ * Claude's settings (docs/design/claude.md, "Settings", "Files", "Developer tools"): the provider
+ * (docs/design/ai-providers.md, "Settings") with what's sent where, its key, its server and model
+ * with Test Connection, files, developer tools and subscription tokens (Anthropic's only).
  */
 @Composable
 private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeChatUi.Listener, onBack: () -> Unit) {
     val folderField = rememberTextFieldState(state.filesFolder.ifEmpty { "Claude" })
     // A folder of Downloads by name: one part.
     val folder = folderField.text.toString().replace("/", "").trim()
-    val urlField = rememberTextFieldState(state.baseUrl)
+    // Each provider has its own key, server and model: the fields start over with another.
+    val urlField = key(state.provider) { rememberTextFieldState(state.baseUrl) }
     val baseUrl = urlField.text.toString().trim()
+    val modelField = key(state.provider) { rememberTextFieldState(state.model) }
+    val modelId = modelField.text.toString().trim()
+    val keyField = key(state.provider) { rememberTextFieldState() }
+    val apiKey = keyField.text.toString().trim()
+    val anthropic = state.provider == "anthropic"
+    val compatible = state.provider == "compatible"
     PageTitle("Settings", onBack)
     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { SectionTitle("Provider") }
+        item {
+            Group {
+                for ((id, name) in state.providers) {
+                    ListItem(
+                        leadingContent = {
+                            RadioButton(
+                                selected = state.provider == id,
+                                onClick = { listener.onSetProvider(id) },
+                                enabled = !state.streaming,
+                            )
+                        },
+                        colors = rowColors(),
+                        modifier = Modifier.clickable(enabled = !state.streaming) { listener.onSetProvider(id) },
+                    ) { Text(name) }
+                }
+            }
+        }
+        if (state.privacyNote.isNotEmpty()) {
+            item {
+                Text(
+                    state.privacyNote,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+        }
+        if (compatible) {
+            // An OpenAI-compatible server: its URL and the model to ask, both needed.
+            item { SectionTitle("Server") }
+            item {
+                Group {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            state = urlField,
+                            label = { Text("Server URL") },
+                            placeholder = { Text("https://example.com/v1") },
+                            supportingText = {
+                                Text(
+                                    "The base URL its API answers under, before chat/completions (OpenRouter, Ollama, " +
+                                        "LM Studio, a company gateway): https, or http to this device."
+                                )
+                            },
+                            lineLimits = TextFieldLineLimits.SingleLine,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            state = modelField,
+                            label = { Text("Model ID") },
+                            lineLimits = TextFieldLineLimits.SingleLine,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        if (baseUrl.trimEnd('/') != state.baseUrl.trimEnd('/') || modelId != state.model) {
+                            FilledTonalButton(
+                                onClick = {
+                                    if (baseUrl.trimEnd('/') != state.baseUrl.trimEnd('/')) {
+                                        listener.onSetEndpoint(baseUrl, state.authStyle)
+                                    }
+                                    if (modelId != state.model) listener.onSetModel(modelId)
+                                },
+                                enabled = !state.streaming,
+                            ) {
+                                Text("Save")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        item { SectionTitle("API Key") }
+        item {
+            Group {
+                if (state.hasKey) {
+                    ListItem(
+                        supportingContent = { Text(state.keyHint) },
+                        trailingContent = {
+                            TextButton(onClick = { listener.onForgetKey() }) {
+                                Text("Remove Key", color = MaterialTheme.colorScheme.error)
+                            }
+                        },
+                        colors = rowColors(),
+                    ) { Text("API key") }
+                } else {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // Hidden as typed, with no suggestions or learning.
+                        OutlinedSecureTextField(
+                            state = keyField,
+                            label = { Text(if (compatible) "API key (if the server needs one)" else "API key") },
+                            placeholder = { Text(state.keyPlaceholder) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        FilledTonalButton(
+                            onClick = {
+                                listener.onSetKey(apiKey)
+                                keyField.clearText()
+                            },
+                            enabled = apiKey.isNotEmpty(),
+                        ) {
+                            Text("Save Key")
+                        }
+                    }
+                }
+                // A subscription token: the switch it needs, where it's typed (Anthropic's only).
+                if (anthropic && apiKey.startsWith("sk-ant-oat")) TokenRisksRow(state, listener)
+            }
+        }
+        item {
+            Text(
+                "Kept encrypted on this device. Each provider keeps its own key." +
+                    if (anthropic) "" else " Compass's prompts and tools are made for Claude: other models may use the browser less well.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
         item { SectionTitle("Connection") }
         item {
             Group {
+                // A compatible server's model is typed above; once Test Connection lists its models, they
+                // can be picked too.
+                if (!compatible || (state.apiModels.isNotEmpty() && state.model.isNotEmpty())) {
+                    ModelMenuButton(state.model, modelChoices(state, state.model), !state.streaming) { listener.onSetModel(it) }
+                }
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        state = urlField,
-                        label = { Text("Server") },
-                        placeholder = { Text("https://api.anthropic.com") },
-                        supportingText = { Text("Empty for the Claude API; else a gateway's or a compatible server's URL.") },
-                        lineLimits = TextFieldLineLimits.SingleLine,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text("Send the key as", style = MaterialTheme.typography.labelLarge)
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        val styles = listOf("x-api-key", "Bearer")
-                        styles.forEachIndexed { i, label ->
-                            SegmentedButton(
-                                selected = state.authStyle == i,
-                                onClick = { listener.onSetEndpoint(baseUrl, i) },
-                                shape = SegmentedButtonDefaults.itemShape(i, styles.size),
-                            ) {
-                                Text(label)
+                    if (!compatible) {
+                        OutlinedTextField(
+                            state = urlField,
+                            label = { Text("Server") },
+                            placeholder = { Text(state.defaultBaseUrl) },
+                            supportingText = {
+                                Text(
+                                    if (anthropic) "Empty for the Claude API; else a gateway's (Amazon Bedrock, Google Vertex AI) URL."
+                                    else "Empty for ${state.providerName}'s own API; else a gateway's URL."
+                                )
+                            },
+                            lineLimits = TextFieldLineLimits.SingleLine,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    if (anthropic) {
+                        Text("Send the key as", style = MaterialTheme.typography.labelLarge)
+                        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                            val styles = listOf("x-api-key", "Bearer")
+                            styles.forEachIndexed { i, label ->
+                                SegmentedButton(
+                                    selected = state.authStyle == i,
+                                    onClick = { listener.onSetEndpoint(baseUrl, i) },
+                                    shape = SegmentedButtonDefaults.itemShape(i, styles.size),
+                                ) {
+                                    Text(label)
+                                }
                             }
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         // The saved URL is normalized (a trailing slash).
-                        if (baseUrl.trimEnd('/') != state.baseUrl.trimEnd('/')) {
+                        if (!compatible && baseUrl.trimEnd('/') != state.baseUrl.trimEnd('/')) {
                             FilledTonalButton(onClick = { listener.onSetEndpoint(baseUrl, state.authStyle) }) { Text("Save") }
                         }
-                        OutlinedButton(onClick = { listener.onTestConnection() }, enabled = !state.testing && state.hasKey) {
+                        OutlinedButton(
+                            onClick = { listener.onTestConnection() },
+                            // A compatible server may need no key.
+                            enabled = !state.testing && (state.hasKey || (compatible && state.baseUrl.isNotEmpty())),
+                        ) {
                             Text("Test Connection")
                         }
                         if (state.testing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -779,7 +949,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                 ) {
                     listener.onDevTools(it)
                 }
-                TokenRisksRow(state, listener)
+                if (anthropic) TokenRisksRow(state, listener)
             }
         }
     }
@@ -928,25 +1098,52 @@ private fun PillField(state: TextFieldState, placeholder: String, modifier: Modi
     )
 }
 
+/**
+ * The sheet before the chat can ask: the provider's key, typed here, or (an OpenAI-compatible
+ * server) the way to Settings, where its URL and model go. |onSettings| opens Settings, where
+ * another provider can be picked.
+ */
 @Composable
-private fun ColumnScope.KeyEntry(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
-    val keyField = rememberTextFieldState()
-    val key = keyField.text.toString().trim()
+private fun ColumnScope.KeyEntry(state: ClaudeChatState, listener: ClaudeChatUi.Listener, onSettings: () -> Unit) {
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            "Claude reads the page with you. Add an Anthropic API key to start; it's kept encrypted on this device.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        // Hidden as typed, with no suggestions or learning.
-        OutlinedSecureTextField(
-            state = keyField,
-            label = { Text("API key") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (state.error.isNotEmpty()) Text(state.error, color = MaterialTheme.colorScheme.error)
-        // A subscription token: the switch it needs, where it's typed.
-        if (key.startsWith("sk-ant-oat")) Group { TokenRisksRow(state, listener) }
-        Button(onClick = { listener.onSetKey(key) }, enabled = key.isNotEmpty()) { Text("Save") }
+        if (state.provider == "compatible") {
+            Text(
+                "Compass asks an OpenAI-compatible server you choose. Add its URL and the model to ask in Settings to start.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (state.error.isNotEmpty()) Text(state.error, color = MaterialTheme.colorScheme.error)
+            Button(onClick = onSettings) { Text("Open Settings") }
+        } else {
+            KeyFields(state, listener, onSettings)
+        }
+    }
+}
+
+/** KeyEntry's key field, for a provider that needs a key. */
+@Composable
+private fun KeyFields(state: ClaudeChatState, listener: ClaudeChatUi.Listener, onSettings: () -> Unit) {
+    val keyField = key(state.provider) { rememberTextFieldState() }
+    val typed = keyField.text.toString().trim()
+    val anthropic = state.provider == "anthropic"
+    Text(
+        if (anthropic) "Claude reads the page with you. Add an Anthropic API key to start; it's kept encrypted on this device."
+        else "${state.providerName} reads the page with you. Add your ${state.providerName} API key to start; it's kept " +
+            "encrypted on this device.",
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    // Hidden as typed, with no suggestions or learning.
+    OutlinedSecureTextField(
+        state = keyField,
+        label = { Text("API key") },
+        placeholder = { Text(state.keyPlaceholder) },
+        modifier = Modifier.fillMaxWidth(),
+    )
+    if (state.error.isNotEmpty()) Text(state.error, color = MaterialTheme.colorScheme.error)
+    // A subscription token: the switch it needs, where it's typed.
+    if (anthropic && typed.startsWith("sk-ant-oat")) Group { TokenRisksRow(state, listener) }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Button(onClick = { listener.onSetKey(typed) }, enabled = typed.isNotEmpty()) { Text("Save") }
+        TextButton(onClick = onSettings) { Text("Use Another Provider") }
     }
 }
 

@@ -10,7 +10,7 @@ import {ApprovalDecision} from '../chat.mojom-webui.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
-import {KNOWN_MODELS} from '../claude_models.js';
+import {knownModels} from '../claude_models.js';
 
 import {ClaudeChatBrowserProxy} from './browser_proxy.js';
 import type {AssistantTurn, ContentBlock, MemoryView, ToolView, UserTurn} from './conversation.js';
@@ -84,6 +84,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
       claudeCode_: {type: Boolean},
       hasKey_: {type: Boolean},
       model_: {type: String},
+      provider_: {type: String},
       pageReadable_: {type: Boolean},
       pageTitle_: {type: String},
       pageUrl_: {type: String},
@@ -101,6 +102,8 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   protected accessor claudeCode_: boolean = false;
   protected accessor hasKey_: boolean = true;
   protected accessor model_: string = '';
+  // Who answers (ProviderId()): the model menu offers its known models.
+  protected accessor provider_: string = 'anthropic';
   protected accessor pageReadable_: boolean = false;
   protected accessor pageTitle_: string = '';
   protected accessor pageUrl_: string = '';
@@ -248,6 +251,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   private applySetup_(setup: Setup) {
     this.hasKey_ = setup.hasKey;
     this.claudeCode_ = setup.claudeCode;
+    this.provider_ = setup.provider;
     this.model_ = setup.model;
   }
 
@@ -261,10 +265,11 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     this.pageReadable_ = page.readable;
   }
 
-  // The model menu: the known models, and the one in use if it's another
-  // (typed in settings). Names without "Claude ".
+  // The model menu: the provider's known models, and the one in use if it's
+  // another (typed in settings, or an OpenAI-compatible server's). Names
+  // without "Claude ".
   protected getModels_() {
-    const models = KNOWN_MODELS.map(
+    const models = knownModels(this.provider_).map(
         m => ({id: m.id, name: m.displayName.replace(/^Claude /, '')}));
     if (this.model_ && !models.some(m => m.id === this.model_)) {
       models.push({id: this.model_, name: this.model_});

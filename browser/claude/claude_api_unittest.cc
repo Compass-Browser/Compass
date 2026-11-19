@@ -194,6 +194,109 @@ TEST(ClaudeApiTest, DescribeError) {
   EXPECT_NE(DescribeError(0, "").find("reach"), std::string::npos);
 }
 
+// docs/design/ai-providers.md: another provider's paths, headers, errors and
+// model lists; Anthropic's don't change.
+TEST(ClaudeApiTest, OtherProviders) {
+  Endpoint openai;
+  openai.provider = AIProvider::kOpenAI;
+  openai.base_url = *ParseBaseUrl("", AIProvider::kOpenAI);
+  openai.api_key = "sk-test";
+  // OpenAI's own models take tools only through the Responses API.
+  EXPECT_EQ(EndpointUrl(openai.base_url, ChatPath(openai.provider)).spec(),
+            "https://api.openai.com/v1/responses");
+  EXPECT_EQ(ModelsUrl(openai).spec(), "https://api.openai.com/v1/models");
+  net::HttpRequestHeaders headers;
+  AddRequestHeaders(openai, headers);
+  AddBetas(openai, {"a"}, headers);
+  EXPECT_EQ(headers.GetHeader("Authorization"), "Bearer sk-test");
+  EXPECT_FALSE(headers.HasHeader("anthropic-version"));
+  EXPECT_FALSE(headers.HasHeader("anthropic-beta"));
+  EXPECT_FALSE(headers.HasHeader("x-api-key"));
+  // A key that looks like a subscription token is just a key here.
+  openai.api_key = "sk-ant-oat01-abcdef";
+  EXPECT_FALSE(UsesOAuthToken(openai));
+  EXPECT_FALSE(NeedsTokenRisksAccepted(openai));
+
+  EXPECT_EQ(ParseBaseUrl("", AIProvider::kGemini)->spec(),
+            "https://generativelanguage.googleapis.com/v1beta/openai");
+  EXPECT_EQ(ChatPath(AIProvider::kGemini), "chat/completions");
+  // An OpenAI-compatible server needs a URL.
+  EXPECT_FALSE(ParseBaseUrl("", AIProvider::kCompatible));
+  EXPECT_EQ(ParseBaseUrl("http://localhost:11434/v1", AIProvider::kCompatible)
+                ->spec(),
+            "http://localhost:11434/v1");
+  // A local server without a key: no Authorization.
+  Endpoint local;
+  local.provider = AIProvider::kCompatible;
+  net::HttpRequestHeaders none;
+  AddRequestHeaders(local, none);
+  EXPECT_FALSE(none.HasHeader("Authorization"));
+
+  // Errors: Gemini's array, and words for the provider.
+  EXPECT_EQ(DescribeError(
+                400, R"([{"error":{"code":400,"message":"API key not valid."}}])",
+                AIProvider::kGemini),
+            "API key not valid.");
+  EXPECT_TRUE(DescribeError(529, "", AIProvider::kOpenAI)
+                  .starts_with("The server is overloaded"));
+  EXPECT_TRUE(DescribeError(529, "").starts_with("Claude is overloaded"));
+
+  // Model lists: OpenAI's chat models only, sorted; Gemini's without models/.
+  std::optional<std::vector<ModelInfo>> models = ParseModelList(
+      R"({"data":[{"id":"gpt-5-mini"},{"id":"text-embedding-3-large"},)"
+      R"({"id":"whisper-1"},{"id":"gpt-5"},{"id":"gpt-image-1"}]})",
+      AIProvider::kOpenAI);
+  ASSERT_TRUE(models);
+  ASSERT_EQ(models->size(), 2u);
+  EXPECT_EQ((*models)[0].id, "gpt-5");
+  EXPECT_EQ((*models)[1].id, "gpt-5-mini");
+  models = ParseModelList(
+      R"({"object":"list","data":[{"id":"models/gemini-2.5-flash"}]})",
+      AIProvider::kGemini);
+  ASSERT_TRUE(models);
+  ASSERT_EQ(models->size(), 1u);
+  EXPECT_EQ((*models)[0].id, "gemini-2.5-flash");
+}
+
+// Each provider keeps its own key, base URL and models; Anthropic's names
+// don't change.
+TEST(ClaudeApiTest, ProviderPrefs) {
+  TestingPrefServiceSimple prefs;
+  prefs::RegisterProfilePrefs(prefs.registry());
+  EXPECT_EQ(prefs::CurrentProvider(prefs), AIProvider::kAnthropic);
+  EXPECT_EQ(prefs::CurrentPref(prefs, prefs::kModel), prefs::kModel);
+  EXPECT_EQ(prefs::ProviderPref(prefs::kTidyTodayModel, AIProvider::kOpenAI),
+            "compass.claude.tidy_today_model.openai");
+
+  prefs.SetString(prefs::kBaseUrl, "https://gw.example.com/a");
+  prefs.SetString(prefs::kProvider, "gemini");
+  EXPECT_EQ(prefs::CurrentProvider(prefs), AIProvider::kGemini);
+  EXPECT_EQ(prefs.GetString(prefs::CurrentPref(prefs, prefs::kModel)),
+            "gemini-2.5-pro");
+  EXPECT_EQ(
+      prefs.GetString(prefs::CurrentPref(prefs, prefs::kCommandBarAskModel)),
+      "gemini-2.5-flash");
+  // Anthropic's gateway isn't Gemini's.
+  Endpoint endpoint = EndpointFromPrefs(prefs);
+  EXPECT_EQ(endpoint.provider, AIProvider::kGemini);
+  EXPECT_EQ(endpoint.base_url.spec(),
+            "https://generativelanguage.googleapis.com/v1beta/openai");
+
+  // An OpenAI-compatible server without a URL has none.
+  prefs.SetString(prefs::kProvider, "compatible");
+  EXPECT_FALSE(EndpointFromPrefs(prefs).base_url.is_valid());
+  EXPECT_EQ(prefs.GetString(prefs::CurrentPref(prefs, prefs::kModel)), "");
+  prefs.SetString(prefs::CurrentPref(prefs, prefs::kBaseUrl),
+                  "http://localhost:11434/v1");
+  EXPECT_EQ(EndpointFromPrefs(prefs).base_url.spec(),
+            "http://localhost:11434/v1");
+
+  // Anything else is Anthropic.
+  prefs.SetString(prefs::kProvider, "nope");
+  EXPECT_EQ(EndpointFromPrefs(prefs).base_url.spec(),
+            "https://gw.example.com/a");
+}
+
 TEST(ClaudeApiTest, KeyHint) {
   EXPECT_EQ(KeyHint("sk-ant-api03-abcdefghijklmnop-WXYZ"), "sk-ant-…WXYZ");
   EXPECT_EQ(KeyHint("short"), "…");

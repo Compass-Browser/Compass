@@ -44,6 +44,7 @@
 #include "components/sync_sessions/session_sync_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/sidebar_node.h"
@@ -335,7 +336,8 @@ void CommandBarPageHandler::Ask(const std::string& question,
   Profile* profile = browser_->GetProfile();
   claude::QuickRequest request = claude::MakeAskRequest(
       asked_question_, asked_page_line_,
-      profile->GetPrefs()->GetString(claude::prefs::kCommandBarAskModel),
+      profile->GetPrefs()->GetString(claude::prefs::CurrentPref(
+          *profile->GetPrefs(), claude::prefs::kCommandBarAskModel)),
       g_browser_process->GetApplicationLocale());
   answer_request_ = claude::ClaudeQuick::Get(profile)->Stream(
       std::move(request),

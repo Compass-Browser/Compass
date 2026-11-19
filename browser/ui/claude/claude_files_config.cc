@@ -6,6 +6,7 @@
 
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_code.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "components/prefs/pref_service.h"
@@ -40,7 +41,9 @@ base::FilePath DefaultSaveFolder(Profile* profile) {
 
 bool ClaudeCodeOwnToolsOn(Profile* profile) {
   const PrefService* prefs = profile->GetPrefs();
-  if (prefs->GetInteger(prefs::kBackend) !=
+  // Claude Code mode is Anthropic's only (docs/design/ai-providers.md).
+  if (prefs::CurrentProvider(*prefs) != AIProvider::kAnthropic ||
+      prefs->GetInteger(prefs::kBackend) !=
           static_cast<int>(Backend::kClaudeCode) ||
       !prefs->GetBoolean(prefs::kClaudeCodeOwnTools)) {
     return false;

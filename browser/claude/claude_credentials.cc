@@ -25,6 +25,7 @@ namespace compass::claude {
 namespace {
 
 void StoreEncrypted(base::WeakPtr<Profile> profile,
+                    AIProvider provider,
                     std::string key,
                     base::OnceCallback<void(bool)> callback,
                     scoped_refptr<os_crypt_async::Encryptor> encryptor) {
@@ -38,8 +39,10 @@ void StoreEncrypted(base::WeakPtr<Profile> profile,
     return;
   }
   PrefService* prefs = profile->GetPrefs();
-  prefs->SetString(prefs::kApiKey, base::Base64Encode(ciphertext));
-  prefs->SetString(prefs::kApiKeyHint, KeyHint(key));
+  prefs->SetString(prefs::ProviderPref(prefs::kApiKey, provider),
+                   base::Base64Encode(ciphertext));
+  prefs->SetString(prefs::ProviderPref(prefs::kApiKeyHint, provider),
+                   KeyHint(key));
   std::move(callback).Run(true);
 }
 
@@ -52,8 +55,10 @@ void ReadDecrypted(
     return;
   }
   std::string ciphertext;
-  if (!base::Base64Decode(profile->GetPrefs()->GetString(prefs::kApiKey),
-                          &ciphertext) ||
+  const PrefService& prefs = *profile->GetPrefs();
+  if (!base::Base64Decode(
+          prefs.GetString(prefs::CurrentPref(prefs, prefs::kApiKey)),
+          &ciphertext) ||
       ciphertext.empty()) {
     std::move(callback).Run(std::nullopt);
     return;
@@ -73,16 +78,18 @@ void ClaudeCredentials::SetApiKey(Profile* profile,
                                   const std::string& key,
                                   base::OnceCallback<void(bool)> callback) {
   std::string trimmed(base::TrimWhitespaceASCII(key, base::TRIM_ALL));
+  PrefService* prefs = profile->GetPrefs();
+  // The provider in use now, even if it changes before the key is stored.
+  const AIProvider provider = prefs::CurrentProvider(*prefs);
   if (trimmed.empty()) {
-    PrefService* prefs = profile->GetPrefs();
-    prefs->ClearPref(prefs::kApiKey);
-    prefs->ClearPref(prefs::kApiKeyHint);
+    prefs->ClearPref(prefs::ProviderPref(prefs::kApiKey, provider));
+    prefs->ClearPref(prefs::ProviderPref(prefs::kApiKeyHint, provider));
     std::move(callback).Run(true);
     return;
   }
   g_browser_process->os_crypt_async()->GetInstance(
-      base::BindOnce(&StoreEncrypted, profile->GetWeakPtr(), std::move(trimmed),
-                     std::move(callback)));
+      base::BindOnce(&StoreEncrypted, profile->GetWeakPtr(), provider,
+                     std::move(trimmed), std::move(callback)));
 }
 
 // static
@@ -90,7 +97,10 @@ void ClaudeCredentials::GetApiKey(
     Profile* profile,
     base::OnceCallback<void(std::optional<std::string>)> callback) {
   if (!HasApiKey(profile)) {
-    std::move(callback).Run(std::nullopt);
+    // An OpenAI-compatible server may take no key.
+    std::move(callback).Run(
+        IsSetUp(profile) ? std::optional<std::string>(std::string())
+                         : std::nullopt);
     return;
   }
   g_browser_process->os_crypt_async()->GetInstance(base::BindOnce(
@@ -99,13 +109,34 @@ void ClaudeCredentials::GetApiKey(
 
 // static
 bool ClaudeCredentials::HasApiKey(Profile* profile) {
-  return !profile->GetPrefs()->GetString(prefs::kApiKey).empty();
+  const PrefService& prefs = *profile->GetPrefs();
+  return !prefs.GetString(prefs::CurrentPref(prefs, prefs::kApiKey)).empty();
+}
+
+// static
+bool ClaudeCredentials::IsSetUp(Profile* profile) {
+  return IsSetUp(*profile->GetPrefs());
+}
+
+// static
+bool ClaudeCredentials::IsSetUp(const PrefService& prefs) {
+  const AIProvider provider = prefs::CurrentProvider(prefs);
+  if (!prefs.GetString(prefs::ProviderPref(prefs::kApiKey, provider))
+           .empty()) {
+    return true;
+  }
+  return provider == AIProvider::kCompatible &&
+         ParseBaseUrl(prefs.GetString(
+                          prefs::ProviderPref(prefs::kBaseUrl, provider)),
+                      provider)
+             .has_value();
 }
 
 // static
 std::string ClaudeCredentials::GetApiKeyHint(Profile* profile) {
+  const PrefService& prefs = *profile->GetPrefs();
   return HasApiKey(profile)
-             ? profile->GetPrefs()->GetString(prefs::kApiKeyHint)
+             ? prefs.GetString(prefs::CurrentPref(prefs, prefs::kApiKeyHint))
              : std::string();
 }
 

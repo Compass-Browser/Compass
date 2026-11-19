@@ -240,6 +240,27 @@
   your own API key from console.anthropic.com, or a gateway's, or your own
   Claude Code.</p>
 
+<!-- Who answers (docs/design/ai-providers.md): everything below is the
+     picked provider's; each keeps its own key and models. -->
+<label class="field" for="provider">Provider</label>
+<select id="provider"></select>
+<p class="hint" id="privacyNote"></p>
+
+<!-- An OpenAI-compatible server: its URL, which it can't do without. -->
+<section id="serverSection" hidden>
+  <label class="field" for="serverUrl">Server</label>
+  <div class="claude-inline">
+    <input id="serverUrl" type="url" spellcheck="false"
+        placeholder="https://example.com/v1">
+    <button id="saveServer" class="secondary">Save</button>
+  </div>
+  <p class="hint">The base URL its API answers under, before
+    chat/completions: OpenRouter, Ollama, LM Studio, a company gateway.</p>
+  <p class="note" id="serverNote" hidden></p>
+</section>
+
+<!-- Claude Code is Claude's: Anthropic only. -->
+<section id="backendSection">
 <div class="field">Connect with</div>
 <div class="claude-backend" role="radiogroup">
   <label>
@@ -261,6 +282,7 @@
     </span>
   </label>
 </div>
+</section>
 
 <section id="claudeCodeSection" hidden>
   <label class="field" for="claudeCodePath">Claude Code</label>
@@ -289,12 +311,13 @@
   <button id="replaceKey" class="secondary">Replace</button>
   <button id="removeKey" class="secondary">Remove</button>
 </div>
-<p class="hint">Stored encrypted on this device only; it never syncs, and
-  pages never see it. To use your Claude subscription, connect with Claude
+<p class="hint" id="keyHelpAnthropic">Stored encrypted on this device only;
+  it never syncs, and pages never see it. To use your Claude subscription, connect with Claude
   Code instead, or, with the risks below accepted, use a token from
   <code>claude setup-token</code>.</p>
+<p class="hint" id="keyHelpOther" hidden></p>
 <p class="note" id="keyNote" hidden></p>
-<label class="claude-scope">
+<label class="claude-scope" id="tokenRisksRow">
   <input type="checkbox" id="acceptTokenRisks">
   <span>
     <span class="name">Accept the risks of subscription tokens</span>
@@ -308,8 +331,12 @@
 </label>
 </section>
 
-<label class="field" for="model">Model</label>
+<label class="field" for="model" id="modelLabel">Model</label>
 <div class="claude-inline">
+  <!-- An OpenAI-compatible server's model is typed; once Test connection
+       lists its models, they can be picked too. -->
+  <input id="modelId" type="text" spellcheck="false" placeholder="Model ID"
+      hidden>
   <select id="model"></select>
   <button id="test" class="secondary">Test connection</button>
 </div>
@@ -320,14 +347,19 @@
   <label class="field" for="baseUrl">Base URL</label>
   <input id="baseUrl" type="url" spellcheck="false"
       placeholder="https://api.anthropic.com" class="wide">
-  <p class="hint">Leave empty for the Claude API. A gateway or proxy that
-    serves the Anthropic Messages API (Amazon Bedrock, Google Cloud Vertex AI,
-    your own) goes here.</p>
-  <label class="field" for="authStyle">Send the key as</label>
-  <select id="authStyle">
-    <option value="apiKey">x-api-key (Claude API)</option>
-    <option value="bearer">Authorization: Bearer (gateways)</option>
-  </select>
+  <p class="hint" id="endpointHintAnthropic">Leave empty for the Claude API.
+    A gateway or proxy that serves the Anthropic Messages API (Amazon
+    Bedrock, Google Cloud Vertex AI, your own) goes here.</p>
+  <p class="hint" id="endpointHintOther" hidden>Leave empty for the
+    provider's own API. A gateway or proxy that serves the same API goes
+    here.</p>
+  <div id="authStyleRow">
+    <label class="field" for="authStyle">Send the key as</label>
+    <select id="authStyle">
+      <option value="apiKey">x-api-key (Claude API)</option>
+      <option value="bearer">Authorization: Bearer (gateways)</option>
+    </select>
+  </div>
   <div class="buttons">
     <button id="saveEndpoint" class="secondary">Save endpoint</button>
   </div>

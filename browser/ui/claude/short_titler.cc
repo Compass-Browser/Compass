@@ -16,6 +16,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/ui/claude/sidebar_spaces.h"
 #include "components/prefs/pref_service.h"
@@ -54,7 +55,8 @@ ShortTitler::ShortTitler(PrefService* prefs,
   const base::RepeatingClosure changed = base::BindRepeating(
       &ShortTitler::OnSettingsChanged, base::Unretained(this));
   registrar_.Add(claude::prefs::kShortTabTitles, changed);
-  registrar_.Add(claude::prefs::kApiKey, changed);
+  claude::prefs::ObserveProviderPrefs(
+      registrar_, {claude::prefs::kApiKey, claude::prefs::kBaseUrl}, changed);
 }
 
 ShortTitler::~ShortTitler() = default;
@@ -292,7 +294,8 @@ void ShortTitler::SendBatch() {
   asking_.insert(keys.begin(), keys.end());
   claude::QuickRequest request;
   request.feature_pref = claude::prefs::kShortTabTitles;
-  request.model = prefs_->GetString(claude::prefs::kShortTabTitlesModel);
+  request.model = prefs_->GetString(
+      claude::prefs::CurrentPref(*prefs_, claude::prefs::kShortTabTitlesModel));
   request.system = claude::SidebarPrompt("short_titles", get_locale_.Run());
   request.user = DescribeTitles(tabs);
   request.max_tokens = claude::ClaudeQuick::kMaxTokens;

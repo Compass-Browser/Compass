@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "compass/browser/claude/ai_provider.h"
 #include "components/prefs/pref_registry_simple.h"
 
 namespace compass::claude::prefs {
@@ -43,6 +44,33 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(kShortTabTitlesModel, "claude-haiku-5-5");
   registry->RegisterBooleanPref(kCommandBarAsk, false);
   registry->RegisterStringPref(kCommandBarAskModel, kDefaultAskModel);
+
+  // Other AI providers (docs/design/ai-providers.md): Anthropic's settings
+  // above keep their names; another provider's key, base URL and models
+  // have its id after them (ProviderPref()).
+  registry->RegisterStringPref(kProvider,
+                               std::string(ProviderId(AIProvider::kAnthropic)));
+  for (AIProvider provider : kAllProviders) {
+    if (provider == AIProvider::kAnthropic) {
+      continue;
+    }
+    registry->RegisterStringPref(ProviderPref(kApiKey, provider),
+                                 std::string());
+    registry->RegisterStringPref(ProviderPref(kApiKeyHint, provider),
+                                 std::string());
+    registry->RegisterStringPref(ProviderPref(kBaseUrl, provider),
+                                 std::string());
+    registry->RegisterStringPref(ProviderPref(kModel, provider),
+                                 std::string(DefaultChatModel(provider)));
+    const std::string quick(DefaultQuickModel(provider));
+    for (const char* feature_model :
+         {kNameLinkFoldersModel, kTidyTodayModel, kShortTabTitlesModel}) {
+      registry->RegisterStringPref(ProviderPref(feature_model, provider),
+                                   quick);
+    }
+    registry->RegisterStringPref(ProviderPref(kCommandBarAskModel, provider),
+                                 std::string(DefaultAskModel(provider)));
+  }
 }
 
 }  // namespace compass::claude::prefs

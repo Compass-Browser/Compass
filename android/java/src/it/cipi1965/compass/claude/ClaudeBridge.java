@@ -125,6 +125,14 @@ public class ClaudeBridge {
     }
 
     /**
+     * Who answers: "anthropic", "openai", "gemini" or "compatible" (docs/design/ai-providers.md).
+     * Each keeps its own key, server and models.
+     */
+    public void setProvider(String provider) {
+        ClaudeBridgeJni.get().setProvider(mNativeClaudeBridge, provider);
+    }
+
+    /**
      * Claude in the sidebar: a feature's switch ("name_link_folders", "tidy_today",
      * "short_tab_titles", "command_bar_ask").
      */
@@ -266,6 +274,8 @@ public class ClaudeBridge {
         void clear(long nativeClaudeBridge);
 
         void setModel(long nativeClaudeBridge, @JniType("std::string") String model);
+
+        void setProvider(long nativeClaudeBridge, @JniType("std::string") String provider);
 
         void setFeature(
                 long nativeClaudeBridge, @JniType("std::string") String feature, boolean on);

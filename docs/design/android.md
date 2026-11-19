@@ -543,7 +543,13 @@ It costs:
   to another profile shows up there.
 - **Claude (C8).** The desktop's Claude client, key storage and page
   reader (`//compass/browser/claude`, without Claude Code) build for
-  Android. `ClaudeBridge` runs a chat about the page on screen: each
+  Android. Other providers (OpenAI, Gemini, an OpenAI-compatible server;
+  ai-providers.md) answer through the same C++: the sheet's Settings page
+  starts with a Provider list and its privacy note, then the provider's
+  key (and, for a compatible server, its URL and Model ID), its server
+  override and models; the subscription-token switch and auth style are
+  Anthropic's only. The snapshot's `set_up` (a usable key or server, and a
+  model) gates the sheet. `ClaudeBridge` runs a chat about the page on screen: each
   question carries the page's text (read in an isolated world, as on the
   desktop; incognito pages stay out), and the reply streams into a
   Compose sheet (`ClaudeChatUi.kt`, the bar's ✦). The key is the

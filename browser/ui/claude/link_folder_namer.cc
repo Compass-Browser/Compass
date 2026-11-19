@@ -16,6 +16,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/ui/claude/sidebar_spaces.h"
 #include "components/prefs/pref_service.h"
@@ -266,8 +267,9 @@ void LinkFolderNamer::Ask(const base::Uuid& folder_id, bool background) {
   }
   claude::QuickRequest request;
   request.feature_pref = claude::prefs::kNameLinkFolders;
-  request.model =
-      profile_->GetPrefs()->GetString(claude::prefs::kNameLinkFoldersModel);
+  const PrefService& prefs = *profile_->GetPrefs();
+  request.model = prefs.GetString(
+      claude::prefs::CurrentPref(prefs, claude::prefs::kNameLinkFoldersModel));
   request.system = claude::SidebarPrompt(
       "folder_name", g_browser_process->GetApplicationLocale());
   request.user = DescribeFolder(*folder);

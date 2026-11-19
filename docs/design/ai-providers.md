@@ -223,14 +223,37 @@ at once (the loop already runs them one after the other).
   models); `ClaudeClient.stream` and `ClaudeQuick` translate when the
   provider isn't Anthropic; `ClaudeSettings` and `ClaudeSettingsView` get
   the picker, keys and models per provider.
-- **Desktop and Android** (shared C++, `browser/claude/`): the same
-  translation in `claude_api.cc` (endpoint, paths, headers), a request
-  translator next to `claude_request.cc`, and the stream translator in
-  `ClaudeClient` before events reach the chat page (WebUI) and Android's
-  bridge; `ClaudeQuick` as on iOS. Prefs: `compass.claude.provider` and the
-  per-provider keys and models. The desktop settings page and Android's
-  settings get the picker. To agree with the Android work before it
-  starts, since both build on the same C++.
+- **Desktop and Android** (shared C++, `browser/claude/`):
+  - `ai_provider.{h,cc}` (target `:prefs`): `AIProvider`, each one's id,
+    names, base URL, default and known models, key placeholder and privacy
+    note, as iOS's; `prefs::kProvider` (`compass.claude.provider`, a
+    provider id, "anthropic" by default) and the per-provider pref names:
+    `ProviderPref()` (Anthropic's as they were, another's with
+    `.<provider>`), `CurrentPref()`, and `ObserveProviderPrefs()` for
+    whoever follows the key or the models. `claude_prefs.cc` registers
+    every provider's key, hint, base URL, chat model and the four sidebar
+    features' models, with the defaults above.
+  - `openai_edge.{h,cc}`: the translation, iOS's `OpenAIChat` and
+    `OpenAIResponses` in C++: `TranslateRequest()` (Chat Completions, or
+    Responses for OpenAI) and `StreamTranslator` (chunks or Responses
+    events into `SseParser::Event`s). No one-shot reply: the desktop's
+    `ClaudeQuick` streams every request already.
+  - `claude_api.{h,cc}`: `Endpoint::provider`; `ParseBaseUrl(text,
+    provider)`; `ChatPath()`, `ModelsUrl()`; Bearer headers and no
+    Anthropic ones for the others; errors and model lists per provider;
+    subscription tokens only for Anthropic. `EndpointFromPrefs()` reads the
+    provider's prefs.
+  - `ClaudeClient` translates in `StreamMessage()` and as the bytes come
+    (`set_json_reply()` for the sidebar's requests); the chat page,
+    Android's bridge, `ClaudeQuick` and Ask in the command bar see Messages
+    events only. `ClaudeCredentials` keeps a key per provider (the same
+    OS-encrypted prefs) and has `IsSetUp()`: a key, or an OpenAI-compatible
+    server's URL. `ClaudeQuick` falls back to the provider's sidebar model,
+    then the chat's.
+  - Tests: `OpenAIEdgeTest` (the request tables, both streams, Gemini's
+    calls, stop reasons, errors, early ends), `ClaudeApiTest.OtherProviders`
+    and `ProviderPrefs`, `ClaudeQuickTest.OnGemini`, `OnOpenAI` and
+    `OnCompatibleServerWithoutKey` (a fake server).
 
 ## Milestones
 
@@ -238,12 +261,12 @@ at once (the loop already runs them one after the other).
 |---|---|
 | P1 | iOS: provider, translation and tests; settings; the chat and sidebar on OpenAI and Gemini. Done 2026-11-18 (`AIProvider`, `OpenAIChat`, `OpenAIResponses`, `OpenAIChatTests`, `OpenAIResponsesTests`); not yet tried with real keys |
 | P2 | iOS: checked with real keys (OpenAI, Gemini, a local Ollama); prompt notes where needed |
-| P3 | Desktop and Android: the C++ translation and tests; settings on both |
+| P3 | Desktop and Android: the C++ translation and tests; settings on both. Done 2026-11-19 (`ai_provider`, `openai_edge`, `OpenAIEdgeTest`); not yet tried with real keys |
 | P4 | Names (above) and privacy text on every platform |
 
 ## Verification
 
-- **Unit tests** (iOS `OpenAIChatTests` and `OpenAIResponsesTests`, desktop `OpenAIChatTest`): every
+- **Unit tests** (iOS `OpenAIChatTests` and `OpenAIResponsesTests`, desktop and Android `OpenAIEdgeTest`): every
   row of the request table; a tool round with a screenshot; streams
   recorded from OpenAI and Gemini (text, reasoning, one and several tool
   calls, a call without an index or id, `length`, `content_filter`, an

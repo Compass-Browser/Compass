@@ -473,7 +473,7 @@ ClaudeQuick* ClaudeQuick::Get(Profile* profile) {
 }
 
 bool ClaudeQuick::IsSetUp() const {
-  return !prefs_->GetString(prefs::kApiKey).empty();
+  return ClaudeCredentials::IsSetUp(*prefs_);
 }
 
 bool ClaudeQuick::IsEnabled(std::string_view feature_pref) const {
@@ -587,23 +587,36 @@ void ClaudeQuick::OnKey(int id, std::optional<std::string> key) {
   if (it == pending_.end() || it->second->finishing) {
     return;
   }
-  if (!key || key->empty()) {
+  Endpoint endpoint = EndpointFromPrefs(*prefs_);
+  // An OpenAI-compatible server may take no key.
+  if (!key || (key->empty() && endpoint.provider != AIProvider::kCompatible)) {
     Finish(id, base::unexpected(QuickError::kNotSetUp));
     return;
   }
-  Endpoint endpoint = EndpointFromPrefs(*prefs_);
   endpoint.api_key = std::move(*key);
-  if (NeedsTokenRisksAccepted(endpoint)) {
+  if (NeedsTokenRisksAccepted(endpoint) || !endpoint.base_url.is_valid()) {
     Finish(id, base::unexpected(QuickError::kNotSetUp));
     return;
   }
   Pending& pending = *it->second;
-  const std::string& model = pending.request.model;
+  // No model: the provider's for these requests, else (an OpenAI-compatible
+  // server) the chat's.
+  std::string model = pending.request.model;
+  if (model.empty()) {
+    model = endpoint.provider == AIProvider::kAnthropic
+                ? std::string(kDefaultQuickModel)
+                : std::string(DefaultQuickModel(endpoint.provider));
+  }
+  if (model.empty()) {
+    model = prefs_->GetString(prefs::CurrentPref(*prefs_, prefs::kModel));
+  }
   base::DictValue body = BuildQuickRequest(
-      pending.request, model.empty() ? kDefaultQuickModel : model,
-      CacheLevelFor(*prefs_, endpoint.base_url), UsesOAuthToken(endpoint));
+      pending.request, model, CacheLevelFor(*prefs_, endpoint.base_url),
+      UsesOAuthToken(endpoint));
   pending.client = std::make_unique<ClaudeClient>(get_loader_factory_.Run(),
                                                   std::move(endpoint));
+  // Another provider is asked for the one JSON object these replies are.
+  pending.client->set_json_reply(!pending.request.stream);
   pending.client->StreamMessage(
       std::move(body), /*betas=*/{},
       base::BindRepeating(&ClaudeQuick::OnEvent, weak_factory_.GetWeakPtr(),

@@ -17,6 +17,7 @@
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "compass/browser/claude/claude_api.h"
+#include "compass/browser/claude/openai_edge.h"
 #include "compass/browser/claude/sse_parser.h"
 #include "services/network/public/cpp/simple_url_loader_stream_consumer.h"
 
@@ -36,6 +37,11 @@ namespace compass::claude {
 // process, where the key stays: the list of models, and streamed Messages
 // API requests. One request of each kind at a time; a new one replaces the
 // one running. See docs/design/claude.md, "Browser-side services".
+//
+// Another provider (docs/design/ai-providers.md) gets the request as Chat
+// Completions (OpenAI: the Responses API), and its stream comes back as the
+// Messages events it stands for (openai_edge.h): callers don't know which
+// provider answered.
 class ClaudeClient : public network::SimpleURLLoaderStreamConsumer {
  public:
   using ModelsCallback = base::OnceCallback<void(
@@ -70,6 +76,10 @@ class ClaudeClient : public network::SimpleURLLoaderStreamConsumer {
   void Cancel();
   bool IsStreaming() const { return !!stream_loader_; }
 
+  // The next StreamMessage()'s reply must be one JSON object (the sidebar's
+  // requests): another provider is asked for one.
+  void set_json_reply(bool json_reply) { json_reply_ = json_reply; }
+
   // network::SimpleURLLoaderStreamConsumer:
   void OnDataReceived(std::string_view data,
                       base::OnceClosure resume) override;
@@ -85,6 +95,9 @@ class ClaudeClient : public network::SimpleURLLoaderStreamConsumer {
   void OnStreamStarted(const GURL& final_url,
                        const network::mojom::URLResponseHead& head);
   void FinishStream(std::optional<std::string> error);
+  // Passes |events| on; false if the stream ended or the client went away
+  // meanwhile.
+  bool Dispatch(const std::vector<SseParser::Event>& events);
 
   const scoped_refptr<network::SharedURLLoaderFactory> loader_factory_;
   const Endpoint endpoint_;
@@ -99,6 +112,9 @@ class ClaudeClient : public network::SimpleURLLoaderStreamConsumer {
   // An error reply's body, to say what went wrong.
   std::string error_body_;
   bool saw_message_stop_ = false;
+  bool json_reply_ = false;
+  // Another provider's stream, into Messages events.
+  std::unique_ptr<openai::StreamTranslator> translator_;
 
   base::WeakPtrFactory<ClaudeClient> weak_factory_{this};
 };

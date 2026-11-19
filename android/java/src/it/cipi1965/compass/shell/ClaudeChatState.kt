@@ -70,9 +70,26 @@ class ClaudeChatState {
     var streaming by mutableStateOf(false)
     var error by mutableStateOf("")
     var hasKey by mutableStateOf(false)
+    /** What the settings show of the saved key ("sk-…a1b2"), or "". */
+    var keyHint by mutableStateOf("")
+    /** Whether the chat can ask: a key (or a compatible server's URL) and a model. */
+    var setUp by mutableStateOf(false)
+    /**
+     * Who answers (docs/design/ai-providers.md): "anthropic", "openai", "gemini" or "compatible";
+     * the providers to pick from (id to name); the key field's placeholder, where what's sent goes,
+     * and the provider's models (id to name; empty for Anthropic, whose list the sheet keeps, and a
+     * compatible server).
+     */
+    var provider by mutableStateOf("anthropic")
+    var providers by mutableStateOf<List<Pair<String, String>>>(emptyList())
+    var keyPlaceholder by mutableStateOf("")
+    /** The provider's server when the base URL is empty ("" for a compatible server). */
+    var defaultBaseUrl by mutableStateOf("")
+    var privacyNote by mutableStateOf("")
+    var knownModels by mutableStateOf<List<Pair<String, String>>>(emptyList())
     /** "Let Claude use the whole browser". */
     var browserScope by mutableStateOf(false)
-    /** The model in use (compass.claude.model, or the default). */
+    /** The model in use (compass.claude.model or the provider's, or the default; "" if none is typed). */
     var model by mutableStateOf("")
     var memoryEnabled by mutableStateOf(true)
     var memorySave by mutableStateOf(true)
@@ -94,7 +111,10 @@ class ClaudeChatState {
     var attachPage by mutableStateOf(true)
     /** The last reply failed: Retry asks again. */
     var canRetry by mutableStateOf(false)
-    /** The endpoint: base URL ("" for the Claude API) and how the key is sent (0 x-api-key, 1 Bearer). */
+    /**
+     * The provider's endpoint: base URL ("" for its own server) and, for Anthropic, how the key is
+     * sent (0 x-api-key, 1 Bearer).
+     */
     var baseUrl by mutableStateOf("")
     var authStyle by mutableStateOf(0)
     /** Test Connection: running, its outcome, and the models the key can use (id to name). */
@@ -104,6 +124,14 @@ class ClaudeChatState {
     var apiModels by mutableStateOf<List<Pair<String, String>>>(emptyList())
     /** The tab Claude acts on while it works (its Android tab ID), or -1. */
     var actingTab by mutableStateOf(-1)
+
+    /** A list of {"id", "name"} as id to name. */
+    private fun pairs(data: JSONObject, name: String): List<Pair<String, String>> {
+        val list = data.optJSONArray(name)
+        return (0 until (list?.length() ?: 0)).mapNotNull { i ->
+            list?.optJSONObject(i)?.let { it.optString("id") to it.optString("name") }
+        }
+    }
 
     fun update(json: String) {
         val data = JSONObject(json)
@@ -130,6 +158,14 @@ class ClaudeChatState {
         streaming = data.optBoolean("streaming")
         error = data.optString("error")
         hasKey = data.optBoolean("has_key")
+        keyHint = data.optString("key_hint")
+        setUp = data.optBoolean("set_up")
+        provider = data.optString("provider", "anthropic")
+        providers = pairs(data, "providers")
+        keyPlaceholder = data.optString("key_placeholder")
+        defaultBaseUrl = data.optString("default_base_url")
+        privacyNote = data.optString("privacy_note")
+        knownModels = pairs(data, "known_models")
         browserScope = data.optBoolean("browser_scope")
         model = data.optString("model")
         memoryEnabled = data.optBoolean("memory_enabled", true)
@@ -148,11 +184,7 @@ class ClaudeChatState {
         testing = data.optBoolean("testing")
         testOk = data.optBoolean("test_ok")
         testResult = data.optString("test_result")
-        val modelList = data.optJSONArray("api_models")
-        apiModels =
-            (0 until (modelList?.length() ?: 0)).mapNotNull { i ->
-                modelList?.optJSONObject(i)?.let { it.optString("id") to it.optString("name") }
-            }
+        apiModels = pairs(data, "api_models")
         actingTab = data.optInt("acting_tab", -1)
         acceptTokenRisks = data.optBoolean("accept_token_risks")
         val boostList = data.optJSONArray("boosts")

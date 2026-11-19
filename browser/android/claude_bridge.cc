@@ -21,6 +21,7 @@
 #include "base/values.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_client.h"
 #include "compass/browser/claude/claude_credentials.h"
@@ -142,23 +143,45 @@ constexpr int kMaxToolRounds = 40;
 constexpr size_t kMaxImages = 12;
 
 // Claude in the sidebar's features (docs/design/ai-sidebar.md, "Settings
-// and privacy"): each one's key, switch, model and default model.
+// and privacy"): each one's key, switch and model (its base name: each
+// provider has its own, prefs::CurrentPref()), and whether its default is
+// the command bar's (DefaultAskModel()) rather than the sidebar's
+// (DefaultQuickModel()).
 struct Feature {
   const char* key;
   const char* pref;
   const char* model_pref;
-  const char* default_model;
+  bool ask;
 };
 constexpr Feature kFeatures[] = {
     {"name_link_folders", claude::prefs::kNameLinkFolders,
-     claude::prefs::kNameLinkFoldersModel, claude::kDefaultQuickModel},
+     claude::prefs::kNameLinkFoldersModel, false},
     {"tidy_today", claude::prefs::kTidyToday, claude::prefs::kTidyTodayModel,
-     claude::kDefaultQuickModel},
+     false},
     {"short_tab_titles", claude::prefs::kShortTabTitles,
-     claude::prefs::kShortTabTitlesModel, claude::kDefaultQuickModel},
+     claude::prefs::kShortTabTitlesModel, false},
     {"command_bar_ask", claude::prefs::kCommandBarAsk,
-     claude::prefs::kCommandBarAskModel, claude::prefs::kDefaultAskModel},
+     claude::prefs::kCommandBarAskModel, true},
 };
+
+// A feature's model until the user picks one: the provider's; empty (the
+// chat's) for an OpenAI-compatible server.
+std::string_view FeatureDefaultModel(const Feature& feature,
+                                     claude::AIProvider provider) {
+  return feature.ask ? claude::DefaultAskModel(provider)
+                     : claude::DefaultQuickModel(provider);
+}
+
+// The chat's model: the provider's pref, else its default (empty for an
+// OpenAI-compatible server, whose model is typed).
+std::string ChatModel(const PrefService& prefs) {
+  std::string model =
+      prefs.GetString(claude::prefs::CurrentPref(prefs, claude::prefs::kModel));
+  if (model.empty()) {
+    model = claude::DefaultChatModel(claude::prefs::CurrentProvider(prefs));
+  }
+  return model;
+}
 
 const Feature* FindFeature(std::string_view key) {
   for (const Feature& feature : kFeatures) {
@@ -224,6 +247,13 @@ ClaudeBridge::ClaudeBridge(JNIEnv* env,
   if (store) {
     boosts_observation_.Observe(store);
   }
+  // The provider, its key, server and model can change outside the sheet
+  // (another window's sheet, Claude in the sidebar): the sheet follows.
+  prefs_.Init(profile->GetPrefs());
+  claude::prefs::ObserveProviderPrefs(
+      prefs_,
+      {claude::prefs::kApiKey, claude::prefs::kBaseUrl, claude::prefs::kModel},
+      base::BindRepeating(&ClaudeBridge::Changed, base::Unretained(this)));
 }
 
 ClaudeBridge::Approval::Approval() = default;
@@ -268,11 +298,43 @@ std::string ClaudeBridge::Snapshot(JNIEnv* env) {
   snapshot.Set("messages", std::move(messages));
   snapshot.Set("streaming", streaming_);
   snapshot.Set("error", error_);
+  const claude::AIProvider provider =
+      claude::prefs::CurrentProvider(*profile_->GetPrefs());
+  const std::string model = ChatModel(*profile_->GetPrefs());
   snapshot.Set("has_key", claude::ClaudeCredentials::HasApiKey(profile_));
+  snapshot.Set("key_hint", claude::ClaudeCredentials::GetApiKeyHint(profile_));
+  // Whether the chat can ask: a key (or a compatible server's URL) and, for
+  // a compatible server, the model typed.
+  snapshot.Set("set_up",
+               claude::ClaudeCredentials::IsSetUp(profile_) &&
+                   claude::EndpointFromPrefs(*profile_->GetPrefs())
+                       .base_url.is_valid() &&
+                   !model.empty());
+  // Who answers (docs/design/ai-providers.md), and what the settings offer.
+  snapshot.Set("provider", claude::ProviderId(provider));
+  base::ListValue providers;
+  for (claude::AIProvider each : claude::kAllProviders) {
+    providers.Append(base::DictValue()
+                         .Set("id", claude::ProviderId(each))
+                         .Set("name", claude::ProviderDisplayName(each)));
+  }
+  snapshot.Set("providers", std::move(providers));
+  snapshot.Set("key_placeholder", claude::KeyPlaceholder(provider));
+  // The server when the field is empty (none for a compatible server).
+  snapshot.Set("default_base_url", claude::DefaultBaseUrl(provider));
+  snapshot.Set("privacy_note", claude::PrivacyNote(provider));
+  // The provider's models until Test Connection lists the key's; empty for
+  // Anthropic, whose list the sheet keeps (ClaudeChatUi.kt), and for a
+  // compatible server.
+  base::ListValue known_models;
+  for (const claude::KnownModel& known : claude::KnownModels(provider)) {
+    known_models.Append(
+        base::DictValue().Set("id", known.id).Set("name", known.display_name));
+  }
+  snapshot.Set("known_models", std::move(known_models));
   snapshot.Set("browser_scope",
                profile_->GetPrefs()->GetBoolean(claude::prefs::kBrowserScope));
-  std::string model = profile_->GetPrefs()->GetString(claude::prefs::kModel);
-  snapshot.Set("model", model.empty() ? claude::kDefaultModel : model);
+  snapshot.Set("model", model);
   snapshot.Set("memory_enabled", profile_->GetPrefs()->GetBoolean(
                                      claude::prefs::kMemoryEnabled));
   snapshot.Set("memory_save",
@@ -287,14 +349,16 @@ std::string ClaudeBridge::Snapshot(JNIEnv* env) {
   snapshot.Set("memories", std::move(memories));
   base::ListValue features;
   for (const Feature& feature : kFeatures) {
-    std::string feature_model =
-        profile_->GetPrefs()->GetString(feature.model_pref);
+    std::string feature_model = profile_->GetPrefs()->GetString(
+        claude::prefs::CurrentPref(*profile_->GetPrefs(), feature.model_pref));
+    if (feature_model.empty()) {
+      feature_model = FeatureDefaultModel(feature, provider);
+    }
     features.Append(
         base::DictValue()
             .Set("key", feature.key)
             .Set("on", profile_->GetPrefs()->GetBoolean(feature.pref))
-            .Set("model",
-                 feature_model.empty() ? feature.default_model : feature_model));
+            .Set("model", feature_model));
   }
   snapshot.Set("features", std::move(features));
   const PrefService* prefs = profile_->GetPrefs();
@@ -302,7 +366,8 @@ std::string ClaudeBridge::Snapshot(JNIEnv* env) {
   snapshot.Set("attach_page", attach_page_);
   snapshot.Set("can_retry",
                !streaming_ && !error_.empty() && !retry_content_.empty());
-  snapshot.Set("base_url", prefs->GetString(claude::prefs::kBaseUrl));
+  snapshot.Set("base_url", prefs->GetString(claude::prefs::CurrentPref(
+                               *prefs, claude::prefs::kBaseUrl)));
   snapshot.Set("auth_style", prefs->GetInteger(claude::prefs::kAuthStyle));
   snapshot.Set("testing", testing_);
   snapshot.Set("test_ok", test_ok_);
@@ -432,12 +497,25 @@ void ClaudeBridge::OnPage(std::string question,
 
 void ClaudeBridge::OnKey(std::string content, std::optional<std::string> key) {
   retry_content_ = content;
-  if (!key || key->empty()) {
-    Finish("Add your Anthropic API key first.");
+  claude::Endpoint endpoint = claude::EndpointFromPrefs(*profile_->GetPrefs());
+  // A compatible server set up without a key has an empty one.
+  if (!key || (key->empty() && endpoint.provider !=
+                                   claude::AIProvider::kCompatible)) {
+    Finish(base::StrCat({"Add your ",
+                         claude::ProviderDisplayName(endpoint.provider),
+                         " API key first."}));
     return;
   }
-  claude::Endpoint endpoint = claude::EndpointFromPrefs(*profile_->GetPrefs());
+  if (!endpoint.base_url.is_valid()) {
+    Finish("Enter the server's URL in Settings first.");
+    return;
+  }
+  if (ChatModel(*profile_->GetPrefs()).empty()) {
+    Finish("Enter the server's model ID in Settings first.");
+    return;
+  }
   endpoint.api_key = *key;
+  provider_ = endpoint.provider;
   // A token from `claude setup-token` goes only with "Accept the risks of
   // subscription tokens" on, as on the desktop and iOS (claude.md,
   // "Settings"); then as Claude Code, its line first in the system prompt.
@@ -471,10 +549,7 @@ void ClaudeBridge::OnKey(std::string content, std::optional<std::string> key) {
 }
 
 void ClaudeBridge::Request() {
-  std::string model = profile_->GetPrefs()->GetString(claude::prefs::kModel);
-  if (model.empty()) {
-    model = claude::kDefaultModel;
-  }
+  const std::string model = ChatModel(*profile_->GetPrefs());
   base::DictValue request;
   request.Set("model", model);
   // Room for thinking and a long answer, as the desktop's chat.
@@ -485,7 +560,8 @@ void ClaudeBridge::Request() {
                               .Set("type", "adaptive")
                               .Set("display", "summarized"));
   std::vector<std::string> betas;
-  if (!base_url_.is_valid() || base_url_.is_empty()) {
+  if (provider_ == claude::AIProvider::kAnthropic &&
+      (!base_url_.is_valid() || base_url_.is_empty())) {
     // The Claude API itself: a thinking block that no longer matches what
     // came before it (another model) is dropped, not refused; and a declined
     // request goes to the fallback model.
@@ -923,7 +999,24 @@ void ClaudeBridge::SetModel(JNIEnv* env, const std::string& model) {
   if (streaming_) {
     return;
   }
-  profile_->GetPrefs()->SetString(claude::prefs::kModel, model);
+  PrefService* prefs = profile_->GetPrefs();
+  prefs->SetString(claude::prefs::CurrentPref(*prefs, claude::prefs::kModel),
+                   std::string(base::TrimWhitespaceASCII(model, base::TRIM_ALL)));
+  Changed();
+}
+
+void ClaudeBridge::SetProvider(JNIEnv* env, const std::string& provider) {
+  std::optional<claude::AIProvider> parsed = claude::ParseProvider(provider);
+  if (streaming_ || !parsed) {
+    return;
+  }
+  profile_->GetPrefs()->SetString(claude::prefs::kProvider,
+                                  claude::ProviderId(*parsed));
+  // Test Connection's outcome and models were the other provider's.
+  test_ok_ = false;
+  test_result_.clear();
+  api_models_.clear();
+  error_.clear();
   Changed();
 }
 
@@ -940,7 +1033,9 @@ void ClaudeBridge::SetFeatureModel(JNIEnv* env,
                                    const std::string& feature,
                                    const std::string& model) {
   if (const Feature* found = FindFeature(feature)) {
-    profile_->GetPrefs()->SetString(found->model_pref, model);
+    PrefService* prefs = profile_->GetPrefs();
+    prefs->SetString(claude::prefs::CurrentPref(*prefs, found->model_pref),
+                     model);
     Changed();
   }
 }
@@ -1077,11 +1172,15 @@ bool ClaudeBridge::SetEndpoint(JNIEnv* env,
                                const std::string& base_url,
                                int32_t auth_style) {
   PrefService* prefs = profile_->GetPrefs();
+  const claude::AIProvider provider = claude::prefs::CurrentProvider(*prefs);
+  const std::string pref =
+      claude::prefs::ProviderPref(claude::prefs::kBaseUrl, provider);
   std::string text(base::TrimWhitespaceASCII(base_url, base::TRIM_ALL));
   if (text.empty()) {
-    prefs->ClearPref(claude::prefs::kBaseUrl);
+    // The provider's own server; a compatible server's is gone (not set up).
+    prefs->ClearPref(pref);
   } else {
-    std::optional<GURL> url = claude::ParseBaseUrl(text);
+    std::optional<GURL> url = claude::ParseBaseUrl(text, provider);
     if (!url) {
       test_ok_ = false;
       test_result_ =
@@ -1090,12 +1189,16 @@ bool ClaudeBridge::SetEndpoint(JNIEnv* env,
       Changed();
       return false;
     }
-    prefs->SetString(claude::prefs::kBaseUrl, url->spec());
+    prefs->SetString(pref, url->spec());
   }
-  prefs->SetInteger(claude::prefs::kAuthStyle,
-                    auth_style == static_cast<int>(claude::AuthStyle::kBearer)
-                        ? auth_style
-                        : static_cast<int>(claude::AuthStyle::kApiKey));
+  // The auth style is Anthropic's only (the others send Bearer).
+  if (provider == claude::AIProvider::kAnthropic) {
+    prefs->SetInteger(
+        claude::prefs::kAuthStyle,
+        auth_style == static_cast<int>(claude::AuthStyle::kBearer)
+            ? auth_style
+            : static_cast<int>(claude::AuthStyle::kApiKey));
+  }
   test_result_.clear();
   api_models_.clear();
   Changed();
@@ -1122,12 +1225,18 @@ void ClaudeBridge::TestConnection(JNIEnv* env) {
               self->test_result_ = std::move(message);
               self->Changed();
             };
-            if (!key || key->empty()) {
+            claude::Endpoint endpoint =
+                claude::EndpointFromPrefs(*self->profile_->GetPrefs());
+            // A compatible server may need no key (GetApiKey() gives "").
+            if (!key || (key->empty() && endpoint.provider !=
+                                             claude::AIProvider::kCompatible)) {
               fail("Enter an API key first.");
               return;
             }
-            claude::Endpoint endpoint =
-                claude::EndpointFromPrefs(*self->profile_->GetPrefs());
+            if (!endpoint.base_url.is_valid()) {
+              fail("Enter the server's URL first.");
+              return;
+            }
             endpoint.api_key = std::move(*key);
             if (claude::NeedsTokenRisksAccepted(endpoint)) {
               fail(kAndroidTokenRisksMessage);

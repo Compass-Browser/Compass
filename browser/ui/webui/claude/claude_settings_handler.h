@@ -37,7 +37,9 @@ class ClaudeClient;
 
 // The browser side of compass://settings/claude: reads and writes the
 // profile's Claude prefs, saves the key encrypted (ClaudeCredentials) and
-// tests the connection. See docs/design/claude.md, "Settings".
+// tests the connection. See docs/design/claude.md, "Settings". The key, the
+// base URL and the models are the picked provider's
+// (docs/design/ai-providers.md, "Settings").
 class ClaudeSettingsHandler : public mojom::SettingsHandler,
                               public ui::SelectFileDialog::Listener {
  public:
@@ -56,6 +58,7 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler,
 
   // mojom::SettingsHandler:
   void GetState(GetStateCallback callback) override;
+  void SetProvider(const std::string& provider) override;
   void SetApiKey(const std::string& key, SetApiKeyCallback callback) override;
   void SetEndpoint(const std::string& base_url,
                    mojom::AuthStyle auth_style,
@@ -97,8 +100,9 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler,
   void FileSelectionCanceled() override;
 
  private:
-  // A sidebar feature's model pref: |model|, trimmed; empty for the default.
-  void SetFeatureModel(const char* pref, const std::string& model);
+  // A model pref of the provider in use (|name|'s CurrentPref()): |model|,
+  // trimmed; empty for the provider's default.
+  void SetProviderModel(const char* name, const std::string& model);
   void OnKeyForTest(TestConnectionCallback callback,
                     std::optional<std::string> key);
   void OnModels(TestConnectionCallback callback,

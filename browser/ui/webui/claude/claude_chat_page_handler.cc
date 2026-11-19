@@ -27,6 +27,7 @@
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "compass/browser/boosts/boost_injector.h"
 #include "compass/browser/boosts/boost_store.h"
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_client.h"
 #include "compass/browser/claude/claude_code.h"
@@ -129,8 +130,11 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
   pref_registrar_.Init(browser_->GetProfile()->GetPrefs());
   const base::RepeatingClosure changed = base::BindRepeating(
       &ClaudeChatPageHandler::OnSettingsChanged, base::Unretained(this));
-  pref_registrar_.Add(prefs::kApiKey, changed);
-  pref_registrar_.Add(prefs::kModel, changed);
+  // The key, the model and the base URL are the provider's
+  // (docs/design/ai-providers.md): switching providers changes them too.
+  prefs::ObserveProviderPrefs(pref_registrar_,
+                              {prefs::kApiKey, prefs::kModel, prefs::kBaseUrl},
+                              changed);
   pref_registrar_.Add(prefs::kBrowserScope, changed);
   pref_registrar_.Add(prefs::kBackend, changed);
   pref_registrar_.Add(prefs::kFilesAccess, changed);
@@ -240,7 +244,7 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
     return;
   }
   if (!key) {
-    page_->OnStreamDone("Add your API key in Compass's Claude settings.");
+    page_->OnStreamDone("Add your API key in Compass's AI settings.");
     return;
   }
   std::optional<base::Value> messages =
@@ -263,7 +267,12 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
     CancelApprovals(/*new_chat=*/true);
   }
   ChatOptions options;
-  options.model = prefs->GetString(prefs::kModel);
+  options.model = prefs->GetString(prefs::CurrentPref(*prefs, prefs::kModel));
+  if (options.model.empty()) {
+    // An OpenAI-compatible server's models only it knows: the user types one.
+    page_->OnStreamDone("Enter a model ID in Compass's AI settings.");
+    return;
+  }
   options.claude_api = endpoint.base_url == GURL(kDefaultBaseUrl);
   options.oauth_token = UsesOAuthToken(endpoint);
   options.browser_scope = prefs->GetBoolean(prefs::kBrowserScope);
@@ -507,8 +516,12 @@ void ClaudeChatPageHandler::Stop() {
 }
 
 bool ClaudeChatPageHandler::UsesClaudeCode() const {
-  return browser_->GetProfile()->GetPrefs()->GetInteger(prefs::kBackend) ==
-         static_cast<int>(Backend::kClaudeCode);
+  // Claude Code is Claude's: with another provider the chat runs on its API
+  // whatever the backend says.
+  const PrefService* prefs = browser_->GetProfile()->GetPrefs();
+  return prefs::CurrentProvider(*prefs) == AIProvider::kAnthropic &&
+         prefs->GetInteger(prefs::kBackend) ==
+             static_cast<int>(Backend::kClaudeCode);
 }
 
 void ClaudeChatPageHandler::SendToClaudeCode(base::ListValue messages) {
@@ -543,7 +556,8 @@ void ClaudeChatPageHandler::SendToClaudeCode(base::ListValue messages) {
     // as it starts, so the conversation goes on in a new process.
     EndClaudeCode(/*forget=*/false);
   } else if (claude_code_ &&
-             claude_code_model_ != prefs->GetString(prefs::kModel)) {
+             claude_code_model_ !=
+                 prefs->GetString(prefs::CurrentPref(*prefs, prefs::kModel))) {
     // Another model: the same conversation, resumed on it.
     EndClaudeCode(/*forget=*/false);
   }
@@ -587,7 +601,8 @@ void ClaudeChatPageHandler::OnClaudeCodeFound(
   }
   Profile* profile = browser_->GetProfile();
   ClaudeCodeOptions options;
-  options.model = profile->GetPrefs()->GetString(prefs::kModel);
+  const PrefService& prefs = *profile->GetPrefs();
+  options.model = prefs.GetString(prefs::CurrentPref(prefs, prefs::kModel));
   options.system_prompt =
       SystemPromptText(FreezeMemory(/*new_chat=*/false).block);
   options.resume = claude_code_session_;
@@ -786,12 +801,13 @@ void ClaudeChatPageHandler::SetModel(const std::string& model) {
   // As ClaudeSettingsHandler::SetModel(); the pref change sends the page
   // its setup again.
   PrefService* prefs = browser_->GetProfile()->GetPrefs();
+  const std::string pref = prefs::CurrentPref(*prefs, prefs::kModel);
   const std::string_view trimmed =
       base::TrimWhitespaceASCII(model, base::TRIM_ALL);
   if (trimmed.empty()) {
-    prefs->ClearPref(prefs::kModel);
+    prefs->ClearPref(pref);
   } else {
-    prefs->SetString(prefs::kModel, std::string(trimmed));
+    prefs->SetString(pref, std::string(trimmed));
   }
 }
 
@@ -882,8 +898,9 @@ chat::mojom::SetupPtr ClaudeChatPageHandler::MakeSetup() {
   const PrefService* prefs = profile->GetPrefs();
   const bool claude_code = UsesClaudeCode();
   return chat::mojom::Setup::New(
-      claude_code || ClaudeCredentials::HasApiKey(profile), claude_code,
-      prefs->GetString(prefs::kModel),
+      claude_code || ClaudeCredentials::IsSetUp(*prefs), claude_code,
+      std::string(ProviderId(prefs::CurrentProvider(*prefs))),
+      prefs->GetString(prefs::CurrentPref(*prefs, prefs::kModel)),
       prefs->GetBoolean(prefs::kBrowserScope));
 }
 

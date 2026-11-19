@@ -93,6 +93,10 @@ std::unique_ptr<network::SimpleURLLoader> ClaudeClient::MakeLoader(
   request->credentials_mode = network::mojom::CredentialsMode::kOmit;
   AddRequestHeaders(endpoint_, request->headers);
   AddBetas(endpoint_, betas, request->headers);
+  if (method == "POST" && UsesOpenAIFormat(endpoint_.provider)) {
+    request->headers.SetHeader(net::HttpRequestHeaders::kAccept,
+                               "text/event-stream");
+  }
   auto loader =
       network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation);
   // Error replies carry the API's message.
@@ -101,14 +105,17 @@ std::unique_ptr<network::SimpleURLLoader> ClaudeClient::MakeLoader(
 }
 
 void ClaudeClient::ListModels(ModelsCallback callback) {
-  if (endpoint_.api_key.empty()) {
+  if (!endpoint_.base_url.is_valid()) {
+    std::move(callback).Run(base::unexpected("Enter the server's URL first."));
+    return;
+  }
+  // An OpenAI-compatible server may take no key.
+  if (endpoint_.api_key.empty() &&
+      endpoint_.provider != AIProvider::kCompatible) {
     std::move(callback).Run(base::unexpected("Enter an API key first."));
     return;
   }
-  models_loader_ = MakeLoader(
-      net::AppendQueryParameter(EndpointUrl(endpoint_.base_url, "v1/models"),
-                                "limit", "100"),
-      "GET");
+  models_loader_ = MakeLoader(ModelsUrl(endpoint_), "GET");
   models_loader_->SetTimeoutDuration(kModelsTimeout);
   models_loader_->DownloadToString(
       loader_factory_.get(),
@@ -123,10 +130,12 @@ void ClaudeClient::OnModels(ModelsCallback callback,
   models_loader_.reset();
   if (status != net::HTTP_OK || !body) {
     std::move(callback).Run(
-        base::unexpected(DescribeError(status, body.value_or(""))));
+        base::unexpected(DescribeError(status, body.value_or(""),
+                                       endpoint_.provider)));
     return;
   }
-  std::optional<std::vector<ModelInfo>> models = ParseModelList(*body);
+  std::optional<std::vector<ModelInfo>> models =
+      ParseModelList(*body, endpoint_.provider);
   if (!models) {
     std::move(callback).Run(base::unexpected(
         "The server answered, but not with a list of models. Check the "
@@ -141,11 +150,25 @@ void ClaudeClient::StreamMessage(base::DictValue request,
                                  EventCallback on_event,
                                  DoneCallback on_done) {
   Cancel();
-  if (endpoint_.api_key.empty()) {
-    std::move(on_done).Run("Enter an API key in Compass's Claude settings.");
+  if (!endpoint_.base_url.is_valid()) {
+    std::move(on_done).Run("Enter the server's URL in Compass's AI settings.");
+    return;
+  }
+  if (endpoint_.api_key.empty() &&
+      endpoint_.provider != AIProvider::kCompatible) {
+    std::move(on_done).Run("Enter an API key in Compass's AI settings.");
     return;
   }
   request.Set("stream", true);
+  const bool openai = UsesOpenAIFormat(endpoint_.provider);
+  if (openai) {
+    request =
+        openai::TranslateRequest(request, endpoint_.provider, json_reply_);
+    translator_ =
+        std::make_unique<openai::StreamTranslator>(endpoint_.provider);
+  } else {
+    translator_.reset();
+  }
   std::optional<std::string> body = base::WriteJson(request);
   if (!body) {
     std::move(on_done).Run("The request couldn't be written.");
@@ -157,8 +180,9 @@ void ClaudeClient::StreamMessage(base::DictValue request,
   stream_status_ = 0;
   error_body_.clear();
   saw_message_stop_ = false;
-  stream_loader_ = MakeLoader(EndpointUrl(endpoint_.base_url, "v1/messages"),
-                              "POST", betas);
+  stream_loader_ =
+      MakeLoader(EndpointUrl(endpoint_.base_url, ChatPath(endpoint_.provider)),
+                 "POST", betas);
   stream_loader_->AttachStringForUpload(*body, "application/json");
   stream_loader_->SetOnResponseStartedCallback(base::BindOnce(
       &ClaudeClient::OnStreamStarted, weak_factory_.GetWeakPtr()));
@@ -167,6 +191,7 @@ void ClaudeClient::StreamMessage(base::DictValue request,
 
 void ClaudeClient::Cancel() {
   stream_loader_.reset();
+  translator_.reset();
   on_event_.Reset();
   on_done_.Reset();
 }
@@ -187,11 +212,31 @@ void ClaudeClient::OnDataReceived(std::string_view data,
     std::move(resume).Run();
     return;
   }
-  base::WeakPtr<ClaudeClient> self = weak_factory_.GetWeakPtr();
   for (const SseParser::Event& event : parser_.Feed(data)) {
+    if (translator_) {
+      // Another provider's chunk (or event), as Messages events.
+      if (!Dispatch(translator_->Feed(event.data))) {
+        return;
+      }
+      if (translator_->error()) {
+        FinishStream(*translator_->error());
+        return;
+      }
+      continue;
+    }
+    if (!Dispatch({event})) {
+      return;
+    }
+  }
+  std::move(resume).Run();
+}
+
+bool ClaudeClient::Dispatch(const std::vector<SseParser::Event>& events) {
+  base::WeakPtr<ClaudeClient> self = weak_factory_.GetWeakPtr();
+  for (const SseParser::Event& event : events) {
     if (event.name == "error") {
       FinishStream(StreamErrorMessage(event.data));
-      return;
+      return false;
     }
     if (event.name == "message_stop") {
       saw_message_stop_ = true;
@@ -199,17 +244,25 @@ void ClaudeClient::OnDataReceived(std::string_view data,
     on_event_.Run(event);
     // The event may have deleted the client, or cancelled the stream.
     if (!self || !stream_loader_) {
-      return;
+      return false;
     }
   }
-  std::move(resume).Run();
+  return true;
 }
 
 void ClaudeClient::OnComplete(bool success) {
+  if (stream_status_ == net::HTTP_OK && success && translator_ &&
+      !saw_message_stop_) {
+    // A stream that had a finish reason but no [DONE] still ends.
+    if (!Dispatch(translator_->Finish())) {
+      return;
+    }
+  }
   if (stream_status_ != net::HTTP_OK) {
-    FinishStream(DescribeError(stream_status_, error_body_));
+    FinishStream(
+        DescribeError(stream_status_, error_body_, endpoint_.provider));
   } else if (!success) {
-    FinishStream(DescribeError(0, ""));
+    FinishStream(DescribeError(0, "", endpoint_.provider));
   } else if (!saw_message_stop_) {
     FinishStream("The reply was cut off. Try again.");
   } else {
@@ -227,6 +280,7 @@ void ClaudeClient::FinishStream(std::optional<std::string> error) {
   // callback may start another stream or delete the client.
   stream_loader_.reset();
   on_event_.Reset();
+  translator_.reset();
   if (on_done_) {
     std::move(on_done_).Run(std::move(error));
   }

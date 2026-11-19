@@ -12,6 +12,10 @@ class PrefRegistrySimple;
 // themselves sync, with the spaces.)
 namespace compass::claude::prefs {
 
+// Who answers, and the per-provider names of the settings below (the key, its
+// hint, the base URL and the models): ai_provider.h, prefs::kProvider,
+// ProviderPref(). Read those through CurrentPref().
+//
 // The API key, encrypted with the OS's safe storage (os_crypt_async), in
 // base64. Empty when none is set. Read and written by ClaudeCredentials only.
 inline constexpr char kApiKey[] = "compass.claude.api_key";

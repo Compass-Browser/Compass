@@ -7,10 +7,26 @@ import type {Memory, Model, SettingsHandlerRemote, SettingsState} from
 import {AuthStyle, Backend, FilesAccess, SettingsHandler} from
     '../claude.mojom-webui.js';
 
-import {KNOWN_MODELS} from '../claude_models.js';
+import type {KnownModel} from '../claude_models.js';
+import {knownModels} from '../claude_models.js';
 
 // A sidebar feature's model, by default (claude_quick.h, kDefaultQuickModel).
 const QUICK_MODEL_DEFAULT = 'claude-haiku-5-5';
+
+// What the key field says under it, for a provider other than Anthropic
+// (whose text is in the page, with its subscription tokens).
+const KEY_HELP: Record<string, string> = {
+  openai: 'An OpenAI API key from platform.openai.com (a ChatGPT ' +
+      'subscription can\'t be used). Stored encrypted on this device only; ' +
+      'it never syncs, and pages never see it. Compass\'s prompts and tools ' +
+      'are made for Claude: other models may use the browser less well.',
+  gemini: 'A Gemini API key from aistudio.google.com. Stored encrypted on ' +
+      'this device only; it never syncs, and pages never see it. ' +
+      'Compass\'s prompts and tools are made for Claude: other models may ' +
+      'use the browser less well.',
+  compatible: 'The server\'s key, if it needs one. Stored encrypted on ' +
+      'this device only; it never syncs, and pages never see it.',
+};
 
 // Claude in the sidebar (docs/design/ai-sidebar.md): each feature is a row
 // of its own switch and the model it asks. A new feature adds an entry.
@@ -87,7 +103,12 @@ import {CompassSettingsPage} from './page_base.js';
 export class CompassClaudePageElement extends CompassSettingsPage {
   private handler_ = SettingsHandler.getRemote();
   private state_: SettingsState|null = null;
-  private models_: Model[] = KNOWN_MODELS;
+  // The provider the models below are for; another resets them.
+  private provider_ = 'anthropic';
+  private models_: Array<Model|KnownModel> = knownModels('anthropic');
+  // Test connection listed the models (an OpenAI-compatible server's can
+  // then be picked, not only typed).
+  private modelsListed_ = false;
 
   protected get pageTitle() {
     return 'Claude';
@@ -98,6 +119,28 @@ export class CompassClaudePageElement extends CompassSettingsPage {
   }
 
   protected setUp() {
+    this.$<HTMLSelectElement>('provider')
+        .addEventListener('change', async () => {
+          // Mojo keeps the order: the state read next is the new
+          // provider's.
+          this.handler_.setProvider(this.$<HTMLSelectElement>('provider').value);
+          for (const id of ['keyNote', 'testNote', 'endpointNote',
+                            'serverNote']) {
+            this.show(id, false);
+          }
+          this.$<HTMLInputElement>('apiKey').value = '';
+          await this.refresh_();
+        });
+    this.$('saveServer').addEventListener('click', () => this.saveServer_());
+    this.$<HTMLInputElement>('serverUrl').addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        this.saveServer_();
+      }
+    });
+    this.$<HTMLInputElement>('modelId').addEventListener('change', async () => {
+      this.handler_.setModel(this.$<HTMLInputElement>('modelId').value);
+      await this.refresh_();
+    });
     this.$('saveKey').addEventListener('click', () => this.saveKey_());
     this.$<HTMLInputElement>('apiKey').addEventListener('keydown', e => {
       if (e.key === 'Enter') {
@@ -143,8 +186,9 @@ export class CompassClaudePageElement extends CompassSettingsPage {
             savePath();
           }
         });
-    this.$<HTMLSelectElement>('model').addEventListener('change', () => {
+    this.$<HTMLSelectElement>('model').addEventListener('change', async () => {
       this.handler_.setModel(this.$<HTMLSelectElement>('model').value);
+      await this.refresh_();
     });
     this.setUpSidebarFeatures_();
     this.$('saveEndpoint').addEventListener('click', () => this.saveEndpoint_());
@@ -230,6 +274,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     path.title = path.textContent;
     this.show('clearFilesFolder',
               access === FilesAccess.kSave && state.filesFolder !== '');
+    // Never Claude Code with another provider (the state says so).
     const claudeCode = state.backend === Backend.kClaudeCode;
     this.show('ownToolsRow', claudeCode && access === FilesAccess.kFolder);
     const ownTools = this.$<HTMLInputElement>('claudeCodeOwnTools');
@@ -240,11 +285,19 @@ export class CompassClaudePageElement extends CompassSettingsPage {
   private async refresh_() {
     const {state} = await this.handler_.getState();
     this.state_ = state;
+    if (state.provider !== this.provider_) {
+      // Another provider's models: its known ones until a test lists them.
+      this.provider_ = state.provider;
+      this.models_ = knownModels(state.provider);
+      this.modelsListed_ = false;
+    }
+    this.renderProvider_(state);
     const claudeCode = state.backend === Backend.kClaudeCode;
     this.$<HTMLInputElement>('backendApiKey').checked = !claudeCode;
     this.$<HTMLInputElement>('backendClaudeCode').checked = claudeCode;
     this.show('apiKeySection', !claudeCode);
-    this.show('advanced', !claudeCode);
+    // An OpenAI-compatible server's URL is above, in its own section.
+    this.show('advanced', !claudeCode && state.provider !== 'compatible');
     this.show('claudeCodeSection', claudeCode);
     this.show('claudeCodeNoTools', !state.claudeCodeTools);
     this.$<HTMLInputElement>('claudeCodePath').value = state.claudeCodePath;
@@ -254,8 +307,9 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     this.$<HTMLInputElement>('baseUrl').value = state.baseUrl;
     this.$<HTMLSelectElement>('authStyle').value =
         state.authStyle === AuthStyle.kBearer ? 'bearer' : 'apiKey';
-    this.$<HTMLDetailsElement>('advanced').open =
-        state.baseUrl !== '' || state.authStyle === AuthStyle.kBearer;
+    this.$<HTMLDetailsElement>('advanced').open = state.baseUrl !== '' ||
+        (state.provider === 'anthropic' &&
+         state.authStyle === AuthStyle.kBearer);
     this.$<HTMLInputElement>('browserScope').checked = state.browserScope;
     this.$<HTMLInputElement>('devtools').checked = state.devtools;
     this.$<HTMLInputElement>('boosts').checked = state.boosts;
@@ -272,6 +326,40 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     if (state.memorySupported) {
       await this.refreshMemories_();
     }
+  }
+
+  // The provider picker, and what follows it: Anthropic's own options
+  // (Claude Code, subscription tokens, the auth style) only for Anthropic,
+  // an OpenAI-compatible server's URL and typed model only for one.
+  private renderProvider_(state: SettingsState) {
+    const select = this.$<HTMLSelectElement>('provider');
+    select.replaceChildren(...state.providers.map(provider => {
+      const option = document.createElement('option');
+      option.value = provider.id;
+      option.textContent = provider.displayName;
+      return option;
+    }));
+    select.value = state.provider;
+    this.$('privacyNote').textContent = state.privacyNote;
+    const anthropic = state.provider === 'anthropic';
+    const compatible = state.provider === 'compatible';
+    this.show('backendSection', anthropic);
+    this.show('tokenRisksRow', anthropic);
+    this.show('authStyleRow', anthropic);
+    this.show('keyHelpAnthropic', anthropic);
+    this.show('keyHelpOther', !anthropic);
+    this.$('keyHelpOther').textContent = KEY_HELP[state.provider] || '';
+    this.$<HTMLInputElement>('apiKey').placeholder = state.keyPlaceholder;
+    this.show('endpointHintAnthropic', anthropic);
+    this.show('endpointHintOther', !anthropic);
+    this.$<HTMLInputElement>('baseUrl').placeholder = state.defaultBaseUrl;
+    this.show('serverSection', compatible);
+    this.$<HTMLInputElement>('serverUrl').value =
+        compatible ? state.baseUrl : '';
+    const modelId = this.$<HTMLInputElement>('modelId');
+    this.show('modelId', compatible);
+    modelId.value = compatible ? state.model : '';
+    this.$('modelLabel').setAttribute('for', compatible ? 'modelId' : 'model');
   }
 
   private setUpMemory_() {
@@ -410,17 +498,18 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     }
   }
 
-  // Each switch is off, and can't be turned on, until Claude is set up (a
-  // key, or a gateway's; Claude Code mode doesn't answer these requests).
+  // Each switch is off, and can't be turned on, until the provider is set
+  // up (a key, a gateway's, or an OpenAI-compatible server's URL; Claude
+  // Code mode doesn't answer these requests).
   private renderSidebarFeatures_(state: SettingsState) {
     this.show('sidebarFeatures', state.sidebarSupported);
     for (const feature of SIDEBAR_FEATURES) {
       const input = this.$<HTMLInputElement>(feature.id);
-      input.checked = feature.enabled(state) && state.hasKey;
-      input.disabled = !state.hasKey;
-      this.$<HTMLSelectElement>(`${feature.id}Model`).disabled = !state.hasKey;
+      input.checked = feature.enabled(state) && state.setUp;
+      input.disabled = !state.setUp;
+      this.$<HTMLSelectElement>(`${feature.id}Model`).disabled = !state.setUp;
     }
-    this.show('sidebarNeedsKey', !state.hasKey);
+    this.show('sidebarNeedsKey', !state.setUp);
   }
 
   // "Allow MCP clients", how to add Compass to a client, the clients
@@ -452,31 +541,42 @@ export class CompassClaudePageElement extends CompassSettingsPage {
         }));
   }
 
-  // The models a test listed, or the known ones, in the chat's picker and
-  // each sidebar feature's; the chosen one is always there, also a custom
-  // one (a gateway's).
+  // The models a test listed, or the provider's known ones, in the chat's
+  // picker and each sidebar feature's; the chosen one is always there, also
+  // a custom one (a gateway's). An OpenAI-compatible server knows its models
+  // only once a test lists them (the chat's is typed until then), and its
+  // features can ask the chat's model ("Same as chat", empty).
   private renderModels_() {
-    this.renderModelSelect_('model',
-                            this.state_?.model || KNOWN_MODELS[0]!.id);
+    const anthropic = this.provider_ === 'anthropic';
+    const compatible = this.provider_ === 'compatible';
+    this.show('model', !compatible || this.modelsListed_);
+    this.renderModelSelect_(
+        'model', this.state_?.model || this.models_[0]?.id || '');
     for (const feature of SIDEBAR_FEATURES) {
+      const chosen = this.state_ ? feature.model(this.state_) : '';
       this.renderModelSelect_(
           `${feature.id}Model`,
-          (this.state_ && feature.model(this.state_)) ||
-              feature.defaultModel || QUICK_MODEL_DEFAULT);
+          anthropic ? chosen || feature.defaultModel || QUICK_MODEL_DEFAULT :
+                      chosen,
+          /*sameAsChat=*/ compatible);
     }
   }
 
-  private renderModelSelect_(id: string, chosen: string) {
+  private renderModelSelect_(id: string, chosen: string,
+                             sameAsChat: boolean = false) {
     const select = this.$<HTMLSelectElement>(id);
     const models = [...this.models_];
-    if (!models.some(m => m.id === chosen)) {
+    if (chosen && !models.some(m => m.id === chosen)) {
       models.unshift({id: chosen, displayName: chosen});
+    }
+    if (sameAsChat) {
+      models.unshift({id: '', displayName: 'Same as chat'});
     }
     select.replaceChildren(...models.map(model => {
       const option = document.createElement('option');
       option.value = model.id;
-      option.textContent = model.displayName === model.id ?
-          model.id :
+      option.textContent = !model.id || model.displayName === model.id ?
+          model.displayName :
           `${model.displayName} (${model.id})`;
       return option;
     }));
@@ -527,12 +627,33 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     await this.refresh_();
   }
 
+  // An OpenAI-compatible server's URL: empty clears it (no server yet).
+  private async saveServer_() {
+    const url = this.$<HTMLInputElement>('serverUrl').value.trim();
+    const {ok} = await this.handler_.setEndpoint(url, AuthStyle.kApiKey);
+    if (!ok) {
+      this.note_(
+          'serverNote',
+          'Use an https:// URL (http:// only to this computer), without a ' +
+              'query.',
+          true);
+      return;
+    }
+    this.note_('serverNote', url ? 'Saved.' : 'Server removed.', false);
+    await this.refresh_();
+  }
+
   private async test_() {
     const button = this.$<HTMLButtonElement>('test');
     button.disabled = true;
     this.note_('testNote', 'Connecting…', false);
+    const provider = this.provider_;
     const {result} = await this.handler_.testConnection();
     button.disabled = false;
+    if (provider !== this.provider_) {
+      // The provider changed meanwhile: these are another's models.
+      return;
+    }
     if (!result.ok) {
       this.note_('testNote', result.error, true);
       return;
@@ -544,6 +665,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     }
     if (result.models.length) {
       this.models_ = result.models;
+      this.modelsListed_ = true;
     }
     this.renderModels_();
     this.note_(

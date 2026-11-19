@@ -24,11 +24,16 @@ Endpoint::Endpoint(const Endpoint&) = default;
 Endpoint& Endpoint::operator=(const Endpoint&) = default;
 Endpoint::~Endpoint() = default;
 
-std::optional<GURL> ParseBaseUrl(std::string_view text) {
-  const std::string_view trimmed =
-      base::TrimWhitespaceASCII(text, base::TRIM_ALL);
+std::optional<GURL> ParseBaseUrl(std::string_view text, AIProvider provider) {
+  std::string_view trimmed = base::TrimWhitespaceASCII(text, base::TRIM_ALL);
   if (trimmed.empty()) {
-    return GURL(kDefaultBaseUrl);
+    if (provider == AIProvider::kAnthropic) {
+      return GURL(kDefaultBaseUrl);
+    }
+    if (DefaultBaseUrl(provider).empty()) {
+      return std::nullopt;
+    }
+    trimmed = DefaultBaseUrl(provider);
   }
   GURL url(trimmed);
   if (!url.is_valid() || url.has_query() || url.has_ref() ||
@@ -65,21 +70,47 @@ GURL EndpointUrl(const GURL& base_url, std::string_view path) {
   return base_url.ReplaceComponents(replacements);
 }
 
+std::string_view ChatPath(AIProvider provider) {
+  if (UsesResponsesApi(provider)) {
+    return "responses";
+  }
+  return UsesOpenAIFormat(provider) ? "chat/completions" : "v1/messages";
+}
+
+GURL ModelsUrl(const Endpoint& endpoint) {
+  if (UsesOpenAIFormat(endpoint.provider)) {
+    return EndpointUrl(endpoint.base_url, "models");
+  }
+  return net::AppendQueryParameter(
+      EndpointUrl(endpoint.base_url, "v1/models"), "limit", "100");
+}
+
 bool IsOAuthToken(std::string_view key) {
   return base::StartsWith(base::TrimWhitespaceASCII(key, base::TRIM_ALL),
                           "sk-ant-oat");
 }
 
 bool UsesOAuthToken(const Endpoint& endpoint) {
-  return endpoint.allow_oauth_token && IsOAuthToken(endpoint.api_key);
+  return endpoint.provider == AIProvider::kAnthropic &&
+         endpoint.allow_oauth_token && IsOAuthToken(endpoint.api_key);
 }
 
 bool NeedsTokenRisksAccepted(const Endpoint& endpoint) {
-  return !endpoint.allow_oauth_token && IsOAuthToken(endpoint.api_key);
+  return endpoint.provider == AIProvider::kAnthropic &&
+         !endpoint.allow_oauth_token && IsOAuthToken(endpoint.api_key);
 }
 
 void AddRequestHeaders(const Endpoint& endpoint,
                        net::HttpRequestHeaders& headers) {
+  if (UsesOpenAIFormat(endpoint.provider)) {
+    const std::string_view key =
+        base::TrimWhitespaceASCII(endpoint.api_key, base::TRIM_ALL);
+    if (!key.empty()) {
+      headers.SetHeader(net::HttpRequestHeaders::kAuthorization,
+                        base::StrCat({"Bearer ", key}));
+    }
+    return;
+  }
   headers.SetHeader("anthropic-version", kApiVersion);
   if (endpoint.auth_style == AuthStyle::kBearer || UsesOAuthToken(endpoint)) {
     headers.SetHeader(net::HttpRequestHeaders::kAuthorization,
@@ -92,6 +123,9 @@ void AddRequestHeaders(const Endpoint& endpoint,
 void AddBetas(const Endpoint& endpoint,
               const std::vector<std::string>& betas,
               net::HttpRequestHeaders& headers) {
+  if (UsesOpenAIFormat(endpoint.provider)) {
+    return;
+  }
   std::vector<std::string> all = betas;
   if (UsesOAuthToken(endpoint) && !std::ranges::contains(all, kOAuthBeta)) {
     all.push_back(kOAuthBeta);
@@ -103,9 +137,15 @@ void AddBetas(const Endpoint& endpoint,
 
 Endpoint EndpointFromPrefs(const PrefService& prefs) {
   Endpoint endpoint;
-  endpoint.base_url =
-      ParseBaseUrl(prefs.GetString(prefs::kBaseUrl)).value_or(
-          GURL(kDefaultBaseUrl));
+  endpoint.provider = prefs::CurrentProvider(prefs);
+  const std::optional<GURL> base_url =
+      ParseBaseUrl(prefs.GetString(prefs::CurrentPref(prefs, prefs::kBaseUrl)),
+                   endpoint.provider);
+  if (base_url) {
+    endpoint.base_url = *base_url;
+  } else if (!DefaultBaseUrl(endpoint.provider).empty()) {
+    endpoint.base_url = GURL(DefaultBaseUrl(endpoint.provider));
+  }
   endpoint.auth_style = prefs.GetInteger(prefs::kAuthStyle) ==
                                 static_cast<int>(AuthStyle::kBearer)
                             ? AuthStyle::kBearer
@@ -169,7 +209,8 @@ void RememberCacheLevel(PrefService& prefs,
   prefs.SetInteger(prefs::kCacheLevel, static_cast<int>(level));
 }
 
-std::optional<std::vector<ModelInfo>> ParseModelList(std::string_view json) {
+std::optional<std::vector<ModelInfo>> ParseModelList(std::string_view json,
+                                                     AIProvider provider) {
   std::optional<base::DictValue> dict =
       base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC);
   if (!dict) {
@@ -182,20 +223,59 @@ std::optional<std::vector<ModelInfo>> ParseModelList(std::string_view json) {
   std::vector<ModelInfo> models;
   for (const base::Value& item : *data) {
     const base::DictValue* model = item.GetIfDict();
-    const std::string* id = model ? model->FindString("id") : nullptr;
-    if (!id || id->empty()) {
+    const std::string* found = model ? model->FindString("id") : nullptr;
+    if (!found || found->empty()) {
       continue;
     }
+    std::string id = *found;
+    if (UsesOpenAIFormat(provider)) {
+      if (id.starts_with("models/")) {
+        id = id.substr(7);
+      }
+      if (provider == AIProvider::kOpenAI) {
+        const std::string lower = base::ToLowerASCII(id);
+        bool chat = true;
+        for (std::string_view word :
+             {"embedding", "tts", "whisper", "dall-e", "moderation", "image",
+              "audio", "realtime", "transcribe", "search", "davinci",
+              "babbage", "sora"}) {
+          if (lower.find(word) != std::string::npos) {
+            chat = false;
+            break;
+          }
+        }
+        if (!chat) {
+          continue;
+        }
+      }
+    }
     const std::string* name = model->FindString("display_name");
-    models.push_back({*id, name && !name->empty() ? *name : *id});
+    models.push_back({id, name && !name->empty() ? *name : id});
+  }
+  if (UsesOpenAIFormat(provider)) {
+    std::ranges::sort(models, {}, &ModelInfo::id);
   }
   return models;
 }
 
-std::string DescribeError(int http_status, std::string_view body) {
+std::string DescribeError(int http_status,
+                          std::string_view body,
+                          AIProvider provider) {
   if (http_status == 0) {
     return "Couldn't reach the server. Check the connection and the "
            "endpoint URL.";
+  }
+  // Gemini's: [{"error": {…}}].
+  if (std::optional<base::Value> list =
+          base::JSONReader::Read(body, base::JSON_PARSE_RFC);
+      list && list->is_list() && !list->GetList().empty() &&
+      list->GetList().front().is_dict()) {
+    const std::string* message =
+        list->GetList().front().GetDict().FindStringByDottedPath(
+            "error.message");
+    if (message && !message->empty()) {
+      return *message;
+    }
   }
   if (std::optional<base::DictValue> dict =
           base::JSONReader::ReadDict(body, base::JSON_PARSE_RFC)) {
@@ -218,6 +298,19 @@ std::string DescribeError(int http_status, std::string_view body) {
   if (IsTooManyCacheBreakpoints(body.substr(0, 2048))) {
     return std::string(base::TrimWhitespaceASCII(body.substr(0, 2048),
                                                  base::TRIM_ALL));
+  }
+  if (provider != AIProvider::kAnthropic) {
+    switch (http_status) {
+      case net::HTTP_UNAUTHORIZED:
+        return "The key was refused (401). Check it.";
+      case net::HTTP_SERVICE_UNAVAILABLE:
+      case 529:
+        return base::StrCat({"The server is overloaded (",
+                             base::NumberToString(http_status),
+                             "). Try again in a moment."});
+      default:
+        break;
+    }
   }
   switch (http_status) {
     case net::HTTP_UNAUTHORIZED:

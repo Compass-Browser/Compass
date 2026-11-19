@@ -15,6 +15,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/android/spaces_android.h"
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -46,10 +47,14 @@ ClaudeSidebarBridge::ClaudeSidebarBridge(
   prefs_.Init(profile->GetPrefs());
   for (const char* pref :
        {claude::prefs::kNameLinkFolders, claude::prefs::kTidyToday,
-        claude::prefs::kCommandBarAsk, claude::prefs::kApiKey}) {
+        claude::prefs::kCommandBarAsk}) {
     prefs_.Add(pref, base::BindRepeating(&ClaudeSidebarBridge::Changed,
                                          base::Unretained(this)));
   }
+  claude::prefs::ObserveProviderPrefs(
+      prefs_, {claude::prefs::kApiKey, claude::prefs::kBaseUrl},
+      base::BindRepeating(&ClaudeSidebarBridge::Changed,
+                          base::Unretained(this)));
 }
 
 ClaudeSidebarBridge::~ClaudeSidebarBridge() {
@@ -123,7 +128,8 @@ std::string ClaudeSidebarBridge::Ask(JNIEnv* env,
   }
   claude::QuickRequest request = claude::MakeAskRequest(
       question, claude::DescribeAskPage(page_title, page_host),
-      profile_->GetPrefs()->GetString(claude::prefs::kCommandBarAskModel),
+      profile_->GetPrefs()->GetString(claude::prefs::CurrentPref(
+          *profile_->GetPrefs(), claude::prefs::kCommandBarAskModel)),
       g_browser_process->GetApplicationLocale());
   std::string sent = request.user;
   // The ids start at 1: the callbacks learn theirs through |ask_id_|.

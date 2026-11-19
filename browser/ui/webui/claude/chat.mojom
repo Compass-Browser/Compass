@@ -6,11 +6,16 @@ module compass.claude.chat.mojom;
 
 // What the panel needs to know of the settings.
 struct Setup {
-  // The chat can send: a key is saved, or the chat runs on Claude Code.
+  // The chat can send: the provider is set up (a key, or an
+  // OpenAI-compatible server's URL), or the chat runs on Claude Code.
   bool has_key;
-  // Claude Code mode (docs/design/claude.md, D8): Claude Code runs the
-  // tools and the loop, and the page only shows them (OnToolResult()).
+  // Claude Code mode (docs/design/claude.md, D8; Anthropic only): Claude
+  // Code runs the tools and the loop, and the page only shows them
+  // (OnToolResult()).
   bool claude_code;
+  // Who answers (ProviderId(): "anthropic", "openai", "gemini",
+  // "compatible"), for the model menu's known models.
+  string provider;
   string model;
   bool browser_scope;
 };
