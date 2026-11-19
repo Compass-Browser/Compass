@@ -144,7 +144,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        NSCameraUsageDescription: Compass scans the pairing code shown on your Mac.
+        NSCameraUsageDescription: Compass scans the pairing code shown on your Mac, and lets websites you allow use the camera.
+        NSMicrophoneUsageDescription: Compass lets websites you allow use the microphone, for calls and recordings.
         NSFaceIDUsageDescription: Compass asks for Face ID before showing your recovery code.
         # audio: a picture-in-picture video keeps playing outside the app.
         UIBackgroundModes: [fetch, audio]

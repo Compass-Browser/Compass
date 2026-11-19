@@ -78,7 +78,7 @@ final class DevToolsNetwork {
 
   /// `store`'s connections opened since `since`.
   func connections(for store: WKWebsiteDataStore, since: Date?) -> [NetworkListing.Connection] {
-    proxy.connections(store: Self.label(store)).filter { since == nil || $0.opened >= since! }
+    proxy.connections(store: Self.label(store)).filter { since == nil || !($0.opened < since!) }
   }
 
   var isRunning: Bool { port != nil }

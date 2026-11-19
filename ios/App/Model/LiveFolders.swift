@@ -292,7 +292,7 @@ final class LiveFolders {
   /// When a folder is due: its schedule, or (first time this launch) its
   /// last refresh plus the plugin's default interval.
   private func due(_ folder: SidebarNode, now: Date) -> Bool {
-    if let next = states[folder.id]?.nextRefresh { return next <= now }
+    if let next = states[folder.id]?.nextRefresh { return !(now < next) }
     guard let refreshed = folder.liveRefreshed else { return true }
     let interval = plugin(for: folder).map { $0.manifest.refresh.default } ?? Self.staleAfter
     return now.timeIntervalSince(refreshed) >= min(interval, Self.maxInterval)

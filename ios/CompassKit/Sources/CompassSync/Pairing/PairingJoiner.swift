@@ -140,7 +140,7 @@ public struct PairingJoiner: Sendable {
   ) async -> Swift.Result<PairingMessage, EndBox> {
     while true {
       if Task.isCancelled { return .failure(EndBox((.canceled, true))) }
-      if Date() >= deadline { return .failure(EndBox((.expired, true))) }
+      if !(Date() < deadline) { return .failure(EndBox((.expired, true))) }
       let reply = await transport.receive(slot: slot, reader: .b, after: lastSeq)
       switch reply.status {
       case 0:

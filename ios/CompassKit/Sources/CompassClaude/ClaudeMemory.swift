@@ -135,7 +135,7 @@ public struct MemoryList: Codable, Equatable, Sendable {
     var changed = false
     for remote in upserts where Self.isValid(remote) {
       if let i = entries.firstIndex(where: { $0.id == remote.id }) {
-        if remote.updated >= entries[i].updated && entries[i] != remote {
+        if !(remote.updated < entries[i].updated) && entries[i] != remote {
           entries[i] = remote
           changed = true
         }
