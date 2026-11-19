@@ -2,7 +2,6 @@
 - Links from other apps open in a little window over what you're doing.
 - Reader: tap the book in the address bar to read an article on its own.
 - A playing video goes picture-in-picture when you switch tabs.
-- The bottom bar floats over the page and hides as you scroll.
 - Link folders gather links you open from a page.
 - Claude names folders, tidies Today and shortens tab titles.
-- Compass can be your default browser.
+- Chat with OpenAI, Gemini or your own server instead of Claude.
