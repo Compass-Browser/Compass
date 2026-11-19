@@ -11,6 +11,11 @@ import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -103,6 +108,8 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import it.cipi1965.compass.R
 import kotlin.math.abs
 
@@ -530,6 +537,7 @@ private fun FavoritesGrid(state: SidebarState, listener: SidebarUi.Listener) {
                             .scale(if (pressed) 0.95f else 1f)
                             .clip(RoundedCornerShape(CompassStyle.tileRadius))
                             .background(if (shown) CompassStyle.active() else CompassStyle.fill)
+                            .claudeOutline(node.tab >= 0 && node.tab == state.claudeTab, RoundedCornerShape(CompassStyle.tileRadius))
                             .combinedClickable(
                                 interactionSource = interaction,
                                 indication = null,
@@ -780,12 +788,14 @@ private fun RenameDialog(
     onDone: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var text by remember { mutableStateOf(name) }
+    val field = rememberTextFieldState(name)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
-        text = { @Suppress("DEPRECATION") OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true) },
-        confirmButton = { TextButton(onClick = { onDone(text.trim().ifEmpty { name }) }) { Text("Done") } },
+        text = { OutlinedTextField(state = field, lineLimits = TextFieldLineLimits.SingleLine) },
+        confirmButton = {
+            TextButton(onClick = { onDone(field.text.toString().trim().ifEmpty { name }) }) { Text("Done") }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
@@ -959,6 +969,11 @@ private fun NodeRow(
                 .clip(shape)
                 .background(
                     if (shown || dragged) CompassStyle.active() else if (pressed) CompassStyle.fill else Color.Transparent
+                )
+                .claudeOutline(
+                    if (split) node.children.any { it.tab >= 0 && it.tab == state.claudeTab }
+                    else node.tab >= 0 && node.tab == state.claudeTab,
+                    shape,
                 )
                 .combinedClickable(
                     interactionSource = interaction,
@@ -1322,4 +1337,22 @@ private fun splitChoices(
         others.filter { it.type == "tab" },
         others.filter { it.type == "split" && it.children.size < MAX_SPLIT_PANES },
     )
+}
+
+/**
+ * The tab Claude acts on (docs/design/claude.md, "Claude-is-acting indicator"; iOS's outline): a
+ * slowly pulsing outline in the theme's tertiary color while it works there.
+ */
+@Composable
+private fun Modifier.claudeOutline(acting: Boolean, shape: Shape): Modifier {
+    if (!acting) return this
+    val pulse = rememberInfiniteTransition(label = "claude")
+    val alpha by
+        pulse.animateFloat(
+            0.35f,
+            1f,
+            infiniteRepeatable(tween(900), RepeatMode.Reverse),
+            label = "claudeAlpha",
+        )
+    return border(2.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = alpha), shape)
 }

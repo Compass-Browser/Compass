@@ -290,6 +290,11 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     }
 
     /** What Claude offers in the sidebar now (ClaudeSidebarBridge's snapshot). */
+    /** The tab Claude acts on while it works (ClaudeChat), outlined in the sidebar; -1: none. */
+    public void setClaudeTab(int tabId) {
+        mState.setClaudeTab(tabId);
+    }
+
     public void refreshClaude() {
         if (mClaude == null) return;
         try {
@@ -513,6 +518,26 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
                         new LoadUrlParams(gurl.getSpec(), PageTransition.AUTO_BOOKMARK),
                         TabLaunchType.FROM_CHROME_UI,
                         null);
+    }
+
+    /**
+     * Claude's activate_tab (ClaudeBridge.Window): shows the entry |nodeId|, its tab or a new one
+     * for it, after switching the window to |spaceId| (its space; "" for a favorite) if it shows
+     * another. The tab is in the model when this returns.
+     */
+    public void showNode(String nodeId, String url, String spaceId) {
+        if (!spaceId.isEmpty() && !spaceId.equals(shownSpaceId())) {
+            mBridge.setActiveSpace(spaceId);
+            onModelChanged();
+        }
+        onNodeClicked(nodeId, url);
+    }
+
+    /** Claude's switch_space: the window shows |spaceId|, one of its profile's spaces. */
+    public void switchToSpace(String spaceId) {
+        if (spaceId.equals(shownSpaceId())) return;
+        mBridge.setActiveSpace(spaceId);
+        onModelChanged();
     }
 
     /**

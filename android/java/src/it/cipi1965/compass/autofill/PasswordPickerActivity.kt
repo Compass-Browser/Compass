@@ -12,12 +12,15 @@ import android.os.Build
 import android.os.Bundle
 import android.os.CancellationSignal
 import android.service.autofill.Dataset
+import android.service.autofill.Field
+import android.service.autofill.Presentations
 import android.view.autofill.AutofillId
 import android.view.autofill.AutofillManager
 import android.view.autofill.AutofillValue
 import android.widget.RemoteViews
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.content.IntentCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -50,6 +53,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import it.cipi1965.compass.shell.CompassTheme
 import org.chromium.chrome.browser.init.ChromeBrowserInitializer
 import org.chromium.chrome.browser.profiles.ProfileManager
@@ -123,6 +128,7 @@ class PasswordPickerActivity : ComponentActivity() {
                     BiometricManager.Authenticators.DEVICE_CREDENTIAL
             )
         } else {
+            // Android 10 only (minSdk 29): setAllowedAuthenticators() comes in 11.
             @Suppress("DEPRECATION") builder.setDeviceCredentialAllowed(true)
         }
         builder
@@ -168,18 +174,41 @@ class PasswordPickerActivity : ComponentActivity() {
         passwords.load()
     }
 
-    @Suppress("DEPRECATION")
     private fun fill(entry: Entry) {
         val password = bridge?.passwordAt(entry.index) ?: return
-        val usernameId: AutofillId? = intent.getParcelableExtra(EXTRA_USERNAME_ID)
-        val passwordId: AutofillId = intent.getParcelableExtra(EXTRA_PASSWORD_ID) ?: return cancel()
+        val usernameId = IntentCompat.getParcelableExtra(intent, EXTRA_USERNAME_ID, AutofillId::class.java)
+        val passwordId =
+            IntentCompat.getParcelableExtra(intent, EXTRA_PASSWORD_ID, AutofillId::class.java) ?: return cancel()
         val presentation = RemoteViews(packageName, android.R.layout.simple_list_item_1)
         presentation.setTextViewText(android.R.id.text1, entry.username.ifEmpty { entry.site })
-        val dataset = Dataset.Builder(presentation)
-        if (usernameId != null) dataset.setValue(usernameId, AutofillValue.forText(entry.username))
-        dataset.setValue(passwordId, AutofillValue.forText(password))
-        setResult(RESULT_OK, Intent().putExtra(AutofillManager.EXTRA_AUTHENTICATION_RESULT, dataset.build()))
+        val dataset =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val builder = Dataset.Builder(Presentations.Builder().setMenuPresentation(presentation).build())
+                if (usernameId != null) {
+                    builder.setField(usernameId, Field.Builder().setValue(AutofillValue.forText(entry.username)).build())
+                }
+                builder.setField(passwordId, Field.Builder().setValue(AutofillValue.forText(password)).build())
+                builder.build()
+            } else {
+                legacyDataset(presentation, usernameId, entry.username, passwordId, password)
+            }
+        setResult(RESULT_OK, Intent().putExtra(AutofillManager.EXTRA_AUTHENTICATION_RESULT, dataset))
         finish()
+    }
+
+    /** Android 10 to 12, which have only Dataset's older builder (deprecated in 13). */
+    @Suppress("DEPRECATION")
+    private fun legacyDataset(
+        presentation: RemoteViews,
+        usernameId: AutofillId?,
+        username: String,
+        passwordId: AutofillId,
+        password: String,
+    ): Dataset {
+        val builder = Dataset.Builder(presentation)
+        if (usernameId != null) builder.setValue(usernameId, AutofillValue.forText(username))
+        builder.setValue(passwordId, AutofillValue.forText(password))
+        return builder.build()
     }
 
     private fun cancel() {
@@ -189,7 +218,8 @@ class PasswordPickerActivity : ComponentActivity() {
 
     @androidx.compose.runtime.Composable
     private fun Picker() {
-        var query by remember { mutableStateOf("") }
+        val queryField = rememberTextFieldState()
+        val query = queryField.text.toString()
         Box(
             Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.32f)).clickable { cancel() }
         ) {
@@ -218,11 +248,10 @@ class PasswordPickerActivity : ComponentActivity() {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         else -> {
-                            @Suppress("DEPRECATION") OutlinedTextField(
-                                value = query,
-                                onValueChange = { query = it },
+                            OutlinedTextField(
+                                state = queryField,
                                 placeholder = { Text("Search") },
-                                singleLine = true,
+                                lineLimits = TextFieldLineLimits.SingleLine,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                             val shown =

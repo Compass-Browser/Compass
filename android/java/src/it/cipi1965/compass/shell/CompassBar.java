@@ -220,7 +220,14 @@ public class CompassBar implements CompassBarUi.Actions {
         mSpaces = spaces;
         SyncScreen sync = new SyncScreen(mActivity, coordinator);
         mSync = sync;
-        mClaude = new ClaudeChat(mActivity, coordinator);
+        mClaude =
+                new ClaudeChat(
+                        mActivity,
+                        coordinator,
+                        spaces,
+                        mHeightPx
+                                + Math.round(
+                                        10 * mActivity.getResources().getDisplayMetrics().density));
         mHistory = new HistoryScreen(mActivity, coordinator);
         mDownloads = new DownloadsScreen(mActivity, coordinator);
         mDevicesWidget =

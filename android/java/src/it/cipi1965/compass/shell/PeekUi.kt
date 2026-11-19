@@ -92,6 +92,9 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.runtime.snapshotFlow
 import it.cipi1965.compass.R
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -352,7 +355,6 @@ private fun Suggestions(state: PeekUi.State, listener: PeekUi.Listener) {
 }
 
 /** The little window's bar: close, back, the address, and Open in <space> with its ⌄ menu. */
-@Suppress("DEPRECATION")
 @Composable
 private fun LittleBar(state: PeekUi.State, listener: PeekUi.Listener, dragBar: Modifier) {
     Column(dragBar.fillMaxWidth().spaceTint(state.theme) { it.surfaceContainerLow }) {
@@ -376,15 +378,21 @@ private fun LittleBar(state: PeekUi.State, listener: PeekUi.Listener, dragBar: M
             ) {
                 if (state.editing) {
                     val focus = remember { FocusRequester() }
-                    LaunchedEffect(Unit) { focus.requestFocus() }
+                    // The address as editing starts; what's typed goes to the listener.
+                    val address = rememberTextFieldState(state.address)
+                    LaunchedEffect(Unit) {
+                        focus.requestFocus()
+                        snapshotFlow { address.text.toString() }.collect {
+                            if (it != state.address) listener.onAddressChanged(it)
+                        }
+                    }
                     BasicTextField(
-                        value = state.address,
-                        onValueChange = { listener.onAddressChanged(it) },
-                        singleLine = true,
+                        state = address,
+                        lineLimits = TextFieldLineLimits.SingleLine,
                         textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-                        keyboardActions = KeyboardActions(onGo = { listener.onGo(state.address) }),
+                        onKeyboardAction = { listener.onGo(address.text.toString()) },
                         modifier = Modifier.fillMaxWidth().focusRequester(focus),
                     )
                 } else {

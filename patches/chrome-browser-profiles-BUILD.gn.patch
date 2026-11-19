@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/profiles/BUILD.gn b/chrome/browser/profiles/BUILD.gn
-index f569264cf0e530634f9e064054511b25ca2273d2..17cd18a02960487adb9eb5bb5c3698d7c34fd3a4 100644
+index f569264cf0e530634f9e064054511b25ca2273d2..07c47af0756462c48e6fbb02b55c49fe0d413253 100644
 --- a/chrome/browser/profiles/BUILD.gn
 +++ b/chrome/browser/profiles/BUILD.gn
-@@ -567,6 +567,7 @@
+@@ -567,6 +567,7 @@ source_set("profile_io_data") {
    sources = [ "profile_io_data.cc" ]
  
    deps = [
@@ -10,19 +10,19 @@ index f569264cf0e530634f9e064054511b25ca2273d2..17cd18a02960487adb9eb5bb5c3698d7
      "//base",
      "//chrome/common",
      "//chrome/common:buildflags",
-@@ -910,6 +911,16 @@
+@@ -910,6 +911,16 @@ source_set("profiles_extra_parts_impl") {
      "//services/network/public/cpp",
      "//ui/webui:buildflags",
    ]
 +  # Compass sync's keyed service factory.
 +  deps += [ "//compass/browser/sync" ]
++  # Boosts (docs/design/boosts.md), Android too.
++  deps += [ "//compass/browser/boosts" ]
 +  if (!is_android) {
 +    # The MCP bridge's (docs/design/claude.md, D6).
 +    deps += [ "//compass/browser/ui" ]
 +    # Claude's memory (docs/design/claude.md, "Memory").
 +    deps += [ "//compass/browser/claude:memory" ]
-+    # Boosts (docs/design/boosts.md).
-+    deps += [ "//compass/browser/boosts" ]
 +  }
  
    public_deps = [ "//chrome/browser/search/background" ]

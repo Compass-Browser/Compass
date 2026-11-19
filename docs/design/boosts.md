@@ -4,10 +4,12 @@ Per-site CSS and JavaScript that the user makes by hand or asks Claude to
 make, as Arc's Boosts and Zen's Mods do. A Boost applies to every page a
 site pattern covers, from the next load on, on every device of the profile.
 
-Status: desktop (Mac, Windows, Linux) and iOS in the first version; Android
-later. The desktop side is described here; iOS has its own store and
-injection (`ios/App/Boosts/`, `ios/CompassKit/Sources/CompassBoosts/`) with
-the same data, matching and tools.
+Status: desktop (Mac, Windows, Linux), iOS and Android. The desktop side
+is described here; iOS has its own store and injection (`ios/App/Boosts/`,
+`ios/CompassKit/Sources/CompassBoosts/`) with the same data, matching and
+tools. Android runs the desktop's store, injector and Claude tools, and
+syncs them (android.md, "Boosts"), with a plain list in place of the
+editor.
 
 ## The data (shared)
 
@@ -233,7 +235,7 @@ in Node.
 - **Setting:** "Let Claude make Boosts" (`compass.claude.boosts`, off,
   doesn't sync; Claude settings). Boosts made by hand don't depend on it.
 - **Tools** (`common/claude/tools.json`, scope `boosts`, `platforms:
-  ["desktop", "ios"]`): `list_boosts {host?}`, `save_boost {id?, name,
+  ["desktop", "android", "ios"]`): `list_boosts {host?}`, `save_boost {id?, name,
   match, css?, js?, js_world?, enabled?}` (returns `{"id", "needs_reload":
   true}`), `delete_boost {id}`. Sent only while the setting is on, and kept
   for the rest of a chat that had them (`chat_boosts_`, as the developer
@@ -268,7 +270,8 @@ Spaces switch. The bridge handles it as it does memories:
 `Delegate::GetLocalBoosts()` (nullopt until the file is read, so a startup
 never deletes the account's) and `ApplyBoosts()`; the later `update_time`
 wins. A deleted Boost is a deleted entity. Clients that predate it refuse
-the entity and keep going; Android leaves the account's Boosts alone. Not
+the entity and keep going; Android syncs them as the desktop does
+(`compass_spaces_sync_android.cc`). Not
 in `proto_visitors.h`: code stays out of sync-internals. The server doesn't
 look inside `COMPASS_SPACES` (docs/design/sync.md), so it needs no change.
 
@@ -300,6 +303,7 @@ look inside `COMPASS_SPACES` (docs/design/sync.md), so it needs no change.
 ## Not in v1
 
 - Importing Arc's Boosts (where Arc keeps them on disk isn't known yet).
-- Android.
+- An editor on Android (Claude makes them there; the list turns them on
+  and off and deletes them).
 - A real code editor (Monaco); Greasemonkey `GM_*` APIs and `@require`.
 - Boosts in Incognito.

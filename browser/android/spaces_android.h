@@ -193,6 +193,10 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   // and its tabs, which can't change profile, close without archiving them.
   std::vector<int> ReleaseTabsOf(const SpaceModel& space);
   SidebarNode* FindNode(const base::Uuid& id);
+  // The node |tab_id| shows, or an invalid UUID.
+  base::Uuid NodeFor(int tab_id) const;
+  // The space (or the favorites) |node| is in, or null.
+  SpaceModel* SpaceOf(const SidebarNode* node);
 
   // SpaceList::Observer:
   void OnSpaceAdded(SpaceModel& space) override;
@@ -222,7 +226,6 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   // Tells observers, once per task however many changes it made.
   void Changed();
   void NotifyChanged();
-  SpaceModel* SpaceOf(const SidebarNode* node);
 
   SpaceList list_;
   std::unique_ptr<SidebarStore> store_;

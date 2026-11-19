@@ -52,42 +52,44 @@ if (!is_android) {
       "//url",
     ]
   }
+}
 
-  # resources/boosts/manifest.json as a string constant:
-  # compass/browser/boosts/boosts_assets.h.
-  action("assets") {
-    script = "//compass/build/embed_text.py"
-    inputs = [ "//compass/resources/boosts/manifest.json" ]
-    outputs = [ "$target_gen_dir/boosts_assets.h" ]
-    args = [
-      "--out",
-      rebase_path(outputs[0], root_build_dir),
-      "--namespace",
-      "compass::boosts::assets",
-      "kManifest=" + rebase_path(inputs[0], root_build_dir),
-    ]
-  }
+# resources/boosts/manifest.json as a string constant:
+# compass/browser/boosts/boosts_assets.h.
+action("assets") {
+  script = "//compass/build/embed_text.py"
+  inputs = [ "//compass/resources/boosts/manifest.json" ]
+  outputs = [ "$target_gen_dir/boosts_assets.h" ]
+  args = [
+    "--out",
+    rebase_path(outputs[0], root_build_dir),
+    "--namespace",
+    "compass::boosts::assets",
+    "kManifest=" + rebase_path(inputs[0], root_build_dir),
+  ]
+}
 
-  # The component extension and its content scripts. Registered with the
-  # profile's services by chrome_browser_main_extra_parts_profiles.cc (see
-  # patches/chrome-browser-profiles-chrome_browser_main_extra_parts_profiles.cc.patch).
-  source_set("boosts") {
-    sources = [
-      "boost_injector.cc",
-      "boost_injector.h",
-    ]
-    public_deps = [ ":store" ]
-    deps = [
-      ":assets",
-      "//base",
-      "//chrome/browser/extensions",
-      "//chrome/browser/profiles:profile",
-      "//extensions/browser",
-      "//extensions/common",
-      "//extensions/common:mojom",
-    ]
-  }
+# The component extension and its content scripts. Registered with the
+# profile's services by chrome_browser_main_extra_parts_profiles.cc (see
+# patches/chrome-browser-profiles-chrome_browser_main_extra_parts_profiles.cc.patch).
+source_set("boosts") {
+  sources = [
+    "boost_injector.cc",
+    "boost_injector.h",
+  ]
+  public_deps = [ ":store" ]
+  deps = [
+    ":assets",
+    "//base",
+    "//chrome/browser/extensions",
+    "//chrome/browser/profiles:profile",
+    "//extensions/browser",
+    "//extensions/common",
+    "//extensions/common:mojom",
+  ]
+}
 
+if (!is_android) {
   source_set("unit_tests") {
     testonly = true
     sources = [

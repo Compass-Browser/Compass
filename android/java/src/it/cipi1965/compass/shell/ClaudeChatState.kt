@@ -21,6 +21,17 @@ class ClaudeChatState {
         @JvmField val kind: String = "",
         @JvmField val undoId: Int = 0,
         @JvmField val undone: Boolean = false,
+        /** A "tool": its input (JSON), what it answered, whether that's an error, and whether it ran. */
+        @JvmField val input: String = "",
+        @JvmField val result: String = "",
+        @JvmField val error: Boolean = false,
+        /** A "tool" ran, or a "thinking" block ended. */
+        @JvmField val done: Boolean = false,
+        /** A "user" message: the title of the page it carried, if one. */
+        @JvmField val page: String = "",
+        /** A "tool": its tool_use id, and whether it answered with a screenshot. */
+        @JvmField val toolId: String = "",
+        @JvmField val image: Boolean = false,
     )
 
     /**
@@ -31,6 +42,28 @@ class ClaudeChatState {
 
     /** A fact Claude remembers (docs/design/claude.md, "Memory"). */
     class Memory(@JvmField val id: String, @JvmField val text: String)
+
+    /**
+     * A change waiting for the user's approval (docs/design/claude.md, "Files"): a file Claude
+     * writes, a cookie it sets. |waiting|: how many more after it.
+     */
+    class Approval(
+        @JvmField val id: Int,
+        @JvmField val title: String,
+        @JvmField val detail: String,
+        @JvmField val alwaysAsk: Boolean,
+        @JvmField val waiting: Int,
+    )
+
+    /** A Boost (docs/design/boosts.md): per-site CSS and JavaScript. */
+    class Boost(
+        @JvmField val id: String,
+        @JvmField val name: String,
+        @JvmField val match: String,
+        @JvmField val enabled: Boolean,
+        @JvmField val css: Boolean,
+        @JvmField val js: Boolean,
+    )
 
     var open by mutableStateOf(false)
     var messages by mutableStateOf<List<Message>>(emptyList())
@@ -46,6 +79,31 @@ class ClaudeChatState {
     /** What Claude remembers, oldest first. */
     var memories by mutableStateOf<List<Memory>>(emptyList())
     var features by mutableStateOf<List<Feature>>(emptyList())
+    /** "Let Claude use developer tools". */
+    var devtools by mutableStateOf(false)
+    /** Files: 0 off, 1 save files (into Downloads), 2 use a folder of Downloads (|filesFolder|). */
+    var filesAccess by mutableStateOf(0)
+    var filesFolder by mutableStateOf("")
+    var approval by mutableStateOf<Approval?>(null)
+    /** "Accept the risks of subscription tokens". */
+    var acceptTokenRisks by mutableStateOf(false)
+    /** "Let Claude make Boosts". */
+    var boostsOn by mutableStateOf(false)
+    var boosts by mutableStateOf<List<Boost>>(emptyList())
+    /** Whether questions carry the page (each page once a chat). */
+    var attachPage by mutableStateOf(true)
+    /** The last reply failed: Retry asks again. */
+    var canRetry by mutableStateOf(false)
+    /** The endpoint: base URL ("" for the Claude API) and how the key is sent (0 x-api-key, 1 Bearer). */
+    var baseUrl by mutableStateOf("")
+    var authStyle by mutableStateOf(0)
+    /** Test Connection: running, its outcome, and the models the key can use (id to name). */
+    var testing by mutableStateOf(false)
+    var testOk by mutableStateOf(false)
+    var testResult by mutableStateOf("")
+    var apiModels by mutableStateOf<List<Pair<String, String>>>(emptyList())
+    /** The tab Claude acts on while it works (its Android tab ID), or -1. */
+    var actingTab by mutableStateOf(-1)
 
     fun update(json: String) {
         val data = JSONObject(json)
@@ -59,6 +117,13 @@ class ClaudeChatState {
                         it.optString("kind"),
                         it.optInt("undo"),
                         it.optBoolean("undone"),
+                        it.optString("input"),
+                        it.optString("result"),
+                        it.optBoolean("error"),
+                        it.optBoolean("done"),
+                        it.optString("page"),
+                        it.optString("id"),
+                        it.optBoolean("image"),
                     )
                 }
             }
@@ -73,6 +138,48 @@ class ClaudeChatState {
         memories =
             (0 until (list?.length() ?: 0)).mapNotNull { i ->
                 list?.optJSONObject(i)?.let { Memory(it.optString("id"), it.optString("text")) }
+            }
+        devtools = data.optBoolean("devtools")
+        boostsOn = data.optBoolean("boosts_on")
+        attachPage = data.optBoolean("attach_page", true)
+        canRetry = data.optBoolean("can_retry")
+        baseUrl = data.optString("base_url")
+        authStyle = data.optInt("auth_style")
+        testing = data.optBoolean("testing")
+        testOk = data.optBoolean("test_ok")
+        testResult = data.optString("test_result")
+        val modelList = data.optJSONArray("api_models")
+        apiModels =
+            (0 until (modelList?.length() ?: 0)).mapNotNull { i ->
+                modelList?.optJSONObject(i)?.let { it.optString("id") to it.optString("name") }
+            }
+        actingTab = data.optInt("acting_tab", -1)
+        acceptTokenRisks = data.optBoolean("accept_token_risks")
+        val boostList = data.optJSONArray("boosts")
+        boosts =
+            (0 until (boostList?.length() ?: 0)).mapNotNull { i ->
+                boostList?.optJSONObject(i)?.let {
+                    Boost(
+                        it.optString("id"),
+                        it.optString("name"),
+                        it.optString("match"),
+                        it.optBoolean("enabled"),
+                        it.optBoolean("css"),
+                        it.optBoolean("js"),
+                    )
+                }
+            }
+        filesAccess = data.optInt("files_access")
+        filesFolder = data.optString("files_folder")
+        approval =
+            data.optJSONObject("approval")?.let {
+                Approval(
+                    it.optInt("id"),
+                    it.optString("title"),
+                    it.optString("detail"),
+                    it.optBoolean("always_ask"),
+                    it.optInt("waiting"),
+                )
             }
         val featureList = data.optJSONArray("features")
         features =

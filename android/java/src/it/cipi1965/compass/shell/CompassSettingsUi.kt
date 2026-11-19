@@ -57,6 +57,8 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 
 /**
  * Compass's settings, as the iOS app's (SettingsView.swift): grouped rows with colored icons.
@@ -608,7 +610,6 @@ private fun RuleSpaceBadge(space: CompassSettingsUi.SpaceChoice?) {
 
 /** A rule's form: the site (a domain or a URL, for a new rule) and its space. */
 // OutlinedTextField's String overload, as the shell's other fields.
-@Suppress("DEPRECATION")
 @Composable
 private fun LinkRuleDialog(
     domain: String,
@@ -618,7 +619,8 @@ private fun LinkRuleDialog(
     onDone: () -> Unit,
 ) {
     val adding = domain.isEmpty()
-    var site by remember { mutableStateOf(domain) }
+    val siteField = rememberTextFieldState(domain)
+    val site = siteField.text.toString()
     var space by remember { mutableStateOf(spaceId.ifEmpty { spaces.firstOrNull()?.id ?: "" }) }
     val normalized = if (site.isBlank()) "" else listener.normalizeLinkDomain(site)
     AlertDialog(
@@ -628,11 +630,10 @@ private fun LinkRuleDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (adding) {
                     OutlinedTextField(
-                        value = site,
-                        onValueChange = { site = it },
+                        state = siteField,
                         label = { Text("Site") },
                         placeholder = { Text("github.com") },
-                        singleLine = true,
+                        lineLimits = TextFieldLineLimits.SingleLine,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     if (site.isNotBlank() && normalized.isEmpty()) {

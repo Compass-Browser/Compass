@@ -67,6 +67,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.maxLengthTrim
+import androidx.compose.material3.SliderState
 import it.cipi1965.compass.R
 import kotlinx.coroutines.delay
 import kotlin.math.atan2
@@ -92,7 +98,7 @@ internal fun ThemeEditor(
 ) {
     // The editor's own copy: what's dragged shows at once, the space follows.
     var draft by remember(space.id, open) { mutableStateOf(space.theme) }
-    var emoji by remember(space.id, open) { mutableStateOf(space.emoji) }
+    val emojiField = remember(space.id, open) { TextFieldState(space.emoji) }
     val push by rememberUpdatedState(onTheme)
     if (open) {
         // At most every 50 ms (the desktop's CUSTOM_COLOR_MS), and the last one when it closes.
@@ -114,7 +120,7 @@ internal fun ThemeEditor(
     }
     val close = {
         if (draft != space.theme) onTheme(draft)
-        val typed = emoji.trim()
+        val typed = emojiField.text.toString().trim()
         if (typed != space.emoji) onEmoji(typed)
         onDismiss()
     }
@@ -158,12 +164,13 @@ internal fun ThemeEditor(
                         }
                     }
                     CardSection("Icon") {
-                        @Suppress("DEPRECATION") OutlinedTextField(
-                            value = emoji,
-                            onValueChange = { emoji = it.take(8) },
+                        OutlinedTextField(
+                            state = emojiField,
+                            // An emoji or two (8 UTF-16 units, as before).
+                            inputTransformation = InputTransformation.maxLengthTrim(8),
                             label = { Text("Emoji") },
                             placeholder = { Text("The name's first letter") },
-                            singleLine = true,
+                            lineLimits = TextFieldLineLimits.SingleLine,
                             modifier = Modifier.fillMaxWidth().padding(14.dp),
                         )
                     }
@@ -326,9 +333,15 @@ private fun SliderRow(title: String, @DrawableRes symbol: Int, value: Double, ac
     ) {
         Sym(symbol, 17f, MaterialTheme.colorScheme.onSurfaceVariant)
         Text(title, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.width(84.dp))
-        @Suppress("DEPRECATION") Slider(
-            value = value.toFloat(),
-            onValueChange = { onChange(it.toDouble()) },
+        // The slider's own state follows |value|, and reports the user's moves.
+        val slider = remember { SliderState(value = value.toFloat()) }
+        LaunchedEffect(value) { if (slider.value != value.toFloat()) slider.value = value.toFloat() }
+        Slider(
+            state = slider,
+            onValueChange = {
+                slider.value = it
+                onChange(it.toDouble())
+            },
             colors = SliderDefaults.colors(thumbColor = accent, activeTrackColor = accent),
             modifier = Modifier.weight(1f).semantics { contentDescription = title },
         )

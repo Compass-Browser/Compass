@@ -442,6 +442,7 @@
       "scope": "browser",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -464,6 +465,7 @@
       "scope": "browser",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -508,6 +510,7 @@
       "scope": "browser",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -534,6 +537,7 @@
       "scope": "browser",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -564,6 +568,7 @@
       "scope": "browser",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -590,6 +595,7 @@
       "scope": "browser",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -616,6 +622,7 @@
       "scope": "browser",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -638,6 +645,7 @@
       "scope": "browser",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -663,6 +671,7 @@
       "scope": "browser",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -694,6 +703,7 @@
       "scope": "browser",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -716,6 +726,7 @@
       "scope": "browser",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -740,6 +751,7 @@
       "scope": "devtools",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -797,6 +809,7 @@
       "scope": "devtools",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -833,6 +846,7 @@
       "scope": "devtools",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -868,6 +882,7 @@
       "scope": "devtools",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -902,6 +917,7 @@
       "scope": "devtools",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -978,6 +994,7 @@
       "scope": "devtools",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -993,6 +1010,7 @@
       "scope": "devtools",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -1163,6 +1181,7 @@
       "scope": "files",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -1192,6 +1211,7 @@
       "scope": "files",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -1213,6 +1233,7 @@
       "scope": "files",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -1241,6 +1262,7 @@
       "scope": "files",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -1269,6 +1291,7 @@
       "scope": "boosts",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -1289,6 +1312,7 @@
       "scope": "boosts",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {
@@ -1342,6 +1366,7 @@
       "scope": "boosts",
       "platforms": [
         "desktop",
+        "android",
         "ios"
       ],
       "definition": {

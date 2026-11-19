@@ -551,17 +551,115 @@ It costs:
   tools (`ClaudeTools`): the page tools (read, find, click, type, scroll,
   navigate, screenshot) on the tab the question is about, and, with "Let
   Claude use the whole browser" on (a switch in the sheet, the desktop's
-  pref), list_tabs, open_tab, select_tab and close_tab over Chrome's tab
-  models (`ClaudeTabsAndroid`; a tab's id is its Android tab ID). The
+  pref), the desktop's browser tools (claude.md, "Browser tools") over the
+  sidebar (`ClaudeTabsAndroid`, on `SpacesAndroid`): list_tabs lists
+  Favorites and each space's Pinned and Today with the desktop's ids (`n`
+  and 8 hex digits for entries, `s` for spaces, `t` and the Android tab ID
+  for tabs outside the sidebar); open, select, activate, close (a Today
+  entry goes to the archive, as the user's close; `remove` takes it out),
+  move (`SpacesAndroid::MoveNodeTo()`), rename, folders, splits, mute (a
+  loaded tab), switch and create spaces, history, downloads and sending a
+  tab to another device. What needs the window (showing an entry, loading
+  one in the background, switching its space) goes to the chat's window in
+  Java (`ClaudeTabsAndroid::Window`, `ClaudeChat` over `Spaces.showNode()`,
+  `openInBackground()`, `switchToSpace()`); an unloaded entry of a space
+  the window doesn't show loads through activate_tab or switch_space. The
   bridge runs the loop the desktop's chat page runs: a reply that asks for
   tools gets their results and goes on, up to 20 rounds a question. The
   sheet shows each tool as a quiet line between the replies. tools.json's
-  `platforms` gains "android"; the desktop-only tools (spaces, folders,
-  splits, history, downloads) aren't offered. The header has the model
+  `platforms` gains "android". Tried in the emulator against a scripted
+  fake Claude server: every browser tool. The header has the model
   menu (the desktop's known models, `compass.claude.model`), and Claude
   keeps memories as on the desktop (claude.md, "Memory"): the memory
   tools, a "Saved to memory" line with Undo, and Memory in the sheet's ⋯
-  menu to see, add and delete them; they sync with the spaces.
+  menu to see, add, edit (tap one) and delete them; they sync with the
+  spaces.
+  - **Files and developer tools** (claude.md, "Files" and "Developer
+    tools"): the sheet's ⋯ menu has Settings: Files Off,
+    Save Files (into the shared Downloads folder, which the Files app
+    shows) or Use a Folder (a folder of Downloads, by name, made if it
+    isn't there; `compass.claude.files_folder` keeps its path), and "Let
+    Claude use developer tools". The path is the shared Downloads
+    (`Environment.getExternalStoragePublicDirectory()`), not Chromium's
+    download directory, the app's private one. Android lets Compass make
+    files there and read its own; files other apps put in the folder can't
+    be read. Each message starts with the desktop's `<context>`
+    (`BuildMessageContext()`: date, scope, files, developer tools, Boosts).
+  - **The sheet** (`ClaudeChatUi.kt`), Material 3 on the wallpaper's
+    colors: a header with Claude's mark, the model menu (the known models
+    and the endpoint's, once Test Connection listed them), New Chat, a
+    size toggle (about half the screen, as iOS's medium detent, or nearly
+    all of it) and ⋮ (Memory, Boosts, Claude in the Sidebar, Settings,
+    Change Key). An empty chat offers suggestion chips. Questions sit in
+    tonal bubbles; Claude's answers are plain text on the sheet. Under the
+    conversation: "This page" and "Whole browser" chips, and a rounded
+    field with a send (or stop) button. Settings pages are Material lists
+    in rounded groups.
+  - **As on iOS:** the page goes with a question when "This page" is on
+    and the chat doesn't have it yet (each page once a chat; the user's
+    message shows its title); a failed reply offers Retry (the question as
+    it was sent); a declined or cut-off reply says so ("Claude declined to
+    answer this.", "The answer was cut off at its length limit."); a
+    screenshot shows in its tool row; up to 40 tool rounds a question.
+    With the sheet closed while Claude works, a "Claude is working…" pill
+    with Stop floats over the bar, and the sidebar outlines the tab Claude
+    acts on (a pulsing tertiary outline on its row, split or favorite).
+  - **Connection** (Settings): the server (empty for the Claude API; a
+    gateway's URL, https or http to this device, `ParseBaseUrl()`), how
+    the key is sent (x-api-key or Bearer), and Test Connection, which lists
+    the models the key can use (`ClaudeClient::ListModels()`).
+  - Tried in the emulator against the fake server: the connection and
+    Test Connection, page once, a refusal, an error and Retry, a
+    screenshot row, the pill and the sidebar's outline.
+  - **Thinking and tool rows.** Requests ask for adaptive thinking with
+    summaries, 64,000 tokens at most, and on the Claude API itself the
+    desktop's thinking binding (`drop_block`) and server-side fallback
+    (claude.md, "The request"). Signed thinking blocks (and redacted ones)
+    go back unchanged with the turn's tool calls; one cut off without its
+    signature doesn't. The sheet shows each thinking block as a "Thinking…"
+    row ("Thought" once it ends) whose tap shows the summary, and each tool
+    as a row naming what it acted on ("Looking for something on the page:
+    magnetic north"), "…" while it runs and "failed" on an error, whose tap
+    shows its input and what it answered (text, at most 4,000 bytes;
+    screenshots as a note).
+  - **Markdown.** Claude's replies render from Markdown, as the desktop's
+    chat does (`ClaudeMarkdown.kt` over `MarkdownParser.kt`, tested in
+    `MarkdownParserTest`): headings, paragraphs, lists (nested, numbered),
+    quotes, fenced code (scrolls sideways; an unclosed fence while the
+    reply streams is code to the end), tables and rules; bold, italic,
+    strikethrough, inline code and links (`[text](url)`, `<url>` and bare
+    http(s) URLs; only web and mail links). A link opens in a new tab and
+    the sheet steps aside. Nothing is read as HTML; the user's own
+    messages stay as typed.
+  - **Subscription tokens** (claude.md, "Settings"): "Accept the risks of
+    subscription tokens" (`compass.claude.accept_token_risks`, off) in the
+    sheet's Settings, and under the key field when it holds a token from
+    `claude setup-token`. Off, such a key is refused before anything is
+    sent (`NeedsTokenRisksAccepted()`); on, it goes as `Authorization:
+    Bearer` with the OAuth beta (`ClaudeClient`) and the chat's system
+    prompt starts with Claude Code's line (`kOAuthSystemLine`). Claude in
+    the sidebar already followed the pref (`ClaudeQuick`). Tried in the
+    emulator against the fake server: refused while off; with it on, the
+    request's headers and first system block.
+  - **Approvals.** A write, a cookie or storage change and a Boost's
+    JavaScript wait for the user in a card above the field: Allow, For
+    This Chat (that tool until New Chat; not for a Boost's JavaScript) and
+    Deny; "N more waiting" when there are several. Stop and New Chat deny
+    what waits (`ClaudeBridge::Ask()`, `Answer()`, `DenyAll()`).
+  - **Boosts** (boosts.md): the sheet's ⋯ menu has Boosts: "Let Claude
+    make Boosts" and the list, each with its switch and ✕. A change Claude
+    makes shows as "Saved Boost for <site>" with Undo.
+  - Tried in the emulator against the fake server: every file and
+    developer tool, the approvals, a CSS Boost applied to the page after a
+    reload, a JavaScript one asked first and undone, editing a memory.
+- **Boosts** (boosts.md): the desktop's store (`BoostStore`) and injector
+  (`BoostInjector`, a component extension's user scripts) run on Android
+  too (`//compass/browser/boosts:boosts`, and the patched
+  `chrome_browser_main_extra_parts_profiles.cc`, profiles `BUILD.gn` and
+  component extension allowlist), and sync with the spaces as on the
+  desktop (`compass_spaces_sync_android.cc`). No editor yet: Claude makes
+  them, and the Claude sheet's list turns them on and off and deletes
+  them.
 - **Claude in the sidebar (P12)** (ai-sidebar.md, A7): the desktop's
   services, `LinkFolderNamer`, `TodayTidier` and `ShortTitler`, build for
   Android as they are, over `SpacesAndroid` in place of `SpaceService`
@@ -985,7 +1083,7 @@ controls that count are the bottom ones, where Compass's bar is
 | C5 | Pairing UI (QR code, code, recovery code), profiles, and Settings sections for Compass | Done: pairing by code, recovery code and QR code (from the camera); profiles (P7); Compass's own Settings screens (P8) |
 | C6 | Passwords and Autofill for other apps, history, sessions, devices; sent tabs over FCM (`server/push/fcm.go`) | Done; other apps fill but can't save into Compass |
 | C7 | Extensions: Web Store installs, 1Password, uBlock, and the desktop's extension list | Web Store installs, the extensions sheet and biometric unlock (`ExtensionUnlock`) done; uBlock Origin Lite and 1Password's popup tested |
-| C8 | Claude: chat sheet, page tools, browser tools | Done (page tools; list, open, select and close tabs); not yet tried with a real key |
+| C8 | Claude: chat sheet, page tools, browser tools | Done (page tools; the desktop's browser tools over the sidebar); not yet tried with a real key |
 | C9 | Widgets, Quick Settings tile, shortcuts, share target | Done |
 | C10 | Tablets and foldables, keyboard shortcuts, multiple windows | Done |
 | C11 | Release pipeline: official build, Play testing tracks, APK on the GitHub release | Working on it: the app bundle (`compass_bundle`), versionCodes from the release version, `compass play upload` to a track, and the listing and App content drafts in `android/play/` (building.md, "Android releases (Google Play)"); on internal testing since 2026-11-18, closed testing in Google's review; `compass release publish-android` signs the release APK with the release key and puts it on the version's GitHub prerelease. `compass play upload` (internal testing by default, `--track production` for the store) and `compass play status` run as a service account since 2026-11-18 (building.md, "Android releases") |

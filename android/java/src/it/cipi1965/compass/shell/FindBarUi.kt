@@ -51,6 +51,10 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import it.cipi1965.compass.R
 
 /**
@@ -99,15 +103,20 @@ object FindBarUi {
 }
 
 // BasicTextField's String overload, as the command bar's field.
-@Suppress("DEPRECATION")
 @Composable
 private fun FindBar(state: FindBarUi.State, listener: FindBarUi.Listener) {
     BackHandler { listener.onDone() }
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
+    // What's typed goes to the listener; text set from outside (a selection) comes in.
+    val field = rememberTextFieldState(state.text)
     LaunchedEffect(Unit) {
         focus.requestFocus()
         keyboard?.show()
+        snapshotFlow { field.text.toString() }.collect { if (it != state.text) listener.onTextChanged(it) }
+    }
+    LaunchedEffect(state.text) {
+        if (field.text.toString() != state.text) field.setTextAndPlaceCursorAtEnd(state.text)
     }
     // On a strip of its own: it covers the bar while it's up.
     Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
@@ -126,13 +135,12 @@ private fun FindBar(state: FindBarUi.State, listener: FindBarUi.Listener) {
                 Text("Find on page", fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
             BasicTextField(
-                value = state.text,
-                onValueChange = { listener.onTextChanged(it) },
-                singleLine = true,
+                state = field,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { listener.onNext(true) }),
+                onKeyboardAction = { listener.onNext(true) },
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
         }

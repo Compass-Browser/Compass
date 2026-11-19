@@ -45,6 +45,8 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 
 /** The sync screen: join a chain, pair devices, see what syncs (docs/design/sync.md). */
 object SyncScreenUi {
@@ -172,29 +174,30 @@ private fun Pairing(state: SyncScreenState, listener: SyncScreenUi.Listener) {
 
 @Composable
 private fun Join(state: SyncScreenState, listener: SyncScreenUi.Listener) {
-    var server by remember { mutableStateOf(state.server) }
-    var code by remember { mutableStateOf("") }
-    var words by remember { mutableStateOf("") }
+    val serverField = rememberTextFieldState(state.server)
+    val codeField = rememberTextFieldState()
+    val wordsField = rememberTextFieldState()
+    val server = serverField.text.toString().trim()
+    val code = codeField.text.toString()
+    val words = wordsField.text.toString()
     Text(
         "Sync joins a chain of your devices: everything is encrypted on them, " +
             "and the server can't read it. There's no account."
     )
-    @Suppress("DEPRECATION") OutlinedTextField(
-        value = server,
-        onValueChange = { server = it.trim() },
+    OutlinedTextField(
+        state = serverField,
         label = { Text("Sync server") },
         placeholder = { Text("https://…") },
-        singleLine = true,
+        lineLimits = TextFieldLineLimits.SingleLine,
         modifier = Modifier.fillMaxWidth(),
     )
     HorizontalDivider()
     Text("Pair with a device", style = MaterialTheme.typography.titleMedium)
     Text("On a device that syncs, choose Add a device, then enter its code here.")
-    @Suppress("DEPRECATION") OutlinedTextField(
-        value = code,
-        onValueChange = { code = it },
+    OutlinedTextField(
+        state = codeField,
         label = { Text("Pairing code") },
-        singleLine = true,
+        lineLimits = TextFieldLineLimits.SingleLine,
         modifier = Modifier.fillMaxWidth(),
     )
     Button(
@@ -205,9 +208,8 @@ private fun Join(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     }
     HorizontalDivider()
     Text("Or use your recovery code", style = MaterialTheme.typography.titleMedium)
-    @Suppress("DEPRECATION") OutlinedTextField(
-        value = words,
-        onValueChange = { words = it },
+    OutlinedTextField(
+        state = wordsField,
         label = { Text("Recovery code") },
         modifier = Modifier.fillMaxWidth(),
     )

@@ -187,8 +187,8 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
         const std::set<std::string>& deleted) {}
 
     // Boosts (docs/design/boosts.md), as memories: the profile's Boosts as
-    // entities once they're loaded; nullopt otherwise, and where Boosts
-    // don't sync (Android): the account's are then left alone.
+    // entities once they're loaded; nullopt otherwise: the account's are
+    // then left alone.
     virtual std::optional<std::vector<sync_pb::CompassBoost>>
     GetLocalBoosts();
     // Boosts another device added or changed, and ones it deleted (keys).

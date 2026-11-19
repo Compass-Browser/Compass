@@ -7,9 +7,11 @@
 
 #include <jni.h>
 
+#include <deque>
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -23,6 +25,8 @@
 #include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/claude/claude_tools.h"
 #include "compass/browser/claude/page_reader.h"
+#include "compass/browser/android/claude_tabs_android.h"
+#include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/claude/sse_parser.h"
 #include "url/gurl.h"
 
@@ -47,7 +51,9 @@ struct ToolResult;
 // Claude can act on the page with the page tools and, with "Let Claude use
 // the whole browser" on, on the tabs (ClaudeTabsAndroid). A reply that asks
 // for tools gets their results and goes on, as the desktop's chat does.
-class ClaudeBridge : public claude::ClaudeMemory::Observer {
+class ClaudeBridge : public claude::ClaudeMemory::Observer,
+                     public boosts::BoostStore::Observer,
+                     public ClaudeTabsAndroid::Window {
  public:
   ClaudeBridge(JNIEnv* env,
                const base::android::JavaRef<jobject>& java_object,
@@ -101,16 +107,81 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer {
   void SetMemorySave(JNIEnv* env, bool enabled);
   void UndoMemory(JNIEnv* env, int32_t undo_id);
   void AddMemory(JNIEnv* env, const std::string& text);
+  // The user's edit of memory |id|.
+  void UpdateMemory(JNIEnv* env, const std::string& id, const std::string& text);
   void RemoveMemory(JNIEnv* env, const std::string& id);
   void RemoveAllMemories(JNIEnv* env);
+
+  // The endpoint (docs/design/claude.md, "Settings"): a base URL (empty for
+  // the Claude API) and how the key is sent (claude::AuthStyle). False, with
+  // the error in the snapshot, for a URL ParseBaseUrl() refuses.
+  bool SetEndpoint(JNIEnv* env, const std::string& base_url, int32_t auth_style);
+  // Test Connection: the key and endpoint, through the model list (the
+  // snapshot's "testing", "test_ok", "test_result" and "api_models").
+  void TestConnection(JNIEnv* env);
+  // The page attachment: whether questions carry the page's text (each page
+  // once a chat, as on the desktop and iOS).
+  void SetAttachPage(JNIEnv* env, bool attach);
+  // Asks the last question again after a failed reply.
+  void Retry(JNIEnv* env);
+  // A tool row's screenshot (a "tool" message with "image"), base64 JPEG;
+  // empty if it's gone.
+  std::string ToolImage(JNIEnv* env, const std::string& tool_use_id);
+
+  // "Accept the risks of subscription tokens" (docs/design/claude.md,
+  // "Settings"): a token from `claude setup-token` may be the key.
+  void SetAcceptTokenRisks(JNIEnv* env, bool accepted);
+  // Developer tools (docs/design/claude.md, "Developer tools"): "Let Claude
+  // use developer tools".
+  void SetDevTools(JNIEnv* env, bool allowed);
+  // Files (docs/design/claude.md, "Files"): 0 off, 1 save files (into
+  // Downloads), 2 use a folder: |folder|, a folder of Downloads by name
+  // (made if it isn't there).
+  void SetFiles(JNIEnv* env, int32_t access, const std::string& folder);
+  // The user's answer to approval |id| (the snapshot's "approval"): 0 deny,
+  // 1 allow, 2 allow that tool for the rest of the chat.
+  void Answer(JNIEnv* env, int32_t id, int32_t decision);
+
+  // Boosts (docs/design/boosts.md): "Let Claude make Boosts", Undo of a
+  // change Claude made (a "boost" message's undo id), and the user's own
+  // changes to the list (the snapshot's "boosts").
+  void SetBoostsAllowed(JNIEnv* env, bool allowed);
+  void UndoBoost(JNIEnv* env, int32_t undo_id);
+  void SetBoostEnabled(JNIEnv* env, const std::string& id, bool enabled);
+  void RemoveBoost(JNIEnv* env, const std::string& id);
 
   // claude::ClaudeMemory::Observer:
   void OnMemoriesChanged() override;
 
+  // boosts::BoostStore::Observer:
+  void OnBoostsChanged() override;
+
+  // ClaudeTabsAndroid::Window, in Java (ClaudeChat):
+  std::string ShownSpace() override;
+  void ShowNode(const std::string& node_id,
+                const std::string& url,
+                const std::string& space_id) override;
+  void LoadInBackground(const std::string& node_id,
+                        const std::string& url) override;
+  void SwitchSpace(const std::string& space_id) override;
+
  private:
   struct Message {
     std::string role;
+    // "thinking": the summary so far; "tool": the tool's name.
     std::string text;
+    // A "tool" message: its tool_use id, its input (JSON), its result's text,
+    // whether that's an error, and whether it ran. A "thinking" one: done
+    // once its block ended.
+    std::string tool_use_id;
+    // A "user" message: the title of the page it carried, if one.
+    std::string page;
+    // A "tool" message: it answered with a screenshot (ToolImage()).
+    bool image = false;
+    std::string input;
+    std::string result;
+    bool error = false;
+    bool done = false;
     // A "memory" message's change, and its Undo.
     std::string kind;
     int undo_id = 0;
@@ -119,7 +190,14 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer {
   // A content block of the reply that streams.
   struct Block {
     std::string type;
+    // A text block's text, or a thinking block's summary.
     std::string text;
+    // A thinking block's signature; a redacted_thinking block's data. They go
+    // back unchanged in the next request, as the API wants during tool use.
+    std::string signature;
+    std::string data;
+    // The message showing it (thinking, tool), or -1.
+    int message = -1;
     std::string id;
     std::string name;
     // A tool_use's input, as it streams in.
@@ -144,6 +222,14 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer {
   // reply, or tool uses without their results (after Stop()).
   void TrimConversation();
   void Changed();
+  // The file tools' setting now (ClaudeTools::FilesConfigGetter).
+  claude::FilesConfig GetFilesConfig();
+  // ClaudeTools's approver: asks the user in the sheet, unless they allowed
+  // the tool for this chat.
+  void Ask(claude::ApprovalRequest request,
+           base::OnceCallback<void(bool)> done);
+  // Denies what waits for the user (Stop, a new chat).
+  void DenyAll();
 
   base::android::ScopedJavaGlobalRef<jobject> java_object_;
   raw_ptr<Profile> profile_;
@@ -172,11 +258,53 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer {
   GURL base_url_;
   claude::CacheLevel cache_level_ = claude::CacheLevel::kNormal;
   bool stepped_down_ = false;
+  // The key is a subscription token the user accepted the risks of: it goes
+  // as Claude Code (claude::UsesOAuthToken()).
+  bool oauth_token_ = false;
   // Each memory change's state before it, for Undo.
   std::map<int, claude::MemoryChange> memory_undo_;
+  // Each Boost change's state before it, for Undo.
+  std::map<int, claude::BoostChange> boost_undo_;
   int next_undo_id_ = 1;
+  // Changes waiting for the user's approval, first shown first.
+  struct Approval {
+    Approval();
+    Approval(Approval&&);
+    Approval& operator=(Approval&&);
+    ~Approval();
+    int id = 0;
+    claude::ApprovalRequest request;
+    base::OnceCallback<void(bool)> done;
+  };
+  std::deque<Approval> approvals_;
+  int next_approval_id_ = 1;
+  // Tools the user allowed for this chat.
+  std::set<std::string> allowed_tools_;
+  // The developer tools went with a request of this chat: they stay for the
+  // rest of it, so its tools only grow (docs/design/claude.md).
+  bool chat_devtools_ = false;
+  // The same for the Boost tools.
+  bool chat_boosts_ = false;
+  // The page attachment, and the page the chat has (each goes once).
+  bool attach_page_ = true;
+  std::string attached_url_;
+  // The question's turn as it was sent, for Retry.
+  std::string retry_content_;
+  // The user message the page goes with (its index), while it's read.
+  size_t asking_message_ = 0;
+  // Test Connection.
+  std::unique_ptr<claude::ClaudeClient> test_client_;
+  bool testing_ = false;
+  bool test_ok_ = false;
+  std::string test_result_;
+  std::vector<claude::ModelInfo> api_models_;
+  // The latest screenshots, by tool_use id.
+  std::map<std::string, std::string> images_;
+  std::vector<std::string> image_order_;
   base::ScopedObservation<claude::ClaudeMemory, claude::ClaudeMemory::Observer>
       memory_observation_{this};
+  base::ScopedObservation<boosts::BoostStore, boosts::BoostStore::Observer>
+      boosts_observation_{this};
   base::WeakPtrFactory<ClaudeBridge> weak_factory_{this};
 };
 

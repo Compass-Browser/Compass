@@ -23,6 +23,7 @@
 #include "chrome/browser/sync/data_type_store_service_factory.h"
 #include "chrome/common/channel_info.h"
 #include "compass/browser/android/spaces_android.h"
+#include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -45,7 +46,8 @@ namespace {
 
 class SpacesSyncHolder : public SpacesAndroid::Attachment,
                          public CompassSpacesSyncBridge::Delegate,
-                         public claude::ClaudeMemory::Observer {
+                         public claude::ClaudeMemory::Observer,
+                         public boosts::BoostStore::Observer {
  public:
   SpacesSyncHolder(Profile* profile, SpacesAndroid* spaces)
       : profile_(profile), spaces_(spaces) {
@@ -62,6 +64,11 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
       memory_ = memory->GetWeakPtr();
       memory->AddObserver(this);
     }
+    // So do Boosts (docs/design/boosts.md; docs/design/android.md, "Boosts").
+    if (boosts::BoostStore* store = boosts::BoostStore::Get(profile)) {
+      boosts_ = store->GetWeakPtr();
+      store->AddObserver(this);
+    }
     // The bridge starts once the spaces are in, as on the desktop
     // (compass_spaces_sync.cc, OnLoaded()). Without it, the bridge never told
     // sync it was ready and COMPASS_SPACES failed to configure ("Backend
@@ -74,6 +81,9 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
   ~SpacesSyncHolder() override {
     if (memory_) {
       memory_->RemoveObserver(this);
+    }
+    if (boosts_) {
+      boosts_->RemoveObserver(this);
     }
     bridge_.reset();
   }
@@ -119,6 +129,59 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
 
   // claude::ClaudeMemory::Observer:
   void OnMemoriesChanged() override { bridge_->NotifyLocalChange(); }
+
+  std::optional<std::vector<sync_pb::CompassBoost>> GetLocalBoosts()
+      override {
+    if (!boosts_ || !boosts_->loaded()) {
+      return std::nullopt;
+    }
+    std::vector<sync_pb::CompassBoost> list;
+    for (const boosts::Boost& boost : boosts_->boosts()) {
+      sync_pb::CompassBoost& entity = list.emplace_back();
+      entity.set_id(boost.id);
+      entity.set_name(boost.name);
+      entity.set_match(boost.match);
+      entity.set_css(boost.css);
+      entity.set_js(boost.js);
+      entity.set_js_world(boost.js_world);
+      entity.set_enabled(boost.enabled);
+      entity.set_author(boost.author);
+      entity.set_create_time(
+          boost.created.ToDeltaSinceWindowsEpoch().InMicroseconds());
+      entity.set_update_time(
+          boost.updated.ToDeltaSinceWindowsEpoch().InMicroseconds());
+    }
+    return list;
+  }
+
+  void ApplyBoosts(const std::vector<sync_pb::CompassBoost>& changed,
+                   const std::set<std::string>& deleted) override {
+    if (!boosts_) {
+      return;
+    }
+    std::vector<boosts::Boost> list;
+    for (const sync_pb::CompassBoost& entity : changed) {
+      boosts::Boost& boost = list.emplace_back();
+      boost.id = entity.id();
+      boost.name = entity.name();
+      boost.match = entity.match();
+      boost.css = entity.css();
+      boost.js = entity.js();
+      boost.js_world =
+          entity.js_world().empty() ? boosts::kIsolatedWorld : entity.js_world();
+      boost.enabled = entity.enabled();
+      boost.author =
+          entity.author().empty() ? boosts::kAuthorUser : entity.author();
+      boost.created = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Microseconds(entity.create_time()));
+      boost.updated = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Microseconds(entity.update_time()));
+    }
+    boosts_->ApplyRemote(list, deleted);
+  }
+
+  // boosts::BoostStore::Observer:
+  void OnBoostsChanged() override { bridge_->NotifyLocalChange(); }
 
   void DeleteSpace(SpaceModel& space) override {
     SpaceList& list = spaces_->list();
@@ -204,6 +267,7 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
   const raw_ptr<SpacesAndroid> spaces_;
   std::unique_ptr<CompassSpacesSyncBridge> bridge_;
   base::WeakPtr<claude::ClaudeMemory> memory_;
+  base::WeakPtr<boosts::BoostStore> boosts_;
   base::WeakPtrFactory<SpacesSyncHolder> weak_factory_{this};
 };
 

@@ -803,6 +803,11 @@ int SpacesAndroid::TabFor(const base::Uuid& node_id) const {
   return -1;
 }
 
+base::Uuid SpacesAndroid::NodeFor(int tab_id) const {
+  auto it = tabs_.find(tab_id);
+  return it != tabs_.end() ? it->second : base::Uuid();
+}
+
 SidebarNode* SpacesAndroid::FindNode(const base::Uuid& id) {
   if (SidebarNode* node = list_.favorites().FindById(id)) {
     return node;

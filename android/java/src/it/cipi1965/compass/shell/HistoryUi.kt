@@ -55,6 +55,9 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.runtime.snapshotFlow
 import it.cipi1965.compass.R
 import java.util.Calendar
 import java.util.Date
@@ -201,12 +204,16 @@ private fun History(context: Context, state: HistoryUi.State, listener: HistoryU
                 )
                 TextButton(onClick = { listener.onClearData() }) { Text("Clear…") }
             }
-            @Suppress("DEPRECATION") TextField(
-                value = state.query,
-                onValueChange = { listener.onQuery(it) },
+            // What's typed goes to the listener, which searches.
+            val query = rememberTextFieldState(state.query)
+            LaunchedEffect(query) {
+                snapshotFlow { query.text.toString() }.collect { if (it != state.query) listener.onQuery(it) }
+            }
+            TextField(
+                state = query,
                 placeholder = { Text("Search history") },
                 leadingIcon = { Sym(R.drawable.compass_sym_search, 18f, MaterialTheme.colorScheme.onSurfaceVariant) },
-                singleLine = true,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 shape = RoundedCornerShape(28.dp),
                 colors =
                     TextFieldDefaults.colors(

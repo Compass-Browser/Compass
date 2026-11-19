@@ -13,6 +13,10 @@ import it.cipi1965.compass.claude.ClaudeBridge;
 
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.ui.base.PageTransition;
+import org.chromium.url.GURL;
 
 /** The Claude chat (ClaudeChatUi.kt) over ClaudeBridge, about the tab on screen. */
 public class ClaudeChat implements ClaudeChatUi.Listener {
@@ -20,12 +24,40 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
     private final ClaudeBridge mBridge;
     private final ClaudeChatState mState = new ClaudeChatState();
     private final View mView;
+    private final View mPill;
+    private final Spaces mSpaces;
 
-    public ClaudeChat(ChromeTabbedActivity activity, ViewGroup parent) {
+    /**
+     * |aboveBarPx|: how far over the bottom the "Claude is working…" pill floats (the bar's
+     * height).
+     */
+    public ClaudeChat(ChromeTabbedActivity activity, ViewGroup parent, Spaces spaces, int aboveBarPx) {
         mActivity = activity;
+        mSpaces = spaces;
         mBridge =
                 new ClaudeBridge(
                         activity.getTabModelSelector().getModel(false).getProfile(),
+                        new ClaudeBridge.Window() {
+                            @Override
+                            public String shownSpace() {
+                                return spaces.shownSpaceId();
+                            }
+
+                            @Override
+                            public void showNode(String nodeId, String url, String spaceId) {
+                                spaces.showNode(nodeId, url, spaceId);
+                            }
+
+                            @Override
+                            public void loadInBackground(String nodeId, String url) {
+                                spaces.openInBackground(nodeId, url);
+                            }
+
+                            @Override
+                            public void switchSpace(String spaceId) {
+                                spaces.switchToSpace(spaceId);
+                            }
+                        },
                         this::refresh);
         mView = ClaudeChatUi.createView(activity, activity, activity, activity, mState, this);
         mView.setVisibility(View.GONE);
@@ -33,21 +65,39 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
                 mView,
                 new CoordinatorLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        // While Claude works with the sheet closed (iOS's pill).
+        mPill = ClaudeChatUi.createWorkingPill(activity, activity, activity, this::show, this::onStop);
+        mPill.setVisibility(View.GONE);
+        CoordinatorLayout.LayoutParams pillParams =
+                new CoordinatorLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        pillParams.gravity = android.view.Gravity.BOTTOM;
+        pillParams.bottomMargin = aboveBarPx;
+        parent.addView(mPill, pillParams);
     }
 
     public void destroy() {
         mBridge.destroy();
+        if (mPill.getParent() != null) ((ViewGroup) mPill.getParent()).removeView(mPill);
     }
 
     public void show() {
-        refresh();
         mView.setVisibility(View.VISIBLE);
         mView.bringToFront();
         mState.setOpen(true);
+        refresh();
     }
 
     private void refresh() {
         mState.update(mBridge.snapshot());
+        // The tab Claude acts on gets an outline in the sidebar (iOS's), and the pill shows while
+        // it works with the sheet closed.
+        mSpaces.setClaudeTab(mState.getActingTab());
+        boolean pill = mState.getStreaming() && !mState.getOpen();
+        if (pill != (mPill.getVisibility() == View.VISIBLE)) {
+            mPill.setVisibility(pill ? View.VISIBLE : View.GONE);
+            if (pill) mPill.bringToFront();
+        }
     }
 
     @Override
@@ -109,6 +159,11 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
     }
 
     @Override
+    public void onUpdateMemory(String id, String text) {
+        mBridge.updateMemory(id, text);
+    }
+
+    @Override
     public void onRemoveMemory(String id) {
         mBridge.removeMemory(id);
     }
@@ -128,6 +183,46 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
         mBridge.setFeatureModel(feature, model);
     }
 
+    @Override
+    public void onAcceptTokenRisks(boolean accepted) {
+        mBridge.setAcceptTokenRisks(accepted);
+    }
+
+    @Override
+    public void onBoostsAllowed(boolean allowed) {
+        mBridge.setBoostsAllowed(allowed);
+    }
+
+    @Override
+    public void onUndoBoost(int undoId) {
+        mBridge.undoBoost(undoId);
+    }
+
+    @Override
+    public void onBoostEnabled(String id, boolean enabled) {
+        mBridge.setBoostEnabled(id, enabled);
+    }
+
+    @Override
+    public void onRemoveBoost(String id) {
+        mBridge.removeBoost(id);
+    }
+
+    @Override
+    public void onDevTools(boolean allowed) {
+        mBridge.setDevTools(allowed);
+    }
+
+    @Override
+    public void onFiles(int access, String folder) {
+        mBridge.setFiles(access, folder);
+    }
+
+    @Override
+    public void onAnswer(int id, int decision) {
+        mBridge.answer(id, decision);
+    }
+
     /**
      * Continue in Chat (Ask in the command bar): the sheet, on a new chat that starts with the
      * question and Claude's answer.
@@ -138,8 +233,48 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
     }
 
     @Override
+    public void onOpenLink(String url) {
+        GURL gurl = new GURL(url);
+        if (!gurl.isValid()) return;
+        // A new tab in front, as the desktop's chat opens links; the sheet steps aside.
+        mActivity
+                .getTabCreator(false)
+                .createNewTab(
+                        new LoadUrlParams(gurl.getSpec(), PageTransition.LINK),
+                        TabLaunchType.FROM_CHROME_UI,
+                        null);
+        onDismiss();
+    }
+
+    @Override
+    public void onAttachPage(boolean attach) {
+        mBridge.setAttachPage(attach);
+    }
+
+    @Override
+    public void onRetry() {
+        mBridge.retry();
+    }
+
+    @Override
+    public void onSetEndpoint(String baseUrl, int authStyle) {
+        mBridge.setEndpoint(baseUrl, authStyle);
+    }
+
+    @Override
+    public void onTestConnection() {
+        mBridge.testConnection();
+    }
+
+    @Override
+    public String toolImage(String toolId) {
+        return mBridge.toolImage(toolId);
+    }
+
+    @Override
     public void onDismiss() {
         mState.setOpen(false);
         mView.setVisibility(View.GONE);
+        refresh();
     }
 }

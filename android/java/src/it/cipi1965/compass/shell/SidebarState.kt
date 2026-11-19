@@ -96,6 +96,8 @@ class SidebarState {
     var archiveAfterHours by mutableStateOf(12)
     /** The tab on screen, to highlight its entry. */
     var currentTab by mutableStateOf(-1)
+    /** The tab Claude acts on while it works (its outline in the sidebar), or -1. */
+    var claudeTab by mutableStateOf(-1)
 
     // Claude in the sidebar (docs/design/ai-sidebar.md), from ClaudeSidebarBridge's snapshot.
     /** Suggest a Name in a folder's menu ("Name Link Folders" on, Claude set up). */

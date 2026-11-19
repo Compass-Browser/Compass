@@ -66,6 +66,10 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.runtime.snapshotFlow
 import it.cipi1965.compass.R
 
 /**
@@ -137,16 +141,17 @@ private fun CommandBar(state: CommandBarState, listener: CommandBarUi.Listener) 
 }
 
 // The TextFieldValue overload of BasicTextField: the page's address starts all selected.
-@Suppress("DEPRECATION")
 @Composable
 private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     // The page's address starts all selected, to type over.
-    var value by remember { mutableStateOf(TextFieldValue(state.text, TextRange(0, state.text.length))) }
+    val field = remember { TextFieldState(state.text, TextRange(0, state.text.length)) }
+    val text = field.text.toString()
     LaunchedEffect(Unit) {
         focus.requestFocus()
         keyboard?.show()
+        snapshotFlow { field.text.toString() }.collect { if (it != state.text) listener.onTextChanged(it) }
     }
     Column(
         Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
@@ -166,16 +171,12 @@ private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
                     Sym(R.drawable.compass_sym_arrow_back, 20f, MaterialTheme.colorScheme.onSurface)
                 }
                 Box(Modifier.weight(1f)) {
-                    if (value.text.isEmpty()) {
+                    if (text.isEmpty()) {
                         Text("Search or enter address", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     }
                     BasicTextField(
-                        value = value,
-                        onValueChange = {
-                            value = it
-                            if (it.text != state.text) listener.onTextChanged(it.text)
-                        },
-                        singleLine = true,
+                        state = field,
+                        lineLimits = TextFieldLineLimits.SingleLine,
                         textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         keyboardOptions =
@@ -185,15 +186,12 @@ private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
                                 keyboardType = KeyboardType.Uri,
                                 imeAction = ImeAction.Go,
                             ),
-                        keyboardActions = KeyboardActions(onGo = { listener.onSubmit(value.text) }),
+                        onKeyboardAction = { listener.onSubmit(field.text.toString()) },
                         modifier = Modifier.fillMaxWidth().focusRequester(focus),
                     )
                 }
-                if (value.text.isNotEmpty()) {
-                    IconButton(onClick = {
-                        value = TextFieldValue("")
-                        listener.onTextChanged("")
-                    }) {
+                if (text.isNotEmpty()) {
+                    IconButton(onClick = { field.clearText() }) {
                         Sym(R.drawable.compass_sym_close, 20f, MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
