@@ -12,7 +12,6 @@ import SwiftUI
 /// attachment.
 struct ClaudeChatSheet: View {
   @Environment(AppModel.self) private var app
-  @State private var text = ""
   @State private var showingSettings = false
   @FocusState private var focused: Bool
 
@@ -129,7 +128,7 @@ struct ClaudeChatSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
       }
       HStack(alignment: .bottom, spacing: 8) {
-        TextField(ClaudeSettings.shared.provider.askTitle, text: $text, axis: .vertical)
+        TextField(ClaudeSettings.shared.provider.askTitle, text: Bindable(chat).draft, axis: .vertical)
           .lineLimit(1...6)
           .focused($focused)
           .submitLabel(.send)
@@ -143,7 +142,7 @@ struct ClaudeChatSheet: View {
             .accessibilityLabel("Stop")
         } else {
           Button(action: send) { Image(systemName: "arrow.up.circle.fill").font(.title) }
-            .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .accessibilityLabel("Send")
         }
       }
@@ -154,8 +153,8 @@ struct ClaudeChatSheet: View {
   }
 
   private func send() {
-    chat.send(text, app: app)
-    text = ""
+    chat.send(chat.draft, app: app)
+    chat.draft = ""
   }
 }
 

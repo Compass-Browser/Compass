@@ -64,6 +64,9 @@ final class ClaudeChat {
   /// The next message carries the shown page's text (on by default; the
   /// same page isn't sent twice in a row).
   var attachPage = true
+  /// What's written in the field but not sent: kept when the sheet closes,
+  /// and across New Chat.
+  var draft = ""
   @ObservationIgnored private var attachedURL = ""
   @ObservationIgnored private var task: Task<Void, Never>?
   @ObservationIgnored private var tools: ClaudeTools?
