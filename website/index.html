@@ -161,11 +161,14 @@ footer a { color: inherit; }
       </article>
 
       <article class="card" data-platform="android">
-        <h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.6 9.48l1.84-3.18a.38.38 0 0 0-.66-.38l-1.86 3.22A11.4 11.4 0 0 0 12 8.2c-1.8 0-3.5.38-4.92.94L5.22 5.92a.38.38 0 0 0-.66.38L6.4 9.48A10.8 10.8 0 0 0 1 18h22a10.8 10.8 0 0 0-5.4-8.52zM7 15.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm10 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z"/></svg>Android <span class="badge">Coming soon</span></h3>
-        <p class="req">Android phones and tablets.</p>
+        <h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.6 9.48l1.84-3.18a.38.38 0 0 0-.66-.38l-1.86 3.22A11.4 11.4 0 0 0 12 8.2c-1.8 0-3.5.38-4.92.94L5.22 5.92a.38.38 0 0 0-.66.38L6.4 9.48A10.8 10.8 0 0 0 1 18h22a10.8 10.8 0 0 0-5.4-8.52zM7 15.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm10 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z"/></svg>Android <span class="badge">Beta</span></h3>
+        <p class="req">Android phones and tablets (64-bit ARM), through Google Play's testing program.</p>
         <p class="meta">The same Chromium engine as on your computer, with your spaces, tabs, history and passwords, end-to-end encrypted.</p>
+        <p class="meta" data-meta="android">To join: first join the <a href="https://groups.google.com/g/compass-browser-android">testers group</a> with your Google account, then open the <a href="https://play.google.com/apps/testing/it.cipi1965.compass">test page on Google Play</a>, tap Become a tester, and install Compass from Play. It updates itself.</p>
         <div class="actions">
-          <a class="button secondary" aria-disabled="true">Coming soon</a>
+          <details data-sums><summary>SHA-256</summary></details>
+          <a class="button secondary" data-link="apk" aria-disabled="true" href="#">Download APK</a>
+          <a class="button" href="https://groups.google.com/g/compass-browser-android">Join the beta on Google Play</a>
         </div>
       </article>
     </div>
@@ -265,25 +268,36 @@ footer a { color: inherit; }
   // releases"). The card shows the newest GitHub release with a Linux
   // tarball, canary included, so it matches what the Flatpak installs. The
   // card's links are the last one known, for when GitHub can't answer.
-  const linux = () =>
+  const githubReleases =
     fetch('https://api.github.com/repos/Compass-Browser/Compass/releases?per_page=30')
       .then((r) => r.ok ? r.json() : [])
-      .catch(() => [])
-      .then((releases) => {
-        for (const r of releases) {
-          if (r.draft) continue;
-          const asset = (ext) => (r.assets || []).find((a) => a.name.endsWith('-linux-x64' + ext));
-          const tar = asset('.tar.xz');
-          if (!tar) continue;
-          const entry = (a) => a && {
-            url: a.browser_download_url, size: a.size,
-            version: r.tag_name.replace(/^v/, ''),
-            sha256: (a.digest || '').replace(/^sha256:/, ''),
-          };
-          return { tar: entry(tar), date: r.published_at };
-        }
-        return null;
-      });
+      .catch(() => []);
+  // The newest GitHub release with an asset ending in |suffix|.
+  const newestAsset = (suffix) => githubReleases.then((releases) => {
+    for (const r of releases) {
+      if (r.draft) continue;
+      const a = (r.assets || []).find((x) => x.name.endsWith(suffix));
+      if (!a) continue;
+      return {
+        url: a.browser_download_url, size: a.size, date: r.published_at,
+        version: r.tag_name.replace(/^v/, ''),
+        sha256: (a.digest || '').replace(/^sha256:/, ''),
+      };
+    }
+    return null;
+  });
+  const linux = () => newestAsset('-linux-x64.tar.xz')
+    .then((tar) => tar && { tar, date: tar.date });
+
+  // Android: Play's testing program is the way in; the APK (signed with the
+  // same key, so either updates the other) is for those without Play.
+  newestAsset('-android-arm64.apk').then((apk) => {
+    if (!apk) return;
+    const card = document.querySelector('[data-platform="android"]');
+    enable(card.querySelector('[data-link="apk"]'), apk);
+    card.querySelector('[data-link="apk"]').title = describe(apk);
+    sums(card, [['APK', apk]].filter(([, e]) => e.sha256));
+  });
 
   const linuxDone = linux().then((l) => {
     const card = document.querySelector('[data-platform="linux"]');
