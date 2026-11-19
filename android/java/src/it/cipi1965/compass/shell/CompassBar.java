@@ -789,6 +789,11 @@ public class CompassBar implements CompassBarUi.Actions {
         if (mExtensions != null) mExtensions.onRunAction(id);
     }
 
+    /** Capture to Easel: the visible page, to a board the user picks (Easels.java). */
+    void captureToEasel() {
+        Easels.capture(mActivity, mSpaces);
+    }
+
     /** Pins the tab on screen to the space, or unpins it (its tab stays open, in Today). */
     void togglePin() {
         Tab tab = mActivity.getActivityTab();

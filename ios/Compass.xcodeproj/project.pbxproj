@@ -25,6 +25,7 @@
 		0E1A6D52B5C02091299CC08D /* Share.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 717D590ED19EB51A8B622101 /* Share.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		0E676486C9655F69A2601BD3 /* LiveFolders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DA6517378FE106A32AFB54F /* LiveFolders.swift */; };
 		10BBFE0A5CB36F2F6581AABE /* Downloads+Background.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66F0EE58F8587923AB5AD207 /* Downloads+Background.swift */; };
+		15074E5939A8AA3467DFFB29 /* EaselScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A428D217F58C86C24A69CB9B /* EaselScreen.swift */; };
 		1586D6151BCB7A670E2EF90C /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32AD0FC2A4DD49EA6D182F11 /* WebView.swift */; };
 		19F771FD6105BB196DA68880 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1EF8B1ADDE7286C61000241 /* WidgetKit.framework */; };
 		1A57273DD4D0DCACDB91A21E /* BoostsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40590731E81A5477EA1EB9E0 /* BoostsView.swift */; };
@@ -36,9 +37,12 @@
 		272DCD0A5FEABCFDE4F042C6 /* reader.html in Resources */ = {isa = PBXBuildFile; fileRef = 121F2E2D11833164E2ED927E /* reader.html */; };
 		2827204F714A0D874CE9DB14 /* Peek.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27B64020D5018ABB32C63EBF /* Peek.swift */; };
 		28AE9D978D1FCDFAE4CE06BC /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ECB8BB8BB7B8645F265BCE1 /* ShareViewController.swift */; };
+		290326B391F0C01C47F6673A /* EaselLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9368A0772C67BCC14AC29785 /* EaselLibrary.swift */; };
 		2C5574A13A87E56973CDD495 /* ContentBlocking.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0C1FC09E0D4CAFE243D278C /* ContentBlocking.swift */; };
 		2D7DD330D12048A9E3C15504 /* CompassWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F778B3B5C9943AAABC5724 /* CompassWidgets.swift */; };
+		2E827AA08323300213F18A0C /* EaselObjectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F91BE86C95862C781EEB6B5B /* EaselObjectView.swift */; };
 		2FA2A525C5E5364BDB7393AF /* call_pip.js in Resources */ = {isa = PBXBuildFile; fileRef = 6D916F773D9EBF875259910C /* call_pip.js */; };
+		3234A062A7A49C79603CF768 /* CompassEasels in Frameworks */ = {isa = PBXBuildFile; productRef = CF238BA3C44C00A2F24A8CED /* CompassEasels */; };
 		32AE2DD435900084FFC93291 /* DownloadActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA6BBB62A731CFB983B3B3B /* DownloadActivityWidget.swift */; };
 		32D1028950616C4F9FE0BB50 /* SettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47141F9CD5FDA9B4F747F56B /* SettingsTests.swift */; };
 		32DB94151B1160360BF2FDCB /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 71E0DA10C9C7101FC286EA17 /* SwiftUI.framework */; };
@@ -83,6 +87,7 @@
 		7843D6FC2CA3DD057CA9A4F0 /* ShortcutsActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4949F9FC0F1970A1F889D517 /* ShortcutsActions.swift */; };
 		7944D962C50E7358BEB39615 /* PushService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0DED477E2FD46B08248E91DD /* PushService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7C7E241C93A23DDAD181F765 /* SidebarPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D6DFD0447538D43874857BE /* SidebarPanel.swift */; };
+		8389A97FDBDA6DF9BD3EAD65 /* EaselCaptureOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8C35F219C3A1C8829DE5B66 /* EaselCaptureOverlay.swift */; };
 		859F8C08EFB2E77F4C28339E /* PageMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 624E0261C6D1E934507BE3C7 /* PageMenuTests.swift */; };
 		86684A54CA9356438E5AEAAC /* BoostsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F4313D13751DA68130C8883 /* BoostsTests.swift */; };
 		86BE32EE9DABB442ECFD8C3B /* SiteSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E181E09464F119B3A59058 /* SiteSettingsView.swift */; };
@@ -114,6 +119,7 @@
 		B36EBEC54E877CBB5562C9BB /* SystemBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9DB417853BAB3988CCC478 /* SystemBridge.swift */; };
 		B580D148EA2C68D000F5C041 /* ClaudeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 977A8F8485D4C21A1859E91F /* ClaudeClient.swift */; };
 		B840B0B07CA0DBC96D907445 /* Compass.icon in Resources */ = {isa = PBXBuildFile; fileRef = 0CCF6B36608F188B62BBA5B9 /* Compass.icon */; };
+		B9E36470E4FC18B764F30175 /* EaselEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5E5D0E82329024CAFA3BBC2 /* EaselEditor.swift */; };
 		BA7C6B8B4A54982738CAA1E8 /* LiveFolderViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8BB49FB7D90C6FB1CC5ECC8 /* LiveFolderViews.swift */; };
 		BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98F12601AB2AF4C69845C13 /* CompassApp.swift */; };
 		BC4149FED3CDEE2BAD4F8D46 /* DesktopViewport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44957DA68D5128D0EA074A29 /* DesktopViewport.swift */; };
@@ -294,6 +300,7 @@
 		83B8330DEB6EB26B4DBFA4BF /* ExtensionPackage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionPackage.swift; sourceTree = "<group>"; };
 		86F0182977981D5DDCAFCD94 /* WidgetSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSupport.swift; sourceTree = "<group>"; };
 		8F05C20E3A1003FF687C4007 /* DownloadActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadActivity.swift; sourceTree = "<group>"; };
+		9368A0772C67BCC14AC29785 /* EaselLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EaselLibrary.swift; sourceTree = "<group>"; };
 		943E4453D17FD6C970BD7A46 /* SafariOpen.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = SafariOpen.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		950B2D1C1AF0CBC338C181A6 /* ClaudeChatSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeChatSheet.swift; sourceTree = "<group>"; };
 		961F85913D33C5CF85A475CE /* ClaudeDevTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeDevTools.swift; sourceTree = "<group>"; };
@@ -303,11 +310,13 @@
 		9F4313D13751DA68130C8883 /* BoostsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoostsTests.swift; sourceTree = "<group>"; };
 		A26F722BF810E843DE8DD904 /* builtin */ = {isa = PBXFileReference; lastKnownFileType = folder; name = builtin; path = ../plugins/builtin; sourceTree = SOURCE_ROOT; };
 		A41B59BC81621FE63D557277 /* DataViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataViews.swift; sourceTree = "<group>"; };
+		A428D217F58C86C24A69CB9B /* EaselScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EaselScreen.swift; sourceTree = "<group>"; };
 		A5B2F18EB9330372B8926E97 /* AppLinksUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLinksUITests.swift; sourceTree = "<group>"; };
 		A6EFFE57A9C1092082BA5478 /* PasswordManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordManager.swift; sourceTree = "<group>"; };
 		A7AF403DBCF719F2BAF33C80 /* Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reader.swift; sourceTree = "<group>"; };
 		A7B26BA178A765562EB20045 /* PushService.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PushService.entitlements; sourceTree = "<group>"; };
 		A8BB49FB7D90C6FB1CC5ECC8 /* LiveFolderViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveFolderViews.swift; sourceTree = "<group>"; };
+		A8C35F219C3A1C8829DE5B66 /* EaselCaptureOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EaselCaptureOverlay.swift; sourceTree = "<group>"; };
 		AD52168629F96C8A4ABCDBDF /* Favicons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Favicons.swift; sourceTree = "<group>"; };
 		B2BC6E0535E2713607366ECF /* ShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareView.swift; sourceTree = "<group>"; };
 		B5928005DDC40E352DA4F6D9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -336,6 +345,7 @@
 		DC2F2338E9181C42B8CEECE3 /* ExtensionUnlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionUnlock.swift; sourceTree = "<group>"; };
 		E273ECD01682DC815F533A3A /* KeyboardShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcuts.swift; sourceTree = "<group>"; };
 		E34F29223A768C8FE62B8A4D /* reader_view.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = reader_view.js; sourceTree = "<group>"; };
+		E5E5D0E82329024CAFA3BBC2 /* EaselEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EaselEditor.swift; sourceTree = "<group>"; };
 		E9B14F5640FE2B89F6774231 /* Readability-readerable.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "Readability-readerable.js"; sourceTree = "<group>"; };
 		EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		EDC160A2F8C9A864C250F339 /* _locales */ = {isa = PBXFileReference; lastKnownFileType = folder; name = _locales; path = SafariOpen/Resources/_locales; sourceTree = SOURCE_ROOT; };
@@ -348,6 +358,7 @@
 		F4F43805D9720EF9C6F0FE03 /* Readability.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Readability.js; sourceTree = "<group>"; };
 		F4F82A3BEBB78D75AD38C677 /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
 		F8EFD6EB825EB023B36C4979 /* app_links.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = app_links.html; sourceTree = "<group>"; };
+		F91BE86C95862C781EEB6B5B /* EaselObjectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EaselObjectView.swift; sourceTree = "<group>"; };
 		FC7D505209A3DEBBAC3E6B6C /* ThemeEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeEditorTests.swift; sourceTree = "<group>"; };
 		FCA6BBB62A731CFB983B3B3B /* DownloadActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadActivityWidget.swift; sourceTree = "<group>"; };
 		FD19DC720297F4780763BD8D /* page_agent.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = page_agent.js; sourceTree = "<group>"; };
@@ -393,6 +404,7 @@
 				D4B8E15F68B8C746C443EA7C /* CompassClaude in Frameworks */,
 				56693BE136F75240E2345545 /* CompassLiveFolders in Frameworks */,
 				260F78091B521A8355230F80 /* CompassBoosts in Frameworks */,
+				3234A062A7A49C79603CF768 /* CompassEasels in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -554,6 +566,18 @@
 			path = AutoFill;
 			sourceTree = "<group>";
 		};
+		A6967D2475972F860321F217 /* Easels */ = {
+			isa = PBXGroup;
+			children = (
+				A8C35F219C3A1C8829DE5B66 /* EaselCaptureOverlay.swift */,
+				E5E5D0E82329024CAFA3BBC2 /* EaselEditor.swift */,
+				9368A0772C67BCC14AC29785 /* EaselLibrary.swift */,
+				F91BE86C95862C781EEB6B5B /* EaselObjectView.swift */,
+				A428D217F58C86C24A69CB9B /* EaselScreen.swift */,
+			);
+			path = Easels;
+			sourceTree = "<group>";
+		};
 		AA86E1B43A6DA26468CC906F /* plugins */ = {
 			isa = PBXGroup;
 			children = (
@@ -619,6 +643,7 @@
 				55BF6529E9D2DE4C37941B83 /* Boosts */,
 				D3B3BFB50B54351850942339 /* Browser */,
 				D77E968C3602EBDAEB448C6D /* Claude */,
+				A6967D2475972F860321F217 /* Easels */,
 				B469E0DBFCE48FC1538DAAE7 /* Extensions */,
 				66C0746D8965C5F7E03012E2 /* Incognito */,
 				D03B8DA0821794B8BA9FD4BF /* Model */,
@@ -869,6 +894,7 @@
 				24FEC5B35F68102FF9D4F4D3 /* CompassClaude */,
 				1302CE07862EFEBA75B9AFB7 /* CompassLiveFolders */,
 				1980E8CE8C789AC0100CEC88 /* CompassBoosts */,
+				CF238BA3C44C00A2F24A8CED /* CompassEasels */,
 			);
 			productName = Compass;
 			productReference = 1BF57BA01F2477CA55BC7407 /* Compass.app */;
@@ -1100,6 +1126,11 @@
 				10BBFE0A5CB36F2F6581AABE /* Downloads+Background.swift in Sources */,
 				91D855F27AF48E31EE21A8D2 /* Downloads.swift in Sources */,
 				AB4A065A118291BDC5BCE374 /* DownloadsView.swift in Sources */,
+				8389A97FDBDA6DF9BD3EAD65 /* EaselCaptureOverlay.swift in Sources */,
+				B9E36470E4FC18B764F30175 /* EaselEditor.swift in Sources */,
+				290326B391F0C01C47F6673A /* EaselLibrary.swift in Sources */,
+				2E827AA08323300213F18A0C /* EaselObjectView.swift in Sources */,
+				15074E5939A8AA3467DFFB29 /* EaselScreen.swift in Sources */,
 				9063D67CA8F47F572E0DFE97 /* ExtensionPackage.swift in Sources */,
 				90D15113F681839FCF937BF2 /* ExtensionSource.swift in Sources */,
 				5AC1A706D95C031010B18D6F /* ExtensionTabs.swift in Sources */,
@@ -1753,6 +1784,10 @@
 		C1F5E18C01FE8E9B53C5726A /* CompassSync */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CompassSync;
+		};
+		CF238BA3C44C00A2F24A8CED /* CompassEasels */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CompassEasels;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

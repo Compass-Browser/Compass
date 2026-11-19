@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassEasels
 import CompassModel
 import SwiftUI
 
@@ -139,7 +140,13 @@ struct SiteIcon: View {
   var body: some View {
     let host = URL(string: url)?.host() ?? ""
     Group {
-      if let image = Favicons.shared.image(for: url) {
+      if EaselURL.isEasel(url) {
+        // A board, or the Easels list (docs/design/easels.md).
+        Image(systemName: "rectangle.on.rectangle.angled")
+          .font(.system(size: size * 0.8, weight: .medium))
+          .foregroundStyle(.tint)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else if let image = Favicons.shared.image(for: url) {
         Image(uiImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
       } else {
         Text(host.replacingOccurrences(of: "www.", with: "").prefix(1).uppercased())
@@ -153,11 +160,12 @@ struct SiteIcon: View {
   }
 }
 
-/// What the phone can open: web pages. Entries synced from the desktop on
-/// its own pages (compass://, chrome://, about:, file:…) keep syncing but
-/// aren't shown here.
+/// What the phone can open: web pages and Easels. Entries synced from the
+/// desktop on its other own pages (compass://, chrome://, about:, file:…)
+/// keep syncing but aren't shown here.
 enum PhoneVisible {
   static func url(_ url: String) -> Bool {
+    if EaselURL.isEasel(url) { return true }
     guard let scheme = URL(string: url)?.scheme?.lowercased() else { return false }
     return scheme == "http" || scheme == "https"
   }

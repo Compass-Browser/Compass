@@ -5,6 +5,7 @@
 import CompassBoosts
 import CompassClaude
 import CompassCrypto
+import CompassEasels
 import CompassModel
 import CompassShared
 import CompassSync
@@ -291,6 +292,12 @@ final class SyncController {
       spaces.localBoosts = { boosts.boosts }
       spaces.onBoosts = { changed, deleted in boosts.applyRemote(changed, deleted: deleted) }
       boosts.onChange = { [weak spaces] list in spaces?.boostsChanged(list) }
+      // And the Easels (docs/design/easels.md, "Sync").
+      let easels = EaselStore.shared
+      spaces.localEasels = { easels.entities() }
+      spaces.easelAssetData = { easels.assetData($0) }
+      spaces.onEasels = { changed, deleted in easels.applyRemote(changed, deleted: deleted) }
+      easels.onChange = { [weak spaces] in spaces?.easelsChanged(easels.entities()) }
     }
     account.cacheGUID = cacheGUID
     account.authKey = authKey

@@ -195,6 +195,23 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
     // Called while applying; the later of two edits wins.
     virtual void ApplyBoosts(const std::vector<sync_pb::CompassBoost>& changed,
                              const std::set<std::string>& deleted) {}
+
+    // Easels (docs/design/easels.md), as Boosts: every board, object and
+    // image of the profile, each a CompassSpacesSpecifics with one of
+    // easel, easel_object or easel_asset, once they're loaded; nullopt
+    // otherwise, and the account's are then left alone. Images come without
+    // their bytes, which the bridge asks GetEaselAssetData() for only when
+    // the account doesn't have them yet (they never change).
+    virtual std::optional<std::vector<sync_pb::CompassSpacesSpecifics>>
+    GetLocalEasels();
+    virtual std::optional<std::string> GetEaselAssetData(
+        const std::string& sha256);
+    // Boards, objects and images another device added or changed, and the
+    // keys of those it deleted. Called while applying; for a board or an
+    // object, the later update_time wins.
+    virtual void ApplyEasels(
+        const std::vector<sync_pb::CompassSpacesSpecifics>& changed,
+        const std::set<std::string>& deleted) {}
   };
 
   // |list| is the profile's spaces; it must outlive the bridge. |delegate|
@@ -316,6 +333,10 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   // The Boost entities of |boosts| (GetLocalBoosts()) into |out|.
   void AddLocalBoosts(const std::vector<sync_pb::CompassBoost>& boosts,
                       Mirror& out) const;
+  // The Easel entities of |easels| (GetLocalEasels()) into |out|.
+  void AddLocalEasels(
+      const std::vector<sync_pb::CompassSpacesSpecifics>& easels,
+      Mirror& out) const;
   // The list's link rules as entities into |out|, except those for a space
   // that stays on this device.
   void AddLocalLinkRules(Mirror& out) const;

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassEasels
 import CompassModel
 import SwiftUI
 import WebKit
@@ -172,7 +173,9 @@ struct BrowserScreen: View {
         VStack(spacing: 0) {
           PaneStrip(pane: pane, front: front) { app.selectedPane = index }
           Group {
-            if app.hasPage(pane.id) {
+            if EaselURL.isEasel(pane.url) {
+              EaselScreen(tab: pane, bottomInset: underBar ? barInset : 0)
+            } else if app.hasPage(pane.id) {
               let view = app.tabs.webView(for: pane)
               WebView(
                 webView: view,
@@ -215,7 +218,11 @@ struct BrowserScreen: View {
   /// The shown entry's page, or its space's color when there's none.
   @ViewBuilder private var page: some View {
     Group {
-      if let tab = app.shownTab, !app.hasPage(tab.id) {
+      if let tab = app.shownTab, EaselURL.isEasel(tab.url) {
+        // A board or the Easels list: native, no web view.
+        EaselScreen(tab: tab, topInset: node?.isSplit == true ? 0 : statusInset, bottomInset: barInset)
+          .ignoresSafeArea(edges: node?.isSplit == true ? .bottom : [.top, .bottom])
+      } else if let tab = app.shownTab, !app.hasPage(tab.id) {
         // Another window has the page (iPad).
         ElsewherePage(tab: tab).ignoresSafeArea(edges: .top)
       } else if let tab = app.shownTab {
@@ -243,6 +250,10 @@ struct BrowserScreen: View {
                 .ignoresSafeArea(edges: node?.isSplit == true ? .bottom : [.top, .bottom])
                 .transition(.opacity)
             }
+          }
+          // Capture to Easel: the region picker over the page.
+          .overlay {
+            if app.easelCaptureTab == tab.id { EaselCaptureOverlay(tabID: tab.id) }
           }
       } else {
         emptyPage
@@ -628,7 +639,12 @@ struct BrowserScreen: View {
   }
 
   private func host(of url: String) -> String {
-    URL(string: url)?.host()?.replacingOccurrences(of: "www.", with: "") ?? url
+    if let board = EaselURL.uuid(from: url) {
+      let title = EaselStore.shared.easel(board)?.title ?? ""
+      return title.isEmpty ? "Easel" : title
+    }
+    if EaselURL.isList(url) { return "Easels" }
+    return URL(string: url)?.host()?.replacingOccurrences(of: "www.", with: "") ?? url
   }
 
   /// The next (1) or previous (-1) entry of the space: pinned, then Today

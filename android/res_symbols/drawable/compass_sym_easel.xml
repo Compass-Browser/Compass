@@ -1,0 +1,12 @@
+<!-- Copyright 2026 The Compass Authors. An easel (Easels), drawn for
+     Compass on Material Symbols' grid; the command bar's "easel" symbol. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960"
+>
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M440,40h80v80h-80ZM120,120h720v80H120ZM120,560h720v80H120ZM120,120h80v520H120ZM760,120h80v520h-80ZM280,640h88l-120,280H160ZM592,640H680l120,280h-88ZM440,640h80v240h-80Z"/>
+</vector>

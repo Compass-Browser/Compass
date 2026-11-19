@@ -121,6 +121,8 @@ targets:
         product: CompassLiveFolders
       - package: CompassKit
         product: CompassBoosts
+      - package: CompassKit
+        product: CompassEasels
     info:
       path: App/Info.plist
       properties:

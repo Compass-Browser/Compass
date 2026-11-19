@@ -18,7 +18,8 @@ namespace {
 
 // A StorableSidebar.json as Arc writes it, cut down: two spaces of two
 // profiles, a folder in Pinned, a tab with its own title, a split in Today,
-// favorites for both profiles, and an item of a kind Compass doesn't know.
+// favorites for both profiles, an easel, an easel without its ID and an
+// item of a kind Compass doesn't know.
 constexpr char kSidebar[] = R"json({
   "version": 1,
   "sidebar": {"containers": [
@@ -41,7 +42,7 @@ constexpr char kSidebar[] = R"json({
       ],
       "items": [
         "p1", {"id": "p1", "data": {"itemContainer": {}},
-               "childrenIds": ["f1", "t3"]},
+               "childrenIds": ["f1", "t3", "e2", "n1"]},
         "f1", {"id": "f1", "title": "Reading", "data": {"list": {}},
                "childrenIds": ["t1", "t2"]},
         "t1", {"id": "t1", "title": null, "data": {"tab": {
@@ -50,7 +51,11 @@ constexpr char kSidebar[] = R"json({
         "t2", {"id": "t2", "title": "My B", "data": {"tab": {
                "savedURL": "https://b.test/", "savedTitle": "B",
                "savedMuteStatus": "muted"}}},
-        "t3", {"id": "t3", "data": {"easel": {}}},
+        "t3", {"id": "t3", "title": null, "data": {"easel": {
+               "easelID": "E-1", "title": "Plans", "creatorID": "U",
+               "shareStatus": "creatorOnly", "timeLastActiveAt": 700000100}}},
+        "e2", {"id": "e2", "data": {"easel": {"title": "No ID"}}},
+        "n1", {"id": "n1", "data": {"note": {}}},
         "u1", {"id": "u1", "data": {"itemContainer": {}},
                "childrenIds": ["sp1", "t6"]},
         "sp1", {"id": "sp1", "data": {"splitView": {}},
@@ -203,8 +208,8 @@ TEST(ArcSidebarTest, ProfilesWithNamesAndFavorites) {
 TEST(ArcSidebarTest, PinnedKeepsFoldersAndTitles) {
   Sidebar sidebar = Parse();
   const std::vector<Item>& pinned = sidebar.spaces[0].pinned;
-  // The easel is left out.
-  ASSERT_EQ(pinned.size(), 1u);
+  // The easel without an ID and the unknown entry are left out.
+  ASSERT_EQ(pinned.size(), 2u);
   EXPECT_EQ(pinned[0].kind, Item::Kind::kFolder);
   EXPECT_EQ(pinned[0].title, u"Reading");
   ASSERT_EQ(pinned[0].children.size(), 2u);
@@ -217,6 +222,14 @@ TEST(ArcSidebarTest, PinnedKeepsFoldersAndTitles) {
   const Item& b = pinned[0].children[1];
   EXPECT_EQ(b.title, u"My B");
   EXPECT_TRUE(b.muted);
+  const Item& easel = pinned[1];
+  EXPECT_EQ(easel.kind, Item::Kind::kEasel);
+  EXPECT_EQ(easel.id, "t3");
+  EXPECT_EQ(easel.easel_id, "E-1");
+  EXPECT_EQ(easel.saved_title, u"Plans");
+  EXPECT_TRUE(easel.title.empty());
+  EXPECT_FALSE(easel.url.is_valid());
+  EXPECT_EQ(easel.last_active, FromArcTime(700000100));
 }
 
 TEST(ArcSidebarTest, TodayKeepsSplitsAndSkipsBadUrls) {

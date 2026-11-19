@@ -98,6 +98,11 @@ public class PageMenu implements PageMenuUi.Listener {
     }
 
     @Override
+    public void onCaptureToEasel() {
+        then(mBar::captureToEasel);
+    }
+
+    @Override
     public void onAskClaude() {
         then(mBar::showClaude);
     }

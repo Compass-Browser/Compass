@@ -19,8 +19,10 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#include "compass/browser/easels/easel_store.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/sidebar_store.h"
+#include "compass/browser/ui/easels/easel_titles.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -145,6 +147,7 @@ SpacesAndroid::~SpacesAndroid() {
   if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
     directory->OnServiceDestroyed(this);
   }
+  easel_titles_.reset();
   sync_attachment_.reset();
   store_.reset();
   for (const auto& space : list_.spaces()) {
@@ -868,6 +871,19 @@ void SpacesAndroid::OnLoaded() {
                        &SpacesAndroid::ArchiveIdleEntries);
   if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
     directory->OnServiceLoaded(this);
+  }
+  if (easels::EaselStore* easels = easels::EaselStore::Get(profile_)) {
+    easel_titles_ = std::make_unique<easels::EaselTitleFollower>(
+        easels, base::BindRepeating(
+                    [](SpacesAndroid* spaces) {
+                      std::vector<SpaceModel*> models;
+                      for (const auto& space : spaces->list().spaces()) {
+                        models.push_back(space.get());
+                      }
+                      models.push_back(&spaces->list().favorites());
+                      return models;
+                    },
+                    base::Unretained(this)));
   }
   std::vector<base::OnceClosure> callbacks;
   callbacks.swap(on_loaded_);

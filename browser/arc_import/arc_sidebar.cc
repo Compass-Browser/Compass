@@ -182,12 +182,28 @@ class TreeReader {
       seen_.insert(id);
       return item;
     }
+    if (const base::DictValue* easel = data->FindDict("easel")) {
+      const std::string* easel_id = easel->FindString("easelID");
+      if (!easel_id || easel_id->empty()) {
+        return std::nullopt;
+      }
+      item.kind = Item::Kind::kEasel;
+      item.easel_id = *easel_id;
+      if (const std::string* title = easel->FindString("title")) {
+        item.saved_title = base::UTF8ToUTF16(*title);
+      }
+      if (std::optional<double> time = easel->FindDouble("timeLastActiveAt")) {
+        item.last_active = FromArcTime(*time);
+      }
+      seen_.insert(id);
+      return item;
+    }
     if (data->Find("splitView")) {
       item.kind = Item::Kind::kSplit;
     } else if (data->Find("list")) {
       item.kind = Item::Kind::kFolder;
     } else {
-      // An unknown kind of entry (Arc's notes, easels, ...): skipped.
+      // An unknown kind of entry (Arc's notes, ...): skipped.
       return std::nullopt;
     }
     item.children = ReadChildren(id, depth + 1);

@@ -50,6 +50,7 @@ Compass data (`COMPASS_SPACES`):
 - Folder collapse state.
 - Favicons of entries' hosts, as a device got them from a loaded page.
 - The chain's list of profiles.
+- Easels: boards, the objects on them and their images (easels.md).
 - Not synced, because it can't be or is per window: live state (which node
   has a tab, which window shows what), sidebar width and collapse, the
   selected entry.
@@ -628,6 +629,20 @@ reference. It's built by `//components/sync/protocol` (its
   (`Delegate::GetLocalBoosts()`, `ApplyBoosts()`; nothing deleted while the
   file isn't read; a deleted Boost is a deleted entity); Android leaves
   them alone. See docs/design/boosts.md, "Sync".
+- `CompassEasel` (8), `CompassEaselObject` (9) and `CompassEaselAsset`
+  (10): an Easel board, one entity per object on it, and one per image
+  (docs/design/easels.md, "Sync"). Boards and objects: `uuid` is the client
+  tag and the later `update_time` wins, so two devices editing different
+  objects of one board both keep their edits. Images: the `uuid` is derived
+  from the image's SHA-256 (prefix `compass-easel-asset:`, as a favicon's
+  from its host), and they never change, so the bridge skips an image the
+  account has without comparing its bytes, and asks
+  `Delegate::GetEaselAssetData()` for the bytes only of one it doesn't
+  (`GetLocalEasels()` hands images over without them). Otherwise handled as
+  Boosts (`ApplyEasels()`; nothing deleted while the store isn't read; a
+  deleted board, object or image is a deleted entity). Desktop and Android
+  share `EaselStore` and its glue (`browser/easels/easel_sync.h`); iOS has
+  its own port.
 
 Choices: proto2 with `optional` fields, as all sync protos; the enums are
 `int32` fields with 0 = unset (`section` 1 PINNED, 2 TODAY, 3 FAVORITES, 4

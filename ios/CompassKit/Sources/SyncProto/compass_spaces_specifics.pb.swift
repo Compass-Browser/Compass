@@ -45,8 +45,8 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
 }
 
 /// One entity per space and per sidebar node, and in the home profile's
-/// account one per profile of the chain; icons, Claude's memories and link
-/// rules. The client tag is `uuid`.
+/// account one per profile of the chain; icons, Claude's memories, link
+/// rules, Boosts and Easels. The client tag is `uuid` (a Boost's `id`).
 public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -110,6 +110,30 @@ public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
     set {entity = .boost(newValue)}
   }
 
+  public var easel: SyncPb_CompassEasel {
+    get {
+      if case .easel(let v)? = entity {return v}
+      return SyncPb_CompassEasel()
+    }
+    set {entity = .easel(newValue)}
+  }
+
+  public var easelObject: SyncPb_CompassEaselObject {
+    get {
+      if case .easelObject(let v)? = entity {return v}
+      return SyncPb_CompassEaselObject()
+    }
+    set {entity = .easelObject(newValue)}
+  }
+
+  public var easelAsset: SyncPb_CompassEaselAsset {
+    get {
+      if case .easelAsset(let v)? = entity {return v}
+      return SyncPb_CompassEaselAsset()
+    }
+    set {entity = .easelAsset(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Entity: Equatable, Sendable {
@@ -120,6 +144,9 @@ public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
     case memory(SyncPb_CompassMemory)
     case linkRule(SyncPb_CompassLinkRule)
     case boost(SyncPb_CompassBoost)
+    case easel(SyncPb_CompassEasel)
+    case easelObject(SyncPb_CompassEaselObject)
+    case easelAsset(SyncPb_CompassEaselAsset)
 
   }
 
@@ -795,11 +822,11 @@ public nonisolated struct SyncPb_CompassLinkRule: Sendable {
   fileprivate var _spaceUuid: String? = nil
 }
 
-/// Per-site CSS and JavaScript (docs/design/boosts.md), in the account of
-/// the profile it belongs to. Clients that predate it ignore it.
-///
-/// Written by hand to match compass_spaces_specifics.proto's CompassBoost
-/// until gen_protos.sh is rerun with it.
+/// A Boost (docs/design/boosts.md): CSS and JavaScript the user or Claude
+/// made for a site, in the account of the profile it belongs to. Clients that
+/// predate it ignore it (their IsEntityDataValid() refuses it). Not in
+/// proto_visitors.h: its code stays out of sync-internals. A deleted Boost is
+/// a deleted entity, as a memory is: no tombstone field.
 public nonisolated struct SyncPb_CompassBoost: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -811,11 +838,11 @@ public nonisolated struct SyncPb_CompassBoost: Sendable {
     set {_id = newValue}
   }
   /// Returns true if `id` has been explicitly set.
-  public var hasId: Bool {self._id != nil}
+  public var hasID: Bool {self._id != nil}
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
-  public mutating func clearId() {self._id = nil}
+  public mutating func clearID() {self._id = nil}
 
-  /// What the user calls it.
+  /// What the user calls it ("Quieter GitHub").
   public var name: String {
     get {_name ?? String()}
     set {_name = newValue}
@@ -825,8 +852,10 @@ public nonisolated struct SyncPb_CompassBoost: Sendable {
   /// Clears the value of `name`. Subsequent reads from it will return its default value.
   public mutating func clearName() {self._name = nil}
 
-  /// Where it applies: "example.com" (and www.), "*.example.com" (and every
-  /// subdomain), optionally followed by a path prefix ("github.com/settings").
+  /// Where it applies: a host ("example.com", which also covers
+  /// "www.example.com") or a domain and its subdomains ("*.example.com"),
+  /// optionally followed by a path prefix ("github.com/settings"). Lowercase,
+  /// IDN as punycode; http and https pages only.
   public var match: String {
     get {_match ?? String()}
     set {_match = newValue}
@@ -836,7 +865,7 @@ public nonisolated struct SyncPb_CompassBoost: Sendable {
   /// Clears the value of `match`. Subsequent reads from it will return its default value.
   public mutating func clearMatch() {self._match = nil}
 
-  /// Added at document start, in every frame.
+  /// Inserted at document start. At most 256 KB together with `js`.
   public var css: String {
     get {_css ?? String()}
     set {_css = newValue}
@@ -846,7 +875,7 @@ public nonisolated struct SyncPb_CompassBoost: Sendable {
   /// Clears the value of `css`. Subsequent reads from it will return its default value.
   public mutating func clearCss() {self._css = nil}
 
-  /// Run at document end, in every frame.
+  /// Run at document idle.
   public var js: String {
     get {_js ?? String()}
     set {_js = newValue}
@@ -856,7 +885,7 @@ public nonisolated struct SyncPb_CompassBoost: Sendable {
   /// Clears the value of `js`. Subsequent reads from it will return its default value.
   public mutating func clearJs() {self._js = nil}
 
-  /// "isolated" (the default) or "main".
+  /// Where `js` runs: "isolated" (also absent or unknown) or "main".
   public var jsWorld: String {
     get {_jsWorld ?? String()}
     set {_jsWorld = newValue}
@@ -866,7 +895,6 @@ public nonisolated struct SyncPb_CompassBoost: Sendable {
   /// Clears the value of `jsWorld`. Subsequent reads from it will return its default value.
   public mutating func clearJsWorld() {self._jsWorld = nil}
 
-  /// Applied while true.
   public var enabled: Bool {
     get {_enabled ?? false}
     set {_enabled = newValue}
@@ -876,7 +904,9 @@ public nonisolated struct SyncPb_CompassBoost: Sendable {
   /// Clears the value of `enabled`. Subsequent reads from it will return its default value.
   public mutating func clearEnabled() {self._enabled = nil}
 
-  /// "user" or "claude".
+  /// Who made it: "user", "claude" or "shared" (added from a link or a file
+  /// someone shared; docs/design/boosts.md, "Sharing"). Clients keep a value
+  /// they don't know as it is.
   public var author: String {
     get {_author ?? String()}
     set {_author = newValue}
@@ -886,7 +916,7 @@ public nonisolated struct SyncPb_CompassBoost: Sendable {
   /// Clears the value of `author`. Subsequent reads from it will return its default value.
   public mutating func clearAuthor() {self._author = nil}
 
-  /// In microseconds since the Windows epoch.
+  /// In microseconds since the Windows epoch, as CompassMemory's.
   public var createTime: Int64 {
     get {_createTime ?? 0}
     set {_createTime = newValue}
@@ -922,13 +952,666 @@ public nonisolated struct SyncPb_CompassBoost: Sendable {
   fileprivate var _updateTime: Int64? = nil
 }
 
+/// Easels (docs/design/easels.md): canvas boards of text, shapes, images,
+/// links and captures of page regions, in the account of the profile they
+/// belong to. Three kinds of entity, so two devices editing different objects
+/// of one board don't overwrite each other: the board, one per object, and
+/// one per image. Clients that predate them ignore them (their
+/// IsEntityDataValid() refuses them). Not in proto_visitors.h: their content
+/// stays out of sync-internals. A deleted board, object or image is a deleted
+/// entity; of two edits of the same entity, the later `update_time` wins.
+///
+/// The board shows in the sidebar as a tab (CompassNode TAB) whose URL is
+/// "compass://easel/" followed by `uuid`; deleting that tab doesn't delete the
+/// board.
+public nonisolated struct SyncPb_CompassEasel: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// A random UUID, lowercase. Also the client tag.
+  public var uuid: String {
+    get {_uuid ?? String()}
+    set {_uuid = newValue}
+  }
+  /// Returns true if `uuid` has been explicitly set.
+  public var hasUuid: Bool {self._uuid != nil}
+  /// Clears the value of `uuid`. Subsequent reads from it will return its default value.
+  public mutating func clearUuid() {self._uuid = nil}
+
+  public var title: String {
+    get {_title ?? String()}
+    set {_title = newValue}
+  }
+  /// Returns true if `title` has been explicitly set.
+  public var hasTitle: Bool {self._title != nil}
+  /// Clears the value of `title`. Subsequent reads from it will return its default value.
+  public mutating func clearTitle() {self._title = nil}
+
+  /// Its background, as the editor names it ("paper", "grid", "dark", ...);
+  /// absent or unknown: "paper".
+  public var palette: String {
+    get {_palette ?? String()}
+    set {_palette = newValue}
+  }
+  /// Returns true if `palette` has been explicitly set.
+  public var hasPalette: Bool {self._palette != nil}
+  /// Clears the value of `palette`. Subsequent reads from it will return its default value.
+  public mutating func clearPalette() {self._palette = nil}
+
+  /// In microseconds since the Windows epoch.
+  public var createTime: Int64 {
+    get {_createTime ?? 0}
+    set {_createTime = newValue}
+  }
+  /// Returns true if `createTime` has been explicitly set.
+  public var hasCreateTime: Bool {self._createTime != nil}
+  /// Clears the value of `createTime`. Subsequent reads from it will return its default value.
+  public mutating func clearCreateTime() {self._createTime = nil}
+
+  public var updateTime: Int64 {
+    get {_updateTime ?? 0}
+    set {_updateTime = newValue}
+  }
+  /// Returns true if `updateTime` has been explicitly set.
+  public var hasUpdateTime: Bool {self._updateTime != nil}
+  /// Clears the value of `updateTime`. Subsequent reads from it will return its default value.
+  public mutating func clearUpdateTime() {self._updateTime = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _uuid: String? = nil
+  fileprivate var _title: String? = nil
+  fileprivate var _palette: String? = nil
+  fileprivate var _createTime: Int64? = nil
+  fileprivate var _updateTime: Int64? = nil
+}
+
+/// Something on a board. Exactly one of the content fields is set; an object
+/// whose content this version doesn't know is kept and shown as a grey box.
+public nonisolated struct SyncPb_CompassEaselObject: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// A random UUID, lowercase. Also the client tag.
+  public var uuid: String {
+    get {_storage._uuid ?? String()}
+    set {_uniqueStorage()._uuid = newValue}
+  }
+  /// Returns true if `uuid` has been explicitly set.
+  public var hasUuid: Bool {_storage._uuid != nil}
+  /// Clears the value of `uuid`. Subsequent reads from it will return its default value.
+  public mutating func clearUuid() {_uniqueStorage()._uuid = nil}
+
+  /// Its board (CompassEasel.uuid). An object whose board isn't here (not
+  /// synced yet, or deleted) is kept and not shown.
+  public var easelUuid: String {
+    get {_storage._easelUuid ?? String()}
+    set {_uniqueStorage()._easelUuid = newValue}
+  }
+  /// Returns true if `easelUuid` has been explicitly set.
+  public var hasEaselUuid: Bool {_storage._easelUuid != nil}
+  /// Clears the value of `easelUuid`. Subsequent reads from it will return its default value.
+  public mutating func clearEaselUuid() {_uniqueStorage()._easelUuid = nil}
+
+  /// Where it is, in board points from the board's top left; z orders
+  /// overlapping objects, higher on top.
+  public var x: Double {
+    get {_storage._x ?? 0}
+    set {_uniqueStorage()._x = newValue}
+  }
+  /// Returns true if `x` has been explicitly set.
+  public var hasX: Bool {_storage._x != nil}
+  /// Clears the value of `x`. Subsequent reads from it will return its default value.
+  public mutating func clearX() {_uniqueStorage()._x = nil}
+
+  public var y: Double {
+    get {_storage._y ?? 0}
+    set {_uniqueStorage()._y = newValue}
+  }
+  /// Returns true if `y` has been explicitly set.
+  public var hasY: Bool {_storage._y != nil}
+  /// Clears the value of `y`. Subsequent reads from it will return its default value.
+  public mutating func clearY() {_uniqueStorage()._y = nil}
+
+  public var width: Double {
+    get {_storage._width ?? 0}
+    set {_uniqueStorage()._width = newValue}
+  }
+  /// Returns true if `width` has been explicitly set.
+  public var hasWidth: Bool {_storage._width != nil}
+  /// Clears the value of `width`. Subsequent reads from it will return its default value.
+  public mutating func clearWidth() {_uniqueStorage()._width = nil}
+
+  public var height: Double {
+    get {_storage._height ?? 0}
+    set {_uniqueStorage()._height = newValue}
+  }
+  /// Returns true if `height` has been explicitly set.
+  public var hasHeight: Bool {_storage._height != nil}
+  /// Clears the value of `height`. Subsequent reads from it will return its default value.
+  public mutating func clearHeight() {_uniqueStorage()._height = nil}
+
+  public var z: Double {
+    get {_storage._z ?? 0}
+    set {_uniqueStorage()._z = newValue}
+  }
+  /// Returns true if `z` has been explicitly set.
+  public var hasZ: Bool {_storage._z != nil}
+  /// Clears the value of `z`. Subsequent reads from it will return its default value.
+  public mutating func clearZ() {_uniqueStorage()._z = nil}
+
+  public var createTime: Int64 {
+    get {_storage._createTime ?? 0}
+    set {_uniqueStorage()._createTime = newValue}
+  }
+  /// Returns true if `createTime` has been explicitly set.
+  public var hasCreateTime: Bool {_storage._createTime != nil}
+  /// Clears the value of `createTime`. Subsequent reads from it will return its default value.
+  public mutating func clearCreateTime() {_uniqueStorage()._createTime = nil}
+
+  public var updateTime: Int64 {
+    get {_storage._updateTime ?? 0}
+    set {_uniqueStorage()._updateTime = newValue}
+  }
+  /// Returns true if `updateTime` has been explicitly set.
+  public var hasUpdateTime: Bool {_storage._updateTime != nil}
+  /// Clears the value of `updateTime`. Subsequent reads from it will return its default value.
+  public mutating func clearUpdateTime() {_uniqueStorage()._updateTime = nil}
+
+  public var text: SyncPb_CompassEaselText {
+    get {_storage._text ?? SyncPb_CompassEaselText()}
+    set {_uniqueStorage()._text = newValue}
+  }
+  /// Returns true if `text` has been explicitly set.
+  public var hasText: Bool {_storage._text != nil}
+  /// Clears the value of `text`. Subsequent reads from it will return its default value.
+  public mutating func clearText() {_uniqueStorage()._text = nil}
+
+  public var shape: SyncPb_CompassEaselShape {
+    get {_storage._shape ?? SyncPb_CompassEaselShape()}
+    set {_uniqueStorage()._shape = newValue}
+  }
+  /// Returns true if `shape` has been explicitly set.
+  public var hasShape: Bool {_storage._shape != nil}
+  /// Clears the value of `shape`. Subsequent reads from it will return its default value.
+  public mutating func clearShape() {_uniqueStorage()._shape = nil}
+
+  public var image: SyncPb_CompassEaselImage {
+    get {_storage._image ?? SyncPb_CompassEaselImage()}
+    set {_uniqueStorage()._image = newValue}
+  }
+  /// Returns true if `image` has been explicitly set.
+  public var hasImage: Bool {_storage._image != nil}
+  /// Clears the value of `image`. Subsequent reads from it will return its default value.
+  public mutating func clearImage() {_uniqueStorage()._image = nil}
+
+  public var link: SyncPb_CompassEaselLink {
+    get {_storage._link ?? SyncPb_CompassEaselLink()}
+    set {_uniqueStorage()._link = newValue}
+  }
+  /// Returns true if `link` has been explicitly set.
+  public var hasLink: Bool {_storage._link != nil}
+  /// Clears the value of `link`. Subsequent reads from it will return its default value.
+  public mutating func clearLink() {_uniqueStorage()._link = nil}
+
+  public var capture: SyncPb_CompassEaselCapture {
+    get {_storage._capture ?? SyncPb_CompassEaselCapture()}
+    set {_uniqueStorage()._capture = newValue}
+  }
+  /// Returns true if `capture` has been explicitly set.
+  public var hasCapture: Bool {_storage._capture != nil}
+  /// Clears the value of `capture`. Subsequent reads from it will return its default value.
+  public mutating func clearCapture() {_uniqueStorage()._capture = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+public nonisolated struct SyncPb_CompassEaselText: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// At most 20,000 characters.
+  public var text: String {
+    get {_text ?? String()}
+    set {_text = newValue}
+  }
+  /// Returns true if `text` has been explicitly set.
+  public var hasText: Bool {self._text != nil}
+  /// Clears the value of `text`. Subsequent reads from it will return its default value.
+  public mutating func clearText() {self._text = nil}
+
+  /// A CSS color ("#1f2328"); absent: the board's text color.
+  public var color: String {
+    get {_color ?? String()}
+    set {_color = newValue}
+  }
+  /// Returns true if `color` has been explicitly set.
+  public var hasColor: Bool {self._color != nil}
+  /// Clears the value of `color`. Subsequent reads from it will return its default value.
+  public mutating func clearColor() {self._color = nil}
+
+  /// "sans", "serif", "mono" or "hand"; absent or unknown: "sans".
+  public var font: String {
+    get {_font ?? String()}
+    set {_font = newValue}
+  }
+  /// Returns true if `font` has been explicitly set.
+  public var hasFont: Bool {self._font != nil}
+  /// Clears the value of `font`. Subsequent reads from it will return its default value.
+  public mutating func clearFont() {self._font = nil}
+
+  /// "title", "heading", "body" or "caption"; absent or unknown: "body".
+  public var style: String {
+    get {_style ?? String()}
+    set {_style = newValue}
+  }
+  /// Returns true if `style` has been explicitly set.
+  public var hasStyle: Bool {self._style != nil}
+  /// Clears the value of `style`. Subsequent reads from it will return its default value.
+  public mutating func clearStyle() {self._style = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _text: String? = nil
+  fileprivate var _color: String? = nil
+  fileprivate var _font: String? = nil
+  fileprivate var _style: String? = nil
+}
+
+public nonisolated struct SyncPb_CompassEaselShape: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// 1 RECTANGLE, 2 CIRCLE (an ellipse in the object's box), 3 ARROW,
+  /// 4 FREEHAND.
+  public var kind: Int32 {
+    get {_kind ?? 0}
+    set {_kind = newValue}
+  }
+  /// Returns true if `kind` has been explicitly set.
+  public var hasKind: Bool {self._kind != nil}
+  /// Clears the value of `kind`. Subsequent reads from it will return its default value.
+  public mutating func clearKind() {self._kind = nil}
+
+  /// A CSS color; absent: the board's ink color.
+  public var color: String {
+    get {_color ?? String()}
+    set {_color = newValue}
+  }
+  /// Returns true if `color` has been explicitly set.
+  public var hasColor: Bool {self._color != nil}
+  /// Clears the value of `color`. Subsequent reads from it will return its default value.
+  public mutating func clearColor() {self._color = nil}
+
+  /// ARROW: start x, y, end x, y. FREEHAND: x, y pairs, at most 4,000 points.
+  /// Relative to the object's top left, in board points.
+  public var points: [Double] = []
+
+  /// Line width in board points; absent: 3.
+  public var strokeWidth: Double {
+    get {_strokeWidth ?? 0}
+    set {_strokeWidth = newValue}
+  }
+  /// Returns true if `strokeWidth` has been explicitly set.
+  public var hasStrokeWidth: Bool {self._strokeWidth != nil}
+  /// Clears the value of `strokeWidth`. Subsequent reads from it will return its default value.
+  public mutating func clearStrokeWidth() {self._strokeWidth = nil}
+
+  /// RECTANGLE and CIRCLE: filled with `color` rather than outlined.
+  public var filled: Bool {
+    get {_filled ?? false}
+    set {_filled = newValue}
+  }
+  /// Returns true if `filled` has been explicitly set.
+  public var hasFilled: Bool {self._filled != nil}
+  /// Clears the value of `filled`. Subsequent reads from it will return its default value.
+  public mutating func clearFilled() {self._filled = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _kind: Int32? = nil
+  fileprivate var _color: String? = nil
+  fileprivate var _strokeWidth: Double? = nil
+  fileprivate var _filled: Bool? = nil
+}
+
+public nonisolated struct SyncPb_CompassEaselImage: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The CompassEaselAsset's `sha256`.
+  public var asset: String {
+    get {_asset ?? String()}
+    set {_asset = newValue}
+  }
+  /// Returns true if `asset` has been explicitly set.
+  public var hasAsset: Bool {self._asset != nil}
+  /// Clears the value of `asset`. Subsequent reads from it will return its default value.
+  public mutating func clearAsset() {self._asset = nil}
+
+  /// Its size in pixels.
+  public var pixelWidth: Int32 {
+    get {_pixelWidth ?? 0}
+    set {_pixelWidth = newValue}
+  }
+  /// Returns true if `pixelWidth` has been explicitly set.
+  public var hasPixelWidth: Bool {self._pixelWidth != nil}
+  /// Clears the value of `pixelWidth`. Subsequent reads from it will return its default value.
+  public mutating func clearPixelWidth() {self._pixelWidth = nil}
+
+  public var pixelHeight: Int32 {
+    get {_pixelHeight ?? 0}
+    set {_pixelHeight = newValue}
+  }
+  /// Returns true if `pixelHeight` has been explicitly set.
+  public var hasPixelHeight: Bool {self._pixelHeight != nil}
+  /// Clears the value of `pixelHeight`. Subsequent reads from it will return its default value.
+  public mutating func clearPixelHeight() {self._pixelHeight = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _asset: String? = nil
+  fileprivate var _pixelWidth: Int32? = nil
+  fileprivate var _pixelHeight: Int32? = nil
+}
+
+public nonisolated struct SyncPb_CompassEaselLink: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var url: String {
+    get {_url ?? String()}
+    set {_url = newValue}
+  }
+  /// Returns true if `url` has been explicitly set.
+  public var hasURL: Bool {self._url != nil}
+  /// Clears the value of `url`. Subsequent reads from it will return its default value.
+  public mutating func clearURL() {self._url = nil}
+
+  public var title: String {
+    get {_title ?? String()}
+    set {_title = newValue}
+  }
+  /// Returns true if `title` has been explicitly set.
+  public var hasTitle: Bool {self._title != nil}
+  /// Clears the value of `title`. Subsequent reads from it will return its default value.
+  public mutating func clearTitle() {self._title = nil}
+
+  public var description_p: String {
+    get {_description_p ?? String()}
+    set {_description_p = newValue}
+  }
+  /// Returns true if `description_p` has been explicitly set.
+  public var hasDescription_p: Bool {self._description_p != nil}
+  /// Clears the value of `description_p`. Subsequent reads from it will return its default value.
+  public mutating func clearDescription_p() {self._description_p = nil}
+
+  /// The page's preview image, a CompassEaselAsset's `sha256`; may be absent.
+  public var imageAsset: String {
+    get {_imageAsset ?? String()}
+    set {_imageAsset = newValue}
+  }
+  /// Returns true if `imageAsset` has been explicitly set.
+  public var hasImageAsset: Bool {self._imageAsset != nil}
+  /// Clears the value of `imageAsset`. Subsequent reads from it will return its default value.
+  public mutating func clearImageAsset() {self._imageAsset = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _url: String? = nil
+  fileprivate var _title: String? = nil
+  fileprivate var _description_p: String? = nil
+  fileprivate var _imageAsset: String? = nil
+}
+
+/// A capture of a region of a page: an image, and where it came from so it
+/// can be taken again (Refresh).
+public nonisolated struct SyncPb_CompassEaselCapture: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var url: String {
+    get {_url ?? String()}
+    set {_url = newValue}
+  }
+  /// Returns true if `url` has been explicitly set.
+  public var hasURL: Bool {self._url != nil}
+  /// Clears the value of `url`. Subsequent reads from it will return its default value.
+  public mutating func clearURL() {self._url = nil}
+
+  /// The page's title when captured.
+  public var title: String {
+    get {_title ?? String()}
+    set {_title = newValue}
+  }
+  /// Returns true if `title` has been explicitly set.
+  public var hasTitle: Bool {self._title != nil}
+  /// Clears the value of `title`. Subsequent reads from it will return its default value.
+  public mutating func clearTitle() {self._title = nil}
+
+  /// The CompassEaselAsset's `sha256`.
+  public var imageAsset: String {
+    get {_imageAsset ?? String()}
+    set {_imageAsset = newValue}
+  }
+  /// Returns true if `imageAsset` has been explicitly set.
+  public var hasImageAsset: Bool {self._imageAsset != nil}
+  /// Clears the value of `imageAsset`. Subsequent reads from it will return its default value.
+  public mutating func clearImageAsset() {self._imageAsset = nil}
+
+  /// The page's icon, a CompassEaselAsset's `sha256`; may be absent.
+  public var faviconAsset: String {
+    get {_faviconAsset ?? String()}
+    set {_faviconAsset = newValue}
+  }
+  /// Returns true if `faviconAsset` has been explicitly set.
+  public var hasFaviconAsset: Bool {self._faviconAsset != nil}
+  /// Clears the value of `faviconAsset`. Subsequent reads from it will return its default value.
+  public mutating func clearFaviconAsset() {self._faviconAsset = nil}
+
+  /// The region, in CSS pixels of the page's viewport when it was captured...
+  public var regionX: Double {
+    get {_regionX ?? 0}
+    set {_regionX = newValue}
+  }
+  /// Returns true if `regionX` has been explicitly set.
+  public var hasRegionX: Bool {self._regionX != nil}
+  /// Clears the value of `regionX`. Subsequent reads from it will return its default value.
+  public mutating func clearRegionX() {self._regionX = nil}
+
+  public var regionY: Double {
+    get {_regionY ?? 0}
+    set {_regionY = newValue}
+  }
+  /// Returns true if `regionY` has been explicitly set.
+  public var hasRegionY: Bool {self._regionY != nil}
+  /// Clears the value of `regionY`. Subsequent reads from it will return its default value.
+  public mutating func clearRegionY() {self._regionY = nil}
+
+  public var regionWidth: Double {
+    get {_regionWidth ?? 0}
+    set {_regionWidth = newValue}
+  }
+  /// Returns true if `regionWidth` has been explicitly set.
+  public var hasRegionWidth: Bool {self._regionWidth != nil}
+  /// Clears the value of `regionWidth`. Subsequent reads from it will return its default value.
+  public mutating func clearRegionWidth() {self._regionWidth = nil}
+
+  public var regionHeight: Double {
+    get {_regionHeight ?? 0}
+    set {_regionHeight = newValue}
+  }
+  /// Returns true if `regionHeight` has been explicitly set.
+  public var hasRegionHeight: Bool {self._regionHeight != nil}
+  /// Clears the value of `regionHeight`. Subsequent reads from it will return its default value.
+  public mutating func clearRegionHeight() {self._regionHeight = nil}
+
+  /// ...which was scrolled this far, in a viewport of this size.
+  public var scrollX: Double {
+    get {_scrollX ?? 0}
+    set {_scrollX = newValue}
+  }
+  /// Returns true if `scrollX` has been explicitly set.
+  public var hasScrollX: Bool {self._scrollX != nil}
+  /// Clears the value of `scrollX`. Subsequent reads from it will return its default value.
+  public mutating func clearScrollX() {self._scrollX = nil}
+
+  public var scrollY: Double {
+    get {_scrollY ?? 0}
+    set {_scrollY = newValue}
+  }
+  /// Returns true if `scrollY` has been explicitly set.
+  public var hasScrollY: Bool {self._scrollY != nil}
+  /// Clears the value of `scrollY`. Subsequent reads from it will return its default value.
+  public mutating func clearScrollY() {self._scrollY = nil}
+
+  public var viewportWidth: Double {
+    get {_viewportWidth ?? 0}
+    set {_viewportWidth = newValue}
+  }
+  /// Returns true if `viewportWidth` has been explicitly set.
+  public var hasViewportWidth: Bool {self._viewportWidth != nil}
+  /// Clears the value of `viewportWidth`. Subsequent reads from it will return its default value.
+  public mutating func clearViewportWidth() {self._viewportWidth = nil}
+
+  public var viewportHeight: Double {
+    get {_viewportHeight ?? 0}
+    set {_viewportHeight = newValue}
+  }
+  /// Returns true if `viewportHeight` has been explicitly set.
+  public var hasViewportHeight: Bool {self._viewportHeight != nil}
+  /// Clears the value of `viewportHeight`. Subsequent reads from it will return its default value.
+  public mutating func clearViewportHeight() {self._viewportHeight = nil}
+
+  /// When the image was taken, in microseconds since the Windows epoch.
+  public var captureTime: Int64 {
+    get {_captureTime ?? 0}
+    set {_captureTime = newValue}
+  }
+  /// Returns true if `captureTime` has been explicitly set.
+  public var hasCaptureTime: Bool {self._captureTime != nil}
+  /// Clears the value of `captureTime`. Subsequent reads from it will return its default value.
+  public mutating func clearCaptureTime() {self._captureTime = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _url: String? = nil
+  fileprivate var _title: String? = nil
+  fileprivate var _imageAsset: String? = nil
+  fileprivate var _faviconAsset: String? = nil
+  fileprivate var _regionX: Double? = nil
+  fileprivate var _regionY: Double? = nil
+  fileprivate var _regionWidth: Double? = nil
+  fileprivate var _regionHeight: Double? = nil
+  fileprivate var _scrollX: Double? = nil
+  fileprivate var _scrollY: Double? = nil
+  fileprivate var _viewportWidth: Double? = nil
+  fileprivate var _viewportHeight: Double? = nil
+  fileprivate var _captureTime: Int64? = nil
+}
+
+/// An image of a board: a PNG, JPEG or WebP of at most 2048 px a side and
+/// 512 KiB. Images are shared by content: two objects showing the same image
+/// point at the same asset.
+public nonisolated struct SyncPb_CompassEaselAsset: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// UUID-shaped, from `sha256`, as CompassFavicon's from its host: the first
+  /// 16 bytes of SHA-256("compass-easel-asset:" + sha256), with byte 6 =
+  /// (b & 0x0f) | 0x50 and byte 8 = (b & 0x3f) | 0x80, formatted lowercase
+  /// 8-4-4-4-12. Also the client tag.
+  public var uuid: String {
+    get {_uuid ?? String()}
+    set {_uuid = newValue}
+  }
+  /// Returns true if `uuid` has been explicitly set.
+  public var hasUuid: Bool {self._uuid != nil}
+  /// Clears the value of `uuid`. Subsequent reads from it will return its default value.
+  public mutating func clearUuid() {self._uuid = nil}
+
+  /// SHA-256 of `data`, lowercase hex.
+  public var sha256: String {
+    get {_sha256 ?? String()}
+    set {_sha256 = newValue}
+  }
+  /// Returns true if `sha256` has been explicitly set.
+  public var hasSha256: Bool {self._sha256 != nil}
+  /// Clears the value of `sha256`. Subsequent reads from it will return its default value.
+  public mutating func clearSha256() {self._sha256 = nil}
+
+  /// "image/png", "image/jpeg" or "image/webp".
+  public var mimeType: String {
+    get {_mimeType ?? String()}
+    set {_mimeType = newValue}
+  }
+  /// Returns true if `mimeType` has been explicitly set.
+  public var hasMimeType: Bool {self._mimeType != nil}
+  /// Clears the value of `mimeType`. Subsequent reads from it will return its default value.
+  public mutating func clearMimeType() {self._mimeType = nil}
+
+  public var data: Data {
+    get {_data ?? Data()}
+    set {_data = newValue}
+  }
+  /// Returns true if `data` has been explicitly set.
+  public var hasData: Bool {self._data != nil}
+  /// Clears the value of `data`. Subsequent reads from it will return its default value.
+  public mutating func clearData() {self._data = nil}
+
+  /// When it was first added; an asset no object points at for 30 days is
+  /// deleted by the device that notices.
+  public var createTime: Int64 {
+    get {_createTime ?? 0}
+    set {_createTime = newValue}
+  }
+  /// Returns true if `createTime` has been explicitly set.
+  public var hasCreateTime: Bool {self._createTime != nil}
+  /// Clears the value of `createTime`. Subsequent reads from it will return its default value.
+  public mutating func clearCreateTime() {self._createTime = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _uuid: String? = nil
+  fileprivate var _sha256: String? = nil
+  fileprivate var _mimeType: String? = nil
+  fileprivate var _data: Data? = nil
+  fileprivate var _createTime: Int64? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompassSpacesSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0\u{1}favicon\0\u{1}memory\0\u{3}link_rule\0\u{1}boost\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0\u{1}favicon\0\u{1}memory\0\u{3}link_rule\0\u{1}boost\0\u{1}easel\0\u{3}easel_object\0\u{3}easel_asset\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1027,6 +1710,45 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
           self.entity = .boost(v)
         }
       }()
+      case 8: try {
+        var v: SyncPb_CompassEasel?
+        var hadOneofValue = false
+        if let current = self.entity {
+          hadOneofValue = true
+          if case .easel(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.entity = .easel(v)
+        }
+      }()
+      case 9: try {
+        var v: SyncPb_CompassEaselObject?
+        var hadOneofValue = false
+        if let current = self.entity {
+          hadOneofValue = true
+          if case .easelObject(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.entity = .easelObject(v)
+        }
+      }()
+      case 10: try {
+        var v: SyncPb_CompassEaselAsset?
+        var hadOneofValue = false
+        if let current = self.entity {
+          hadOneofValue = true
+          if case .easelAsset(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.entity = .easelAsset(v)
+        }
+      }()
       default: break
       }
     }
@@ -1065,6 +1787,18 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
     case .boost?: try {
       guard case .boost(let v)? = self.entity else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    }()
+    case .easel?: try {
+      guard case .easel(let v)? = self.entity else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    }()
+    case .easelObject?: try {
+      guard case .easelObject(let v)? = self.entity else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    }()
+    case .easelAsset?: try {
+      guard case .easelAsset(let v)? = self.entity else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
     }()
     case nil: break
     }
@@ -1700,6 +2434,565 @@ nonisolated extension SyncPb_CompassBoost: SwiftProtobuf.Message, SwiftProtobuf.
     if lhs._author != rhs._author {return false}
     if lhs._createTime != rhs._createTime {return false}
     if lhs._updateTime != rhs._updateTime {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassEasel: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassEasel"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}title\0\u{1}palette\0\u{3}create_time\0\u{3}update_time\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._uuid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._title) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._palette) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self._createTime) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self._updateTime) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._uuid {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._title {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._palette {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._createTime {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._updateTime {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassEasel, rhs: SyncPb_CompassEasel) -> Bool {
+    if lhs._uuid != rhs._uuid {return false}
+    if lhs._title != rhs._title {return false}
+    if lhs._palette != rhs._palette {return false}
+    if lhs._createTime != rhs._createTime {return false}
+    if lhs._updateTime != rhs._updateTime {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassEaselObject: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassEaselObject"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{3}easel_uuid\0\u{1}x\0\u{1}y\0\u{1}width\0\u{1}height\0\u{1}z\0\u{3}create_time\0\u{3}update_time\0\u{1}text\0\u{1}shape\0\u{1}image\0\u{1}link\0\u{1}capture\0")
+
+  fileprivate class _StorageClass {
+    var _uuid: String? = nil
+    var _easelUuid: String? = nil
+    var _x: Double? = nil
+    var _y: Double? = nil
+    var _width: Double? = nil
+    var _height: Double? = nil
+    var _z: Double? = nil
+    var _createTime: Int64? = nil
+    var _updateTime: Int64? = nil
+    var _text: SyncPb_CompassEaselText? = nil
+    var _shape: SyncPb_CompassEaselShape? = nil
+    var _image: SyncPb_CompassEaselImage? = nil
+    var _link: SyncPb_CompassEaselLink? = nil
+    var _capture: SyncPb_CompassEaselCapture? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _uuid = source._uuid
+      _easelUuid = source._easelUuid
+      _x = source._x
+      _y = source._y
+      _width = source._width
+      _height = source._height
+      _z = source._z
+      _createTime = source._createTime
+      _updateTime = source._updateTime
+      _text = source._text
+      _shape = source._shape
+      _image = source._image
+      _link = source._link
+      _capture = source._capture
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularStringField(value: &_storage._uuid) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._easelUuid) }()
+        case 3: try { try decoder.decodeSingularDoubleField(value: &_storage._x) }()
+        case 4: try { try decoder.decodeSingularDoubleField(value: &_storage._y) }()
+        case 5: try { try decoder.decodeSingularDoubleField(value: &_storage._width) }()
+        case 6: try { try decoder.decodeSingularDoubleField(value: &_storage._height) }()
+        case 7: try { try decoder.decodeSingularDoubleField(value: &_storage._z) }()
+        case 8: try { try decoder.decodeSingularInt64Field(value: &_storage._createTime) }()
+        case 9: try { try decoder.decodeSingularInt64Field(value: &_storage._updateTime) }()
+        case 10: try { try decoder.decodeSingularMessageField(value: &_storage._text) }()
+        case 11: try { try decoder.decodeSingularMessageField(value: &_storage._shape) }()
+        case 12: try { try decoder.decodeSingularMessageField(value: &_storage._image) }()
+        case 13: try { try decoder.decodeSingularMessageField(value: &_storage._link) }()
+        case 14: try { try decoder.decodeSingularMessageField(value: &_storage._capture) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._uuid {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._easelUuid {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._x {
+        try visitor.visitSingularDoubleField(value: v, fieldNumber: 3)
+      } }()
+      try { if let v = _storage._y {
+        try visitor.visitSingularDoubleField(value: v, fieldNumber: 4)
+      } }()
+      try { if let v = _storage._width {
+        try visitor.visitSingularDoubleField(value: v, fieldNumber: 5)
+      } }()
+      try { if let v = _storage._height {
+        try visitor.visitSingularDoubleField(value: v, fieldNumber: 6)
+      } }()
+      try { if let v = _storage._z {
+        try visitor.visitSingularDoubleField(value: v, fieldNumber: 7)
+      } }()
+      try { if let v = _storage._createTime {
+        try visitor.visitSingularInt64Field(value: v, fieldNumber: 8)
+      } }()
+      try { if let v = _storage._updateTime {
+        try visitor.visitSingularInt64Field(value: v, fieldNumber: 9)
+      } }()
+      try { if let v = _storage._text {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+      } }()
+      try { if let v = _storage._shape {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+      } }()
+      try { if let v = _storage._image {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+      } }()
+      try { if let v = _storage._link {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
+      } }()
+      try { if let v = _storage._capture {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 14)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassEaselObject, rhs: SyncPb_CompassEaselObject) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._uuid != rhs_storage._uuid {return false}
+        if _storage._easelUuid != rhs_storage._easelUuid {return false}
+        if _storage._x != rhs_storage._x {return false}
+        if _storage._y != rhs_storage._y {return false}
+        if _storage._width != rhs_storage._width {return false}
+        if _storage._height != rhs_storage._height {return false}
+        if _storage._z != rhs_storage._z {return false}
+        if _storage._createTime != rhs_storage._createTime {return false}
+        if _storage._updateTime != rhs_storage._updateTime {return false}
+        if _storage._text != rhs_storage._text {return false}
+        if _storage._shape != rhs_storage._shape {return false}
+        if _storage._image != rhs_storage._image {return false}
+        if _storage._link != rhs_storage._link {return false}
+        if _storage._capture != rhs_storage._capture {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassEaselText: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassEaselText"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}text\0\u{1}color\0\u{1}font\0\u{1}style\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._text) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._color) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._font) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self._style) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._text {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._color {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._font {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._style {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassEaselText, rhs: SyncPb_CompassEaselText) -> Bool {
+    if lhs._text != rhs._text {return false}
+    if lhs._color != rhs._color {return false}
+    if lhs._font != rhs._font {return false}
+    if lhs._style != rhs._style {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassEaselShape: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassEaselShape"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}kind\0\u{1}color\0\u{1}points\0\u{3}stroke_width\0\u{1}filled\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self._kind) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._color) }()
+      case 3: try { try decoder.decodeRepeatedDoubleField(value: &self.points) }()
+      case 4: try { try decoder.decodeSingularDoubleField(value: &self._strokeWidth) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self._filled) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._kind {
+      try visitor.visitSingularInt32Field(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._color {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    if !self.points.isEmpty {
+      try visitor.visitPackedDoubleField(value: self.points, fieldNumber: 3)
+    }
+    try { if let v = self._strokeWidth {
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._filled {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassEaselShape, rhs: SyncPb_CompassEaselShape) -> Bool {
+    if lhs._kind != rhs._kind {return false}
+    if lhs._color != rhs._color {return false}
+    if lhs.points != rhs.points {return false}
+    if lhs._strokeWidth != rhs._strokeWidth {return false}
+    if lhs._filled != rhs._filled {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassEaselImage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassEaselImage"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}asset\0\u{3}pixel_width\0\u{3}pixel_height\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._asset) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self._pixelWidth) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self._pixelHeight) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._asset {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._pixelWidth {
+      try visitor.visitSingularInt32Field(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._pixelHeight {
+      try visitor.visitSingularInt32Field(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassEaselImage, rhs: SyncPb_CompassEaselImage) -> Bool {
+    if lhs._asset != rhs._asset {return false}
+    if lhs._pixelWidth != rhs._pixelWidth {return false}
+    if lhs._pixelHeight != rhs._pixelHeight {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassEaselLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassEaselLink"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}url\0\u{1}title\0\u{1}description\0\u{3}image_asset\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._url) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._title) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._description_p) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self._imageAsset) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._url {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._title {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._description_p {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._imageAsset {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassEaselLink, rhs: SyncPb_CompassEaselLink) -> Bool {
+    if lhs._url != rhs._url {return false}
+    if lhs._title != rhs._title {return false}
+    if lhs._description_p != rhs._description_p {return false}
+    if lhs._imageAsset != rhs._imageAsset {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassEaselCapture: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassEaselCapture"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}url\0\u{1}title\0\u{3}image_asset\0\u{3}favicon_asset\0\u{3}region_x\0\u{3}region_y\0\u{3}region_width\0\u{3}region_height\0\u{3}scroll_x\0\u{3}scroll_y\0\u{3}viewport_width\0\u{3}viewport_height\0\u{3}capture_time\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._url) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._title) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._imageAsset) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self._faviconAsset) }()
+      case 5: try { try decoder.decodeSingularDoubleField(value: &self._regionX) }()
+      case 6: try { try decoder.decodeSingularDoubleField(value: &self._regionY) }()
+      case 7: try { try decoder.decodeSingularDoubleField(value: &self._regionWidth) }()
+      case 8: try { try decoder.decodeSingularDoubleField(value: &self._regionHeight) }()
+      case 9: try { try decoder.decodeSingularDoubleField(value: &self._scrollX) }()
+      case 10: try { try decoder.decodeSingularDoubleField(value: &self._scrollY) }()
+      case 11: try { try decoder.decodeSingularDoubleField(value: &self._viewportWidth) }()
+      case 12: try { try decoder.decodeSingularDoubleField(value: &self._viewportHeight) }()
+      case 13: try { try decoder.decodeSingularInt64Field(value: &self._captureTime) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._url {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._title {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._imageAsset {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._faviconAsset {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._regionX {
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 5)
+    } }()
+    try { if let v = self._regionY {
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 6)
+    } }()
+    try { if let v = self._regionWidth {
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 7)
+    } }()
+    try { if let v = self._regionHeight {
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 8)
+    } }()
+    try { if let v = self._scrollX {
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 9)
+    } }()
+    try { if let v = self._scrollY {
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 10)
+    } }()
+    try { if let v = self._viewportWidth {
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 11)
+    } }()
+    try { if let v = self._viewportHeight {
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 12)
+    } }()
+    try { if let v = self._captureTime {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 13)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassEaselCapture, rhs: SyncPb_CompassEaselCapture) -> Bool {
+    if lhs._url != rhs._url {return false}
+    if lhs._title != rhs._title {return false}
+    if lhs._imageAsset != rhs._imageAsset {return false}
+    if lhs._faviconAsset != rhs._faviconAsset {return false}
+    if lhs._regionX != rhs._regionX {return false}
+    if lhs._regionY != rhs._regionY {return false}
+    if lhs._regionWidth != rhs._regionWidth {return false}
+    if lhs._regionHeight != rhs._regionHeight {return false}
+    if lhs._scrollX != rhs._scrollX {return false}
+    if lhs._scrollY != rhs._scrollY {return false}
+    if lhs._viewportWidth != rhs._viewportWidth {return false}
+    if lhs._viewportHeight != rhs._viewportHeight {return false}
+    if lhs._captureTime != rhs._captureTime {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassEaselAsset: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassEaselAsset"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}sha256\0\u{3}mime_type\0\u{1}data\0\u{3}create_time\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._uuid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._sha256) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._mimeType) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self._data) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self._createTime) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._uuid {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._sha256 {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._mimeType {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._data {
+      try visitor.visitSingularBytesField(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._createTime {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassEaselAsset, rhs: SyncPb_CompassEaselAsset) -> Bool {
+    if lhs._uuid != rhs._uuid {return false}
+    if lhs._sha256 != rhs._sha256 {return false}
+    if lhs._mimeType != rhs._mimeType {return false}
+    if lhs._data != rhs._data {return false}
+    if lhs._createTime != rhs._createTime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

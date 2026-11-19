@@ -87,6 +87,8 @@ source_set("sync") {
   # Boosts too (compass_spaces_sync.cc, compass_spaces_sync_android.cc;
   # docs/design/boosts.md).
   deps += [ "//compass/browser/boosts:store" ]
+  # And Easels (docs/design/easels.md).
+  deps += [ "//compass/browser/easels:store" ]
   if (is_android) {
     deps += [
       "//chrome/browser/gcm",

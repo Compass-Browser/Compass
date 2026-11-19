@@ -24,10 +24,16 @@ ArcPaths ArcPathsIn(const base::FilePath& arc, const base::FilePath& cache) {
 
 ArcPaths MacArcPaths(const base::FilePath& app_support,
                      const base::FilePath& caches) {
-  return ArcPathsIn(
+  ArcPaths paths = ArcPathsIn(
       app_support.AppendASCII("Arc"),
       caches.empty() ? base::FilePath()
                      : caches.AppendASCII("Arc").AppendASCII("User Data"));
+  // Firestore's iOS/macOS SDK keeps its cache by app, project and database.
+  paths.easels = app_support.AppendASCII("firestore")
+                     .AppendASCII("Arc")
+                     .AppendASCII("bcny-arc-server")
+                     .AppendASCII("main");
+  return paths;
 }
 
 std::optional<ArcPaths> FindWindowsArcPaths(

@@ -1,8 +1,8 @@
 diff --git a/chrome/chrome_paks.gni b/chrome/chrome_paks.gni
-index 150c570d3ea9756dd068bd919a57b722a4c7e056..e241e78a2f7051fb49160056260392cf843f0f2a 100644
+index 150c570d3ea9756dd068bd919a57b722a4c7e056..b7f1a8cf86b82d4dea1d32fd0883f7a675d12b10 100644
 --- a/chrome/chrome_paks.gni
 +++ b/chrome/chrome_paks.gni
-@@ -194,6 +194,11 @@ template("chrome_extra_paks") {
+@@ -194,6 +194,14 @@ template("chrome_extra_paks") {
      if (defined(invoker.additional_paks)) {
        sources += invoker.additional_paks
      }
@@ -11,6 +11,9 @@ index 150c570d3ea9756dd068bd919a57b722a4c7e056..e241e78a2f7051fb49160056260392cf
 +      sources += [ "$root_gen_dir/compass/compass_sidebar_resources.pak" ]
 +      deps += [ "//compass/resources/sidebar:resources" ]
 +    }
++    # Compass: chrome://easel, also on Android.
++    sources += [ "$root_gen_dir/compass/compass_easel_resources.pak" ]
++    deps += [ "//compass/resources/easel:resources" ]
  
      if (enable_extensions_core) {
        sources += [

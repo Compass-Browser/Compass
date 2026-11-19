@@ -21,7 +21,9 @@ namespace compass::arc {
 
 // An entry of Arc's sidebar.
 struct Item {
-  enum class Kind { kTab, kFolder, kSplit };
+  // kEasel: one of Arc's Easels (a board), a tab in Compass
+  // (docs/design/easels.md, "Arc's Easels").
+  enum class Kind { kTab, kFolder, kSplit, kEasel };
 
   Item();
   Item(const Item&);
@@ -35,11 +37,14 @@ struct Item {
   std::string id;
   // A folder's name, or a tab's own title if the user gave it one.
   std::u16string title;
-  // Tabs: the page's title and URL when Arc saved them.
+  // Tabs: the page's title and URL when Arc saved them. Easels: the board's
+  // title, and no URL.
   std::u16string saved_title;
   GURL url;
   base::Time last_active;
   bool muted = false;
+  // Easels: the board's ID in Arc's Firestore (data.easel.easelID).
+  std::string easel_id;
   // Folders and splits.
   std::vector<Item> children;
 };

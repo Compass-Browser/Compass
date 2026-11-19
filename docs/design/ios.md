@@ -490,6 +490,72 @@ anywhere. `ReaderMode` (`AppServices.reader`), `ReaderPage` and
 `AppModel.readers` in `App/Browser/Reader.swift`; tests `ReaderTests`
 (CompassKit) and `ReaderModeTests` (UI).
 
+### Easels
+
+Canvas boards ([easels.md](easels.md)), native on the phone.
+
+- **Store:** `CompassEasels` (`CompassKit/Sources/CompassEasels`), the
+  desktop's `EaselStore` rules in Swift: the boards, objects and images are
+  the sync messages themselves (`EaselBoard`, `EaselObject`, `EaselAsset`
+  are `SyncPb_CompassEasel*`), so unknown fields and content kinds stay;
+  `Easels.normalize()` (one kind of content, the box, 20,000 UTF-16 units
+  of text, an arrow's 4 numbers, a stroke simplified to 4,000 evenly spaced
+  points with both ends, a bad stroke width dropped); 200 boards, 1,000
+  objects a board, images of at most 512 KiB and 64 MiB in all; the later
+  `update_time` wins in `applyRemote()`, an image is kept once and only if
+  its bytes match its hash; an image no object points at goes 30 days
+  after it was added (checked at load). The file is the desktop's:
+  `easels.pb` (records of a varint length and a `CompassSpacesSpecifics`,
+  an image's without its bytes) and `assets/<sha256>`, in Application
+  Support/Compass/Easels. Unlike the desktop it reads the file at once and
+  keeps images on disk, checking an image's hash when it reads it; writes
+  wait a second after the last change (and happen on going to the
+  background). `EaselImages.fit()` is `easel_images.cc` on ImageIO (upright,
+  at most 2048 px a side, JPEG at 85 then lower quality, then smaller; PNG
+  when a pixel isn't opaque). `EaselURL` parses and makes the tab URLs;
+  `Easels.assetUUID()` derives an image's UUID; `EaselLinkPreview` reads a
+  page's Open Graph tags. Tests: `EaselStoreTests` (the desktop's cases,
+  an asset UUID vector from Python's hashlib, the unknown-field round trip,
+  the file's bytes, fitting, link previews).
+- **Sync:** `CompassSpacesBridge+Easels`, in the home account only, as
+  Boosts (`localEasels`, `easelAssetData`, `onEasels`, `easelsChanged()`,
+  wired in `SyncController`). Boards and objects go as the store keeps
+  them; an image goes once, with its bytes, only while the account doesn't
+  have it, and the mirror keeps images without their bytes
+  (`mirrored()`). Deleting here deletes the entity. Tests:
+  `EaselSyncTests`.
+- **Tabs:** a board is a tab at `compass://easel/<uuid>`, the list
+  `compass://easel/`; both are phone-visible (`PhoneVisible`), show the
+  easel symbol (`SiteIcon`), and the board's title in the sidebar unless
+  the tab was renamed. `BrowserScreen` shows `EaselScreen` in place of the
+  web view (no web view is made). New Easel is in the "+" long-press menu
+  (`NewTabMenu`): a board and a pinned tab in the shown space.
+- **Editor** (`App/Easels/EaselEditor.swift`): SwiftUI views and `Canvas`
+  over the background (paper, grid, dots, dark). A drag on empty space
+  pans, a pinch zooms; tools Select, Text, Rectangle, Circle, Arrow, Pen
+  and Select Area (in ⋯); a photo (`PhotosPicker`); ⋯ Paste (an image, a
+  URL as a link card filled in from the page's tags and `og:image`, at
+  most 1 MB read, or text), Fit, Undo, Redo, Background, All Easels. A tap
+  selects, a drag moves the selection, the corner handle resizes (strokes
+  stretch), a double tap edits text; the selection bar has color, text
+  style and font, front, back, duplicate and delete, also in each object's
+  long-press menu. A tap on a link or capture opens it in a new tab of the
+  space (Select in its menu selects it). Undo is the editor's own history
+  (`EaselHistory`), not `UndoManager`. Objects whose content this version
+  doesn't know are grey boxes that move and delete.
+- **Capture to Easel** (the page menu, web pages outside Incognito):
+  `EaselCaptureOverlay` over the page; drag a region, Capture, pick a
+  board (the last one used first, or New Easel).
+  `WKWebView.takeSnapshot(with:)` of the region, fitted off the main
+  thread, placed where the editor last looked on that board (else below
+  what's there) at its CSS size, with the page's icon. Refresh (the
+  capture's menu or the selection bar) loads the URL in a hidden web view
+  of the saved viewport size in the key window (the home profile's
+  cookies), waits for the load and 1.5 s, scrolls back and takes the
+  region again (`EaselCapture.refresh`).
+- **Debug:** `-CompassEaselDemo YES` makes a board with one of each kind
+  and shows it; `-CompassOpenURL compass://easel/` opens the list.
+
 ### Little windows
 
 The desktop's little windows ([little-window.md](little-window.md)) on an

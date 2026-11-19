@@ -346,6 +346,9 @@ interface PageHandler {
   OpenLink(url.mojom.Url url, string parent_id, uint32 index);
   // In Pinned or Today, at the top or in a folder; other parents are ignored.
   AddFolder(string parent_id, uint32 index, string title);
+  // New Easel (docs/design/easels.md): a board, with its tab pinned at the
+  // end of Pinned, shown. Ignored where there are no Easels (incognito).
+  NewEasel();
   RenameFolder(string id, string title);
   // Names a tab (a pane too); an empty or blank name goes back to the page's
   // title.
@@ -633,11 +636,16 @@ interface ArcImportHandler {
   // before go into the Compass profile each became. macOS asks whether
   // Compass may use Arc's Keychain key. Answers with the names of the
   // profiles made and of those that got spaces, the Arc profiles (folders)
-  // that failed, and how many cookies and passwords couldn't be decrypted
-  // (left behind).
+  // that failed, how many cookies and passwords couldn't be decrypted (left
+  // behind), and how many of the spaces' Easels came over, and came over
+  // empty because Arc never downloaded them to this Mac.
   Import(array<string> profiles, array<string> spaces)
       => (array<string> imported, array<string> updated,
-          array<string> failed, int32 undecryptable);
+          array<string> failed, int32 undecryptable, int32 easels,
+          int32 easels_missing);
+  // Fills the Easels that came over empty, from what Arc has now (after the
+  // user opened them in Arc). Doesn't run while Arc does (|arc_running|).
+  ImportEasels() => (bool arc_running, int32 easels, int32 easels_missing);
   // Shows the first imported space in this window.
   OpenImported();
 

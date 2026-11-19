@@ -660,6 +660,17 @@ CompassSpacesSyncBridge::Delegate::GetLocalBoosts() {
   return std::nullopt;
 }
 
+std::optional<std::vector<sync_pb::CompassSpacesSpecifics>>
+CompassSpacesSyncBridge::Delegate::GetLocalEasels() {
+  return std::nullopt;
+}
+
+std::optional<std::string>
+CompassSpacesSyncBridge::Delegate::GetEaselAssetData(
+    const std::string& sha256) {
+  return std::nullopt;
+}
+
 std::string CompassSpacesSyncBridge::Delegate::GetProfileUuid() {
   return std::string();
 }
@@ -832,14 +843,25 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
   if (boosts) {
     AddLocalBoosts(*boosts, local);
   }
+  const std::optional<std::vector<sync_pb::CompassSpacesSpecifics>> easels =
+      delegate_ ? delegate_->GetLocalEasels() : std::nullopt;
+  if (easels) {
+    AddLocalEasels(*easels, local);
+  }
   AddLocalLinkRules(local);
   const base::TimeTicks now = base::TimeTicks::Now();
   std::optional<base::TimeTicks> next_send;
   throttled_.clear();
   size_t puts = 0;
   for (const auto& [key, specifics] : local) {
-    std::string serialized = specifics.SerializeAsString();
     auto it = mirror_.find(key);
+    // An Easel image never changes (it's named by its hash): one the
+    // account has is skipped without comparing its bytes.
+    if (specifics.has_easel_asset() && it != mirror_.end() &&
+        it->second.has_easel_asset()) {
+      continue;
+    }
+    std::string serialized = specifics.SerializeAsString();
     if (it != mirror_.end() && it->second.SerializeAsString() == serialized) {
       continue;
     }
@@ -893,6 +915,14 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
     if (specifics.has_boost()) {
       // Deleted here, unless the Boosts aren't loaded (or don't sync).
       if (boosts) {
+        gone.push_back(key);
+      }
+      continue;
+    }
+    if (specifics.has_easel() || specifics.has_easel_object() ||
+        specifics.has_easel_asset()) {
+      // Deleted here, unless the Easels aren't loaded (or don't sync).
+      if (easels) {
         gone.push_back(key);
       }
       continue;
@@ -1195,6 +1225,45 @@ void CompassSpacesSyncBridge::AddLocalBoosts(
   }
 }
 
+void CompassSpacesSyncBridge::AddLocalEasels(
+    const std::vector<sync_pb::CompassSpacesSpecifics>& easels,
+    Mirror& out) const {
+  for (const sync_pb::CompassSpacesSpecifics& specifics : easels) {
+    // The store keeps the entities as they came, unknown fields too.
+    std::string key;
+    if (specifics.has_easel()) {
+      key = specifics.easel().uuid();
+    } else if (specifics.has_easel_object()) {
+      key = specifics.easel_object().uuid();
+    } else if (specifics.has_easel_asset()) {
+      key = specifics.easel_asset().uuid();
+    }
+    if (!ParseKey(key).is_valid() || out.contains(key)) {
+      continue;
+    }
+    if (specifics.has_easel_asset()) {
+      auto it = mirror_.find(key);
+      if (it != mirror_.end() && it->second.has_easel_asset()) {
+        // The account has it: SendLocalChangesTo() skips it.
+        out[key] = it->second;
+        continue;
+      }
+      std::optional<std::string> data =
+          delegate_ ? delegate_->GetEaselAssetData(
+                          specifics.easel_asset().sha256())
+                    : std::nullopt;
+      if (!data) {
+        continue;
+      }
+      sync_pb::CompassSpacesSpecifics& entity = out[key];
+      entity = specifics;
+      entity.mutable_easel_asset()->set_data(std::move(*data));
+      continue;
+    }
+    out[key] = specifics;
+  }
+}
+
 void CompassSpacesSyncBridge::AddLocalLinkRules(Mirror& out) const {
   for (const LinkRule& rule : list_->link_rules().rules()) {
     // A space that stays on this device: its rules do too.
@@ -1480,7 +1549,8 @@ bool CompassSpacesSyncBridge::WasDeletedLocally(
     const Mirror& local) const {
   if (specifics.has_profile() || specifics.has_favicon() ||
       specifics.has_memory() || specifics.has_link_rule() ||
-      specifics.has_boost()) {
+      specifics.has_boost() || specifics.has_easel() ||
+      specifics.has_easel_object() || specifics.has_easel_asset()) {
     // SendLocalChangesTo() decides.
     return false;
   }
@@ -1696,6 +1766,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
   // Boosts that came or went.
   std::vector<sync_pb::CompassBoost> boosts;
   std::set<std::string> deleted_boosts;
+  // Easel boards, objects and images that came or went.
+  std::vector<sync_pb::CompassSpacesSpecifics> easels;
+  std::set<std::string> deleted_easels;
   // Link rules that came, and the domains of those that went.
   std::vector<sync_pb::CompassLinkRule> link_rules;
   std::vector<std::string> deleted_link_rules;
@@ -1713,6 +1786,11 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
       }
       if (it != mirror_.end() && it->second.has_boost()) {
         deleted_boosts.insert(key);
+      }
+      if (it != mirror_.end() &&
+          (it->second.has_easel() || it->second.has_easel_object() ||
+           it->second.has_easel_asset())) {
+        deleted_easels.insert(key);
       }
       if (it != mirror_.end() && it->second.has_link_rule()) {
         deleted_link_rules.push_back(it->second.link_rule().domain());
@@ -1737,6 +1815,11 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
     }
     if (specifics.has_boost()) {
       boosts.push_back(specifics.boost());
+      continue;
+    }
+    if (specifics.has_easel() || specifics.has_easel_object() ||
+        specifics.has_easel_asset()) {
+      easels.push_back(specifics);
       continue;
     }
     if (specifics.has_link_rule()) {
@@ -1788,6 +1871,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
     }
     if (delegate_ && (!boosts.empty() || !deleted_boosts.empty())) {
       delegate_->ApplyBoosts(boosts, deleted_boosts);
+    }
+    if (delegate_ && (!easels.empty() || !deleted_easels.empty())) {
+      delegate_->ApplyEasels(easels, deleted_easels);
     }
     // Link rules: the later commit wins. One without a space this version
     // can read is left alone (it stays in the mirror); one for a space
@@ -2831,6 +2917,15 @@ std::string CompassSpacesSyncBridge::GetStorageKey(
   if (specifics.has_boost()) {
     return specifics.boost().id();
   }
+  if (specifics.has_easel()) {
+    return specifics.easel().uuid();
+  }
+  if (specifics.has_easel_object()) {
+    return specifics.easel_object().uuid();
+  }
+  if (specifics.has_easel_asset()) {
+    return specifics.easel_asset().uuid();
+  }
   return specifics.node().uuid();
 }
 
@@ -2884,7 +2979,8 @@ bool CompassSpacesSyncBridge::IsEntityDataValid(
   if (!specifics.has_space() && !specifics.has_node() &&
       !specifics.has_profile() && !specifics.has_favicon() &&
       !specifics.has_memory() && !specifics.has_link_rule() &&
-      !specifics.has_boost()) {
+      !specifics.has_boost() && !specifics.has_easel() &&
+      !specifics.has_easel_object() && !specifics.has_easel_asset()) {
     return false;
   }
   if (specifics.has_link_rule()) {

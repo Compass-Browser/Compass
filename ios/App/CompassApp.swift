@@ -5,6 +5,7 @@
 import BackgroundTasks
 import CompassBoosts
 import CompassCrypto
+import CompassEasels
 import CompassShared
 import CoreSpotlight
 import SwiftUI
@@ -87,6 +88,7 @@ struct CompassApp: App {
       }
       if phase == .background {
         try? services.store.save(to: services.sidebarURL)
+        EaselStore.shared.flush()
         services.system.writeSnapshot()
         Self.scheduleRefresh()
       }

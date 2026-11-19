@@ -1,0 +1,158 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// chrome://easel (docs/design/easels.md): the Easels list and a board's
+// editor, over compass::easels::EaselStore. The structs mirror the
+// CompassEasel* sync messages; times are ms since the Unix epoch (JS time).
+module compass.easel.mojom;
+
+struct EaselSummary {
+  string uuid;
+  string title;
+  string palette;
+  double create_time_ms;
+  double update_time_ms;
+  int32 object_count;
+};
+
+struct Easel {
+  string uuid;
+  string title;
+  // "paper", "grid", "dots" or "dark"; anything else shows as "paper".
+  string palette;
+};
+
+// Which content an object has. kUnknown: one this version doesn't know
+// (from a newer client), shown as a grey box that can be moved and deleted.
+enum ObjectKind {
+  kUnknown,
+  kText,
+  kShape,
+  kImage,
+  kLink,
+  kCapture,
+};
+
+// Empty strings are absent fields (the board's ink, "sans", "body").
+struct TextContent {
+  string text;
+  string color;
+  string font;
+  string style;
+};
+
+struct ShapeContent {
+  // compass::easels::ShapeKind: 1 rectangle, 2 circle, 3 arrow, 4 freehand.
+  int32 kind;
+  string color;
+  // Arrow: start x, y, end x, y. Freehand: x, y pairs. From the object's
+  // top left, in board points.
+  array<double> points;
+  // 0: absent (3).
+  double stroke_width;
+  bool filled;
+};
+
+struct ImageContent {
+  // SHA-256 of the image: chrome://easel/asset/<sha256>.
+  string asset;
+  int32 pixel_width;
+  int32 pixel_height;
+};
+
+struct LinkContent {
+  string url;
+  string title;
+  string description;
+  // "" for none.
+  string image_asset;
+};
+
+// Read only for the page: Refresh (RefreshCapture) takes it again.
+struct CaptureContent {
+  string url;
+  string title;
+  string image_asset;
+  string favicon_asset;
+  double capture_time_ms;
+};
+
+struct EaselObject {
+  string uuid;
+  double x;
+  double y;
+  double width;
+  double height;
+  double z;
+  ObjectKind kind;
+  // The one that |kind| names is set; none for kUnknown.
+  TextContent? text;
+  ShapeContent? shape;
+  ImageContent? image;
+  LinkContent? link;
+  CaptureContent? capture;
+  // The whole CompassEaselObject as the store has it, serialized and
+  // base64-encoded, opaque to the page. Saving an object the store no longer
+  // has (undoing a delete, a duplicate under a new uuid) starts from it, so
+  // what the page can't see (a capture's region, fields of newer clients)
+  // comes back too. "" for a new object.
+  string base;
+};
+
+enum EaselState {
+  kOk,
+  // No such board here: deleted, or not synced to this device yet.
+  kNotFound,
+  // No Easels in this profile (Incognito, Guest).
+  kUnavailable,
+};
+
+// Bootstraps the connection; called once by the page.
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};
+
+// Browser side of chrome://easel. Mutations answer with "" or why not.
+interface PageHandler {
+  // The list, newest first. |available| false in Incognito and Guest.
+  GetEasels() => (bool available, array<EaselSummary> easels);
+  // A board and its objects, lowest z first.
+  GetEasel(string uuid)
+      => (EaselState state, Easel? easel, array<EaselObject> objects);
+
+  CreateEasel(string title) => (string uuid, string error);
+  RenameEasel(string uuid, string title);
+  SetPalette(string uuid, string palette);
+  DeleteEasel(string uuid);
+
+  // Adds or updates |objects| of board |easel_uuid| at once (a drag of a
+  // selection is one call). |saved| as stored (a long stroke simplified),
+  // in the same order.
+  SaveObjects(string easel_uuid, array<EaselObject> objects)
+      => (string error, array<EaselObject> saved);
+  DeleteObjects(array<string> uuids);
+
+  // Decodes |data| (an image file, pasted or dropped) out of process, fits
+  // it to the limits and keeps it. |sha256| is the asset to show.
+  AddImage(array<uint8> data)
+      => (string error, string sha256, int32 width, int32 height);
+  // A link card for |url| (http or https): the page's title, description and
+  // preview image, read in the browser. A page that can't be read still
+  // gives a card with the URL; |link| is null only for a URL that isn't
+  // http or https.
+  AddLink(string url) => (LinkContent? link);
+
+  // In a new foreground tab next to this one (http and https only).
+  OpenUrl(string url);
+  // Takes a capture again (docs/design/easels.md, "Captures"); "" when done.
+  RefreshCapture(string object_uuid) => (string error);
+};
+
+// Implemented by the page.
+interface Page {
+  // Something of board |uuid| changed elsewhere (another window, another
+  // device): a board, its objects, or it was deleted. "" for any.
+  OnEaselChanged(string uuid);
+};

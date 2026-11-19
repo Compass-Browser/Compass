@@ -41,6 +41,8 @@
 #include "chrome/browser/sync/data_type_store_service_factory.h"
 #include "chrome/common/channel_info.h"
 #include "compass/browser/boosts/boost_store.h"
+#include "compass/browser/easels/easel_store.h"
+#include "compass/browser/easels/easel_sync.h"
 #include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sync/compass_spaces_sync_bridge.h"
@@ -128,7 +130,8 @@ class SpacesSyncHolder : public SpaceService::Attachment,
                          public SpaceList::Observer,
                          public SpaceDirectory::Observer,
                          public claude::ClaudeMemory::Observer,
-                         public boosts::BoostStore::Observer {
+                         public boosts::BoostStore::Observer,
+                         public easels::EaselStore::Observer {
  public:
   SpacesSyncHolder(Profile* profile, SpaceService* service)
       : profile_(profile), service_(service) {
@@ -156,6 +159,11 @@ class SpacesSyncHolder : public SpaceService::Attachment,
       boosts_ = store->GetWeakPtr();
       store->AddObserver(this);
     }
+    // And Easels (docs/design/easels.md).
+    if (easels::EaselStore* store = easels::EaselStore::Get(profile)) {
+      easels_ = store->GetWeakPtr();
+      store->AddObserver(this);
+    }
   }
   SpacesSyncHolder(const SpacesSyncHolder&) = delete;
   SpacesSyncHolder& operator=(const SpacesSyncHolder&) = delete;
@@ -171,6 +179,9 @@ class SpacesSyncHolder : public SpaceService::Attachment,
     }
     if (boosts_) {
       boosts_->RemoveObserver(this);
+    }
+    if (easels_) {
+      easels_->RemoveObserver(this);
     }
     bridge_.reset();
   }
@@ -269,6 +280,24 @@ class SpacesSyncHolder : public SpaceService::Attachment,
 
   // boosts::BoostStore::Observer:
   void OnBoostsChanged() override { bridge_->NotifyLocalChange(); }
+
+  std::optional<std::vector<sync_pb::CompassSpacesSpecifics>> GetLocalEasels()
+      override {
+    return easels::LocalEaselEntities(easels_.get());
+  }
+
+  std::optional<std::string> GetEaselAssetData(
+      const std::string& sha256) override {
+    return easels::EaselAssetData(easels_.get(), sha256);
+  }
+
+  void ApplyEasels(const std::vector<sync_pb::CompassSpacesSpecifics>& changed,
+                   const std::set<std::string>& deleted) override {
+    easels::ApplyRemoteEasels(easels_.get(), changed, deleted);
+  }
+
+  // easels::EaselStore::Observer:
+  void OnEaselsChanged() override { bridge_->NotifyLocalChange(); }
 
   void DeleteSpace(SpaceModel& space) override {
     ::compass::DeleteSpace(profile_, space);
@@ -591,6 +620,7 @@ class SpacesSyncHolder : public SpaceService::Attachment,
   std::unique_ptr<CompassSpacesSyncBridge> bridge_;
   base::WeakPtr<claude::ClaudeMemory> memory_;
   base::WeakPtr<boosts::BoostStore> boosts_;
+  base::WeakPtr<easels::EaselStore> easels_;
   bool syncing_order_ = false;
   bool directory_pull_pending_ = false;
   base::CallbackListSubscription favicons_changed_;

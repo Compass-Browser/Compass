@@ -4,6 +4,7 @@
 
 import CompassBoosts
 import CompassClaude
+import CompassEasels
 import CompassModel
 import Foundation
 import SwiftProtobuf
@@ -70,6 +71,13 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   @MainActor public var localBoosts: (() -> [Boost])?
   /// Boosts another device changed or added, and ones it deleted (+Boosts).
   @MainActor public var onBoosts: (([Boost], Set<String>) -> Void)?
+  /// The Easels on this device, for the home account (+Easels).
+  @MainActor public var localEasels: (() -> EaselEntities)?
+  /// An Easel image's bytes, by SHA-256 (+Easels).
+  @MainActor public var easelAssetData: ((String) -> Data?)?
+  /// Easel boards, objects and images another device changed or added, and
+  /// the client tags of ones it deleted (+Easels).
+  @MainActor public var onEasels: ((EaselEntities, Set<String>) -> Void)?
   @MainActor public var now: () -> Date = Date.init
 
   struct SavedMirror: Codable {
@@ -237,6 +245,9 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     case .memory(let memory): memory.uuid
     case .linkRule(let rule): rule.uuid
     case .boost(let boost): boost.id
+    case .easel(let easel): easel.uuid
+    case .easelObject(let object): object.uuid
+    case .easelAsset(let asset): asset.uuid
     case nil: nil
     }
   }
@@ -455,6 +466,16 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     queue.append(.delete(id))
   }
 
+  /// Sends `specifics` and keeps `mirrored` as the account's: an Easel
+  /// image goes with its bytes, which the mirror doesn't keep (+Easels).
+  @MainActor
+  func queuePut(_ id: String, _ specifics: SyncPb_CompassSpacesSpecifics, mirrored: SyncPb_CompassSpacesSpecifics) {
+    mirror[id] = mirrored
+    lastCommit[id] = now()
+    throttled.removeValue(forKey: id)?.cancel()
+    queue.append(.put(id, specifics))
+  }
+
   @MainActor
   func commit(_ id: String, _ specifics: SyncPb_CompassSpacesSpecifics?) {
     guard let specifics, specifics != mirror[id] else { return }
@@ -559,12 +580,14 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     var deletedRules: [SyncPb_CompassLinkRule] = []
     var boosts: [Boost] = []
     var deletedBoosts: Set<String> = []
+    var easels = EaselEntities()
+    var deletedEasels: Set<String> = []
     let byHash = Dictionary(
       mirror.keys.map { (ClientTagHash.make(type: .compassSpaces, tag: $0), $0) }, uniquingKeysWith: { a, _ in a })
     for change in changes {
       if let specifics = change.specifics?.compassSpaces {
         guard let id = Self.uuid(of: specifics), Self.isValidUUID(id) else { continue }
-        mirror[id] = specifics
+        mirror[id] = Self.mirrored(specifics)
         lastCommit[id] = nil
         switch specifics.entity {
         case .space: putSpaces.append(id)
@@ -574,6 +597,9 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         case .memory(let m): memories.append(Self.memoryEntry(m))
         case .linkRule(let r): putRules.append(r)
         case .boost(let b): boosts.append(Self.boost(b))
+        case .easel(let e): easels.easels.append(e)
+        case .easelObject(let o): easels.objects.append(o)
+        case .easelAsset(let a): easels.assets.append(a)
         case nil: break
         }
       } else if let id = byHash[change.clientTagHash] {
@@ -581,6 +607,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         if case .memory = mirror[id]?.entity { deletedMemories.insert(id) }
         if case .linkRule(let r)? = mirror[id]?.entity { deletedRules.append(r) }
         if case .boost = mirror[id]?.entity { deletedBoosts.insert(id) }
+        if let s = mirror[id], Self.isEasel(s) { deletedEasels.insert(id) }
         mirror[id] = nil
         deleted.insert(id)
       }
@@ -625,6 +652,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     collectFavicons()
     if isHome && (!memories.isEmpty || !deletedMemories.isEmpty) { onMemories?(memories, deletedMemories) }
     if isHome && (!boosts.isEmpty || !deletedBoosts.isEmpty) { onBoosts?(boosts, deletedBoosts) }
+    if isHome && (!easels.isEmpty || !deletedEasels.isEmpty) { onEasels?(easels, deletedEasels) }
   }
 
   @MainActor
@@ -913,7 +941,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     var result: [(tag: String, specifics: SyncPb_EntitySpecifics)] = []
     func add(_ id: String, _ s: SyncPb_CompassSpacesSpecifics?) {
       guard let s, mirror[id] == nil else { return }
-      mirror[id] = s
+      mirror[id] = Self.mirrored(s)
       var e = SyncPb_EntitySpecifics()
       e.compassSpaces = s
       result.append((id, e))
@@ -925,6 +953,9 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     }
     if isHome, let boosts = localBoosts?() {
       for boost in boosts { add(boost.id, desired(boost)) }
+    }
+    if isHome, let easels = localEasels?() {
+      for s in easelSpecifics(easels) { add(Self.uuid(of: s) ?? "", s) }
     }
     for (id, specifics) in localLinkRules { add(id, specifics) }
     tracking = true

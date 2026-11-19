@@ -996,6 +996,12 @@ export class CompassSidebarAppElement extends CrLitElement {
     this.liveEditor_ = null;
   }
 
+  // A board, with its tab pinned at the end of Pinned and shown
+  // (docs/design/easels.md, "In the sidebar").
+  protected onNewEaselClick_() {
+    this.browserProxy_.handler.newEasel();
+  }
+
   // At the end of Pinned, or the top of Today, where new entries go.
   protected onNewFolderClick_(e: Event) {
     const today = (e.currentTarget as HTMLElement).dataset['section'] ===

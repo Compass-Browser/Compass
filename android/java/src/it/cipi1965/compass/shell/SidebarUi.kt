@@ -264,6 +264,9 @@ object SidebarUi {
 
         fun onNewIncognitoTab()
 
+        /** New Easel: a board with its tab pinned in the space, opened (docs/design/easels.md). */
+        fun onNewEasel()
+
         /** Archives every Today entry of the space, closing their tabs (Today's "Clear"). */
         fun onClearToday()
 
@@ -593,6 +596,11 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
                 Sym(R.drawable.compass_sym_more_horiz, 15f)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                MenuItem("New Easel", R.drawable.compass_sym_easel) {
+                    menu = false
+                    listener.onNewEasel()
+                }
+                HorizontalDivider()
                 MenuItem("Rename", R.drawable.compass_sym_edit) {
                     menu = false
                     renaming = true

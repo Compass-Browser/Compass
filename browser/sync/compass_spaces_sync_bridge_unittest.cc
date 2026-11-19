@@ -234,6 +234,57 @@ class TestDelegate : public CompassSpacesSyncBridge::Delegate {
     }
   }
 
+  // Easel entities by key, images with their bytes; nullopt: not loaded.
+  std::optional<std::map<std::string, sync_pb::CompassSpacesSpecifics>> easels;
+  // How many times the bridge asked for an image's bytes.
+  int easel_asset_reads = 0;
+
+  std::optional<std::vector<sync_pb::CompassSpacesSpecifics>> GetLocalEasels()
+      override {
+    if (!easels) {
+      return std::nullopt;
+    }
+    std::vector<sync_pb::CompassSpacesSpecifics> list;
+    for (const auto& [key, specifics] : *easels) {
+      sync_pb::CompassSpacesSpecifics& entity = list.emplace_back(specifics);
+      if (entity.has_easel_asset()) {
+        entity.mutable_easel_asset()->clear_data();
+      }
+    }
+    return list;
+  }
+  std::optional<std::string> GetEaselAssetData(
+      const std::string& sha256) override {
+    ++easel_asset_reads;
+    if (!easels) {
+      return std::nullopt;
+    }
+    for (const auto& [key, specifics] : *easels) {
+      if (specifics.has_easel_asset() &&
+          specifics.easel_asset().sha256() == sha256) {
+        return specifics.easel_asset().data();
+      }
+    }
+    return std::nullopt;
+  }
+  void ApplyEasels(const std::vector<sync_pb::CompassSpacesSpecifics>& changed,
+                   const std::set<std::string>& deleted) override {
+    if (!easels) {
+      return;
+    }
+    for (const sync_pb::CompassSpacesSpecifics& specifics : changed) {
+      std::string key = specifics.has_easel()
+                            ? specifics.easel().uuid()
+                            : specifics.has_easel_object()
+                                  ? specifics.easel_object().uuid()
+                                  : specifics.easel_asset().uuid();
+      (*easels)[key] = specifics;
+    }
+    for (const std::string& key : deleted) {
+      easels->erase(key);
+    }
+  }
+
   // Claude's memories by id; nullopt: not loaded.
   std::optional<std::map<std::string, sync_pb::CompassMemory>> memories;
   // Boosts by id; nullopt: not loaded.
@@ -1883,6 +1934,82 @@ TEST_F(CompassSpacesSyncBridgeTest, BoostEntitiesAreValid) {
   EXPECT_TRUE(a->bridge().IsEntityDataValid(data));
   EXPECT_EQ(a->bridge().GetStorageKey(data), specifics.boost().id());
   data.specifics.mutable_compass_spaces()->mutable_boost()->set_id("x");
+  EXPECT_FALSE(a->bridge().IsEntityDataValid(data));
+}
+
+// Easels (docs/design/easels.md) -------------------------------------------
+
+// A board, an object on it and its image sync; the image's bytes go up once
+// and come down with it; deleting an object deletes it on the other device;
+// a device whose Easels aren't loaded leaves the account's alone.
+TEST_F(CompassSpacesSyncBridgeTest, EaselsSync) {
+  const std::string board = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  const std::string object = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  const std::string sha(64, 'a');
+  const std::string asset = "00000000-0000-5000-8000-000000000001";
+  std::map<std::string, sync_pb::CompassSpacesSpecifics> local;
+  local[board].mutable_easel()->set_uuid(board);
+  local[board].mutable_easel()->set_title("Trip");
+  local[board].mutable_easel()->set_update_time(10);
+  sync_pb::CompassEaselObject& image = *local[object].mutable_easel_object();
+  image.set_uuid(object);
+  image.set_easel_uuid(board);
+  image.set_width(100);
+  image.mutable_image()->set_asset(sha);
+  image.set_update_time(10);
+  sync_pb::CompassEaselAsset& bytes = *local[asset].mutable_easel_asset();
+  bytes.set_uuid(asset);
+  bytes.set_sha256(sha);
+  bytes.set_mime_type("image/png");
+  bytes.set_data("png");
+
+  std::unique_ptr<Device> a = MakeDevice();
+  a->delegate().easels = local;
+  a->Join();
+  ASSERT_TRUE(server_.entities.contains(board));
+  ASSERT_TRUE(server_.entities.contains(object));
+  ASSERT_TRUE(server_.entities.contains(asset));
+  EXPECT_EQ(server_.entities[asset].easel_asset().data(), "png");
+  EXPECT_EQ(server_.entities[object].easel_object().image().asset(), sha);
+  const int reads = a->delegate().easel_asset_reads;
+  EXPECT_GE(reads, 1);
+
+  // A later pass doesn't ask for the image again.
+  (*a->delegate().easels)[board].mutable_easel()->set_title("Trip 2");
+  (*a->delegate().easels)[board].mutable_easel()->set_update_time(20);
+  EXPECT_EQ(a->Push(), 1u);
+  EXPECT_EQ(a->delegate().easel_asset_reads, reads);
+
+  std::unique_ptr<Device> b = MakeDevice();
+  b->delegate().easels.emplace();
+  b->Join();
+  ASSERT_TRUE(b->delegate().easels->contains(asset));
+  EXPECT_EQ(b->delegate().easels->at(asset).easel_asset().data(), "png");
+  EXPECT_EQ(b->delegate().easels->at(board).easel().title(), "Trip 2");
+  EXPECT_EQ(b->Push(), 0u) << "no echo";
+
+  // Not loaded: nothing of the account's goes.
+  std::unique_ptr<Device> c = MakeDevice();
+  c->Join();
+  EXPECT_TRUE(server_.entities.contains(object));
+
+  b->delegate().easels->erase(object);
+  EXPECT_EQ(b->Push(), 1u);
+  EXPECT_FALSE(server_.entities.contains(object));
+  a->Pull();
+  EXPECT_FALSE(a->delegate().easels->contains(object));
+  EXPECT_TRUE(a->delegate().easels->contains(board));
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, EaselEntitiesAreValid) {
+  std::unique_ptr<Device> a = MakeDevice();
+  sync_pb::CompassSpacesSpecifics specifics;
+  const std::string board = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  specifics.mutable_easel()->set_uuid(board);
+  syncer::EntityData data = Device::Data(specifics);
+  EXPECT_TRUE(a->bridge().IsEntityDataValid(data));
+  EXPECT_EQ(a->bridge().GetStorageKey(data), board);
+  data.specifics.mutable_compass_spaces()->mutable_easel()->set_uuid("x");
   EXPECT_FALSE(a->bridge().IsEntityDataValid(data));
 }
 

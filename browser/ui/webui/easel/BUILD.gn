@@ -1,0 +1,109 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//mojo/public/tools/bindings/mojom.gni")
+
+# chrome://easel (docs/design/easels.md, "Editor"): the Easels list and a
+# board's editor, on the desktop (//compass/browser/ui) and on Android
+# (//compass/browser/android:reader registers it). The page is
+# //compass/resources/easel.
+
+mojom("mojo_bindings") {
+  sources = [ "easel.mojom" ]
+  webui_module_path = "/"
+}
+
+# The page's data to and from the sync messages, and link cards' metadata:
+# no browser dependencies, so the unit tests need none.
+source_set("conversions") {
+  sources = [
+    "easel_conversions.cc",
+    "easel_conversions.h",
+    "link_metadata.cc",
+    "link_metadata.h",
+  ]
+  public_deps = [
+    ":mojo_bindings",
+    "//base",
+    "//components/sync/protocol",
+    "//url",
+  ]
+  deps = [ "//compass/browser/easels:store" ]
+}
+
+source_set("easel") {
+  sources = [
+    "easel_page_handler.cc",
+    "easel_page_handler.h",
+    "easel_ui.cc",
+    "easel_ui.h",
+    "link_card_fetch.cc",
+    "link_card_fetch.h",
+  ]
+  public_deps = [
+    ":mojo_bindings",
+    "//base",
+    "//compass/browser/easels:images",
+    "//compass/browser/easels:store",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+    "//services/network/public/cpp",
+    "//ui/webui",
+    "//url",
+  ]
+  deps = [
+    ":conversions",
+    "//base:i18n",
+    "//chrome/browser/profiles:profile",
+    "//compass/browser/ui/easels:refresh",
+    "//compass/resources/easel:resources",
+    "//content/public/common",
+    "//net",
+    "//net/traffic_annotation",
+    "//services/network/public/mojom",
+    "//ui/base",
+    "//ui/base:types",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "easel_conversions_unittest.cc",
+    "link_metadata_unittest.cc",
+  ]
+  deps = [
+    ":conversions",
+    ":mojo_bindings",
+    "//base",
+    "//compass/browser/easels:store",
+    "//components/sync/protocol",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
+  ]
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [ "easel_ui_browsertest.cc" ]
+    deps = [
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//compass/browser/easels:store",
+      "//components/sync/protocol",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//testing/gtest",
+      "//url",
+    ]
+  }
+}

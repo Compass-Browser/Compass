@@ -64,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import it.cipi1965.compass.R
 
 /**
  * Compass's look on Android (docs/design/android.md, "Look"): the iOS app's layout, in Material
@@ -228,6 +229,13 @@ fun Sym(@DrawableRes id: Int, pt: Float, tint: Color = MaterialTheme.colorScheme
  */
 @Composable
 fun SiteIcon(url: String, size: Dp = 18.dp, modifier: Modifier = Modifier) {
+    // A board's tab (docs/design/easels.md, "In the sidebar"): the easel.
+    if (isEaselUrl(url)) {
+        Box(modifier.size(size), contentAlignment = Alignment.Center) {
+            Sym(R.drawable.compass_sym_easel, size.value / 1.2f, MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
     val icon = Favicons.icon(url)
     val shape = RoundedCornerShape(size * 0.25f)
     if (icon != null) {
@@ -248,6 +256,11 @@ fun SiteIcon(url: String, size: Dp = 18.dp, modifier: Modifier = Modifier) {
         )
     }
 }
+
+private val EASEL_URL = Regex("^(compass|chrome)://easel/[0-9a-f-]{36}([?#/].*)?$", RegexOption.IGNORE_CASE)
+
+/** Whether |url| is a board's (compass://easel/<uuid>). */
+fun isEaselUrl(url: String): Boolean = EASEL_URL.matches(url)
 
 /** A site in a list item: its icon on a tonal circle, Material's leading avatar. */
 @Composable

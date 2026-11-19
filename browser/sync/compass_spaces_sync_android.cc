@@ -24,6 +24,8 @@
 #include "chrome/common/channel_info.h"
 #include "compass/browser/android/spaces_android.h"
 #include "compass/browser/boosts/boost_store.h"
+#include "compass/browser/easels/easel_store.h"
+#include "compass/browser/easels/easel_sync.h"
 #include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -47,7 +49,8 @@ namespace {
 class SpacesSyncHolder : public SpacesAndroid::Attachment,
                          public CompassSpacesSyncBridge::Delegate,
                          public claude::ClaudeMemory::Observer,
-                         public boosts::BoostStore::Observer {
+                         public boosts::BoostStore::Observer,
+                         public easels::EaselStore::Observer {
  public:
   SpacesSyncHolder(Profile* profile, SpacesAndroid* spaces)
       : profile_(profile), spaces_(spaces) {
@@ -69,6 +72,11 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
       boosts_ = store->GetWeakPtr();
       store->AddObserver(this);
     }
+    // And Easels (docs/design/easels.md).
+    if (easels::EaselStore* store = easels::EaselStore::Get(profile)) {
+      easels_ = store->GetWeakPtr();
+      store->AddObserver(this);
+    }
     // The bridge starts once the spaces are in, as on the desktop
     // (compass_spaces_sync.cc, OnLoaded()). Without it, the bridge never told
     // sync it was ready and COMPASS_SPACES failed to configure ("Backend
@@ -84,6 +92,9 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
     }
     if (boosts_) {
       boosts_->RemoveObserver(this);
+    }
+    if (easels_) {
+      easels_->RemoveObserver(this);
     }
     bridge_.reset();
   }
@@ -183,6 +194,24 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
   // boosts::BoostStore::Observer:
   void OnBoostsChanged() override { bridge_->NotifyLocalChange(); }
 
+  std::optional<std::vector<sync_pb::CompassSpacesSpecifics>> GetLocalEasels()
+      override {
+    return easels::LocalEaselEntities(easels_.get());
+  }
+
+  std::optional<std::string> GetEaselAssetData(
+      const std::string& sha256) override {
+    return easels::EaselAssetData(easels_.get(), sha256);
+  }
+
+  void ApplyEasels(const std::vector<sync_pb::CompassSpacesSpecifics>& changed,
+                   const std::set<std::string>& deleted) override {
+    easels::ApplyRemoteEasels(easels_.get(), changed, deleted);
+  }
+
+  // easels::EaselStore::Observer:
+  void OnEaselsChanged() override { bridge_->NotifyLocalChange(); }
+
   void DeleteSpace(SpaceModel& space) override {
     SpaceList& list = spaces_->list();
     if (list.spaces().size() > 1) {
@@ -268,6 +297,7 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
   std::unique_ptr<CompassSpacesSyncBridge> bridge_;
   base::WeakPtr<claude::ClaudeMemory> memory_;
   base::WeakPtr<boosts::BoostStore> boosts_;
+  base::WeakPtr<easels::EaselStore> easels_;
   base::WeakPtrFactory<SpacesSyncHolder> weak_factory_{this};
 };
 

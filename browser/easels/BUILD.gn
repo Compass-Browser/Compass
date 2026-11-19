@@ -1,0 +1,57 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Easels: canvas boards in the sidebar (docs/design/easels.md). Desktop and
+# Android.
+
+# The store. Few deps: sync, the editor and the Arc import use it.
+source_set("store") {
+  sources = [
+    "easel_store.cc",
+    "easel_store.h",
+    "easel_sync.cc",
+    "easel_sync.h",
+  ]
+  public_deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//components/keyed_service/core",
+    "//components/sync/protocol",
+  ]
+  deps = [ "//crypto" ]
+}
+
+# Images fitted to the store's limits, decoded out of process.
+source_set("images") {
+  sources = [
+    "easel_images.cc",
+    "easel_images.h",
+  ]
+  public_deps = [ "//base" ]
+  deps = [
+    ":store",
+    "//services/data_decoder/public/cpp",
+    "//services/data_decoder/public/mojom",
+    "//skia",
+    "//ui/gfx",
+    "//ui/gfx/codec",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "easel_images_unittest.cc",
+    "easel_store_unittest.cc",
+  ]
+  deps = [
+    ":images",
+    ":store",
+    "//base",
+    "//base/test:test_support",
+    "//components/sync/protocol",
+    "//skia",
+    "//testing/gtest",
+  ]
+}

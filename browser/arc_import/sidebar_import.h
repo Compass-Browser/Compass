@@ -54,8 +54,10 @@ std::vector<SpaceModel*> AddArcSidebar(SpaceList& list,
 // Adds |items| at the end of |parent|, a node of |model| (one of |list|'s
 // spaces or its favorites), as AddArcSidebar() adds a space's: folders,
 // splits and tabs with derived IDs (ArcDerivedId() of Item::id) where free.
-// |last_active| overrides the tabs' own last active times. For other
-// browsers' imports too (docs/design/browser-import.md).
+// |last_active| overrides the tabs' own last active times. An easel becomes
+// a tab of its board (ArcEaselUuid()); the board itself is written by the
+// importer (arc_easels.h). For other browsers' imports too
+// (docs/design/browser-import.md).
 void AddItems(SpaceList& list,
               SpaceModel& model,
               SidebarNode* parent,
@@ -66,6 +68,14 @@ void AddItems(SpaceList& list,
 // (version 8, RFC 9562) from SHA-256 of Arc's ID. Invalid (empty) for an
 // empty |arc_id|.
 base::Uuid ArcDerivedId(std::string_view arc_id);
+
+// The Compass board (CompassEasel.uuid) an Arc easel with |easel_id| becomes:
+// ArcDerivedId() of its Firestore path ("easels/<id>"), so importing again
+// or on another Mac finds the same board. Its objects' are derived from
+// theirs ("easels/<id>/objects/<object id>").
+base::Uuid ArcEaselUuid(std::string_view easel_id);
+base::Uuid ArcEaselObjectUuid(std::string_view easel_id,
+                              std::string_view object_id);
 
 }  // namespace compass::arc
 

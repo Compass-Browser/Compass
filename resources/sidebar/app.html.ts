@@ -75,6 +75,14 @@ export function getHtml(this: CompassSidebarAppElement) {
                        M8.7 6.6 7.2 9h1.8l-1.5 2.4"></path>
             </svg>
           </button>
+          <button id="newEasel" class="new-folder"
+              aria-label="New Easel" title="New Easel"
+              @click="${this.onNewEaselClick_}">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="2.5" y="2.5" width="11" height="7.5" rx="1"></rect>
+              <path d="M5.5 10 3.8 14M10.5 10l1.7 4M8 10v3.5M8 1v1.5"></path>
+            </svg>
+          </button>
           <button id="newFolder" class="new-folder" data-section="pinned"
               aria-label="New folder" title="New folder"
               @click="${this.onNewFolderClick_}">

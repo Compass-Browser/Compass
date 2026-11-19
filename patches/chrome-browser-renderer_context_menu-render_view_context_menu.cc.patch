@@ -1,0 +1,45 @@
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+index cd1fc2e4db79b41e843f4f30a8a6814210dc5a88..3ca405664fa0c054ad198f0f1c4685384794d9cf 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/renderer_context_menu/render_view_context_menu.h"
+ 
++#include "compass/browser/ui/easels/easel_context_menu.h"
++
+ #include <stddef.h>
+ 
+ #include <algorithm>
+@@ -1316,6 +1318,9 @@ void RenderViewContextMenu::InitMenu() {
+                                       params_.selection_text.empty() &&
+                                       !params_.is_editable;
+     AppendPageItems();
++    // Compass: Capture to Easel (docs/design/easels.md).
++    compass::easels::AppendPageContextMenuItems(source_web_contents_,
++                                                &menu_model_);
+   }
+ 
+   if (content_type_->SupportsGroup(ContextMenuContentType::ITEM_GROUP_LINK)) {
+@@ -3426,6 +3431,9 @@ void RenderViewContextMenu::AppendLiveCaptionItem() {
+ // Menu delegate functions -----------------------------------------------------
+ 
+ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
++  if (compass::easels::IsCompassContextMenuCommand(id)) {
++    return true;
++  }
+ #if BUILDFLAG(IS_CHROMEOS)
+   // Disable context menu in locked fullscreen mode to prevent users from
+   // exiting this mode (the menu is not really disabled as the user can still
+@@ -3861,6 +3869,11 @@ void RenderViewContextMenu::OpenURLWithExtraHeaders(
+ }
+ 
+ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
++  // Compass: before upstream's, which takes an unknown ID for a bug.
++  if (compass::easels::ExecuteCompassContextMenuCommand(source_web_contents_,
++                                                        id)) {
++    return;
++  }
+   RenderViewContextMenuBase::ExecuteCommand(id, event_flags);
+   if (command_executed_) {
+     return;

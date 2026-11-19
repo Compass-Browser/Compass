@@ -30,10 +30,12 @@
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_paths_internal.h"
 #include "compass/browser/arc_import/arc_crypto.h"
+#include "compass/browser/arc_import/arc_easels.h"
 #include "compass/browser/arc_import/sidebar_import.h"
 #include "compass/browser/browser_import/chromium_crypto.h"
 #include "compass/browser/browser_import/detect.h"
 #include "compass/browser/prefs/compass_prefs.h"
+#include "compass/browser/ui/arc_import/arc_easel_import.h"
 #include "compass/browser/ui/webui/settings/settings_sections.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
@@ -182,6 +184,10 @@ struct Job {
   // The Compass profile it was imported as before; empty: a new one.
   base::FilePath existing;
   std::vector<Space> spaces;
+  // The boards |spaces| point at.
+  std::vector<ArcEaselRef> easels;
+  // Only |easels|, into |existing| (ImportArcEaselsAgain()).
+  bool easels_only = false;
 };
 
 // What |choice| brings in from |sidebar|, given what's |imported| already.
@@ -213,6 +219,7 @@ std::vector<Job> PlanImport(const Sidebar& sidebar,
                !std::ranges::contains(*choice.profiles, arc_profile.dir)) {
       continue;
     }
+    job.easels = EaselsIn(job.spaces);
     jobs.push_back(std::move(job));
   }
   return jobs;
@@ -223,8 +230,11 @@ std::vector<Job> PlanImport(const Sidebar& sidebar,
 class WholeImport {
  public:
   WholeImport(std::vector<Job> jobs,
+              scoped_refptr<SharedArcEasels> easels,
               base::OnceCallback<void(ArcImportResult)> callback)
-      : jobs_(std::move(jobs)), callback_(std::move(callback)) {
+      : jobs_(std::move(jobs)),
+        easels_(std::move(easels)),
+        callback_(std::move(callback)) {
     result_.ok = true;
   }
 
@@ -264,6 +274,12 @@ class WholeImport {
       Next();
       return;
     }
+    if (job.easels_only) {
+      ImportEasels(profile->GetWeakPtr(),
+                   base::BindOnce(&WholeImport::OnCommitted,
+                                  weak_factory_.GetWeakPtr()));
+      return;
+    }
     (job.existing.empty() ? result_.profiles : result_.updated)
         .push_back(profile);
     SpaceService* service = SpaceService::Get(profile);
@@ -300,8 +316,36 @@ class WholeImport {
     if (SpaceDirectory* directory = SpaceDirectory::Get()) {
       directory->List(profile.get());
     }
+    // The boards its easel tabs open.
+    ImportEasels(profile, base::BindOnce(&WholeImport::Commit,
+                                         weak_factory_.GetWeakPtr(), profile));
+  }
+
+  void ImportEasels(base::WeakPtr<::Profile> profile, base::OnceClosure then) {
+    const Job& job = jobs_[next_];
+    if (!profile || job.easels.empty()) {
+      std::move(then).Run();
+      return;
+    }
+    ImportArcEasels(profile.get(), job.easels, easels_,
+                    base::BindOnce(&WholeImport::OnEaselsImported,
+                                   weak_factory_.GetWeakPtr(),
+                                   std::move(then)));
+  }
+
+  void OnEaselsImported(base::OnceClosure then, ArcEaselImportCounts counts) {
+    result_.easels += counts.imported;
+    result_.easels_missing += counts.missing;
+    std::move(then).Run();
+  }
+
+  void Commit(base::WeakPtr<::Profile> profile) {
+    if (!profile) {
+      OnCommitted();
+      return;
+    }
     // On disk before the page asks what was imported.
-    pref_service->CommitPendingWrite(base::BindOnce(
+    profile->GetPrefs()->CommitPendingWrite(base::BindOnce(
         &WholeImport::OnCommitted, weak_factory_.GetWeakPtr()));
   }
 
@@ -311,6 +355,8 @@ class WholeImport {
   }
 
   std::vector<Job> jobs_;
+  // Arc's boards, when a job has any.
+  const scoped_refptr<SharedArcEasels> easels_;
   base::OnceCallback<void(ArcImportResult)> callback_;
   ArcImportResult result_;
   size_t next_ = 0;
@@ -366,6 +412,33 @@ ArcOverview DropDeleted(ArcOverview overview) {
   return overview;
 }
 
+// Arc's boards, from its Firestore cache. Blocking.
+scoped_refptr<SharedArcEasels> ReadEasels() {
+  auto easels = base::MakeRefCounted<SharedArcEasels>();
+  easels->data = ReadArcEasels(GetArcPaths().easels);
+  return easels;
+}
+
+// Runs |jobs|, after reading Arc's boards if any job has some.
+void StartImport(std::vector<Job> jobs,
+                 base::OnceCallback<void(ArcImportResult)> callback) {
+  auto start = [](std::vector<Job> jobs,
+                  base::OnceCallback<void(ArcImportResult)> callback,
+                  scoped_refptr<SharedArcEasels> easels) {
+    (new WholeImport(std::move(jobs), std::move(easels), std::move(callback)))
+        ->Next();
+  };
+  if (std::ranges::none_of(
+          jobs, [](const Job& job) { return !job.easels.empty(); })) {
+    start(std::move(jobs), std::move(callback), nullptr);
+    return;
+  }
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&ReadEasels),
+      base::BindOnce(start, std::move(jobs), std::move(callback)));
+}
+
 void OnOverviewForImport(ArcImportChoice choice,
                          base::OnceCallback<void(ArcImportResult)> callback,
                          ArcOverview overview) {
@@ -374,9 +447,36 @@ void OnOverviewForImport(ArcImportChoice choice,
     std::move(callback).Run(ArcImportResult());
     return;
   }
-  (new WholeImport(PlanImport(*overview.sidebar, overview.imported, choice),
-                   std::move(callback)))
-      ->Next();
+  StartImport(PlanImport(*overview.sidebar, overview.imported, choice),
+              std::move(callback));
+}
+
+// The boards of the Arc spaces each imported profile has.
+void OnOverviewForEasels(base::OnceCallback<void(ArcImportResult)> callback,
+                         ArcOverview overview) {
+  overview = DropDeleted(std::move(overview));
+  if (!overview.sidebar) {
+    std::move(callback).Run(ArcImportResult());
+    return;
+  }
+  std::vector<Job> jobs;
+  for (const auto& [dir, imported] : overview.imported) {
+    std::vector<Space> spaces;
+    for (const Space& space : overview.sidebar->spaces) {
+      if (space.profile_dir == dir && imported.spaces.contains(space.id)) {
+        spaces.push_back(space);
+      }
+    }
+    Job job;
+    job.arc.dir = dir;
+    job.existing = imported.path;
+    job.easels = EaselsIn(spaces);
+    job.easels_only = true;
+    if (!job.easels.empty()) {
+      jobs.push_back(std::move(job));
+    }
+  }
+  StartImport(std::move(jobs), std::move(callback));
 }
 
 void ReadOverviewThen(base::OnceCallback<void(ArcOverview)> callback) {
@@ -412,6 +512,12 @@ void ImportFromArc(ArcImportChoice choice,
                    base::OnceCallback<void(ArcImportResult)> callback) {
   ReadOverviewThen(base::BindOnce(&OnOverviewForImport, std::move(choice),
                                   std::move(callback)));
+}
+
+void ImportArcEaselsAgain(
+    base::OnceCallback<void(ArcImportResult)> callback) {
+  ReadOverviewThen(
+      base::BindOnce(&OnOverviewForEasels, std::move(callback)));
 }
 
 ArcImportChoice::ArcImportChoice() = default;

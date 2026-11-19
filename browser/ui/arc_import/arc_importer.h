@@ -79,6 +79,11 @@ struct ArcImportResult {
   // Cookies and passwords that couldn't come along: cookies Arc's key didn't
   // decrypt, and values with an app-bound key (CopyResult).
   int undecryptable = 0;
+  // Arc's Easels in the imported spaces: boards brought over with their
+  // objects, and boards Arc never downloaded to this Mac, which came over
+  // empty (docs/design/easels.md, "Arc's Easels"; ImportArcEaselsAgain()).
+  int easels = 0;
+  int easels_missing = 0;
   // The first space imported, to show it.
   base::Uuid first_space;
 };
@@ -102,13 +107,21 @@ struct ArcImportChoice {
 };
 
 // Imports from Arc: each chosen profile (ImportArcProfile()), then its
-// spaces, Pinned and Today entries and favorites (AddArcSidebar()), and
-// Arc's newer spaces of profiles imported before. Lists each profile so its
+// spaces, Pinned and Today entries and favorites (AddArcSidebar()), the
+// Easels they point at (ImportArcEasels()), and Arc's newer spaces of
+// profiles imported before. Lists each profile so its
 // spaces show in the switcher, and records the spaces it brought in
 // (prefs::kArcImportSpaces). Profiles one after another. Arc must not be
 // running. On the UI thread.
 void ImportFromArc(ArcImportChoice choice,
                    base::OnceCallback<void(ArcImportResult)> callback);
+
+// Fills the boards of Arc spaces imported before that came over empty
+// (Arc hadn't downloaded them: they're downloaded when opened in Arc), in
+// every Compass profile imported from Arc. Boards that have objects are
+// left as they are. The result has only |ok|, |easels| and
+// |easels_missing|. Arc must not be running. On the UI thread.
+void ImportArcEaselsAgain(base::OnceCallback<void(ArcImportResult)> callback);
 
 // A Compass profile imported from Arc.
 struct ImportedProfile {

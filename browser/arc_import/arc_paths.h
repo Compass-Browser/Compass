@@ -23,6 +23,9 @@ struct ArcPaths {
   base::FilePath sidebar;
   // StorableArchiveItems.json.
   base::FilePath archive;
+  // Arc's Firestore cache, a LevelDB with its Easels (arc_easels.h); macOS
+  // only, empty elsewhere.
+  base::FilePath easels;
 };
 
 // Arc's folders and files under |arc|, the folder that holds its User Data

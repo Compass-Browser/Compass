@@ -23,6 +23,8 @@ action("space_icons_ts") {
 # same way upstream does for //chrome/browser/ui/webui/tab_search.
 source_set("ui") {
   sources = [
+    "arc_import/arc_easel_import.cc",
+    "arc_import/arc_easel_import.h",
     "arc_import/arc_importer.cc",
     "arc_import/arc_importer.h",
     "browser_import/browser_importer.cc",
@@ -127,6 +129,9 @@ source_set("ui") {
     "//compass/browser/sync",
     "//compass/browser/ui/webui/command_bar:mojo_bindings",
     "//compass/browser/ui/webui/claude:mojo_bindings",
+
+    # chrome://easel, which the registry adds (webui/compass_web_ui_registry.cc).
+    "//compass/browser/ui/webui/easel",
     "//compass/browser/ui/webui/find_bar:mojo_bindings",
     "//compass/browser/ui/webui/live_folders:mojo_bindings",
     "//compass/browser/ui/webui/settings:sections",
@@ -145,10 +150,21 @@ source_set("ui") {
     "//chrome/browser/first_run",
     "//chrome/browser/importer",
     "//compass/browser/arc_import",
+
+    # Arc's Easels (arc_easel_import.cc): the store, images, downloads.
+    "//compass/browser/easels:images",
+    "//compass/browser/easels:store",
+    "//net",
+    "//net/traffic_annotation",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
     "//compass/browser/boosts",
     "//compass/browser/boosts:share",
     "//compass/browser/browser_import",
     "//compass/browser/claude",
+    "//compass/browser/easels:store",
+    "//compass/browser/ui/easels:capture",
+    "//compass/browser/ui/easels:refresh",
     "//components/history/core/browser",
     "//components/password_manager/core/browser:password_form",
     "//compass/browser/live_folders",
@@ -252,8 +268,6 @@ source_set("ui") {
     deps += [
       "//components/constrained_window",
       "//components/keyed_service/core",
-      "//net",
-      "//net/traffic_annotation",
     ]
     if (is_win) {
       sources += [ "claude/mcp_listener_win.cc" ]

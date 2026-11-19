@@ -1,8 +1,8 @@
 diff --git a/tools/gritsettings/resource_ids.spec b/tools/gritsettings/resource_ids.spec
-index 52b97ceee9ec8e0542a4b1612f6b1351f0463280..ffe7d6a70dbc03405bec04858d6e2ff9e8de365a 100644
+index 52b97ceee9ec8e0542a4b1612f6b1351f0463280..2936e0179ff7abd05671017fd431bdfbb7599b1b 100644
 --- a/tools/gritsettings/resource_ids.spec
 +++ b/tools/gritsettings/resource_ids.spec
-@@ -1796,6 +1796,12 @@
+@@ -1796,6 +1796,16 @@
      "includes": [12000],
    },
  
@@ -10,6 +10,10 @@ index 52b97ceee9ec8e0542a4b1612f6b1351f0463280..ffe7d6a70dbc03405bec04858d6e2ff9
 +  "<(SHARED_INTERMEDIATE_DIR)/compass/resources/sidebar/resources.grd": {
 +    "META": {"sizes": {"includes": [200]}},
 +    "includes": [12820],
++  },
++  "<(SHARED_INTERMEDIATE_DIR)/compass/resources/easel/resources.grd": {
++    "META": {"sizes": {"includes": [50]}},
++    "includes": [13040],
 +  },
 +
    # END "everything else" section.

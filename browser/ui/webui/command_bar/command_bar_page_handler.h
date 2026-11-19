@@ -70,6 +70,12 @@ enum class CommandBarCommand {
   // (docs/design/ai-sidebar.md, "Tidy Today"): only while "Tidy Today" is on
   // and Today has 5 loose entries or more.
   kTidyToday,
+  // Makes a board with its tab pinned in the space (docs/design/easels.md,
+  // "In the sidebar"): never off the record.
+  kNewEasel,
+  // Puts Capture to Easel's overlay on the active tab's page
+  // (docs/design/easels.md, "Captures"): a web page, never off the record.
+  kCaptureToEasel,
   // Enters Reader in the active tab, an article, or leaves it
   // (docs/design/reader-mode.md).
   kReaderMode,

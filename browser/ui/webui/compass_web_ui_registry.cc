@@ -14,6 +14,8 @@
 #include "compass/browser/ui/webui/claude/claude_chat_ui.h"
 #include "compass/browser/ui/webui/command_bar/command_bar.mojom.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_ui.h"
+#include "compass/browser/ui/webui/easel/easel.mojom.h"
+#include "compass/browser/ui/webui/easel/easel_ui.h"
 #include "compass/browser/ui/webui/empty/compass_empty_ui.h"
 #include "compass/browser/ui/webui/find_bar/find_bar.mojom.h"
 #include "compass/browser/ui/webui/find_bar/find_bar_ui.h"
@@ -40,6 +42,9 @@ void RegisterWebUIConfigs(content::WebUIConfigMap& map) {
   map.AddWebUIConfig(std::make_unique<CompassArcImportUIConfig>());
   map.AddWebUIConfig(std::make_unique<CompassSyncUIConfig>());
   map.AddWebUIConfig(std::make_unique<CompassSettingsUIConfig>());
+  // Easels (docs/design/easels.md); Android registers it too
+  // (browser/android/android_web_ui_configs.cc).
+  map.AddWebUIConfig(std::make_unique<easel::EaselUIConfig>());
   // Runs live folder plugins (docs/design/live-folders.md, "Runtime").
   map.AddUntrustedWebUIConfig(
       std::make_unique<LiveFoldersUntrustedUIConfig>());
@@ -71,6 +76,8 @@ void PopulateWebUIInterfaceBrokers(
       .Add<sync::mojom::PageHandlerFactory>();
   registry.ForWebUI<CompassSettingsUI>()
       .Add<sidebar::mojom::SettingsHandler>();
+  registry.ForWebUI<easel::EaselUI>()
+      .Add<easel::mojom::PageHandlerFactory>();
 
   // Upstream fills the untrusted registry elsewhere; this is called once,
   // as the trusted one is filled.

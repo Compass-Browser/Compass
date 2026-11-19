@@ -48,7 +48,9 @@
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/sidebar_node.h"
+#include "compass/browser/easels/easel_store.h"
 #include "compass/browser/ui/claude/today_tidier.h"
+#include "compass/browser/ui/easels/easel_capture.h"
 #include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/views/reader/reader_mode.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -104,6 +106,9 @@ constexpr CommandInfo kCommands[] = {
     {CommandBarCommand::kKeyboardShortcuts, u"Keyboard shortcuts",
      "keyboard"},
     {CommandBarCommand::kTidyToday, u"Tidy Today", "tidy"},
+    {CommandBarCommand::kNewEasel, u"New Easel", "easel"},
+    {CommandBarCommand::kCaptureToEasel, u"Capture to Easel\u2026",
+     "capture"},
     {CommandBarCommand::kReaderMode, u"Reader Mode", "reader"},
     {CommandBarCommand::kLeaveReaderMode, u"Leave Reader Mode", "reader"},
 };
@@ -919,6 +924,14 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
     case CommandBarCommand::kTidyToday:
       TodayTidier::Get(browser_->GetProfile())->Tidy(features->space_model());
       break;
+    case CommandBarCommand::kNewEasel:
+      easels::NewEaselInWindow(browser_);
+      break;
+    case CommandBarCommand::kCaptureToEasel:
+      // The bar closes after this; the overlay takes the page's keys.
+      easels::StartCaptureToEasel(
+          browser_->GetActiveTabInterface()->GetContents());
+      break;
     case CommandBarCommand::kReaderMode:
     case CommandBarCommand::kLeaveReaderMode:
       if (ReaderMode* reader_mode = ReaderMode::From(browser_)) {
@@ -986,6 +999,14 @@ bool CommandBarPageHandler::IsCommandAvailable(
       }
       TodayTidier* tidier = TodayTidier::Get(browser_->GetProfile());
       return tidier && tidier->CanTidy(features->space_model());
+    }
+    case CommandBarCommand::kNewEasel:
+      // Boards are the profile's: never off the record.
+      return features && !features->is_parking_window() &&
+             easels::EaselStore::Get(browser_->GetProfile());
+    case CommandBarCommand::kCaptureToEasel: {
+      tabs::TabInterface* tab = browser_->GetActiveTabInterface();
+      return tab && easels::CanCaptureToEasel(tab->GetContents());
     }
     case CommandBarCommand::kReaderMode: {
       ReaderMode* reader_mode = ReaderMode::From(browser_);

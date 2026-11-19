@@ -24,6 +24,11 @@ TEST(ArcPathsTest, Mac) {
   EXPECT_EQ(paths.cache, library.AppendASCII("Caches")
                              .AppendASCII("Arc")
                              .AppendASCII("User Data"));
+  EXPECT_EQ(paths.easels, library.AppendASCII("Application Support")
+                              .AppendASCII("firestore")
+                              .AppendASCII("Arc")
+                              .AppendASCII("bcny-arc-server")
+                              .AppendASCII("main"));
 }
 
 class WindowsArcPathsTest : public testing::Test {

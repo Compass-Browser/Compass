@@ -81,6 +81,23 @@ struct PageMenu: View {
           }
           .accessibilityIdentifier("MenuBoosts")
         }
+        if let tab, capturable(tab, view) {
+          Row(
+            title: "Capture to Easel", subtitle: "Drag over part of the page, then pick a board",
+            trailing: "chevron.right",
+            action: {
+              dismiss()
+              // Once the menu is gone, over the page.
+              Task {
+                try? await Task.sleep(for: .milliseconds(450))
+                app.easelCaptureTab = tab.id
+              }
+            }
+          ) {
+            Image(systemName: "rectangle.on.rectangle.angled").menuIcon(.orange)
+          }
+          .accessibilityIdentifier("MenuCaptureToEasel")
+        }
         Row(title: "Settings", subtitle: "Sync, passwords, search engine", trailing: "chevron.right",
             action: {
               dismiss()
@@ -100,7 +117,11 @@ struct PageMenu: View {
     .frame(maxHeight: .infinity, alignment: .top)
     .background(SpaceTint(theme: app.selectedSpace?.theme ?? .blue))
     .spaceAppearance(app.selectedSpace?.theme)
-    .presentationDetents([.height(404 + extensionsHeight(tab, view) + (boostablePage(tab, view) == nil ? 0 : 56))])
+    .presentationDetents([
+      .height(
+        404 + extensionsHeight(tab, view) + (boostablePage(tab, view) == nil ? 0 : 56)
+          + (tab.map { capturable($0, view) } == true ? 56 : 0))
+    ])
     .presentationDragIndicator(.visible)
     .sheet(isPresented: Binding(get: { app.showingSiteSettings }, set: { app.showingSiteSettings = $0 })) {
       SiteSettingsView(site: site)
@@ -125,6 +146,13 @@ struct PageMenu: View {
       let url = view?.url ?? URL(string: tab.url), BoostMatch.suggested(for: url) != nil
     else { return nil }
     return url
+  }
+
+  /// Capture to Easel: a loaded web page, not in Incognito (Easels are the
+  /// home profile's).
+  private func capturable(_ tab: SidebarNode, _ view: WKWebView?) -> Bool {
+    guard let url = view?.url, !app.tabs.isIncognito(tab.id) else { return false }
+    return ["http", "https"].contains(url.scheme?.lowercased() ?? "")
   }
 
   private func extensionsHeight(_ tab: SidebarNode?, _ view: WKWebView?) -> CGFloat {

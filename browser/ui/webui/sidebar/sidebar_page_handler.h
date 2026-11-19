@@ -164,6 +164,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void AddFolder(const std::string& parent_id,
                  uint32_t index,
                  const std::string& title) override;
+  void NewEasel() override;
   void RenameFolder(const std::string& id, const std::string& title) override;
   void RenameTab(const std::string& id, const std::string& title) override;
   void SplitNode(const std::string& id,

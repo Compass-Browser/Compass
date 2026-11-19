@@ -12,6 +12,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "compass/browser/prefs/copy_link.h"
+#include "compass/browser/ui/easels/easel_capture.h"
 #include "compass/browser/ui/live_folders/live_plugin_registry.h"
 #include "base/check_op.h"
 #include "base/containers/fixed_flat_map.h"
@@ -602,6 +603,10 @@ void SidebarPageHandler::AddFolder(const std::string& parent_id,
     return;
   }
   space_model().AddFolder(parent, index, base::UTF8ToUTF16(title));
+}
+
+void SidebarPageHandler::NewEasel() {
+  easels::NewEaselInWindow(browser_);
 }
 
 void SidebarPageHandler::RenameFolder(const std::string& id,

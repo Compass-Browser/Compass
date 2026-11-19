@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import CompassClaude
+import CompassEasels
 import CompassModel
 import CompassSync
 import SwiftUI
@@ -109,6 +110,7 @@ struct NewTabMenu: View {
   var body: some View {
     Button("New Tab", systemImage: "plus") { app.openCommandBar(newTab: true) }
     Button("New Incognito Tab", systemImage: "eyeglasses") { app.openIncognitoTab() }
+    Button("New Easel", systemImage: "rectangle.on.rectangle.angled") { app.newEasel() }
   }
 }
 
@@ -676,6 +678,12 @@ struct NodeRow: View {
   /// The row's title: the user's name for it, else Claude's short title
   /// ("Shorter Tab Titles"), else the page's.
   private func title(_ item: SidebarNode) -> String {
+    // A board's tab: the board's title, unless the user named the tab.
+    if item.isTab, item.customTitle.isEmpty, let board = EaselURL.uuid(from: item.url),
+      let title = EaselStore.shared.easel(board)?.title, !title.isEmpty
+    {
+      return title
+    }
     if item.isTab, let short = app.shortener.shortTitle(for: item) { return short }
     return item.displayTitle.isEmpty ? "Untitled" : item.displayTitle
   }

@@ -30,6 +30,10 @@ namespace compass {
 
 class SidebarStore;
 
+namespace easels {
+class EaselTitleFollower;
+}  // namespace easels
+
 // For end-to-end runs (tools/sync_e2e/README.md): with
 // --compass-archive-hour-seconds=N, an "hour" of a space's archive delay, as
 // the sidebar's menu sets it, is N seconds, and the archiver runs every N
@@ -167,6 +171,11 @@ class SpaceService : public base::SupportsUserData::Data,
 
   // Observes the spaces too.
   std::unique_ptr<Attachment> sync_attachment_;
+
+  // Keeps the saved titles of boards' tabs as the boards'
+  // (docs/design/easels.md, "In the sidebar"). From the load on; none off
+  // the record.
+  std::unique_ptr<easels::EaselTitleFollower> easel_titles_;
 
   // The spaces and the favorites (see OnNodeWillBeRemoved()).
   base::ScopedMultiSourceObservation<SpaceModel, SpaceModel::Observer>

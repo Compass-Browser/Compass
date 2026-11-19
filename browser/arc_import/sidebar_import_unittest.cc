@@ -5,6 +5,7 @@
 #include "compass/browser/arc_import/sidebar_import.h"
 
 #include "base/uuid.h"
+#include "compass/browser/easels/easel_store.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -173,6 +174,68 @@ TEST_F(SidebarImportTest, FavoritesAreTabsOnly) {
   ASSERT_EQ(favorites->children().size(), 2u);
   EXPECT_EQ(favorites->children()[0]->title(), u"Mail");
   EXPECT_EQ(favorites->children()[1]->url(), GURL("https://cal.test/"));
+}
+
+Item Easel(std::string id,
+           std::string easel_id,
+           std::u16string title,
+           std::u16string own_title = u"") {
+  Item item;
+  item.kind = Item::Kind::kEasel;
+  item.id = std::move(id);
+  item.easel_id = std::move(easel_id);
+  item.saved_title = std::move(title);
+  item.title = std::move(own_title);
+  item.last_active = base::Time::FromSecondsSinceUnixEpoch(2000);
+  return item;
+}
+
+// An easel is a tab of its board, whose ID is derived from Arc's, titled as
+// the board.
+TEST_F(SidebarImportTest, EaselsAreTabsOfTheirBoards) {
+  spaces_[0].pinned.push_back(Easel("item-1", "E-1", u"Plans"));
+  spaces_[0].pinned[0].children.push_back(
+      Easel("item-2", "E-2", u"", u"Mine"));
+  spaces_[1].today.push_back(Easel("item-3", "E-1", u"Plans"));
+  AddArcSidebar(list_, profile_, spaces_, kNow);
+
+  const SidebarNode* pinned = list_.spaces()[0]->pinned_root();
+  ASSERT_EQ(pinned->children().size(), 2u);
+  const SidebarNode* easel = pinned->children()[1].get();
+  EXPECT_EQ(easel->type(), SidebarNode::Type::kTab);
+  EXPECT_EQ(easel->id(), ArcDerivedId("item-1"));
+  EXPECT_EQ(easel->url(),
+            GURL(easels::EaselUrl(ArcEaselUuid("E-1").AsLowercaseString())));
+  EXPECT_EQ(easels::EaselUuidFromUrl(easel->url().spec()),
+            ArcEaselUuid("E-1").AsLowercaseString());
+  EXPECT_EQ(easel->title(), u"Plans");
+  EXPECT_EQ(easel->last_active(),
+            base::Time::FromSecondsSinceUnixEpoch(2000));
+
+  // In a folder, with the user's own title; no board title: "Easel".
+  const SidebarNode* folder = pinned->children()[0].get();
+  ASSERT_EQ(folder->children().size(), 3u);
+  const SidebarNode* mine = folder->children()[2].get();
+  EXPECT_EQ(mine->title(), u"Easel");
+  EXPECT_EQ(mine->custom_title(), u"Mine");
+
+  // The same board in two places: two tabs, one board.
+  const SidebarNode* other =
+      list_.spaces()[1]->today_root()->children()[1].get();
+  EXPECT_EQ(other->url(), easel->url());
+  EXPECT_NE(other->id(), easel->id());
+  EXPECT_EQ(other->last_active(), kNow);
+}
+
+TEST(SidebarImportIdsTest, EaselIdsComeFromArcsPaths) {
+  EXPECT_EQ(ArcEaselUuid("E-1"), ArcDerivedId("easels/E-1"));
+  EXPECT_NE(ArcEaselUuid("E-1"), ArcDerivedId("E-1"));
+  EXPECT_EQ(ArcEaselObjectUuid("E-1", "O-1"),
+            ArcDerivedId("easels/E-1/objects/O-1"));
+  EXPECT_NE(ArcEaselObjectUuid("E-1", "O-1"),
+            ArcEaselObjectUuid("E-2", "O-1"));
+  EXPECT_FALSE(ArcEaselUuid("").is_valid());
+  EXPECT_FALSE(ArcEaselObjectUuid("E-1", "").is_valid());
 }
 
 Item WithId(Item item, std::string id) {

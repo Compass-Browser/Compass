@@ -58,6 +58,7 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
 
     this.$('import').addEventListener('click', () => this.import_());
     this.$('open').addEventListener('click', () => this.handler_.openImported());
+    this.$('importEasels').addEventListener('click', () => this.importEasels_());
 
     this.$('importBrowsers')
         .addEventListener('click', () => this.importBrowsers_());
@@ -388,7 +389,7 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     }
     this.show('chooser', false);
     this.show('importing', true);
-    const {imported, updated, failed, undecryptable} =
+    const {imported, updated, failed, undecryptable, easels, easelsMissing} =
         await this.handler_.import(profiles, spaces);
     this.show('importing', false);
     this.show('done', true);
@@ -398,6 +399,9 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     }
     if (updated.length) {
       sentences.push(`Added new spaces to ${updated.join(', ')}.`);
+    }
+    if (easels) {
+      sentences.push(`Brought over ${plural(easels, 'Easel', 'Easels')}.`);
     }
     if (undecryptable) {
       sentences.push(`${
@@ -417,6 +421,50 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
                        '. Check that Arc is closed, then try again.') :
         '';
     this.show('open', imported.length > 0 || updated.length > 0);
+    this.showMissingEasels_(easelsMissing);
+  }
+
+  // Easels Arc never downloaded to this Mac came over empty: Arc downloads
+  // a board when it's opened.
+  private showMissingEasels_(missing: number) {
+    this.show('easelsText', missing > 0);
+    this.show('importEasels', missing > 0);
+    this.$('easelsText').textContent = missing ?
+        `${plural(missing, 'Easel', 'Easels')} came over empty: Arc ` +
+            'hasn\'t downloaded ' + (missing === 1 ? 'it' : 'them') +
+            ' to this Mac. Open ' + (missing === 1 ? 'it' : 'them') +
+            ' in Arc, then import again.' :
+        '';
+  }
+
+  private async importEasels_() {
+    const button = this.$<HTMLButtonElement>('importEasels');
+    button.disabled = true;
+    // Arc writes its cache while it runs.
+    const {quit} = await this.handler_.quitArc();
+    if (!quit) {
+      button.disabled = false;
+      this.$('easelsText').textContent =
+          'Quit Arc, then choose Import Easels Again.';
+      return;
+    }
+    const {arcRunning, easels, easelsMissing} =
+        await this.handler_.importEasels();
+    button.disabled = false;
+    if (arcRunning) {
+      this.$('easelsText').textContent =
+          'Quit Arc, then choose Import Easels Again.';
+      return;
+    }
+    this.showMissingEasels_(easelsMissing);
+    if (easels) {
+      const done = this.$('doneText');
+      done.textContent = `${done.textContent ?? ''} Brought over ${
+          plural(easels, 'Easel', 'Easels')}.`;
+    } else if (!easelsMissing) {
+      this.$('easelsText').textContent = 'Nothing new to bring over.';
+      this.show('easelsText', true);
+    }
   }
 }
 

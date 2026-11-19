@@ -248,7 +248,8 @@ TEST_F(CommandBarPageHandlerTest, EmptyNewEntryQueryShowsRecentEntries) {
                           "command Downloads", "command Extensions",
                           "command Settings",
                           "command Import from Another Browser",
-                          "command Keyboard shortcuts"));
+                          "command Keyboard shortcuts", "command New Easel",
+                          "command Capture to Easel\u2026"));
 }
 
 // Each command has a symbol of its own (command_icons.ts); other rows
@@ -278,6 +279,8 @@ TEST_F(CommandBarPageHandlerTest, CommandsHaveSymbols) {
   EXPECT_EQ(symbols["Import from Another Browser"], "import");
   EXPECT_EQ(symbols["Keyboard shortcuts"], "keyboard");
   EXPECT_EQ(symbols["Route this site to space\u2026"], "alt_route");
+  EXPECT_EQ(symbols["New Easel"], "easel");
+  EXPECT_EQ(symbols["Capture to Easel\u2026"], "capture");
   EXPECT_EQ(symbols["Chat with Claude"], "chat");
   // No two commands share one.
   std::set<std::string> distinct;
@@ -331,9 +334,11 @@ TEST_F(CommandBarPageHandlerTest, MatchesEntriesSpacesAndCommands) {
 
   OpenAndQuery(Mode::kNewEntry, "re");
 
-  // Entries come before spaces, spaces before commands.
+  // Entries come before spaces, spaces before commands ("re" is in
+  // "Capture" too).
   EXPECT_THAT(page_.LocalResults(),
-              ElementsAre("space Reading", "command Reload"));
+              ElementsAre("space Reading", "command Reload",
+                          "command Capture to Easel\u2026"));
 
   handler_remote_->Query("a.test", false);
   Settle();

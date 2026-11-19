@@ -66,6 +66,7 @@ class ArcImportPageHandler : public sidebar::mojom::ArcImportHandler {
   void Import(const std::vector<std::string>& profiles,
               const std::vector<std::string>& spaces,
               ImportCallback callback) override;
+  void ImportEasels(ImportEaselsCallback callback) override;
   void OpenImported() override;
   void GetBrowsers(GetBrowsersCallback callback) override;
   void ImportBrowsers(
@@ -76,6 +77,8 @@ class ArcImportPageHandler : public sidebar::mojom::ArcImportHandler {
   void OnOverview(GetStateCallback callback, arc::ArcOverview overview);
   void CheckArcQuit(QuitArcCallback callback, int attempts_left);
   void OnImported(ImportCallback callback, arc::ArcImportResult result);
+  void OnEaselsImported(ImportEaselsCallback callback,
+                        arc::ArcImportResult result);
   void OnBrowsers(GetBrowsersCallback callback,
                   std::vector<browser_import::ProfileOverview> profiles);
   void OnBrowsersImported(ImportBrowsersCallback callback,

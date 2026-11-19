@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/renderer_context_menu/BUILD.gn b/chrome/browser/renderer_context_menu/BUILD.gn
+index 710da547b7e7d47f725beb60912a63e3bae34b73..aa26de262d482b6083f6480ee51901cadfd5773a 100644
+--- a/chrome/browser/renderer_context_menu/BUILD.gn
++++ b/chrome/browser/renderer_context_menu/BUILD.gn
+@@ -113,6 +113,8 @@ source_set("impl") {
+     ]
+ 
+     deps += [
++      # Compass's items (Capture to Easel).
++      "//compass/browser/ui/easels:context_menu_hooks",
+       "//chrome/app:command_ids",
+       "//chrome/app:generated_resources",
+       "//chrome/browser:browser_features",

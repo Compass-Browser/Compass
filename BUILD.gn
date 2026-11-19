@@ -15,6 +15,7 @@ test("compass_unittests") {
     "//compass/browser/boosts:unit_tests",
     "//compass/browser/browser_import:unit_tests",
     "//compass/browser/claude:unit_tests",
+    "//compass/browser/easels:unit_tests",
     "//compass/browser/extensions:unit_tests",
     "//compass/browser/live_folders:unit_tests",
     "//compass/browser/native_messaging:unit_tests",
@@ -24,6 +25,8 @@ test("compass_unittests") {
     "//compass/browser/sidebar:unit_tests",
     "//compass/browser/sync:unit_tests",
     "//compass/browser/ui:unit_tests",
+    "//compass/browser/ui/easels:unit_tests",
+    "//compass/browser/ui/webui/easel:unit_tests",
     "//compass/browser/updates:unit_tests",
     "//compass/browser/window_sync:unit_tests",
     "//compass/components/sync:history_unit_tests",
@@ -49,6 +52,8 @@ test("compass_browsertests") {
     "//compass/browser/picture_in_picture:browser_tests",
     "//compass/browser/prefs:browser_tests",
     "//compass/browser/ui:browser_tests",
+    "//compass/browser/ui/easels:browser_tests",
+    "//compass/browser/ui/webui/easel:browser_tests",
     "//compass/browser/web_store:browser_tests",
   ]
   if (is_mac) {

@@ -31,6 +31,10 @@ namespace compass {
 
 class SidebarStore;
 
+namespace easels {
+class EaselTitleFollower;
+}  // namespace easels
+
 // A profile's spaces on Android (docs/design/android.md, C2): the desktop's
 // model (SpaceList, saved by SidebarStore to the same "Compass Sidebar.json")
 // without its windows. Android's tabs are Chrome's TabModel, in Java; the
@@ -270,6 +274,9 @@ class SpacesAndroid : public base::SupportsUserData::Data,
   // Whose spaces these are.
   const raw_ptr<Profile> profile_;
   std::unique_ptr<Attachment> sync_attachment_;
+  // Keeps the saved titles of boards' tabs as the boards'
+  // (docs/design/easels.md, "In the sidebar"); from the load on.
+  std::unique_ptr<easels::EaselTitleFollower> easel_titles_;
   base::ObserverList<Observer> observers_;
   base::WeakPtrFactory<SpacesAndroid> weak_factory_{this};
 };

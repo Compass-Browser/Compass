@@ -11,6 +11,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "compass/browser/easels/easel_store.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -85,9 +86,24 @@ class Builder {
   SidebarNode* AddTab(SidebarNode* parent, const Item& item) {
     SidebarNode* tab = model_->AddTab(parent, parent->children().size(),
                                       item.url, TabTitle(item), IdFor(item));
-    if (!tab) {
+    return tab ? SetUp(tab, item) : nullptr;
+  }
+
+  // A tab of the board the easel becomes, titled as the board.
+  SidebarNode* AddEasel(SidebarNode* parent, const Item& item) {
+    const base::Uuid board = ArcEaselUuid(item.easel_id);
+    if (!board.is_valid()) {
       return nullptr;
     }
+    SidebarNode* tab = model_->AddTab(
+        parent, parent->children().size(),
+        GURL(easels::EaselUrl(board.AsLowercaseString())),
+        item.saved_title.empty() ? u"Easel" : item.saved_title, IdFor(item));
+    return tab ? SetUp(tab, item) : nullptr;
+  }
+
+  // Gives a new tab |item|'s own title, mute status and last active time.
+  SidebarNode* SetUp(SidebarNode* tab, const Item& item) {
     if (!item.title.empty()) {
       model_->SetCustomTitle(tab, item.title);
     }
@@ -103,6 +119,9 @@ class Builder {
     switch (item.kind) {
       case Item::Kind::kTab:
         AddTab(parent, item);
+        return;
+      case Item::Kind::kEasel:
+        AddEasel(parent, item);
         return;
       case Item::Kind::kFolder: {
         // Favorites hold tabs only: a folder's entries go in its place.
@@ -236,6 +255,22 @@ void AddItems(SpaceList& list,
               const std::vector<Item>& items,
               std::optional<base::Time> last_active) {
   Builder(list, model, last_active).AddAll(parent, items);
+}
+
+base::Uuid ArcEaselUuid(std::string_view easel_id) {
+  if (easel_id.empty()) {
+    return base::Uuid();
+  }
+  return ArcDerivedId(base::StrCat({"easels/", easel_id}));
+}
+
+base::Uuid ArcEaselObjectUuid(std::string_view easel_id,
+                              std::string_view object_id) {
+  if (easel_id.empty() || object_id.empty()) {
+    return base::Uuid();
+  }
+  return ArcDerivedId(
+      base::StrCat({"easels/", easel_id, "/objects/", object_id}));
 }
 
 base::Uuid ArcDerivedId(std::string_view arc_id) {

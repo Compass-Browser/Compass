@@ -340,6 +340,22 @@ It costs:
     waits for it.
   - Tried on a Pixel 8a (Android 16): switching away from a playing video
     opens the window, and switching back closes it.
+- **Easels** (easels.md): boards open in the desktop's editor page
+  (chrome://easel). The entry points here:
+  - **New Easel** is the first item of the space header's ⋯ menu: a board
+    (`EaselBridge.newEasel()`, `easel_bridge.cc`) with its tab pinned at
+    the end of the shown space's Pinned (Today's top without one), opened.
+  - **Capture to Easel** is a row of the page menu (web pages, not
+    incognito). It takes the whole visible page, not a dragged region: a
+    drag over a phone's page fights its scrolling, and the board's editor
+    crops an image. A list of the boards (the last used first, then New
+    Easel) picks where it goes; `EaselBridge.capture()` copies the page's
+    surface with the desktop's code (`//compass/browser/ui/easels:core`)
+    and a toast says where it went.
+  - **Refresh** isn't on Android yet: a page renders only in a view
+    attached to a window, so `RefreshCapture()` says so here.
+  - A board's tab shows the easel (`SiteIcon()`), and its saved title
+    follows the board's (`EaselTitleFollower`, run by `SpacesAndroid`).
 - **Reader mode (P16)** (reader-mode.md; ios.md, "Reader mode"): a page
   that reads as an article gets a book at the end of the bar's address
   pill; a tap shows the article over the tab in the desktop's reader page,

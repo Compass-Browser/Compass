@@ -14,6 +14,7 @@ group("android") {
     ":claude_bridge",
     ":claude_sidebar",
     ":copy_link_bridge",
+    ":easel_bridge",
     ":extension_unlock_bridge",
     ":passwords_bridge",
     ":peek_bridge",
@@ -110,7 +111,9 @@ source_set("spaces") {
     "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/profiles/keep_alive",
     "//compass/android:jni_headers",
+    "//compass/browser/easels:store",
     "//compass/browser/sidebar",
+    "//compass/browser/ui/easels:titles",
     "//content/public/browser",
     "//url",
   ]
@@ -209,9 +212,13 @@ source_set("pip_bridge") {
 
 # Reader mode (docs/design/android.md, "Reader mode"): the desktop's reader
 # page (chrome-untrusted://compass-reader, registered on Android by the
-# chrome_web_ui_configs.cc patch) and scripts, and their bridge.
+# chrome_web_ui_configs.cc patch) and scripts, and their bridge. Also
+# Compass's other WebUI on Android, chrome://easel (docs/design/easels.md),
+# and its Mojo interface (the chromium_src override of
+# chrome_browser_interface_binders_webui_parts_android.cc).
 source_set("reader") {
   sources = [
+    "android_web_ui_configs.cc",
     "android_web_ui_configs.h",
     "reader_bridge.cc",
     "//compass/browser/ui/webui/reader/reader_untrusted_ui.cc",
@@ -222,10 +229,31 @@ source_set("reader") {
     "//chrome/common",
     "//compass/android:jni_headers",
     "//compass/browser/reader:assets",
+    "//compass/browser/ui/webui/easel",
     "//content/public/browser",
     "//content/public/common",
     "//services/network/public/mojom",
     "//ui/webui",
+    "//url",
+  ]
+}
+
+# New Easel and Capture to Easel (docs/design/android.md, "Easels"): the
+# desktop's capture code over SpacesAndroid. Refresh is the desktop's only
+# (//compass/browser/ui/easels:refresh says so here).
+source_set("easel_bridge") {
+  sources = [ "easel_bridge.cc" ]
+  deps = [
+    ":spaces",
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//compass/android:jni_headers",
+    "//compass/browser/easels:store",
+    "//compass/browser/sidebar",
+    "//compass/browser/ui/easels:core",
+    "//compass/browser/ui/easels:refresh",
+    "//compass/browser/ui/easels:titles",
+    "//content/public/browser",
     "//url",
   ]
 }

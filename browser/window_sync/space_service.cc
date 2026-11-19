@@ -20,7 +20,9 @@
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "compass/browser/easels/easel_store.h"
 #include "compass/browser/sidebar/sidebar_store.h"
+#include "compass/browser/ui/easels/easel_titles.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/window_features.h"
 
@@ -120,6 +122,7 @@ SpaceService::~SpaceService() {
     directory->OnServiceDestroyed(this);
   }
   // These observe the list, so they go first.
+  easel_titles_.reset();
   sync_attachment_.reset();
   store_.reset();
   space_observations_.RemoveAllObservations();
@@ -338,6 +341,20 @@ void SpaceService::OnLoaded() {
                        &SpaceService::ArchiveIdleEntries);
   if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
     directory->OnServiceLoaded(this);
+  }
+  if (easels::EaselStore* easels = easels::EaselStore::Get(profile_)) {
+    easel_titles_ = std::make_unique<easels::EaselTitleFollower>(
+        easels, base::BindRepeating(
+                    [](SpaceService* service) {
+                      std::vector<SpaceModel*> models;
+                      for (const auto& space :
+                           service->space_list().spaces()) {
+                        models.push_back(space.get());
+                      }
+                      models.push_back(&service->space_list().favorites());
+                      return models;
+                    },
+                    base::Unretained(this)));
   }
   for (base::OnceClosure& callback : std::exchange(when_loaded_, {})) {
     std::move(callback).Run();

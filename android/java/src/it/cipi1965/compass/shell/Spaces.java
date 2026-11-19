@@ -827,6 +827,11 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     }
 
     @Override
+    public void onNewEasel() {
+        Easels.newEasel(mActivity, this);
+    }
+
+    @Override
     public void onSplit(String targetId, String tabId) {
         // The split shows, with |targetId|'s page in front (docs/design/android.md, "Splits").
         String split = mBridge.split(targetId, tabId);

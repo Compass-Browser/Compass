@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// ReaderBridge.java's natives, and Compass's WebUI on Android
-// (docs/design/android.md, "Reader mode"): the desktop's reader scripts and
-// reader page (docs/design/reader-mode.md).
+// ReaderBridge.java's natives (docs/design/android.md, "Reader mode"): the
+// desktop's reader scripts and reader page (docs/design/reader-mode.md),
+// which android_web_ui_configs.cc registers.
 
 #include <string>
 #include <utility>
@@ -19,12 +19,10 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
-#include "compass/browser/android/android_web_ui_configs.h"
 #include "compass/browser/reader/reader_assets.h"
 #include "compass/browser/ui/webui/reader/reader_untrusted_ui.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/browser/webui_config_map.h"
 
 // Must come after the includes it uses.
 #include "compass/android/jni_headers/ReaderBridge_jni.h"
@@ -33,10 +31,6 @@ using base::android::JavaRef;
 using base::android::ScopedJavaGlobalRef;
 
 namespace compass {
-
-void RegisterAndroidWebUIConfigs(content::WebUIConfigMap& map) {
-  map.AddUntrustedWebUIConfig(std::make_unique<ReaderUntrustedUIConfig>());
-}
 
 namespace {
 

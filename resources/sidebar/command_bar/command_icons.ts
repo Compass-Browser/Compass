@@ -89,6 +89,17 @@ const COMMAND_SYMBOLS: {[name: string]: CommandSymbol} = {
   chat: {
     path: 'M80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-240h594v-480H160v525l46-45Zm-46 0v-480 480Z',
   },
+  // An easel: New Easel (docs/design/easels.md), as the sidebar's
+  // easel icon (favicon.ts).
+  easel: {
+    path: 'M11 1h2v2h-2ZM3 3h18v2H3Zm0 11h18v2H3ZM3 3h2v13H3Zm16 0h2v13h-2ZM7 16h2.2l-3 7H4Zm7.8 0H17l3 7h-2.2ZM11 16h2v6h-2Z',
+    viewBox: '0 0 24 24',
+  },
+  // A region's corners: Capture to Easel.
+  capture: {
+    path: 'M3 3h6v2H5v4H3Zm12 0h6v6h-2V5h-4ZM3 15h2v4h4v2H3Zm16 0h2v6h-6v-2h4Zm-9-5h4v4h-4Z',
+    viewBox: '0 0 24 24',
+  },
   // auto_awesome
   sparkle: {
     path: 'm19 9-1.25-2.75L15 5l2.75-1.25L19 1l1.25 2.75L23 5l-2.75 1.25Zm0 14-1.25-2.75L15 19l2.75-1.25L19 15l1.25 2.75L23 19l-2.75 1.25ZM9 20l-2.5-5.5L1 12l5.5-2.5L9 4l2.5 5.5L17 12l-5.5 2.5Zm0-4.85L10 13l2.15-1L10 11 9 8.85 8 11l-2.15 1L8 13ZM9 12Z',

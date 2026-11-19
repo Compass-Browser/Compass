@@ -30,7 +30,7 @@ import "components/sync/protocol/unique_position.proto";
 
 // One entity per space and per sidebar node, and in the home profile's
 // account one per profile of the chain; icons, Claude's memories, link
-// rules and Boosts. The client tag is `uuid` (a Boost's `id`).
+// rules, Boosts and Easels. The client tag is `uuid` (a Boost's `id`).
 message CompassSpacesSpecifics {
   oneof entity {
     CompassSpace space = 1;
@@ -40,6 +40,9 @@ message CompassSpacesSpecifics {
     CompassMemory memory = 5;
     CompassLinkRule link_rule = 6;
     CompassBoost boost = 7;
+    CompassEasel easel = 8;
+    CompassEaselObject easel_object = 9;
+    CompassEaselAsset easel_asset = 10;
   }
 }
 
@@ -256,4 +259,138 @@ message CompassBoost {
   optional int64 create_time = 9;
   // The last edit; of two edits, the later wins.
   optional int64 update_time = 10;
+}
+
+// Easels (docs/design/easels.md): canvas boards of text, shapes, images,
+// links and captures of page regions, in the account of the profile they
+// belong to. Three kinds of entity, so two devices editing different objects
+// of one board don't overwrite each other: the board, one per object, and
+// one per image. Clients that predate them ignore them (their
+// IsEntityDataValid() refuses them). Not in proto_visitors.h: their content
+// stays out of sync-internals. A deleted board, object or image is a deleted
+// entity; of two edits of the same entity, the later `update_time` wins.
+//
+// The board shows in the sidebar as a tab (CompassNode TAB) whose URL is
+// "compass://easel/" followed by `uuid`; deleting that tab doesn't delete the
+// board.
+message CompassEasel {
+  // A random UUID, lowercase. Also the client tag.
+  optional string uuid = 1;
+  optional string title = 2;
+  // Its background, as the editor names it ("paper", "grid", "dark", ...);
+  // absent or unknown: "paper".
+  optional string palette = 3;
+  // In microseconds since the Windows epoch.
+  optional int64 create_time = 4;
+  optional int64 update_time = 5;
+}
+
+// Something on a board. Exactly one of the content fields is set; an object
+// whose content this version doesn't know is kept and shown as a grey box.
+message CompassEaselObject {
+  // A random UUID, lowercase. Also the client tag.
+  optional string uuid = 1;
+  // Its board (CompassEasel.uuid). An object whose board isn't here (not
+  // synced yet, or deleted) is kept and not shown.
+  optional string easel_uuid = 2;
+  // Where it is, in board points from the board's top left; z orders
+  // overlapping objects, higher on top.
+  optional double x = 3;
+  optional double y = 4;
+  optional double width = 5;
+  optional double height = 6;
+  optional double z = 7;
+  optional int64 create_time = 8;
+  optional int64 update_time = 9;
+
+  optional CompassEaselText text = 10;
+  optional CompassEaselShape shape = 11;
+  optional CompassEaselImage image = 12;
+  optional CompassEaselLink link = 13;
+  optional CompassEaselCapture capture = 14;
+}
+
+message CompassEaselText {
+  // At most 20,000 characters.
+  optional string text = 1;
+  // A CSS color ("#1f2328"); absent: the board's text color.
+  optional string color = 2;
+  // "sans", "serif", "mono" or "hand"; absent or unknown: "sans".
+  optional string font = 3;
+  // "title", "heading", "body" or "caption"; absent or unknown: "body".
+  optional string style = 4;
+}
+
+message CompassEaselShape {
+  // 1 RECTANGLE, 2 CIRCLE (an ellipse in the object's box), 3 ARROW,
+  // 4 FREEHAND.
+  optional int32 kind = 1;
+  // A CSS color; absent: the board's ink color.
+  optional string color = 2;
+  // ARROW: start x, y, end x, y. FREEHAND: x, y pairs, at most 4,000 points.
+  // Relative to the object's top left, in board points.
+  repeated double points = 3 [packed = true];
+  // Line width in board points; absent: 3.
+  optional double stroke_width = 4;
+  // RECTANGLE and CIRCLE: filled with `color` rather than outlined.
+  optional bool filled = 5;
+}
+
+message CompassEaselImage {
+  // The CompassEaselAsset's `sha256`.
+  optional string asset = 1;
+  // Its size in pixels.
+  optional int32 pixel_width = 2;
+  optional int32 pixel_height = 3;
+}
+
+message CompassEaselLink {
+  optional string url = 1;
+  optional string title = 2;
+  optional string description = 3;
+  // The page's preview image, a CompassEaselAsset's `sha256`; may be absent.
+  optional string image_asset = 4;
+}
+
+// A capture of a region of a page: an image, and where it came from so it
+// can be taken again (Refresh).
+message CompassEaselCapture {
+  optional string url = 1;
+  // The page's title when captured.
+  optional string title = 2;
+  // The CompassEaselAsset's `sha256`.
+  optional string image_asset = 3;
+  // The page's icon, a CompassEaselAsset's `sha256`; may be absent.
+  optional string favicon_asset = 4;
+  // The region, in CSS pixels of the page's viewport when it was captured...
+  optional double region_x = 5;
+  optional double region_y = 6;
+  optional double region_width = 7;
+  optional double region_height = 8;
+  // ...which was scrolled this far, in a viewport of this size.
+  optional double scroll_x = 9;
+  optional double scroll_y = 10;
+  optional double viewport_width = 11;
+  optional double viewport_height = 12;
+  // When the image was taken, in microseconds since the Windows epoch.
+  optional int64 capture_time = 13;
+}
+
+// An image of a board: a PNG, JPEG or WebP of at most 2048 px a side and
+// 512 KiB. Images are shared by content: two objects showing the same image
+// point at the same asset.
+message CompassEaselAsset {
+  // UUID-shaped, from `sha256`, as CompassFavicon's from its host: the first
+  // 16 bytes of SHA-256("compass-easel-asset:" + sha256), with byte 6 =
+  // (b & 0x0f) | 0x50 and byte 8 = (b & 0x3f) | 0x80, formatted lowercase
+  // 8-4-4-4-12. Also the client tag.
+  optional string uuid = 1;
+  // SHA-256 of `data`, lowercase hex.
+  optional string sha256 = 2;
+  // "image/png", "image/jpeg" or "image/webp".
+  optional string mime_type = 3;
+  optional bytes data = 4;
+  // When it was first added; an asset no object points at for 30 days is
+  // deleted by the device that notices.
+  optional int64 create_time = 5;
 }

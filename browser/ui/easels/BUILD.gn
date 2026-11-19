@@ -1,0 +1,195 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/ui.gni")
+
+# Easels' captures and entry points (docs/design/easels.md, "In the sidebar"
+# and "Captures"): Capture to Easel, Refresh, New Easel, and board titles in
+# the sidebar. The editor (//compass/browser/ui/webui/easel) calls :refresh.
+
+# easel_page.js, the page's side of a capture, as a string constant:
+# compass/browser/ui/easels/easel_page_js.h.
+action("page_js") {
+  script = "//compass/build/embed_text.py"
+  inputs = [ "easel_page.js" ]
+  outputs = [ "$target_gen_dir/easel_page_js.h" ]
+  args = [
+    "--out",
+    rebase_path(outputs[0], root_build_dir),
+    "--namespace",
+    "compass::easels::assets",
+    "kEaselPageJs=" + rebase_path(inputs[0], root_build_dir),
+  ]
+}
+
+# Region and placement arithmetic, apart for tests.
+source_set("geometry") {
+  sources = [
+    "easel_geometry.cc",
+    "easel_geometry.h",
+  ]
+  public_deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+# A board's tab entries named as the board. The desktop's SpaceService and
+# Android's SpacesAndroid run an EaselTitleFollower.
+source_set("titles") {
+  sources = [
+    "easel_titles.cc",
+    "easel_titles.h",
+  ]
+  public_deps = [
+    "//base",
+    "//compass/browser/easels:store",
+  ]
+  deps = [ "//compass/browser/sidebar" ]
+}
+
+# What Capture to Easel and Refresh share, on the desktop and Android.
+source_set("core") {
+  sources = [
+    "easel_capture_core.cc",
+    "easel_capture_core.h",
+  ]
+  public_deps = [
+    ":geometry",
+    ":titles",
+    "//base",
+    "//components/sync/protocol",
+    "//ui/gfx/geometry",
+  ]
+  deps = [
+    ":page_js",
+    "//chrome/browser/profiles:profile",
+    "//chrome/common",
+    "//compass/browser/easels:images",
+    "//compass/browser/easels:store",
+    "//components/favicon/content",
+    "//components/viz/common",
+    "//content/public/browser",
+    "//skia",
+    "//ui/gfx",
+  ]
+}
+
+# RefreshCapture(). On Android it says it isn't there yet.
+source_set("refresh") {
+  sources = [ "easel_refresh.h" ]
+  public_deps = [ "//base" ]
+  if (is_android) {
+    sources += [ "easel_refresh_android.cc" ]
+  } else {
+    sources += [ "easel_refresh.cc" ]
+    deps = [
+      ":core",
+      "//chrome/browser/profiles:profile",
+      "//compass/browser/easels:images",
+      "//compass/browser/easels:store",
+      "//content/public/browser",
+      "//skia",
+      "//ui/base",
+      "//ui/gfx/geometry",
+      "//url",
+    ]
+    if (use_aura) {
+      deps += [
+        "//chrome/browser/ui/browser_window",
+        "//ui/aura",
+      ]
+    }
+  }
+}
+
+# The page context menu's hooks, declarations only: upstream's
+# //chrome/browser/renderer_context_menu includes them (see patches/); the
+# definitions are in :capture.
+source_set("context_menu_hooks") {
+  public = [ "easel_context_menu.h" ]
+}
+
+if (!is_android) {
+  # Capture to Easel's overlay and New Easel on the desktop. Linked into
+  # //chrome/browser/ui with //compass/browser/ui.
+  source_set("capture") {
+    sources = [
+      "easel_capture.cc",
+      "easel_capture.h",
+    ]
+    public_deps = [ "//components/sync/protocol" ]
+    deps = [
+      ":context_menu_hooks",
+      ":core",
+      ":geometry",
+      ":titles",
+      "//base",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/tabs:tab_strip",
+      "//compass/browser/easels:store",
+      "//compass/browser/sidebar",
+      "//compass/browser/window_sync",
+      "//components/tabs:public",
+      "//content/public/browser",
+      "//ui/menus",
+      "//url",
+    ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "easel_geometry_unittest.cc",
+    "easel_titles_unittest.cc",
+  ]
+  deps = [
+    ":geometry",
+    ":titles",
+    "//base",
+    "//base/test:test_support",
+    "//compass/browser/easels:store",
+    "//compass/browser/sidebar",
+    "//components/sync/protocol",
+    "//testing/gtest",
+    "//ui/gfx/geometry",
+    "//url",
+  ]
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [ "easel_capture_browsertest.cc" ]
+    deps = [
+      ":capture",
+      ":core",
+      ":refresh",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser",
+      "//chrome/browser/profiles:profile",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//compass/browser/easels:store",
+      "//compass/browser/sidebar",
+      "//compass/browser/window_sync",
+      "//components/sync/protocol",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//net:test_support",
+      "//skia",
+      "//testing/gtest",
+      "//third_party/blink/public/common",
+      "//ui/events:dom_keycode_converter",
+      "//ui/events:events_base",
+      "//ui/gfx/codec",
+      "//ui/gfx/geometry",
+      "//url",
+    ]
+  }
+}

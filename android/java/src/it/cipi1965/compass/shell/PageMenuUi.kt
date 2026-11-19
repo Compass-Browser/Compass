@@ -73,6 +73,8 @@ object PageMenuUi {
 
         fun onAskClaude()
 
+        fun onCaptureToEasel()
+
         fun onTogglePin()
 
         fun onShare()
@@ -149,10 +151,21 @@ private fun PageMenuSheet(state: PageMenuState, listener: PageMenuUi.Listener) {
         }
         ExtensionsRow(state, listener)
         Card {
+            // Easels (docs/design/android.md, "Easels"): the visible page, to a board.
+            if (!state.incognito && state.url.startsWith("http")) {
+                CardRow(
+                    "Capture to Easel",
+                    subtitle = "Add what's on screen to a board",
+                    first = true,
+                    onClick = { listener.onCaptureToEasel() },
+                ) {
+                    MenuIcon(R.drawable.compass_sym_easel)
+                }
+            }
             CardRow(
                 "Site Settings",
                 subtitle = state.host.removePrefix("www.").ifEmpty { "No page" },
-                first = true,
+                first = state.incognito || !state.url.startsWith("http"),
                 onClick = { listener.onSiteSettings() },
             ) {
                 MenuIcon(R.drawable.compass_sym_tune)

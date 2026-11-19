@@ -126,6 +126,9 @@ final class AppModel {
   var closedToast: ClosedToast?
   /// A shake: "Undo Close Tab" (shaken()).
   var showingUndoAlert = false
+  /// Capture to Easel's region picker is over this tab's page
+  /// (EaselCaptureOverlay).
+  var easelCaptureTab: String?
 
   /// Side-effect free: SwiftUI may make a window's model more than once.
   /// `attach` starts it.
@@ -253,6 +256,9 @@ final class AppModel {
       }
       //   -CompassOpenURL <url>: open a new tab.
       if let url = defaults.string(forKey: "CompassOpenURL") { open(url) }
+      //   -CompassEaselDemo YES: a new board with one of each kind of
+      //   object, shown (EaselLibrary).
+      if defaults.bool(forKey: "CompassEaselDemo") { easelDemo() }
       //   -CompassSidebarDrag <0...1>: hold the sidebar there, as under a
       //   finger.
       if let drag = defaults.object(forKey: "CompassSidebarDrag").flatMap({ Double("\($0)") }) {

@@ -7,6 +7,8 @@ source_set("arc_import") {
   sources = [
     "arc_crypto.cc",
     "arc_crypto.h",
+    "arc_easels.cc",
+    "arc_easels.h",
     "arc_paths.cc",
     "arc_paths.h",
     "arc_sidebar.cc",
@@ -17,12 +19,18 @@ source_set("arc_import") {
     "sidebar_import.h",
   ]
   deps = [
+    # EaselUrl() for an easel's tab.
+    "//compass/browser/easels:store",
     "//crypto",
     "//sql",
+
+    # Arc's Firestore cache (arc_easels.cc).
+    "//third_party/leveldatabase",
   ]
   public_deps = [
     "//base",
     "//compass/browser/sidebar",
+    "//components/sync/protocol",
     "//url",
   ]
 }
@@ -30,6 +38,7 @@ source_set("arc_import") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "arc_easels_unittest.cc",
     "arc_paths_unittest.cc",
     "arc_sidebar_unittest.cc",
     "profile_copy_unittest.cc",
@@ -39,7 +48,10 @@ source_set("unit_tests") {
     ":arc_import",
     "//base",
     "//base/test:test_support",
+    "//compass/browser/easels:store",
+    "//components/sync/protocol",
     "//sql",
     "//testing/gtest",
+    "//third_party/leveldatabase",
   ]
 }

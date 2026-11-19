@@ -1,6 +1,6 @@
 # Import from Arc
 
-Status: done (reader, profile copy, sidebar, archive, the import page);
+Status: done (reader, profile copy, sidebar, archive, Easels, the import page);
 not yet run end to end on a real Arc install. macOS and Windows (below,
 "Windows"). Based on Chromium 157.0.8103.51.
 
@@ -27,6 +27,7 @@ Decisions:
 | Disk cache | `~/Library/Caches/Arc/User Data/<profile>/Cache` (and `Code Cache` in the profile) |
 | Sidebar | `~/Library/Application Support/Arc/StorableSidebar.json` |
 | Archive | `StorableArchiveItems.json` (same folder) |
+| Easels | `~/Library/Application Support/firestore/Arc/bcny-arc-server/main/` (Arc's Firestore cache, a LevelDB) |
 | Encryption key | Keychain generic password "Arc Safe Storage" |
 
 Windows: see "Windows" below. `GetArcPaths()` (`arc_import/arc_paths.h`:
@@ -45,6 +46,8 @@ lists alternating an ID and an object:
   `data`, one of:
   - `tab`: `savedURL`, `savedTitle`, `timeLastActiveAt`, `savedMuteStatus`
   - `list`: a folder (`title`)
+  - `easel`: an Easel (`easelID`, `title`, `timeLastActiveAt`,
+    `creatorID`, `shareStatus`); the board itself is in Firestore (below)
   - `itemContainer`: a space's pinned or unpinned section, or a profile's
     Favorites
   - possibly `splitView` (handled if present)
@@ -65,9 +68,10 @@ lists alternating an ID and an object:
 | Split view | A split (two panes), else its tabs side by side |
 | Archive (from a space) | The space's archive: the newest 100 (Compass's cap), the user's title else the page's, Arc's archive time |
 | Archive (from Little Arc) | Not imported (no space) |
+| Easel (macOS) | A board (easels.md) with its objects and images, and a tab of it where the easel was in the sidebar (below, "Easels") |
 
-Not imported: Arc's own features with no Compass equivalent (Boosts, Easels,
-Notes, Library media), Arc's account and sync state, open windows.
+Not imported: Arc's own features with no Compass equivalent (Boosts, Notes,
+Library media), Arc's account and sync state, open windows.
 
 ## How
 
@@ -131,6 +135,77 @@ the sidebar, become chrome:// ones.
 Arc's profiles one after another, adds each one's sidebar once its
 `SpaceService` has loaded, and lists the profile in `SpaceDirectory` so its
 spaces show in the switcher.
+
+### Easels
+
+`compass::arc::ReadArcEasels()` (`browser/arc_import/arc_easels.{h,cc}`, no
+browser dependencies) reads Arc's boards from its Firestore cache. Arc keeps
+only a pointer in the sidebar (`Item::Kind::kEasel`, with `easelID`); the
+boards are `google.firestore.v1.Document`s in Firestore's client LevelDB.
+The folder is copied to a temporary one (without `LOCK`), opened with
+Chromium's LevelDB (`leveldb::RepairDB()` first if it has no `CURRENT`),
+and the `remote_document` table is read: each value is a
+`firestore.client.MaybeDocument`, decoded by a small protobuf wire reader
+(no generated protos). A document cached under more than one key counts in
+its latest version (`update_time`, or a `NoDocument`'s `read_time`); deleted
+ones don't count. `easels/<id>` gives the title, background and last change;
+`easels/<id>/objects/<id>` the objects (`memberships` are left out).
+
+What Arc's objects hold, as seen in real data:
+
+- `position.rect` is in fractions of the board's width (x, y, width and
+  height alike; boards scroll down), `position.zIndex` the order. Compass
+  boards get 1,000 points for Arc's width (`kArcEaselWidth`).
+- `shape.type.freehand` points and `shape.type.arrow` `start`/`end` are
+  fractions of the object's box (0 to 1); Compass's are board points from
+  the box's top left, so they're scaled by its size.
+- `text.style`: `fontFamily` `clean`, `paragraphStyle` `body` and `h2` (the
+  board's title), `fillStyle` `none`. `palette`: `vibrant`. Colors are
+  names (`black`, `red`, `lightGreen`, `lightBlue`, ...).
+- The board's own title is a text object (`titleObjectID`); it's left out,
+  as Compass shows the title itself.
+
+Mapping: text → text (`clean` → sans, `h1` → title, `h2`/`h3` → heading,
+`body` → body; other likely names in `ArcFont()`/`ArcTextStyle()`); shapes
+→ rectangle, circle, arrow, freehand, with Arc's color names as CSS colors
+(`black` is the board's ink, so absent), rectangles and circles in a light
+color filled (Arc uses them as panels behind cards), others outlined;
+image → image; link → link (its preview image); `webCard` → capture, with
+`captureLayoutInfo.frameRelativeToViewport` as the region,
+`webContentOffset` as the scroll and `webContentSize` as the viewport, and
+`dateCaptured`. Arc palettes become `paper` (`dark` for a dark one).
+
+The sidebar entry becomes a tab whose URL is `compass://easel/<board>`
+(`AddItems()`), titled as the board, where the easel was. The board's ID is
+`ArcEaselUuid()` (`ArcDerivedId("easels/<id>")`), its objects'
+`ArcEaselObjectUuid()` (`"easels/<id>/objects/<id>"`), so importing on a
+second Mac gives the same board, which merges when they sync.
+
+`ImportArcEasels()` (`browser/ui/arc_import/arc_easel_import.cc`) runs
+after a profile's spaces are added, once its `EaselStore` has loaded:
+
+- A board Compass doesn't have is made (Arc's title, else the sidebar's).
+  One that's there with objects is left as it is (the user may have
+  changed it): importing again never doubles a board. One that's there and
+  empty gets Arc's objects.
+- Images (Firebase Storage download URLs, which carry their token) are
+  fetched with `SimpleURLLoader`, without credentials, only from
+  `https://firebasestorage.googleapis.com`, no redirects, at most 20 MB,
+  four at a time; then `PrepareImage()` and `AddAsset()`. An image that
+  can't be had leaves its object as a link (`WithoutImages()`): an image as
+  a link to its URL, a capture as a link to its page, a link without its
+  preview.
+- Objects are saved together, or one by one if the store refuses one (its
+  limits).
+
+Arc downloads a board's objects when it's opened, so a board never opened
+on this Mac has none in the cache (not even its title object). It comes
+over empty, and the result page says "N Easels came over empty... Open them
+in Arc, then import again", with an "Import Easels Again" button
+(`ArcImportHandler.ImportEasels()`, `ImportArcEaselsAgain()`), which quits
+Arc and fills the empty boards of every profile imported from Arc. Arc's own
+edits not yet sent to its server (Firestore's mutation queue) aren't read.
+Arc for Windows has no Easels.
 
 ### Page
 
@@ -297,7 +372,10 @@ Features Arc has that the import would otherwise drop:
 
 ## Tests
 
-`ArcSidebarTest.*`, `ArcPathsTest.*`, `WindowsArcPathsTest.*` (a fake
+`ArcSidebarTest.*`, `ArcEaselsTest.*` (a LevelDB of crafted Firestore
+documents: every kind of object, deleted and repeated documents, tables and
+logs, a cache without `CURRENT`; `ArcEaselsRealTest.DISABLED_RealArcEasels`
+reads this Mac's), `ArcPathsTest.*`, `WindowsArcPathsTest.*` (a fake
 `%LOCALAPPDATA%` with decoy packages), `ChromiumMacCipherTest.*`,
 `ChromiumWindowsCipherTest.*`, `ProfileCopyTest.*`,
 `ProfileCopyWindowsTest.*` (Windows' layout and scheme, with app-bound

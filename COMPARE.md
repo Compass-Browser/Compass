@@ -62,7 +62,7 @@ since October 2025).
 | Auto picture-in-picture | ✅ including Teams, Meet and Zoom calls; iPhone and iPad on leaving the app | ✅ | ✅ | ✅ Meet | ? | ~ | ? | ~ | ? | ~ picture-in-picture | ~ picture-in-picture |
 | Live folders | ✅ JavaScript plugins (RSS, GitHub, web list, calendar) | ? | ✅ | ❌ | ❌ | ✅ GitHub, RSS | ~ feed reader | ❌ | ❌ | ❌ | ? |
 | Per-site CSS/JS (Boosts) | ✅ by hand or by Claude, synced; desktop and iOS | ❌ | ✅ | ❌ | ❌ | ✅ Boosts, Mods | ❌ | ❌ | ❌ | ❌ | ? |
-| Notes / canvas (Easels) | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ? |
+| Notes / canvas (Easels) | ✅ text, shapes, drawing, images, links, page captures; synced; imported from Arc; desktop, Android and iOS | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ? |
 | Translucent sidebar | ❌ | ✅ Ultra Thin to Ultra Thick | ✅ | ? | ? | ✅ blur, transparency | ❌ | ❌ | ? | ? | ? |
 | **Web content** | | | | | | | | | | | |
 | Chrome extensions, desktop / phone | ✅ / ✅ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ❌ Firefox add-ons | ✅ / ❌ | ✅ / ❌ | ~ / ❌ | ✅ / ❌ | ✅ / ✅ also Firefox add-ons |
