@@ -222,6 +222,8 @@ TEST_F(ShortTitlerTest, CachesAnswers) {
 
   SidebarNode* again =
       AddTab("https://github.com/org/repo/pull/123/files", kPrTitle);
+  // From the cache, on the next task (not inside the model's notification).
+  task_environment_.RunUntilIdle();
   EXPECT_EQ(again->short_title(), u"PR #123: fix login");
   AddTab("https://www.youtube.com/watch?v=2", kVideoTitle);
   // Another site's same title is another title.
@@ -256,6 +258,7 @@ TEST_F(ShortTitlerTest, TitleChangesAndCustomTitles) {
   // Back to the page's title: the cache answers for the old one.
   space_.SetCustomTitle(pr, std::u16string());
   space_.SetTitle(pr, kPrTitle);
+  task_environment_.RunUntilIdle();
   EXPECT_EQ(pr->short_title(), u"PR #123: fix login");
   EXPECT_EQ(requests_.size(), 1u);
 }
@@ -297,6 +300,7 @@ TEST_F(ShortTitlerTest, SwitchOffClears) {
   EXPECT_EQ(requests_.size(), 1u);
 
   TurnOn();
+  task_environment_.RunUntilIdle();
   EXPECT_EQ(pr->short_title(), u"PR #123: fix login");
 }
 

@@ -126,6 +126,9 @@ class ShortTitler : public KeyedService,
   // Gives |tab| its short title from the cache, or queues it for Claude.
   void Consider(SpaceModel& space, const SidebarNode& tab);
   void ConsiderAll();
+  // Gives the tab |tab_id| its cached short title, after the notification
+  // Consider() ran from.
+  void ApplyCachedToTab(const base::Uuid& tab_id);
   // Sends what waits right after the current task.
   void SendSoon();
   void SendBatch();

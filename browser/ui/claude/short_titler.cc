@@ -202,8 +202,13 @@ void ShortTitler::Consider(SpaceModel& space, const SidebarNode& tab) {
   const Key key = KeyOf(tab);
   if (auto cached = cache_.find(key); cached != cache_.end()) {
     pending_.erase(tab.id());
-    if (!cached->second.empty()) {
-      space.SetShortTitle(space.FindById(tab.id()), cached->second);
+    if (!cached->second.empty() && tab.short_title() != cached->second) {
+      // Not from inside the model's notification (this runs from
+      // OnNodeChanged), whose observer list doesn't allow it.
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE,
+          base::BindOnce(&ShortTitler::ApplyCachedToTab,
+                         weak_factory_.GetWeakPtr(), tab.id()));
     }
     return;
   }
@@ -223,6 +228,25 @@ void ShortTitler::Consider(SpaceModel& space, const SidebarNode& tab) {
     timer_.Start(FROM_HERE, batch_delay_,
                  base::BindOnce(&ShortTitler::SendBatch,
                                 base::Unretained(this)));
+  }
+}
+
+void ShortTitler::ApplyCachedToTab(const base::Uuid& tab_id) {
+  // Found again: its space may have gone while the task waited.
+  for (SpaceModel* space : spaces_) {
+    SidebarNode* tab = space->FindById(tab_id);
+    if (!tab) {
+      continue;
+    }
+    if (!enabled_ || !IsEligible(*space, *tab)) {
+      return;
+    }
+    auto cached = cache_.find(KeyOf(*tab));
+    if (cached != cache_.end() && !cached->second.empty() &&
+        tab->short_title() != cached->second) {
+      space->SetShortTitle(tab, cached->second);
+    }
+    return;
   }
 }
 

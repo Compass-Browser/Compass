@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/profiles/BUILD.gn b/chrome/browser/profiles/BUILD.gn
-index f569264cf0e530634f9e064054511b25ca2273d2..07c47af0756462c48e6fbb02b55c49fe0d413253 100644
+index f569264cf0e530634f9e064054511b25ca2273d2..ca0196771501468e60f65fe28472eec9143d5afd 100644
 --- a/chrome/browser/profiles/BUILD.gn
 +++ b/chrome/browser/profiles/BUILD.gn
 @@ -567,6 +567,7 @@ source_set("profile_io_data") {
@@ -10,7 +10,7 @@ index f569264cf0e530634f9e064054511b25ca2273d2..07c47af0756462c48e6fbb02b55c49fe
      "//base",
      "//chrome/common",
      "//chrome/common:buildflags",
-@@ -910,6 +911,16 @@ source_set("profiles_extra_parts_impl") {
+@@ -910,6 +911,18 @@ source_set("profiles_extra_parts_impl") {
      "//services/network/public/cpp",
      "//ui/webui:buildflags",
    ]
@@ -23,6 +23,8 @@ index f569264cf0e530634f9e064054511b25ca2273d2..07c47af0756462c48e6fbb02b55c49fe
 +    deps += [ "//compass/browser/ui" ]
 +    # Claude's memory (docs/design/claude.md, "Memory").
 +    deps += [ "//compass/browser/claude:memory" ]
++    # Claude in the sidebar's requests (docs/design/ai-sidebar.md).
++    deps += [ "//compass/browser/claude" ]
 +  }
  
    public_deps = [ "//chrome/browser/search/background" ]
