@@ -50,7 +50,7 @@ struct BrowserCommands: Commands {
     }
     CommandGroup(after: .pasteboard) {
       Button("Copy Link") {
-        if let url = webView?.url { UIPasteboard.general.url = url }
+        CopyLink.copy(webView?.url)
       }
       .keyboardShortcut("c", modifiers: [.command, .shift])
       Button("Find…") { app?.findOnPage() }

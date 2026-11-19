@@ -12,6 +12,7 @@
 #include "base/test/test_future.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/global_keyboard_shortcuts_mac.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -22,6 +23,8 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "components/prefs/pref_service.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/test/test_clipboard.h"
@@ -35,6 +38,7 @@
 #include "ui/views/focus/focus_manager.h"
 #include "url/gurl.h"
 
+#include "compass/browser/prefs/compass_prefs.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
 #include "compass/browser/ui/cocoa/shortcuts_mac.h"
 #include "compass/browser/ui/compass_command_ids.h"
@@ -154,6 +158,31 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, CopyLinkCopiesThePageURL) {
   clipboard->ReadText(ui::ClipboardBuffer::kCopyPaste,
                       /*data_dst=*/std::nullopt, text.GetCallback());
   EXPECT_EQ(text.Get(), base::UTF8ToUTF16(url.spec()));
+  ui::Clipboard::DestroyClipboardForCurrentThread();
+}
+
+// Without tracking parameters, unless the profile turned that off
+// (docs/design/shortcuts.md "Clean links").
+IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest,
+                       CopyLinkLeavesOutTrackingParams) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ui::TestClipboard* clipboard = ui::TestClipboard::CreateForCurrentThread();
+  const GURL url =
+      embedded_test_server()->GetURL("/title1.html?id=1&utm_source=x");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  const auto copied = [&] {
+    chrome::ExecuteCommand(browser(), IDC_COPY_URL);
+    base::test::TestFuture<std::u16string> text;
+    clipboard->ReadText(ui::ClipboardBuffer::kCopyPaste,
+                        /*data_dst=*/std::nullopt, text.GetCallback());
+    return base::UTF16ToUTF8(text.Get());
+  };
+
+  EXPECT_EQ(copied(),
+            embedded_test_server()->GetURL("/title1.html?id=1").spec());
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
+      compass::prefs::kRemoveTrackingFromCopiedLinks, false);
+  EXPECT_EQ(copied(), url.spec());
   ui::Clipboard::DestroyClipboardForCurrentThread();
 }
 

@@ -915,7 +915,8 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     public void onCopyLink(String url) {
         ClipboardManager clipboard =
                 (ClipboardManager) mActivity.getSystemService(Context.CLIPBOARD_SERVICE);
-        clipboard.setPrimaryClip(ClipData.newPlainText("URL", url));
+        clipboard.setPrimaryClip(
+                ClipData.newPlainText("URL", CopyLinkBridge.linkToCopy(mTabs.getProfile(), url)));
     }
 
     @Override

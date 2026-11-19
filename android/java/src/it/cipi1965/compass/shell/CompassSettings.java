@@ -131,6 +131,10 @@ public class CompassSettings implements CompassSettingsUi.Listener {
                 loadLinkRules();
                 mState.setPage(CompassSettingsUi.Page.SITES_IN_SPACES);
             }
+            case LICENSES -> {
+                loadLicenses();
+                mState.setPage(CompassSettingsUi.Page.LICENSES);
+            }
             case PRIVACY -> {
                 loadPrivacy();
                 mState.setPage(CompassSettingsUi.Page.PRIVACY);
@@ -297,6 +301,9 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         if (prefs.isManagedPreference(Pref.ENABLE_DO_NOT_TRACK)) {
             managed.add(CompassSettingsUi.PrivacySwitch.DO_NOT_TRACK);
         }
+        if (prefs.getBoolean(REMOVE_TRACKING_FROM_COPIED_LINKS)) {
+            on.add(CompassSettingsUi.PrivacySwitch.CLEAN_COPIED_LINKS);
+        }
         mState.setPrivacyOn(on);
         mState.setPrivacyManaged(managed);
     }
@@ -337,6 +344,7 @@ public class CompassSettings implements CompassSettingsUi.Listener {
                 if (prefs.isManagedPreference(Pref.ENABLE_DO_NOT_TRACK)) break;
                 prefs.setBoolean(Pref.ENABLE_DO_NOT_TRACK, on);
             }
+            case CLEAN_COPIED_LINKS -> prefs.setBoolean(REMOVE_TRACKING_FROM_COPIED_LINKS, on);
         }
         loadPrivacy();
     }
@@ -355,6 +363,10 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         // android.md, "Auto picture-in-picture"); Compass allows it by default.
         {ContentSettingsType.AUTO_PICTURE_IN_PICTURE, "Automatic Picture in Picture", "Allowed"},
     };
+
+    // The desktop's "Remove tracking from copied links"
+    // (compass::prefs::kRemoveTrackingFromCopiedLinks; CopyLinkBridge).
+    private static final String REMOVE_TRACKING_FROM_COPIED_LINKS = "compass.copy.remove_tracking";
 
     // The desktop's "Also when you leave the window" (compass::prefs::kPipOnLeavingWindow).
     private static final String PIP_ON_LEAVING_WINDOW = "compass.pip.on_leaving_window";
@@ -399,6 +411,41 @@ public class CompassSettings implements CompassSettingsUi.Listener {
     public void onSetOnLaunch(String value) {
         OnLaunch.set(value);
         mState.setOnLaunch(OnLaunch.get());
+    }
+
+    // Third-Party Licenses: the license files Compass adds, from the APK's assets
+    // (android/BUILD.gn :license_assets).
+    private static final String[][] LICENSES = {
+        {
+            "Firefox's strip-on-share list (MPL 2.0)",
+            "The tracking parameters Remove Tracking from Copied Links leaves out.",
+            "licenses/strip_on_share_mpl2.txt",
+        },
+        {
+            "Firefox's strip-on-share list, from ClearURLs (LGPL 3.0)",
+            "More tracking parameters for Remove Tracking from Copied Links.",
+            "licenses/strip_on_share_lgpl.txt",
+        },
+    };
+    private static final String LICENSES_SOURCE =
+            " Source: https://github.com/mozilla-firefox/firefox,"
+                    + " toolkit/components/antitracking/StripOnShareLists.";
+
+    private void loadLicenses() {
+        List<CompassSettingsUi.License> licenses = new ArrayList<>();
+        for (String[] row : LICENSES) {
+            String text;
+            try (java.io.InputStream in = mActivity.getAssets().open(row[2])) {
+                java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[8192];
+                for (int n; (n = in.read(buffer)) != -1; ) bytes.write(buffer, 0, n);
+                text = bytes.toString("UTF-8");
+            } catch (java.io.IOException e) {
+                text = "The license text is missing from this build.";
+            }
+            licenses.add(new CompassSettingsUi.License(row[0], row[1] + LICENSES_SOURCE, text));
+        }
+        mState.setLicenses(licenses);
     }
 
     // Sites in Spaces (link-routing.md): this window's profile's rules and spaces.

@@ -11,7 +11,7 @@ wins and upstream's command loses it. The user can change them (see
 
 | Keys | Does | Upstream had |
 |---|---|---|
-| Cmd+Shift+C | Copies the page's link (`IDC_COPY_URL`, with upstream's "Link copied" toast) | Inspect element, which keeps Cmd+Option+C |
+| Cmd+Shift+C | Copies the page's link, without tracking parameters unless that's turned off (`IDC_COPY_URL`, with upstream's "Link copied" toast; see "Clean links") | Inspect element, which keeps Cmd+Option+C |
 | Cmd+S | Opens or closes the sidebar (`IDC_TOGGLE_VERTICAL_TABS_COLLAPSE`); the View menu shows it | Save Page As, which keeps its File menu item without a shortcut. The sidebar toggle was Cmd+Shift+L, now free |
 | Cmd+Shift+R | Reloads without the cache (`IDC_RELOAD_BYPASSING_CACHE`) | The same: nothing to change |
 | Ctrl+Option+Cmd+P | Lets clicks through the picture-in-picture window, from any app, while one is open (picture-in-picture.md "Click-through") | Nothing |
@@ -24,6 +24,47 @@ wins and upstream's command loses it. The user can change them (see
 | Cmd+Z, Cmd+Shift+Z | Outside text, and only when the page passes on the keys: undo and redo closing sidebar entries (`kUndoCloseTabCommand`, `kRedoCloseTabCommand`, sidebar.md "Undo closing"). Cmd+Shift+T undoes the same | The Edit menu's Undo and Redo, which text keeps |
 
 Cmd+T and Cmd+L open the command bar (command-bar.md "Keyboard").
+
+## Clean links
+
+Copying the page's link removes the query parameters that only track where
+a link was shared or clicked, as Firefox's "Copy Clean Link" does:
+`compass::RemoveTrackingParams()` (`common/clean_url.{h,cc}`).
+
+- **Where:** Copy URL (Cmd+Shift+C, the command bar's Copy URL; upstream's
+  `chrome::CopyURL()`, patch) and the sidebar's Copy Link, through
+  `compass::LinkToCopy()` (`browser/prefs/copy_link.{h,cc}`), which also
+  writes `chrome://` as `compass://`. Android: the bar's and page menu's
+  Copy URL and the sidebar's Copy Link (`CopyLinkBridge`). iOS: ios.md.
+- **The setting:** "Remove tracking from copied links"
+  (`compass.copy.remove_tracking`, a profile pref, on by default, doesn't
+  sync), under Do Not Track on Settings, Privacy and security, Third-party
+  cookies (`cookies_page.html` patch; allowlisted in `prefs_util.cc`).
+  Android: Settings, Privacy and Security, "Remove Tracking from Copied
+  Links". Off, links are copied as they are.
+- **The lists** are Firefox's strip-on-share lists, unmodified, in
+  `third_party/strip_on_share/` (MPL-2.0 and LGPL-3.0 files, each with its
+  license; the README names the Firefox commit and how to update). They're
+  built in as strings (`:strip_on_share_lists`, `build/embed_text.py`) and
+  parsed on first use. `tools/update_strip_on_share.py` downloads the
+  latest; the `strip-on-share` workflow runs it every Monday and opens a
+  pull request when they changed, so a release ships what's merged.
+- **Their licenses** are shown in full: on the desktop, the About page's
+  "third-party files under their own licenses" opens
+  chrome://compass-settings/licenses.html, built from the LICENSE files by
+  `build/licenses_page.py` (`:licenses_page` in `resources/sidebar/`;
+  about_page.html.ts patch); on Android, Settings → Third-Party Licenses
+  (the files as assets, `:license_assets`); on iOS, ios.md.
+- **Matching**, as Firefox: a parameter's name, as written and without case,
+  against the global rule, the rule for the exact host (`hosts`) and the
+  rule for the registrable domain (`schemelessSites`). A parameter whose
+  value is an http(s) URL has that URL cleaned too, one level deep.
+- **Kept:** every other parameter in its order and spelling, the fragment,
+  and URLs other than http and https. A query left empty loses its "?".
+- Tests: `CleanUrlTest`, `CopyLinkTest`,
+  `CompassShortcutsBrowserTest.CopyLinkLeavesOutTrackingParams`,
+  `CopyLinkSettingsBrowserTest` (the licenses page, About's link, the
+  toggle).
 
 ## How
 

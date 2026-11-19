@@ -26,6 +26,13 @@ inline constexpr char kArcImportSpaces[] = "compass.arc_import.spaces";
 // does when its tab is left (docs/design/picture-in-picture.md). Default on.
 inline constexpr char kPipOnLeavingWindow[] = "compass.pip.on_leaving_window";
 
+// Whether copying the page's link (Copy URL, the sidebar's Copy Link, and
+// Android's Copy URL) leaves out tracking parameters
+// (compass::RemoveTrackingParams(); docs/design/shortcuts.md "Clean
+// links"). Default on.
+inline constexpr char kRemoveTrackingFromCopiedLinks[] =
+    "compass.copy.remove_tracking";
+
 }  // namespace prefs
 
 // Compass's own profile prefs. Called by upstream's RegisterProfilePrefs()

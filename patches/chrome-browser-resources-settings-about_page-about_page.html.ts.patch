@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/about_page/about_page.html.ts b/chrome/browser/resources/settings/about_page/about_page.html.ts
-index b9ac4e634feddf9e14a6da7c36fcb49fa143c032..1ef377c7ee1b211638bf288d58549e14157b72e8 100644
+index b9ac4e634feddf9e14a6da7c36fcb49fa143c032..5f760f74fd77bb667a913c91871cd1a43fdb6326 100644
 --- a/chrome/browser/resources/settings/about_page/about_page.html.ts
 +++ b/chrome/browser/resources/settings/about_page/about_page.html.ts
 @@ -67,6 +67,23 @@ export function getHtml(this: SettingsAboutPageElement) {
@@ -26,3 +26,20 @@ index b9ac4e634feddf9e14a6da7c36fcb49fa143c032..1ef377c7ee1b211638bf288d58549e14
  <if expr="_google_chrome and is_macosx">
    ${!this.promoteUpdaterStatus_.hidden ? html`
      <div id="promoteUpdater"
+@@ -115,6 +132,16 @@ export function getHtml(this: SettingsAboutPageElement) {
+     <div class="info-section">
+       <div class="secondary">$i18nRaw{aboutProductLicense}</div>
+     </div>
++    <!-- Compass: the licenses of the files it adds to Chromium
++         (compass/third_party, build/licenses_page.py). -->
++    <div class="info-section">
++      <div class="secondary">
++        Compass also includes
++        <a id="compassLicenses" target="_blank"
++            href="chrome://compass-settings/licenses.html">third-party files
++          under their own licenses</a>.
++      </div>
++    </div>
+ <if expr="_google_chrome or _is_chrome_for_testing_branded">
+     <div class="secondary">
+       <a id="tos" href="$i18n{aboutTermsURL}">$i18n{aboutProductTos}</a>

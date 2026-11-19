@@ -11,6 +11,7 @@
 #include "base/check.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "compass/browser/prefs/copy_link.h"
 #include "compass/browser/ui/live_folders/live_plugin_registry.h"
 #include "base/check_op.h"
 #include "base/containers/fixed_flat_map.h"
@@ -61,7 +62,6 @@
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/undo_close.h"
 #include "compass/browser/window_sync/window_features.h"
-#include "compass/common/compass_url.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/models/menu_separator_types.h"
@@ -1134,7 +1134,9 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
   switch (command) {
     case kCopyLink:
       ui::ScopedClipboardWriter(ui::ClipboardBuffer::kCopyPaste)
-          .WriteText(base::UTF8ToUTF16(ToCompassURL(node->url()).spec()));
+          .WriteText(base::UTF8ToUTF16(
+              LinkToCopy(browser_->GetProfile()->GetPrefs(), node->url())
+                  .spec()));
       break;
     case kDuplicate:
       if (node->type() == SidebarNode::Type::kTab) {

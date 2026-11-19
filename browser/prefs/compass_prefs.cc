@@ -13,6 +13,7 @@ void RegisterCompassProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(prefs::kArcImportProfileDir, std::string());
   registry->RegisterListPref(prefs::kArcImportSpaces);
   registry->RegisterBooleanPref(prefs::kPipOnLeavingWindow, true);
+  registry->RegisterBooleanPref(prefs::kRemoveTrackingFromCopiedLinks, true);
   claude::prefs::RegisterProfilePrefs(registry);
 }
 

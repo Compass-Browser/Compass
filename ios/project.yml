@@ -41,6 +41,14 @@ targets:
         buildPhase: resources
       - path: ../common/claude/sidebar_prompts.md
         buildPhase: resources
+      # Firefox's strip-on-share lists and their licenses, unmodified, shared
+      # with the desktop: Copy Link leaves out tracking parameters, and
+      # Settings shows the licenses (docs/design/ios.md, "Clean copied
+      # links"). A folder, so the two LICENSE files keep their own paths
+      # (strip_on_share/MPL2/LICENSE, strip_on_share/LGPL/LICENSE).
+      - path: ../third_party/strip_on_share
+        type: folder
+        buildPhase: resources
       # Picture-in-picture for calls, shared with the desktop
       # (docs/design/picture-in-picture.md, "Calls").
       - path: ../common/picture_in_picture/call_pip.js

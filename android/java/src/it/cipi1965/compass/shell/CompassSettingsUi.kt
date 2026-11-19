@@ -48,6 +48,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -90,6 +92,8 @@ object CompassSettingsUi {
         LANGUAGES,
         MORE,
         PRIVACY_POLICY,
+        /** The licenses of the files Compass adds to Chromium (third_party/). */
+        LICENSES,
     }
 
     /** The page on screen: the list, or one of Compass's own settings pages. */
@@ -99,7 +103,16 @@ object CompassSettingsUi {
         PRIVACY,
         SITE_SETTINGS,
         SITES_IN_SPACES,
+        LICENSES,
     }
+
+    /** A third-party file's license, on the Third-Party Licenses page. */
+    class License(
+        @JvmField val title: String,
+        /** What Compass uses it for, and its source. */
+        @JvmField val about: String,
+        @JvmField val text: String,
+    )
 
     /** A space a rule can name: this window's profile's. */
     class SpaceChoice(
@@ -135,6 +148,7 @@ object CompassSettingsUi {
         HTTPS_ONLY,
         PRELOAD_PAGES,
         DO_NOT_TRACK,
+        CLEAN_COPIED_LINKS,
     }
 
     /** A search engine to choose (Chrome's TemplateUrlService). */
@@ -217,6 +231,7 @@ object CompassSettingsUi {
         var ruleSpaces by mutableStateOf<List<SpaceChoice>>(emptyList())
         /** Automatic picture-in-picture also when Compass is left for another app. */
         var pipOnLeaving by mutableStateOf(true)
+        var licenses by mutableStateOf<List<License>>(emptyList())
     }
 
     @JvmStatic
@@ -240,6 +255,7 @@ object CompassSettingsUi {
                         Page.PRIVACY -> PrivacyPage(state, listener)
                         Page.SITE_SETTINGS -> SiteSettingsPage(state, listener)
                         Page.SITES_IN_SPACES -> SitesInSpacesPage(state, listener)
+                        Page.LICENSES -> LicensesPage(state, listener)
                         Page.MAIN -> Settings(state, listener)
                     }
                 }
@@ -397,6 +413,9 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                     SettingsRow("More Settings", R.drawable.compass_sym_settings_fill) {
                         open(CompassSettingsUi.Row.MORE)
                     }
+                    SettingsRow("Third-Party Licenses", R.drawable.compass_sym_description) {
+                        open(CompassSettingsUi.Row.LICENSES)
+                    }
                 }
                 Text(
                     "Compass ${state.version}",
@@ -477,6 +496,9 @@ private fun PrivacyPage(state: CompassSettingsUi.State, listener: CompassSetting
                     "Loads pages you're likely to visit, for faster browsing"),
                 Triple(CompassSettingsUi.PrivacySwitch.DO_NOT_TRACK, "Send \"Do Not Track\"",
                     "Asks sites not to track you; many ignore it"),
+                Triple(CompassSettingsUi.PrivacySwitch.CLEAN_COPIED_LINKS,
+                    "Remove Tracking from Copied Links",
+                    "Copy URL leaves out parameters that only track where a link was shared"),
             )
             for ((which, title, subtitle) in switches) {
                 SwitchRow(
@@ -720,6 +742,36 @@ private fun SubPage(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
                 content = content,
             )
+        }
+    }
+}
+
+/**
+ * Settings → Third-Party Licenses: the licenses of the files Compass adds to Chromium, shown in
+ * full (CompassSettings.loadLicenses(); docs/design/shortcuts.md, "Clean links"). Chromium's own
+ * are on chrome://credits.
+ */
+@Composable
+private fun LicensesPage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
+    SubPage("Third-Party Licenses", listener) {
+        for (license in state.licenses) {
+            CardSection(license.title) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        license.about,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    SelectionContainer {
+                        Text(
+                            license.text,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp,
+                        )
+                    }
+                }
+            }
         }
     }
 }

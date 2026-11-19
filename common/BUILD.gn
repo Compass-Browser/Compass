@@ -4,15 +4,39 @@
 
 # The compass:// scheme, shared by every process. //chrome/common registers
 # it, and the browser targets that rewrite or show URLs depend on it (see
-# docs/design/branding.md "compass://").
+# docs/design/branding.md "compass://"). Also RemoveTrackingParams(), for
+# copied links.
 source_set("url") {
   sources = [
+    "clean_url.cc",
+    "clean_url.h",
     "compass_url.cc",
     "compass_url.h",
   ]
   deps = [
+    ":strip_on_share_lists",
     "//base",
+    "//net",
     "//url",
+  ]
+}
+
+# Firefox's strip-on-share lists (//compass/third_party/strip_on_share) as
+# string constants: compass/common/strip_on_share_lists.h.
+action("strip_on_share_lists") {
+  script = "//compass/build/embed_text.py"
+  inputs = [
+    "//compass/third_party/strip_on_share/MPL2/StripOnShare.json",
+    "//compass/third_party/strip_on_share/LGPL/StripOnShareLGPL.json",
+  ]
+  outputs = [ "$target_gen_dir/strip_on_share_lists.h" ]
+  args = [
+    "--out",
+    rebase_path(outputs[0], root_build_dir),
+    "--namespace",
+    "compass::strip_on_share",
+    "kMpl2List=" + rebase_path(inputs[0], root_build_dir),
+    "kLgplList=" + rebase_path(inputs[1], root_build_dir),
   ]
 }
 
@@ -31,7 +55,10 @@ if (is_mac) {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "compass_url_unittest.cc" ]
+  sources = [
+    "clean_url_unittest.cc",
+    "compass_url_unittest.cc",
+  ]
   deps = [
     ":url",
     "//testing/gtest",

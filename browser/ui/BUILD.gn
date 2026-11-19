@@ -492,8 +492,10 @@ source_set("browser_tests") {
       "views/little_window/little_window_browsertest_mac.mm",
     ]
     deps += [
+      "//chrome/browser/profiles:profile",
       "//compass/browser/ui/cocoa:shortcuts",
       "//compass/browser/ui/cocoa:spaces_menu_hooks",
+      "//components/prefs",
       "//ui/base/clipboard:clipboard_test_support",
       "//ui/events:events_base",
     ]

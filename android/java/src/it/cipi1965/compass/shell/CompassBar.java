@@ -807,7 +807,8 @@ public class CompassBar implements CompassBarUi.Actions {
         if (tab == null) return;
         ClipboardManager clipboard =
                 (ClipboardManager) mActivity.getSystemService(Context.CLIPBOARD_SERVICE);
-        clipboard.setPrimaryClip(ClipData.newPlainText("URL", tab.getUrl().getSpec()));
+        String url = CopyLinkBridge.linkToCopy(tab.getProfile(), tab.getUrl().getSpec());
+        clipboard.setPrimaryClip(ClipData.newPlainText("URL", url));
     }
 
     // CompassBarUi.Actions:

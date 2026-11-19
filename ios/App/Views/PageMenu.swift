@@ -153,7 +153,7 @@ struct PageMenu: View {
       }
       .buttonStyle(.plain)
       MenuIcon(symbol: copied ? "checkmark" : "link", enabled: view?.url != nil) {
-        UIPasteboard.general.url = view?.url
+        CopyLink.copy(view?.url)
         copied = true
         Task {
           try? await Task.sleep(for: .seconds(1.2))

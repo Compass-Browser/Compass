@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 1e352a02e9720c91917e329c22674fdd33451f4b..200432d1b7431f767a218087bff0fb2d8902a581 100644
+index 1e352a02e9720c91917e329c22674fdd33451f4b..f7f6dec426874653d57597bf81af79ae6ae97ac1 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -614,6 +614,8 @@ if (!is_android) {
@@ -24,7 +24,7 @@ index 1e352a02e9720c91917e329c22674fdd33451f4b..200432d1b7431f767a218087bff0fb2d
      sources = [ "browser_commands.cc" ]
      public_deps = [ ":browser_commands" ]
      deps = [
-+      "//compass/common:url",
++      "//compass/browser/prefs",
 +      # Compass's find bar takes chrome::FindInPage().
 +      "//compass/browser/ui",
        ":accelerator_utils_headers",

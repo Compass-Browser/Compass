@@ -13,6 +13,7 @@ group("android") {
   deps = [
     ":claude_bridge",
     ":claude_sidebar",
+    ":copy_link_bridge",
     ":extension_unlock_bridge",
     ":passwords_bridge",
     ":peek_bridge",
@@ -176,6 +177,21 @@ source_set("split_bridge") {
     "//compass/android:jni_headers",
     "//content/public/browser",
     "//ui/android",
+  ]
+}
+
+# Copy URL without tracking parameters (docs/design/shortcuts.md, "Clean
+# links").
+source_set("copy_link_bridge") {
+  sources = [ "copy_link_bridge.cc" ]
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//compass/android:jni_headers",
+    "//compass/browser/prefs",
+    "//compass/common:url",
+    "//components/prefs",
+    "//url",
   ]
 }
 

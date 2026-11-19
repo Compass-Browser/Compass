@@ -1,0 +1,56 @@
+# Keeps third_party/strip_on_share/ (Firefox's strip-on-share lists, used by
+# Copy URL: docs/design/shortcuts.md "Clean links") current: once a week,
+# downloads them from Firefox and opens a pull request when they changed.
+name: strip-on-share
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"  # Mondays, 06:17 UTC.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: strip-on-share
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Download Firefox's lists
+        id: update
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          result=$(python tools/update_strip_on_share.py)
+          echo "$result"
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+      - name: Open a pull request
+        if: steps.update.outputs.result != 'unchanged'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESULT: ${{ steps.update.outputs.result }}
+        run: |
+          sha=${RESULT%% *}
+          date=${RESULT##* }
+          branch=strip-on-share/${sha:0:12}
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "$branch already has a pull request"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add third_party/strip_on_share
+          git commit -m "Copy URL: Firefox's strip-on-share lists of $date" \
+            -m "From mozilla-firefox/firefox $sha."
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "Copy URL: Firefox's strip-on-share lists of $date" \
+            --body "Firefox's strip-on-share lists at https://github.com/mozilla-firefox/firefox/commit/$sha, unmodified. Review the parameters added or removed, then merge: the next build ships them (docs/design/shortcuts.md, \"Clean links\")."

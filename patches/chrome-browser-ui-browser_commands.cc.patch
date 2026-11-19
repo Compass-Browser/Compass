@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/browser_commands.cc b/chrome/browser/ui/browser_commands.cc
-index 365dcd789dff01df138a01a307a5f43695461ca8..6591f7900a98516c97dd299c9d4c2cf7f7c3a495 100644
+index 365dcd789dff01df138a01a307a5f43695461ca8..d3fb85dbba80bc92988805ba8537bc26b49f3e55 100644
 --- a/chrome/browser/ui/browser_commands.cc
 +++ b/chrome/browser/ui/browser_commands.cc
 @@ -143,6 +143,8 @@
@@ -7,7 +7,7 @@ index 365dcd789dff01df138a01a307a5f43695461ca8..6591f7900a98516c97dd299c9d4c2cf7
  #include "chrome/common/url_constants.h"
  #include "chrome/common/webui_url_constants.h"
 +#include "compass/browser/ui/views/find_bar/find_bar.h"
-+#include "compass/common/compass_url.h"
++#include "compass/browser/prefs/copy_link.h"
  #include "components/bookmarks/browser/bookmark_model.h"
  #include "components/bookmarks/browser/bookmark_node.h"
  #include "components/bookmarks/browser/bookmark_utils.h"
@@ -22,13 +22,16 @@ index 365dcd789dff01df138a01a307a5f43695461ca8..6591f7900a98516c97dd299c9d4c2cf7
    FindBarController::From(browser)->Show(find_next, forward_direction);
  }
  
-@@ -2961,7 +2967,8 @@ bool IsDebuggerAttachedToCurrentTab(BrowserWindowInterface* browser) {
+@@ -2961,7 +2967,11 @@ bool IsDebuggerAttachedToCurrentTab(BrowserWindowInterface* browser) {
  void CopyURL(BrowserWindowInterface* browser,
               content::WebContents* web_contents) {
    ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste);
 -  scw.WriteText(base::UTF8ToUTF16(web_contents->GetVisibleURL().spec()));
++  // Compass: chrome:// as compass://, and without tracking parameters.
 +  scw.WriteText(base::UTF8ToUTF16(
-+      compass::ToCompassURL(web_contents->GetVisibleURL()).spec()));
++      compass::LinkToCopy(browser->GetProfile()->GetPrefs(),
++                          web_contents->GetVisibleURL())
++          .spec()));
  
  #if !BUILDFLAG(IS_ANDROID)
    if (toast_features::IsEnabled(toast_features::kLinkCopiedToast)) {

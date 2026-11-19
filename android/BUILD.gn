@@ -47,6 +47,7 @@ generate_jni("jni_headers") {
     "java/src/it/cipi1965/compass/claude/ClaudeBridge.java",
     "java/src/it/cipi1965/compass/claude/ClaudeSidebarBridge.java",
     "java/src/it/cipi1965/compass/autofill/PasswordsBridge.java",
+    "java/src/it/cipi1965/compass/shell/CopyLinkBridge.java",
     "java/src/it/cipi1965/compass/shell/ExtensionUnlockBridge.java",
     "java/src/it/cipi1965/compass/shell/PeekBridge.java",
     "java/src/it/cipi1965/compass/shell/PipBridge.java",
@@ -100,6 +101,7 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/CommandBar.java",
     "java/src/it/cipi1965/compass/shell/CommandBarState.kt",
     "java/src/it/cipi1965/compass/shell/CommandBarUi.kt",
+    "java/src/it/cipi1965/compass/shell/CopyLinkBridge.java",
     "java/src/it/cipi1965/compass/shell/ExtensionUnlock.kt",
     "java/src/it/cipi1965/compass/shell/ExtensionUnlockBridge.java",
     "java/src/it/cipi1965/compass/shell/Extensions.java",
@@ -391,6 +393,19 @@ android_resources("extras_resources") {
   ]
 }
 
+# The license texts of Compass's third-party files, for Settings →
+# Third-Party Licenses (CompassSettings.loadLicenses()), in the base module.
+android_assets("license_assets") {
+  renaming_sources = [
+    "//compass/third_party/strip_on_share/MPL2/LICENSE",
+    "//compass/third_party/strip_on_share/LGPL/LICENSE",
+  ]
+  renaming_destinations = [
+    "licenses/strip_on_share_mpl2.txt",
+    "licenses/strip_on_share_lgpl.txt",
+  ]
+}
+
 chrome_public_apk_or_module_tmpl("compass_apk") {
   target_type = "android_apk"
   apk_name = "Compass"
@@ -400,6 +415,7 @@ chrome_public_apk_or_module_tmpl("compass_apk") {
     ":extras_resources",
     ":icon_resources",
     ":java",
+    ":license_assets",
   ]
 }
 
@@ -429,6 +445,7 @@ chrome_public_apk_or_module_tmpl("compass_bundle__base_bundle_module") {
     ":base_java",
     ":extras_resources",
     ":icon_resources",
+    ":license_assets",
   ]
 }
 

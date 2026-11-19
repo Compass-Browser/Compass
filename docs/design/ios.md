@@ -456,6 +456,26 @@ link's must both allow it. App schemes don't follow it. The decision is
 `AppLinks.decide` (CompassShared), tests `AppLinksTests`; `TabManager`
 carries it out.
 
+### Clean copied links
+
+Copying the page's link (the page menu's Copy Link, the address's Copy
+URL, ⌘⇧C) leaves out the query parameters that only track where a link was
+shared, as Firefox's "Copy Clean Link" does and as the desktop's Copy URL
+does (`common/clean_url.cc`). Settings → "Remove Tracking from Copied
+Links" (UserDefaults `compass.copy.remove_tracking`, the desktop's pref
+name; on when unset). The lists are Firefox's, bundled unmodified from
+`third_party/strip_on_share/` through project.yml. `CleanLink`
+(CompassShared) is the desktop's code ported: raw query names compared
+without case against the global names, the host's and the site's; one
+level of http(s) URLs in values cleaned; everything else kept as written.
+iOS has no public suffix list, so a site matches a host it equals or ends
+as ".site" (every `schemelessSites` entry is a registrable domain, so the
+answers are the same). The app's one entry point is `CopyLink`
+(`App/Browser/CopyLink.swift`). Tests: `CleanLinkTests` (the desktop's
+cases, on the real lists). The folder is bundled whole (a folder reference,
+so the two `LICENSE` files keep their paths), and Settings → Third-Party
+Licenses (`ThirdPartyLicensesView`) shows both licenses' texts.
+
 ### Reader mode
 
 The desktop's Reader ([reader-mode.md](reader-mode.md), "iOS"), on the

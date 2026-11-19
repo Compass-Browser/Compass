@@ -194,7 +194,8 @@ write a `chrome://` URL as `compass://` where the user sees or copies it:
 - the pill (`SidebarHeader::GetPillText()`), the command bar's starting text
   (Cmd+L), its entry titles and subtitles and its omnibox matches;
 - Copy Link in the sidebar's context menu, and upstream's Copy URL
-  (Cmd+Shift+C, `chrome::CopyURL()` patch);
+  (Cmd+Shift+C, `chrome::CopyURL()` patch, which also removes tracking
+  parameters: shortcuts.md "Clean links");
 - the (hidden) location bar
   (`ChromeLocationBarModelDelegate::FormattedStringWithEquivalentMeaning()`
   patch).

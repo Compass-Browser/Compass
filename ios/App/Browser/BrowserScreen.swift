@@ -598,7 +598,7 @@ struct BrowserScreen: View {
     Button("Reload", systemImage: "arrow.clockwise") { view?.reload() }
       .disabled(view == nil)
     Button("Copy URL", systemImage: "doc.on.doc") {
-      if let url { UIPasteboard.general.url = url }
+      CopyLink.copy(url)
     }
     if let url {
       ShareLink(item: url, subject: Text(app.shownTab?.displayTitle ?? "")) {

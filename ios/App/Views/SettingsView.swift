@@ -21,6 +21,7 @@ struct SettingsView: View {
   @AppStorage(AutoPiP.scrollKey) private var autoPiPScroll = true
   @AppStorage(StartScreen.key) private var startScreen = StartScreen.sidebar
   @AppStorage(LittleWindows.key) private var littleWindows = true
+  @AppStorage(CleanLink.removeTrackingKey) private var removeTracking = true
   // In the App Group: the share extension reads it.
   @AppStorage(SharedContainer.shareOpensLittleWindowKey, store: SharedContainer.defaults)
   private var shareOpensLittleWindow = false
@@ -90,6 +91,13 @@ struct SettingsView: View {
           }
           NavigationLink { ClearDataView() } label: {
             SettingsLabel("Clear Browsing Data", "eraser.fill", .red)
+          }
+          Toggle(isOn: $removeTracking) {
+            VStack(alignment: .leading, spacing: 2) {
+              SettingsLabel("Remove Tracking from Copied Links", "link", .green)
+              Text("Copy Link leaves out parameters that only track where a link was shared, using Firefox's list.")
+                .font(.caption).foregroundStyle(.secondary).padding(.leading, 44)
+            }
           }
           ShareLink(item: app.openTabsText, subject: Text("Open tabs")) {
             VStack(alignment: .leading, spacing: 2) {
@@ -161,6 +169,9 @@ struct SettingsView: View {
         Section {
           Link(destination: URL(string: "https://compassbrowser.org/privacy")!) {
             SettingsLabel("Privacy Policy", "hand.raised.fill", .indigo)
+          }
+          NavigationLink { ThirdPartyLicensesView() } label: {
+            SettingsLabel("Third-Party Licenses", "doc.text.fill", .gray)
           }
         }
       }
@@ -729,5 +740,63 @@ private struct LinkRuleEditor: View {
       app.store.setLinkRule(domain, to: space)
     }
     dismiss()
+  }
+}
+
+/// The licenses of what Compass bundles from others: Firefox's
+/// strip-on-share lists (third_party/strip_on_share/), with their texts as
+/// bundled.
+struct ThirdPartyLicensesView: View {
+  struct License: Identifiable {
+    let title: String
+    let path: String
+    var id: String { path }
+  }
+
+  static let licenses = [
+    License(title: "Firefox's strip-on-share list (MPL 2.0)", path: "strip_on_share/MPL2/LICENSE"),
+    License(title: "Firefox's strip-on-share list, from ClearURLs (LGPL 3.0)", path: "strip_on_share/LGPL/LICENSE"),
+  ]
+
+  var body: some View {
+    List(Self.licenses) { license in
+      NavigationLink { LicenseTextView(license: license) } label: {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(license.title)
+          Text("Used by Remove Tracking from Copied Links").font(.caption).foregroundStyle(.secondary)
+        }
+      }
+    }
+    .navigationTitle("Third-Party Licenses")
+    .navigationBarTitleDisplayMode(.inline)
+  }
+}
+
+private struct LicenseTextView: View {
+  let license: ThirdPartyLicensesView.License
+
+  var body: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 12) {
+        Text(license.title).font(.headline)
+        Text(
+          "Used by Remove Tracking from Copied Links. Source: https://github.com/mozilla-firefox/firefox, toolkit/components/antitracking/StripOnShareLists."
+        )
+        .font(.caption).foregroundStyle(.secondary)
+        Text(text)
+          .font(.system(.caption, design: .monospaced))
+          .textSelection(.enabled)
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding()
+    }
+    .navigationTitle("License")
+    .navigationBarTitleDisplayMode(.inline)
+  }
+
+  private var text: String {
+    Bundle.main.resourceURL.flatMap {
+      try? String(contentsOf: $0.appendingPathComponent(license.path), encoding: .utf8)
+    } ?? "The license text is missing from this build."
   }
 }

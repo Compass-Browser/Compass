@@ -9,22 +9,29 @@ source_set("prefs") {
   sources = [
     "compass_prefs.cc",
     "compass_prefs.h",
+    "copy_link.cc",
+    "copy_link.h",
     "pref_defaults.cc",
     "pref_defaults.h",
   ]
   deps = [
     "//base",
     "//compass/browser/claude:prefs",
+    "//compass/common:url",
     "//chrome/common:constants",
     "//components/embedder_support:embedder_support",
     "//components/password_manager/core/common",
     "//components/prefs",
+    "//url",
   ]
 }
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "pref_defaults_unittest.cc" ]
+  sources = [
+    "copy_link_unittest.cc",
+    "pref_defaults_unittest.cc",
+  ]
   deps = [
     ":prefs",
     "//chrome/common:constants",
@@ -33,6 +40,7 @@ source_set("unit_tests") {
     "//components/prefs",
     "//components/prefs:test_support",
     "//testing/gtest",
+    "//url",
   ]
 }
 
@@ -41,9 +49,14 @@ if (!is_android) {
   source_set("browser_tests") {
     testonly = true
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-    sources = [ "privacy_defaults_browsertest.cc" ]
+    sources = [
+      "copy_link_browsertest.cc",
+      "privacy_defaults_browsertest.cc",
+    ]
     deps = [
+      ":prefs",
       "//base",
+      "//base/test:test_support",
       "//chrome/browser:browser_process",
       "//chrome/browser/profiles:profile",
       "//chrome/browser",
