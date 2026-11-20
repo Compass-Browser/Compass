@@ -97,6 +97,17 @@ public actor SyncEngine {
     metadata.types.values.contains { $0.entities.values.contains { $0.pending != nil } }
   }
 
+  /// Downloads a type from the start with the next cycle, for a bridge
+  /// that doesn't have what the engine already got (DeviceInfoBridge from
+  /// before it kept its entries). Local changes not yet committed stay.
+  public func refetch(_ type: DataType) {
+    guard var state = metadata.types[type.rawValue] else { return }
+    state.progressToken = nil
+    state.entities = state.entities.filter { $0.value.pending != nil }
+    metadata.types[type.rawValue] = state
+    save()
+  }
+
   /// The client tags this engine knows for a type (tests, debugging).
   public func knownTags(_ type: DataType) -> Set<String> {
     Set(metadata.types[type.rawValue]?.entities.values.map(\.clientTag) ?? [])

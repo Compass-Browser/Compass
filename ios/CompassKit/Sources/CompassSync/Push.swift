@@ -15,12 +15,7 @@ public enum Push {
   /// `<server>/compass/push?client_id=<cache GUID>` (the server URL ends in
   /// /v2, as for /command/).
   static func url(_ server: URL, cacheGUID: String) -> URL {
-    var c = URLComponents(url: server, resolvingAgainstBaseURL: false)!
-    var path = c.path
-    if path.hasSuffix("/") { path.removeLast() }
-    c.path = path + "/compass/push"
-    c.queryItems = [URLQueryItem(name: "client_id", value: cacheGUID)]
-    return c.url!
+    ServerEndpoint.url(server, path: "compass/push", query: ["client_id": cacheGUID])
   }
 
   /// Registers `token` (APNs device token) for one account; throws on
@@ -58,7 +53,7 @@ public enum Push {
       throw SyncConnectionError.network(error.localizedDescription)
     }
     guard let http = response as? HTTPURLResponse else { throw SyncConnectionError.badReply }
-    guard http.statusCode == 204 else { throw SyncConnectionError.http(http.statusCode) }
+    guard http.statusCode == 204 else { throw SyncConnectionError.status(http) }
   }
 
   /// The tabs sent to this device that the server holds (unopened, at most

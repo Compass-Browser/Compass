@@ -20,43 +20,55 @@ public final class SyncNotifier: Sendable {
   let authKey: Data
   let session: URLSession
 
-  public init(serverURL: URL, cacheGUID: String, authKey: Data) {
-    var c = URLComponents(url: serverURL, resolvingAgainstBaseURL: false)!
-    var path = c.path
-    while path.hasSuffix("/") { path.removeLast() }
-    c.path = path + "/compass/events"
-    c.queryItems = [URLQueryItem(name: "client_id", value: cacheGUID)]
-    url = c.url!
+  /// `protocolClasses`: tests' stubs.
+  public init(serverURL: URL, cacheGUID: String, authKey: Data, protocolClasses: [AnyClass]? = nil) {
+    url = ServerEndpoint.url(serverURL, path: "compass/events", query: ["client_id": cacheGUID])
     self.authKey = authKey
     let configuration = URLSessionConfiguration.default
     configuration.timeoutIntervalForRequest = 90  // keep-alives every 25 s
     configuration.timeoutIntervalForResource = 24 * 60 * 60
+    if let protocolClasses { configuration.protocolClasses = protocolClasses }
     session = URLSession(configuration: configuration)
   }
 
-  /// Runs until cancelled. `changed` gets the types another device changed,
-  /// or nil to refresh everything (on each (re)connect: changes made while
-  /// disconnected weren't announced).
-  public func run(changed: @escaping @Sendable ([DataType]?) async -> Void) async {
+  /// How a connection ended.
+  enum Outcome { case connected, failed, removed }
+
+  /// Runs until cancelled, or until the server says another device removed
+  /// this one (then `removed` is called and it stops: the server refuses
+  /// this cache GUID for good). `changed` gets the types another device
+  /// changed, or nil to refresh everything (on each (re)connect: changes
+  /// made while disconnected weren't announced).
+  public func run(
+    changed: @escaping @Sendable ([DataType]?) async -> Void,
+    removed: @escaping @Sendable () async -> Void = {}
+  ) async {
     var failures = 0
     while !Task.isCancelled {
-      let connected = await stream(changed: changed)
+      let outcome = await stream(changed: changed)
       if Task.isCancelled { return }
-      failures = connected ? 0 : failures + 1
+      if outcome == .removed {
+        await removed()
+        return
+      }
+      failures = outcome == .connected ? 0 : failures + 1
       // 1 s, 2 s, 4 s … up to a minute.
       let delay = min(60, pow(2, Double(min(failures, 6))))
       try? await Task.sleep(for: .seconds(delay))
     }
   }
 
-  /// One connection; whether it got as far as a 200.
-  private func stream(changed: @escaping @Sendable ([DataType]?) async -> Void) async -> Bool {
+  /// One connection: whether it got as far as a 200.
+  private func stream(changed: @escaping @Sendable ([DataType]?) async -> Void) async -> Outcome {
     var request = URLRequest(url: url)
     request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
     request.setValue("Bearer " + Chain.accessToken(authKey: authKey, now: Date()), forHTTPHeaderField: "Authorization")
     guard let (bytes, response) = try? await session.bytes(for: request),
-      (response as? HTTPURLResponse)?.statusCode == 200
-    else { return false }
+      let http = response as? HTTPURLResponse
+    else { return .failed }
+    guard http.statusCode == 200 else {
+      return SyncConnectionError.status(http) == .deviceRemoved ? .removed : .failed
+    }
     await changed(nil)
     var parser = EventStreamParser()
     do {
@@ -66,7 +78,7 @@ public final class SyncNotifier: Sendable {
         }
       }
     } catch {}
-    return true
+    return .connected
   }
 
   /// The data types of a `changed` event; nil (refresh all) if unreadable.

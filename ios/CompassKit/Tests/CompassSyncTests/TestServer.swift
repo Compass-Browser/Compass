@@ -117,8 +117,11 @@ struct TestDevice {
   let spaces = SpacesMemoryBridge()
   let devices: DeviceInfoBridge
 
-  init(server: URL, chain: Chain, name: String, first: Bool, local: [String: String] = [:]) async {
-    let metadata = SyncMetadata()
+  init(
+    server: URL, chain: Chain, name: String, first: Bool, local: [String: String] = [:],
+    cacheGUID: String = SyncMetadata.makeCacheGUID()
+  ) async {
+    let metadata = SyncMetadata(cacheGUID: cacheGUID)
     engine = SyncEngine(
       connection: HTTPSyncConnection(serverURL: server, cacheGUID: metadata.cacheGUID, authKey: chain.authKey),
       passphrase: chain.passphrase, store: MemorySyncMetadataStore(metadata), createChainIfEmpty: first)

@@ -42,8 +42,36 @@ public final class DeviceInfoBridge: DataTypeBridge, @unchecked Sendable {
   private var cacheGUID = ""
   /// Called with the full list after every change.
   public var onChange: (@Sendable ([SyncDevice]) -> Void)?
+  /// Where the entries are kept between launches: the engine downloads
+  /// only what changed since its progress marker, so without them a
+  /// relaunched app knew only the devices that pulsed since.
+  let stateURL: URL?
+  /// Whether the entries weren't kept (a first run, or an app from before
+  /// they were): the engine should download them again (`refetch`).
+  public let needsRefetch: Bool
 
-  public init(local: LocalDevice) { self.local = local }
+  /// `cacheGUID`: this device's, when known before the first cycle (so
+  /// its saved entry shows as this device's at once).
+  public init(local: LocalDevice, cacheGUID: String = "", stateURL: URL? = nil) {
+    self.local = local
+    self.cacheGUID = cacheGUID
+    self.stateURL = stateURL
+    if let stateURL, let data = try? Data(contentsOf: stateURL),
+      let saved = try? PropertyListDecoder().decode([String: Data].self, from: data)
+    {
+      devices = saved.compactMapValues { try? SyncPb_DeviceInfoSpecifics(serializedBytes: $0) }
+      needsRefetch = false
+    } else {
+      needsRefetch = stateURL != nil
+    }
+  }
+
+  private func save() {
+    guard let stateURL else { return }
+    let saved = lock.withLock { devices.compactMapValues { try? $0.serializedBytes() as Data } }
+    guard let data = try? PropertyListEncoder().encode(saved) else { return }
+    try? data.write(to: stateURL, options: .atomic)
+  }
 
   public static func tag(cacheGUID: String) -> String { "DeviceInfo_" + cacheGUID }
 
@@ -94,7 +122,21 @@ public final class DeviceInfoBridge: DataTypeBridge, @unchecked Sendable {
         }
       }
     }
+    save()
     onChange?(allDevices)
+  }
+
+  /// Drops a device removed from here (DeviceRemover) before its tombstone
+  /// comes down. Never this device's own entry.
+  public func forget(_ cacheGUID: String) {
+    let changed = lock.withLock {
+      guard cacheGUID != self.cacheGUID else { return false }
+      return devices.removeValue(forKey: cacheGUID) != nil
+    }
+    if changed {
+      save()
+      onChange?(allDevices)
+    }
   }
 
   /// This device's specifics, as Chromium's LocalDeviceInfoProvider fills them.
@@ -136,6 +178,7 @@ public final class DeviceInfoBridge: DataTypeBridge, @unchecked Sendable {
     guard stale else { return }
     let specifics = localSpecifics(cacheGUID: guid, now: now)
     lock.withLock { devices[guid] = specifics.deviceInfo }
+    save()
     await engine.put(.deviceInfo, tag: Self.tag(cacheGUID: guid), specifics: specifics)
   }
 }

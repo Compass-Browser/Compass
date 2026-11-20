@@ -14,13 +14,16 @@ import SwiftUI
 struct SettingsView: View {
   @Environment(AppModel.self) private var app
   @Environment(\.dismiss) private var dismiss
-  @State private var showingRecovery = false
+  /// The sheet Settings shows (SettingsSheet).
+  @State private var presented: SettingsSheet?
   @State private var confirmLeave = false
+  /// The device "Remove" asks about.
+  @State private var removing: SyncDevice?
+  /// Why removing a device failed.
+  @State private var removeError: String?
   /// The server "Start Sync" uses (the join form's default).
   @State private var startServer = SyncController.defaultServer?.absoluteString ?? ""
   @State private var startError: String?
-  /// The 12 words of a chain just started here, shown once.
-  @State private var newWords: [String]?
   @AppStorage(SearchEngine.key) private var searchEngine = SearchEngine.google.rawValue
   @AppStorage(Spotlight.enabledKey) private var spotlight = true
   @AppStorage(AutoPiP.enabledKey) private var autoPiP = true
@@ -159,7 +162,7 @@ struct SettingsView: View {
         } footer: {
           Text("Links from other apps reach Compass when it's your default browser (Settings → Apps → Default Browser App).")
         }
-        LinkRulesSection()
+        LinkRulesSection { presented = .linkRule($0) }
         Section {
           Toggle(isOn: $spotlight) {
             VStack(alignment: .leading, spacing: 2) {
@@ -189,20 +192,56 @@ struct SettingsView: View {
       .navigationDestination(
         isPresented: Binding(get: { app.pendingInvite != nil && !app.sync.isOn }, set: { _ in })
       ) { JoinView() }
-      .sheet(isPresented: Bindable(app).showingJoinSummary) { JoinSummaryView() }
-      // Here, not in the sync section: starting turns that section over.
-      .sheet(isPresented: Binding(get: { newWords != nil }, set: { if !$0 { newWords = nil } })) {
-        RecoveryCodeView(words: newWords ?? [], dismissTitle: "I Saved It")
-          .interactiveDismissDisabled()
+      .navigationDestination(for: SettingsRoute.self) { route in
+        switch route {
+        case .join: JoinView()
+        }
       }
-      .sheet(
-        isPresented: Binding(
-          get: { app.sync.pairing.step != .none }, set: { if !$0 { app.sync.cancelPairing() } })
-      ) { AddDeviceView() }
+      // Every sheet and dialog is here, on the Form, none on a row or a
+      // section: the List rebuilds those (a sync cycle changes the sync
+      // section; Face ID makes the app inactive and active again, which
+      // starts one), and a presentation attached to one closed with it,
+      // taking the Settings sheet along.
+      .sheet(item: sheet) { sheet in
+        switch sheet {
+        case .recovery: RecoveryCodeView(words: app.sync.recoveryWords, dismissTitle: "Hide")
+        case .newWords(let words):
+          RecoveryCodeView(words: words, dismissTitle: "I Saved It").interactiveDismissDisabled()
+        case .addDevice: AddDeviceView()
+        case .joinSummary: JoinSummaryView()
+        case .linkRule(let draft): LinkRuleEditor(draft: draft)
+        }
+      }
+      .confirmationDialog("Leave sync?", isPresented: $confirmLeave) {
+        Button("Leave Sync", role: .destructive) { app.sync.leave() }
+      } message: {
+        Text("Your spaces stay on this \(UIDevice.current.model). Other devices keep syncing.")
+      }
+      .confirmationDialog(
+        "Remove \(removing?.name ?? "")?",
+        isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+        titleVisibility: .visible, presenting: removing
+      ) { device in
+        Button("Remove", role: .destructive) { remove(device) }
+        Button("Cancel", role: .cancel) {}
+      } message: { _ in
+        Text(
+          "It stops syncing and disappears from your devices. What's on it stays there, and it can join again with a pairing code. Someone who has your recovery code can still join: to lock everyone out, use Reset sync on a computer."
+        )
+      }
+      .alert(
+        "Couldn't Remove the Device",
+        isPresented: Binding(get: { removeError != nil }, set: { if !$0 { removeError = nil } }),
+        presenting: removeError
+      ) { _ in
+        Button("OK", role: .cancel) {}
+      } message: { Text($0) }
       #if DEBUG
         // With -CompassSettings YES, simulator checks of the sync screens:
         //   -CompassSyncScreen start: "Start Sync" (on -CompassServer's server);
-        //   add: "Add a Device"; recovery: the words (no Face ID asked).
+        //   add: "Add a Device"; recovery: the words (no Face ID asked);
+        //   auth: the words behind Face ID, as Show Recovery Code;
+        //   remove: Remove's confirmation for the first other device.
         .task {
           guard let screen = UserDefaults.standard.string(forKey: "CompassSyncScreen") else { return }
           try? await Task.sleep(for: .milliseconds(800))
@@ -213,7 +252,15 @@ struct SettingsView: View {
             if let server = UserDefaults.standard.string(forKey: "CompassServer") { startServer = server }
             startSync()
           case "add" where app.sync.isOn: app.sync.addDevice()
-          case "recovery" where app.sync.isOn: showingRecovery = true
+          case "recovery" where app.sync.isOn: presented = .recovery
+          // As the button: Face ID or the passcode first.
+          case "auth" where app.sync.isOn: authenticate()
+          case "remove" where app.sync.isOn:
+            // Once the first cycle brought the devices.
+            for _ in 0..<50 where !app.sync.devices.contains(where: { !$0.isThisDevice }) {
+              try? await Task.sleep(for: .milliseconds(200))
+            }
+            removing = app.sync.devices.first { !$0.isThisDevice }
           default: break
           }
         }
@@ -222,11 +269,47 @@ struct SettingsView: View {
     }
   }
 
+  /// One sheet at a time: Add a Device and the join summary follow the
+  /// sync controller and the app model, the others are Settings' own.
+  private var sheet: Binding<SettingsSheet?> {
+    Binding(
+      get: {
+        if app.showingJoinSummary { return .joinSummary }
+        if app.sync.pairing.step != .none { return .addDevice }
+        return presented
+      },
+      set: { new in
+        guard new == nil else {
+          presented = new
+          return
+        }
+        if app.showingJoinSummary {
+          app.showingJoinSummary = false
+        } else if app.sync.pairing.step != .none {
+          app.sync.cancelPairing()
+        } else {
+          presented = nil
+        }
+      })
+  }
+
   private func startSync() {
     startError = nil
     switch app.sync.startNewChain(server: startServer) {
-    case .success(let words): newWords = words
+    case .success(let words): presented = .newWords(words)
     case .failure(let error): startError = error.message
+    }
+  }
+
+  private func remove(_ device: SyncDevice) {
+    Task {
+      do {
+        try await app.sync.removeDevice(device)
+      } catch let failure as DeviceRemover.Failure {
+        removeError = failure.message
+      } catch {
+        removeError = "\(error)"
+      }
     }
   }
 
@@ -237,7 +320,8 @@ struct SettingsView: View {
         .accessibilityIdentifier("SyncServer")
       Button("Start Sync on This \(UIDevice.current.model)") { startSync() }
         .disabled(startServer.trimmingCharacters(in: .whitespaces).isEmpty)
-      NavigationLink("I Have Another Device") { JoinView() }
+      // A value: the stack owns the pushed form, not this row.
+      NavigationLink("I Have Another Device", value: SettingsRoute.join)
     } header: {
       Text("Sync")
     } footer: {
@@ -249,13 +333,21 @@ struct SettingsView: View {
   }
 
   @ViewBuilder private var syncOn: some View {
-    Section("Sync") {
+    Section {
       LabeledContent("Status", value: status)
       if let server = app.sync.serverURL { LabeledContent("Server", value: server.host() ?? server.absoluteString) }
       if let last = app.sync.lastSync {
         LabeledContent("Last synced") { Text(last, style: .relative) }
       }
-      Button("Sync Now") { Task { await app.sync.syncNow() } }
+      if isRemoved {
+        Button("Leave Sync", role: .destructive) { confirmLeave = true }
+      } else {
+        Button("Sync Now") { Task { await app.sync.syncNow() } }
+      }
+    } header: {
+      Text("Sync")
+    } footer: {
+      if isRemoved { Text(SyncController.removedMessage) }
     }
     if !app.sync.profiles.isEmpty {
       Section {
@@ -278,10 +370,24 @@ struct SettingsView: View {
         HStack {
           Image(systemName: device.formFactor == .phone ? "iphone" : device.formFactor == .tablet ? "ipad" : "laptopcomputer")
           Text(device.name)
-          if device.isThisDevice { Text("This device").font(.caption).foregroundStyle(.secondary) }
+          if device.isThisDevice {
+            Text("This \(UIDevice.current.model)").font(.caption).foregroundStyle(.secondary)
+          }
           Spacer()
           Text(device.lastUpdated, style: .date).font(.caption).foregroundStyle(.secondary)
         }
+        // Every device but this one (that's Leave Sync), as on the desktop.
+        .swipeActions {
+          if !device.isThisDevice && !isRemoved {
+            Button("Remove") { removing = device }.tint(.red)
+          }
+        }
+        .contextMenu {
+          if !device.isThisDevice && !isRemoved {
+            Button("Remove", systemImage: "trash", role: .destructive) { removing = device }
+          }
+        }
+        .accessibilityIdentifier("SyncDevice")
       }
       if app.sync.devices.isEmpty {
         Text("The devices show once this one has synced.").font(.footnote).foregroundStyle(.secondary)
@@ -293,21 +399,18 @@ struct SettingsView: View {
     }
     Section {
       Button("Show Recovery Code") { authenticate() }
-      Button("Leave Sync", role: .destructive) { confirmLeave = true }
+      // Removed: it's at the top, by the reason.
+      if !isRemoved { Button("Leave Sync", role: .destructive) { confirmLeave = true } }
     } footer: {
       Text("The 12 words that bring your data back if you lose every device. Compass asks for Face ID or your passcode first.")
     }
-    .sheet(isPresented: $showingRecovery) { RecoveryCodeView(words: app.sync.recoveryWords, dismissTitle: "Hide") }
-    .confirmationDialog("Leave sync?", isPresented: $confirmLeave) {
-      Button("Leave Sync", role: .destructive) { app.sync.leave() }
-    } message: {
-      Text("Your spaces stay on this iPhone. Other devices keep syncing.")
-    }
   }
+
+  private var isRemoved: Bool { app.sync.state == .removed }
 
   private var canAddDevice: Bool {
     if case .failed = app.sync.state { return false }
-    return app.sync.lastSync != nil
+    return app.sync.lastSync != nil && !isRemoved
   }
 
   private var status: String {
@@ -316,6 +419,7 @@ struct SettingsView: View {
     case .syncing: "Syncing…"
     case .on: "On"
     case .failed(let message): message
+    case .removed: "Removed from sync"
     }
   }
 
@@ -323,12 +427,39 @@ struct SettingsView: View {
     let context = LAContext()
     var error: NSError?
     guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-      showingRecovery = true  // no passcode set: nothing to ask for
+      presented = .recovery  // no passcode set: nothing to ask for
       return
     }
     // "Compass is trying to show your sync recovery code", as on the Mac.
     context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "show your sync recovery code") { ok, _ in
-      if ok { Task { @MainActor in showingRecovery = true } }
+      if ok { Task { @MainActor in presented = .recovery } }
+    }
+  }
+}
+
+/// A screen Settings pushes by value.
+enum SettingsRoute: Hashable {
+  case join
+}
+
+/// What Settings presents, all from the Form (SettingsView's `sheet`).
+enum SettingsSheet: Identifiable {
+  /// The 12 words, behind Face ID or the passcode.
+  case recovery
+  /// The 12 words of a chain just started here, shown once.
+  case newWords([String])
+  case addDevice
+  case joinSummary
+  /// Adding or editing a link rule.
+  case linkRule(LinkRuleDraft)
+
+  var id: String {
+    switch self {
+    case .recovery: "recovery"
+    case .newWords: "newWords"
+    case .addDevice: "addDevice"
+    case .joinSummary: "joinSummary"
+    case .linkRule(let draft): "linkRule-\(draft.id)"
     }
   }
 }
@@ -776,7 +907,9 @@ struct SearchEnginePicker: View {
 /// says so until it's edited or deleted. They sync with the spaces.
 struct LinkRulesSection: View {
   @Environment(AppModel.self) private var app
-  @State private var editing: LinkRuleDraft?
+  /// Opens the editor: Settings presents it (SettingsSheet), not this
+  /// section, which the List rebuilds.
+  let edit: (LinkRuleDraft) -> Void
 
   private var rules: [LinkRule] {
     app.store.linkRules.sorted {
@@ -788,9 +921,9 @@ struct LinkRulesSection: View {
     Section {
       ForEach(rules) { rule in
         Button {
-          editing = LinkRuleDraft(
+          edit(LinkRuleDraft(
             original: rule.id, domain: LinkRouting.displayDomain(rule.domain),
-            spaceID: app.store.spaces.contains { $0.id == rule.spaceID } ? rule.spaceID : defaultSpaceID)
+            spaceID: app.store.spaces.contains { $0.id == rule.spaceID } ? rule.spaceID : defaultSpaceID))
         } label: {
           LinkRuleRow(rule: rule, space: app.store.spaces.first { $0.id == rule.spaceID })
         }
@@ -800,7 +933,7 @@ struct LinkRulesSection: View {
         }
       }
       Button {
-        editing = LinkRuleDraft(original: nil, domain: "", spaceID: defaultSpaceID)
+        edit(LinkRuleDraft(original: nil, domain: "", spaceID: defaultSpaceID))
       } label: {
         Label("Add Site", systemImage: "plus")
       }
@@ -811,7 +944,6 @@ struct LinkRulesSection: View {
         "A link from another app to one of these sites, or to its subdomains, opens as a new tab in that space. The most specific site wins; other links open as above. Never in Incognito."
       )
     }
-    .sheet(item: $editing) { draft in LinkRuleEditor(draft: draft) }
   }
 
   private var defaultSpaceID: String {

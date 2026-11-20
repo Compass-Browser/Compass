@@ -38,7 +38,7 @@ struct DataTypeTests {
 
   @Test func commandURL() {
     #expect(HTTPSyncConnection.commandURL(URL(string: "https://h/v2")!, cacheGUID: "a+b/c=").absoluteString
-      == "https://h/v2/command/?client=Compass%20iOS&client_id=a+b/c%3D")
+      == "https://h/v2/command/?client=Compass%20iOS&client_id=a%2Bb%2Fc%3D")
   }
 
   @Test func compassNodeRoundTrips() throws {

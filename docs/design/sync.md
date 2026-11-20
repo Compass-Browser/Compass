@@ -125,10 +125,29 @@ and the chain, its keys and the encryption below stay as they are.
   thank year wave sausage worth useful legal winner thank yellow`) pass.
 - **Stored on the device**: the seed, encrypted with `os_crypt_async` (the
   same Keychain key as passwords), in a profile pref (`compass.sync.seed`).
-- **Removing a device** deletes its `DEVICE_INFO` entry; it can't revoke
-  the device, because every device holds the seed. "Reset sync" makes a new
-  chain (new seed), uploads this device's data, and the others must join
-  again. Same as Brave.
+- **Removing a device** deletes its `DEVICE_INFO` entry for every device
+  and the server refuses that installation from then on:
+  `DELETE /v2/compass/devices/{cache_guid}?client_id=<caller's cache GUID>`
+  (sync token, gated as `/command/`; the GUID percent-encoded, Chromium's
+  are base64) answers 204 (also when already removed, or when the device
+  had no entry), 400 `{"error":"bad_request"}` (no or a too long GUID or
+  `client_id`, over 128), 409 `{"error":"this_device"}` (the caller's own
+  GUID), 403 `{"error":"chain_disabled"}`. The server tombstones the entity
+  with client tag `DeviceInfo_<cache GUID>` through the commit path
+  (`command.DeleteDeviceInfo`: new version and mtime, tag freed, item count
+  and bytes down, the type's cached mtime moved), so the others get the
+  tombstone at their next GetUpdates (they're notified on
+  `/compass/events`); records the GUID in `removed_devices`; deletes its
+  push tokens; and ends its change stream. From then on any request whose
+  `client_id` query parameter is that GUID (`/command/`, `/compass/events`,
+  `/compass/push`, `/compass/quota`, `/compass/devices`) gets 403
+  `{"error":"device_removed"}` with `X-Compass-Device: removed`
+  (`auth.RejectRemovedDevices`); requests without a `client_id` and pairing
+  are unaffected. It still can't revoke the device, because every device
+  holds the seed: the removed device keeps its local data and can join
+  again (a rejoin is a new cache GUID). Admin: `devices list|remove`.
+  "Reset sync" makes a new chain (new seed), uploads this device's data,
+  and the others must join again. Same as Brave.
 
 ### Pairing
 
@@ -1195,7 +1214,9 @@ every profile's bridge.
   account's token, so the server's per-address limit (50) is devices ×
   profiles behind one address.
 - **Devices** come from the profile's own `DEVICE_INFO`, i.e. the devices
-  that carry this profile. **Recovery code**: the same seed in every
+  that carry this profile. **Remove** removes the device from the shown
+  profile's account, and from this device's other profile accounts when it
+  can tell the same device there (see "Removing a device"). **Recovery code**: the same seed in every
   profile, so any profile's page shows the chain's 12 words. **Add a
   device** from any profile sends the home's list.
 - **Logs**: the `state=` lines end with `profile=<directory>`, and
@@ -1217,7 +1238,13 @@ every profile's bridge.
   `GET /v2/compass/events` (change notifications), `GET /v2/compass/quota`
   (limits), `/v2/compass/push` (push tokens), `GET /v2/compass/info`,
   `/v2/compass/account` and `/v2/compass/login` (company sign-in, see
-  "Company sign-in (OIDC)"), `GET /healthz` and `/health-check`.
+  "Company sign-in (OIDC)"), `DELETE /v2/compass/devices/{cache_guid}`
+  (removing a device, see "Identity"), `GET /healthz` and `/health-check`.
+- Admin commands (`compass-sync-server`): `backup`, `users ...` and
+  `chains list` (see "Company sign-in (OIDC)"), `devices list CHAIN` (cache
+  GUID, name and OS from the unencrypted `DEVICE_INFO`, last updated,
+  active or removed) and `devices remove CHAIN CACHE_GUID` (as the
+  endpoint; the running server's poll cache sees it within 10 min).
 - It stores specifics opaquely (it can't read them anyway) and only
   interprets envelope fields, so types newer than its protos sync.
 - Ships a `docker-compose.yml` with the server and a Caddy front for HTTPS,
@@ -1304,7 +1331,10 @@ leaves.
 
 **Schema.** `PRAGMA user_version` 2 adds the columns for the quota state
 and last activity; 3 adds `oidc_users` and `chain_logins` (company
-sign-in); older databases migrate on start. An older server refuses
+sign-in); 4 adds `removed_devices` (`client_id` lower-case, `cache_guid`
+compared exactly, `removed_at`; deleted with the chain's data by reset,
+idle-chain expiry and `users revoke --delete-data`); older databases
+migrate on start. An older server refuses
 a newer database, so take a backup before updating (the update script
 does).
 
@@ -1343,6 +1373,7 @@ browser.
   tracker: name, kind from OS and form factor, "active now / 5 minutes ago"
   from the last update, "This device" first; this device's entries from an
   earlier setup, which `IsRecentLocalCacheGuid()` recognizes, are hidden);
+  **Remove** on each other device's row (see "Removing a device");
   **Add a device** (code and QR, then Allow/Deny with the device's name);
   **What syncs**, nine switches; **Recovery code**, behind device
   re-authentication; the server, read-only ("leave sync and join again" to
@@ -1410,6 +1441,64 @@ grouped by device, the most recently active first; subtitle "On <device> ·
 either mode. Nothing when Open tabs doesn't sync. A `ResultKind`,
 `kOtherDeviceTab`; rows show the page's favicon. See command-bar.md,
 "Results".
+
+### Removing a device
+
+The device list has **Remove** on every row but "This device" (desktop
+page and Android screen alike, both over `SyncController::RemoveDevice()`).
+It asks first (a `<dialog>` on the desktop, an `AlertDialog` on Android):
+"Remove <name>?", "It stops syncing and disappears from your devices.
+What's on it stays there, and it can join again with a pairing code.
+Someone who has your recovery code can still join: to lock everyone out,
+use Reset sync." (Android: "… use Reset sync on a computer", having no
+Reset), Remove / Cancel; an error shows under the list.
+
+- **Request**: `DeviceRemover` (`components/sync/compass_device_remover.h`)
+  sends `DELETE <server>/compass/devices/<cache GUID, percent-encoded>
+  ?client_id=<this profile's cache GUID>`, signed with the account's token
+  (see "Identity" for the server's side). 2xx is done, 409 this device,
+  401 the key (or the sign-in, with `X-Compass-Login`), 403 with
+  `X-Compass-Device: removed` this device itself was removed, 404/405 an
+  older server; anything else "try again".
+- **The list** carries each entry's cache GUID (`DeviceInfo::guid()`). A
+  removed GUID is hidden at once (`removed_guids_`, for the run), and the
+  service asks for `DEVICE_INFO` updates; the server's tombstone, announced
+  on `/compass/events`, then drops it from the tracker.
+- **Other profiles.** Each profile of a device syncs with its own account,
+  so the device has one `DEVICE_INFO` entry, and one cache GUID, per
+  profile, and nothing in `DEVICE_INFO` is shared between them
+  (`signin_scoped_device_id` is "local_device" under local sync on the
+  desktop, and per profile elsewhere). `FindSameDevice()`
+  (`browser/sync/sync_settings.h`) matches on name, OS, form factor,
+  manufacturer, model and hardware class, and only when exactly one entry
+  of the shown account and exactly one of the other account have that
+  signature; then the other account's entry is removed too (after the
+  first succeeded, best effort). Two alike devices (two phones of one model
+  with the default name) aren't told apart: only the shown account's entry
+  goes, and the device's other profiles keep syncing until removed from
+  their own pages. Only loaded profiles are covered.
+- **On the removed device.** Every request it makes with its `client_id`
+  gets 403 `{"error":"device_removed"}` with `X-Compass-Device: removed`.
+  The engine's posts go through a wrapping `HttpPostProvider`
+  (`WrapHttpPostProviderFactoryForDeviceState()`) that notes it in the
+  profile's `SyncCredentials`; the notifier, the quota fetcher and Android
+  push registration report it too. The service then keeps
+  `compass.sync.device_removed`, stops the notifier, push, quota and
+  pairing, and the connection manager stops posting (it answers the engine
+  403 itself, so the engine backs off without traffic, this run and the
+  next ones). The status is an error: "This device was removed from sync
+  on another device. Its data stays here. Leave sync to set it up again.",
+  the page shows only Leave sync, and the app menu row says "Sync: device
+  removed".
+- **Joining again** needs a new cache GUID, since the server refuses the
+  old one. Leaving clears the profile's sync transport data (as Reset
+  does, `SyncTransportDataPrefs` keyed to the empty Gaia ID): signing out
+  of local sync at the next launch wouldn't, so before this a device that
+  left and joined again came back with the same GUID. With no cache GUID
+  the engine makes a new one at the next join and drops every type's
+  metadata. The pref goes on leaving too.
+- It isn't a revocation: the device keeps the seed, so it (or anyone with
+  the recovery code) can join again. Reset sync locks everyone out.
 
 ## Testing
 

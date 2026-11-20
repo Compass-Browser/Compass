@@ -98,6 +98,8 @@ struct SidebarScreen: View {
     case .syncing: "arrow.triangle.2.circlepath"
     case .on: "checkmark.icloud"
     case .failed: "exclamationmark.icloud"
+    // Removed on another device: nothing syncs until Leave Sync.
+    case .removed: "xmark.icloud"
     }
   }
 }

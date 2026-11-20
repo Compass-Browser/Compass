@@ -14,6 +14,44 @@ public enum SyncConnectionError: Error, Equatable {
   /// An HTTP status other than 200.
   case http(Int)
   case badReply
+  /// Another device removed this one from the chain: the server refuses
+  /// its cache GUID (403 with `X-Compass-Device: removed`) until it leaves
+  /// and joins again with a new one.
+  case deviceRemoved
+
+  /// What a reply other than `expected` means.
+  static func status(_ response: HTTPURLResponse) -> SyncConnectionError {
+    if response.statusCode == 403,
+      response.value(forHTTPHeaderField: "X-Compass-Device")?.lowercased() == "removed"
+    {
+      return .deviceRemoved
+    }
+    return .http(response.statusCode)
+  }
+}
+
+/// The server's endpoints: `<server>/<path>?<query>`, the server URL ending
+/// in /v2. Values are escaped as Chromium's EscapeQueryParamValue() does:
+/// a cache GUID is base64, and a bare `+` would read as a space on the
+/// server, so it wouldn't match the GUID in DEVICE_INFO.
+enum ServerEndpoint {
+  /// RFC 3986's unreserved characters, the only ones left as they are.
+  static let unreserved = CharacterSet(
+    charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+
+  static func escape(_ value: String) -> String {
+    value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? value
+  }
+
+  /// `path` is escaped already (see `escape`) and has no leading slash.
+  static func url(_ server: URL, path: String, query: KeyValuePairs<String, String>) -> URL {
+    var c = URLComponents(url: server, resolvingAgainstBaseURL: false)!
+    var base = c.percentEncodedPath
+    while base.hasSuffix("/") { base.removeLast() }
+    c.percentEncodedPath = base + "/" + path
+    c.percentEncodedQuery = query.map { escape($0.key) + "=" + escape($0.value) }.joined(separator: "&")
+    return c.url!
+  }
 }
 
 /// Posts ClientToServerMessages to the server's /command/ endpoint.
@@ -36,14 +74,7 @@ public struct HTTPSyncConnection: SyncConnection {
   }
 
   static func commandURL(_ server: URL, cacheGUID: String) -> URL {
-    var c = URLComponents(url: server, resolvingAgainstBaseURL: false)!
-    var path = c.path
-    if path.hasSuffix("/") { path.removeLast() }
-    c.path = path + "/command/"
-    c.queryItems = [
-      URLQueryItem(name: "client", value: clientName), URLQueryItem(name: "client_id", value: cacheGUID),
-    ]
-    return c.url!
+    ServerEndpoint.url(server, path: "command/", query: ["client": clientName, "client_id": cacheGUID])
   }
 
   public func post(_ message: SyncPb_ClientToServerMessage) async throws -> SyncPb_ClientToServerResponse {
@@ -61,7 +92,7 @@ public struct HTTPSyncConnection: SyncConnection {
       throw SyncConnectionError.network(error.localizedDescription)
     }
     guard let http = response as? HTTPURLResponse else { throw SyncConnectionError.badReply }
-    guard http.statusCode == 200 else { throw SyncConnectionError.http(http.statusCode) }
+    guard http.statusCode == 200 else { throw SyncConnectionError.status(http) }
     do {
       return try SyncPb_ClientToServerResponse(serializedBytes: data)
     } catch {

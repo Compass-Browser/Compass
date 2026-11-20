@@ -51,6 +51,20 @@ struct SeedForSimulator {
     try await engine.sync()
   }
 
+  /// COMPASS_SEED_REMOVE=<name>: another device of the chain removes the
+  /// devices with that name (the joined phone), which then shows that it
+  /// was removed (docs/design/ios.md, "Removing a device").
+  private func removeDevices(named name: String, server: URL, chain: Chain) async throws {
+    let device = await TestDevice(server: server, chain: chain, name: "iMac", first: false)
+    try await device.sync()
+    let guid = await device.engine.cacheGUID
+    let targets = device.devices.allDevices.filter { $0.name == name && !$0.isThisDevice }
+    try #require(!targets.isEmpty, "no device named \(name) in the chain")
+    for target in targets {
+      try await DeviceRemover(serverURL: server, cacheGUID: guid, authKey: chain.authKey).remove(target.cacheGUID)
+    }
+  }
+
   @Test func seed() async throws {
     let server = URL(string: ProcessInfo.processInfo.environment["COMPASS_SEED_SERVER"]!)!
     let chain = try Chain(seed: Data(hex: "000102030405060708090a0b0c0d0e0f")!)
@@ -60,6 +74,10 @@ struct SeedForSimulator {
     }
     if let url = ProcessInfo.processInfo.environment["COMPASS_SEED_SEND_TAB"] {
       try await sendTab(url, server: server, chain: chain)
+      return
+    }
+    if let name = ProcessInfo.processInfo.environment["COMPASS_SEED_REMOVE"] {
+      try await removeDevices(named: name, server: server, chain: chain)
       return
     }
     let mac = await SidebarDevice(server: server, chain: chain, first: true)

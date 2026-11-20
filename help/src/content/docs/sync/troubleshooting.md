@@ -19,6 +19,7 @@ for something, red for an error.
 | **Sync is off** | This device isn't in a sync chain. See [Turn on sync](/sync/turn-on/). |
 | **Sync: restart to finish** | Restart Compass to finish starting, joining, leaving or resetting sync. |
 | **Sync error** | Something stopped sync. Open the **Sync** page to see what. |
+| **Sync: device removed** | This device was removed from your chain on another device. See below. |
 | **Sync: sign in needed** | Your company's server wants you to sign in. See [Company sign-in](/sync/company-sign-in/). |
 | **Sync: server full** | The server's storage limit for your chain is reached. See below. |
 | **Sync: paused by server** | The server is holding this device back for a while. See below. |
@@ -47,6 +48,18 @@ The server doesn't accept this device's chain, for example because the
 server's owner removed it or the server was replaced. Leave sync, then join
 again with a pairing code from a device that still syncs, or start a new
 chain. See [Leave or reset sync](/sync/leave-or-reset/).
+
+### "This device was removed from sync on another device."
+
+:::note[In the next update]
+Someone removed this device from your chain on another of your devices
+(see [Remove a device](/sync/add-a-device/#remove-a-device)), so it no
+longer syncs. Its data stays here. To sync it again, click **Leave sync**
+(on Android, tap **Leave the chain**), restart Compass, then add it again
+with a pairing code from a device that syncs. It joins as a new device.
+On iPhone and iPad, tap **Leave Sync** in **Settings** (no restart), then
+join again.
+:::
 
 ### "Sync stopped: …"
 

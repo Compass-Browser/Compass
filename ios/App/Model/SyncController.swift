@@ -26,7 +26,14 @@ final class SyncController {
     case syncing
     case on
     case failed(String)
+    /// Another device removed this one: the server refuses its cache GUIDs,
+    /// so nothing syncs until it leaves and joins again (with new ones).
+    case removed
   }
+
+  /// Settings' words for `.removed`.
+  static let removedMessage =
+    "This device was removed from sync on another device. Its data stays here. Leave sync to set it up again."
 
   /// The server the join form starts with: the COMPASS_SYNC_SERVER build
   /// setting (ios/Local.xcconfig, not in the repository), through Info.plist.
@@ -267,12 +274,16 @@ final class SyncController {
     }
   }
 
-  /// Stops syncing every profile's account; local data stays.
+  /// Stops syncing every profile's account; local data stays. Each
+  /// account's metadata goes (sync-metadata.plist, Profiles/), so joining
+  /// again gives every account a new cache GUID: a device removed elsewhere
+  /// can come back that way.
   func leave() {
     cancelPairing()
     scheduled?.cancel()
-    // The server stops pushing to this phone (best effort).
-    if let server = serverURL {
+    // The server stops pushing to this phone (best effort; a removed
+    // device's tokens are gone already).
+    if let server = serverURL, state != .removed {
       for account in accounts.values {
         let (guid, key) = (account.cacheGUID, account.authKey)
         Task.detached { try? await Push.unregister(server: server, cacheGUID: guid, authKey: key) }
@@ -289,7 +300,10 @@ final class SyncController {
     syncedExtensions = []
     Keychain.set(nil, "seed")
     Keychain.set(nil, "server")
-    for name in ["sync-metadata.plist", "sync-spaces-mirror.json", "sync-sessions.json", "sync-extensions.json", "Profiles"] {
+    for name in [
+      "sync-metadata.plist", "sync-spaces-mirror.json", "sync-sessions.json", "sync-extensions.json",
+      "sync-devices.plist", "Profiles",
+    ] {
       try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
     }
     spaceDirectory = nil
@@ -370,7 +384,8 @@ final class SyncController {
     // Every account has this phone in its device list, so each profile's
     // page on the Mac shows it.
     let deviceInfo = DeviceInfoBridge(
-      local: .init(name: UIDevice.current.name, model: UIDevice.current.model, appVersion: version))
+      local: .init(name: UIDevice.current.name, model: UIDevice.current.model, appVersion: version),
+      cacheGUID: cacheGUID, stateURL: fileURL("sync-devices.plist", profile: profile))
     let account = Account(
       profile: profile, engine: engine, spaces: spaces, deviceInfo: deviceInfo,
       visits: HistoryBridge(history: history, engine: engine, profile: profile),
@@ -384,6 +399,8 @@ final class SyncController {
       deviceInfo.onChange = { [weak self] devices in
         Task { @MainActor in self?.devices = devices }
       }
+      // Those known from the last run, before the first cycle.
+      devices = deviceInfo.allDevices
     }
     sessions.onChange = { [weak self] _ in
       Task { @MainActor in self?.collectSessions() }
@@ -428,6 +445,10 @@ final class SyncController {
     collectExtensions()
     if active { listen(account) }
     Task {
+      // The devices weren't kept before (sync-devices.plist): all of them
+      // again, before the bridge is registered (so no cycle is under way
+      // for the type).
+      if deviceInfo.needsRefetch { await engine.refetch(.deviceInfo) }
       for bridge: any DataTypeBridge in [
         spaces, deviceInfo, account.visits, account.directives, sessions, account.passwords, account.extensions,
         account.sentTabs,
@@ -451,7 +472,7 @@ final class SyncController {
   }
 
   private func registerPush(_ token: Data, account: Account) {
-    guard let server = serverURL else { return }
+    guard let server = serverURL, state != .removed else { return }
     #if DEBUG
       let environment = Push.Environment.sandbox
     #else
@@ -539,6 +560,48 @@ final class SyncController {
     return store.isHome(profile) ? "" : profile
   }
 
+  // MARK: Removing a device
+
+  /// Removes another device from sync (docs/design/ios.md, "Removing a
+  /// device"): the server deletes its entry in the home account's
+  /// DEVICE_INFO, which the other devices drop with their next sync, and
+  /// refuses it from then on. Only the home account's entry: a profile
+  /// account lists the same computer under another cache GUID, and nothing
+  /// in DEVICE_INFO ties the two together (signin_scoped_device_id is per
+  /// profile, and names repeat), so those entries stay until that device
+  /// stops syncing them, as it does once it learns it was removed.
+  func removeDevice(_ device: SyncDevice) async throws {
+    guard !device.isThisDevice else { throw DeviceRemover.Failure.thisDevice }
+    guard let server = serverURL, let home = accounts[""] else { throw DeviceRemover.Failure.network("Sync is off.") }
+    let remover = DeviceRemover(serverURL: server, cacheGUID: home.cacheGUID, authKey: home.authKey)
+    do {
+      try await remover.remove(device.cacheGUID)
+    } catch DeviceRemover.Failure.deviceRemoved {
+      deviceRemoved()
+      throw DeviceRemover.Failure.deviceRemoved
+    }
+    // Gone from the list now; the tombstone comes with the next cycle.
+    home.deviceInfo.forget(device.cacheGUID)
+    devices = home.deviceInfo.allDevices
+    syncSoon(after: 0)
+  }
+
+  /// The server said another device removed this one: everything stops
+  /// (cycles, streams, push) until Leave. The data stays.
+  private func deviceRemoved() {
+    guard chain != nil, state != .removed else { return }
+    Logger(subsystem: "it.cipi1965.compass", category: "sync")
+      .error("Sync: this device was removed on another device")
+    state = .removed
+    scheduled?.cancel()
+    scheduled = nil
+    cancelPairing()
+    for account in accounts.values {
+      account.listening?.cancel()
+      account.listening = nil
+    }
+  }
+
   // MARK: Cycles
 
   /// The app came to the foreground or left it: hold the push streams only
@@ -546,7 +609,7 @@ final class SyncController {
   func setActive(_ isActive: Bool) {
     active = isActive
     for account in accounts.values {
-      if isActive {
+      if isActive, state != .removed {
         listen(account)
       } else {
         account.listening?.cancel()
@@ -562,15 +625,15 @@ final class SyncController {
     guard account.listening == nil else { return }
     let notifier = account.notifier
     account.listening = Task { [weak self] in
-      await notifier.run { _ in
-        await MainActor.run { self?.syncSoon(after: 0.3) }
-      }
+      await notifier.run(
+        changed: { _ in await MainActor.run { self?.syncSoon(after: 0.3) } },
+        removed: { await MainActor.run { self?.deviceRemoved() } })
     }
   }
 
   /// Runs a cycle after `delay` seconds (coalesced).
   func syncSoon(after delay: TimeInterval = 0) {
-    guard !accounts.isEmpty else { return }
+    guard !accounts.isEmpty, state != .removed else { return }
     scheduled?.cancel()
     scheduled = Task { [weak self] in
       if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
@@ -585,7 +648,7 @@ final class SyncController {
   /// One cycle of every account, the home's first (it brings the profile
   /// list, which may start more accounts).
   func syncNow() async {
-    guard !accounts.isEmpty else { return }
+    guard !accounts.isEmpty, state != .removed else { return }
     if running {
       again = true
       return
@@ -599,7 +662,9 @@ final class SyncController {
     while let profile = ([""] + accounts.keys.sorted()).first(where: { accounts[$0] != nil && !done.contains($0) }) {
       done.insert(profile)
       guard let account = accounts[profile] else { continue }
-      if let message = await cycle(account) {
+      let message = await cycle(account)
+      if state == .removed { return }
+      if let message {
         failure = failure ?? message
         Logger(subsystem: "it.cipi1965.compass", category: "sync")
           .error("Sync failed (\(profile.isEmpty ? "home" : profile, privacy: .public)): \(message, privacy: .public)")
@@ -636,6 +701,9 @@ final class SyncController {
     } catch SyncEngineError.chainNotStarted {
       return account.profile.isEmpty
         ? "No device has started sync on this chain yet." : "A profile's sync hasn't started on the Mac yet."
+    } catch SyncEngineError.connection(.deviceRemoved) {
+      deviceRemoved()
+      return nil
     } catch SyncEngineError.crypto {
       return "This chain was reset on another device. Join it again."
     } catch SyncEngineError.connection(let error) {
