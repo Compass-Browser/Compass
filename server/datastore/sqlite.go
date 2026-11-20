@@ -27,7 +27,9 @@ var ErrQuotaExceeded = errors.New("chain storage quota exceeded")
 // schemaVersion is stored in PRAGMA user_version. 2 (slice 7): chains got
 // last_active, quota_full and quota_full_time. 3: oidc_users and
 // chain_logins (company sign-in, oidc.go). 4: removed_devices (devices.go).
-const schemaVersion = 4
+// 5: rooms, room_members, room_records, room_envelopes, room_invites and
+// identity_keys (rooms.go).
+const schemaVersion = 5
 
 const schema = `
 CREATE TABLE IF NOT EXISTS entities (
@@ -175,7 +177,7 @@ func migrate(db *sql.DB) error {
 	if version > schemaVersion {
 		return fmt.Errorf("database schema %d is newer than this server (%d)", version, schemaVersion)
 	}
-	if _, err := db.Exec(schema + pushSchema + oidcSchema + removedDevicesSchema); err != nil {
+	if _, err := db.Exec(schema + pushSchema + oidcSchema + removedDevicesSchema + roomsSchema); err != nil {
 		return fmt.Errorf("error creating schema: %w", err)
 	}
 	if err := addMissingChainColumns(db); err != nil {
@@ -653,6 +655,11 @@ func (s *SQLite) ClearServerData(ctx context.Context, clientID string) ([]SyncEn
 		return syncEntities, fmt.Errorf("error reading sync entities to clear: %w", err)
 	}
 
+	// Compass: the chain's rooms go with its data (sync.md, "Rooms").
+	roomsDeleted, roomsLeft, err := clearChainRooms(ctx, tx, clientID)
+	if err != nil {
+		return syncEntities, err
+	}
 	for _, stmt := range []string{
 		`DELETE FROM entities WHERE client_id = ?`,
 		`DELETE FROM unique_tags WHERE client_id = ?`,
@@ -668,7 +675,8 @@ func (s *SQLite) ClearServerData(ctx context.Context, clientID string) ([]SyncEn
 	if err = tx.Commit(); err != nil {
 		return syncEntities, fmt.Errorf("error deleting sync entities for client %s: %w", clientID, err)
 	}
-	log.Info().Str("chainID", clientID).Int("count", len(syncEntities)).Msg("Cleared sync entities")
+	log.Info().Str("chainID", clientID).Int("count", len(syncEntities)).
+		Int("roomsDeleted", len(roomsDeleted)).Int("roomsLeft", len(roomsLeft)).Msg("Cleared sync entities")
 	return syncEntities, nil
 }
 
@@ -966,6 +974,8 @@ func (s *SQLite) DeleteAll(ctx context.Context) error {
 	_, err := s.w.ExecContext(ctx, `
 		DELETE FROM entities; DELETE FROM unique_tags;
 		DELETE FROM item_counts; DELETE FROM chains; DELETE FROM push_tokens;
-		DELETE FROM removed_devices;`)
+		DELETE FROM removed_devices; DELETE FROM rooms; DELETE FROM room_members;
+		DELETE FROM room_records; DELETE FROM room_envelopes; DELETE FROM room_invites;
+		DELETE FROM identity_keys;`)
 	return err
 }

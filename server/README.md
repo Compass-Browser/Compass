@@ -149,6 +149,12 @@ To remove someone, take their ID off the list (or put it in
 `BLOCKED_CLIENT_IDS`). Their data stays until `COMPASS_SYNC_IDLE_CHAIN_DAYS`
 expires it.
 
+Rooms are the exception: someone a listed person shares a space, folder
+or easel with (see "Rooms") can use that room, and only it, without being
+listed. Their own sync stays refused. Routes that aren't open to them
+answer `403 {"error":"chain_not_allowed"}`; creating rooms needs a listed
+chain.
+
 ## Company sign-in (OIDC)
 
 A company can make its server serve only its staff, signed in with its
@@ -247,6 +253,41 @@ next sync (at most 10 minutes for one that only polls). A chain's removals
 are forgotten with the chain (reset sync, `COMPASS_SYNC_IDLE_CHAIN_DAYS`,
 `users revoke --delete-data`).
 
+## Rooms
+
+People can share a space, a pinned folder or an easel with each other,
+live, with roles (owner, editor, viewer): a **room**. It lives on the
+sharer's server, and is end-to-end encrypted like the rest: the server
+stores and orders its records but has no key to read them. Invites are
+links (the secret stays in the link's fragment; the server keeps its
+SHA-256) and, with company sign-in, email: the server's directory finds the
+signed-in accounts of an address (`GET /v2/compass/directory?email=`, for
+signed-in callers only).
+
+- **Who pays:** a room's bytes count against its owner's
+  `COMPASS_SYNC_MAX_BYTES`, and show in the owner's `GET /v2/compass/quota`.
+- **Limits:** 50 members, 1 MiB per record, 100 open invites per room,
+  1000 rooms per owner.
+- **Going away:** a chain's rooms go with its data. Reset sync,
+  `COMPASS_SYNC_IDLE_CHAIN_DAYS` and `users revoke --delete-data` delete the
+  rooms the chain owns and take it out of the others.
+- **Private server:** a member who isn't listed in
+  `COMPASS_SYNC_ALLOWED_CHAINS` can use the rooms they're in, nothing else
+  (see "Private server").
+- **Company sign-in:** rooms need a signed-in chain, like everything else.
+- **Notifications:** members hear of changes on their change stream
+  (`/v2/compass/events`, `event: room`); nothing more for the proxy to do.
+
+```sh
+docker compose exec sync /compass-sync-server rooms list          # id, kind, owner, members, epoch, seq, bytes, created
+docker compose exec sync /compass-sync-server rooms show <room>   # members (role, status) and invites; never contents
+docker compose exec sync /compass-sync-server rooms delete <room>
+```
+
+`rooms delete` removes the room and everything in it for every member;
+they find out at their next request. The API is in
+`docs/design/sync.md`, "Rooms".
+
 ## Change notifications and reverse proxies
 
 Each syncing device keeps one request open to `/v2/compass/events`
@@ -300,7 +341,7 @@ dropped.
 ## Limits
 
 Each chain may hold `COMPASS_SYNC_MAX_ENTITIES` items and
-`COMPASS_SYNC_MAX_BYTES` bytes, and `COMPASS_SYNC_MAX_HISTORY` history items
+`COMPASS_SYNC_MAX_BYTES` bytes (the rooms it owns included), and `COMPASS_SYNC_MAX_HISTORY` history items
 within the last `COMPASS_SYNC_HISTORY_DAYS`. A device that hits one keeps
 its data; Compass shows "Sync: server full" (or "History full") in its menu
 and on `chrome://compass-sync`, which reads `GET /v2/compass/quota`. Deleted

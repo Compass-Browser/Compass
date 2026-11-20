@@ -115,3 +115,53 @@ func TestRejectRemovedDevices(t *testing.T) {
 	assert.Empty(t, asked)
 	assert.False(t, auth.WriteGateError(httptest.NewRecorder(), err))
 }
+
+func TestAuthorizeRooms(t *testing.T) {
+	_, key, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	token, id := authtest.TokenFor(key, time.Now().UnixMilli())
+	request := func(query string) *http.Request {
+		req := httptest.NewRequest("GET", "/"+query, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		return req
+	}
+
+	// No allowlist: listed.
+	t.Setenv("COMPASS_SYNC_ALLOWED_CHAINS", "")
+	got, listed, err := auth.AuthorizeRooms(nil, nil)(request(""))
+	require.NoError(t, err)
+	assert.Equal(t, strings.ToUpper(id), got)
+	assert.True(t, listed)
+
+	// Another chain listed: this one passes, not listed (Authorize refuses it).
+	t.Setenv("COMPASS_SYNC_ALLOWED_CHAINS", strings.Repeat("ab", 32))
+	_, err = auth.Authorize(request(""))
+	require.Error(t, err)
+	got, listed, err = auth.AuthorizeRooms(nil, nil)(request(""))
+	require.NoError(t, err)
+	assert.Equal(t, strings.ToUpper(id), got)
+	assert.False(t, listed)
+	t.Setenv("COMPASS_SYNC_ALLOWED_CHAINS", "ab, "+strings.ToUpper(id))
+	_, listed, err = auth.AuthorizeRooms(nil, nil)(request(""))
+	require.NoError(t, err)
+	assert.True(t, listed)
+
+	// The sign-in gate and removed devices still apply.
+	_, _, err = auth.AuthorizeRooms(func(context.Context, string) error { return auth.ErrLoginRequired }, nil)(request(""))
+	require.ErrorIs(t, err, auth.ErrLoginRequired)
+	_, _, err = auth.AuthorizeRooms(func(context.Context, string) error { return errors.New("db") }, nil)(request(""))
+	require.ErrorIs(t, err, auth.ErrGateUnavailable)
+	removed := func(_ context.Context, _, guid string) (bool, error) { return guid == "gone", nil }
+	_, _, err = auth.AuthorizeRooms(nil, removed)(request("?client_id=gone"))
+	require.ErrorIs(t, err, auth.ErrDeviceRemoved)
+	_, _, err = auth.AuthorizeRooms(nil, removed)(request("?client_id=here"))
+	require.NoError(t, err)
+
+	// Blocked chains and bad tokens are refused.
+	t.Setenv("BLOCKED_CLIENT_IDS", id)
+	_, _, err = auth.AuthorizeRooms(nil, nil)(request(""))
+	require.Error(t, err)
+	_, _, err = auth.AuthorizeRooms(nil, nil)(httptest.NewRequest("GET", "/", nil))
+	require.Error(t, err)
+	assert.False(t, auth.WriteGateError(httptest.NewRecorder(), err))
+}

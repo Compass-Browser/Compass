@@ -32,7 +32,7 @@ at a limit.
 | Variable | Default | What it does |
 |---|---|---|
 | `COMPASS_SYNC_MAX_ENTITIES` † | `100000` | Items stored per chain (history counts, up to `COMPASS_SYNC_MAX_HISTORY` of it) |
-| `COMPASS_SYNC_MAX_BYTES` | `209715200` (200 MiB) | Bytes stored per chain; `0` is no limit |
+| `COMPASS_SYNC_MAX_BYTES` | `209715200` (200 MiB) | Bytes stored per chain, the shared rooms it owns included; `0` is no limit |
 | `COMPASS_SYNC_MAX_HISTORY` † | `30000` | History items (visits, deletions) per chain within the history retention. Past it, new visits stay on the devices. Never more than `COMPASS_SYNC_MAX_ENTITIES`. |
 | `COMPASS_SYNC_HISTORY_DAYS` † | `14` | How long history stays on the server after its last change, 1 to 30 days. A device that joins later sees this much of the others' history. |
 | `COMPASS_SYNC_TOMBSTONE_DAYS` | `30` | How long deletions are remembered, so devices that were away learn of them; `0` is forever |
@@ -43,7 +43,7 @@ at a limit.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `COMPASS_SYNC_ALLOWED_CHAINS` | none (all) | Comma-separated chain IDs to serve; when set, every other chain is refused. See [Private server](/self-hosting/private-server/). |
+| `COMPASS_SYNC_ALLOWED_CHAINS` | none (all) | Comma-separated chain IDs to serve; when set, every other chain is refused, except in the shared rooms it was invited to. See [Private server](/self-hosting/private-server/). |
 | `BLOCKED_CLIENT_IDS` | none | Comma-separated chain IDs to refuse |
 
 Company sign-in has its own settings, `COMPASS_SYNC_OIDC_*`: see

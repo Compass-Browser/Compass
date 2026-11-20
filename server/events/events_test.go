@@ -387,3 +387,69 @@ func TestHTTPServerShutdown(t *testing.T) {
 	require.NoError(t, err) // The stream ended cleanly.
 	assert.Equal(t, 0, hub.Count("c1"))
 }
+
+func TestNotifyRoom(t *testing.T) {
+	h := newHarness(t, nil)
+	a := h.subscribe("AB12", "guid-a")
+	b := h.subscribe("ab12", "guid-b") // Same chain, other device.
+	other := h.subscribe("ffff", "guid-a")
+	stranger := h.subscribe("eeee", "guid-e")
+	waitCount(t, h.hub, "ab12", 2)
+	waitCount(t, h.hub, "ffff", 1)
+	waitCount(t, h.hub, "eeee", 1)
+
+	// Every member chain hears it but the device that made the change
+	// (a cache GUID is per chain: guid-a of another chain still hears it).
+	h.hub.NotifyRoom([]string{"ab12", "FFFF"}, "AB12", "guid-a", "room1", 7, "records")
+	event := `data: {"room_id":"room1","seq":7,"changes":["records"]}`
+	b.expect("event: room", event, "")
+	other.expect("event: room", event, "")
+	a.quiet()
+	stranger.quiet()
+
+	// No members, no event; no exception: everyone.
+	h.hub.NotifyRoom(nil, "", "", "room1", 8, "records")
+	h.hub.NotifyRoom([]string{"ab12"}, "", "", "room2", 0, "members")
+	a.expect("event: room", `data: {"room_id":"room2","seq":0,"changes":["members"]}`, "")
+	b.expect("event: room", `data: {"room_id":"room2","seq":0,"changes":["members"]}`, "")
+}
+
+func TestNotifyRoomMerges(t *testing.T) {
+	// Changes of a room that arrive before the stream writes go out as one
+	// event, with the latest seq; sync types keep their own "changed".
+	h := newHarness(t, nil)
+	s := h.subscribe("c1", "b")
+	waitCount(t, h.hub, "c1", 1)
+	for i := range 1000 {
+		h.hub.NotifyRoom([]string{"c1"}, "", "", "r", int64(i), "records")
+		h.hub.NotifyRoom([]string{"c1"}, "", "", "r", int64(i), "members")
+	}
+	seen := map[string]bool{}
+	for {
+		select {
+		case l := <-s.lines:
+			if strings.HasPrefix(l, "data: ") {
+				require.Regexp(t, `^data: \{"room_id":"r","seq":\d+,"changes":\["members","records"\]\}$|`+
+					`^data: \{"room_id":"r","seq":\d+,"changes":\["(members|records)"\]\}$`, l)
+				seen[l] = true
+			}
+			continue
+		case <-time.After(100 * time.Millisecond):
+		}
+		break
+	}
+	assert.True(t, seen[`data: {"room_id":"r","seq":999,"changes":["members"]}`] ||
+		seen[`data: {"room_id":"r","seq":999,"changes":["members","records"]}`], "the latest seq arrives")
+	assert.Less(t, len(seen), 2000, "merged")
+
+	h.hub.Notify("c1", "", []int{5})
+	h.hub.NotifyRoom([]string{"c1"}, "", "", "r", 1000, "keys")
+	got := []string{}
+	for len(got) < 6 {
+		l, ok := s.next()
+		require.True(t, ok)
+		got = append(got, l)
+	}
+	assert.Contains(t, got, `data: {"types":[5]}`)
+	assert.Contains(t, got, `data: {"room_id":"r","seq":1000,"changes":["keys"]}`)
+}

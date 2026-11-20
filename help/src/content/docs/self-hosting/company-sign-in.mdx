@@ -265,6 +265,12 @@ docker compose exec sync /compass-sync-server users restore alice@acme.com
   start again; what's on the devices stays).
 - `users restore EMAIL|SUBJECT`: lets them sign in again.
 
+Signed-in people can share spaces, folders and easels with each other by
+email: the server looks up the accounts signed in with that address. Only
+signed-in people can look up an address or use a shared item. With
+`--delete-data`, the items a revoked user shared are deleted and they leave
+the ones shared with them.
+
 They're safe while the server runs; it notices a change within 10 seconds.
 With `docker run`, use `docker exec compass-sync /compass-sync-server ...`.
 

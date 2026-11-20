@@ -8,6 +8,8 @@
 //	compass-sync-server chains list  company sign-in: users and signed-in chains
 //	compass-sync-server devices list CHAIN | remove CHAIN CACHE_GUID
 //	                                 a chain's devices; remove one from it
+//	compass-sync-server rooms list | show ROOM | delete ROOM
+//	                                 shared rooms (sizes and members, never contents)
 package main
 
 import (
@@ -31,8 +33,10 @@ func main() {
 			os.Exit(server.Chains(os.Args[2:], os.Stdout, os.Stderr))
 		case "devices":
 			os.Exit(server.Devices(os.Args[2:], os.Stdout, os.Stderr))
+		case "rooms":
+			os.Exit(server.Rooms(os.Args[2:], os.Stdout, os.Stderr))
 		default:
-			fmt.Fprintln(os.Stderr, "usage: compass-sync-server [serve | healthcheck | backup FILE | users ... | chains list | devices ...]")
+			fmt.Fprintln(os.Stderr, "usage: compass-sync-server [serve | healthcheck | backup FILE | users ... | chains list | devices ... | rooms ...]")
 			os.Exit(2)
 		}
 	}

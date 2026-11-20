@@ -26,6 +26,9 @@ let package = Package(
     .library(name: "CompassBoosts", targets: ["CompassBoosts"]),
     // Canvas boards (docs/design/easels.md).
     .library(name: "CompassEasels", targets: ["CompassEasels"]),
+    // Shared spaces, folders and easels: room crypto and invite links
+    // (docs/design/sync.md, "Rooms: crypto and links").
+    .library(name: "CompassRooms", targets: ["CompassRooms"]),
   ],
   dependencies: [
     // Must match the protoc-gen-swift that generated Sources/SyncProto
@@ -51,6 +54,7 @@ let package = Package(
     .target(name: "CompassLiveFolders", resources: [.copy("Resources/jsc_globals.js")]),
     .target(name: "CompassBoosts"),
     .target(name: "CompassEasels", dependencies: ["SyncProto"]),
+    .target(name: "CompassRooms", dependencies: ["CompassCrypto"]),
     .target(
       name: "CompassSync",
       dependencies: ["CompassCrypto", "SyncProto", "CompassModel", "CompassShared", "CompassClaude", "CompassBoosts", "CompassEasels"]),
@@ -62,6 +66,7 @@ let package = Package(
     .testTarget(name: "CompassLiveFoldersTests", dependencies: ["CompassLiveFolders"]),
     .testTarget(name: "CompassBoostsTests", dependencies: ["CompassBoosts"]),
     .testTarget(name: "CompassEaselsTests", dependencies: ["CompassEasels"]),
+    .testTarget(name: "CompassRoomsTests", dependencies: ["CompassRooms", "CompassCrypto"]),
   ],
   // BoringSSL's C++ needs C++17 (swift-crypto sets the same).
   cxxLanguageStandard: .cxx17

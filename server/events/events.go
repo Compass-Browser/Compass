@@ -16,6 +16,18 @@
 // The cache GUID names the device so that it isn't told about its own
 // commits; without it the device also hears its own (harmless). Everything
 // is in memory: a restart drops the streams, and the devices reconnect.
+//
+// A chain that is a member of a room (sync.md, "Rooms") also hears of the
+// room's changes, as another event type, which clients that predate rooms
+// skip (they act on "changed" only):
+//
+//	event: room
+//	data: {"room_id":"9f86d081884c7d659a2feaa0c55ad015","seq":42,"changes":["records"]}
+//
+// "seq" is the room's latest record sequence number; "changes" says what
+// changed since the last event of that room: "records", "members", "keys"
+// (a new epoch or envelopes), "invites" or "deleted". One event per room,
+// changes merged while the stream is busy.
 package events
 
 import (
@@ -74,9 +86,16 @@ type listener struct {
 	ip     string
 
 	mu      sync.Mutex
-	pending map[int]struct{} // Types changed since the last event was written.
-	wake    chan struct{}    // Capacity 1: "pending has something".
-	kicked  chan struct{}    // Closed by Disconnect (under Hub.mu).
+	pending map[int]struct{}        // Types changed since the last event was written.
+	rooms   map[string]*roomPending // Rooms changed since the last event was written.
+	wake    chan struct{}           // Capacity 1: "pending or rooms has something".
+	kicked  chan struct{}           // Closed by Disconnect (under Hub.mu).
+}
+
+// roomPending is a room's change not written yet.
+type roomPending struct {
+	seq     int64
+	changes map[string]struct{}
 }
 
 // Hub holds the open streams by chain and sends them change notifications.
@@ -183,6 +202,45 @@ func (h *Hub) Notify(chain, exceptClient string, types []int) {
 	}
 }
 
+// NotifyRoom tells the streams of every chain in |chains| that room
+// |roomID| changed (|change|: "records", "members", "keys", "invites" or
+// "deleted"), its latest sequence number being |seq|, except the stream of
+// device |exceptClient| of chain |exceptChain| (the device that made the
+// change; empty excludes nobody). It never blocks, as Notify.
+func (h *Hub) NotifyRoom(chains []string, exceptChain, exceptClient, roomID string, seq int64, change string) {
+	if len(chains) == 0 {
+		return
+	}
+	exceptChain = chainKey(exceptChain)
+	h.mu.Lock()
+	var targets []*listener
+	for _, c := range chains {
+		c = chainKey(c)
+		for l := range h.byChain[c] {
+			if exceptClient != "" && l.client == exceptClient && c == exceptChain {
+				continue
+			}
+			targets = append(targets, l)
+		}
+	}
+	h.mu.Unlock()
+	for _, l := range targets {
+		l.mu.Lock()
+		p := l.rooms[roomID]
+		if p == nil {
+			p = &roomPending{changes: map[string]struct{}{}}
+			l.rooms[roomID] = p
+		}
+		p.seq = max(p.seq, seq)
+		p.changes[change] = struct{}{}
+		l.mu.Unlock()
+		select {
+		case l.wake <- struct{}{}:
+		default:
+		}
+	}
+}
+
 // Disconnect ends the open streams of device |client| (its cache GUID) in
 // |chain|: the device was removed from the chain (it can't open new ones,
 // see auth.RejectRemovedDevices).
@@ -224,6 +282,30 @@ func (l *listener) takePending() []int {
 	clear(l.pending)
 	slices.Sort(types)
 	return types
+}
+
+// roomEvent is the data of a "room" event.
+type roomEvent struct {
+	RoomID  string   `json:"room_id"`
+	Seq     int64    `json:"seq"`
+	Changes []string `json:"changes"`
+}
+
+func (l *listener) takeRooms() []roomEvent {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := make([]roomEvent, 0, len(l.rooms))
+	for id, p := range l.rooms {
+		ev := roomEvent{RoomID: id, Seq: p.seq}
+		for c := range p.changes {
+			ev.Changes = append(ev.Changes, c)
+		}
+		slices.Sort(ev.Changes)
+		out = append(out, ev)
+	}
+	clear(l.rooms)
+	slices.SortFunc(out, func(a, b roomEvent) int { return strings.Compare(a.RoomID, b.RoomID) })
+	return out
 }
 
 type changedEvent struct {
@@ -276,6 +358,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		client:  client,
 		ip:      h.cfg.ClientIP(r),
 		pending: map[int]struct{}{},
+		rooms:   map[string]*roomPending{},
 		wake:    make(chan struct{}, 1),
 		kicked:  make(chan struct{}),
 	}
@@ -332,12 +415,19 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		case <-l.wake:
-			types := l.takePending()
-			if len(types) == 0 {
+			var out strings.Builder
+			if types := l.takePending(); len(types) > 0 {
+				data, _ := json.Marshal(changedEvent{Types: types})
+				out.WriteString("event: changed\ndata: " + string(data) + "\n\n")
+			}
+			for _, ev := range l.takeRooms() {
+				data, _ := json.Marshal(ev)
+				out.WriteString("event: room\ndata: " + string(data) + "\n\n")
+			}
+			if out.Len() == 0 {
 				continue
 			}
-			data, _ := json.Marshal(changedEvent{Types: types})
-			if !write("event: changed\ndata: " + string(data) + "\n\n") {
+			if !write(out.String()) {
 				return
 			}
 		}

@@ -40,6 +40,7 @@ import (
 	"github.com/brave/go-sync/pairing"
 	"github.com/brave/go-sync/push"
 	"github.com/brave/go-sync/quota"
+	"github.com/brave/go-sync/rooms"
 	syncContext "github.com/brave/go-sync/synccontext"
 )
 
@@ -325,6 +326,19 @@ func setupRouter(
 			hub.Notify(chain, by, []int{datastore.DeviceInfoTypeID})
 		},
 	})
+	// Rooms (sync.md, "Rooms"): the sign-in gate as every sync endpoint,
+	// but a private server's unlisted chains may use the rooms they're in.
+	var roomGate auth.LoginGate
+	issuer := ""
+	if login.Enabled() {
+		roomGate, issuer = login.Gate, oidcCfg.Issuer
+	}
+	roomsHandler := rooms.New(rooms.Config{
+		Store:      db,
+		Authorize:  auth.AuthorizeRooms(roomGate, db.IsDeviceRemoved),
+		Notify:     hub.NotifyRoom,
+		OIDCIssuer: issuer,
+	})
 	r.Route("/v2", func(r chi.Router) {
 		// Compass: change notifications (sync.md, "Change notifications"), a
 		// long-lived stream, so outside the request timeout below.
@@ -342,6 +356,8 @@ func setupRouter(
 			r.Mount("/compass/devices", devicesHandler.Routes())
 			// Compass: company sign-in (sync.md, "Company sign-in (OIDC)").
 			login.Register(r)
+			// Compass: rooms, shared between users (sync.md, "Rooms").
+			roomsHandler.Register(r)
 			r.Mount("/", controller.SyncRouterWithAuth(c, instrumented, notify, authorize))
 		})
 	})

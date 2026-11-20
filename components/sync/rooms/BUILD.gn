@@ -1,0 +1,40 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Rooms (shared spaces, folders and easels): the identity key, room key
+# envelopes, record encryption and invite links. See docs/design/sync.md,
+# "Rooms: crypto and links", and common/rooms/vectors.json.
+source_set("crypto") {
+  sources = [
+    "room_crypto.cc",
+    "room_crypto.h",
+    "room_invite_link.cc",
+    "room_invite_link.h",
+  ]
+  public_deps = [
+    "//base",
+    "//compass/components/sync:chain",
+  ]
+  deps = [
+    "//crypto",
+    "//third_party/boringssl",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "room_crypto_unittest.cc",
+    "room_invite_link_unittest.cc",
+    "room_test_vectors.h",
+  ]
+  data = [ "//compass/common/rooms/vectors.json" ]
+  deps = [
+    ":crypto",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gtest",
+  ]
+}

@@ -131,6 +131,7 @@ Each chain may store `COMPASS_SYNC_MAX_ENTITIES` items (100,000) and
 `COMPASS_SYNC_MAX_BYTES` bytes (200 MiB), and at most
 `COMPASS_SYNC_MAX_HISTORY` history items (30,000) from the last
 `COMPASS_SYNC_HISTORY_DAYS` (14). A chain may have up to 50 devices.
+The shared spaces, folders and easels a chain owns count towards its bytes.
 
 - A device that hits the item or byte limit keeps its data. Compass shows
   "Sync: server full" in its menu and sync settings.
@@ -146,7 +147,8 @@ Expiry runs every hour:
 - A chain none of whose devices has connected for
   `COMPASS_SYNC_IDLE_CHAIN_DAYS` (180) is deleted. A device that comes back
   later is told to stop syncing; its own data stays, and it can start sync
-  again.
+  again. The items it shared go with it, and it leaves the ones others
+  shared with it.
 
 ## Devices
 
@@ -170,6 +172,33 @@ new device. It isn't locked out for good, since every device holds the
 chain's key: to shut a device out for sure, reset sync on another device
 (which starts a new chain) and join the others again. Devices that only
 poll see a removal made with the command within 10 minutes.
+
+## Shared spaces, folders and easels
+
+People can share a space, a folder or an easel with each other. Each shared
+item is a **room** on the sharer's server, encrypted like everything else:
+the server sees who is in it and how big it is, never what's in it. A room
+can have up to 50 members, and its size counts towards its owner's
+`COMPASS_SYNC_MAX_BYTES`.
+
+```sh
+docker compose exec sync /compass-sync-server rooms list
+docker compose exec sync /compass-sync-server rooms show <room id>
+docker compose exec sync /compass-sync-server rooms delete <room id>
+```
+
+- `rooms list`: each room's ID, kind (space, folder or easel), owner's
+  chain ID, number of members, key generation (epoch), latest change number,
+  size and creation time.
+- `rooms show`: its members with their role (owner, editor, viewer) and
+  status (member, pending, removed), and its invite links (role, expiry,
+  uses left, revoked).
+- `rooms delete`: deletes the room and its contents for everyone. Members
+  find out the next time their devices ask.
+
+A room goes when its owner's chain does (reset sync, an idle chain, `users
+revoke --delete-data`); a member's chain going away takes it out of the
+rooms it was in.
 
 ## Troubleshooting
 

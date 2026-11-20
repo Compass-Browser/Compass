@@ -38,10 +38,11 @@ func abs(n int64) int64 {
 	return n
 }
 
-// authenticate parses the access token and verifies the signature and the
-// timestamp is within +/- 1 day. The acccess token format is:
+// verifyToken parses the access token and verifies the signature and the
+// timestamp is within +/- 1 day, and that the chain isn't blocked
+// (BLOCKED_CLIENT_IDS). The acccess token format is:
 // base64_encode(timestamp_hex_encoded|signed_timestamp_hex_encoded|public_key_hex_encoded)
-func authenticate(tkn string) (string, error) {
+func verifyToken(tkn string) (string, error) {
 	base64DecodedBytes, err := base64.URLEncoding.DecodeString(tkn)
 	if err != nil {
 		return "", fmt.Errorf("error doing base64 decoding: %w", err)
@@ -87,14 +88,28 @@ func authenticate(tkn string) (string, error) {
 		return "", errors.New("this client ID is blocked")
 	}
 
+	return token.PublicKeyHex, nil
+}
+
+// authenticate is verifyToken plus the private server's allowlist.
+func authenticate(tkn string) (string, error) {
+	id, err := verifyToken(tkn)
+	if err != nil {
+		return "", err
+	}
 	// Compass: a private server serves only the chains it lists (README,
 	// "Private server"). The ID is in the error so the admin can add it.
-	if allowed := idList("COMPASS_SYNC_ALLOWED_CHAINS"); len(allowed) > 0 &&
-		!slices.Contains(allowed, id) {
-		return "", fmt.Errorf("chain not allowed: %s", id)
+	if !ChainListed(id) {
+		return "", fmt.Errorf("chain not allowed: %s", strings.ToLower(id))
 	}
+	return id, nil
+}
 
-	return token.PublicKeyHex, nil
+// ChainListed says whether chain |id| (any case) may use the whole server:
+// true unless COMPASS_SYNC_ALLOWED_CHAINS is set and doesn't list it.
+func ChainListed(id string) bool {
+	allowed := idList("COMPASS_SYNC_ALLOWED_CHAINS")
+	return len(allowed) == 0 || slices.Contains(allowed, strings.ToLower(id))
 }
 
 // idList reads a comma-separated list of chain IDs (hex public keys) from
@@ -113,8 +128,22 @@ func idList(name string) []string {
 // the token is valid or not. It returns the clientID if the token is valid,
 // otherwise, an empty string will be returned.
 func Authorize(r *http.Request) (string, error) {
+	token, err := bearer(r)
+	if err != nil {
+		return "", err
+	}
+
+	// Verify token
+	clientID, err := authenticate(token)
+	if err != nil {
+		return "", fmt.Errorf("error authorizing: %w", err)
+	}
+	return clientID, nil
+}
+
+// bearer returns the request's "Authorization: Bearer" token.
+func bearer(r *http.Request) (string, error) {
 	var token string
-	// Extract token from the header.
 	tokens, ok := r.Header["Authorization"]
 	if ok && len(tokens) >= 1 {
 		token = tokens[0]
@@ -126,13 +155,7 @@ func Authorize(r *http.Request) (string, error) {
 	if token == "" {
 		return "", errors.New("not a valid token")
 	}
-
-	// Verify token
-	clientID, err := authenticate(token)
-	if err != nil {
-		return "", fmt.Errorf("error authorizing: %w", err)
-	}
-	return clientID, nil
+	return token, nil
 }
 
 // AuthenticateToken checks a sync token (the Authorization value without
@@ -270,4 +293,50 @@ func WriteDeviceRemoved(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusForbidden)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": "device_removed"})
+}
+
+// Compass: rooms (docs/design/sync.md, "Rooms"). On a private server
+// (COMPASS_SYNC_ALLOWED_CHAINS) a chain it doesn't list may still use the
+// room routes of rooms it's a member of, or holds an invite to; the rooms
+// handler checks that, given |listed|.
+
+// RoomAuthorize is AuthorizeRooms' result: the chain ID as the token sent
+// it, and whether the chain may use the whole server (ChainListed).
+type RoomAuthorize func(r *http.Request) (chainID string, listed bool, err error)
+
+// AuthorizeRooms checks a sync token as Authorize does, except that a
+// chain the private server doesn't list isn't refused (listed is false),
+// then |gate| (company sign-in; nil: none) and, if the request has a
+// client_id, |removed| (nil: no check), as AuthorizeSync and
+// RejectRemovedDevices. Errors from the gate and the removed check are
+// answered by WriteGateError.
+func AuthorizeRooms(gate LoginGate, removed DeviceRemovedCheck) RoomAuthorize {
+	return func(r *http.Request) (string, bool, error) {
+		token, err := bearer(r)
+		if err != nil {
+			return "", false, err
+		}
+		id, err := verifyToken(token)
+		if err != nil {
+			return "", false, fmt.Errorf("error authorizing: %w", err)
+		}
+		if gate != nil {
+			if err = gate(r.Context(), strings.ToLower(id)); err != nil {
+				if errors.Is(err, ErrLoginRequired) {
+					return "", false, ErrLoginRequired
+				}
+				return "", false, fmt.Errorf("%w: %w", ErrGateUnavailable, err)
+			}
+		}
+		if guid := r.URL.Query().Get("client_id"); guid != "" && removed != nil {
+			gone, err := removed(r.Context(), id, guid)
+			if err != nil {
+				return "", false, fmt.Errorf("%w: %w", ErrGateUnavailable, err)
+			}
+			if gone {
+				return "", false, ErrDeviceRemoved
+			}
+		}
+		return id, ChainListed(id), nil
+	}
 }

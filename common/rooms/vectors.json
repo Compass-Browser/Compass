@@ -1,0 +1,581 @@
+{
+  "comment" : "Rooms crypto and invite links (docs/design/sync.md, \"Rooms: crypto and links\"). Made by common/rooms/make_vectors.swift; all binary values are lowercase hex.",
+  "envelope_failures" : [
+    {
+      "envelope" : "46604c8f294e1e275f3da18b1028568876481660f1f0d8b3dbe726d501fe7314dfb6e86d126e572373ac6effa9d05bd091b9d8da74a9493a72ba7df71f13c2a65b8c4f72adfdbaf55660a851c8d05ba5",
+      "epoch" : 2,
+      "name" : "wrong_epoch",
+      "recipient_private_key" : "bf2db2279f31fc066e9dea17c12cc6d0aabc5a39efccccf8bdfd9f02f5b14581",
+      "room_id" : "00112233445566778899aabbccddeeff"
+    },
+    {
+      "envelope" : "46604c8f294e1e275f3da18b1028568876481660f1f0d8b3dbe726d501fe7314dfb6e86d126e572373ac6effa9d05bd091b9d8da74a9493a72ba7df71f13c2a65b8c4f72adfdbaf55660a851c8d05ba5",
+      "epoch" : 1,
+      "name" : "wrong_room",
+      "recipient_private_key" : "bf2db2279f31fc066e9dea17c12cc6d0aabc5a39efccccf8bdfd9f02f5b14581",
+      "room_id" : "ffeeddccbbaa99887766554433221100"
+    },
+    {
+      "envelope" : "46604c8f294e1e275f3da18b1028568876481660f1f0d8b3dbe726d501fe7314dfb6e86d126e572373ac6effa9d05bd091b9d8da74a9493a72ba7df71f13c2a65b8c4f72adfdbaf55660a851c8d05ba5",
+      "epoch" : 1,
+      "name" : "wrong_recipient",
+      "recipient_private_key" : "987eeda3eac287a0889d99d87c65c7cd6917b027493620a9eb9967ebe00dd87d",
+      "room_id" : "00112233445566778899aabbccddeeff"
+    },
+    {
+      "envelope" : "46604c8f294e1e275f3da18b1028568876481660f1f0d8b3dbe726d501fe7314dfb6e86d126e572373ac6effa9d05bd091b9d8da74a9493a72ba7df71f13c2a65b8c4f72adfdbaf55660a851c8d05ba5",
+      "epoch" : 1,
+      "name" : "other_account_of_same_seed",
+      "recipient_private_key" : "0fe79fdb13f8f1689a51fd1e09620b3c01f9d414e7d49360063afb1bbdd04c41",
+      "room_id" : "00112233445566778899aabbccddeeff"
+    },
+    {
+      "envelope" : "46604c8e294e1e275f3da18b1028568876481660f1f0d8b3dbe726d501fe7314dfb6e86d126e572373ac6effa9d05bd091b9d8da74a9493a72ba7df71f13c2a65b8c4f72adfdbaf55660a851c8d05ba5",
+      "epoch" : 1,
+      "name" : "flipped_enc",
+      "recipient_private_key" : "bf2db2279f31fc066e9dea17c12cc6d0aabc5a39efccccf8bdfd9f02f5b14581",
+      "room_id" : "00112233445566778899aabbccddeeff"
+    },
+    {
+      "envelope" : "46604c8f294e1e275f3da18b1028568876481660f1f0d8b3dbe726d501fe7314dfb6e86d126e572372ac6effa9d05bd091b9d8da74a9493a72ba7df71f13c2a65b8c4f72adfdbaf55660a851c8d05ba5",
+      "epoch" : 1,
+      "name" : "flipped_ciphertext",
+      "recipient_private_key" : "bf2db2279f31fc066e9dea17c12cc6d0aabc5a39efccccf8bdfd9f02f5b14581",
+      "room_id" : "00112233445566778899aabbccddeeff"
+    },
+    {
+      "envelope" : "46604c8f294e1e275f3da18b1028568876481660f1f0d8b3dbe726d501fe7314dfb6e86d126e572373ac6effa9d05bd091b9d8da74a9493a72ba7df71f13c2a65b8c4f72adfdbaf55660a851c8d05ba4",
+      "epoch" : 1,
+      "name" : "flipped_tag",
+      "recipient_private_key" : "bf2db2279f31fc066e9dea17c12cc6d0aabc5a39efccccf8bdfd9f02f5b14581",
+      "room_id" : "00112233445566778899aabbccddeeff"
+    },
+    {
+      "envelope" : "46604c8f294e1e275f3da18b1028568876481660f1f0d8b3dbe726d501fe7314dfb6e86d126e572373ac6effa9d05bd091b9d8da74a9493a72ba7df71f13c2a65b8c4f72adfdbaf55660a851c8d05b",
+      "epoch" : 1,
+      "name" : "truncated",
+      "recipient_private_key" : "bf2db2279f31fc066e9dea17c12cc6d0aabc5a39efccccf8bdfd9f02f5b14581",
+      "room_id" : "00112233445566778899aabbccddeeff"
+    },
+    {
+      "envelope" : "46604c8f294e1e275f3da18b1028568876481660f1f0d8b3dbe726d501fe7314dfb6e86d126e572373ac6effa9d05bd091b9d8da74a9493a72ba7df71f13c2a65b8c4f72adfdbaf55660a851c8d05ba500",
+      "epoch" : 1,
+      "name" : "extended",
+      "recipient_private_key" : "bf2db2279f31fc066e9dea17c12cc6d0aabc5a39efccccf8bdfd9f02f5b14581",
+      "room_id" : "00112233445566778899aabbccddeeff"
+    },
+    {
+      "envelope" : "2cbc0d7dacad2b70c5d149470d3a973997d5d44b55e73205dca35b4c92f2ad143919a46978704cf936b1a0cf8b4252787ada3071e094e190e20d3f656f9b9fe220ecd2d8047220450242989b5de052bf",
+      "epoch" : 8,
+      "name" : "swift_sealed_wrong_epoch",
+      "recipient_private_key" : "987eeda3eac287a0889d99d87c65c7cd6917b027493620a9eb9967ebe00dd87d",
+      "room_id" : "00112233445566778899aabbccddeeff"
+    }
+  ],
+  "envelopes" : [
+    {
+      "envelope" : "46604c8f294e1e275f3da18b1028568876481660f1f0d8b3dbe726d501fe7314dfb6e86d126e572373ac6effa9d05bd091b9d8da74a9493a72ba7df71f13c2a65b8c4f72adfdbaf55660a851c8d05ba5",
+      "ephemeral_private_key" : "269accd0efd5b8221ce2aae5ecd9551e5f0077d89711a52a67ae5fd5ec6be420",
+      "epoch" : 1,
+      "info" : "636f6d706173732d726f6f6d2d6b657900112233445566778899aabbccddeeff00000001",
+      "name" : "deterministic_epoch_1",
+      "recipient_private_key" : "bf2db2279f31fc066e9dea17c12cc6d0aabc5a39efccccf8bdfd9f02f5b14581",
+      "recipient_public_key" : "0a489a9bb3a31a0ba8cf78ec8518c4339070d752e5477f0b064c3369c18e0253",
+      "room_id" : "00112233445566778899aabbccddeeff",
+      "room_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "sealed_by" : "deterministic"
+    },
+    {
+      "envelope" : "9592e19d72775826428759b5b7f28585dd2c5e14c1e7da9d8239b8d94327865ebe39098fcbb216f31303375101b6eb6b7e94d93e01c649d4818b820a5ccbed796f79d82497fd8e9589cf1d192e804300",
+      "ephemeral_private_key" : "3a565d65942f2934f2e853cc9bb22cf9e12ec7e6ab5c8ee215ed793f66ebbe81",
+      "epoch" : 4294967295,
+      "info" : "636f6d706173732d726f6f6d2d6b6579ffeeddccbbaa99887766554433221100ffffffff",
+      "name" : "deterministic_profile_max_epoch",
+      "recipient_private_key" : "0fe79fdb13f8f1689a51fd1e09620b3c01f9d414e7d49360063afb1bbdd04c41",
+      "recipient_public_key" : "9a1f297159e6591c931498e176b0969d083d43bd6270ad829c10e7be1b6bcd04",
+      "room_id" : "ffeeddccbbaa99887766554433221100",
+      "room_key" : "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+      "sealed_by" : "deterministic"
+    },
+    {
+      "envelope" : "2cbc0d7dacad2b70c5d149470d3a973997d5d44b55e73205dca35b4c92f2ad143919a46978704cf936b1a0cf8b4252787ada3071e094e190e20d3f656f9b9fe220ecd2d8047220450242989b5de052bf",
+      "epoch" : 7,
+      "info" : "636f6d706173732d726f6f6d2d6b657900112233445566778899aabbccddeeff00000007",
+      "name" : "swift_sealed_epoch_7",
+      "recipient_private_key" : "987eeda3eac287a0889d99d87c65c7cd6917b027493620a9eb9967ebe00dd87d",
+      "recipient_public_key" : "71a2c8313279c2a71a2f657b2b855c9d508002447d660e914727e2cf842c764a",
+      "room_id" : "00112233445566778899aabbccddeeff",
+      "room_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "sealed_by" : "swift"
+    },
+    {
+      "envelope" : "80f60002723849213dbd2ad93e0c1fc04f9e06ab52d1ef73804ce9546e1b4d60606dd46c35fc96e221a4cf50be17312509e071a9a5d679ff782a5dafcfa88d9f32b56fc7999e2b50396e1431e316b0af",
+      "epoch" : 0,
+      "info" : "636f6d706173732d726f6f6d2d6b6579ffeeddccbbaa9988776655443322110000000000",
+      "name" : "swift_sealed_profile_epoch_0",
+      "recipient_private_key" : "0fe79fdb13f8f1689a51fd1e09620b3c01f9d414e7d49360063afb1bbdd04c41",
+      "recipient_public_key" : "9a1f297159e6591c931498e176b0969d083d43bd6270ad829c10e7be1b6bcd04",
+      "room_id" : "ffeeddccbbaa99887766554433221100",
+      "room_key" : "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+      "sealed_by" : "swift"
+    }
+  ],
+  "identity" : [
+    {
+      "name" : "home_a",
+      "private_key" : "bf2db2279f31fc066e9dea17c12cc6d0aabc5a39efccccf8bdfd9f02f5b14581",
+      "profile_uuid" : "",
+      "public_key" : "0a489a9bb3a31a0ba8cf78ec8518c4339070d752e5477f0b064c3369c18e0253",
+      "seed" : "000102030405060708090a0b0c0d0e0f"
+    },
+    {
+      "name" : "profile_a",
+      "private_key" : "0fe79fdb13f8f1689a51fd1e09620b3c01f9d414e7d49360063afb1bbdd04c41",
+      "profile_uuid" : "3f2a8c1e-5b7d-4e9a-8c6f-1d2e3f4a5b6c",
+      "public_key" : "9a1f297159e6591c931498e176b0969d083d43bd6270ad829c10e7be1b6bcd04",
+      "seed" : "000102030405060708090a0b0c0d0e0f"
+    },
+    {
+      "name" : "home_b",
+      "private_key" : "987eeda3eac287a0889d99d87c65c7cd6917b027493620a9eb9967ebe00dd87d",
+      "profile_uuid" : "",
+      "public_key" : "71a2c8313279c2a71a2f657b2b855c9d508002447d660e914727e2cf842c764a",
+      "seed" : "f0e1d2c3b4a5968778695a4b3c2d1e0f"
+    }
+  ],
+  "invalid_links" : [
+    {
+      "link" : "",
+      "name" : "empty"
+    },
+    {
+      "link" : "https://compassbrowser.org/join",
+      "name" : "no_fragment"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#",
+      "name" : "empty_fragment"
+    },
+    {
+      "link" : "https://example.com/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "other_host"
+    },
+    {
+      "link" : "http://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "http_site"
+    },
+    {
+      "link" : "https://compassbrowser.org/boost#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "other_path"
+    },
+    {
+      "link" : "https://compassbrowser.org/join?x=1#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "query_before_fragment"
+    },
+    {
+      "link" : "compass://boost#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "other_deep_link"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ=",
+      "name" : "padded"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ==",
+      "name" : "standard_base64"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#!!!!",
+      "name" : "not_base64"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ ",
+      "name" : "trailing_space"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "name" : "too_long"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#bm90IGpzb24",
+      "name" : "not_json"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#W10",
+      "name" : "array"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInQiOiJmb2xkZXIiLCJ4IjoiWHNMbkFBRUNBd1FGQmdjSUNRb0xEQTBPRHhBUkVoTVVGUllYR0JrYUd4dyJ9",
+      "name" : "missing_server"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "missing_epoch"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjotMSwiaSI6Imludl80ZjJhLTljIiwiayI6Im9LR2lvNlNscHFlb3FhcXJySzJ1cjdDeHNyTzB0YmEzdUxtNnU3eTl2cjgiLCJuIjoiUmVhZGluZyBsaXN0IiwiciI6IkFCRWlNMFJWWm5lSW1hcTd6TjN1X3ciLCJzIjoiaHR0cHM6Ly9zeW5jLmV4YW1wbGUuY29tIiwidCI6ImZvbGRlciIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3In0",
+      "name" : "epoch_negative"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjo0Mjk0OTY3Mjk2LCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "epoch_too_big"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLjUsImkiOiJpbnZfNGYyYS05YyIsImsiOiJvS0dpbzZTbHBxZW9xYXFycksydXI3Q3hzck8wdGJhM3VMbTZ1N3k5dnI4IiwibiI6IlJlYWRpbmcgbGlzdCIsInIiOiJBQkVpTTBSVlpuZUltYXE3ek4zdV93IiwicyI6Imh0dHBzOi8vc3luYy5leGFtcGxlLmNvbSIsInQiOiJmb2xkZXIiLCJ4IjoiWHNMbkFBRUNBd1FGQmdjSUNRb0xEQTBPRHhBUkVoTVVGUllYR0JrYUd4dyJ9",
+      "name" : "epoch_fraction"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoiMSIsImkiOiJpbnZfNGYyYS05YyIsImsiOiJvS0dpbzZTbHBxZW9xYXFycksydXI3Q3hzck8wdGJhM3VMbTZ1N3k5dnI4IiwibiI6IlJlYWRpbmcgbGlzdCIsInIiOiJBQkVpTTBSVlpuZUltYXE3ek4zdV93IiwicyI6Imh0dHBzOi8vc3luYy5leGFtcGxlLmNvbSIsInQiOiJmb2xkZXIiLCJ4IjoiWHNMbkFBRUNBd1FGQmdjSUNRb0xEQTBPRHhBUkVoTVVGUllYR0JrYUd4dyJ9",
+      "name" : "epoch_string"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjp0cnVlLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "epoch_bool"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOjUsInIiOiJBQkVpTTBSVlpuZUltYXE3ek4zdV93IiwicyI6Imh0dHBzOi8vc3luYy5leGFtcGxlLmNvbSIsInQiOiJmb2xkZXIiLCJ4IjoiWHNMbkFBRUNBd1FGQmdjSUNRb0xEQTBPRHhBUkVoTVVGUllYR0JrYUd4dyJ9",
+      "name" : "name_not_string"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoidGFiIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "unknown_kind"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiRm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "kind_capitalized"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3UiLCJzIjoiaHR0cHM6Ly9zeW5jLmV4YW1wbGUuY29tIiwidCI6ImZvbGRlciIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3In0",
+      "name" : "room_id_short"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3Vfd0EiLCJzIjoiaHR0cHM6Ly9zeW5jLmV4YW1wbGUuY29tIiwidCI6ImZvbGRlciIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3In0",
+      "name" : "room_id_long"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHdyJ9",
+      "name" : "secret_short"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOEEiLCJuIjoiUmVhZGluZyBsaXN0IiwiciI6IkFCRWlNMFJWWm5lSW1hcTd6TjN1X3ciLCJzIjoiaHR0cHM6Ly9zeW5jLmV4YW1wbGUuY29tIiwidCI6ImZvbGRlciIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3In0",
+      "name" : "key_long"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3Vfdz09IiwicyI6Imh0dHBzOi8vc3luYy5leGFtcGxlLmNvbSIsInQiOiJmb2xkZXIiLCJ4IjoiWHNMbkFBRUNBd1FGQmdjSUNRb0xEQTBPRHhBUkVoTVVGUllYR0JrYUd4dyJ9",
+      "name" : "room_id_padded"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfXyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "room_id_noncanonical"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiIiwiayI6Im9LR2lvNlNscHFlb3FhcXJySzJ1cjdDeHNyTzB0YmEzdUxtNnU3eTl2cjgiLCJuIjoiUmVhZGluZyBsaXN0IiwiciI6IkFCRWlNMFJWWm5lSW1hcTd6TjN1X3ciLCJzIjoiaHR0cHM6Ly9zeW5jLmV4YW1wbGUuY29tIiwidCI6ImZvbGRlciIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3In0",
+      "name" : "invite_id_empty"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoienp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enoiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "invite_id_too_long"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52LzEiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "invite_id_bad_chars"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6kiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "name_too_long"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwOi8vc3luYy5leGFtcGxlLmNvbSIsInQiOiJmb2xkZXIiLCJ4IjoiWHNMbkFBRUNBd1FGQmdjSUNRb0xEQTBPRHhBUkVoTVVGUllYR0JrYUd4dyJ9",
+      "name" : "server_http_remote"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJmdHA6Ly9zeW5jLmV4YW1wbGUuY29tIiwidCI6ImZvbGRlciIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3In0",
+      "name" : "server_ftp"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJzeW5jLmV4YW1wbGUuY29tIiwidCI6ImZvbGRlciIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3In0",
+      "name" : "server_not_url"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3VzZXI6cHdAc3luYy5leGFtcGxlLmNvbSIsInQiOiJmb2xkZXIiLCJ4IjoiWHNMbkFBRUNBd1FGQmdjSUNRb0xEQTBPRHhBUkVoTVVGUllYR0JrYUd4dyJ9",
+      "name" : "server_userinfo"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20vP2E9YiIsInQiOiJmb2xkZXIiLCJ4IjoiWHNMbkFBRUNBd1FGQmdjSUNRb0xEQTBPRHhBUkVoTVVGUllYR0JrYUd4dyJ9",
+      "name" : "server_query"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20vI3giLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "server_fragment"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20vYSBiIiwidCI6ImZvbGRlciIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3In0",
+      "name" : "server_space"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJIVFRQUzovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "server_uppercase_scheme"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovLy9wYXRoIiwidCI6ImZvbGRlciIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3In0",
+      "name" : "server_no_host"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb21cXGV2aWwuZXhhbXBsZSIsInQiOiJmb2xkZXIiLCJ4IjoiWHNMbkFBRUNBd1FGQmdjSUNRb0xEQTBPRHhBUkVoTVVGUllYR0JrYUd4dyJ9",
+      "name" : "server_backslash"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb206OTk5OTkiLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "server_bad_port"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb206ODBhIiwidCI6ImZvbGRlciIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3In0",
+      "name" : "server_port_not_number"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb206LyIsInQiOiJmb2xkZXIiLCJ4IjoiWHNMbkFBRUNBd1FGQmdjSUNRb0xEQTBPRHhBUkVoTVVGUllYR0JrYUd4dyJ9",
+      "name" : "server_empty_port"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwOi8vTE9DQUxIT1NUOjgyOTUiLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "server_localhost_uppercase_http"
+    },
+    {
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwOi8vbG9jYWxob3N0LmV4YW1wbGUuY29tIiwidCI6ImZvbGRlciIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3In0",
+      "name" : "server_localhost_suffix_http"
+    }
+  ],
+  "invite_secret_hashes" : [
+    {
+      "hash" : "87496c1b4c073c9945a76477c35036cd2a563b0ec005715e143d77122515c24a",
+      "invite_secret" : "5ec2e7000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c"
+    },
+    {
+      "hash" : "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+      "invite_secret" : "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "links" : [
+    {
+      "encodes" : true,
+      "expected" : {
+        "epoch" : 1,
+        "epoch_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+        "invite_id" : "inv_4f2a-9c",
+        "invite_secret" : "5ec2e7000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c",
+        "kind" : "folder",
+        "name" : "Reading list",
+        "room_id" : "00112233445566778899aabbccddeeff",
+        "server_url" : "https://sync.example.com"
+      },
+      "json" : "{\"e\":1,\"i\":\"inv_4f2a-9c\",\"k\":\"oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8\",\"n\":\"Reading list\",\"r\":\"ABEiM0RVZneImaq7zN3u_w\",\"s\":\"https://sync.example.com\",\"t\":\"folder\",\"x\":\"XsLnAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxw\"}",
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "folder"
+    },
+    {
+      "encodes" : true,
+      "expected" : {
+        "epoch" : 4294967295,
+        "epoch_key" : "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+        "invite_id" : "A",
+        "invite_secret" : "5ec2e7000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c",
+        "kind" : "space",
+        "name" : "Équipe \"Nord\" \\ ✨\nTab\t\u0001",
+        "room_id" : "ffeeddccbbaa99887766554433221100",
+        "server_url" : "https://rooms.example.org:8443/compass/v2"
+      },
+      "json" : "{\"e\":4294967295,\"i\":\"A\",\"k\":\"wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t8\",\"n\":\"Équipe \\\"Nord\\\" \\\\ ✨\\nTab\\t\\u0001\",\"r\":\"_-7dzLuqmYh3ZlVEMyIRAA\",\"s\":\"https://rooms.example.org:8443/compass/v2\",\"t\":\"space\",\"x\":\"XsLnAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxw\"}",
+      "link" : "https://compassbrowser.org/join#eyJlIjo0Mjk0OTY3Mjk1LCJpIjoiQSIsImsiOiJ3TUhDdzhURnhzZkl5Y3JMek0zT3o5RFIwdFBVMWRiWDJObmEyOXpkM3Q4IiwibiI6IsOJcXVpcGUgXCJOb3JkXCIgXFwg4pyoXG5UYWJcdFx1MDAwMSIsInIiOiJfLTdkekx1cW1ZaDNabFZFTXlJUkFBIiwicyI6Imh0dHBzOi8vcm9vbXMuZXhhbXBsZS5vcmc6ODQ0My9jb21wYXNzL3YyIiwidCI6InNwYWNlIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "space_unicode_escapes"
+    },
+    {
+      "encodes" : true,
+      "expected" : {
+        "epoch" : 0,
+        "epoch_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+        "invite_id" : "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+        "invite_secret" : "5ec2e7000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c",
+        "kind" : "easel",
+        "name" : "",
+        "room_id" : "00112233445566778899aabbccddeeff",
+        "server_url" : "http://localhost:8295"
+      },
+      "json" : "{\"e\":0,\"i\":\"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\",\"k\":\"oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8\",\"n\":\"\",\"r\":\"ABEiM0RVZneImaq7zN3u_w\",\"s\":\"http://localhost:8295\",\"t\":\"easel\",\"x\":\"XsLnAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxw\"}",
+      "link" : "https://compassbrowser.org/join#eyJlIjowLCJpIjoienp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6eiIsImsiOiJvS0dpbzZTbHBxZW9xYXFycksydXI3Q3hzck8wdGJhM3VMbTZ1N3k5dnI4IiwibiI6IiIsInIiOiJBQkVpTTBSVlpuZUltYXE3ek4zdV93IiwicyI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODI5NSIsInQiOiJlYXNlbCIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3In0",
+      "name" : "easel_localhost"
+    },
+    {
+      "encodes" : true,
+      "expected" : {
+        "epoch" : 1,
+        "epoch_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+        "invite_id" : "inv_4f2a-9c",
+        "invite_secret" : "5ec2e7000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c",
+        "kind" : "easel",
+        "name" : "Reading list",
+        "room_id" : "00112233445566778899aabbccddeeff",
+        "server_url" : "http://127.0.0.1:8295/"
+      },
+      "json" : "{\"e\":1,\"i\":\"inv_4f2a-9c\",\"k\":\"oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8\",\"n\":\"Reading list\",\"r\":\"ABEiM0RVZneImaq7zN3u_w\",\"s\":\"http://127.0.0.1:8295/\",\"t\":\"easel\",\"x\":\"XsLnAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxw\"}",
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwOi8vMTI3LjAuMC4xOjgyOTUvIiwidCI6ImVhc2VsIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "loopback_ipv4"
+    },
+    {
+      "encodes" : true,
+      "expected" : {
+        "epoch" : 1,
+        "epoch_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+        "invite_id" : "inv_4f2a-9c",
+        "invite_secret" : "5ec2e7000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c",
+        "kind" : "folder",
+        "name" : "Reading list",
+        "room_id" : "00112233445566778899aabbccddeeff",
+        "server_url" : "http://[::1]:8295"
+      },
+      "json" : "{\"e\":1,\"i\":\"inv_4f2a-9c\",\"k\":\"oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8\",\"n\":\"Reading list\",\"r\":\"ABEiM0RVZneImaq7zN3u_w\",\"s\":\"http://[::1]:8295\",\"t\":\"folder\",\"x\":\"XsLnAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxw\"}",
+      "link" : "https://compassbrowser.org/join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwOi8vWzo6MV06ODI5NSIsInQiOiJmb2xkZXIiLCJ4IjoiWHNMbkFBRUNBd1FGQmdjSUNRb0xEQTBPRHhBUkVoTVVGUllYR0JrYUd4dyJ9",
+      "name" : "loopback_ipv6"
+    },
+    {
+      "encodes" : false,
+      "expected" : {
+        "epoch" : 1,
+        "epoch_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+        "invite_id" : "inv_4f2a-9c",
+        "invite_secret" : "5ec2e7000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c",
+        "kind" : "folder",
+        "name" : "Reading list",
+        "room_id" : "00112233445566778899aabbccddeeff",
+        "server_url" : "https://sync.example.com"
+      },
+      "json" : "{\"e\":1,\"i\":\"inv_4f2a-9c\",\"k\":\"oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8\",\"n\":\"Reading list\",\"r\":\"ABEiM0RVZneImaq7zN3u_w\",\"s\":\"https://sync.example.com\",\"t\":\"folder\",\"x\":\"XsLnAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxw\"}",
+      "link" : "compass://join#eyJlIjoxLCJpIjoiaW52XzRmMmEtOWMiLCJrIjoib0tHaW82U2xwcWVvcWFxcnJLMnVyN0N4c3JPMHRiYTN1TG02dTd5OXZyOCIsIm4iOiJSZWFkaW5nIGxpc3QiLCJyIjoiQUJFaU0wUlZabmVJbWFxN3pOM3VfdyIsInMiOiJodHRwczovL3N5bmMuZXhhbXBsZS5jb20iLCJ0IjoiZm9sZGVyIiwieCI6IlhzTG5BQUVDQXdRRkJnY0lDUW9MREEwT0R4QVJFaE1VRlJZWEdCa2FHeHcifQ",
+      "name" : "deep_link"
+    },
+    {
+      "encodes" : false,
+      "expected" : {
+        "epoch" : 1,
+        "epoch_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+        "invite_id" : "inv_4f2a-9c",
+        "invite_secret" : "5ec2e7000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c",
+        "kind" : "folder",
+        "name" : "Reading list",
+        "room_id" : "00112233445566778899aabbccddeeff",
+        "server_url" : "https://sync.example.com"
+      },
+      "json" : "{\"t\":\"folder\",\"s\":\"https://sync.example.com\",\"x\":\"XsLnAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxw\",\"v\":2,\"r\":\"ABEiM0RVZneImaq7zN3u_w\",\"n\":\"Reading list\",\"k\":\"oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8\",\"i\":\"inv_4f2a-9c\",\"e\":1}",
+      "link" : "https://compassbrowser.org/join#eyJ0IjoiZm9sZGVyIiwicyI6Imh0dHBzOi8vc3luYy5leGFtcGxlLmNvbSIsIngiOiJYc0xuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EeEFSRWhNVUZSWVhHQmthR3h3IiwidiI6MiwiciI6IkFCRWlNMFJWWm5lSW1hcTd6TjN1X3ciLCJuIjoiUmVhZGluZyBsaXN0IiwiayI6Im9LR2lvNlNscHFlb3FhcXJySzJ1cjdDeHNyTzB0YmEzdUxtNnU3eTl2cjgiLCJpIjoiaW52XzRmMmEtOWMiLCJlIjoxfQ",
+      "name" : "unknown_keys_and_order"
+    }
+  ],
+  "record_failures" : [
+    {
+      "epoch" : 1,
+      "name" : "wrong_room",
+      "record_id" : "c3d2a1b0-9f8e-4d7c-8b6a-594837261504",
+      "room_id" : "ffeeddccbbaa99887766554433221100",
+      "room_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "sealed" : "000102030405060708090a0b34c8aa449920dbc4ac5e6270dddc5dc596d78379215a0fe824d57da23d75971965b70368fba1e827131a3f5b50efef5c99a3290697c6756094882d6081d9b1"
+    },
+    {
+      "epoch" : 1,
+      "name" : "wrong_record_id",
+      "record_id" : "c3d2a1b0-9f8e-4d7c-8b6a-594837261505",
+      "room_id" : "00112233445566778899aabbccddeeff",
+      "room_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "sealed" : "000102030405060708090a0b34c8aa449920dbc4ac5e6270dddc5dc596d78379215a0fe824d57da23d75971965b70368fba1e827131a3f5b50efef5c99a3290697c6756094882d6081d9b1"
+    },
+    {
+      "epoch" : 2,
+      "name" : "wrong_epoch",
+      "record_id" : "c3d2a1b0-9f8e-4d7c-8b6a-594837261504",
+      "room_id" : "00112233445566778899aabbccddeeff",
+      "room_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "sealed" : "000102030405060708090a0b34c8aa449920dbc4ac5e6270dddc5dc596d78379215a0fe824d57da23d75971965b70368fba1e827131a3f5b50efef5c99a3290697c6756094882d6081d9b1"
+    },
+    {
+      "epoch" : 1,
+      "name" : "wrong_key",
+      "record_id" : "c3d2a1b0-9f8e-4d7c-8b6a-594837261504",
+      "room_id" : "00112233445566778899aabbccddeeff",
+      "room_key" : "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+      "sealed" : "000102030405060708090a0b34c8aa449920dbc4ac5e6270dddc5dc596d78379215a0fe824d57da23d75971965b70368fba1e827131a3f5b50efef5c99a3290697c6756094882d6081d9b1"
+    },
+    {
+      "epoch" : 1,
+      "name" : "flipped_nonce",
+      "record_id" : "c3d2a1b0-9f8e-4d7c-8b6a-594837261504",
+      "room_id" : "00112233445566778899aabbccddeeff",
+      "room_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "sealed" : "010102030405060708090a0b34c8aa449920dbc4ac5e6270dddc5dc596d78379215a0fe824d57da23d75971965b70368fba1e827131a3f5b50efef5c99a3290697c6756094882d6081d9b1"
+    },
+    {
+      "epoch" : 1,
+      "name" : "flipped_ciphertext",
+      "record_id" : "c3d2a1b0-9f8e-4d7c-8b6a-594837261504",
+      "room_id" : "00112233445566778899aabbccddeeff",
+      "room_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "sealed" : "000102030405060708090a0b34c8ab449920dbc4ac5e6270dddc5dc596d78379215a0fe824d57da23d75971965b70368fba1e827131a3f5b50efef5c99a3290697c6756094882d6081d9b1"
+    },
+    {
+      "epoch" : 1,
+      "name" : "flipped_tag",
+      "record_id" : "c3d2a1b0-9f8e-4d7c-8b6a-594837261504",
+      "room_id" : "00112233445566778899aabbccddeeff",
+      "room_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "sealed" : "000102030405060708090a0b34c8aa449920dbc4ac5e6270dddc5dc596d78379215a0fe824d57da23d75971965b70368fba1e827131a3f5b50efef5c99a3290697c6756094882d6081d9b0"
+    },
+    {
+      "epoch" : 1,
+      "name" : "truncated",
+      "record_id" : "c3d2a1b0-9f8e-4d7c-8b6a-594837261504",
+      "room_id" : "00112233445566778899aabbccddeeff",
+      "room_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "sealed" : "000102030405060708090a0b34c8aa449920dbc4ac5e6270dddc5dc596d78379215a0fe824d57da23d75971965b70368fba1e827131a3f5b50efef5c99a3290697c6756094882d6081d9"
+    },
+    {
+      "epoch" : 1,
+      "name" : "too_short",
+      "record_id" : "c3d2a1b0-9f8e-4d7c-8b6a-594837261504",
+      "room_id" : "00112233445566778899aabbccddeeff",
+      "room_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "sealed" : "000102030405060708090a0b34c8aa449920dbc4ac5e6270dddc5d"
+    }
+  ],
+  "records" : [
+    {
+      "aad" : "636f6d706173732d726f6f6d2d7265636f726400112233445566778899aabbccddeeff63336432613162302d396638652d346437632d386236612d35393438333732363135303400000001",
+      "epoch" : 1,
+      "name" : "node",
+      "nonce" : "000102030405060708090a0b",
+      "plaintext" : "0a2463336432613162302d396638652d346437632d386236612d353934383337323631353034120752656164696e67",
+      "record_id" : "c3d2a1b0-9f8e-4d7c-8b6a-594837261504",
+      "room_id" : "00112233445566778899aabbccddeeff",
+      "room_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "sealed" : "000102030405060708090a0b34c8aa449920dbc4ac5e6270dddc5dc596d78379215a0fe824d57da23d75971965b70368fba1e827131a3f5b50efef5c99a3290697c6756094882d6081d9b1"
+    },
+    {
+      "aad" : "636f6d706173732d726f6f6d2d7265636f7264ffeeddccbbaa9988776655443322110065ffffffff",
+      "epoch" : 4294967295,
+      "name" : "empty_plaintext",
+      "nonce" : "f0f1f2f3f4f5f6f7f8f9fafb",
+      "plaintext" : "",
+      "record_id" : "e",
+      "room_id" : "ffeeddccbbaa99887766554433221100",
+      "room_key" : "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+      "sealed" : "f0f1f2f3f4f5f6f7f8f9fafb43b8425bf086a2f3cb566b811b428139"
+    },
+    {
+      "aad" : "636f6d706173732d726f6f6d2d7265636f726400112233445566778899aabbccddeeff656173656c2de29c8fefb88f2d3100000003",
+      "epoch" : 3,
+      "name" : "unicode_record_id",
+      "nonce" : "f0f1f2f3f4f5f6f7f8f9fafb",
+      "plaintext" : "00ff00ff",
+      "record_id" : "easel-✏️-1",
+      "room_id" : "00112233445566778899aabbccddeeff",
+      "room_key" : "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "sealed" : "f0f1f2f3f4f5f6f7f8f9fafbec51324aadb76a82916daef56e7bef1aead77d01"
+    }
+  ]
+}

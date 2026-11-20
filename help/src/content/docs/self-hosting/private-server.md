@@ -13,6 +13,12 @@ its own account is a chain of its own, with its own ID.
 Every other chain is refused with `401`, for syncing, pairing, push, quota
 and change notifications alike.
 
+There's one exception: shared spaces, folders and easels. When someone
+you listed shares one with a person who isn't listed, that person can use
+that shared item on your server, and nothing else: their own sync is still
+refused, and they can't share anything of their own from it. Removing them
+from the shared item (or deleting it) ends that.
+
 For a company with an identity provider, [company sign-in](/self-hosting/company-sign-in/)
 does this without collecting chain IDs.
 
