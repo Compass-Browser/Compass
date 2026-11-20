@@ -42,10 +42,23 @@ public struct ChainProfile: Sendable, Equatable, Codable, Identifiable {
       else { continue }
       out.append(
         ChainProfile(
-          uuid: uuid, name: entry["name"] as? String ?? "", avatar: (entry["avatar"] as? NSNumber)?.int32Value,
+          uuid: uuid, name: entry["name"] as? String ?? "",
+          // The JSON has Chromium's index; `avatar` is the proto's index + 1.
+          avatar: (entry["avatar"] as? NSNumber).map { $0.int32Value + 1 },
           home: entry["home"] as? Bool ?? false))
     }
     return out
+  }
+
+  /// The other way, as ChainProfilesToValue(): "avatar" (the index) only
+  /// if set, "home" only on the home.
+  public static func json(_ profiles: [ChainProfile]) -> [[String: Any]] {
+    profiles.map { p in
+      var entry: [String: Any] = ["uuid": p.uuid, "name": p.name]
+      if let avatar = p.avatar, avatar > 0 { entry["avatar"] = Int(avatar) - 1 }
+      if p.home { entry["home"] = true }
+      return entry
+    }
   }
 
   /// The chain's home UUID: the one entity marked home, or the smallest of

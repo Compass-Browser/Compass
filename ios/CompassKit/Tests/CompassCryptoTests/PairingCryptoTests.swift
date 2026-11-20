@@ -72,7 +72,7 @@ struct PairingCryptoTests {
       server: URL(string: "https://sync.example.org/v2")!,
       code: PairingCode(slot: 7, digits: "482913"))
     #expect(invite.url.absoluteString
-      == "compass-pair:?server=https://sync.example.org/v2&code=7-482913")
+      == "compass-pair:?server=https%3A%2F%2Fsync.example.org%2Fv2&code=7-482913")
     #expect(PairingInvite(url: invite.url) == invite)
     #expect(PairingInvite(url: URL(string: "compass-pair:?server=ftp://x&code=7-482913")!) == nil)
     #expect(PairingInvite(url: URL(string: "https://x/?server=https://x&code=7-482913")!) == nil)

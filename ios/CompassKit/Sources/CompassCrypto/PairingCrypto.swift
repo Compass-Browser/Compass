@@ -88,14 +88,18 @@ public struct PairingInvite: Sendable, Equatable {
     self.init(server: server, code: code)
   }
 
+  /// The desktop's form (CompassSyncPageHandler::PairingInviteUrl()):
+  /// each value escaped as base::EscapeQueryParamValue() does, so
+  /// `https%3A%2F%2Fsync.example.org%2Fv2`.
   public var url: URL {
-    var c = URLComponents()
-    c.scheme = Self.scheme
-    c.queryItems = [
-      URLQueryItem(name: "server", value: server.absoluteString),
-      URLQueryItem(name: "code", value: code.text),
-    ]
-    return c.url!
+    URL(string: "\(Self.scheme):?server=\(Self.escape(server.absoluteString))&code=\(Self.escape(code.text))")!
+  }
+
+  /// Everything but ASCII letters, digits and `!'()*-._~`, as %XX.
+  static func escape(_ value: String) -> String {
+    let kept = Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!'()*-._~".utf8)
+    return value.utf8.map { kept.contains($0) ? String(UnicodeScalar($0)) : String(format: "%%%02X", $0) }
+      .joined()
   }
 }
 

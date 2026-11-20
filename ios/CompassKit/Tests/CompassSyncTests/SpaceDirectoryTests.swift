@@ -20,7 +20,9 @@ struct SpaceDirectoryTests {
       ["name": "No UUID"],
     ])
     #expect(list.map(\.name) == ["Home", "Work"])
-    #expect(list[1].avatar == 27)
+    // The JSON has the index; ChainProfile keeps the proto's index + 1.
+    #expect(list[1].avatar == 28)
+    #expect(ChainProfile.json(list)[1]["avatar"] as? Int == 27)
     #expect(ChainProfile.list(json: nil).isEmpty)
   }
 

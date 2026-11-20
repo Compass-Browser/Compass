@@ -16,10 +16,25 @@ actor FakeRelay {
   var closes: [(PairingRole, PairingClosedReason)] = []
   let server: String
   let slot: Int
+  /// A's open: the status it answers and the slot's life.
+  var openStatus = 201
+  var expiresIn: TimeInterval = 300
+  var opened = false
 
   init(slot: Int, server: String) {
     self.slot = slot
     self.server = server
+  }
+
+  func setOpen(status: Int = 201, expiresIn: TimeInterval = 300) {
+    openStatus = status
+    self.expiresIn = expiresIn
+  }
+
+  func open() -> PairingReply<PairingOpenInfo> {
+    guard openStatus == 201 else { return .init(status: openStatus) }
+    opened = true
+    return .init(status: 201, value: PairingOpenInfo(slot: slot, expiresIn: expiresIn, server: server))
   }
 
   func join(slot: Int) -> PairingReply<PairingJoinInfo> {
@@ -56,7 +71,7 @@ actor FakeRelay {
 
 struct FakeTransport: PairingTransport {
   let relay: FakeRelay
-  func open() async -> PairingReply<PairingOpenInfo> { .init(status: 500) }
+  func open() async -> PairingReply<PairingOpenInfo> { await relay.open() }
   func join(slot: Int) async -> PairingReply<PairingJoinInfo> { await relay.join(slot: slot) }
   func send(slot: Int, from: PairingRole, data: Data) async -> PairingReply<Int> {
     await relay.send(from: from, data: data)
@@ -153,7 +168,7 @@ struct PairingJoinerTests {
           seed: seed,
           profiles: [
             ChainProfile(uuid: "2b5c3e1a-0000-4000-8000-000000000001", name: "Home", home: true),
-            ChainProfile(uuid: "2b5c3e1a-0000-4000-8000-000000000002", name: "Work", avatar: 27),
+            ChainProfile(uuid: "2b5c3e1a-0000-4000-8000-000000000002", name: "Work", avatar: 28),
           ]))
     #expect(name == "iPhone")
     // B closes the slot once it has the answer.

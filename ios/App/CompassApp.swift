@@ -13,6 +13,11 @@ import SwiftUI
 @main
 struct CompassApp: App {
   @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+  #if DEBUG
+    static let checkingSyncScreens = UserDefaults.standard.string(forKey: "CompassSyncScreen") != nil
+  #else
+    static let checkingSyncScreens = false
+  #endif
   private let services: AppServices
   @Environment(\.scenePhase) private var phase
   static let refreshTask = "it.cipi1965.compass.refresh"
@@ -82,7 +87,9 @@ struct CompassApp: App {
       // Filter lists: checked at most daily.
       if phase == .active {
         Task { await services.contentBlocking.refresh() }
-        if services.sync.isOn { SentTabNotifications.shared.requestAuthorization() }
+        // Not during the simulator's checks of the sync screens (its alert
+        // would cover them; SettingsView, -CompassSyncScreen).
+        if services.sync.isOn, !Self.checkingSyncScreens { SentTabNotifications.shared.requestAuthorization() }
         // The share sheet's and Safari's requests; the Focus filter's space.
         services.system.sharedChanged()
       }

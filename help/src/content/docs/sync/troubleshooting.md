@@ -130,6 +130,14 @@ right away.
 | **Too many tries. Wait a few minutes.** | Wait, then try again. |
 | **Check the 12 words.** | A word of your recovery code is wrong or missing. |
 
+:::note[In the next update]
+Compass for iPhone and iPad uses the computer's words when joining (for
+example **Wrong code. Ask the other device for a new one.** or **Code
+expired. Ask for a new one.**) and, when it adds a device itself, the same
+messages as the device showing the code above. A chain with no started
+device no longer stops it: the first device that syncs starts it.
+:::
+
 ## Still stuck?
 
 - Check that every device uses exactly the same server address, ending in

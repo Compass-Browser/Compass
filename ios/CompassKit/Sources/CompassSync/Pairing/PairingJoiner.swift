@@ -77,8 +77,9 @@ public struct PairingJoiner: Sendable {
     // server already did.
     let (result, close) = await exchange(code: code, host: host, deadline: deadline, waiting: waiting)
     if close {
-      await transport.close(
-        slot: code.slot, by: .b, reason: result == .wrongCode ? .mismatch : .cancel)
+      // Detached: URLSession refuses requests from a canceled task.
+      let (transport, reason) = (transport, result == .wrongCode ? PairingClosedReason.mismatch : .cancel)
+      await Task.detached { await transport.close(slot: code.slot, by: .b, reason: reason) }.value
     }
     return result
   }

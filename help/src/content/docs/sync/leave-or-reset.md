@@ -50,6 +50,12 @@ while, then the server deletes it.
 On iPhone, iPad and Android you can't reset sync. Do it on a computer, then
 add your phone or tablet again.
 
+:::note[In the next update]
+An iPhone or iPad can start a new chain of its own: tap **Leave Sync**,
+then **Start Sync on This iPhone** (or **iPad**). It's a new chain, with a
+new recovery code, that your other devices must join.
+:::
+
 ## Use another sync server
 
 You can't change the server of a chain in place. To move to another server:

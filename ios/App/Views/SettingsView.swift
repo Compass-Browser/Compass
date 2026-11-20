@@ -7,6 +7,7 @@ import CompassCrypto
 import CompassModel
 import CompassShared
 import CompassSync
+import CoreImage.CIFilterBuiltins
 import LocalAuthentication
 import SwiftUI
 
@@ -15,6 +16,11 @@ struct SettingsView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var showingRecovery = false
   @State private var confirmLeave = false
+  /// The server "Start Sync" uses (the join form's default).
+  @State private var startServer = SyncController.defaultServer?.absoluteString ?? ""
+  @State private var startError: String?
+  /// The 12 words of a chain just started here, shown once.
+  @State private var newWords: [String]?
   @AppStorage(SearchEngine.key) private var searchEngine = SearchEngine.google.rawValue
   @AppStorage(Spotlight.enabledKey) private var spotlight = true
   @AppStorage(AutoPiP.enabledKey) private var autoPiP = true
@@ -28,6 +34,7 @@ struct SettingsView: View {
 
   var body: some View {
     NavigationStack {
+      ScrollViewReader { scroller in
       Form {
         Section {
           NavigationLink { SiteSettingsView(site: nil) } label: {
@@ -165,7 +172,7 @@ struct SettingsView: View {
         } footer: {
           Text("To open pages from Safari in Compass, turn on \"Open in Compass\" in Safari → Extensions.")
         }
-        if app.sync.isOn { syncOn } else { syncOff }
+        Group { if app.sync.isOn { syncOn } else { syncOff } }.id("sync")
         Section {
           Link(destination: URL(string: "https://compassbrowser.org/privacy")!) {
             SettingsLabel("Privacy Policy", "hand.raised.fill", .indigo)
@@ -183,17 +190,61 @@ struct SettingsView: View {
         isPresented: Binding(get: { app.pendingInvite != nil && !app.sync.isOn }, set: { _ in })
       ) { JoinView() }
       .sheet(isPresented: Bindable(app).showingJoinSummary) { JoinSummaryView() }
+      // Here, not in the sync section: starting turns that section over.
+      .sheet(isPresented: Binding(get: { newWords != nil }, set: { if !$0 { newWords = nil } })) {
+        RecoveryCodeView(words: newWords ?? [], dismissTitle: "I Saved It")
+          .interactiveDismissDisabled()
+      }
+      .sheet(
+        isPresented: Binding(
+          get: { app.sync.pairing.step != .none }, set: { if !$0 { app.sync.cancelPairing() } })
+      ) { AddDeviceView() }
+      #if DEBUG
+        // With -CompassSettings YES, simulator checks of the sync screens:
+        //   -CompassSyncScreen start: "Start Sync" (on -CompassServer's server);
+        //   add: "Add a Device"; recovery: the words (no Face ID asked).
+        .task {
+          guard let screen = UserDefaults.standard.string(forKey: "CompassSyncScreen") else { return }
+          try? await Task.sleep(for: .milliseconds(800))
+          scroller.scrollTo("sync", anchor: .top)
+          switch screen {
+          case "start" where !app.sync.isOn:
+            // -CompassServer <url> instead of the build's server.
+            if let server = UserDefaults.standard.string(forKey: "CompassServer") { startServer = server }
+            startSync()
+          case "add" where app.sync.isOn: app.sync.addDevice()
+          case "recovery" where app.sync.isOn: showingRecovery = true
+          default: break
+          }
+        }
+      #endif
+      }
+    }
+  }
 
+  private func startSync() {
+    startError = nil
+    switch app.sync.startNewChain(server: startServer) {
+    case .success(let words): newWords = words
+    case .failure(let error): startError = error.message
     }
   }
 
   @ViewBuilder private var syncOff: some View {
     Section {
-      NavigationLink("Join with a Mac") { JoinView() }
+      TextField("https://sync.example.com/v2", text: $startServer)
+        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+        .accessibilityIdentifier("SyncServer")
+      Button("Start Sync on This \(UIDevice.current.model)") { startSync() }
+        .disabled(startServer.trimmingCharacters(in: .whitespaces).isEmpty)
+      NavigationLink("I Have Another Device") { JoinView() }
     } header: {
       Text("Sync")
     } footer: {
-      Text("On your Mac, open Compass's sync settings and choose “Add a device”. Your data is encrypted on your devices; the server can't read it.")
+      VStack(alignment: .leading, spacing: 6) {
+        if let startError { Text(startError).foregroundStyle(.red) }
+        Text("The address of the Compass sync server you run, or one you trust. Every device of a chain uses the same one. Your data is encrypted on your devices; the server can't read it.")
+      }
     }
   }
 
@@ -232,19 +283,31 @@ struct SettingsView: View {
           Text(device.lastUpdated, style: .date).font(.caption).foregroundStyle(.secondary)
         }
       }
+      if app.sync.devices.isEmpty {
+        Text("The devices show once this one has synced.").font(.footnote).foregroundStyle(.secondary)
+      }
+      // As the desktop's: only once sync runs (not before the first cycle
+      // went through, nor while it fails).
+      Button("Add a Device") { app.sync.addDevice() }
+        .disabled(!canAddDevice)
     }
     Section {
       Button("Show Recovery Code") { authenticate() }
       Button("Leave Sync", role: .destructive) { confirmLeave = true }
     } footer: {
-      Text("The recovery code adds a device when no synced device is at hand. Keep it somewhere safe.")
+      Text("The 12 words that bring your data back if you lose every device. Compass asks for Face ID or your passcode first.")
     }
-    .sheet(isPresented: $showingRecovery) { RecoveryCodeView(words: app.sync.recoveryWords) }
+    .sheet(isPresented: $showingRecovery) { RecoveryCodeView(words: app.sync.recoveryWords, dismissTitle: "Hide") }
     .confirmationDialog("Leave sync?", isPresented: $confirmLeave) {
       Button("Leave Sync", role: .destructive) { app.sync.leave() }
     } message: {
       Text("Your spaces stay on this iPhone. Other devices keep syncing.")
     }
+  }
+
+  private var canAddDevice: Bool {
+    if case .failed = app.sync.state { return false }
+    return app.sync.lastSync != nil
   }
 
   private var status: String {
@@ -263,34 +326,150 @@ struct SettingsView: View {
       showingRecovery = true  // no passcode set: nothing to ask for
       return
     }
-    context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Show your sync recovery code") { ok, _ in
+    // "Compass is trying to show your sync recovery code", as on the Mac.
+    context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "show your sync recovery code") { ok, _ in
       if ok { Task { @MainActor in showingRecovery = true } }
     }
   }
 }
 
+/// The 12 words, as the desktop's words panel: once after "Start Sync"
+/// ("I Saved It"), or on request behind Face ID or the passcode ("Hide").
+/// No Copy: the words don't go to the clipboard, which other devices share.
 struct RecoveryCodeView: View {
   @Environment(\.dismiss) private var dismiss
   let words: [String]
+  var dismissTitle = "Done"
 
   var body: some View {
     NavigationStack {
-      VStack(spacing: 20) {
-        LazyVGrid(columns: [GridItem(), GridItem(), GridItem()], spacing: 12) {
-          ForEach(Array(words.enumerated()), id: \.offset) { i, word in
-            Text("\(i + 1). \(word)").font(.body.monospaced()).frame(maxWidth: .infinity, alignment: .leading)
+      ScrollView {
+        VStack(alignment: .leading, spacing: 20) {
+          Text("Save these 12 words somewhere safe, such as a password manager. You only need them if you lose every device that syncs: without them, the synced data is gone.")
+          LazyVGrid(columns: [GridItem(), GridItem(), GridItem()], spacing: 12) {
+            ForEach(Array(words.enumerated()), id: \.offset) { i, word in
+              Text("\(i + 1). \(word)").font(.body.monospaced()).frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(1).minimumScaleFactor(0.7)
+            }
+          }
+          .padding()
+          .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+          .privacySensitive()
+          .accessibilityIdentifier("RecoveryWords")
+          Text("Anyone with these words can read your synced data.")
+            .font(.footnote).foregroundStyle(.secondary)
+          Button { dismiss() } label: {
+            Text(dismissTitle).frame(maxWidth: .infinity)
+          }
+          .buttonStyle(.borderedProminent)
+          .controlSize(.large)
+        }
+        .padding()
+      }
+      .navigationTitle("Your Recovery Code")
+      .navigationBarTitleDisplayMode(.inline)
+    }
+  }
+}
+
+/// "Add a Device": the code and its QR, then Allow or Deny with the joining
+/// device's name, then how it ended, as the desktop's pairing card
+/// (docs/design/sync.md, "Pairing", "Pairing QR code").
+struct AddDeviceView: View {
+  @Environment(AppModel.self) private var app
+
+  var body: some View {
+    let pairing = app.sync.pairing
+    NavigationStack {
+      ScrollView {
+        VStack(spacing: 16) {
+          if pairing.step == .working {
+            ProgressView().padding(.top, 40)
+          }
+          if pairing.step == .showingCode, let invite = pairing.invite, let qr = QRCode.image(invite.absoluteString) {
+            Image(uiImage: qr).interpolation(.none).resizable().scaledToFit()
+              .frame(width: 200, height: 200)
+              // Black on white with a quiet zone, whatever the theme.
+              .padding(16)
+              .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
+              .accessibilityLabel("Pairing QR code")
+              .accessibilityIdentifier("PairingQR")
+            Text("On an iPhone, scan this with the camera, or type the code below in Compass.")
+              .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+          }
+          if !pairing.code.isEmpty {
+            Text(pairing.code)
+              .font(.system(size: 40, weight: .regular, design: .monospaced)).tracking(3)
+              .textSelection(.enabled)
+              .accessibilityIdentifier("PairingCode")
+          }
+          if pairing.step == .showingCode, let expiresAt = pairing.expiresAt {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+              let left = max(0, Int(expiresAt.timeIntervalSince(context.date).rounded(.up)))
+              Text(left > 0 ? String(format: "Expires in %d:%02d", left / 60, left % 60) : "Expired")
+                .font(.footnote).monospacedDigit()
+                .foregroundStyle(left <= 30 ? Color.red : Color.secondary)
+            }
+          }
+          if !pairing.message.isEmpty {
+            Text(pairing.message)
+              .foregroundStyle(pairing.step == .failed ? Color.red : Color.primary)
+              .multilineTextAlignment(.center)
+          }
+          if pairing.step == .confirm {
+            Text("Add **\(pairing.deviceName)** to sync?").font(.title3).multilineTextAlignment(.center)
+            HStack(spacing: 12) {
+              Button { app.sync.answerPairing(allow: false) } label: {
+                Text("Deny").frame(maxWidth: .infinity)
+              }
+              .buttonStyle(.bordered)
+              Button { app.sync.answerPairing(allow: true) } label: {
+                Text("Allow").frame(maxWidth: .infinity)
+              }
+              .buttonStyle(.borderedProminent)
+            }
+            .controlSize(.large)
           }
         }
         .padding()
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
-        Text("Anyone with these words can read your synced data. If you lose every device and these words, the synced data is gone.")
-          .font(.footnote).foregroundStyle(.secondary)
-        Spacer()
+        .frame(maxWidth: .infinity)
       }
-      .padding()
-      .navigationTitle("Recovery Code")
-      .toolbar { Button("Done") { dismiss() } }
+      .navigationTitle("Add a Device")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button(pairing.step == .done || pairing.step == .failed ? "Close" : "Cancel") {
+            app.sync.cancelPairing()
+          }
+        }
+      }
     }
+    .interactiveDismissDisabled(pairing.step == .confirm)
+    #if DEBUG
+      // -CompassPairingAnswer allow|deny: answers 4 s after the request
+      // shows (simulator checks).
+      .task(id: pairing.step) {
+        guard pairing.step == .confirm,
+          let answer = UserDefaults.standard.string(forKey: "CompassPairingAnswer")
+        else { return }
+        try? await Task.sleep(for: .seconds(4))
+        if !Task.isCancelled { app.sync.answerPairing(allow: answer == "allow") }
+      }
+    #endif
+  }
+}
+
+/// A QR code's modules as an image, one pixel each (CoreImage's generator,
+/// which adds a one-module margin).
+enum QRCode {
+  static func image(_ text: String) -> UIImage? {
+    let filter = CIFilter.qrCodeGenerator()
+    filter.message = Data(text.utf8)
+    filter.correctionLevel = "M"
+    guard let output = filter.outputImage,
+      let cg = CIContext().createCGImage(output, from: output.extent)
+    else { return nil }
+    return UIImage(cgImage: cg)
   }
 }
 
@@ -342,15 +521,15 @@ struct JoinView: View {
           TextField("7-482913", text: $code).keyboardType(.numbersAndPunctuation)
           Button("Scan QR Code", systemImage: "qrcode.viewfinder") { scanning = true }
         } header: {
-          Text("Code from your Mac")
+          Text("The code shown on the other device")
         } footer: {
-          Text("Shown under “Add a device” in Compass on your Mac.")
+          Text("On a device that syncs, open Sync and choose Add a Device.")
         }
       }
       Section {
-        Button(waitingForMac ? "Confirm on your Mac…" : "Join") { join() }
+        Button(waitingForMac ? "Confirm on the other device…" : "Join") { join() }
           .disabled(working || URL(string: server) == nil)
-        Button(useRecovery ? "Use a code from a Mac instead" : "Use a recovery code") { useRecovery.toggle() }
+        Button(useRecovery ? "Use a code from another device instead" : "Use a recovery code") { useRecovery.toggle() }
           .font(.footnote)
       } footer: {
         if let message { Text(message).foregroundStyle(.red) }
@@ -403,14 +582,16 @@ struct JoinView: View {
       case .joined:
         dismiss()
         app.showingJoinSummary = true
-      case .denied: message = "Your Mac said no."
-      case .badCode: message = "A code looks like 7-482913."
-      case .noSuchCode, .closed: message = "That code isn't open any more. Get a new one on your Mac."
-      case .codeUsed: message = "That code was already used."
-      case .wrongCode: message = "Wrong code. Your Mac shows a new one."
-      case .canceled: message = "Canceled on your Mac."
-      case .expired: message = "The code expired."
-      case .rateLimited: message = "Too many tries. Wait a few minutes."
+      // The desktop's words (JoinResultMessage()).
+      case .denied: message = "Not added: the other device said no."
+      case .badCode: message = "Enter the code as shown, like 7-482913."
+      case .noSuchCode: message = "No such code on this server, or it expired."
+      case .codeUsed: message = "That code was already used. Ask for a new one."
+      case .wrongCode: message = "Wrong code. Ask the other device for a new one."
+      case .canceled: message = "The other device canceled. Ask for a new code."
+      case .closed: message = "The other device ended pairing. Check the code and ask for a new one."
+      case .expired: message = "Code expired. Ask for a new one."
+      case .rateLimited: message = "Too many attempts. Try again in a few minutes."
       case .failed: message = "Couldn't reach the server."
       }
     }

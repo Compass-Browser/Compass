@@ -1225,8 +1225,10 @@ every profile's bridge.
   proxies). `compass sync-server` runs it locally for development.
 - Anyone can run their own. The project also runs a public instance;
   everything on it is encrypted on the devices. The desktop's server field
-  has no default; the iOS app's join form starts with the
+  has no default; the iOS app's sync field and join form start with the
   `COMPASS_SYNC_SERVER` build setting, empty unless the build sets it.
+  Compass for iOS can also start a chain and add devices (ios.md,
+  "Settings").
 
 **Create over a tombstone.** A commit of a new entity (version 0) whose
 client tag belongs to a deleted entity of the same type revives that

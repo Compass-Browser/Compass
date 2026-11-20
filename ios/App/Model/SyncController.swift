@@ -116,7 +116,7 @@ final class SyncController {
     if let seed = Keychain.data("seed"), let server = Keychain.data("server").flatMap({ URL(dataRepresentation: $0, relativeTo: nil) }),
       let chain = try? Chain(seed: seed)
     {
-      start(chain: chain, server: server, first: false)
+      start(chain: chain, server: server)
     }
   }
 
@@ -130,7 +130,7 @@ final class SyncController {
     let result = await joiner.join(code: code, waiting: waiting)
     if case .joined(let seed, let profiles) = result, let chain = try? Chain(seed: seed) {
       save(chain: chain, server: server)
-      start(chain: chain, server: server, first: false, pairingProfiles: profiles)
+      start(chain: chain, server: server, pairingProfiles: profiles)
     }
     return result
   }
@@ -140,19 +140,136 @@ final class SyncController {
   func join(recoveryCode: String, server: URL) throws {
     let chain = try Chain(recoveryCode: recoveryCode)
     save(chain: chain, server: server)
-    start(chain: chain, server: server, first: false)
+    start(chain: chain, server: server)
   }
 
-  /// Starts a new chain from this phone (no Mac syncing yet).
-  func startNewChain(server: URL) -> Chain {
+  /// The server URL as the desktop's ParseServerUrl() takes it: http or
+  /// https, with a host; nil otherwise.
+  static func parseServer(_ text: String) -> URL? {
+    guard let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
+      url.scheme == "https" || url.scheme == "http", url.host()?.isEmpty == false
+    else { return nil }
+    return url
+  }
+
+  enum StartError: Error {
+    case alreadySetUp
+    case badServer
+
+    /// The desktop's words (CompassSyncService::StartNewChain()).
+    var message: String {
+      switch self {
+      case .alreadySetUp: "Sync is already set up."
+      case .badServer: "Enter the server's URL, like https://sync.example.com/v2."
+      }
+    }
+  }
+
+  /// Starts a new chain from this device, as the desktop's "Start sync": a
+  /// new seed, this device is the chain's home (its spaces, whatever their
+  /// profile, sync in the home account: the phone doesn't create chain
+  /// profiles), and the first cycle encrypts with the chain's passphrase
+  /// before anything goes up (`SyncEngine`'s Nigori). Returns the 12 words
+  /// to show once.
+  func startNewChain(server text: String) -> Result<[String], StartError> {
+    guard chain == nil else { return .failure(.alreadySetUp) }
+    guard let server = Self.parseServer(text) else { return .failure(.badServer) }
     let chain = try! Chain(seed: Chain.generateSeed())
     save(chain: chain, server: server)
-    start(chain: chain, server: server, first: true)
-    return chain
+    start(chain: chain, server: server)
+    return .success(chain.recoveryWords)
+  }
+
+  // MARK: Adding a device (pairing side A)
+
+  /// Where "Add a Device" is, as the desktop's PairingStatus.
+  struct Pairing: Equatable {
+    enum Step { case none, working, showingCode, confirm, done, failed }
+    var step = Step.none
+    /// "7-482913".
+    var code = ""
+    /// The joining device's name, to confirm.
+    var deviceName = ""
+    var message = ""
+    /// When the code stops working (the slot's end).
+    var expiresAt: Date?
+    /// The QR's text: `compass-pair:?server=…&code=…`.
+    var invite: URL?
+  }
+
+  private(set) var pairing = Pairing()
+  @ObservationIgnored private var host: PairingHost?
+  @ObservationIgnored private var hostTask: Task<Void, Never>?
+
+  /// Opens a pairing slot and shows its code, as the desktop's AddDevice().
+  func addDevice() {
+    guard host == nil, let chain else { return }
+    guard let server = serverURL else {
+      pairing = Pairing(step: .failed, message: "No server is set.")
+      return
+    }
+    let host = PairingHost(
+      transport: NetworkPairingTransport(serverURL: server, authKey: chain.authKey),
+      host: server.host()?.lowercased() ?? "", seed: chain.seed, profiles: profiles)
+    self.host = host
+    pairing = Pairing(step: .working)
+    hostTask = Task { [weak self] in
+      let result = await host.run(
+        onCode: { code, expiresIn in
+          await MainActor.run {
+            guard let self, self.host === host, let parsed = PairingCode(code) else { return }
+            self.pairing = Pairing(
+              step: .showingCode, code: code, message: "Enter this code on the other device.",
+              expiresAt: Date().addingTimeInterval(expiresIn),
+              invite: PairingInvite(server: server, code: parsed).url)
+          }
+        },
+        onRequest: { name in
+          await MainActor.run {
+            guard let self, self.host === host else { return }
+            self.pairing = Pairing(step: .confirm, code: self.pairing.code, deviceName: name)
+          }
+        })
+      guard let self, self.host === host, !Task.isCancelled else { return }
+      self.host = nil
+      self.hostTask = nil
+      self.pairing = Pairing(
+        step: result == .added || result == .denied ? .done : .failed, message: Self.hostMessage(result))
+      if result == .added { self.syncSoon(after: 5) }
+    }
+  }
+
+  /// Allow or Deny for the device that asks to join.
+  func answerPairing(allow: Bool) {
+    guard let host, pairing.step == .confirm else { return }
+    pairing = Pairing(step: .working)
+    host.answer(allow: allow)
+  }
+
+  /// Cancel (or Close, once done): the slot closes if still open.
+  func cancelPairing() {
+    hostTask?.cancel()
+    hostTask = nil
+    host = nil
+    pairing = Pairing()
+  }
+
+  /// The desktop's HostResultMessage().
+  static func hostMessage(_ result: PairingHost.Result) -> String {
+    switch result {
+    case .added: "Device added. It starts syncing after a restart."
+    case .denied: "Not added."
+    case .wrongCode: "Wrong code. Try again with a new code."
+    case .canceled: "The other device canceled."
+    case .expired: "The code expired. Try again with a new code."
+    case .rateLimited: "The server is busy. Try again in a few minutes."
+    case .failed: "Couldn't reach the server."
+    }
   }
 
   /// Stops syncing every profile's account; local data stays.
   func leave() {
+    cancelPairing()
     scheduled?.cancel()
     // The server stops pushing to this phone (best effort).
     if let server = serverURL {
@@ -200,12 +317,12 @@ final class SyncController {
     return folder.appendingPathComponent(name)
   }
 
-  private func start(chain: Chain, server: URL, first: Bool, pairingProfiles: [ChainProfile] = []) {
+  private func start(chain: Chain, server: URL, pairingProfiles: [ChainProfile] = []) {
     self.chain = chain
     serverURL = server
     let spaceDirectory = SpaceDirectory(store: store)
     self.spaceDirectory = spaceDirectory
-    startAccount("", first: first)
+    startAccount("")
     spaceDirectory.adoptPairingProfiles(pairingProfiles)
     spaceDirectory.onProfilesChanged = { [weak self] list in self?.profilesChanged(list) }
     // The list the home account had (last run), else pairing's.
@@ -225,21 +342,25 @@ final class SyncController {
     KeychainPasswordStore.saveProfileNames(names, accessGroup: passwords.group)
     var started = false
     for profile in list where profile.uuid != home && accounts[profile.uuid] == nil {
-      startAccount(profile.uuid, first: false)
+      startAccount(profile.uuid)
       started = true
     }
     if started { syncSoon(after: 0) }
   }
 
-  private func startAccount(_ profile: String, first: Bool) {
+  private func startAccount(_ profile: String) {
     guard let chain, let server = serverURL, let spaceDirectory else { return }
     let metadataStore = FileSyncMetadataStore(url: fileURL("sync-metadata.plist", profile: profile))
     let cacheGUID = metadataStore.load()?.cacheGUID ?? SyncMetadata().cacheGUID
     if metadataStore.load() == nil { metadataStore.save(SyncMetadata(cacheGUID: cacheGUID)) }
     let authKey = chain.authKey(profileUUID: profile)
+    // Any device sets the chain's passphrase when the server has none, as
+    // on the desktop (sync.md, "Passphrase"): the device that started the
+    // chain (even after a relaunch before its first sync went through), or
+    // one that finds a wiped server. Nothing goes up before it's in place.
     let engine = SyncEngine(
       connection: HTTPSyncConnection(serverURL: server, cacheGUID: cacheGUID, authKey: authKey),
-      passphrase: chain.passphrase(profileUUID: profile), store: metadataStore, createChainIfEmpty: first)
+      passphrase: chain.passphrase(profileUUID: profile), store: metadataStore, createChainIfEmpty: true)
     let spaces = CompassSpacesBridge(
       directory: spaceDirectory, profile: profile, engine: engine,
       mirrorURL: fileURL("sync-spaces-mirror.json", profile: profile))
