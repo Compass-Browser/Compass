@@ -14,9 +14,22 @@
 #include "components/sync/engine/engine_components_factory_impl.h"
 #include "url/gurl.h"
 
+namespace syncer {
+class HttpPostProviderFactory;
+}  // namespace syncer
+
 namespace compass::sync {
 
 class SyncCredentials;
+
+// Wraps the engine's HTTP posts: a reply saying the server removed this
+// device (403 with X-Compass-Device: removed, device_state.h) sets
+// |credentials|' removed state, which the browser side shows and the
+// connection manager then stops sending on.
+std::unique_ptr<syncer::HttpPostProviderFactory>
+WrapHttpPostProviderFactoryForDeviceState(
+    std::unique_ptr<syncer::HttpPostProviderFactory> factory,
+    scoped_refptr<SyncCredentials> credentials);
 
 // The engine's components for a Compass chain (docs/design/sync.md,
 // "Plugging it into Chromium", route 2). Local sync runs the engine with no

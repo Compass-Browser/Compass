@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "base/containers/flat_set.h"
 #include "compass/browser/sync/sync_controller.h"
@@ -79,6 +80,43 @@ std::string GetDeviceKind(syncer::DeviceInfo::OsType os,
 // off", "Restart to sync"; with a limit, "Sync: server full", "Sync: paused
 // by server", "Synced (history full)".
 std::u16string GetSyncMenuLabel(const SyncStatus& status);
+
+// Turns |status| into the removed-device state (docs/design/sync.md,
+// "Removing a device"): an error whose way out is leaving.
+void ApplyDeviceRemoved(SyncStatus& status);
+
+// What identifies a physical device across the chain's profile accounts
+// (docs/design/sync.md, "Removing a device"). DEVICE_INFO has no ID shared
+// between a device's profiles: each profile has its own cache GUID, and
+// local sync's signin_scoped_device_id is "local_device" everywhere.
+struct DeviceSignature {
+  std::string name;
+  int os_type = 0;
+  int form_factor = 0;
+  std::string manufacturer;
+  std::string model;
+  std::string hardware_class;
+
+  friend bool operator==(const DeviceSignature&,
+                         const DeviceSignature&) = default;
+};
+
+DeviceSignature GetDeviceSignature(const syncer::DeviceInfo& info);
+
+// A device of an account, by cache GUID.
+struct SignedDevice {
+  std::string guid;
+  DeviceSignature signature;
+};
+
+// The cache GUID in |others| (another profile account's devices) of the
+// physical device that is |guid| in |mine|: the one entry with the same
+// signature, if exactly one entry of each list has it (two devices alike,
+// say two phones of the same model with the default name, aren't told
+// apart: empty). Empty if |guid| isn't in |mine| or its name is empty.
+std::string FindSameDevice(const std::string& guid,
+                           const std::vector<SignedDevice>& mine,
+                           const std::vector<SignedDevice>& others);
 
 // The limit in the way, the worst first (slice 7). |throttled|: the engine
 // has types throttled by the server; the others from the server's quota

@@ -11,10 +11,15 @@
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
+#include "compass/components/sync/device_state.h"
+#include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 #include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/cpp/url_loader_completion_status.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_url_loader_factory.h"
+#include "services/network/test/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
@@ -112,6 +117,28 @@ TEST_F(QuotaFetcherTest, AnOlderServerOrAnErrorIsNoAnswer) {
   const auto result = FetchOnce(fetcher);
   ASSERT_TRUE(result);
   EXPECT_FALSE(*result);
+}
+
+TEST_F(QuotaFetcherTest, ARemovedDeviceIsReported) {
+  QuotaFetcher fetcher = MakeFetcher("token-1");
+  int removed = 0;
+  fetcher.SetDeviceRemovedCallback(
+      base::BindLambdaForTesting([&] { ++removed; }));
+  network::mojom::URLResponseHeadPtr head =
+      network::CreateURLResponseHead(net::HTTP_FORBIDDEN);
+  head->headers->AddHeader(kDeviceStateHeader, kDeviceStateRemoved);
+  url_loader_factory_.AddResponse(GURL(kQuotaUrl), std::move(head),
+                                  R"({"error":"device_removed"})",
+                                  network::URLLoaderCompletionStatus());
+  const auto result = FetchOnce(fetcher);
+  ASSERT_TRUE(result);
+  EXPECT_FALSE(*result);
+  EXPECT_EQ(1, removed);
+
+  // Another 403 isn't that.
+  url_loader_factory_.AddResponse(kQuotaUrl, "{}", net::HTTP_FORBIDDEN);
+  FetchOnce(fetcher);
+  EXPECT_EQ(1, removed);
 }
 
 TEST_F(QuotaFetcherTest, NoTokenNoRequest) {

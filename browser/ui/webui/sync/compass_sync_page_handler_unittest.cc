@@ -13,6 +13,7 @@
 #include "base/observer_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "compass/browser/sync/sync_settings.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -58,6 +59,15 @@ class FakeController : public sync::SyncController {
   }
   void CancelPairing() override { calls_.push_back("cancel"); }
   void Leave() override { calls_.push_back("leave"); }
+  void RemoveDevice(const std::string& guid, DoneCallback callback) override {
+    calls_.push_back("remove " + guid);
+    if (guid == "this-guid") {
+      std::move(callback).Run(
+          false, "That's this device. To stop syncing it, leave sync.");
+      return;
+    }
+    std::move(callback).Run(true, std::string());
+  }
   void Restart() override { calls_.push_back("restart"); }
   std::vector<sync::SyncDevice> GetDevices() const override { return devices_; }
   std::vector<sync::SyncDataTypeState> GetDataTypes() const override {
@@ -290,12 +300,14 @@ TEST_F(CompassSyncPageHandlerTest, PushesChanges) {
 
 TEST_F(CompassSyncPageHandlerTest, DevicesAndTypes) {
   sync::SyncDevice mac;
+  mac.guid = "mac-guid";
   mac.name = "Studio";
   mac.kind = "Mac";
   mac.last_seen =
       base::Time::FromMillisecondsSinceUnixEpoch(int64_t{1'800'000'000'000});
   mac.this_device = true;
   sync::SyncDevice phone;
+  phone.guid = "phone/guid+1==";
   phone.name = "Phone";
   phone.kind = "iPhone";
   controller_.SetDetails({mac, phone}, {{sync::SyncDataType::kPasswords, true},
@@ -307,6 +319,8 @@ TEST_F(CompassSyncPageHandlerTest, DevicesAndTypes) {
   remote_->GetState(future.GetCallback());
   const sync::mojom::DetailsPtr details = std::get<2>(future.Take());
   ASSERT_EQ(details->devices.size(), 2u);
+  EXPECT_EQ(details->devices[0]->guid, "mac-guid");
+  EXPECT_EQ(details->devices[1]->guid, "phone/guid+1==");
   EXPECT_EQ(details->devices[0]->name, "Studio");
   EXPECT_EQ(details->devices[0]->kind, "Mac");
   EXPECT_EQ(details->devices[0]->last_seen_ms, 1'800'000'000'000.0);
@@ -318,6 +332,45 @@ TEST_F(CompassSyncPageHandlerTest, DevicesAndTypes) {
   EXPECT_FALSE(details->types[1]->enabled);
   EXPECT_EQ(details->types[2]->type, sync::mojom::DataType::kSpaces);
   EXPECT_TRUE(details->types[2]->enabled);
+}
+
+// docs/design/sync.md, "Removing a device".
+TEST_F(CompassSyncPageHandlerTest, RemoveDeviceIsForwarded) {
+  base::test::TestFuture<bool, const std::string&> removed;
+  remote_->RemoveDevice("phone/guid+1==", removed.GetCallback());
+  EXPECT_TRUE(removed.Get<0>());
+  EXPECT_EQ(removed.Get<1>(), "");
+
+  base::test::TestFuture<bool, const std::string&> refused;
+  remote_->RemoveDevice("this-guid", refused.GetCallback());
+  EXPECT_FALSE(refused.Get<0>());
+  EXPECT_EQ(refused.Get<1>(),
+            "That's this device. To stop syncing it, leave sync.");
+  EXPECT_THAT(controller_.calls(),
+              ElementsAre("remove phone/guid+1==", "remove this-guid"));
+}
+
+TEST_F(CompassSyncPageHandlerTest, RemovedStateReachesThePage) {
+  sync::SyncStatus status;
+  status.state = sync::SyncState::kOn;
+  status.server_url = "http://h/v2";
+  sync::ApplyDeviceRemoved(status);
+  controller_.Set(status, {});
+  task_environment_.RunUntilIdle();
+  ASSERT_TRUE(page_.status());
+  EXPECT_EQ(page_.status()->state, sync::mojom::State::kError);
+  EXPECT_TRUE(page_.status()->device_removed);
+  EXPECT_EQ(page_.status()->menu_label, "Sync: device removed");
+  EXPECT_EQ(page_.status()->message,
+            "This device was removed from sync on another device. Its data "
+            "stays here. Leave sync to set it up again.");
+
+  base::test::TestFuture<sync::mojom::StatusPtr, sync::mojom::PairingPtr,
+                         sync::mojom::DetailsPtr>
+      future;
+  controller_.Set({sync::SyncState::kOn, "http://h/v2", "Synced"}, {});
+  remote_->GetState(future.GetCallback());
+  EXPECT_FALSE(future.Get<0>()->device_removed);
 }
 
 TEST_F(CompassSyncPageHandlerTest, SwitchesReachTheController) {

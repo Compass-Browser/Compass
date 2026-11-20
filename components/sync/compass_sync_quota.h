@@ -71,6 +71,12 @@ class QuotaFetcher {
   bool Fetch(Callback callback);
   bool IsFetching() const { return loader_ != nullptr; }
 
+  // Runs |callback| when a reply says the server removed this device
+  // (device_state.h); that fetch's callback gets nullopt.
+  void SetDeviceRemovedCallback(base::RepeatingClosure callback) {
+    on_device_removed_ = std::move(callback);
+  }
+
  private:
   void OnResponse(Callback callback, std::optional<std::string> body);
 
@@ -78,6 +84,7 @@ class QuotaFetcher {
   const GURL url_;
   TokenGetter token_getter_;
   std::unique_ptr<network::SimpleURLLoader> loader_;
+  base::RepeatingClosure on_device_removed_;
   base::WeakPtrFactory<QuotaFetcher> weak_factory_{this};
 };
 

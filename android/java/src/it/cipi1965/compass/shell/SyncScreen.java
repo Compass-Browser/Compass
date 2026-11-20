@@ -168,6 +168,11 @@ public class SyncScreen implements SyncScreenUi.Listener {
     }
 
     @Override
+    public void onRemoveDevice(String guid) {
+        mBridge.removeDevice(guid);
+    }
+
+    @Override
     public void onRestart() {
         mBridge.restart();
     }

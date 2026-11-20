@@ -33,8 +33,15 @@ class SyncCredentials : public base::RefCountedThreadSafe<SyncCredentials> {
   SyncCredentials& operator=(const SyncCredentials&) = delete;
 
   void SetKey(const AuthKey& key);
+  // Forgets the key and the removed state.
   void Clear();
   bool HasKey() const;
+
+  // The server said this device was removed from the chain
+  // (device_state.h): the engine's connection manager stops sending
+  // requests, and the sync page says so. Any thread; sticky until Clear().
+  void SetDeviceRemoved();
+  bool IsDeviceRemoved() const;
 
   // A fresh go-sync token, or nullopt without a key. Any thread.
   std::optional<std::string> MakeToken(base::Time now) const;
@@ -45,6 +52,7 @@ class SyncCredentials : public base::RefCountedThreadSafe<SyncCredentials> {
 
   mutable base::Lock lock_;
   std::optional<AuthKey> key_ GUARDED_BY(lock_);
+  bool device_removed_ GUARDED_BY(lock_) = false;
 };
 
 }  // namespace compass::sync

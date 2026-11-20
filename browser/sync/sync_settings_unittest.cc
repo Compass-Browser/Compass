@@ -5,6 +5,7 @@
 #include "compass/browser/sync/sync_settings.h"
 
 #include <string>
+#include <vector>
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
@@ -221,6 +222,58 @@ TEST_F(SyncSettingsTest, Limits) {
   EXPECT_EQ("Can't reach the server.", offline.message);
   EXPECT_EQ(SyncLimit::kNone, offline.limit);
   EXPECT_EQ("Sync error", label(offline));
+}
+
+// docs/design/sync.md, "Removing a device".
+TEST_F(SyncSettingsTest, DeviceRemoved) {
+  SyncStatus status;
+  status.state = SyncState::kOn;
+  status.limit = SyncLimit::kServerFull;
+  ApplyDeviceRemoved(status);
+  EXPECT_EQ(SyncState::kError, status.state);
+  EXPECT_TRUE(status.device_removed);
+  EXPECT_EQ(SyncLimit::kNone, status.limit);
+  EXPECT_EQ(
+      "This device was removed from sync on another device. Its data stays "
+      "here. Leave sync to set it up again.",
+      status.message);
+  EXPECT_EQ("Sync: device removed", base::UTF16ToUTF8(GetSyncMenuLabel(status)));
+}
+
+TEST_F(SyncSettingsTest, SameDeviceAcrossAccounts) {
+  auto device = [](std::string guid, std::string name, std::string model) {
+    SignedDevice d;
+    d.guid = std::move(guid);
+    d.signature.name = std::move(name);
+    d.signature.os_type = 2;
+    d.signature.form_factor = 1;
+    d.signature.manufacturer = "Google";
+    d.signature.model = std::move(model);
+    return d;
+  };
+  const std::vector<SignedDevice> mine = {
+      device("a-mac", "Studio", "Mac14,13"),
+      device("a-pixel", "Pixel 8", "Pixel 8"),
+      device("a-pixel-2", "Pixel 8", "Pixel 8"),
+      device("a-unnamed", "", "Pixel 9"),
+  };
+  const std::vector<SignedDevice> others = {
+      device("b-pixel", "Pixel 8", "Pixel 8"),
+      device("b-mac", "Studio", "Mac14,13"),
+      device("b-unnamed", "", "Pixel 9"),
+  };
+  EXPECT_EQ("b-mac", FindSameDevice("a-mac", mine, others));
+  // Two alike in the shown account: not told apart.
+  EXPECT_EQ("", FindSameDevice("a-pixel", mine, others));
+  EXPECT_EQ("", FindSameDevice("a-unnamed", mine, others));
+  EXPECT_EQ("", FindSameDevice("missing", mine, others));
+  // Two alike in the other account.
+  std::vector<SignedDevice> twice = others;
+  twice.push_back(device("b-mac-2", "Studio", "Mac14,13"));
+  EXPECT_EQ("", FindSameDevice("a-mac", mine, twice));
+  // A different model isn't the same device.
+  EXPECT_EQ("", FindSameDevice("a-mac", mine,
+                               {device("b-mac", "Studio", "Mac15,1")}));
 }
 
 }  // namespace

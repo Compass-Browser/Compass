@@ -46,6 +46,9 @@ class SyncBridge : public sync::SyncController::Observer {
   void AnswerPairing(JNIEnv* env, bool allow);
   void CancelPairing(JNIEnv* env);
   void Leave(JNIEnv* env);
+  // Removes another device of the chain; how it went shows in the
+  // snapshot's "removing" and "remove_error".
+  void RemoveDevice(JNIEnv* env, const std::string& guid);
   void Restart(JNIEnv* env);
   void SetDataTypeEnabled(JNIEnv* env, int32_t type, bool enabled);
   // On: the chain's 12 words (empty if the seed isn't loaded). Java asks
@@ -61,12 +64,16 @@ class SyncBridge : public sync::SyncController::Observer {
  private:
   void OnDone(bool ok, std::string error);
   void OnStarted(bool ok, std::string error, std::vector<std::string> words);
+  void OnDeviceRemoved(bool ok, std::string error);
 
   base::android::ScopedJavaGlobalRef<jobject> java_object_;
   raw_ptr<sync::SyncController> controller_;
   // The last start or join's error, and a new chain's recovery code.
   std::string error_;
   std::vector<std::string> new_words_;
+  // A removal under way, and the last one's error.
+  bool removing_ = false;
+  std::string remove_error_;
   base::ScopedObservation<sync::SyncController,
                           sync::SyncController::Observer>
       observation_{this};

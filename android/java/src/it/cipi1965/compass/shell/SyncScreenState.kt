@@ -11,7 +11,12 @@ import org.json.JSONObject
 
 /** What the sync screen shows: SyncBridge's snapshot (sync_bridge.h), parsed. */
 class SyncScreenState {
-    class Device(@JvmField val name: String, @JvmField val kind: String, @JvmField val self: Boolean)
+    class Device(
+        @JvmField val guid: String,
+        @JvmField val name: String,
+        @JvmField val kind: String,
+        @JvmField val self: Boolean,
+    )
 
     class DataType(@JvmField val type: Int, @JvmField val enabled: Boolean)
 
@@ -20,6 +25,11 @@ class SyncScreenState {
     var state by mutableStateOf("off")
     var server by mutableStateOf("")
     var message by mutableStateOf("")
+    /** The server removed this device from the chain on another device: only leaving is left. */
+    var removed by mutableStateOf(false)
+    /** A device removal is under way, and the last one's error. */
+    var removing by mutableStateOf(false)
+    var removeError by mutableStateOf("")
     /** "none", "working", "showing_code", "confirm", "waiting", "done" or "failed". */
     var pairingStep by mutableStateOf("none")
     var pairingCode by mutableStateOf("")
@@ -49,6 +59,9 @@ class SyncScreenState {
         state = data.optString("state", "off")
         server = data.optString("server")
         message = data.optString("message")
+        removed = data.optBoolean("removed")
+        removing = data.optBoolean("removing")
+        removeError = data.optString("remove_error")
         val pairing = data.optJSONObject("pairing")
         pairingStep = pairing?.optString("step", "none") ?: "none"
         pairingCode = pairing?.optString("code") ?: ""
@@ -58,7 +71,12 @@ class SyncScreenState {
         devices =
             (0 until (deviceArray?.length() ?: 0)).mapNotNull { i ->
                 deviceArray?.optJSONObject(i)?.let {
-                    Device(it.optString("name"), it.optString("kind"), it.optBoolean("this"))
+                    Device(
+                        it.optString("guid"),
+                        it.optString("name"),
+                        it.optString("kind"),
+                        it.optBoolean("this"),
+                    )
                 }
             }
         val typeArray = data.optJSONArray("types")

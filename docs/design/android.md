@@ -1060,6 +1060,16 @@ controls that count are the bottom ones, where Compass's bar is
 - **Sync.** Sync is the desktop's, unchanged (sync.md). The Android client
   reports `OS_TYPE_ANDROID` and its form factor through Chromium's own
   DeviceInfo code.
+- **Removing a device.** The sync screen's device list (`SyncScreenUi.kt`)
+  has Remove on every row but this device's, behind an `AlertDialog`
+  ("Remove <name>?", Remove / Cancel; its text points to Reset sync on a
+  computer, the screen having none), with errors under the list. It calls
+  `SyncBridge.removeDevice(guid)`, over the desktop's
+  `CompassSyncService::RemoveDevice()`; the snapshot carries each device's
+  `guid`, `removing` and `remove_error`. A device removed elsewhere has
+  `removed` in the snapshot and shows the service's message with only
+  "Leave the chain". A push registration answered with the removed-device
+  403 reports it too. See sync.md, "Removing a device".
 - **Push.** `server/push` gains an FCM sender (`fcm.go`, FCM HTTP v1 with a
   service account) next to the APNs one.
   - Registration takes `platform: "apns" | "fcm"`, with APNs as the default

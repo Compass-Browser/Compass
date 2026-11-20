@@ -68,6 +68,11 @@ public class SyncBridge {
         SyncBridgeJni.get().leave(mNativeSyncBridge);
     }
 
+    /** Removes another device of the chain (its cache GUID, from the snapshot). */
+    public void removeDevice(String guid) {
+        SyncBridgeJni.get().removeDevice(mNativeSyncBridge, guid);
+    }
+
     public void restart() {
         SyncBridgeJni.get().restart(mNativeSyncBridge);
     }
@@ -119,6 +124,8 @@ public class SyncBridge {
         void cancelPairing(long nativeSyncBridge);
 
         void leave(long nativeSyncBridge);
+
+        void removeDevice(long nativeSyncBridge, @JniType("std::string") String guid);
 
         void restart(long nativeSyncBridge);
 

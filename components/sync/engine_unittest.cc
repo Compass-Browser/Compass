@@ -5,8 +5,10 @@
 #include <optional>
 #include <string>
 
+#include "base/memory/scoped_refptr.h"
 #include "base/test/scoped_command_line.h"
 #include "base/values.h"
+#include "compass/components/sync/device_state.h"
 #include "compass/components/sync/engine_components_factory.h"
 #include "compass/components/sync/pairing_network_transport.h"
 #include "compass/components/sync/pref_names.h"
@@ -15,6 +17,8 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/sync/base/command_line_switches.h"
+#include "components/sync/engine/net/http_post_provider.h"
+#include "components/sync/engine/net/http_post_provider_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
@@ -42,6 +46,16 @@ TEST_F(CompassSyncEngineTest, ConnectionUrl) {
                 GURL("https://sync.example.com/v2/"), "guid")
                 .GetPath(),
             "/v2/command/");
+}
+
+// Cache GUIDs are base64: '+', '/' and '=' must reach the server as they are
+// ('+' read as a space would name another device).
+TEST_F(CompassSyncEngineTest, ConnectionUrlEscapesTheGuid) {
+  const GURL url = CompassEngineComponentsFactory::MakeConnectionURL(
+      GURL("https://sync.example.com/v2"), "a+b/c==");
+  EXPECT_NE(url.GetQuery().find("client_id=a%2Bb%2Fc%3D%3D"),
+            std::string::npos)
+      << url.spec();
 }
 
 TEST_F(CompassSyncEngineTest, PairUrl) {
@@ -134,6 +148,82 @@ TEST_F(CompassSyncEngineTest, Credentials) {
 
   SyncCredentials::Forget(&prefs_);
   EXPECT_NE(credentials, SyncCredentials::ForPrefs(&prefs_));
+}
+
+// Answers every post with |status| and an X-Compass-Device header.
+class FakePostProvider : public syncer::HttpPostProvider {
+ public:
+  FakePostProvider(int status, std::string device_header)
+      : status_(status), device_header_(std::move(device_header)) {}
+
+  void SetExtraRequestHeaders(const net::HttpRequestHeaders&) override {}
+  void SetURL(const GURL&) override {}
+  void SetPostPayload(const char*, int, const char*) override {}
+  bool MakeSynchronousPost(int* net_error_code,
+                           int* http_status_code) override {
+    *net_error_code = 0;
+    *http_status_code = status_;
+    return true;
+  }
+  int GetResponseContentLength() const override { return 0; }
+  const char* GetResponseContent() const override { return ""; }
+  const std::string GetResponseHeaderValue(
+      const std::string& name) const override {
+    return name == kDeviceStateHeader ? device_header_ : std::string();
+  }
+  void Abort() override {}
+
+ private:
+  ~FakePostProvider() override = default;
+  const int status_;
+  const std::string device_header_;
+};
+
+class FakePostProviderFactory : public syncer::HttpPostProviderFactory {
+ public:
+  FakePostProviderFactory(int status, std::string device_header)
+      : status_(status), device_header_(std::move(device_header)) {}
+  scoped_refptr<syncer::HttpPostProvider> Create() override {
+    return base::MakeRefCounted<FakePostProvider>(status_, device_header_);
+  }
+
+ private:
+  const int status_;
+  const std::string device_header_;
+};
+
+bool PostSetsRemoved(int status, std::string device_header) {
+  auto credentials = base::MakeRefCounted<SyncCredentials>();
+  std::unique_ptr<syncer::HttpPostProviderFactory> factory =
+      WrapHttpPostProviderFactoryForDeviceState(
+          std::make_unique<FakePostProviderFactory>(status, device_header),
+          credentials);
+  scoped_refptr<syncer::HttpPostProvider> provider = factory->Create();
+  int net_error = -1;
+  int http_status = 0;
+  EXPECT_TRUE(provider->MakeSynchronousPost(&net_error, &http_status));
+  EXPECT_EQ(status, http_status);
+  return credentials->IsDeviceRemoved();
+}
+
+// A device removed on another one (docs/design/sync.md, "Removing a
+// device"): the engine's posts see the server's 403 and note it.
+TEST_F(CompassSyncEngineTest, RemovedDeviceReplyIsNoted) {
+  EXPECT_TRUE(PostSetsRemoved(403, kDeviceStateRemoved));
+  EXPECT_FALSE(PostSetsRemoved(403, ""));
+  EXPECT_FALSE(PostSetsRemoved(401, kDeviceStateRemoved));
+  EXPECT_FALSE(PostSetsRemoved(200, ""));
+}
+
+TEST_F(CompassSyncEngineTest, CredentialsRemovedState) {
+  scoped_refptr<SyncCredentials> credentials =
+      SyncCredentials::ForPrefs(&prefs_);
+  EXPECT_FALSE(credentials->IsDeviceRemoved());
+  credentials->SetDeviceRemoved();
+  EXPECT_TRUE(credentials->IsDeviceRemoved());
+  // Leaving forgets it, with the key.
+  credentials->Clear();
+  EXPECT_FALSE(credentials->IsDeviceRemoved());
 }
 
 }  // namespace

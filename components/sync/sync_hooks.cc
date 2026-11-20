@@ -49,9 +49,14 @@ std::unique_ptr<syncer::EngineComponentsFactory> CreateEngineComponentsFactory(
         http_factory_getter) {
   const GURL url = GetServerUrl(prefs, upstream_url);
   VLOG(1) << "Compass sync: engine talks to " << url.spec();
+  scoped_refptr<SyncCredentials> credentials = SyncCredentials::ForPrefs(prefs);
+  // Removed in an earlier run: the engine doesn't ask the server again.
+  if (prefs->FindPreference(prefs::kDeviceRemoved) &&
+      prefs->GetBoolean(prefs::kDeviceRemoved)) {
+    credentials->SetDeviceRemoved();
+  }
   return std::make_unique<CompassEngineComponentsFactory>(
-      switches, url, SyncCredentials::ForPrefs(prefs),
-      std::move(http_factory_getter));
+      switches, url, std::move(credentials), std::move(http_factory_getter));
 }
 
 }  // namespace compass::sync

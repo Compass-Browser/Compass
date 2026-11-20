@@ -38,7 +38,9 @@ class EventStream {
   class Client {
    public:
     // The response started, with this HTTP status (0: none).
-    virtual void OnStreamStarted(int http_status) = 0;
+    // |device_removed|: the reply says the server removed this device
+    // (device_state.h).
+    virtual void OnStreamStarted(int http_status, bool device_removed) = 0;
     // Bytes of the body, as they arrive.
     virtual void OnStreamData(std::string_view data) = 0;
     // The server or the network ended the stream, or it never started.
@@ -155,6 +157,12 @@ class CompassSyncNotifier
   // Connects now.
   void Start();
 
+  // Runs |callback| (posted, once) when the server says it removed this
+  // device (docs/design/sync.md, "Removing a device"). The notifier then
+  // stops for good.
+  void SetDeviceRemovedCallback(base::OnceClosure callback);
+  bool IsDeviceRemoved() const { return device_removed_; }
+
   bool IsConnected() const { return connected_; }
   int failures() const { return backoff_.failure_count(); }
 
@@ -170,7 +178,7 @@ class CompassSyncNotifier
   void OnResume() override;
 
   // EventStream::Client:
-  void OnStreamStarted(int http_status) override;
+  void OnStreamStarted(int http_status, bool device_removed) override;
   void OnStreamData(std::string_view data) override;
   void OnStreamEnded() override;
 
@@ -197,6 +205,9 @@ class CompassSyncNotifier
   std::unique_ptr<EventStream> stream_;
   internal::ServerSentEventParser parser_;
   bool connected_ = false;
+  // The server removed this device: nothing reconnects.
+  bool device_removed_ = false;
+  base::OnceClosure on_device_removed_;
   // A stream was up before: the next one refreshes everything.
   bool was_connected_ = false;
   base::TimeTicks connected_at_;

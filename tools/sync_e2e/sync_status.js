@@ -5,7 +5,8 @@
 const $ = id => document.getElementById(id);
 const read = () => ({
   status: $('status').textContent,
-  visible: ['off', 'restartPanel', 'on', 'pairing', 'confirm', 'mapping']
+  visible: ['off', 'restartPanel', 'on', 'pairing', 'confirm', 'mapping',
+            'removedPanel']
                .filter(id => !$(id).hidden),
   code: $('pairingCode').textContent,
   pairing: $('pairingMessage').textContent,

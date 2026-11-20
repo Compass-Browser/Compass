@@ -159,6 +159,11 @@
     padding: 8px 4px;
   }
 
+  .compass-page button.small {
+    font-size: 12px;
+    padding: 4px 12px;
+  }
+
   .compass-page button:disabled {
     cursor: default;
     opacity: 0.4;
@@ -418,6 +423,7 @@
   <ul id="devices" class="rows"></ul>
   <p id="noDevices" class="note" hidden>The devices show once this one
     has synced.</p>
+  <p id="devicesError" class="error"></p>
   <div class="buttons">
     <button id="addDevice">Add a device</button>
   </div>
@@ -451,6 +457,14 @@
     <button id="reset" class="danger">Reset sync</button>
   </div>
   <p id="onError" class="error"></p>
+</section>
+
+<!-- Removed from the chain on another device (docs/design/sync.md,
+     "Removing a device"): the status says so; leaving is the way on. -->
+<section id="removedPanel" hidden>
+  <div class="buttons">
+    <button id="removedLeave">Leave sync</button>
+  </div>
 </section>
 
 <dialog id="confirmDialog">

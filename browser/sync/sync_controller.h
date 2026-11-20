@@ -47,6 +47,10 @@ struct SyncStatus {
   // One line for the page: last synced, or what's wrong.
   std::string message;
   SyncLimit limit = SyncLimit::kNone;
+  // The server says this device was removed from the chain on another device
+  // (docs/design/sync.md, "Removing a device"): kError, and the only way on
+  // is leaving (then joining again).
+  bool device_removed = false;
 };
 
 enum class PairingStep {
@@ -95,6 +99,8 @@ struct SyncDataTypeState {
 
 // A device of the chain, from DEVICE_INFO.
 struct SyncDevice {
+  // Its cache GUID (DeviceInfo::guid()), which RemoveDevice() takes.
+  std::string guid;
   std::string name;
   // "Mac", "Windows PC", "Android phone"...
   std::string kind;
@@ -164,6 +170,10 @@ class SyncController {
 
   // On: the chain's devices, this one included.
   virtual std::vector<SyncDevice> GetDevices() const = 0;
+  // On: removes another device of the chain (|guid| from GetDevices()) on
+  // the server; it stops syncing and leaves the list. Its data stays on it,
+  // and it can join again. Not this device (fails).
+  virtual void RemoveDevice(const std::string& guid, DoneCallback callback) = 0;
   // The switches, in the page's order. Kept while sync is off.
   virtual std::vector<SyncDataTypeState> GetDataTypes() const = 0;
   virtual void SetDataTypeEnabled(SyncDataType type, bool enabled) = 0;

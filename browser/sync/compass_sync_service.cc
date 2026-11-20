@@ -300,6 +300,10 @@ CompassSyncService::CompassSyncService(
     power->AddPowerSuspendObserver(this);
     observing_power_ = true;
   }
+  // Removed in an earlier run: nothing is asked of the server.
+  if (prefs_->GetBoolean(prefs::kDeviceRemoved)) {
+    credentials_->SetDeviceRemoved();
+  }
   // A stable sync UUID, made once (slice 5).
   if (prefs_->GetString(prefs::kProfileUuid).empty()) {
     prefs_->SetString(prefs::kProfileUuid,
@@ -337,6 +341,7 @@ void CompassSyncService::RegisterProfilePrefs(
   registry->RegisterDictionaryPref(prefs::kProfileDirs);
   registry->RegisterListPref(prefs::kProfilesRemoved);
   registry->RegisterBooleanPref(prefs::kResetPending, false);
+  registry->RegisterBooleanPref(prefs::kDeviceRemoved, false);
   RegisterSyncSettingsPrefs(registry);
 }
 
@@ -346,6 +351,7 @@ void CompassSyncService::Shutdown() {
   push_.reset();
 #endif
   quota_fetcher_.reset();
+  device_remover_.reset();
   host_.reset();
   joiner_.reset();
   missing_profiles_.reset();
@@ -437,6 +443,10 @@ SyncStatus CompassSyncService::GetStatus() const {
   if (!sync_service_->IsLocalSyncEnabled()) {
     status.state = SyncState::kNeedsRestart;
     status.message = "Restart Compass to start syncing.";
+    return status;
+  }
+  if (IsDeviceRemoved()) {
+    ApplyDeviceRemoved(status);
     return status;
   }
   if (seed_unreadable_) {
@@ -660,6 +670,17 @@ void CompassSyncService::LeaveProfile() {
   prefs_->ClearPref(prefs::kProfilesPending);
   prefs_->ClearPref(prefs::kProfileDirs);
   prefs_->ClearPref(prefs::kProfilesRemoved);
+  prefs_->ClearPref(prefs::kDeviceRemoved);
+  // This device joins again as a new device, with a new cache GUID: the
+  // server refuses this one if the device was removed (sync.md, "Removing a
+  // device"). Signing out (the next launch, without local sync) keeps the
+  // transport data, so it's cleared here; with no cache GUID the engine
+  // makes a new one and drops every type's metadata (as ForgetOldChain()).
+  syncer::SyncTransportDataPrefs(prefs_,
+                                 signin::GaiaIdHash::FromGaiaId(GaiaId()))
+      .ClearForCurrentAccount();
+  device_remover_.reset();
+  removed_guids_.clear();
   missing_profiles_.reset();
   profile_creator_.reset();
   chain_profiles_.clear();
@@ -823,7 +844,7 @@ void CompassSyncService::TriggerRefresh() {
 }
 
 void CompassSyncService::UpdateNotifier() {
-  if (!sync_service_ || !IsChainRunning() || !seed_) {
+  if (!sync_service_ || !IsChainRunning() || !seed_ || IsDeviceRemoved()) {
     notifier_.reset();
 #if BUILDFLAG(IS_ANDROID)
     push_.reset();
@@ -879,6 +900,8 @@ void CompassSyncService::UpdateNotifier() {
           },
           weak_factory_.GetWeakPtr()),
       content::GetNetworkConnectionTracker());
+  notifier_->SetDeviceRemovedCallback(base::BindOnce(
+      &CompassSyncService::OnDeviceRemoved, weak_factory_.GetWeakPtr()));
   notifier_->Start();
 #if BUILDFLAG(IS_ANDROID)
   StartPush();
@@ -928,6 +951,8 @@ void CompassSyncService::StartPush() {
                 {syncer::SEND_TAB_TO_SELF});
           },
           weak_factory_.GetWeakPtr()));
+  push_->SetDeviceRemovedCallback(base::BindRepeating(
+      &CompassSyncService::OnDeviceRemoved, weak_factory_.GetWeakPtr()));
   push_->Start();
 }
 #endif
@@ -935,7 +960,7 @@ void CompassSyncService::StartPush() {
 // Quota (slice 7) ---------------------------------------------------------------
 
 void CompassSyncService::MaybeCheckQuota() {
-  if (!sync_service_ || !IsChainRunning() || !seed_ ||
+  if (!sync_service_ || !IsChainRunning() || !seed_ || IsDeviceRemoved() ||
       sync_service_->GetTransportState() !=
           syncer::SyncService::TransportState::ACTIVE) {
     return;
@@ -965,6 +990,8 @@ void CompassSyncService::MaybeCheckQuota() {
               return credentials->MakeToken(base::Time::Now());
             },
             credentials_));
+    quota_fetcher_->SetDeviceRemovedCallback(base::BindRepeating(
+        &CompassSyncService::OnDeviceRemoved, weak_factory_.GetWeakPtr()));
   }
   if (quota_fetcher_->Fetch(base::BindOnce(&CompassSyncService::OnQuotaStatus,
                                            weak_factory_.GetWeakPtr()))) {
@@ -1001,6 +1028,11 @@ SyncLimit CompassSyncService::GetLimit() const {
 }
 
 void CompassSyncService::OnStateChanged(syncer::SyncService* sync) {
+  // The engine's posts note the server's answer (engine_components_factory).
+  if (credentials_->IsDeviceRemoved() &&
+      !prefs_->GetBoolean(prefs::kDeviceRemoved)) {
+    OnDeviceRemoved();
+  }
   UpdatePassphrase();
   UpdateNotifier();
   NotifyObservers();
@@ -1044,7 +1076,7 @@ void CompassSyncService::SetPairing(PairingStatus status) {
 }
 
 void CompassSyncService::AddDevice() {
-  if (host_ || joiner_ || !seed_ || !IsChainRunning()) {
+  if (host_ || joiner_ || !seed_ || !IsChainRunning() || IsDeviceRemoved()) {
     return;
   }
   const GURL server_url = GetServerUrl();
@@ -1204,7 +1236,7 @@ void CompassSyncService::CancelPairing() {
 
 std::vector<SyncDevice> CompassSyncService::GetDevices() const {
   std::vector<SyncDevice> devices;
-  if (!IsChainRunning() || !device_info_ ||
+  if (!IsChainRunning() || IsDeviceRemoved() || !device_info_ ||
       !device_info_->GetDeviceInfoTracker()) {
     return devices;
   }
@@ -1221,7 +1253,12 @@ std::vector<SyncDevice> CompassSyncService::GetDevices() const {
       // again); it expires on the server.
       continue;
     }
+    if (removed_guids_.contains(info->guid())) {
+      // Removed: gone from the list until the server's tombstone comes.
+      continue;
+    }
     SyncDevice device;
+    device.guid = info->guid();
     device.name = info->client_name();
     device.kind = GetDeviceKind(info->os_type(), info->form_factor());
     device.last_seen = info->last_updated_timestamp();
@@ -1236,6 +1273,186 @@ std::vector<SyncDevice> CompassSyncService::GetDevices() const {
     return a.last_seen > b.last_seen;
   });
   return devices;
+}
+
+// Removing a device -----------------------------------------------------------
+
+namespace {
+
+std::string RemovalErrorMessage(DeviceRemover::Result result) {
+  switch (result) {
+    case DeviceRemover::Result::kRemoved:
+      return std::string();
+    case DeviceRemover::Result::kThisDevice:
+      return "That's this device. To stop syncing it, leave sync.";
+    case DeviceRemover::Result::kLoginRequired:
+      return "The sync server wants you to sign in again first.";
+    case DeviceRemover::Result::kUnauthorized:
+      return "The sync server refused this device's key.";
+    case DeviceRemover::Result::kDeviceRemoved:
+      return "This device was removed from sync on another device.";
+    case DeviceRemover::Result::kUnsupported:
+      return "This sync server can't remove devices. Update it, then try "
+             "again.";
+    case DeviceRemover::Result::kFailed:
+      return "Couldn't remove the device: the server didn't answer. Try "
+             "again.";
+  }
+  return std::string();
+}
+
+}  // namespace
+
+std::string CompassSyncService::LocalGuid() const {
+  const syncer::DeviceInfo* local =
+      device_info_ && device_info_->GetLocalDeviceInfoProvider()
+          ? device_info_->GetLocalDeviceInfoProvider()->GetLocalDeviceInfo()
+          : nullptr;
+  return local ? local->guid() : std::string();
+}
+
+std::vector<SignedDevice> CompassSyncService::GetSignedDevices() const {
+  std::vector<SignedDevice> devices;
+  if (!IsChainRunning() || !device_info_ ||
+      !device_info_->GetDeviceInfoTracker()) {
+    return devices;
+  }
+  const syncer::DeviceInfoTracker* tracker =
+      device_info_->GetDeviceInfoTracker();
+  const std::string local = LocalGuid();
+  for (const syncer::DeviceInfo* info : tracker->GetAllDeviceInfo()) {
+    if (info->guid() == local || tracker->IsRecentLocalCacheGuid(info->guid()) ||
+        removed_guids_.contains(info->guid())) {
+      continue;
+    }
+    devices.push_back({info->guid(), GetDeviceSignature(*info)});
+  }
+  return devices;
+}
+
+bool CompassSyncService::IsDeviceRemoved() const {
+  return credentials_->IsDeviceRemoved() ||
+         prefs_->GetBoolean(prefs::kDeviceRemoved);
+}
+
+void CompassSyncService::OnDeviceRemoved() {
+  if (!HasSeed() || left_ || reset_) {
+    return;
+  }
+  const bool known = prefs_->GetBoolean(prefs::kDeviceRemoved);
+  credentials_->SetDeviceRemoved();
+  prefs_->SetBoolean(prefs::kDeviceRemoved, true);
+  if (!known) {
+    LOG(WARNING) << "Compass sync: this device was removed from the chain ("
+                 << profile_->GetPath().BaseName().AsUTF8Unsafe() << ")";
+  }
+  CancelPairing();
+  UpdateNotifier();
+#if BUILDFLAG(IS_ANDROID)
+  push_.reset();
+#endif
+  quota_fetcher_.reset();
+  NotifyObservers();
+}
+
+void CompassSyncService::RemoveDevice(const std::string& guid,
+                                      DoneCallback callback) {
+  if (!IsChainRunning() || !seed_ || IsDeviceRemoved()) {
+    std::move(callback).Run(false, "Sync isn't running on this device.");
+    return;
+  }
+  if (guid.empty() || guid == LocalGuid()) {
+    std::move(callback).Run(
+        false, "That's this device. To stop syncing it, leave sync.");
+    return;
+  }
+  // The same device in this device's other profile accounts of the chain,
+  // when it can be told apart (FindSameDevice()): it goes from those too, so
+  // none of its profiles keeps syncing.
+  const std::vector<SignedDevice> mine = GetSignedDevices();
+  std::vector<std::pair<base::WeakPtr<CompassSyncService>, std::string>> same;
+  for (Profile* profile : GetListableProfiles()) {
+    CompassSyncService* other =
+        CompassSyncServiceFactory::GetForProfileIfExists(profile);
+    if (!other || other == this || !other->IsChainRunning() || !other->seed_ ||
+        other->IsDeviceRemoved()) {
+      continue;
+    }
+    std::string other_guid =
+        FindSameDevice(guid, mine, other->GetSignedDevices());
+    if (!other_guid.empty()) {
+      same.emplace_back(other->weak_factory_.GetWeakPtr(),
+                        std::move(other_guid));
+    }
+  }
+  RemoveDeviceFromAccount(
+      guid,
+      base::BindOnce(
+          [](std::vector<std::pair<base::WeakPtr<CompassSyncService>,
+                                   std::string>> same,
+             DoneCallback callback, bool ok, std::string error) {
+            if (ok) {
+              for (auto& [other, other_guid] : same) {
+                if (other) {
+                  other->RemoveDeviceFromAccount(
+                      other_guid,
+                      base::BindOnce([](bool ok, std::string error) {
+                        LOG_IF(WARNING, !ok)
+                            << "Compass sync: couldn't remove the device "
+                               "from another profile: "
+                            << error;
+                      }));
+                }
+              }
+            }
+            std::move(callback).Run(ok, std::move(error));
+          },
+          std::move(same), std::move(callback)));
+}
+
+void CompassSyncService::RemoveDeviceFromAccount(const std::string& guid,
+                                                 DoneCallback callback) {
+  if (!device_remover_) {
+    device_remover_ = std::make_unique<DeviceRemover>(
+        profile_->GetDefaultStoragePartition()
+            ->GetURLLoaderFactoryForBrowserProcess(),
+        GetServerUrl(),
+        base::BindRepeating(
+            [](scoped_refptr<SyncCredentials> credentials) {
+              return credentials->MakeToken(base::Time::Now());
+            },
+            credentials_));
+  }
+  VLOG(1) << "[compass-sync] removing device " << guid << " from "
+          << profile_->GetPath().BaseName().AsUTF8Unsafe();
+  device_remover_->Remove(
+      guid, LocalGuid(),
+      base::BindOnce(&CompassSyncService::OnDeviceRemovalResult,
+                     weak_factory_.GetWeakPtr(), guid, std::move(callback)));
+}
+
+void CompassSyncService::OnDeviceRemovalResult(const std::string& guid,
+                                               DoneCallback callback,
+                                               DeviceRemover::Result result) {
+  VLOG(1) << "[compass-sync] remove device " << guid << " -> "
+          << static_cast<int>(result);
+  if (result == DeviceRemover::Result::kDeviceRemoved) {
+    OnDeviceRemoved();
+  }
+  if (result != DeviceRemover::Result::kRemoved) {
+    std::move(callback).Run(false, RemovalErrorMessage(result));
+    return;
+  }
+  removed_guids_.insert(guid);
+  // The server's tombstone for its DEVICE_INFO entity: the tracker drops it.
+  if (sync_service_ && sync_service_->GetTransportState() ==
+                           syncer::SyncService::TransportState::ACTIVE) {
+    sync_service_->TriggerRefresh(
+        syncer::SyncService::TriggerRefreshSource::kUnknown,
+        {syncer::DEVICE_INFO});
+  }
+  std::move(callback).Run(true, std::string());
+  NotifyObservers();
 }
 
 std::vector<SyncDataTypeState> CompassSyncService::GetDataTypes() const {

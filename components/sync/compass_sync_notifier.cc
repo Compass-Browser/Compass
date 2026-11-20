@@ -13,6 +13,8 @@
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/task/sequenced_task_runner.h"
+#include "compass/components/sync/compass_device_remover.h"
 #include "base/values.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
@@ -125,7 +127,8 @@ void NetworkEventStream::OnRetry(base::OnceClosure start_retry) {
 void NetworkEventStream::OnResponseStarted(
     const GURL& final_url,
     const network::mojom::URLResponseHead& head) {
-  client_->OnStreamStarted(head.headers ? head.headers->response_code() : 0);
+  client_->OnStreamStarted(head.headers ? head.headers->response_code() : 0,
+                           IsDeviceRemovedResponse(head.headers.get()));
 }
 
 }  // namespace
@@ -329,9 +332,16 @@ void CompassSyncNotifier::Start() {
   Connect();
 }
 
+void CompassSyncNotifier::SetDeviceRemovedCallback(base::OnceClosure callback) {
+  on_device_removed_ = std::move(callback);
+}
+
 void CompassSyncNotifier::Connect() {
   retry_timer_.Stop();
   Drop();
+  if (device_removed_) {
+    return;
+  }
   std::optional<std::string> token = token_getter_.Run();
   if (!token || token->empty()) {
     Fail("no sync key yet");
@@ -353,6 +363,10 @@ void CompassSyncNotifier::Drop() {
 }
 
 void CompassSyncNotifier::Fail(std::string_view why) {
+  if (device_removed_) {
+    Drop();
+    return;
+  }
   const bool healthy = connected_ && base::TimeTicks::Now() - connected_at_ >=
                                          kHealthyDuration;
   Drop();
@@ -369,6 +383,9 @@ void CompassSyncNotifier::Fail(std::string_view why) {
 
 void CompassSyncNotifier::ReconnectSoon(std::string_view why) {
   Drop();
+  if (device_removed_) {
+    return;
+  }
   backoff_.Reset();
   VLOG(1) << "[compass-sync] notifier: " << why << "; reconnecting";
   retry_timer_.Start(FROM_HERE, kReconnectSoonDelay, this,
@@ -394,7 +411,21 @@ void CompassSyncNotifier::OnResume() {
   ReconnectSoon("woke up");
 }
 
-void CompassSyncNotifier::OnStreamStarted(int http_status) {
+void CompassSyncNotifier::OnStreamStarted(int http_status,
+                                          bool device_removed) {
+  if (device_removed) {
+    // For good: only leaving and joining again brings sync back.
+    LOG(WARNING) << "Compass sync: the server removed this device";
+    device_removed_ = true;
+    retry_timer_.Stop();
+    refresh_timer_.Stop();
+    Drop();
+    if (on_device_removed_) {
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, std::move(on_device_removed_));
+    }
+    return;
+  }
   if (http_status != 200) {
     Fail(base::StrCat({"HTTP ", base::NumberToString(http_status)}));
     return;

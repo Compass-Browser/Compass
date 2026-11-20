@@ -11,11 +11,13 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/threading/platform_thread.h"
+#include "compass/components/sync/device_state.h"
 #include "compass/components/sync/sync_credentials.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
 #include "components/sync/engine/backoff_delay_provider.h"
 #include "components/sync/engine/cancelation_signal.h"
 #include "components/sync/engine/cycle/sync_cycle_context.h"
+#include "components/sync/engine/net/http_post_provider.h"
 #include "components/sync/engine/net/http_post_provider_factory.h"
 #include "components/sync/engine/net/server_connection_manager.h"
 #include "components/sync/engine/net/sync_server_connection_manager.h"
@@ -30,6 +32,73 @@ namespace {
 // first request; it waits this long for the key, in steps of kKeyPollStep.
 constexpr base::TimeDelta kKeyWait = base::Seconds(20);
 constexpr base::TimeDelta kKeyPollStep = base::Milliseconds(100);
+
+// An HttpPostProvider that notes a removed-device reply in the credentials.
+class DeviceStatePostProvider : public syncer::HttpPostProvider {
+ public:
+  DeviceStatePostProvider(scoped_refptr<syncer::HttpPostProvider> inner,
+                          scoped_refptr<SyncCredentials> credentials)
+      : inner_(std::move(inner)), credentials_(std::move(credentials)) {}
+
+  // syncer::HttpPostProvider:
+  void SetExtraRequestHeaders(const net::HttpRequestHeaders& headers) override {
+    inner_->SetExtraRequestHeaders(headers);
+  }
+  void SetURL(const GURL& url) override { inner_->SetURL(url); }
+  void SetPostPayload(const char* content_type,
+                      int content_length,
+                      const char* content) override {
+    inner_->SetPostPayload(content_type, content_length, content);
+  }
+  bool MakeSynchronousPost(int* net_error_code,
+                           int* http_status_code) override {
+    const bool ok = inner_->MakeSynchronousPost(net_error_code,
+                                                http_status_code);
+    // Only a reply has headers (HttpBridge has none after a network error).
+    if (*http_status_code == 403 &&
+        IsDeviceRemovedReply(*http_status_code, inner_->GetResponseHeaderValue(
+                                                    kDeviceStateHeader))) {
+      LOG(WARNING) << "Compass sync: the server removed this device";
+      credentials_->SetDeviceRemoved();
+    }
+    return ok;
+  }
+  int GetResponseContentLength() const override {
+    return inner_->GetResponseContentLength();
+  }
+  const char* GetResponseContent() const override {
+    return inner_->GetResponseContent();
+  }
+  const std::string GetResponseHeaderValue(
+      const std::string& name) const override {
+    return inner_->GetResponseHeaderValue(name);
+  }
+  void Abort() override { inner_->Abort(); }
+
+ private:
+  ~DeviceStatePostProvider() override = default;
+
+  const scoped_refptr<syncer::HttpPostProvider> inner_;
+  const scoped_refptr<SyncCredentials> credentials_;
+};
+
+class DeviceStatePostProviderFactory : public syncer::HttpPostProviderFactory {
+ public:
+  DeviceStatePostProviderFactory(
+      std::unique_ptr<syncer::HttpPostProviderFactory> inner,
+      scoped_refptr<SyncCredentials> credentials)
+      : inner_(std::move(inner)), credentials_(std::move(credentials)) {}
+
+  // syncer::HttpPostProviderFactory:
+  scoped_refptr<syncer::HttpPostProvider> Create() override {
+    return base::MakeRefCounted<DeviceStatePostProvider>(inner_->Create(),
+                                                         credentials_);
+  }
+
+ private:
+  const std::unique_ptr<syncer::HttpPostProviderFactory> inner_;
+  const scoped_refptr<SyncCredentials> credentials_;
+};
 
 // Posts like SyncServerConnectionManager, but ignores the engine's (absent)
 // OAuth token and signs each request with a fresh token from the chain key.
@@ -52,6 +121,11 @@ class CompassConnectionManager : public syncer::SyncServerConnectionManager {
       const std::string& buffer_in,
       std::string* buffer_out,
       const signin::AccessTokenInfo& /*ignored*/) override {
+    if (credentials_->IsDeviceRemoved()) {
+      // The server refuses this device for good: don't ask again. The
+      // engine sees the same answer as from the server, and backs off.
+      return syncer::HttpResponse::ForHttpStatusCode(403);
+    }
     std::optional<std::string> token = WaitForToken();
     if (!token) {
       VLOG(1) << "Compass sync: no chain key, request not sent";
@@ -92,6 +166,14 @@ class CompassConnectionManager : public syncer::SyncServerConnectionManager {
 };
 
 }  // namespace
+
+std::unique_ptr<syncer::HttpPostProviderFactory>
+WrapHttpPostProviderFactoryForDeviceState(
+    std::unique_ptr<syncer::HttpPostProviderFactory> factory,
+    scoped_refptr<SyncCredentials> credentials) {
+  return std::make_unique<DeviceStatePostProviderFactory>(
+      std::move(factory), std::move(credentials));
+}
 
 CompassEngineComponentsFactory::CompassEngineComponentsFactory(
     const Switches& switches,
@@ -169,7 +251,9 @@ CompassEngineComponentsFactory::BuildConnectionManager(
   CHECK(http_factory_getter_);
   return std::make_unique<CompassConnectionManager>(
       MakeConnectionURL(service_url_, cache_guid),
-      std::move(http_factory_getter_).Run(), cancelation_signal, credentials_);
+      WrapHttpPostProviderFactoryForDeviceState(
+          std::move(http_factory_getter_).Run(), credentials_),
+      cancelation_signal, credentials_);
 }
 
 }  // namespace compass::sync

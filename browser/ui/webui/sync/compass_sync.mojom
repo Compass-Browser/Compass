@@ -21,6 +21,9 @@ struct Status {
   // in <html data-menu-label>, so the end-to-end steps can check the row's
   // text without opening a native menu.
   string menu_label;
+  // The server removed this device from the chain on another device: the
+  // page offers only leaving (docs/design/sync.md, "Removing a device").
+  bool device_removed;
 };
 
 // See compass::sync::PairingStep.
@@ -71,6 +74,8 @@ struct DataTypeState {
 
 // A device of the chain, from DEVICE_INFO.
 struct Device {
+  // Its cache GUID, for RemoveDevice().
+  string guid;
   string name;
   // "Mac", "Windows PC", "iPhone"...
   string kind;
@@ -142,6 +147,8 @@ interface PageHandler {
   AnswerPairing(bool allow);
   CancelPairing();
   Leave();
+  // Removes another device of the chain (Device.guid); not this one.
+  RemoveDevice(string guid) => (bool ok, string error);
   SetDataTypeEnabled(DataType type, bool enabled);
   // Asks the user to authenticate (Touch ID or the Mac's password) first;
   // |ok| false and empty |words| if they don't.

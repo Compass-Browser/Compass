@@ -46,6 +46,17 @@ void SyncCredentials::SetKey(const AuthKey& key) {
 void SyncCredentials::Clear() {
   base::AutoLock lock(lock_);
   key_.reset();
+  device_removed_ = false;
+}
+
+void SyncCredentials::SetDeviceRemoved() {
+  base::AutoLock lock(lock_);
+  device_removed_ = true;
+}
+
+bool SyncCredentials::IsDeviceRemoved() const {
+  base::AutoLock lock(lock_);
+  return device_removed_;
 }
 
 bool SyncCredentials::HasKey() const {

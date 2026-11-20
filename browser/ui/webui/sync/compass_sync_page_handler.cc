@@ -122,7 +122,8 @@ sync::mojom::StatusPtr CompassSyncPageHandler::ToMojo(
     const sync::SyncStatus& status) {
   return sync::mojom::Status::New(
       StateToMojo(status.state), status.server_url, status.message,
-      base::UTF16ToUTF8(sync::GetSyncMenuLabel(status)));
+      base::UTF16ToUTF8(sync::GetSyncMenuLabel(status)),
+      status.device_removed);
 }
 
 // static
@@ -196,7 +197,7 @@ sync::mojom::DetailsPtr CompassSyncPageHandler::ToMojo(
   auto details = sync::mojom::Details::New();
   for (const sync::SyncDevice& device : devices) {
     details->devices.push_back(sync::mojom::Device::New(
-        device.name, device.kind,
+        device.guid, device.name, device.kind,
         device.last_seen.is_null()
             ? 0.0
             : device.last_seen.InMillisecondsFSinceUnixEpochIgnoringNull(),
@@ -265,6 +266,16 @@ void CompassSyncPageHandler::CancelPairing() {
 
 void CompassSyncPageHandler::Leave() {
   controller_->Leave();
+}
+
+void CompassSyncPageHandler::RemoveDevice(const std::string& guid,
+                                          RemoveDeviceCallback callback) {
+  controller_->RemoveDevice(
+      guid, base::BindOnce(
+                [](RemoveDeviceCallback callback, bool ok, std::string error) {
+                  std::move(callback).Run(ok, error);
+                },
+                std::move(callback)));
 }
 
 void CompassSyncPageHandler::SetDataTypeEnabled(sync::mojom::DataType type,

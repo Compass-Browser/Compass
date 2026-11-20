@@ -66,6 +66,12 @@ class CompassPushAndroid : public gcm::GCMAppHandler {
   // and the server keeps one per device).
   void Start();
 
+  // Runs |callback| when the server answers the registration saying it
+  // removed this device (device_state.h).
+  void SetDeviceRemovedCallback(base::RepeatingClosure callback) {
+    on_device_removed_ = std::move(callback);
+  }
+
   // Tells the server to forget this device's registration (DELETE
   // <server>/compass/push), as the device leaves the chain. Best effort: the
   // request outlives this object, and a token the server keeps only wakes a
@@ -99,6 +105,7 @@ class CompassPushAndroid : public gcm::GCMAppHandler {
   const GuidGetter guid_getter_;
   const base::RepeatingClosure on_wake_;
   std::unique_ptr<network::SimpleURLLoader> loader_;
+  base::RepeatingClosure on_device_removed_;
   base::WeakPtrFactory<CompassPushAndroid> weak_factory_{this};
 };
 

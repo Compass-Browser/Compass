@@ -12,7 +12,8 @@ import {getTemplate} from './sync_page.html.js';
 // (docs/design/sync.md, "UI"). Off: start a chain on a
 // server, or join one by pairing code or recovery code. On: the status, the
 // devices, adding one, what syncs, the recovery code (behind Touch ID), the
-// server, leaving and resetting. Joining on a Mac with other profiles: which
+// server, leaving and resetting, removing another device. Removed on
+// another device: only leaving. Joining on a Mac with other profiles: which
 // of the chain's each one syncs with (slice 5).
 
 // The switches, in the page's order: name and what they cover. Bookmarks
@@ -178,6 +179,8 @@ export class CompassSyncPageElement extends CompassSettingsPage {
       this.showWords_(words, 'Hide');
     });
 
+    $('removedLeave').addEventListener('click', () => this.handler_.leave());
+
     $('leave').addEventListener('click', async () => {
       if (await this.confirmAction_(
               'Leave sync?',
@@ -230,11 +233,41 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         badge.textContent = 'This device';
         item.append(badge);
       }
+      if (!device.thisDevice) {
+        // docs/design/sync.md, "Removing a device".
+        const remove = document.createElement('button');
+        remove.className = 'secondary small';
+        remove.textContent = 'Remove';
+        remove.setAttribute(
+            'aria-label', `Remove ${device.name || 'Unnamed device'}`);
+        remove.addEventListener('click', () => this.removeDevice_(device));
+        item.append(remove);
+      }
       item.dataset['thisDevice'] = String(device.thisDevice);
+      item.dataset['guid'] = device.guid;
       return item;
     }));
     this.show('devices', devices.length > 0);
     this.show('noDevices', devices.length === 0);
+  }
+
+  // Asks, then removes |device| from the chain on the server. The list
+  // drops it once the browser side has; errors show under the list.
+  private async removeDevice_(device: Device) {
+    const name = device.name || 'Unnamed device';
+    this.$('devicesError').textContent = '';
+    if (!await this.confirmAction_(
+            `Remove ${name}?`,
+            'It stops syncing and disappears from your devices. What\'s on ' +
+                'it stays there, and it can join again with a pairing code. ' +
+                'Someone who has your recovery code can still join: to lock ' +
+                'everyone out, use Reset sync.',
+            'Remove')) {
+      return;
+    }
+    const {ok, error} = await this.handler_.removeDevice(device.guid);
+    this.$('devicesError').textContent = ok ? '' : error;
+    this.refresh_();
   }
 
   private renderTypes_(types: DataTypeState[]) {
@@ -290,11 +323,14 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     }
     const state = status.state;
     const pairingActive = pairing.step !== PairingStep.kNone;
-    const on = state === State.kOn || state === State.kStarting ||
-        state === State.kError;
+    const removed = status.deviceRemoved;
+    const on = !removed &&
+        (state === State.kOn || state === State.kStarting ||
+         state === State.kError);
     this.show('off', state === State.kOff);
     this.show('restartPanel', state === State.kNeedsRestart);
     this.show('on', on && !pairingActive);
+    this.show('removedPanel', removed);
     this.$<HTMLButtonElement>('addDevice').disabled = state !== State.kOn;
     this.$('serverUrl').textContent = status.serverUrl;
     this.renderDevices_(details.devices);
@@ -445,7 +481,9 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     }));
     this.$('saved').textContent = dismiss;
     this.showingWords_ = true;
-    for (const id of ['off', 'on', 'pairing', 'restartPanel', 'mapping']) {
+    for (const id of
+             ['off', 'on', 'pairing', 'restartPanel', 'mapping',
+              'removedPanel']) {
       this.show(id, false);
     }
     this.show('wordsPanel', true);
@@ -460,7 +498,8 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     this.$('confirmTitle').textContent = title;
     this.$('confirmText').textContent = text;
     okButton.textContent = ok;
-    okButton.className = ok === 'Reset sync' ? 'danger' : '';
+    okButton.className =
+        ok === 'Reset sync' || ok === 'Remove' ? 'danger' : '';
     return new Promise(resolve => {
       const done = (result: boolean) => {
         okButton.onclick = null;

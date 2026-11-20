@@ -4,6 +4,8 @@
 
 #include "compass/browser/sync/sync_settings.h"
 
+#include <algorithm>
+
 #include "base/strings/strcat.h"
 #include "base/values.h"
 #include "compass/components/sync/pref_names.h"
@@ -172,6 +174,9 @@ std::string GetDeviceKind(syncer::DeviceInfo::OsType os,
 }
 
 std::u16string GetSyncMenuLabel(const SyncStatus& status) {
+  if (status.device_removed) {
+    return u"Sync: device removed";
+  }
   switch (status.limit) {
     case SyncLimit::kServerFull:
       return u"Sync: server full";
@@ -241,6 +246,47 @@ void ApplySyncLimit(SyncLimit limit, SyncStatus& status) {
     case SyncLimit::kNone:
       return;
   }
+}
+
+void ApplyDeviceRemoved(SyncStatus& status) {
+  status.state = SyncState::kError;
+  status.limit = SyncLimit::kNone;
+  status.device_removed = true;
+  status.message =
+      "This device was removed from sync on another device. Its data stays "
+      "here. Leave sync to set it up again.";
+}
+
+DeviceSignature GetDeviceSignature(const syncer::DeviceInfo& info) {
+  DeviceSignature signature;
+  signature.name = info.client_name();
+  signature.os_type = static_cast<int>(info.os_type());
+  signature.form_factor = static_cast<int>(info.form_factor());
+  signature.manufacturer = info.manufacturer_name();
+  signature.model = info.model_name();
+  signature.hardware_class = info.full_hardware_class();
+  return signature;
+}
+
+std::string FindSameDevice(const std::string& guid,
+                           const std::vector<SignedDevice>& mine,
+                           const std::vector<SignedDevice>& others) {
+  const auto device = std::ranges::find(mine, guid, &SignedDevice::guid);
+  if (device == mine.end() || device->signature.name.empty()) {
+    return std::string();
+  }
+  auto alike = [&](const SignedDevice& other) {
+    return other.signature == device->signature;
+  };
+  if (std::ranges::count_if(mine, alike) != 1) {
+    return std::string();
+  }
+  const auto match = std::ranges::find_if(others, alike);
+  if (match == others.end() ||
+      std::ranges::count_if(others, alike) != 1) {
+    return std::string();
+  }
+  return match->guid;
 }
 
 }  // namespace compass::sync

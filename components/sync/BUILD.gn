@@ -13,6 +13,7 @@ source_set("chain") {
     "bip39_wordlist.cc",
     "chain.cc",
     "chain.h",
+    "device_state.h",
     "pairing.cc",
     "pairing.h",
     "pairing_network_transport.cc",
@@ -90,8 +91,14 @@ source_set("notifier") {
     # Slice 7: how full the chain is on the server.
     "compass_sync_quota.cc",
     "compass_sync_quota.h",
+
+    # Removing another device from the chain, and this device's removed
+    # state (docs/design/sync.md, "Removing a device").
+    "compass_device_remover.cc",
+    "compass_device_remover.h",
   ]
   public_deps = [
+    ":chain",
     "//base",
     "//components/sync/base",
     "//net",
@@ -106,6 +113,7 @@ source_set("unit_tests") {
   sources = [
     "bip39_unittest.cc",
     "chain_unittest.cc",
+    "compass_device_remover_unittest.cc",
     "compass_sync_notifier_unittest.cc",
     "compass_sync_quota_unittest.cc",
     "engine_unittest.cc",

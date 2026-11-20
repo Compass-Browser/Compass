@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -64,6 +65,9 @@ object SyncScreenUi {
         fun onCancelPairing()
 
         fun onLeave()
+
+        /** Removes another device of the chain (docs/design/sync.md, "Removing a device"). */
+        fun onRemoveDevice(guid: String)
 
         fun onRestart()
 
@@ -149,7 +153,13 @@ private fun SyncScreen(state: SyncScreenState, listener: SyncScreenUi.Listener) 
                     if (state.message.isEmpty()) Text("Restart Compass to start syncing.")
                     Button(onClick = { listener.onRestart() }) { Text("Restart") }
                 }
-                "on", "starting", "error" -> Chain(state, listener)
+                "on", "starting", "error" ->
+                    if (state.removed) {
+                        // The message says so; leaving (then joining again) is the way on.
+                        OutlinedButton(onClick = { listener.onLeave() }) { Text("Leave the chain") }
+                    } else {
+                        Chain(state, listener)
+                    }
                 else -> Join(state, listener)
             }
         }
@@ -242,8 +252,41 @@ private fun Join(state: SyncScreenState, listener: SyncScreenUi.Listener) {
 @Composable
 private fun Chain(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     Text("Devices", style = MaterialTheme.typography.titleMedium)
+    // The device the Remove dialog asks about.
+    var removing by remember { mutableStateOf<SyncScreenState.Device?>(null) }
     for (device in state.devices) {
-        Text(device.name + if (device.self) " (this device)" else "")
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                device.name.ifEmpty { "Unnamed device" } + if (device.self) " (this device)" else "",
+                modifier = Modifier.weight(1f),
+            )
+            if (!device.self) {
+                TextButton(onClick = { removing = device }, enabled = !state.removing) {
+                    Text("Remove")
+                }
+            }
+        }
+    }
+    if (state.removeError.isNotEmpty()) {
+        Text(state.removeError, color = MaterialTheme.colorScheme.error)
+    }
+    removing?.let { device ->
+        AlertDialog(
+            onDismissRequest = { removing = null },
+            title = { Text("Remove ${device.name.ifEmpty { "Unnamed device" }}?") },
+            text = { Text(REMOVE_DEVICE_TEXT) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        removing = null
+                        listener.onRemoveDevice(device.guid)
+                    }
+                ) {
+                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } },
+        )
     }
     Button(onClick = { listener.onAddDevice() }) { Text("Add a device") }
     HorizontalDivider()
@@ -259,6 +302,11 @@ private fun Chain(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     HorizontalDivider()
     OutlinedButton(onClick = { listener.onLeave() }) { Text("Leave the chain") }
 }
+
+private const val REMOVE_DEVICE_TEXT =
+    "It stops syncing and disappears from your devices. What's on it stays there, " +
+        "and it can join again with a pairing code. Someone who has your recovery code " +
+        "can still join: to lock everyone out, use Reset sync on a computer."
 
 private const val SAVE_WORDS_TEXT =
     "Save these 12 words somewhere safe, such as a password manager. " +

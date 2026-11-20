@@ -8,11 +8,14 @@
 
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
+#include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "base/values.h"
+#include "compass/components/sync/compass_device_remover.h"
 #include "net/http/http_request_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
 
 namespace compass::sync {
 namespace {
@@ -134,8 +137,22 @@ bool QuotaFetcher::Fetch(Callback callback) {
 
 void QuotaFetcher::OnResponse(Callback callback,
                               std::optional<std::string> body) {
-  // Without SetAllowHttpErrorResults, an HTTP error gives no body.
+  // Without SetAllowHttpErrorResults, an HTTP error gives no body; its
+  // headers are still there.
+  const network::mojom::URLResponseHead* head = loader_->ResponseInfo();
+  const bool removed =
+      head && IsDeviceRemovedResponse(head->headers.get());
   loader_.reset();
+  if (removed) {
+    LOG(WARNING) << "Compass sync: the server removed this device";
+    std::move(callback).Run(std::nullopt);
+    if (on_device_removed_) {
+      // A copy: the owner may destroy |this| from it.
+      base::RepeatingClosure on_device_removed = on_device_removed_;
+      on_device_removed.Run();
+    }
+    return;
+  }
   std::move(callback).Run(body ? ParseQuotaStatus(*body) : std::nullopt);
 }
 

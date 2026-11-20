@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -27,8 +28,10 @@
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #endif
 #include "compass/browser/sync/sync_controller.h"
+#include "compass/browser/sync/sync_settings.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/components/sync/chain.h"
+#include "compass/components/sync/compass_device_remover.h"
 #include "compass/components/sync/compass_sync_quota.h"
 #include "compass/components/sync/pairing.h"
 #include "compass/components/sync/profile_list.h"
@@ -146,6 +149,7 @@ class CompassSyncService : public KeyedService,
   void Leave() override;
   void Restart() override;
   std::vector<SyncDevice> GetDevices() const override;
+  void RemoveDevice(const std::string& guid, DoneCallback callback) override;
   std::vector<SyncDataTypeState> GetDataTypes() const override;
   void SetDataTypeEnabled(SyncDataType type, bool enabled) override;
   std::vector<std::string> GetRecoveryCode() const override;
@@ -381,6 +385,25 @@ class CompassSyncService : public KeyedService,
       browser_observation_{this};
 #endif
   bool observing_power_ = false;
+
+  // Removing a device (docs/design/sync.md, "Removing a device").
+  //
+  // This profile's cache GUID (its DEVICE_INFO entry's), empty if unknown.
+  std::string LocalGuid() const;
+  // The account's other devices, as the page lists them, with what tells
+  // them apart across the chain's profile accounts.
+  std::vector<SignedDevice> GetSignedDevices() const;
+  // Removes |guid| from this profile's account only.
+  void RemoveDeviceFromAccount(const std::string& guid, DoneCallback callback);
+  void OnDeviceRemovalResult(const std::string& guid,
+                             DoneCallback callback,
+                             DeviceRemover::Result result);
+  // The server removed this device: stops asking it, says so.
+  bool IsDeviceRemoved() const;
+  void OnDeviceRemoved();
+  std::unique_ptr<DeviceRemover> device_remover_;
+  // Removed during this run: hidden until the tombstone syncs.
+  std::set<std::string> removed_guids_;
 
   // Slice 7: the chain's limits on the server (docs/design/sync.md, "Slice
   // 7 notes"). Asked after sync cycles, at most every 30 minutes, every

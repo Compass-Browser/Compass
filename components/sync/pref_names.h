@@ -27,6 +27,11 @@ inline constexpr char kDisabledTypes[] = "compass.sync.disabled_types";
 // cached) doesn't release the data types.
 inline constexpr char kResetPending[] = "compass.sync.reset_pending";
 
+// The server said this device was removed from the chain on another device
+// (docs/design/sync.md, "Removing a device"): until the user leaves, the
+// engine sends nothing and the sync page asks to leave. Cleared on leaving.
+inline constexpr char kDeviceRemoved[] = "compass.sync.device_removed";
+
 // Profiles (docs/design/sync.md, "Profiles").
 //
 // The profile's sync UUID, lowercase: made once, kept for the profile's life

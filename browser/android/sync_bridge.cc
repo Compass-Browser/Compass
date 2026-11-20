@@ -84,6 +84,7 @@ std::string SyncBridge::Snapshot(JNIEnv* env) {
   snapshot.Set("state", StateName(status.state));
   snapshot.Set("server", status.server_url);
   snapshot.Set("message", status.message);
+  snapshot.Set("removed", status.device_removed);
   const sync::PairingStatus pairing = controller_->GetPairingStatus();
   base::DictValue pairing_dict;
   pairing_dict.Set("step", StepName(pairing.step));
@@ -94,6 +95,7 @@ std::string SyncBridge::Snapshot(JNIEnv* env) {
   base::ListValue devices;
   for (const sync::SyncDevice& device : controller_->GetDevices()) {
     base::DictValue dict;
+    dict.Set("guid", device.guid);
     dict.Set("name", device.name);
     dict.Set("kind", device.kind);
     dict.Set("this", device.this_device);
@@ -109,6 +111,8 @@ std::string SyncBridge::Snapshot(JNIEnv* env) {
   }
   snapshot.Set("types", std::move(types));
   snapshot.Set("error", error_);
+  snapshot.Set("removing", removing_);
+  snapshot.Set("remove_error", remove_error_);
   base::ListValue words;
   for (const std::string& word : new_words_) {
     words.Append(word);
@@ -170,6 +174,23 @@ void SyncBridge::Leave(JNIEnv* env) {
   if (controller_) {
     controller_->Leave();
   }
+}
+
+void SyncBridge::RemoveDevice(JNIEnv* env, const std::string& guid) {
+  if (!controller_ || removing_) {
+    return;
+  }
+  removing_ = true;
+  remove_error_.clear();
+  OnSyncControllerChanged();
+  controller_->RemoveDevice(guid, base::BindOnce(&SyncBridge::OnDeviceRemoved,
+                                                 weak_factory_.GetWeakPtr()));
+}
+
+void SyncBridge::OnDeviceRemoved(bool ok, std::string error) {
+  removing_ = false;
+  remove_error_ = ok ? std::string() : std::move(error);
+  OnSyncControllerChanged();
 }
 
 void SyncBridge::Restart(JNIEnv* env) {

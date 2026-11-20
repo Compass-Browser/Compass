@@ -4,6 +4,8 @@
 
 #include "compass/components/sync/compass_sync_notifier.h"
 
+#include "compass/components/sync/device_state.h"
+
 #include <algorithm>
 #include <memory>
 #include <optional>
@@ -199,7 +201,7 @@ class CompassSyncNotifierTest : public testing::Test {
   // The open stream starts with |status|, and says hello.
   void Answer(int status = 200) {
     ASSERT_TRUE(stream_);
-    stream_->client()->OnStreamStarted(status);
+    stream_->client()->OnStreamStarted(status, /*device_removed=*/false);
     if (stream_) {
       stream_->client()->OnStreamData(": connected\n\n");
     }
@@ -485,6 +487,28 @@ TEST_F(CompassSyncNotifierTest, StopsWhenDestroyed) {
   EXPECT_TRUE(refreshes_.empty());
 }
 
+// docs/design/sync.md, "Removing a device": the server refuses this device
+// for good, so the notifier stops trying and tells its owner.
+TEST_F(CompassSyncNotifierTest, ARemovedDeviceStopsForGood) {
+  int removed = 0;
+  notifier_->SetDeviceRemovedCallback(
+      base::BindLambdaForTesting([&] { ++removed; }));
+  notifier_->Start();
+  ASSERT_TRUE(stream_);
+  stream_->client()->OnStreamStarted(403, /*device_removed=*/true);
+  EXPECT_FALSE(stream_);
+  EXPECT_TRUE(notifier_->IsDeviceRemoved());
+  EXPECT_EQ(0, removed);  // Posted.
+  FastForwardBy(base::Minutes(10));
+  EXPECT_EQ(1, removed);
+  EXPECT_EQ(1, connects_);
+  network_->SetConnectionType(net::NetworkChangeNotifier::CONNECTION_WIFI);
+  power_.GenerateResumeEvent();
+  FastForwardBy(base::Minutes(10));
+  EXPECT_EQ(1, connects_);
+  EXPECT_EQ(1, removed);
+}
+
 // The notifier over network::SimpleURLLoader ----------------------------------
 
 class CompassSyncNotifierNetworkTest : public CompassSyncNotifierTest {
@@ -566,6 +590,24 @@ TEST_F(CompassSyncNotifierNetworkTest, AnAuthErrorBacksOff) {
   EXPECT_FALSE(notifier_->IsConnected());
   EXPECT_EQ(1, notifier_->failures());
   EXPECT_TRUE(refreshes_.empty());
+}
+
+TEST_F(CompassSyncNotifierNetworkTest, ARemovedDeviceReplyStops) {
+  int removed = 0;
+  notifier_->SetDeviceRemovedCallback(
+      base::BindLambdaForTesting([&] { ++removed; }));
+  network::mojom::URLResponseHeadPtr head =
+      network::CreateURLResponseHead(net::HTTP_FORBIDDEN);
+  head->headers->AddHeader(kDeviceStateHeader, kDeviceStateRemoved);
+  url_loader_factory_.AddResponse(GURL(kEventsUrl), std::move(head),
+                                  "{\"error\":\"device_removed\"}",
+                                  network::URLLoaderCompletionStatus());
+  notifier_->Start();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(notifier_->IsDeviceRemoved());
+  EXPECT_EQ(1, removed);
+  FastForwardBy(base::Minutes(10));
+  EXPECT_EQ(1u, url_loader_factory_.total_requests());
 }
 
 }  // namespace

@@ -12,6 +12,7 @@
 #include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "base/values.h"
+#include "compass/components/sync/compass_device_remover.h"
 #include "components/gcm_driver/gcm_driver.h"
 #include "components/gcm_driver/instance_id/instance_id_driver.h"
 #include "net/base/url_util.h"
@@ -21,6 +22,7 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
 
 namespace compass::sync {
 
@@ -148,7 +150,14 @@ void CompassPushAndroid::OnRegistered(std::optional<std::string> body) {
     LOG(WARNING) << "Compass push: the server refused the FCM token ("
                  << loader_->NetError() << ")";
   }
+  const network::mojom::URLResponseHead* head = loader_->ResponseInfo();
+  const bool removed = head && IsDeviceRemovedResponse(head->headers.get());
   loader_.reset();
+  if (removed && on_device_removed_) {
+    // A copy: the owner may destroy |this| from it.
+    base::RepeatingClosure on_device_removed = on_device_removed_;
+    on_device_removed.Run();
+  }
 }
 
 void CompassPushAndroid::Unregister() {
