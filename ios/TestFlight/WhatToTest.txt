@@ -5,4 +5,6 @@ Easels, and sync that starts on this iPhone or iPad.
 - Capture to Easel: in the page menu. Drag over part of the page, then choose the board (or New Easel). The capture keeps the page's address; Refresh in its menu takes it again.
 - Boards sync with your other devices, and easels imported from Arc on your Mac show up here.
 - Sync without a Mac: Settings → Sync → Start Sync on This iPhone starts a new chain and shows your 12-word recovery code once. Add a Device shows a code and a QR code for your other devices (Mac, Windows, Linux, Android, another iPhone or iPad), then asks you to Allow or Deny each one. Show Recovery Code shows the words again after Face ID or your passcode.
+- Remove a device: in Settings → Sync, swipe left on a device (or long-press it) and tap Remove. It stops syncing and leaves your list; it keeps what's on it and can join again with a pairing code.
+- Fixed: sheets opened from Settings (like Show Recovery Code) closed by themselves.
 - Please report: pairing that fails or hangs (with which devices), boards that look different here than on the Mac, captures that come out blank or cut, and anything lost while syncing.

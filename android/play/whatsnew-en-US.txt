@@ -2,3 +2,4 @@
 - Capture to Easel (page menu) adds the page you're on to a board.
 - Boards sync with your other devices, including easels imported from Arc.
 - Sync: starting a chain shows your recovery code; Show recovery code shows it again after your screen lock.
+- Remove a device from your sync devices; it stops syncing.
