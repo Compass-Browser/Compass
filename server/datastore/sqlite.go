@@ -25,8 +25,9 @@ import (
 var ErrQuotaExceeded = errors.New("chain storage quota exceeded")
 
 // schemaVersion is stored in PRAGMA user_version. 2 (slice 7): chains got
-// last_active, quota_full and quota_full_time.
-const schemaVersion = 2
+// last_active, quota_full and quota_full_time. 3: oidc_users and
+// chain_logins (company sign-in, oidc.go).
+const schemaVersion = 3
 
 const schema = `
 CREATE TABLE IF NOT EXISTS entities (
@@ -174,7 +175,7 @@ func migrate(db *sql.DB) error {
 	if version > schemaVersion {
 		return fmt.Errorf("database schema %d is newer than this server (%d)", version, schemaVersion)
 	}
-	if _, err := db.Exec(schema + pushSchema); err != nil {
+	if _, err := db.Exec(schema + pushSchema + oidcSchema); err != nil {
 		return fmt.Errorf("error creating schema: %w", err)
 	}
 	if err := addMissingChainColumns(db); err != nil {

@@ -73,6 +73,10 @@ sharing. How they're turned off: "Types" below.
 
 ## Identity: a sync chain, no accounts
 
+No accounts by default. A server can require company sign-in (OIDC) before
+a chain may sync (see "Company sign-in (OIDC)"); that gates access only,
+and the chain, its keys and the encryption below stay as they are.
+
 - **Seed**: 16 random bytes (128 bits, the strength of the AES keys that
   encrypt the data), made by the first device.
 - **Recovery code**: the seed as 12 BIP39 words, shown once when sync
@@ -1211,7 +1215,9 @@ every profile's bridge.
 - Its auth is the Ed25519 token above, unchanged.
 - Endpoints: `POST /v2/command/` (protocol), `/v2/compass/pair` (pairing),
   `GET /v2/compass/events` (change notifications), `GET /v2/compass/quota`
-  (limits), `GET /healthz` and `/health-check`.
+  (limits), `/v2/compass/push` (push tokens), `GET /v2/compass/info`,
+  `/v2/compass/account` and `/v2/compass/login` (company sign-in, see
+  "Company sign-in (OIDC)"), `GET /healthz` and `/health-check`.
 - It stores specifics opaquely (it can't read them anyway) and only
   interprets envelope fields, so types newer than its protos sync.
 - Ships a `docker-compose.yml` with the server and a Caddy front for HTTPS,
@@ -1295,7 +1301,8 @@ stays. A reset chain's old data so goes 180 days after its last device
 leaves.
 
 **Schema.** `PRAGMA user_version` 2 adds the columns for the quota state
-and last activity; a schema 1 database migrates on start. An older server refuses
+and last activity; 3 adds `oidc_users` and `chain_logins` (company
+sign-in); older databases migrate on start. An older server refuses
 a newer database, so take a backup before updating (the update script
 does).
 
@@ -1447,14 +1454,148 @@ either mode. Nothing when Open tabs doesn't sync. A `ResultKind`,
   logic is the tested `sync_settings` functions, and the end-to-end runs
   cover the rest.
 
+## Company sign-in (OIDC)
+
+Optional, off by default (`COMPASS_SYNC_OIDC_ISSUER` unset: nothing
+changes). On, a chain syncs only once someone has signed in with the
+company's identity provider and the chain is bound to that user. Login
+gates access to the server and never touches the keys: the server and the
+identity provider still can't read any data. Setup: `server/README.md`,
+"Company sign-in (OIDC)".
+
+- **The server is the relying party** (`server/oidclogin`, `coreos/go-oidc`
+  and `x/oauth2`): authorization code flow with PKCE (S256), state and
+  nonce. The one redirect URI is
+  `https://<COMPASS_SYNC_PUBLIC_HOST>/v2/compass/login/callback` (http for
+  a localhost host); clients never handle OAuth redirects, so no loopback
+  listener or URL-scheme callback is needed.
+- **Clients poll, a code stops phishing** (as RFC 8628): the client creates
+  a login request with its chain token, shows the short code, opens the
+  URL in a browser and long-polls. After the identity provider, the server
+  shows the provider, the email, the device name and the same code, and
+  asks to Allow. Someone sent an attacker's login link would see a device
+  and a code their Compass doesn't show. A cookie set at `/start`
+  (HttpOnly, SameSite=Lax) ties the callback and the consent to the
+  browser that started; the consent form carries a CSRF token.
+- **Per chain, not per device.** A device paired into the chain is signed
+  in already; a profile account is another chain, which a signed-in chain
+  links (`/account/link`), so there's no second sign-in.
+- **The gate.** `auth.AuthorizeSync` is `Authorize` plus "is the chain
+  bound, not expired, not revoked, by this issuer?" (cached 10 s), used by
+  `/command/`, pairing, events, quota and push. An unbound chain keeps its
+  data and gets `401 {"error":"login_required"}` (with
+  `X-Compass-Login: required` on `/command/`), never `DISABLED_BY_ADMIN`,
+  which makes Chromium stop sync and clear its data. A client tells it
+  apart from a refused key by asking `/v2/compass/account`.
+  `COMPASS_SYNC_ALLOWED_CHAINS` and `BLOCKED_CLIENT_IDS` still apply.
+- **Policy.** `COMPASS_SYNC_OIDC_ALLOWED_DOMAINS` (the email's domain, with
+  `email_verified`) and `_ALLOWED_GROUPS` (any of them, in
+  `_GROUPS_CLAIM`, default `groups`), checked at sign-in and on each
+  refreshed ID token.
+- **Revalidation.** With `offline_access`, the user's latest refresh token
+  is refreshed every `_REVALIDATE_HOURS` (24): `invalid_grant` or a
+  refreshed ID token the policy refuses unbinds all the user's chains;
+  network errors and 5xx keep them. Bindings with a refresh token don't
+  expire (`expires: 0`); without one they last `_SESSION_DAYS` (30).
+- **Storage** (schema 3): `oidc_users` (issuer, subject, email, name,
+  created, last login, revoked, refresh token, last checked; unique on
+  issuer and subject) and `chain_logins` (chain ID lower-case, user,
+  created, session expiry). Pending logins are in memory, 10 min, rate
+  limited per chain (10) and per address (30) per 10 min.
+- **Admin** (`compass-sync-server`): `users list`, `users revoke
+  EMAIL|SUB [--delete-data]` (unbinds every chain of the user and keeps
+  them out until `users restore`; `--delete-data` clears and disables those
+  chains, as idle chains are), `chains list`.
+- **Development:** `COMPASS_SYNC_DEV_FAKE_OIDC=1`, only with a localhost
+  public host, serves a fake identity provider at `/dev/fake-idp` (type any
+  email and name) and signs in against it; `oidclogin/fakeidp` is the same
+  provider the Go tests use.
+
+API (all JSON; chain token = the usual `Authorization: Bearer`):
+
+| Route | Auth | Answer |
+|---|---|---|
+| `GET /v2/compass/info` | none | `{"login": null}` or `{"login": {"type": "oidc", "name"}}` (`_NAME`, else the issuer's host) |
+| `GET /v2/compass/account` | chain token, not gated | `{"login_required", "user": null \| {"name", "email"}, "expires": <Unix ms, 0 = none>}` |
+| `DELETE /v2/compass/account` | chain token | `204`, unbinds the chain (every device of it; clients don't call it on Leave) |
+| `POST /v2/compass/account/link` | bound chain token, the other chain's token in `X-Compass-Linked-Token` | `204`; the other chain gets the same user; `401 login_required` if the caller isn't bound |
+| `POST /v2/compass/login` `{"device_name", "return": "tab" \| "compass"}` | chain token, not gated | `{"id", "url", "user_code": "XXX-XXX", "expires": <Unix ms>}`; `404 {"error":"login_disabled"}` when off, `503 login_unavailable` before the provider is reached, `429` |
+| `GET /v2/compass/login/{id}[?wait=0]` | the creating chain's token (another chain: `404`) | long poll ≤ 30 s: `{"status": "pending" \| "done" \| "denied" \| "expired", "user"}` |
+| `GET /v2/compass/login/{id}/start` | browser | `302` to the identity provider |
+| `GET /v2/compass/login/callback` | browser | the consent page (or an error page) |
+| `POST /v2/compass/login/{id}/approve`, `/deny` | browser, cookie and CSRF | the done page, or with `return=compass` `302 compass://sync-login-done?status=done\|denied` |
+
+The pages load nothing external (CSP `default-src 'none'; style-src
+'unsafe-inline'; form-action 'self'; frame-ancestors 'none'`, plus
+`compass:` in `form-action` for `return=compass`, since browsers check it
+on the redirect too).
+
+### Client (desktop and Android)
+
+The C++ is shared; iOS has its own (ios.md).
+
+- **`LoginClient`** (`components/sync/login_client.{h,cc}`, in `:notifier`):
+  the requests above with `SimpleURLLoader`, signed with a chain's token,
+  and `WaitForLogin()`, long polls one after the other until an answer
+  (a network error waits 3 s; a 404 or 401 is "expired"; the login's
+  `expires` ends it). Tests: `LoginClientTest`, `LoginClientParseTest`.
+- **State** (`CompassSyncService`, `SyncStatus.login`, `SyncState::kLoginRequired`):
+  at each start the running chain asks `/info` (once a run) and, if the
+  server has sign-in, `/account`. A refusal (`CONNECTION_AUTH_ERROR`, a 401
+  from the notifier or the quota) asks again, at most every 30 s; with
+  `login_required` the page says "Sign in to <provider> to sync" with a
+  button, otherwise the old "server refused this device's key". A signed-in
+  chain shows "Signed in as name (email)". Menu: "Sync: sign in needed".
+- **Signing in** (`StartLogin()`): `POST /login` with the DEVICE_INFO name
+  (else the machine's), the server's page in a new foreground tab (desktop:
+  `Navigate()` in the profile's last active window; Android: `SyncBridge`
+  opens it from the screen that started it), the code on the page, then
+  `WaitForLogin()`. Done: the tab closes if it still shows the server's
+  origin, and the engine retries at once. Chromium's scheduler backs off up
+  to 10 minutes after 401s and local sync has no credentials to update, so
+  `CompassEngineComponentsFactory` wraps `SyncSchedulerImpl` in a
+  `RetryableScheduler`, which `SyncCredentials::RetryNow()` reaches on the
+  sync sequence to call `OnCredentialsUpdated()` (it retries after an auth
+  error). The notifier and quota start over too. `CancelLogin()` ends it;
+  calling `StartLogin()` while one runs opens its page again.
+- **New chains sign in before they're saved.** `StartNewChain()` and
+  `JoinWithRecoveryCode()` ask `/info` with the new seed's token, then
+  `/account`; if the server wants sign-in and the chain isn't bound, the
+  sign-in runs first (the page shows "This server requires sign-in with
+  <provider>" and the code on #off) and the chain is saved, for the
+  restart, only once it's done; canceling or failing saves nothing. This
+  needs no key in the engine (the token comes from the seed in memory) and
+  so doesn't depend on the restart. A chain the server is unreachable for
+  is saved as before; after the restart a refusal shows the sign-in.
+  Joining by pairing needs none (the chain is signed in). "Reset sync"
+  makes an unbound chain: after its restart it asks to sign in.
+- **Profiles.** A profile account is its own chain. The home profile links
+  each one it enrolls (`POST /account/link` with the profile's token in
+  `X-Compass-Linked-Token`), and new profiles made from the chain's list;
+  UUIDs whose link didn't get through (network, home not signed in) stay in
+  `compass.sync.login_links_pending` and are tried at each start. After the
+  home signs in it links every profile of the chain here (revoking unbinds
+  them all). A profile account whose `/account` says `login_required` asks
+  its home to link it once a run; its "Sign in" button runs the home's
+  sign-in. On a server without sign-in the list is just cleared.
+- **Leaving doesn't sign out.** Sign-in is the chain's: `DELETE /account`
+  would stop every other device of it. The device forgets the seed as
+  before; `LoginClient::SignOut()` exists but nothing calls it yet. "Reset
+  sync" makes a new chain, which signs in (or is linked) again.
+- **UI:** `resources/sidebar/settings/sync_page.{html,ts}` (`#loginRequired`,
+  `#loginPanel` with the code, Open the sign-in page and Cancel,
+  `#signedInAs`); Android `SyncScreenUi.kt` (android.md, "Sync and push").
+
 ## Decisions
 
 1. **Server**: self-hostable; the project runs a public instance too, but
    the desktop app has no default server.
 2. **What syncs**: everything that can, Today and the archive included.
 3. **First sync on a device with its own spaces**: merge.
-4. **No accounts**: a sync chain. Devices join with a short pairing code
-   from a device already syncing; a 12-word recovery code is the fallback.
+4. **No accounts by default; an optional OIDC gate, keys untouched**: a
+   sync chain. Devices join with a short pairing code from a device already
+   syncing; a 12-word recovery code is the fallback. A company server can
+   require sign-in (see "Company sign-in (OIDC)").
 5. **Route 2** (local-sync path) over a synthesized account.
 6. **Passphrase per profile account**, for domain separation.
 7. **Old chains expire on the server** rather than being deleted at reset.

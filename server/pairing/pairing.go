@@ -36,6 +36,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/brave/go-sync/auth"
 )
 
 // PairTokenHeader carries B's b_token.
@@ -299,6 +301,9 @@ func slotNumber(r *http.Request) (int, bool) {
 func (s *Server) open(w http.ResponseWriter, r *http.Request) {
 	chain, err := s.cfg.Authorize(r)
 	if err != nil || chain == "" {
+		if auth.WriteGateError(w, err) {
+			return
+		}
 		fail(w, http.StatusUnauthorized, "invalid sync token")
 		return
 	}

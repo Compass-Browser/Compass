@@ -26,6 +26,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/brave/go-sync/auth"
 )
 
 // Config sets the stream's rules. DefaultConfig has the values the server
@@ -224,6 +226,9 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	chain, err := h.cfg.Authorize(r)
 	if err != nil || chain == "" {
+		if auth.WriteGateError(w, err) {
+			return
+		}
 		fail(w, http.StatusUnauthorized, "invalid sync token")
 		return
 	}

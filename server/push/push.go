@@ -13,6 +13,8 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/brave/go-sync/datastore"
+
+	"github.com/brave/go-sync/auth"
 )
 
 // SendTabToSelfType is SEND_TAB_TO_SELF's EntitySpecifics field number.
@@ -109,6 +111,9 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	chain, err := s.cfg.Authorize(r)
 	if err != nil || chain == "" {
+		if auth.WriteGateError(w, err) {
+			return
+		}
 		fail(w, http.StatusUnauthorized, "invalid sync token")
 		return
 	}

@@ -34,8 +34,19 @@ type CommitNotifier func(clientID, cacheGUID string, types, created []int)
 // SyncRouter add routers for command and auth endpoint requests. |notify|
 // may be nil.
 func SyncRouter(cache *cache.Cache, datastore datastore.Datastore, notify CommitNotifier) chi.Router {
+	return SyncRouterWithAuth(cache, datastore, notify, nil)
+}
+
+// SyncRouterWithAuth is SyncRouter checking tokens with |authorize|
+// (auth.Authorize if nil; Compass: auth.AuthorizeSync with sign-in on).
+func SyncRouterWithAuth(cache *cache.Cache, datastore datastore.Datastore, notify CommitNotifier,
+	authorize func(*http.Request) (string, error)) chi.Router {
 	r := chi.NewRouter()
-	r.Use(syncMiddleware.Auth)
+	if authorize == nil {
+		r.Use(syncMiddleware.Auth)
+	} else {
+		r.Use(syncMiddleware.AuthWith(authorize))
+	}
 	r.Use(syncMiddleware.DisabledChain)
 	r.Method("POST", "/command/", middleware.InstrumentHandler("Command", CommandWithNotifier(cache, datastore, notify)))
 	return r

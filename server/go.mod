@@ -4,13 +4,16 @@ go 1.26.0
 
 require (
 	github.com/brave-intl/bat-go/libs v0.0.0-20250620104757-9e2f8ff87fd8
+	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/getsentry/sentry-go v0.39.0
 	github.com/go-chi/chi/v5 v5.5.0
+	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.12.1
+	golang.org/x/oauth2 v0.38.0
 	google.golang.org/protobuf v1.36.8
 	modernc.org/sqlite v1.61.1
 )

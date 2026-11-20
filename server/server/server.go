@@ -26,7 +26,6 @@ import (
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/brave/go-sync/auth"
 	"github.com/brave/go-sync/cache"
 	"github.com/brave/go-sync/clientip"
 	"github.com/brave/go-sync/command"
@@ -34,6 +33,8 @@ import (
 	"github.com/brave/go-sync/datastore"
 	"github.com/brave/go-sync/events"
 	"github.com/brave/go-sync/middleware"
+	"github.com/brave/go-sync/oidclogin"
+	"github.com/brave/go-sync/oidclogin/fakeidp"
 	"github.com/brave/go-sync/pairing"
 	"github.com/brave/go-sync/push"
 	"github.com/brave/go-sync/quota"
@@ -62,6 +63,9 @@ type Config struct {
 	Pairing          pairing.Config
 	Events           events.Config
 	Push             push.Config // Topics and APNs; Store and Authorize are set by setupRouter.
+	// Company sign-in (COMPASS_SYNC_OIDC_*); off without an issuer. Store
+	// and ClientIP are set by setupRouter.
+	OIDC oidclogin.Config
 }
 
 // Defaults for tombstone purge, idle chains and backups (sync.md, "Server").
@@ -184,6 +188,10 @@ func LoadConfig() (Config, error) {
 	// The name devices bind into pairing (sync.md, "Pairing API"); empty:
 	// the Host each pairing request came to.
 	cfg.Pairing.PublicHost = os.Getenv("COMPASS_SYNC_PUBLIC_HOST")
+	// Company sign-in (sync.md, "Company sign-in (OIDC)").
+	if cfg.OIDC, err = oidclogin.ConfigFromEnv(cfg.Pairing.PublicHost); err != nil {
+		return cfg, err
+	}
 	return cfg, nil
 }
 
@@ -244,19 +252,41 @@ func setupRouter(
 		})
 	})
 
+	// Company sign-in: with it on, every sync endpoint also needs the
+	// chain to be signed in (auth.AuthorizeSync); off, authorize is
+	// auth.Authorize.
+	oidcCfg := cfg.OIDC
+	oidcCfg.Store = db
+	oidcCfg.ClientIP = ips.IP
+	if oidcCfg.DevFakeIDP {
+		idp := fakeidp.New(oidcCfg.Issuer, oidcCfg.ClientID)
+		oidcCfg.HTTPClient = idp.Client()
+		r.Mount(oidclogin.FakeIDPPath, idp)
+		log.Warn().Str("issuer", oidcCfg.Issuer).Msg("Sign-in uses the FAKE identity provider (development only)")
+	}
+	login, err := oidclogin.New(ctx, oidcCfg)
+	if err != nil {
+		return ctx, nil, nil, err
+	}
+	if login.Enabled() {
+		log.Info().Str("issuer", oidcCfg.Issuer).Str("redirectURI", login.RedirectURL()).Msg("Company sign-in on")
+		go login.Run(ctx)
+	}
+	authorize := login.Authorize()
+
 	pairCfg := cfg.Pairing
 	pairCfg.ClientIP = ips.IP
-	pairCfg.Authorize = auth.Authorize
+	pairCfg.Authorize = authorize
 	evCfg := cfg.Events
 	evCfg.ClientIP = ips.IP
-	evCfg.Authorize = auth.Authorize
+	evCfg.Authorize = authorize
 	evCfg.IsDisabled = func(r *http.Request, chain string) (bool, error) {
 		return db.IsSyncChainDisabled(r.Context(), chain)
 	}
 	hub := events.New(evCfg)
 	quotaHandler := quota.New(quota.Config{
 		Store:     db,
-		Authorize: auth.Authorize,
+		Authorize: authorize,
 		Limits: func() quota.Limits {
 			q := command.CurrentQuotas()
 			return quota.Limits{
@@ -269,7 +299,7 @@ func setupRouter(
 	})
 	pushCfg := cfg.Push
 	pushCfg.Store = db
-	pushCfg.Authorize = auth.Authorize
+	pushCfg.Authorize = authorize
 	pusher, err := push.New(pushCfg)
 	if err != nil {
 		return ctx, nil, nil, err
@@ -291,7 +321,9 @@ func setupRouter(
 			r.Method(http.MethodGet, "/compass/quota", quotaHandler)
 			// Compass: APNs tokens, for sent tabs (send-tab.md).
 			r.Handle("/compass/push", pusher)
-			r.Mount("/", controller.SyncRouter(c, instrumented, notify))
+			// Compass: company sign-in (sync.md, "Company sign-in (OIDC)").
+			login.Register(r)
+			r.Mount("/", controller.SyncRouterWithAuth(c, instrumented, notify, authorize))
 		})
 	})
 	if cfg.Metrics {

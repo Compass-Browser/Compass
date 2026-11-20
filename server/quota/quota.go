@@ -27,6 +27,8 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/brave/go-sync/datastore"
+
+	"github.com/brave/go-sync/auth"
 )
 
 // Store is what the handler reads (datastore.SQLite).
@@ -129,6 +131,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	chain, err := h.cfg.Authorize(r)
 	if chain == "" {
+		if auth.WriteGateError(w, err) {
+			return
+		}
 		if err != nil {
 			log.Debug().Err(err).Msg("Quota status: authorization failed")
 		}
