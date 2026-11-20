@@ -165,3 +165,44 @@ func TestAuthorizeRooms(t *testing.T) {
 	require.Error(t, err)
 	assert.False(t, auth.WriteGateError(httptest.NewRecorder(), err))
 }
+
+// A private server lets in chains linked from a listed one (profile
+// accounts, sync.md "Profiles"), unless that root is blocked.
+func TestLinkedChainsPassTheAllowlist(t *testing.T) {
+	_, homeKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	_, workKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	_, home := authtest.TokenFor(homeKey, time.Now().UnixMilli())
+	workToken, work := authtest.TokenFor(workKey, time.Now().UnixMilli())
+	t.Setenv("COMPASS_SYNC_ALLOWED_CHAINS", home)
+	t.Setenv("BLOCKED_CLIENT_IDS", "")
+	t.Cleanup(func() { auth.SetLinkedRoot(nil) })
+
+	_, err = auth.Authenticate(workToken)
+	require.ErrorContains(t, err, "chain not allowed")
+	links := map[string]string{}
+	auth.SetLinkedRoot(func(_ context.Context, id string) (string, error) { return links[id], nil })
+	_, err = auth.Authenticate(workToken)
+	require.Error(t, err)
+
+	links[strings.ToLower(work)] = strings.ToLower(home)
+	got, err := auth.Authenticate(workToken)
+	require.NoError(t, err)
+	assert.Equal(t, strings.ToLower(work), strings.ToLower(got))
+	assert.True(t, auth.ChainAllowed(context.Background(), work))
+
+	// The root no longer listed, or blocked: refused again.
+	t.Setenv("COMPASS_SYNC_ALLOWED_CHAINS", strings.Repeat("ab", 32))
+	_, err = auth.Authenticate(workToken)
+	require.Error(t, err)
+	t.Setenv("COMPASS_SYNC_ALLOWED_CHAINS", home)
+	t.Setenv("BLOCKED_CLIENT_IDS", home)
+	_, err = auth.Authenticate(workToken)
+	require.Error(t, err)
+	// A failed lookup isn't a link.
+	t.Setenv("BLOCKED_CLIENT_IDS", "")
+	auth.SetLinkedRoot(func(context.Context, string) (string, error) { return "", errors.New("db") })
+	_, err = auth.Authenticate(workToken)
+	require.Error(t, err)
+}

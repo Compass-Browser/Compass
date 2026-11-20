@@ -30,6 +30,7 @@
 package rooms
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -244,6 +245,8 @@ func storeError(w http.ResponseWriter, err error) {
 		fail(w, http.StatusForbidden, "invite_revoked")
 	case errors.Is(err, datastore.ErrRoomFull):
 		fail(w, http.StatusConflict, "room_full")
+	case errors.Is(err, datastore.ErrRoomExists):
+		fail(w, http.StatusConflict, "room_exists")
 	case errors.Is(err, datastore.ErrRoomLimit):
 		fail(w, http.StatusConflict, "too_many_rooms")
 	case errors.Is(err, datastore.ErrInviteLimit):
@@ -598,6 +601,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
+		ID          string `json:"id"`
 		Kind        string `json:"kind"`
 		IdentityPub []byte `json:"identity_pub"`
 		Envelope    []byte `json:"envelope"`
@@ -607,6 +611,9 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch {
+	case req.ID != "" && !validRoomID(req.ID):
+		badRequest(w, "id must be 16 bytes, base64url without padding")
+		return
 	case !validKind(req.Kind):
 		badRequest(w, "kind must be space, folder or easel")
 		return
@@ -621,7 +628,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	rm, err := h.cfg.Store.CreateRoom(ctx, datastore.NewRoom{ID: newID(), Owner: c.sent, Kind: req.Kind,
+	rm, err := h.cfg.Store.CreateRoom(ctx, datastore.NewRoom{ID: cmp.Or(req.ID, newID()), Owner: c.sent, Kind: req.Kind,
 		IdentityPub: req.IdentityPub, Profile: req.Profile, Envelope: req.Envelope}, h.cfg.Now())
 	if err != nil {
 		storeError(w, err)

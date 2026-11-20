@@ -534,6 +534,50 @@ func TestLinkAndSignOut(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, h.api("DELETE", "/v2/compass/account", nil, nil).Code)
 }
 
+// A private server without sign-in (COMPASS_SYNC_ALLOWED_CHAINS): a listed
+// chain links its profile accounts, which then pass the allowlist (sync.md,
+// "Profiles"); an unlisted one can't link.
+func TestLinkOnAPrivateServer(t *testing.T) {
+	h := newHarness(t, func(c *oidclogin.Config) { c.Issuer = "" })
+	main, profile, stranger := newChain(t), newChain(t), newChain(t)
+	t.Setenv("COMPASS_SYNC_ALLOWED_CHAINS", main.id())
+	t.Setenv("BLOCKED_CLIENT_IDS", "")
+	auth.SetLinkedRoot(h.db.ChainLinkRoot)
+	t.Cleanup(func() { auth.SetLinkedRoot(nil) })
+
+	assert.Equal(t, http.StatusOK, h.api("GET", "/v2/gated", &main, nil).Code)
+	assert.Equal(t, http.StatusUnauthorized, h.api("GET", "/v2/gated", &profile, nil).Code)
+	// Not listed: can't link.
+	rec := h.api("POST", "/v2/compass/account/link", &stranger, nil, oidclogin.LinkedTokenHeader, profile.token())
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	rec = h.api("POST", "/v2/compass/account/link", &main, nil, oidclogin.LinkedTokenHeader, "garbage")
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	rec = h.api("POST", "/v2/compass/account/link", &main, nil, oidclogin.LinkedTokenHeader, profile.token())
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+	assert.Equal(t, http.StatusOK, h.api("GET", "/v2/gated", &profile, nil).Code)
+	// Again: the same.
+	rec = h.api("POST", "/v2/compass/account/link", &main, nil, oidclogin.LinkedTokenHeader, profile.token())
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+	// The linked chain may link another (its root stays main).
+	third := newChain(t)
+	rec = h.api("POST", "/v2/compass/account/link", &profile, nil, oidclogin.LinkedTokenHeader, third.token())
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+	assert.Equal(t, http.StatusOK, h.api("GET", "/v2/gated", &third, nil).Code)
+
+	// Blocking the root, or taking it off the list, shuts its links out.
+	t.Setenv("BLOCKED_CLIENT_IDS", main.id())
+	assert.Equal(t, http.StatusUnauthorized, h.api("GET", "/v2/gated", &profile, nil).Code)
+	t.Setenv("BLOCKED_CLIENT_IDS", "")
+	t.Setenv("COMPASS_SYNC_ALLOWED_CHAINS", stranger.id())
+	assert.Equal(t, http.StatusUnauthorized, h.api("GET", "/v2/gated", &third, nil).Code)
+	// A blocked chain can't be linked.
+	t.Setenv("COMPASS_SYNC_ALLOWED_CHAINS", main.id())
+	blocked := newChain(t)
+	t.Setenv("BLOCKED_CLIENT_IDS", blocked.id())
+	rec = h.api("POST", "/v2/compass/account/link", &main, nil, oidclogin.LinkedTokenHeader, blocked.token())
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
 func TestRevokedUser(t *testing.T) {
 	h := newHarness(t, func(c *oidclogin.Config) { c.GateCacheTTL = time.Minute })
 	c := newChain(t)

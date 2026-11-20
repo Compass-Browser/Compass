@@ -145,9 +145,18 @@ holds:
 sqlite3 <volume dir>/compass-sync.db "SELECT DISTINCT lower(client_id) FROM item_counts"
 ```
 
+Profiles need no entry of their own. Every Compass profile but the first
+syncs in an account of its own, under another chain ID; the person's
+devices link those accounts to the listed chain
+(`POST /v2/compass/account/link`, stored in the `chain_links` table, at
+most 64 per chain), and linked chains pass the list as long as the chain
+they were linked from is listed and not blocked. Older Compass versions
+don't link: their extra profiles show as refused until the person updates
+(or you list those IDs too).
+
 To remove someone, take their ID off the list (or put it in
-`BLOCKED_CLIENT_IDS`). Their data stays until `COMPASS_SYNC_IDLE_CHAIN_DAYS`
-expires it.
+`BLOCKED_CLIENT_IDS`); their linked profile accounts go with it. Their
+data stays until `COMPASS_SYNC_IDLE_CHAIN_DAYS` expires it.
 
 Rooms are the exception: someone a listed person shares a space, folder
 or easel with (see "Rooms") can use that room, and only it, without being

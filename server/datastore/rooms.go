@@ -105,6 +105,7 @@ var (
 	ErrRoomNotJoined     = errors.New("invitation not accepted") // A pending member.
 	ErrRoomFull          = errors.New("room is full")
 	ErrRoomLimit         = errors.New("too many rooms")
+	ErrRoomExists        = errors.New("room ID taken")
 	ErrInviteInvalid     = errors.New("invalid invite") // Unknown, or the wrong secret.
 	ErrInviteExpired     = errors.New("invite expired")
 	ErrInviteUsedUp      = errors.New("invite used up")
@@ -415,6 +416,18 @@ func setIdentity(ctx context.Context, tx *sql.Tx, clientID string, pub []byte, n
 	return nil
 }
 
+func existsTx(ctx context.Context, tx *sql.Tx, query string, args ...any) (bool, error) {
+	var one int
+	err := tx.QueryRowContext(ctx, query, args...).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("error checking if item exists: %w", err)
+	}
+	return true, nil
+}
+
 func (s *SQLite) begin(ctx context.Context) (*sql.Tx, error) {
 	tx, err := s.w.BeginTx(ctx, nil)
 	if err != nil {
@@ -430,7 +443,7 @@ func commit(tx *sql.Tx) error {
 	return nil
 }
 
-// CreateRoom creates room |n.ID| owned by |n.Owner| at epoch 1, with the
+// CreateRoom creates room |n.ID| (ErrRoomExists if taken) owned by |n.Owner| at epoch 1, with the
 // owner's envelope, and records the owner's identity key.
 func (s *SQLite) CreateRoom(ctx context.Context, n NewRoom, now time.Time) (Room, error) {
 	tx, err := s.begin(ctx)
@@ -446,6 +459,13 @@ func (s *SQLite) CreateRoom(ctx context.Context, n NewRoom, now time.Time) (Room
 	}
 	if owned >= MaxRoomsPerOwner {
 		return Room{}, ErrRoomLimit
+	}
+	taken, err := existsTx(ctx, tx, `SELECT 1 FROM rooms WHERE id = ?`, n.ID)
+	if err != nil {
+		return Room{}, err
+	}
+	if taken {
+		return Room{}, ErrRoomExists
 	}
 	qc, err := quotaChain(ctx, tx, owner, n.Owner)
 	if err != nil {

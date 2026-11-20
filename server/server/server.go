@@ -278,6 +278,9 @@ func setupRouter(
 	// Pairing isn't per device: it keeps the plain gate. Every other sync
 	// endpoint also refuses devices removed from their chain (sync.md,
 	// "Identity").
+	// A private server's allowlist also lets in the chains a listed chain
+	// linked (its profile accounts, sync.md "Profiles").
+	auth.SetLinkedRoot(db.ChainLinkRoot)
 	pairAuthorize := login.Authorize()
 	authorize := auth.RejectRemovedDevices(pairAuthorize, db.IsDeviceRemoved)
 

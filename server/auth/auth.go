@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -91,18 +92,63 @@ func verifyToken(tkn string) (string, error) {
 	return token.PublicKeyHex, nil
 }
 
-// authenticate is verifyToken plus the private server's allowlist.
-func authenticate(tkn string) (string, error) {
+// authenticate is verifyToken plus the private server's allowlist (a chain
+// linked from a listed one passes too, ChainAllowed).
+func authenticate(ctx context.Context, tkn string) (string, error) {
 	id, err := verifyToken(tkn)
 	if err != nil {
 		return "", err
 	}
 	// Compass: a private server serves only the chains it lists (README,
 	// "Private server"). The ID is in the error so the admin can add it.
-	if !ChainListed(id) {
+	if !ChainAllowed(ctx, id) {
 		return "", fmt.Errorf("chain not allowed: %s", strings.ToLower(id))
 	}
 	return id, nil
+}
+
+// Compass: profile accounts on a private server (docs/design/sync.md,
+// "Profiles"). Every profile of a chain but the home syncs in an account of
+// its own, a chain ID derived from the seed and the profile's UUID, which
+// the allowlist can't know in advance. A chain that may use the server
+// links them (POST /v2/compass/account/link, datastore chain_links), and
+// they pass as long as the chain they were linked from is listed and not
+// blocked.
+
+// LinkedRoot returns the chain |chainID| (lower-case) was linked from, ""
+// if none.
+type LinkedRoot func(ctx context.Context, chainID string) (string, error)
+
+var (
+	linkedRootMu sync.RWMutex
+	linkedRoot   LinkedRoot
+)
+
+// SetLinkedRoot sets how linked chains are looked up (nil: none are).
+func SetLinkedRoot(f LinkedRoot) {
+	linkedRootMu.Lock()
+	defer linkedRootMu.Unlock()
+	linkedRoot = f
+}
+
+// ChainAllowed says whether chain |id| (any case) may use the whole
+// server: ChainListed, or linked from a chain that is (and isn't blocked).
+// A failed lookup counts as not linked.
+func ChainAllowed(ctx context.Context, id string) bool {
+	if ChainListed(id) {
+		return true
+	}
+	linkedRootMu.RLock()
+	lookup := linkedRoot
+	linkedRootMu.RUnlock()
+	if lookup == nil {
+		return false
+	}
+	root, err := lookup(ctx, strings.ToLower(id))
+	if err != nil || root == "" {
+		return false
+	}
+	return ChainListed(root) && !slices.Contains(idList("BLOCKED_CLIENT_IDS"), strings.ToLower(root))
 }
 
 // ChainListed says whether chain |id| (any case) may use the whole server:
@@ -134,7 +180,7 @@ func Authorize(r *http.Request) (string, error) {
 	}
 
 	// Verify token
-	clientID, err := authenticate(token)
+	clientID, err := authenticate(r.Context(), token)
 	if err != nil {
 		return "", fmt.Errorf("error authorizing: %w", err)
 	}
@@ -166,7 +212,7 @@ func AuthenticateToken(token string) (string, error) {
 	if token == "" {
 		return "", errors.New("not a valid token")
 	}
-	clientID, err := authenticate(token)
+	clientID, err := authenticate(context.Background(), token)
 	if err != nil {
 		return "", fmt.Errorf("error authorizing: %w", err)
 	}
@@ -301,7 +347,7 @@ func WriteDeviceRemoved(w http.ResponseWriter) {
 // handler checks that, given |listed|.
 
 // RoomAuthorize is AuthorizeRooms' result: the chain ID as the token sent
-// it, and whether the chain may use the whole server (ChainListed).
+// it, and whether the chain may use the whole server (ChainAllowed).
 type RoomAuthorize func(r *http.Request) (chainID string, listed bool, err error)
 
 // AuthorizeRooms checks a sync token as Authorize does, except that a
@@ -337,7 +383,7 @@ func AuthorizeRooms(gate LoginGate, removed DeviceRemovedCheck) RoomAuthorize {
 				return "", false, ErrDeviceRemoved
 			}
 		}
-		return id, ChainListed(id), nil
+		return id, ChainAllowed(r.Context(), id), nil
 	}
 }
 

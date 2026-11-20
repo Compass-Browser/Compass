@@ -668,3 +668,14 @@ func TestRoomSuccessor(t *testing.T) {
 		[]datastore.RoomEnvelope{{Epoch: 2, Sealed: []byte("b")}}, roomNow)
 	require.ErrorIs(t, err, datastore.ErrQuotaExceeded)
 }
+
+func TestRoomIDTaken(t *testing.T) {
+	db := openSQLite(t, filepath.Join(t.TempDir(), "r.db"), 0)
+	newRoom(t, db, roomID, ownerID)
+	_, err := db.CreateRoom(context.Background(), datastore.NewRoom{ID: roomID, Owner: editorID, Kind: "easel",
+		IdentityPub: pub('e'), Envelope: []byte("e")}, roomNow)
+	require.ErrorIs(t, err, datastore.ErrRoomExists)
+	v, err := db.GetRoom(context.Background(), roomID, ownerID)
+	require.NoError(t, err)
+	assert.Equal(t, "folder", v.Room.Kind, "untouched")
+}

@@ -883,3 +883,34 @@ func TestRoomsSuccessorOnReset(t *testing.T) {
 			map[string]any{"client_id": b.id(), "sealed": b64(env("2b"))},
 			map[string]any{"client_id": c2.id(), "sealed": b64(env("2c"))}}})
 }
+
+// The client may choose the room ID (it seals the first envelope with it).
+func TestRoomsCreateWithID(t *testing.T) {
+	base, _ := roomsServer(t, 0)
+	a := newDevice(t, base, randomSeed(t), "guid-a")
+	b := newDevice(t, base, randomSeed(t), "guid-b")
+	id := base64.RawURLEncoding.EncodeToString(secretFor("room id")[:16])
+	create := func(d *device, id any) (int, map[string]any) {
+		return d.api("POST", "/v2/compass/rooms", map[string]any{"id": id, "kind": "folder",
+			"identity_pub": b64(d.identity()), "envelope": b64(env("first"))})
+	}
+	code, out := create(a, id)
+	require.Equal(t, http.StatusCreated, code, out)
+	assert.Equal(t, id, out["id"])
+	a.mustAPI(http.StatusOK, "GET", "/v2/compass/rooms/"+id, nil)
+
+	code, out = create(b, id)
+	assert.Equal(t, http.StatusConflict, code)
+	assert.Equal(t, "room_exists", out["error"])
+	for _, bad := range []any{"short", id + "A", "AAAAAAAAAAAAAAAAAAAAAB", base64.URLEncoding.EncodeToString(make([]byte, 16)),
+		b64(make([]byte, 16)), 42} {
+		code, _ = create(b, bad)
+		assert.Equal(t, http.StatusBadRequest, code, bad)
+	}
+	// Absent or empty: the server picks one.
+	code, out = create(b, "")
+	require.Equal(t, http.StatusCreated, code)
+	assert.Regexp(t, `^[A-Za-z0-9_-]{22}$`, out["id"])
+	assert.NotEqual(t, id, out["id"])
+	assert.Regexp(t, `^[A-Za-z0-9_-]{22}$`, b.createRoom("easel"))
+}

@@ -177,7 +177,7 @@ func migrate(db *sql.DB) error {
 	if version > schemaVersion {
 		return fmt.Errorf("database schema %d is newer than this server (%d)", version, schemaVersion)
 	}
-	if _, err := db.Exec(schema + pushSchema + oidcSchema + removedDevicesSchema + roomsSchema); err != nil {
+	if _, err := db.Exec(schema + pushSchema + oidcSchema + removedDevicesSchema + roomsSchema + chainLinksSchema); err != nil {
 		return fmt.Errorf("error creating schema: %w", err)
 	}
 	if err := addMissingChainColumns(db); err != nil {

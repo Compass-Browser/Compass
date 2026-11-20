@@ -10,7 +10,8 @@
 //	GET    /v2/compass/info                    no auth       200 {"login": null | {"type":"oidc","name"}}
 //	GET    /v2/compass/account                 chain token   200 {"login_required","user","expires"}
 //	DELETE /v2/compass/account                 chain token   204 (unbinds)
-//	POST   /v2/compass/account/link            bound chain + X-Compass-Linked-Token   204
+//	POST   /v2/compass/account/link            allowed (and bound) chain + X-Compass-Linked-Token   204
+//	                                           (links a profile account: allowlist, and sign-in when on)
 //	POST   /v2/compass/login                   chain token   200 {"id","url","user_code","expires"}
 //	GET    /v2/compass/login/{id}?wait=0       same chain    200 {"status","user"} (long poll ≤ 30 s)
 //	GET    /v2/compass/login/{id}/start        browser       302 to the identity provider
@@ -52,6 +53,7 @@ type Store interface {
 	OIDCUserRevoked(ctx context.Context, issuer, subject string) (bool, error)
 	ChainBinding(ctx context.Context, clientID string) (*datastore.ChainBinding, error)
 	LinkChain(ctx context.Context, from, to string, now time.Time) (bool, error)
+	LinkChainToRoot(ctx context.Context, from, to string, now time.Time) error
 	UnbindChain(ctx context.Context, clientID string) error
 	OIDCUsersToRevalidate(ctx context.Context, issuer string, before time.Time) ([]datastore.OIDCUser, error)
 	UpdateOIDCUser(ctx context.Context, id int64, refreshToken, email, name string, now time.Time) error
@@ -363,9 +365,20 @@ func (s *Service) link(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	other, err := auth.AuthenticateToken(r.Header.Get(LinkedTokenHeader))
+	// The other chain needn't be listed: linking is how a private server
+	// lets a chain's profile accounts in (sync.md, "Profiles"). Blocked
+	// chains are still refused.
+	other, err := auth.AuthenticateLinkedToken(r.Header.Get(LinkedTokenHeader))
 	if err != nil {
 		fail(w, http.StatusBadRequest, "invalid "+LinkedTokenHeader)
+		return
+	}
+	if err := s.cfg.Store.LinkChainToRoot(r.Context(), chain, other, s.cfg.Now()); err != nil {
+		if errors.Is(err, datastore.ErrTooManyLinks) {
+			fail(w, http.StatusTooManyRequests, "too many linked chains")
+			return
+		}
+		fail(w, http.StatusInternalServerError, "unable to complete request")
 		return
 	}
 	if s.Enabled() {
