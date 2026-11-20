@@ -98,6 +98,7 @@ struct SidebarScreen: View {
     case .syncing: "arrow.triangle.2.circlepath"
     case .on: "checkmark.icloud"
     case .failed: "exclamationmark.icloud"
+    case .loginRequired: "person.crop.circle.badge.exclamationmark"
     }
   }
 }

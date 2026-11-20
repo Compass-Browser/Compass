@@ -10,9 +10,11 @@
 #include "base/json/json_reader.h"
 #include "base/strings/strcat.h"
 #include "base/values.h"
+#include "net/http/http_response_headers.h"
 #include "net/http/http_request_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
 
 namespace compass::sync {
 namespace {
@@ -134,7 +136,11 @@ bool QuotaFetcher::Fetch(Callback callback) {
 
 void QuotaFetcher::OnResponse(Callback callback,
                               std::optional<std::string> body) {
-  // Without SetAllowHttpErrorResults, an HTTP error gives no body.
+  // Without SetAllowHttpErrorResults, an HTTP error gives no body; the
+  // response's head is still there.
+  const network::mojom::URLResponseHead* head = loader_->ResponseInfo();
+  last_refused_ =
+      head && head->headers && head->headers->response_code() == 401;
   loader_.reset();
   std::move(callback).Run(body ? ParseQuotaStatus(*body) : std::nullopt);
 }

@@ -8,7 +8,9 @@
 #include <optional>
 #include <string>
 
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
@@ -39,12 +41,28 @@ class SyncCredentials : public base::RefCountedThreadSafe<SyncCredentials> {
   // A fresh go-sync token, or nullopt without a key. Any thread.
   std::optional<std::string> MakeToken(base::Time now) const;
 
+  // The engine's way to try the server again at once: |retry| runs on
+  // |runner| (the sync sequence). Set when the engine builds its scheduler
+  // (CompassEngineComponentsFactory) by |owner|, which clears it as it goes
+  // (unless a newer engine's replaced it meanwhile).
+  void SetRetryHook(const void* owner,
+                    scoped_refptr<base::SequencedTaskRunner> runner,
+                    base::RepeatingClosure retry);
+  void ClearRetryHook(const void* owner);
+  // After the chain signed in (docs/design/sync.md, "Company sign-in
+  // (OIDC)"): the engine backs off after the server's 401s, for up to ten
+  // minutes; this ends the wait. Any thread; nothing without an engine.
+  void RetryNow();
+
  private:
   friend class base::RefCountedThreadSafe<SyncCredentials>;
   ~SyncCredentials();
 
   mutable base::Lock lock_;
   std::optional<AuthKey> key_ GUARDED_BY(lock_);
+  const void* retry_owner_ GUARDED_BY(lock_) = nullptr;
+  scoped_refptr<base::SequencedTaskRunner> retry_runner_ GUARDED_BY(lock_);
+  base::RepeatingClosure retry_ GUARDED_BY(lock_);
 };
 
 }  // namespace compass::sync

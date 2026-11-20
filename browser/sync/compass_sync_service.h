@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_SYNC_COMPASS_SYNC_SERVICE_H_
 #define COMPASS_BROWSER_SYNC_COMPASS_SYNC_SERVICE_H_
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -30,6 +31,7 @@
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/components/sync/chain.h"
 #include "compass/components/sync/compass_sync_quota.h"
+#include "compass/components/sync/login_client.h"
 #include "compass/components/sync/pairing.h"
 #include "compass/components/sync/profile_list.h"
 #include "compass/components/sync/protocol/compass_spaces_specifics.pb.h"
@@ -40,6 +42,10 @@
 
 class PrefService;
 class Profile;
+
+namespace content {
+class WebContents;
+}  // namespace content
 
 namespace os_crypt_async {
 class Encryptor;
@@ -144,6 +150,8 @@ class CompassSyncService : public KeyedService,
   void AnswerPairing(bool allow) override;
   void CancelPairing() override;
   void Leave() override;
+  void StartLogin() override;
+  void CancelLogin() override;
   void Restart() override;
   std::vector<SyncDevice> GetDevices() const override;
   std::vector<SyncDataTypeState> GetDataTypes() const override;
@@ -381,6 +389,91 @@ class CompassSyncService : public KeyedService,
       browser_observation_{this};
 #endif
   bool observing_power_ = false;
+
+  // Company sign-in (docs/design/sync.md, "Company sign-in (OIDC)").
+  //
+  // A sign-in that runs: the server's request, and who waits for it.
+  struct LoginFlow {
+    LoginFlow();
+    ~LoginFlow();
+
+    std::unique_ptr<LoginClient> client;
+    // ok: the chain is signed in.
+    DoneCallback done;
+    LoginRequest request;
+    // StartLogin() sent, and answered.
+    bool requested = false;
+    bool started = false;
+  };
+  // A client for the chain of |key| on |server_url| (a chain not saved
+  // yet, a profile account).
+  std::unique_ptr<LoginClient> MakeLoginClient(const GURL& server_url,
+                                               const AuthKey& key);
+  // The running chain's (credentials_'s token).
+  LoginClient* GetLoginClient();
+  // The running chain: asks the server whether it asks for sign-in (once a
+  // run), then who the chain is signed in as. |force| skips the 30 s
+  // spacing.
+  void RefreshLogin(bool force);
+  void OnServerLoginInfo(std::optional<ServerLoginInfo> info,
+                         LoginError error);
+  void OnAccountStatus(std::optional<AccountStatus> account, LoginError error);
+  // A 401 from the notifier or the quota: maybe the chain must sign in.
+  void OnAuthErrorHint();
+  // Before a chain is saved (StartNewChain(), JoinWithRecoveryCode()):
+  // whether the server asks the chain of |seed| to sign in and it isn't.
+  // Uses setup_client_.
+  void CheckServerLogin(const GURL& server_url,
+                        const Seed& seed,
+                        base::OnceCallback<void(bool needed)> callback);
+  // Runs a sign-in with |client|'s chain.
+  void RunLogin(std::unique_ptr<LoginClient> client, DoneCallback done);
+  void OnLoginDeviceName(std::string device_name);
+  void OnLoginStarted(std::optional<LoginRequest> request, LoginError error);
+  void OnLoginResult(LoginResult result);
+  void FinishLogin(bool ok, std::string error);
+  // The running chain signed in: the engine, the notifier and the profiles
+  // go on.
+  void OnChainSignedIn();
+  // A profile account: its home linked it (or the chain signed in).
+  void OnLinked();
+  // Home profile: links the chain's profile accounts to its sign-in, the
+  // pending ones (prefs::kLoginLinksPending) and, with |all|, every
+  // profile of the chain here. Best effort: those that fail stay pending.
+  void LinkProfiles(const GURL& server_url, const Seed& seed, bool all);
+  void OnProfileLinked(int client_id, std::string uuid, LoginError error);
+  // Home profile: links |uuid| now (a profile account found its chain
+  // isn't signed in).
+  void LinkProfileFromHome(const std::string& uuid);
+  void OpenLoginPage(const GURL& url);
+  // Closes the page's tab if it still shows |page_url|'s origin.
+  void CloseLoginPage(const GURL& page_url);
+  // "Sign in to Acme SSO".
+  std::string SignInPhrase() const;
+
+  std::unique_ptr<LoginClient> login_client_;
+  // Checks before saving a chain.
+  std::unique_ptr<LoginClient> setup_client_;
+  // Links, by id, until they answer.
+  std::map<int, std::unique_ptr<LoginClient>> oneshot_clients_;
+  int next_client_id_ = 0;
+  // The server's /compass/info, for |server_login_url_|.
+  std::optional<ServerLoginInfo> server_login_;
+  GURL server_login_url_;
+  bool fetching_login_ = false;
+  base::TimeTicks last_login_check_;
+  // The running chain's /compass/account.
+  std::optional<AccountStatus> account_;
+  std::unique_ptr<LoginFlow> login_;
+  // The last sign-in's failure, for the page.
+  std::string login_error_;
+  // A profile account asked its home for a link this run.
+  bool link_requested_ = false;
+#if !BUILDFLAG(IS_ANDROID)
+  // The tab of the server's page; closed when the sign-in ends. (Android:
+  // SyncBridge opens and closes it.)
+  base::WeakPtr<content::WebContents> login_tab_;
+#endif
 
   // Slice 7: the chain's limits on the server (docs/design/sync.md, "Slice
   // 7 notes"). Asked after sync cycles, at most every 30 minutes, every

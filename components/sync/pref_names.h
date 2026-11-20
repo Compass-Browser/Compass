@@ -54,6 +54,14 @@ inline constexpr char kProfileDirs[] = "compass.sync.profile_dirs";
 // which it doesn't create again.
 inline constexpr char kProfilesRemoved[] = "compass.sync.profiles_removed";
 
+// Company sign-in (docs/design/sync.md, "Company sign-in (OIDC)").
+//
+// Home profile: sync UUIDs of the chain's profile accounts the server may
+// not have linked to the chain's sign-in yet (POST
+// /compass/account/link failed, or hasn't run). Tried again at each start
+// and after signing in.
+inline constexpr char kLoginLinksPending[] = "compass.sync.login_links_pending";
+
 }  // namespace compass::sync::prefs
 
 #endif  // COMPASS_COMPONENTS_SYNC_PREF_NAMES_H_

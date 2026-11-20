@@ -54,6 +54,8 @@ class CompassSyncPageHandler : public sync::mojom::PageHandler,
   void AnswerPairing(bool allow) override;
   void CancelPairing() override;
   void Leave() override;
+  void StartLogin() override;
+  void CancelLogin() override;
   void SetDataTypeEnabled(sync::mojom::DataType type, bool enabled) override;
   void RevealRecoveryCode(RevealRecoveryCodeCallback callback) override;
   void ResetSync(ResetSyncCallback callback) override;

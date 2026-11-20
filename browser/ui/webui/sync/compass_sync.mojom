@@ -11,6 +11,21 @@ enum State {
   kStarting,
   kOn,
   kError,
+  kLoginRequired,
+};
+
+// The server's optional company sign-in; see compass::sync::SyncLogin.
+struct Login {
+  // The server asks chains to sign in, with this provider ("Acme SSO";
+  // may be empty).
+  bool server_requires;
+  string provider_name;
+  // Signed in as (empty if not, or not known).
+  string user_name;
+  string user_email;
+  // A sign-in runs: the server's page shows |user_code|.
+  bool in_progress;
+  string user_code;
 };
 
 struct Status {
@@ -21,6 +36,7 @@ struct Status {
   // in <html data-menu-label>, so the end-to-end steps can check the row's
   // text without opening a native menu.
   string menu_label;
+  Login login;
 };
 
 // See compass::sync::PairingStep.
@@ -142,6 +158,12 @@ interface PageHandler {
   AnswerPairing(bool allow);
   CancelPairing();
   Leave();
+  // kLoginRequired: signs the chain in, in a tab (again while one runs:
+  // opens its page again). Progress comes through Page.OnStateChanged().
+  StartLogin();
+  // Ends a sign-in that runs; a StartSync() or JoinWithRecoveryCode()
+  // waiting for it then fails.
+  CancelLogin();
   SetDataTypeEnabled(DataType type, bool enabled);
   // Asks the user to authenticate (Touch ID or the Mac's password) first;
   // |ok| false and empty |words| if they don't.

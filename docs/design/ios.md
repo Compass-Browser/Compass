@@ -263,6 +263,17 @@ The phone syncs every profile of the chain, each in its own account, as the desk
   - Devices in Settings come from the home account only.
   - A chain profile the desktop deletes stays listed (sync never deletes profiles, as on the desktop).
 
+### Company sign-in
+
+A server can require that a chain sign in with the company's identity provider before it syncs (sync.md, "Company sign-in (OIDC)"). The phone does what the desktop does, with the system's web authentication sheet as the browser.
+
+- **`LoginClient`** (CompassSync, `Login.swift`): `info` (no auth: the provider's name, or nil), `account`, `start` (`return: "compass"`), `poll` (long poll; a 404 is `expired`), `signOut`, and `link` (a profile account gets the home's user). Signed with `Chain.accessToken`; paths under the server URL, which ends in /v2.
+- **The gate.** A 401 with `X-Compass-Login: required` is `SyncConnectionError.loginRequired` (/command/ and push); `SyncNotifier.run(changed:refused:)` reports 401s. After a cycle with a 401, `SyncController` asks `/account` with the home key: `login_required` puts it in `State.loginRequired`, which stops cycles and push streams until sign-in (a return to the foreground and Sync Now ask `/account` again, once). A signed-in chain instead links the gated profile accounts (once per run) and syncs again; otherwise the 401 is "The sync server refused this device's key."
+- **Signing in** (`startLogin()`): `start` with the device's name, then an `ASWebAuthenticationSession` on the server's page (callback scheme `compass`, not ephemeral, so Safari's SSO cookies count) while it polls. The server's Allow or Deny ends in `compass://sync-login-done?status=…`, which closes the sheet; the poll's `done` refreshes the user, re-registers push, restarts the streams and syncs. Closing the sheet cancels (`cancelLogin()`). `CompassApp.open` ignores the callback if it ever arrives as a URL.
+- **UI.** Settings → Sync: "Signed in as name (email)", and when sign-in is needed a "Sign In" section (`SyncSignIn`) with "Sign in with <provider>", the code the server's page must show too, Cancel and errors. The join form asks `/info` as the address settles and says "This server requires sign-in with <provider>"; a join doesn't sign in itself, since a paired or recovered chain is usually bound already. `start` asks `/account`, and the join summary shows the sign-in when it's needed. Leave doesn't sign out: sign-in is per chain, so the chain's other devices keep syncing.
+- **Push extension.** `Push.sentTabs` fails on the gate's 401 like any error; the notification keeps "Tab sent".
+- **Tests:** `LoginClientTests` (a stub `URLProtocol`: URLs, signing, bodies, statuses, errors, the gate's 401 on /command/ and push) and `LoginServerTests` (the real server with `COMPASS_SYNC_DEV_FAKE_OIDC`: the gate, a login with the browser's part done by hand, sync, sign-out; `compass ios test --sync-server build`).
+
 ## App
 
 - `AppServices` (one per app; below, "Multiple windows") holds the store, live tabs, sync, passwords, extensions, downloads and system bridges. `AppModel` (one per window) holds what the window shows.

@@ -17,11 +17,23 @@ import org.chromium.chrome.browser.profiles.Profile;
  */
 @JNINamespace("compass")
 public class SyncBridge {
+    /**
+     * Where a company sign-in's page shows (docs/design/sync.md, "Company sign-in (OIDC)"): the
+     * screen that started the sign-in opens it in a tab, and closes it when the sign-in ends.
+     */
+    public interface LoginPages {
+        void open(String url);
+
+        void close();
+    }
+
     private long mNativeSyncBridge;
     private final Runnable mOnChanged;
+    private final LoginPages mLoginPages;
 
-    public SyncBridge(Profile profile, Runnable onChanged) {
+    public SyncBridge(Profile profile, Runnable onChanged, LoginPages loginPages) {
         mOnChanged = onChanged;
+        mLoginPages = loginPages;
         mNativeSyncBridge = SyncBridgeJni.get().init(this, profile);
     }
 
@@ -34,6 +46,16 @@ public class SyncBridge {
     @CalledByNative
     private void onChanged() {
         mOnChanged.run();
+    }
+
+    @CalledByNative
+    private void openLoginPage(@JniType("std::string") String url) {
+        mLoginPages.open(url);
+    }
+
+    @CalledByNative
+    private void closeLoginPage() {
+        mLoginPages.close();
     }
 
     public String snapshot() {
@@ -72,6 +94,14 @@ public class SyncBridge {
         SyncBridgeJni.get().restart(mNativeSyncBridge);
     }
 
+    public void startLogin() {
+        SyncBridgeJni.get().startLogin(mNativeSyncBridge);
+    }
+
+    public void cancelLogin() {
+        SyncBridgeJni.get().cancelLogin(mNativeSyncBridge);
+    }
+
     public void setDataTypeEnabled(int type, boolean enabled) {
         SyncBridgeJni.get().setDataTypeEnabled(mNativeSyncBridge, type, enabled);
     }
@@ -106,6 +136,10 @@ public class SyncBridge {
         void leave(long nativeSyncBridge);
 
         void restart(long nativeSyncBridge);
+
+        void startLogin(long nativeSyncBridge);
+
+        void cancelLogin(long nativeSyncBridge);
 
         void setDataTypeEnabled(long nativeSyncBridge, int type, boolean enabled);
     }

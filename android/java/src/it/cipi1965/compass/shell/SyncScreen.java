@@ -11,19 +11,32 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import it.cipi1965.compass.sync.SyncBridge;
 
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tabmodel.TabClosureParams;
+import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.ui.base.PageTransition;
+import org.chromium.url.GURL;
 
 /** The sync screen (SyncScreenUi.kt) over the profile's Compass sync (SyncBridge). */
-public class SyncScreen implements SyncScreenUi.Listener {
+public class SyncScreen implements SyncScreenUi.Listener, SyncBridge.LoginPages {
+    private final ChromeTabbedActivity mActivity;
     private final SyncBridge mBridge;
     private final SyncScreenState mState = new SyncScreenState();
     private final View mView;
+    // A company sign-in's page (docs/design/sync.md, "Company sign-in (OIDC)"), while it runs.
+    private @Nullable Tab mLoginTab;
+    private @Nullable GURL mLoginUrl;
 
     public SyncScreen(ChromeTabbedActivity activity, ViewGroup parent) {
+        mActivity = activity;
         mBridge =
                 new SyncBridge(
                         activity.getTabModelSelector().getModel(false).getProfile(),
-                        this::refresh);
+                        this::refresh,
+                        this);
         mView = SyncScreenUi.createView(activity, activity, activity, activity, mState, this);
         mView.setVisibility(View.GONE);
         parent.addView(
@@ -105,6 +118,58 @@ public class SyncScreen implements SyncScreenUi.Listener {
     @Override
     public void onSetDataType(int type, boolean enabled) {
         mBridge.setDataTypeEnabled(type, enabled);
+    }
+
+    @Override
+    public void onStartLogin() {
+        mBridge.startLogin();
+    }
+
+    @Override
+    public void onCancelLogin() {
+        mBridge.cancelLogin();
+    }
+
+    /** SyncBridge.LoginPages: the server's page in a new tab, over this screen. */
+    @Override
+    public void open(String url) {
+        mLoginUrl = new GURL(url);
+        mLoginTab =
+                mActivity
+                        .getTabCreator(false)
+                        .createNewTab(
+                                new LoadUrlParams(url, PageTransition.LINK),
+                                TabLaunchType.FROM_CHROME_UI,
+                                mActivity.getActivityTab());
+        onDismiss();
+    }
+
+    /**
+     * SyncBridge.LoginPages: the sign-in ended. Its tab closes if it still shows the server's
+     * pages ("You can return to Compass"), and this screen shows how it went.
+     */
+    @Override
+    public void close() {
+        Tab tab = mLoginTab;
+        GURL opened = mLoginUrl;
+        mLoginTab = null;
+        mLoginUrl = null;
+        if (tab == null || opened == null) return;
+        boolean onServer =
+                !tab.isClosing()
+                        && !tab.isDestroyed()
+                        && tab.getUrl().getScheme().equals(opened.getScheme())
+                        && tab.getUrl().getHost().equals(opened.getHost())
+                        && tab.getUrl().getPort().equals(opened.getPort());
+        if (!onServer) return;
+        mActivity
+                .getTabModelSelector()
+                .getModel(tab.isIncognito())
+                .getTabRemover()
+                .closeTabs(
+                        TabClosureParams.closeTab(tab).allowUndo(false).build(),
+                        /* allowDialog= */ false);
+        show();
     }
 
     @Override

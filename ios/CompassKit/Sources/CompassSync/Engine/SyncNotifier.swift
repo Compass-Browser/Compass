@@ -36,27 +36,41 @@ public final class SyncNotifier: Sendable {
 
   /// Runs until cancelled. `changed` gets the types another device changed,
   /// or nil to refresh everything (on each (re)connect: changes made while
-  /// disconnected weren't announced).
-  public func run(changed: @escaping @Sendable ([DataType]?) async -> Void) async {
+  /// disconnected weren't announced). `refused` hears each 401 (true when
+  /// it's the sign-in gate's, see LoginClient): the owner should stop the
+  /// stream until it has signed in, not let it retry every minute.
+  public func run(
+    changed: @escaping @Sendable ([DataType]?) async -> Void,
+    refused: (@Sendable (_ loginRequired: Bool) async -> Void)? = nil
+  ) async {
     var failures = 0
     while !Task.isCancelled {
-      let connected = await stream(changed: changed)
+      let outcome = await stream(changed: changed)
       if Task.isCancelled { return }
-      failures = connected ? 0 : failures + 1
+      if case .refused(let loginRequired) = outcome { await refused?(loginRequired) }
+      if Task.isCancelled { return }
+      failures = outcome == .connected ? 0 : failures + 1
       // 1 s, 2 s, 4 s … up to a minute.
       let delay = min(60, pow(2, Double(min(failures, 6))))
       try? await Task.sleep(for: .seconds(delay))
     }
   }
 
-  /// One connection; whether it got as far as a 200.
-  private func stream(changed: @escaping @Sendable ([DataType]?) async -> Void) async -> Bool {
+  private enum Outcome: Equatable {
+    case connected
+    case failed
+    case refused(loginRequired: Bool)
+  }
+
+  /// One connection: a 200 (connected), a 401, or anything else.
+  private func stream(changed: @escaping @Sendable ([DataType]?) async -> Void) async -> Outcome {
     var request = URLRequest(url: url)
     request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
     request.setValue("Bearer " + Chain.accessToken(authKey: authKey, now: Date()), forHTTPHeaderField: "Authorization")
-    guard let (bytes, response) = try? await session.bytes(for: request),
-      (response as? HTTPURLResponse)?.statusCode == 200
-    else { return false }
+    guard let (bytes, response) = try? await session.bytes(for: request), let http = response as? HTTPURLResponse
+    else { return .failed }
+    if http.statusCode == 401 { return .refused(loginRequired: LoginGate.isLoginRequired(http)) }
+    guard http.statusCode == 200 else { return .failed }
     await changed(nil)
     var parser = EventStreamParser()
     do {
@@ -66,7 +80,7 @@ public final class SyncNotifier: Sendable {
         }
       }
     } catch {}
-    return true
+    return .connected
   }
 
   /// The data types of a `changed` event; nil (refresh all) if unreadable.

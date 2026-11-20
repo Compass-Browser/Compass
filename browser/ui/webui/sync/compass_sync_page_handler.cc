@@ -29,6 +29,8 @@ sync::mojom::State StateToMojo(sync::SyncState state) {
       return sync::mojom::State::kOn;
     case sync::SyncState::kError:
       return sync::mojom::State::kError;
+    case sync::SyncState::kLoginRequired:
+      return sync::mojom::State::kLoginRequired;
   }
   return sync::mojom::State::kError;
 }
@@ -120,9 +122,13 @@ CompassSyncPageHandler::~CompassSyncPageHandler() = default;
 // static
 sync::mojom::StatusPtr CompassSyncPageHandler::ToMojo(
     const sync::SyncStatus& status) {
+  const sync::SyncLogin& login = status.login;
   return sync::mojom::Status::New(
       StateToMojo(status.state), status.server_url, status.message,
-      base::UTF16ToUTF8(sync::GetSyncMenuLabel(status)));
+      base::UTF16ToUTF8(sync::GetSyncMenuLabel(status)),
+      sync::mojom::Login::New(login.server_requires, login.provider_name,
+                              login.user_name, login.user_email,
+                              login.in_progress, login.user_code));
 }
 
 // static
@@ -265,6 +271,14 @@ void CompassSyncPageHandler::CancelPairing() {
 
 void CompassSyncPageHandler::Leave() {
   controller_->Leave();
+}
+
+void CompassSyncPageHandler::StartLogin() {
+  controller_->StartLogin();
+}
+
+void CompassSyncPageHandler::CancelLogin() {
+  controller_->CancelLogin();
 }
 
 void CompassSyncPageHandler::SetDataTypeEnabled(sync::mojom::DataType type,

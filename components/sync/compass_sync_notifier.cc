@@ -397,6 +397,10 @@ void CompassSyncNotifier::OnResume() {
 void CompassSyncNotifier::OnStreamStarted(int http_status) {
   if (http_status != 200) {
     Fail(base::StrCat({"HTTP ", base::NumberToString(http_status)}));
+    if (http_status == 401 && auth_error_) {
+      // Last: the callback may destroy the notifier.
+      auth_error_.Run();
+    }
     return;
   }
   connected_ = true;

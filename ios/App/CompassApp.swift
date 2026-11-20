@@ -7,6 +7,7 @@ import CompassBoosts
 import CompassCrypto
 import CompassEasels
 import CompassShared
+import CompassSync
 import CoreSpotlight
 import SwiftUI
 
@@ -215,6 +216,10 @@ struct WindowRoot: View {
   private func open(_ url: URL, in app: AppModel) {
     // The window that got the link is the one to act in.
     AppServices.shared.activate(app)
+    // The end of a company sign-in (compass://sync-login-done): the
+    // ASWebAuthenticationSession takes it; if it ever lands here, it's no
+    // page, and the sign-in's poll has the answer.
+    if LoginClient.isCallback(url) { return }
     // compass: links from widgets, the icon menu and the extensions.
     if let link = DeepLink(url: url) {
       app.system.handle(link)

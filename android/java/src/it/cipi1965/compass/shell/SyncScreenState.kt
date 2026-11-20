@@ -16,7 +16,7 @@ class SyncScreenState {
     class DataType(@JvmField val type: Int, @JvmField val enabled: Boolean)
 
     var open by mutableStateOf(false)
-    /** "unavailable", "off", "needs_restart", "starting", "on" or "error". */
+    /** "unavailable", "off", "needs_restart", "starting", "on", "error" or "login_required". */
     var state by mutableStateOf("off")
     var server by mutableStateOf("")
     var message by mutableStateOf("")
@@ -29,6 +29,16 @@ class SyncScreenState {
     var types by mutableStateOf<List<DataType>>(emptyList())
     var error by mutableStateOf("")
     var newWords by mutableStateOf<List<String>>(emptyList())
+    // Company sign-in (docs/design/sync.md, "Company sign-in (OIDC)").
+    /** The server asks chains to sign in, with this provider (may be empty). */
+    var loginRequired by mutableStateOf(false)
+    var loginProvider by mutableStateOf("")
+    /** Signed in as. */
+    var loginUserName by mutableStateOf("")
+    var loginUserEmail by mutableStateOf("")
+    /** A sign-in runs: the server's page shows [loginCode]. */
+    var loginInProgress by mutableStateOf(false)
+    var loginCode by mutableStateOf("")
 
     fun update(json: String) {
         val data = JSONObject(json)
@@ -52,6 +62,13 @@ class SyncScreenState {
             (0 until (typeArray?.length() ?: 0)).mapNotNull { i ->
                 typeArray?.optJSONObject(i)?.let { DataType(it.optInt("type"), it.optBoolean("enabled")) }
             }
+        val login = data.optJSONObject("login")
+        loginRequired = login?.optBoolean("required") ?: false
+        loginProvider = login?.optString("provider") ?: ""
+        loginUserName = login?.optString("user_name") ?: ""
+        loginUserEmail = login?.optString("user_email") ?: ""
+        loginInProgress = login?.optBoolean("in_progress") ?: false
+        loginCode = login?.optString("code") ?: ""
         error = data.optString("error")
         val words = data.optJSONArray("new_words")
         newWords = (0 until (words?.length() ?: 0)).map { words!!.optString(it) }

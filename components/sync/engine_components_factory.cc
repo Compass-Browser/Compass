@@ -4,12 +4,16 @@
 
 #include "compass/components/sync/engine_components_factory.h"
 
+#include <map>
 #include <optional>
 #include <utility>
 
 #include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/platform_thread.h"
 #include "compass/components/sync/sync_credentials.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
@@ -20,6 +24,7 @@
 #include "components/sync/engine/net/server_connection_manager.h"
 #include "components/sync/engine/net/sync_server_connection_manager.h"
 #include "components/sync/engine/net/url_translator.h"
+#include "components/sync/engine/sync_protocol_error.h"
 #include "components/sync/engine/sync_scheduler_impl.h"
 #include "components/sync/engine/syncer.h"
 
@@ -93,6 +98,120 @@ class CompassConnectionManager : public syncer::SyncServerConnectionManager {
 
 }  // namespace
 
+// The engine's scheduler, as upstream builds it, plus a way in for
+// SyncCredentials::RetryNow(): after the chain signed in, the engine leaves
+// the backoff of the server's 401s (SyncSchedulerImpl::OnCredentialsUpdated()
+// retries at once after an auth error; local sync has no credentials to
+// update otherwise). Everything else is forwarded.
+class RetryableScheduler : public syncer::SyncScheduler {
+ public:
+  RetryableScheduler(std::unique_ptr<syncer::SyncScheduler> scheduler,
+                     scoped_refptr<SyncCredentials> credentials)
+      : scheduler_(std::move(scheduler)), credentials_(std::move(credentials)) {
+    credentials_->SetRetryHook(
+        this, base::SequencedTaskRunner::GetCurrentDefault(),
+        base::BindRepeating(&RetryableScheduler::Retry,
+                            weak_factory_.GetWeakPtr()));
+  }
+  RetryableScheduler(const RetryableScheduler&) = delete;
+  RetryableScheduler& operator=(const RetryableScheduler&) = delete;
+  ~RetryableScheduler() override {
+    credentials_->ClearRetryHook(this);
+  }
+
+  // syncer::SyncScheduler:
+  void Start(Mode mode, base::Time last_poll_time) override {
+    started_ = true;
+    scheduler_->Start(mode, last_poll_time);
+  }
+  void ScheduleConfiguration(sync_pb::SyncEnums::GetUpdatesOrigin origin,
+                             syncer::DataTypeSet types_to_download,
+                             base::OnceClosure ready_task) override {
+    scheduler_->ScheduleConfiguration(origin, types_to_download,
+                                      std::move(ready_task));
+  }
+  void Stop() override {
+    started_ = false;
+    scheduler_->Stop();
+  }
+  void ScheduleLocalNudge(syncer::DataType type) override {
+    scheduler_->ScheduleLocalNudge(type);
+  }
+  void ScheduleLocalRefreshRequest(syncer::DataTypeSet types) override {
+    scheduler_->ScheduleLocalRefreshRequest(types);
+  }
+  void ScheduleInvalidationNudge(syncer::DataType type) override {
+    scheduler_->ScheduleInvalidationNudge(type);
+  }
+  void ScheduleInitialSyncNudge(syncer::DataType data_type) override {
+    scheduler_->ScheduleInitialSyncNudge(data_type);
+  }
+  void SetNotificationsEnabled(bool notifications_enabled) override {
+    scheduler_->SetNotificationsEnabled(notifications_enabled);
+  }
+  void OnCredentialsUpdated() override { scheduler_->OnCredentialsUpdated(); }
+  void OnConnectionStatusChange(
+      net::NetworkChangeNotifier::ConnectionType type) override {
+    scheduler_->OnConnectionStatusChange(type);
+  }
+  void SetHasPendingInvalidations(syncer::DataType type,
+                                  bool has_pending_invalidations) override {
+    scheduler_->SetHasPendingInvalidations(type, has_pending_invalidations);
+  }
+
+  // syncer::SyncCycle::Delegate (the cycles' delegate is |scheduler_|
+  // itself; forwarded for completeness):
+  void OnThrottled(const base::TimeDelta& throttle_duration) override {
+    scheduler_->OnThrottled(throttle_duration);
+  }
+  void OnTypesThrottled(syncer::DataTypeSet types,
+                        const base::TimeDelta& throttle_duration) override {
+    scheduler_->OnTypesThrottled(types, throttle_duration);
+  }
+  void OnTypesBackedOff(syncer::DataTypeSet types) override {
+    scheduler_->OnTypesBackedOff(types);
+  }
+  bool IsAnyThrottleOrBackoff() override {
+    return scheduler_->IsAnyThrottleOrBackoff();
+  }
+  void OnReceivedPollIntervalUpdate(
+      const base::TimeDelta& new_interval) override {
+    scheduler_->OnReceivedPollIntervalUpdate(new_interval);
+  }
+  void OnReceivedCustomNudgeDelays(
+      const std::map<syncer::DataType, base::TimeDelta>& nudge_delays)
+      override {
+    scheduler_->OnReceivedCustomNudgeDelays(nudge_delays);
+  }
+  void OnSyncProtocolError(
+      const syncer::SyncProtocolError& sync_protocol_error) override {
+    scheduler_->OnSyncProtocolError(sync_protocol_error);
+  }
+  void OnReceivedMigrationRequest(syncer::DataTypeSet types) override {
+    scheduler_->OnReceivedMigrationRequest(types);
+  }
+  void OnReceivedQuotaParamsForExtensionTypes(
+      std::optional<int> max_tokens,
+      std::optional<base::TimeDelta> refill_interval,
+      std::optional<base::TimeDelta> depleted_quota_nudge_delay) override {
+    scheduler_->OnReceivedQuotaParamsForExtensionTypes(
+        max_tokens, refill_interval, depleted_quota_nudge_delay);
+  }
+
+ private:
+  void Retry() {
+    if (started_) {
+      VLOG(1) << "[compass-sync] signed in: the engine tries the server again";
+      scheduler_->OnCredentialsUpdated();
+    }
+  }
+
+  const std::unique_ptr<syncer::SyncScheduler> scheduler_;
+  const scoped_refptr<SyncCredentials> credentials_;
+  bool started_ = false;
+  base::WeakPtrFactory<RetryableScheduler> weak_factory_{this};
+};
+
 CompassEngineComponentsFactory::CompassEngineComponentsFactory(
     const Switches& switches,
     const GURL& service_url,
@@ -140,7 +259,8 @@ CompassEngineComponentsFactory::BuildScheduler(
   if (switches_.force_short_nudge_delay_for_test) {
     scheduler->ForceShortNudgeDelayForTest();
   }
-  return scheduler;
+  return std::make_unique<RetryableScheduler>(std::move(scheduler),
+                                              credentials_);
 }
 
 std::unique_ptr<syncer::SyncCycleContext>

@@ -70,6 +70,10 @@ class QuotaFetcher {
   // and |callback| isn't called).
   bool Fetch(Callback callback);
   bool IsFetching() const { return loader_ != nullptr; }
+  // The last answer was the server's 401: a refused key, or a chain that
+  // must sign in first (docs/design/sync.md, "Company sign-in (OIDC)"; the
+  // caller asks /compass/account which).
+  bool last_refused() const { return last_refused_; }
 
  private:
   void OnResponse(Callback callback, std::optional<std::string> body);
@@ -78,6 +82,7 @@ class QuotaFetcher {
   const GURL url_;
   TokenGetter token_getter_;
   std::unique_ptr<network::SimpleURLLoader> loader_;
+  bool last_refused_ = false;
   base::WeakPtrFactory<QuotaFetcher> weak_factory_{this};
 };
 

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import AuthenticationServices
 import CompassBoosts
 import CompassClaude
 import CompassCrypto
@@ -26,6 +27,10 @@ final class SyncController {
     case syncing
     case on
     case failed(String)
+    /// The server requires company sign-in and the chain isn't bound
+    /// (docs/design/sync.md, "Company sign-in (OIDC)"): cycles and push
+    /// streams wait until startLogin() succeeds.
+    case loginRequired
   }
 
   /// The server the join form starts with: the COMPASS_SYNC_SERVER build
@@ -92,6 +97,23 @@ final class SyncController {
   private(set) var syncedExtensions: [SyncedExtension] = []
   var isOn: Bool { chain != nil }
 
+  // Company sign-in (docs/design/ios.md, "Company sign-in").
+  /// The server's identity provider ("Acme SSO"), when it requires sign-in.
+  private(set) var loginProvider: String?
+  /// Who the chain is signed in as, on a server with sign-in.
+  private(set) var signedInUser: LoginClient.User?
+  /// While signing in: the code the server's page shows too.
+  private(set) var loginCode: String?
+  /// Why the last sign-in didn't finish.
+  private(set) var loginMessage: String?
+  var isSigningIn: Bool { loginTask != nil }
+  @ObservationIgnored private var loginTask: Task<Void, Never>?
+  @ObservationIgnored private var webSession: ASWebAuthenticationSession?
+  @ObservationIgnored private let webPresenter = LoginPresenter()
+  @ObservationIgnored private var checkingAccount = false
+  /// Profile accounts this run linked to the home's sign-in.
+  @ObservationIgnored private var linkedProfiles: Set<String> = []
+
   private let store: SpaceStore
   let history: HistoryStore
   private let directory: URL
@@ -154,12 +176,15 @@ final class SyncController {
   /// Stops syncing every profile's account; local data stays.
   func leave() {
     scheduled?.cancel()
+    cancelLogin()
     // The server stops pushing to this phone (best effort).
     if let server = serverURL {
       for account in accounts.values {
         let (guid, key) = (account.cacheGUID, account.authKey)
         Task.detached { try? await Push.unregister(server: server, cacheGUID: guid, authKey: key) }
       }
+      // The chain stays signed in: sign-in is per chain, and the other
+      // devices on it keep syncing.
     }
     if let url = SharedContainer.group?.root.appendingPathComponent(Self.pushAccountsName) {
       try? FileManager.default.removeItem(at: url)
@@ -181,6 +206,10 @@ final class SyncController {
     devices = []
     profiles = []
     sessionsByAccount = [:]
+    loginProvider = nil
+    signedInUser = nil
+    loginMessage = nil
+    linkedProfiles = []
     passwords.removeBridges()
     state = .off
     store.onLocalChange = nil
@@ -211,6 +240,7 @@ final class SyncController {
     // The list the home account had (last run), else pairing's.
     let known = spaceDirectory.profiles.isEmpty ? ChainProfile.sorted(pairingProfiles) : spaceDirectory.profiles
     profilesChanged(known)
+    Task { await refreshLogin() }
   }
 
   /// The chain's profile list changed: every profile but the home gets its
@@ -424,6 +454,11 @@ final class SyncController {
   /// while active (iOS suspends background sockets anyway).
   func setActive(_ isActive: Bool) {
     active = isActive
+    if isActive, state == .loginRequired {
+      // Another device of the chain may have signed it in meanwhile.
+      Task { await refreshLogin() }
+      return
+    }
     for account in accounts.values {
       if isActive {
         listen(account)
@@ -438,18 +473,32 @@ final class SyncController {
   /// Each account has its own stream, as each desktop profile runs its own
   /// notifier.
   private func listen(_ account: Account) {
-    guard account.listening == nil else { return }
+    guard account.listening == nil, state != .loginRequired else { return }
     let notifier = account.notifier
+    let profile = account.profile
     account.listening = Task { [weak self] in
-      await notifier.run { _ in
-        await MainActor.run { self?.syncSoon(after: 0.3) }
-      }
+      await notifier.run(
+        changed: { _ in
+          await MainActor.run { self?.syncSoon(after: 0.3) }
+        },
+        refused: { loginRequired in
+          guard loginRequired else { return }
+          // The sign-in gate: no retrying every minute; a cycle finds out
+          // what's needed (sign in, or link a profile account), and the
+          // stream starts again after a good one.
+          await MainActor.run {
+            let account = self?.accounts[profile]
+            account?.listening?.cancel()
+            account?.listening = nil
+            self?.syncSoon(after: 0)
+          }
+        })
     }
   }
 
   /// Runs a cycle after `delay` seconds (coalesced).
   func syncSoon(after delay: TimeInterval = 0) {
-    guard !accounts.isEmpty else { return }
+    guard !accounts.isEmpty, state != .loginRequired else { return }
     scheduled?.cancel()
     scheduled = Task { [weak self] in
       if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
@@ -465,6 +514,11 @@ final class SyncController {
   /// list, which may start more accounts).
   func syncNow() async {
     guard !accounts.isEmpty else { return }
+    if state == .loginRequired {
+      // Sync Now while waiting for sign-in: ask the server again, once.
+      await refreshLogin()
+      return
+    }
     if running {
       again = true
       return
@@ -475,21 +529,44 @@ final class SyncController {
     var failure: String?
     var poll: TimeInterval = .infinity
     var done: Set<String> = []
+    var gated: [String] = []
+    var refusedKey = false
     while let profile = ([""] + accounts.keys.sorted()).first(where: { accounts[$0] != nil && !done.contains($0) }) {
       done.insert(profile)
       guard let account = accounts[profile] else { continue }
-      if let message = await cycle(account) {
+      switch await cycle(account) {
+      case nil: break
+      case .loginRequired:
+        gated.append(profile)
+      case .refusedKey:
+        refusedKey = true
+        failure = failure ?? "The sync server refused this device's key."
+      case .message(let message):
         failure = failure ?? message
         Logger(subsystem: "it.cipi1965.compass", category: "sync")
           .error("Sync failed (\(profile.isEmpty ? "home" : profile, privacy: .public)): \(message, privacy: .public)")
       }
       poll = min(poll, await account.engine.pollInterval ?? 30)
     }
+    if !gated.isEmpty || refusedKey {
+      // A 401: the server's sign-in gate, or a key it refuses. /account
+      // tells them apart (it isn't gated).
+      switch await checkAccount(gated: gated) {
+      case .loginRequired:
+        again = false
+        return
+      case .linked:
+        again = true
+      case .signedIn, .unknown:
+        if !gated.isEmpty { failure = failure ?? "The sync server asks this account to sign in." }
+      }
+    }
     if let failure {
       state = .failed(failure)
     } else {
       lastSync = Date()
       state = .on
+      if active { for account in accounts.values { listen(account) } }
     }
     devices = accounts[""]?.deviceInfo.allDevices ?? []
     collectSessions()
@@ -501,8 +578,16 @@ final class SyncController {
     }
   }
 
-  /// One account's cycle; an error message if it failed.
-  private func cycle(_ account: Account) async -> String? {
+  private enum CycleFailure {
+    case message(String)
+    /// 401 from the sign-in gate.
+    case loginRequired
+    /// 401 without it: the server doesn't take the chain's key.
+    case refusedKey
+  }
+
+  /// One account's cycle; how it failed, if it did.
+  private func cycle(_ account: Account) async -> CycleFailure? {
     do {
       await account.spaces.flush()
       try await account.engine.sync()
@@ -513,14 +598,19 @@ final class SyncController {
       account.foreignSessions = account.sessions.foreignSessions()
       return nil
     } catch SyncEngineError.chainNotStarted {
-      return account.profile.isEmpty
-        ? "No device has started sync on this chain yet." : "A profile's sync hasn't started on the Mac yet."
+      return .message(
+        account.profile.isEmpty
+          ? "No device has started sync on this chain yet." : "A profile's sync hasn't started on the Mac yet.")
     } catch SyncEngineError.crypto {
-      return "This chain was reset on another device. Join it again."
+      return .message("This chain was reset on another device. Join it again.")
+    } catch SyncEngineError.connection(.loginRequired) {
+      return .loginRequired
+    } catch SyncEngineError.connection(.http(401)) {
+      return .refusedKey
     } catch SyncEngineError.connection(let error) {
-      return "Can't reach the sync server (\(error))."
+      return .message("Can't reach the sync server (\(error)).")
     } catch {
-      return "\(error)"
+      return .message("\(error)")
     }
   }
 
@@ -552,6 +642,212 @@ final class SyncController {
       out[profile] = account.foreignSessions
     }
     sessionsByAccount = out
+  }
+
+  // MARK: Company sign-in
+
+  private enum AccountCheck {
+    /// The chain must sign in: now in `.loginRequired`.
+    case loginRequired
+    /// Signed in; gated profile accounts were linked to it, sync again.
+    case linked
+    /// Signed in (or no sign-in), nothing to link.
+    case signedIn
+    /// The server didn't answer.
+    case unknown
+  }
+
+  /// After a 401: asks /account with the home chain's key. A chain that
+  /// must sign in stops syncing until it does; a signed-in chain links the
+  /// gated profile accounts (each is a chain of its own on the server; the
+  /// Mac links them when it adds a profile, but a sign-in from this phone,
+  /// say after a revoke, binds only the home chain).
+  private func checkAccount(gated: [String]) async -> AccountCheck {
+    guard let chain, let server = serverURL, !checkingAccount else { return .unknown }
+    checkingAccount = true
+    defer { checkingAccount = false }
+    let client = LoginClient(serverURL: server, authKey: chain.authKey)
+    guard let account = try? await client.account(), self.chain?.seed == chain.seed else { return .unknown }
+    signedInUser = account.user
+    if account.loginRequired {
+      if loginProvider == nil { loginProvider = (try? await LoginClient.info(serverURL: server)) ?? "" }
+      enterLoginRequired()
+      return .loginRequired
+    }
+    var linked = false
+    for profile in gated where !profile.isEmpty && !linkedProfiles.contains(profile) {
+      guard let key = accounts[profile]?.authKey else { continue }
+      linkedProfiles.insert(profile)
+      if (try? await client.link(profileAuthKey: key)) != nil { linked = true }
+    }
+    return linked ? .linked : .signedIn
+  }
+
+  /// Asks the server whether it has sign-in and who the chain is signed in
+  /// as (on start, on return to the foreground while waiting, Sync Now).
+  func refreshLogin() async {
+    guard let chain, let server = serverURL else { return }
+    do {
+      loginProvider = try await LoginClient.info(serverURL: server)
+    } catch {
+      // Unreachable: keep what we knew.
+    }
+    guard self.chain?.seed == chain.seed else { return }
+    guard loginProvider != nil else {
+      signedInUser = nil
+      if state == .loginRequired { resume() }  // the server dropped sign-in
+      return
+    }
+    guard let account = try? await LoginClient(serverURL: server, authKey: chain.authKey).account(),
+      self.chain?.seed == chain.seed
+    else { return }
+    signedInUser = account.user
+    if account.loginRequired {
+      enterLoginRequired()
+    } else if state == .loginRequired {
+      resume()
+    }
+  }
+
+  /// Stops hammering the server: no cycles, no push streams.
+  private func enterLoginRequired() {
+    guard state != .loginRequired else { return }
+    state = .loginRequired
+    scheduled?.cancel()
+    scheduled = nil
+    for account in accounts.values {
+      account.listening?.cancel()
+      account.listening = nil
+    }
+  }
+
+  /// Signed in: sync again, with the push streams and registrations.
+  private func resume() {
+    if state == .loginRequired { state = .syncing }
+    linkedProfiles = []
+    if let token = pushToken {
+      for account in accounts.values { registerPush(token, account: account) }
+    }
+    if active { for account in accounts.values { listen(account) } }
+    syncSoon(after: 0)
+  }
+
+  /// Signs the chain in with the server's identity provider: the server's
+  /// page in an ASWebAuthenticationSession (the shared browser session, so
+  /// a company SSO cookie in Safari is used), while this polls the server
+  /// for the result. The page shows `loginCode` too.
+  func startLogin() {
+    guard let chain, let server = serverURL, loginTask == nil else { return }
+    loginMessage = nil
+    let client = LoginClient(serverURL: server, authKey: chain.authKey)
+    loginTask = Task { [weak self] in
+      await self?.runLogin(client)
+      self?.finishLogin()
+    }
+  }
+
+  /// Stops a sign-in in progress (the sheet closes; the server's pending
+  /// login expires on its own).
+  func cancelLogin() {
+    loginTask?.cancel()
+    finishLogin()
+  }
+
+  private func finishLogin() {
+    loginTask = nil
+    loginCode = nil
+    let session = webSession
+    webSession = nil
+    session?.cancel()
+  }
+
+  private func runLogin(_ client: LoginClient) async {
+    let request: LoginClient.Request
+    do {
+      request = try await client.start(deviceName: UIDevice.current.name)
+    } catch LoginClient.LoginError.disabled {
+      // The server no longer requires sign-in.
+      loginProvider = nil
+      await refreshLogin()
+      return
+    } catch LoginClient.LoginError.unavailable {
+      loginMessage = "Sign-in isn't available on the server right now. Try again in a minute."
+      return
+    } catch LoginClient.LoginError.rateLimited {
+      loginMessage = "Too many sign-in attempts. Wait a few minutes."
+      return
+    } catch {
+      if !Task.isCancelled { loginMessage = "Couldn't reach the sync server." }
+      return
+    }
+    guard !Task.isCancelled else { return }
+    loginCode = request.userCode
+    present(request.url)
+    var failures = 0
+    while !Task.isCancelled {
+      do {
+        let status = try await client.poll(request.id)
+        failures = 0
+        guard !Task.isCancelled else { return }
+        switch status {
+        case .pending:
+          if Date() > request.expires.addingTimeInterval(10) {
+            loginMessage = "The sign-in expired. Try again."
+            return
+          }
+        case .done(let user):
+          signedInUser = user
+          loginProvider = loginProvider ?? ""
+          finishLogin()
+          resume()
+          return
+        case .denied:
+          loginMessage = "Sign-in was denied."
+          return
+        case .expired:
+          loginMessage = "The sign-in expired. Try again."
+          return
+        }
+      } catch {
+        if Task.isCancelled { return }
+        failures += 1
+        if failures >= 5 {
+          loginMessage = "Lost the sync server while signing in. Try again."
+          return
+        }
+        try? await Task.sleep(for: .seconds(2))
+      }
+    }
+  }
+
+  /// The server's page in the system's web authentication sheet. With
+  /// `return: "compass"`, Allow or Deny ends in compass://sync-login-done,
+  /// which closes the sheet; the poll has the answer by then.
+  private func present(_ url: URL) {
+    let completion: ASWebAuthenticationSession.CompletionHandler = { [weak self] _, error in
+      Task { @MainActor in
+        guard let self, self.webSession != nil else { return }
+        self.webSession = nil
+        // Closed by the person before the server had an answer.
+        if (error as? ASWebAuthenticationSessionError)?.code == .canceledLogin { self.cancelLogin() }
+      }
+    }
+    let session: ASWebAuthenticationSession
+    if #available(iOS 17.4, *) {
+      session = ASWebAuthenticationSession(
+        url: url, callback: .customScheme(LoginClient.callbackScheme), completionHandler: completion)
+    } else {
+      session = ASWebAuthenticationSession(
+        url: url, callbackURLScheme: LoginClient.callbackScheme, completionHandler: completion)
+    }
+    session.prefersEphemeralWebBrowserSession = false
+    session.presentationContextProvider = webPresenter
+    webSession = session
+    if !session.start() {
+      webSession = nil
+      loginMessage = "Couldn't open the sign-in page."
+      loginTask?.cancel()
+    }
   }
 
   // MARK: History
@@ -611,5 +907,16 @@ final class SyncController {
   /// The profile UUID to give a space moved to `profile`.
   func spaceProfile(for profile: ChainProfile) -> String {
     profile.uuid == store.homeProfileUUID || profile.home ? store.homeProfileUUID : profile.uuid
+  }
+}
+
+/// Where the sign-in sheet shows: the app's front window.
+private final class LoginPresenter: NSObject, ASWebAuthenticationPresentationContextProviding {
+  func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+    MainActor.assumeIsolated {
+      let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+      let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+      return scene?.keyWindow ?? scene?.windows.first ?? ASPresentationAnchor()
+    }
   }
 }

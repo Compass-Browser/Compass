@@ -100,7 +100,9 @@ source_set("sync") {
   } else {
     deps += [
       "//chrome/browser/ui:browser_manager_service",
+      "//chrome/browser/ui/navigator",
       "//chrome/browser/ui/tabs:tab_strip",
+      "//components/tabs:public",
     ]
   }
 }

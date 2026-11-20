@@ -58,6 +58,8 @@ class FakeController : public sync::SyncController {
   }
   void CancelPairing() override { calls_.push_back("cancel"); }
   void Leave() override { calls_.push_back("leave"); }
+  void StartLogin() override { calls_.push_back("login"); }
+  void CancelLogin() override { calls_.push_back("cancel login"); }
   void Restart() override { calls_.push_back("restart"); }
   std::vector<sync::SyncDevice> GetDevices() const override { return devices_; }
   std::vector<sync::SyncDataTypeState> GetDataTypes() const override {
@@ -274,6 +276,55 @@ TEST_F(CompassSyncPageHandlerTest, ForwardsActions) {
   EXPECT_THAT(controller_.calls(),
               ElementsAre("join http://h/v2 7-482913", "add", "allow", "deny",
                           "cancel", "leave", "restart"));
+}
+
+TEST_F(CompassSyncPageHandlerTest, ForwardsLogin) {
+  remote_->StartLogin();
+  remote_->CancelLogin();
+  remote_.FlushForTesting();
+  EXPECT_THAT(controller_.calls(), ElementsAre("login", "cancel login"));
+}
+
+// Company sign-in (docs/design/sync.md, "Company sign-in (OIDC)"): the
+// state, the provider, the code while a sign-in runs.
+TEST_F(CompassSyncPageHandlerTest, LoginRequired) {
+  sync::SyncStatus status{sync::SyncState::kLoginRequired, "https://h/v2",
+                          "Sign in to Acme SSO to sync."};
+  status.login.server_requires = true;
+  status.login.provider_name = "Acme SSO";
+  status.login.in_progress = true;
+  status.login.user_code = "K7F-2QM";
+  status.login.url = "https://h/v2/compass/login/L1/start";
+  controller_.Set(status, {});
+  base::test::TestFuture<sync::mojom::StatusPtr, sync::mojom::PairingPtr,
+                         sync::mojom::DetailsPtr>
+      future;
+  remote_->GetState(future.GetCallback());
+  const sync::mojom::StatusPtr& mojo = future.Get<0>();
+  EXPECT_EQ(mojo->state, sync::mojom::State::kLoginRequired);
+  EXPECT_EQ(mojo->menu_label, "Sync: sign in needed");
+  EXPECT_EQ(mojo->message, "Sign in to Acme SSO to sync.");
+  ASSERT_TRUE(mojo->login);
+  EXPECT_TRUE(mojo->login->server_requires);
+  EXPECT_EQ(mojo->login->provider_name, "Acme SSO");
+  EXPECT_TRUE(mojo->login->in_progress);
+  EXPECT_EQ(mojo->login->user_code, "K7F-2QM");
+  EXPECT_TRUE(mojo->login->user_name.empty());
+}
+
+TEST_F(CompassSyncPageHandlerTest, SignedInAs) {
+  sync::SyncStatus status{sync::SyncState::kOn, "https://h/v2", "Synced"};
+  status.login.server_requires = true;
+  status.login.user_name = "Ada Lovelace";
+  status.login.user_email = "ada@example.org";
+  controller_.Set(status, {});
+  task_environment_.RunUntilIdle();
+  ASSERT_TRUE(page_.status());
+  ASSERT_TRUE(page_.status()->login);
+  EXPECT_EQ(page_.status()->menu_label, "Synced");
+  EXPECT_EQ(page_.status()->login->user_name, "Ada Lovelace");
+  EXPECT_EQ(page_.status()->login->user_email, "ada@example.org");
+  EXPECT_FALSE(page_.status()->login->in_progress);
 }
 
 TEST_F(CompassSyncPageHandlerTest, PushesChanges) {

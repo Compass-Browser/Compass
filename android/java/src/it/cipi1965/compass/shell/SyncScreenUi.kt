@@ -69,6 +69,11 @@ object SyncScreenUi {
 
         fun onSetDataType(type: Int, enabled: Boolean)
 
+        /** Company sign-in: signs the chain in, or opens the running sign-in's page again. */
+        fun onStartLogin()
+
+        fun onCancelLogin()
+
         fun onDismiss()
     }
 
@@ -128,6 +133,7 @@ private fun SyncScreen(state: SyncScreenState, listener: SyncScreenUi.Listener) 
             if (state.error.isNotEmpty()) Text(state.error, color = MaterialTheme.colorScheme.error)
             if (state.message.isNotEmpty()) Text(state.message)
             Pairing(state, listener)
+            Login(state, listener)
             when (state.state) {
                 "unavailable" -> Text("Sync isn't available in this profile.")
                 "needs_restart" -> {
@@ -135,7 +141,7 @@ private fun SyncScreen(state: SyncScreenState, listener: SyncScreenUi.Listener) 
                     if (state.message.isEmpty()) Text("Restart Compass to start syncing.")
                     Button(onClick = { listener.onRestart() }) { Text("Restart") }
                 }
-                "on", "starting", "error" -> Chain(state, listener)
+                "on", "starting", "error", "login_required" -> Chain(state, listener)
                 else -> Join(state, listener)
             }
         }
@@ -169,6 +175,48 @@ private fun Pairing(state: SyncScreenState, listener: SyncScreenUi.Listener) {
         }
         "failed" -> Text(state.pairingMessage.ifEmpty { "Pairing failed." }, color = MaterialTheme.colorScheme.error)
         else -> {}
+    }
+}
+
+// Company sign-in (docs/design/sync.md, "Company sign-in (OIDC)"): the server asks the chain to
+// sign in; while a sign-in runs, the code its page shows.
+@Composable
+private fun Login(state: SyncScreenState, listener: SyncScreenUi.Listener) {
+    val provider = state.loginProvider
+    if (state.loginInProgress) {
+        Text(
+            if (provider.isEmpty()) "Sign in" else "Sign in with $provider",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        if (state.loginCode.isNotEmpty()) {
+            Text(
+                state.loginCode,
+                style = MaterialTheme.typography.displaySmall,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Text("Sign in in the tab that opened. Allow only if the page shows this code.")
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(
+                onClick = { listener.onStartLogin() },
+                enabled = state.loginCode.isNotEmpty(),
+            ) {
+                Text("Open the page")
+            }
+            OutlinedButton(onClick = { listener.onCancelLogin() }) { Text("Cancel") }
+        }
+        HorizontalDivider()
+    } else if (state.state == "login_required") {
+        Text(
+            "This server only syncs for people of its organization: sign in with your work " +
+                "account. Your data stays encrypted on your devices; signing in only lets this " +
+                "chain use the server."
+        )
+        Button(onClick = { listener.onStartLogin() }) {
+            Text(if (provider.isEmpty()) "Sign in" else "Sign in to $provider")
+        }
+        HorizontalDivider()
     }
 }
 
@@ -235,6 +283,13 @@ private fun Chain(state: SyncScreenState, listener: SyncScreenUi.Listener) {
         Text(state.newWords.joinToString(" "), fontFamily = FontFamily.Monospace)
         HorizontalDivider()
     }
+    val user =
+        if (state.loginUserName.isNotEmpty() && state.loginUserEmail.isNotEmpty()) {
+            "${state.loginUserName} (${state.loginUserEmail})"
+        } else {
+            state.loginUserName.ifEmpty { state.loginUserEmail }
+        }
+    if (user.isNotEmpty()) Text("Signed in as $user.")
     Text("Devices", style = MaterialTheme.typography.titleMedium)
     for (device in state.devices) {
         Text(device.name + if (device.self) " (this device)" else "")

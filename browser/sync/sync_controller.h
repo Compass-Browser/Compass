@@ -27,6 +27,9 @@ enum class SyncState {
   kStarting,
   kOn,
   kError,
+  // The server asks the chain to sign in (docs/design/sync.md, "Company
+  // sign-in (OIDC)"): sync waits for StartLogin().
+  kLoginRequired,
 };
 
 // A server limit in the way of syncing (docs/design/sync.md, "Slice 7
@@ -41,12 +44,30 @@ enum class SyncLimit {
   kThrottled,
 };
 
+// The server's optional company sign-in (docs/design/sync.md, "Company
+// sign-in (OIDC)").
+struct SyncLogin {
+  // The server asks chains to sign in, with |provider_name| ("Acme SSO";
+  // may be empty).
+  bool server_requires = false;
+  std::string provider_name;
+  // Signed in as (empty if not, or not known).
+  std::string user_name;
+  std::string user_email;
+  // A sign-in runs: the user finishes it on the server's page, which
+  // shows |user_code|; |url| is that page.
+  bool in_progress = false;
+  std::string user_code;
+  std::string url;
+};
+
 struct SyncStatus {
   SyncState state = SyncState::kOff;
   std::string server_url;
   // One line for the page: last synced, or what's wrong.
   std::string message;
   SyncLimit limit = SyncLimit::kNone;
+  SyncLogin login;
 };
 
 enum class PairingStep {
@@ -142,10 +163,13 @@ class SyncController {
   virtual SyncStatus GetStatus() const = 0;
   virtual PairingStatus GetPairingStatus() const = 0;
 
-  // Off: makes a chain on |server_url|; |words| is its recovery code.
+  // Off: makes a chain on |server_url|; |words| is its recovery code. On a
+  // server that asks chains to sign in, the sign-in runs first (see
+  // StartLogin()), and the callback waits for it.
   virtual void StartNewChain(const std::string& server_url,
                              StartCallback callback) = 0;
-  // Off: joins the chain of a recovery code.
+  // Off: joins the chain of a recovery code. As StartNewChain(), signs the
+  // chain in first if the server asks and it isn't.
   virtual void JoinWithRecoveryCode(const std::string& server_url,
                                     const std::string& words,
                                     DoneCallback callback) = 0;
@@ -160,6 +184,13 @@ class SyncController {
   virtual void CancelPairing() = 0;
   // On: leaves the chain; local data stays.
   virtual void Leave() = 0;
+  // kLoginRequired: signs the chain in. Opens the server's page in a tab and
+  // waits for the user to finish there; progress shows in GetStatus().login.
+  virtual void StartLogin() = 0;
+  // Ends a sign-in that runs (this one, or the one StartNewChain() or
+  // JoinWithRecoveryCode() runs first on a server that asks for it: they
+  // then fail).
+  virtual void CancelLogin() = 0;
   virtual void Restart() = 0;
 
   // On: the chain's devices, this one included.

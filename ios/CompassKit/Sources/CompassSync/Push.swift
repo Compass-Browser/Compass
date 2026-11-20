@@ -58,6 +58,7 @@ public enum Push {
       throw SyncConnectionError.network(error.localizedDescription)
     }
     guard let http = response as? HTTPURLResponse else { throw SyncConnectionError.badReply }
+    if LoginGate.isLoginRequired(http) { throw SyncConnectionError.loginRequired }
     guard http.statusCode == 204 else { throw SyncConnectionError.http(http.statusCode) }
   }
 

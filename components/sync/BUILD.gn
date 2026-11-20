@@ -90,6 +90,11 @@ source_set("notifier") {
     # Slice 7: how full the chain is on the server.
     "compass_sync_quota.cc",
     "compass_sync_quota.h",
+
+    # The server's optional company sign-in (docs/design/sync.md, "Company
+    # sign-in (OIDC)").
+    "login_client.cc",
+    "login_client.h",
   ]
   public_deps = [
     "//base",
@@ -109,6 +114,7 @@ source_set("unit_tests") {
     "compass_sync_notifier_unittest.cc",
     "compass_sync_quota_unittest.cc",
     "engine_unittest.cc",
+    "login_client_unittest.cc",
     "pairing_unittest.cc",
     "profile_list_unittest.cc",
   ]

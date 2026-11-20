@@ -46,6 +46,8 @@ class SyncBridge : public sync::SyncController::Observer {
   void AnswerPairing(JNIEnv* env, bool allow);
   void CancelPairing(JNIEnv* env);
   void Leave(JNIEnv* env);
+  void StartLogin(JNIEnv* env);
+  void CancelLogin(JNIEnv* env);
   void Restart(JNIEnv* env);
   void SetDataTypeEnabled(JNIEnv* env, int32_t type, bool enabled);
 
@@ -61,6 +63,10 @@ class SyncBridge : public sync::SyncController::Observer {
   // The last start or join's error, and a new chain's recovery code.
   std::string error_;
   std::vector<std::string> new_words_;
+  // Company sign-in: this screen started one (so opens its page), and the
+  // page it opened.
+  bool opens_login_ = false;
+  std::string opened_login_url_;
   base::ScopedObservation<sync::SyncController,
                           sync::SyncController::Observer>
       observation_{this};
