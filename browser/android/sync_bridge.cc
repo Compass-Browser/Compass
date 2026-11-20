@@ -186,6 +186,17 @@ void SyncBridge::SetDataTypeEnabled(JNIEnv* env, int32_t type, bool enabled) {
   }
 }
 
+std::vector<std::string> SyncBridge::GetRecoveryCode(JNIEnv* env) {
+  if (!controller_) {
+    return {};
+  }
+  return controller_->GetRecoveryCode();
+}
+
+void SyncBridge::ClearNewWords(JNIEnv* env) {
+  new_words_.clear();
+}
+
 void SyncBridge::OnSyncControllerChanged() {
   Java_SyncBridge_onChanged(jni_zero::AttachCurrentThread(), java_object_);
 }

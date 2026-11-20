@@ -69,6 +69,14 @@ object SyncScreenUi {
 
         fun onSetDataType(type: Int, enabled: Boolean)
 
+        /** Asks for the screen lock, then fills SyncScreenState.recoveryWords. */
+        fun onShowRecoveryCode()
+
+        fun onHideRecoveryCode()
+
+        /** "I saved it" under a new chain's words. */
+        fun onNewWordsSaved()
+
         fun onDismiss()
     }
 
@@ -127,6 +135,12 @@ private fun SyncScreen(state: SyncScreenState, listener: SyncScreenUi.Listener) 
             }
             if (state.error.isNotEmpty()) Text(state.error, color = MaterialTheme.colorScheme.error)
             if (state.message.isNotEmpty()) Text(state.message)
+            if (state.newWords.isNotEmpty()) {
+                // A new chain's words, alone until saved, as the desktop's #wordsPanel: then
+                // Restart.
+                NewWords(state, listener)
+                return@Column
+            }
             Pairing(state, listener)
             when (state.state) {
                 "unavailable" -> Text("Sync isn't available in this profile.")
@@ -227,14 +241,6 @@ private fun Join(state: SyncScreenState, listener: SyncScreenUi.Listener) {
 
 @Composable
 private fun Chain(state: SyncScreenState, listener: SyncScreenUi.Listener) {
-    if (state.newWords.isNotEmpty()) {
-        Text("Your recovery code", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "Keep it somewhere safe: with it, any device can join this chain.",
-        )
-        Text(state.newWords.joinToString(" "), fontFamily = FontFamily.Monospace)
-        HorizontalDivider()
-    }
     Text("Devices", style = MaterialTheme.typography.titleMedium)
     for (device in state.devices) {
         Text(device.name + if (device.self) " (this device)" else "")
@@ -249,5 +255,52 @@ private fun Chain(state: SyncScreenState, listener: SyncScreenUi.Listener) {
         }
     }
     HorizontalDivider()
+    RecoveryCode(state, listener)
+    HorizontalDivider()
     OutlinedButton(onClick = { listener.onLeave() }) { Text("Leave the chain") }
+}
+
+private const val SAVE_WORDS_TEXT =
+    "Save these 12 words somewhere safe, such as a password manager. " +
+        "You only need them if you lose every device that syncs: without " +
+        "them, the synced data is gone."
+
+@Composable
+private fun WordList(words: List<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        words.forEachIndexed { i, word -> Text("${i + 1}. $word", fontFamily = FontFamily.Monospace) }
+    }
+}
+
+/** A new chain's words, shown once (no screen lock, as the desktop's "Start sync"). */
+@Composable
+private fun NewWords(state: SyncScreenState, listener: SyncScreenUi.Listener) {
+    Text("Your recovery code", style = MaterialTheme.typography.titleMedium)
+    Text(SAVE_WORDS_TEXT)
+    WordList(state.newWords)
+    Button(onClick = { listener.onNewWordsSaved() }) { Text("I saved it") }
+}
+
+/** As the desktop's Recovery code section: behind the screen lock, the window secure meanwhile. */
+@Composable
+private fun RecoveryCode(state: SyncScreenState, listener: SyncScreenUi.Listener) {
+    Text("Recovery code", style = MaterialTheme.typography.titleMedium)
+    if (state.recoveryWords.isEmpty()) {
+        Text("With it, any device can join this chain. Compass asks for your screen lock first.")
+        if (state.recoveryError.isNotEmpty()) {
+            Text(state.recoveryError, color = MaterialTheme.colorScheme.error)
+        }
+        OutlinedButton(onClick = { listener.onShowRecoveryCode() }) { Text("Show recovery code") }
+        return
+    }
+    Text(SAVE_WORDS_TEXT)
+    if (state.recoveryUnprotected) {
+        Text(
+            "This device has no screen lock, so Compass didn't ask for one. " +
+                "Anyone holding it can see these words.",
+            color = MaterialTheme.colorScheme.error,
+        )
+    }
+    WordList(state.recoveryWords)
+    Button(onClick = { listener.onHideRecoveryCode() }) { Text("Hide") }
 }

@@ -4,22 +4,51 @@
 
 package it.cipi1965.compass.shell;
 
+import android.app.KeyguardManager;
+import android.hardware.biometrics.BiometricManager;
+import android.hardware.biometrics.BiometricPrompt;
+import android.os.Build;
+import android.os.CancellationSignal;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
 
+import androidx.annotation.NonNull;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.lifecycle.DefaultLifecycleObserver;
+import androidx.lifecycle.LifecycleOwner;
 
 import it.cipi1965.compass.sync.SyncBridge;
 
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 
+import java.util.Arrays;
+
 /** The sync screen (SyncScreenUi.kt) over the profile's Compass sync (SyncBridge). */
 public class SyncScreen implements SyncScreenUi.Listener {
+    private final ChromeTabbedActivity mActivity;
     private final SyncBridge mBridge;
     private final SyncScreenState mState = new SyncScreenState();
     private final View mView;
+    // The screen lock's prompt for "Show recovery code", while it's up.
+    private CancellationSignal mUnlock;
+    // While recovery words show: FLAG_SECURE is ours to clear (the incognito snapshot
+    // controller sets it too, so it isn't cleared if it was set before).
+    private boolean mAddedSecureFlag;
+    private final DefaultLifecycleObserver mLifecycleObserver =
+            new DefaultLifecycleObserver() {
+                @Override
+                public void onStop(@NonNull LifecycleOwner owner) {
+                    // Leaving the app hides the words, as leaving the screen does. The
+                    // prompt stays: on Android 10 its PIN screen is an activity of its own,
+                    // and the system cancels a prompt whose app goes away.
+                    clearRecoveryCode();
+                }
+            };
 
     public SyncScreen(ChromeTabbedActivity activity, ViewGroup parent) {
+        mActivity = activity;
         mBridge =
                 new SyncBridge(
                         activity.getTabModelSelector().getModel(false).getProfile(),
@@ -30,9 +59,12 @@ public class SyncScreen implements SyncScreenUi.Listener {
                 mView,
                 new CoordinatorLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        activity.getLifecycle().addObserver(mLifecycleObserver);
     }
 
     public void destroy() {
+        hideRecoveryCode();
+        mActivity.getLifecycle().removeObserver(mLifecycleObserver);
         mBridge.destroy();
     }
 
@@ -41,6 +73,7 @@ public class SyncScreen implements SyncScreenUi.Listener {
         mView.setVisibility(View.VISIBLE);
         mView.bringToFront();
         mState.setOpen(true);
+        updateSecureFlag();
     }
 
     /**
@@ -60,6 +93,43 @@ public class SyncScreen implements SyncScreenUi.Listener {
 
     private void refresh() {
         mState.update(mBridge.snapshot());
+        // Sync stopped (left, reset): the words shown are no longer this device's.
+        String state = mState.getState();
+        if (!"on".equals(state) && !"starting".equals(state) && !"error".equals(state)) {
+            hideRecoveryCode();
+        }
+        updateSecureFlag();
+    }
+
+    /**
+     * FLAG_SECURE while words show: a new chain's (until "I saved it") or the revealed ones. No
+     * screenshots or screen recording, and a blank thumbnail in Recents.
+     */
+    private void updateSecureFlag() {
+        boolean wordsShown =
+                mState.getOpen()
+                        && (!mState.getRecoveryWords().isEmpty()
+                                || !mState.getNewWords().isEmpty());
+        Window window = mActivity.getWindow();
+        if (wordsShown && !mAddedSecureFlag) {
+            if ((window.getAttributes().flags & WindowManager.LayoutParams.FLAG_SECURE) == 0) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                mAddedSecureFlag = true;
+            }
+        } else if (!wordsShown && mAddedSecureFlag) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+            mAddedSecureFlag = false;
+        }
+    }
+
+    /**
+     * "I saved it" under a new chain's words (shown once, without the screen lock, as the
+     * desktop's "Start sync"): forgets them, then the screen goes on (Restart).
+     */
+    @Override
+    public void onNewWordsSaved() {
+        mBridge.clearNewWords();
+        refresh();
     }
 
     @Override
@@ -107,9 +177,97 @@ public class SyncScreen implements SyncScreenUi.Listener {
         mBridge.setDataTypeEnabled(type, enabled);
     }
 
+    /**
+     * "Show recovery code": the screen lock first (fingerprint, face or the PIN, pattern or
+     * password), as the desktop asks device_reauth. With no screen lock it doesn't ask, as the
+     * desktop and Chrome don't, and says so next to the words.
+     */
+    @Override
+    public void onShowRecoveryCode() {
+        if (mUnlock != null) return;
+        mState.setRecoveryError("");
+        KeyguardManager keyguard = mActivity.getSystemService(KeyguardManager.class);
+        if (keyguard == null || !keyguard.isDeviceSecure()) {
+            revealRecoveryCode(/* unprotected= */ true);
+            return;
+        }
+        BiometricPrompt.Builder builder =
+                new BiometricPrompt.Builder(mActivity)
+                        .setTitle("Show your sync recovery code");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            builder.setAllowedAuthenticators(
+                    BiometricManager.Authenticators.BIOMETRIC_STRONG
+                            | BiometricManager.Authenticators.DEVICE_CREDENTIAL);
+        } else {
+            // Android 10 (minSdk 29): setAllowedAuthenticators() comes in 11.
+            builder.setDeviceCredentialAllowed(true);
+        }
+        CancellationSignal unlock = new CancellationSignal();
+        mUnlock = unlock;
+        builder.build()
+                .authenticate(
+                        unlock,
+                        mActivity.getMainExecutor(),
+                        new BiometricPrompt.AuthenticationCallback() {
+                            @Override
+                            public void onAuthenticationSucceeded(
+                                    BiometricPrompt.AuthenticationResult result) {
+                                if (mUnlock != unlock) return;
+                                mUnlock = null;
+                                // Not if the screen was left meanwhile.
+                                if (mState.getOpen()) revealRecoveryCode(false);
+                            }
+
+                            @Override
+                            public void onAuthenticationError(
+                                    int code, CharSequence message) {
+                                if (mUnlock != unlock) return;
+                                mUnlock = null;
+                                // Canceled: nothing to say, as the desktop.
+                                if (code != BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED
+                                        && code != BiometricPrompt.BIOMETRIC_ERROR_CANCELED) {
+                                    mState.setRecoveryError(message.toString());
+                                }
+                            }
+                        });
+    }
+
+    @Override
+    public void onHideRecoveryCode() {
+        hideRecoveryCode();
+    }
+
+    private void revealRecoveryCode(boolean unprotected) {
+        // Read now, not before: the chain may have changed meanwhile.
+        String[] words = mBridge.getRecoveryCode();
+        if (words == null || words.length == 0) {
+            mState.setRecoveryError("Sync isn't running on this device.");
+            return;
+        }
+        mState.setRecoveryUnprotected(unprotected);
+        mState.setRecoveryWords(Arrays.asList(words));
+        updateSecureFlag();
+    }
+
+    private void hideRecoveryCode() {
+        if (mUnlock != null) {
+            CancellationSignal unlock = mUnlock;
+            mUnlock = null;
+            unlock.cancel();
+        }
+        clearRecoveryCode();
+    }
+
+    private void clearRecoveryCode() {
+        mState.clearRecoveryCode();
+        updateSecureFlag();
+    }
+
     @Override
     public void onDismiss() {
+        hideRecoveryCode();
         mState.setOpen(false);
+        updateSecureFlag();
         mView.setVisibility(View.GONE);
     }
 }

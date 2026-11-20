@@ -76,6 +76,21 @@ public class SyncBridge {
         SyncBridgeJni.get().setDataTypeEnabled(mNativeSyncBridge, type, enabled);
     }
 
+    /**
+     * The chain's 12 words, or none if sync isn't running. Only after the screen lock (as the
+     * desktop's "Show recovery code"); never log them.
+     */
+    public String[] getRecoveryCode() {
+        if (mNativeSyncBridge == 0) return new String[0];
+        return SyncBridgeJni.get().getRecoveryCode(mNativeSyncBridge);
+    }
+
+    /** "I saved it": forgets a new chain's recovery code, shown once. */
+    public void clearNewWords() {
+        if (mNativeSyncBridge == 0) return;
+        SyncBridgeJni.get().clearNewWords(mNativeSyncBridge);
+    }
+
     @NativeMethods
     interface Natives {
         long init(SyncBridge caller, @JniType("Profile*") Profile profile);
@@ -108,5 +123,10 @@ public class SyncBridge {
         void restart(long nativeSyncBridge);
 
         void setDataTypeEnabled(long nativeSyncBridge, int type, boolean enabled);
+
+        @JniType("std::vector<std::string>")
+        String[] getRecoveryCode(long nativeSyncBridge);
+
+        void clearNewWords(long nativeSyncBridge);
     }
 }

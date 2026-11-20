@@ -48,6 +48,12 @@ class SyncBridge : public sync::SyncController::Observer {
   void Leave(JNIEnv* env);
   void Restart(JNIEnv* env);
   void SetDataTypeEnabled(JNIEnv* env, int32_t type, bool enabled);
+  // On: the chain's 12 words (empty if the seed isn't loaded). Java asks
+  // for the device's screen lock first, as the desktop's page asks
+  // device_reauth; the words stay out of the snapshot.
+  std::vector<std::string> GetRecoveryCode(JNIEnv* env);
+  // "I saved it": a new chain's words are shown once.
+  void ClearNewWords(JNIEnv* env);
 
   // sync::SyncController::Observer:
   void OnSyncControllerChanged() override;

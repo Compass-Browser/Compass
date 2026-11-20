@@ -460,7 +460,19 @@ It costs:
   while it has a tab. The sync screen (`SyncScreen`, from the sidebar's
   Sync row) joins a chain with a pairing code or the recovery code,
   starts one, adds devices and approves them, and turns data types on
-  and off, through `SyncBridge` (the desktop's `SyncController`). A
+  and off, through `SyncBridge` (the desktop's `SyncController`).
+  "Show recovery code" asks for the screen lock first, as the desktop asks
+  `device_reauth` (sync.md, "Recovery code"): a `BiometricPrompt` with
+  `BIOMETRIC_STRONG | DEVICE_CREDENTIAL` (the device credential alone on
+  Android 10), then `SyncController::GetRecoveryCode()`; the words stay
+  out of the JSON snapshot. With no screen lock it doesn't ask, as the
+  desktop, and says so under the words. While they show, the window is
+  `FLAG_SECURE` (no screenshots, a blank Recents thumbnail; cleared only
+  if Compass set it, since incognito sets it too), and leaving the screen,
+  leaving the app (`onStop`) or sync stopping hides them. "Start a new
+  chain" shows the new chain's words once, alone and `FLAG_SECURE`,
+  without the screen lock (as the desktop's "Start sync"), until "I saved
+  it" (`SyncBridge.clearNewWords`); then Restart. A
   desktop's pairing QR code (`compass-pair:?server=…&code=…`, sync.md)
   opens in Compass from the camera (`PairInviteActivity`, which registers
   the scheme) and joins with it.

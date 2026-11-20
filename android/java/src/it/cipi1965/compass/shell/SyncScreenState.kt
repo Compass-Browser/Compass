@@ -29,6 +29,20 @@ class SyncScreenState {
     var types by mutableStateOf<List<DataType>>(emptyList())
     var error by mutableStateOf("")
     var newWords by mutableStateOf<List<String>>(emptyList())
+    /**
+     * "Show recovery code", after the screen lock (SyncScreen): not in the snapshot, cleared when
+     * the screen or the app is left. Never log them.
+     */
+    var recoveryWords by mutableStateOf<List<String>>(emptyList())
+    /** The device has no screen lock, so nothing was asked. */
+    var recoveryUnprotected by mutableStateOf(false)
+    var recoveryError by mutableStateOf("")
+
+    fun clearRecoveryCode() {
+        recoveryWords = emptyList()
+        recoveryUnprotected = false
+        recoveryError = ""
+    }
 
     fun update(json: String) {
         val data = JSONObject(json)
