@@ -1,0 +1,101 @@
+---
+title: Live folders
+description: Pinned folders that fill and refresh themselves from a feed, GitHub, your calendar or a web page.
+sidebar:
+  order: 12
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A **live folder** is a pinned folder that fills itself: the latest posts of a feed, the pull requests waiting for your review, your next meetings with their call links. It refreshes on its own and marks what's new.
+
+Live folders work on Mac, Windows, Linux, iPhone and iPad. They aren't available on Android yet.
+
+## What can fill a live folder
+
+Each live folder gets its entries from a **plugin**. Compass comes with these:
+
+| Plugin | Shows |
+|---|---|
+| **RSS Feed** | The latest posts from an RSS, Atom or JSON feed. |
+| **GitHub** | Pull requests and issues that need you: review requests, your pull requests, assignments, mentions or any search. Needs a GitHub token. |
+| **Calendar** | Upcoming events with their meeting links (Meet, Zoom, Teams…), from a calendar's private iCal address (Google, Outlook, iCloud). |
+| **Links from a Page** | Links on a web page that match some text or a pattern. It can use your login on that site. |
+
+## Make a live folder
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+1. In the sidebar, click the **New live folder** button in the **Pinned** header (next to **New folder**). Or right-click a pinned folder and choose **New Live Folder…**.
+2. Pick a plugin.
+3. Fill in the form: a **Name** (optional) and the plugin's settings, such as the feed's address or how many items to show.
+4. Click **Create**.
+</TabItem>
+<TabItem label="Windows">
+1. In the sidebar, click the **New live folder** button in the **Pinned** header (next to **New folder**). Or right-click a pinned folder and choose **New Live Folder…**.
+2. Pick a plugin.
+3. Fill in the form: a **Name** (optional) and the plugin's settings, such as the feed's address or how many items to show.
+4. Click **Create**.
+</TabItem>
+<TabItem label="Linux">
+1. In the sidebar, click the **New live folder** button in the **Pinned** header (next to **New folder**). Or right-click a pinned folder and choose **New Live Folder…**.
+2. Pick a plugin.
+3. Fill in the form: a **Name** (optional) and the plugin's settings, such as the feed's address or how many items to show.
+4. Click **Create**.
+</TabItem>
+<TabItem label="iPhone and iPad">
+1. In the sidebar, tap **New Live Folder…** (next to New Folder), or choose it from the space's menu.
+2. Pick a plugin, fill in its settings and save.
+</TabItem>
+</Tabs>
+
+Live folders live in **Pinned**. You can't drag your own tabs into one, but you can drag an entry out: it becomes an ordinary pinned tab.
+
+### Tokens, private addresses and logins
+
+- Some plugins ask for a secret, such as a GitHub token or your calendar's private address. Secrets are **kept on this device only**: they never sync. On each of your other devices, you enter them once.
+- A plugin that can use your login on a site (such as **Links from a Page**) asks first: check **Send your cookies for…** to let it see what you see when signed in. You decide this for each folder.
+
+## Using a live folder
+
+- The folder refreshes on its own every few minutes (each plugin sets how often), when you expand it and when you switch to its space.
+- New entries have a dot. A collapsed folder shows how many are new.
+- If a refresh fails, the folder shows an error mark; point at it to see why.
+
+Right-click the folder (touch and hold on iPhone and iPad) for:
+
+- **Refresh**: check for new entries now.
+- **Edit Source…**: change the plugin's settings.
+- **Mark All Seen**: clear the new-entry dots.
+- **Convert to Normal Folder**: stop updating and keep the current entries as ordinary pinned tabs.
+
+## Sync
+
+The folder itself (its plugin and settings) syncs to your other devices. The entries don't: each device runs the plugin and fills the folder on its own. If a plugin you installed isn't on another device yet, **Edit Source…** offers to install it there.
+
+## Add more plugins
+
+Anyone can write a plugin in JavaScript. To install one:
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+- **From the web**: in the live folder plugin picker, click **Install a plugin…** and enter the address of the plugin's `manifest.json`. Click **Review** to see which sites it reaches, which ones it may send your cookies to and what secrets it asks for, then **Install**.
+- **From a folder on your computer**: click **Open plugins folder** in the picker and put the plugin's folder (with its `manifest.json`) in it. It shows in the picker as **Local**.
+</TabItem>
+<TabItem label="Windows">
+- **From the web**: in the live folder plugin picker, click **Install a plugin…** and enter the address of the plugin's `manifest.json`. Click **Review** to see which sites it reaches, which ones it may send your cookies to and what secrets it asks for, then **Install**.
+- **From a folder on your computer**: click **Open plugins folder** in the picker and put the plugin's folder (with its `manifest.json`) in it. It shows in the picker as **Local**.
+</TabItem>
+<TabItem label="Linux">
+- **From the web**: in the live folder plugin picker, click **Install a plugin…** and enter the address of the plugin's `manifest.json`. Click **Review** to see which sites it reaches, which ones it may send your cookies to and what secrets it asks for, then **Install**.
+- **From a folder on your computer**: click **Open plugins folder** in the picker and put the plugin's folder (with its `manifest.json`) in it. It shows in the picker as **Local**.
+</TabItem>
+<TabItem label="iPhone and iPad">
+- **From the web**: in **New Live Folder**, tap **Install a Plugin…**, enter the address of the plugin's `manifest.json`, tap **Review** to see what it reaches, then **Install**.
+- **By hand**: copy the plugin's folder into **Files** › **On My iPhone** (or iPad) › **Compass** › **Live Folder Plugins**. New Live Folder lists it as installed by hand.
+</TabItem>
+</Tabs>
+
+To remove an installed plugin, click the **×** next to it in the picker. Folders that used it stay, and say the plugin is missing. Only install plugins from people you trust: a plugin can reach the sites it lists, and your logins there if you allow it.
+
+If you want to write your own plugin, see the [plugin guide on GitHub](https://github.com/Compass-Browser/Compass/blob/main/docs/live-folder-plugins.md).

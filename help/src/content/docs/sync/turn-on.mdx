@@ -1,0 +1,117 @@
+---
+title: Turn on sync
+description: Start syncing your spaces, passwords and history between your devices, without an account.
+sidebar:
+  order: 1
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Compass sync keeps your spaces, pinned tabs, passwords, history and more the
+same on all your devices. There's no account to create: your devices form a
+**sync chain**, and everything is encrypted on your devices before it leaves
+them, so the sync server can't read it.
+
+You start a chain once, on a computer. Then you [add your other
+devices](/sync/add-a-device/) to it with a short code.
+
+:::note
+You start a chain in Compass on a Mac, Windows or Linux computer, or on
+Android. On iPhone and iPad you can only join a chain that another device
+started.
+:::
+
+## Choose a sync server
+
+Every device in a chain uses the same sync server. You can use:
+
+- **The Compass project's server**, `https://sync.compassbrowser.org/v2`.
+  It's invite-only for now: it only serves people who've been added to it.
+- **A server you run yourself**, or one run by someone you trust, such as
+  your company. See [Run your own sync server](/self-hosting/).
+
+The server address always ends in **`/v2`**, for example
+`https://sync.example.com/v2`. If you leave it out, Compass asks you to
+"Enter the server's URL, like https://sync.example.com/v2."
+
+Whichever server you use, it only stores data it can't read. See
+[Encryption and privacy](/sync/encryption/).
+
+## Start a new chain
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+
+1. Open the app menu (**⋯**) and choose **Sync is off**, or open
+   **Settings** and choose **Sync**.
+2. In **Sync server**, type the server's address, for example
+   `https://sync.example.com/v2`.
+3. Click **Start sync**.
+4. Compass shows **Your recovery code**: 12 words. Save them somewhere safe,
+   such as a password manager, then click **I saved it**.
+5. Click **Restart Compass**. After the restart, sync starts.
+
+</TabItem>
+<TabItem label="Windows">
+
+The steps are the same as on a Mac:
+
+1. Open the app menu (**⋯**) and choose **Sync is off**, or open
+   **Settings** and choose **Sync**.
+2. In **Sync server**, type the server's address.
+3. Click **Start sync**.
+4. Save the 12 words of **Your recovery code**, then click **I saved it**.
+5. Click **Restart Compass**.
+
+</TabItem>
+<TabItem label="Linux">
+
+The steps are the same as on a Mac:
+
+1. Open the app menu (**⋯**) and choose **Sync is off**, or open
+   **Settings** and choose **Sync**.
+2. In **Sync server**, type the server's address.
+3. Click **Start sync**.
+4. Save the 12 words of **Your recovery code**, then click **I saved it**.
+5. Click **Restart Compass**.
+
+</TabItem>
+<TabItem label="iPhone and iPad">
+
+You can't start a chain on iPhone or iPad. Start one on a computer, then
+[add your iPhone or iPad to it](/sync/add-a-device/).
+
+</TabItem>
+<TabItem label="Android">
+
+1. Open the menu, tap **Settings**, then **Sync**.
+2. In **Sync server**, type the server's address, for example
+   `https://sync.example.com/v2`.
+3. Tap **Start a new chain**.
+4. Compass shows **Your recovery code**. Keep it somewhere safe: with it,
+   any device can join your chain.
+5. If Compass asks, tap **Restart**.
+
+</TabItem>
+</Tabs>
+
+:::caution[Keep your recovery code]
+The recovery code is the only way back to your synced data if you lose
+**every** device in the chain. Nobody else has a copy, not even the server.
+You can show it again later on any device that syncs. See
+[Add a device](/sync/add-a-device/#use-the-recovery-code).
+:::
+
+## Check that sync works
+
+On a computer, the app menu shows the sync status above **Settings**:
+**Synced** when all is well, or a short message when something needs your
+attention. The **Sync** page in Settings shows the same status, with the
+time of the last sync.
+
+If it says something else, see [Troubleshooting](/sync/troubleshooting/).
+
+## Next steps
+
+- [Add your other devices](/sync/add-a-device/)
+- [Choose what syncs](/sync/what-syncs/)

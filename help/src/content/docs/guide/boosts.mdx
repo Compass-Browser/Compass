@@ -1,0 +1,117 @@
+---
+title: Boosts
+description: Change how a site looks or works with your own CSS and JavaScript, on all your devices, and share Boosts with others.
+sidebar:
+  order: 11
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A **Boost** changes how a site looks or works: a bit of CSS (to restyle or hide things) and, if you want, JavaScript, that Compass adds to every page of that site. Boosts sync to all your devices, and you can make them yourself or ask [Claude](/guide/claude/) to make one.
+
+:::caution
+JavaScript in a Boost can read and change the pages it runs on. Only keep code you understand or trust.
+:::
+
+## Make a Boost
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+1. On the site you want to change, type **Boost this site** in the [command bar](/guide/command-bar/). (Or open **Settings** and go to the **Boosts** section, then click **Add Boost**.)
+2. Fill in the editor (see below) and click **Save**.
+</TabItem>
+<TabItem label="Windows">
+1. On the site you want to change, type **Boost this site** in the [command bar](/guide/command-bar/). (Or open **Settings** and go to the **Boosts** section, then click **Add Boost**.)
+2. Fill in the editor (see below) and click **Save**.
+</TabItem>
+<TabItem label="Linux">
+1. On the site you want to change, type **Boost this site** in the [command bar](/guide/command-bar/). (Or open **Settings** and go to the **Boosts** section, then click **Add Boost**.)
+2. Fill in the editor (see below) and click **Save**.
+</TabItem>
+<TabItem label="iPhone and iPad">
+1. On the site you want to change, open the page menu and tap **Boost This Site**. (Or go to **Settings** › **Boosts**.)
+2. Make a new Boost, fill it in and tap **Save**.
+
+The **Boost This Site** row also tells you how many Boosts are working on the page.
+</TabItem>
+<TabItem label="Android">
+There's no Boost editor on Android yet. Ask Claude to make one: open Claude's **⋯** menu, choose **Boosts** and turn on **Let Claude make Boosts**. The same list shows your Boosts, where you can turn each one on or off or delete it. Boosts you make on your other devices sync here and work as usual.
+</TabItem>
+</Tabs>
+
+The editor has:
+
+- **Name**: what you call it (for example "Quieter GitHub"). Leave it empty to use the site.
+- **Site**: where it applies.
+  - `example.com` covers that site, with and without `www.`
+  - `*.example.com` covers the site and all its subdomains.
+  - `github.com/settings` covers only pages whose address starts with that path.
+- **CSS**: added before the page draws. For example, `header { display: none !important; }`.
+- **JavaScript**: runs once the page has loaded.
+- **JavaScript runs**: **Apart from the page's scripts** (the default: it sees the page but not the site's own code) or **With the page's scripts** (it can use the site's code, and the site can see it).
+
+A Boost needs CSS, JavaScript or both. It applies to pages you load from then on: reload pages already open to see it.
+
+:::note
+Boosts don't run in Incognito.
+:::
+
+## Manage your Boosts
+
+On the desktop, the **Boosts** section of Settings lists your Boosts by site. Each one has:
+
+- A switch to turn it on or off.
+- What it contains (CSS, JavaScript).
+- A **by Claude** badge if Claude made it, or **Shared** if you added it from someone else.
+- **Share**, **Edit** and **Delete**.
+
+On iPhone and iPad, go to **Settings** › **Boosts**.
+
+## Let Claude make Boosts
+
+Claude can make, change and delete Boosts for you once you turn on **Let Claude make Boosts** in Claude's settings. Claude asks before saving any JavaScript (and shows you the code); CSS-only changes save right away. Every change shows in the chat with **Undo**. See [Claude](/guide/claude/).
+
+## Share a Boost
+
+You can share a Boost as a link or a file. Whoever opens it sees exactly what it does before adding it.
+
+### Send one
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+In the **Boosts** section of Settings, click **Share** next to the Boost, then:
+
+- **Copy Link** copies a link to it. (A very large Boost can only be shared as a file.)
+- **Save File…** saves it as a `.compassboost` file.
+</TabItem>
+<TabItem label="Windows">
+In the **Boosts** section of Settings, click **Share** next to the Boost, then:
+
+- **Copy Link** copies a link to it. (A very large Boost can only be shared as a file.)
+- **Save File…** saves it as a `.compassboost` file.
+</TabItem>
+<TabItem label="Linux">
+In the **Boosts** section of Settings, click **Share** next to the Boost, then:
+
+- **Copy Link** copies a link to it. (A very large Boost can only be shared as a file.)
+- **Save File…** saves it as a `.compassboost` file.
+</TabItem>
+<TabItem label="iPhone and iPad">
+In **Settings** › **Boosts**, touch and hold the Boost (or swipe it to the right for **Share**) and choose **Share Link** or **Share File**. Both are also in the Boost's editor.
+</TabItem>
+</Tabs>
+
+A Boost link starts with `https://compassbrowser.org/boost#`. Everything about the Boost is in the part after `#`, which browsers never send to a server. Opened in another browser, the link shows what the Boost contains and suggests opening it in Compass.
+
+### Add one someone shared
+
+- **A link**: open it in Compass. On the desktop, Compass shows the Boost in Settings instead of loading the web page. On iPhone and iPad, you can also paste it with **Import from Link or File…** in **Settings** › **Boosts**.
+- **A file**: on the desktop, click **Import…** next to **Add Boost** and choose the `.compassboost` file. On iPhone and iPad, open the file from Files, Mail or AirDrop, or use **Import from Link or File…**.
+
+You always see a preview first: the name, the site, and all of its CSS and JavaScript. If it has JavaScript, Compass reminds you to add it only if you trust whoever shared it. Click **Add Boost** (on iPhone and iPad, tap **Add**) to add it.
+
+A shared Boost is added as a new Boost of yours, marked **Shared**. It syncs and you can edit it like any other. Adding the same link twice gives you two copies.
+
+## Sync
+
+Boosts sync with your spaces, end-to-end encrypted, to every device of the same profile. See [What syncs](/sync/what-syncs/).

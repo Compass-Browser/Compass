@@ -1,0 +1,102 @@
+---
+title: Command bar
+description: Open pages, search, switch tabs and spaces, and run commands from one box.
+sidebar:
+  order: 5
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Compass has no address bar and no new tab page. Instead, the **command bar** floats over the page: type a web address or a search, find a tab you already have open, jump to a space, or run a command.
+
+## Open the command bar
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+- <kbd>⌘</kbd> <kbd>T</kbd> opens it to start a **new tab**.
+- <kbd>⌘</kbd> <kbd>L</kbd>, or a click on the address at the top of the sidebar, opens it on the **current page's address**, already selected, so you can edit it or type something else to load in the same tab.
+- **New Tab** in the sidebar opens it to start a new tab, too.
+- On an empty window, click anywhere on the page.
+</TabItem>
+<TabItem label="Windows">
+- <kbd>Ctrl</kbd>+<kbd>T</kbd> opens it to start a **new tab**.
+- <kbd>Ctrl</kbd>+<kbd>L</kbd>, or a click on the address at the top of the sidebar, opens it on the **current page's address**, already selected, so you can edit it or type something else to load in the same tab.
+- **New Tab** in the sidebar opens it to start a new tab, too.
+- On an empty window, click anywhere on the page.
+</TabItem>
+<TabItem label="Linux">
+- <kbd>Ctrl</kbd>+<kbd>T</kbd> opens it to start a **new tab**.
+- <kbd>Ctrl</kbd>+<kbd>L</kbd>, or a click on the address at the top of the sidebar, opens it on the **current page's address**, already selected, so you can edit it or type something else to load in the same tab.
+- **New Tab** in the sidebar opens it to start a new tab, too.
+- On an empty window, click anywhere on the page.
+</TabItem>
+<TabItem label="iPhone and iPad">
+- Tap the address in the bar at the bottom of the screen to edit the current page's address (the bar says **Go to**).
+- Tap **+** to start a new tab (the bar says **New tab in** and your space's name).
+- Or swipe up on the right part of the bottom bar to start a new tab.
+- With a keyboard: <kbd>⌘</kbd> <kbd>T</kbd> for a new tab, <kbd>⌘</kbd> <kbd>L</kbd> for the current address.
+</TabItem>
+<TabItem label="Android">
+- Tap the address in the bar at the bottom of the screen to edit the current page's address (the bar says **Go to**).
+- Start a new tab with the new tab button, or swipe up on the right part of the bottom bar (the bar says **New tab in** and your space's name).
+- With a keyboard: <kbd>Ctrl</kbd>+<kbd>T</kbd>, <kbd>Ctrl</kbd>+<kbd>L</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd>.
+</TabItem>
+</Tabs>
+
+Press <kbd>Esc</kbd> to close the command bar. Closing it never leaves an empty tab behind.
+
+:::tip
+You can change the command bar's keyboard shortcuts on the desktop. See [Keyboard shortcuts](/guide/shortcuts/).
+:::
+
+## What you can find
+
+As you type, the command bar shows, in this order:
+
+- **Your top suggestion.** Press <kbd>Enter</kbd> to take it. When Compass can complete what you're typing, the rest shows selected in the box; press <kbd>Tab</kbd> to accept it and keep typing.
+- **Tabs you already have**, with **Switch to tab** (or **Open** for one that isn't loaded): your favorites first, then the current space, then your other spaces. A tab in another space switches the window to that space.
+- **Other suggestions**: searches, sites you've visited, and pages from your history.
+- **Tabs on your other devices**, if you [sync](/sync/turn-on/) open tabs: they say which device they're on. Choosing one opens it as a new tab here.
+- **Spaces** whose name matches, with **Switch to space**. Spaces of your other [profiles](/guide/profiles/) show too.
+- **Commands** whose name matches (below).
+
+With nothing typed, a new tab's command bar lists the most recent tabs in your Today, then the commands.
+
+On the desktop, a page you pick opens in a new tab when you started with <kbd>⌘</kbd> <kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>T</kbd>, and in the current tab when you started from the page's address. To open a suggestion in a new tab either way, press <kbd>⌘</kbd> <kbd>Enter</kbd> / <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.
+
+## Commands (desktop)
+
+Type part of a command's name to find it. Some only show when they make sense (for example, **Unpin tab** only for a pinned tab).
+
+| Command | What it does |
+|---|---|
+| **New space** | Makes a new space. |
+| **New space on this device** | Makes a space that doesn't sync. |
+| **Pin tab** / **Unpin tab** | Moves the current tab to Pinned, or back to Today. |
+| **Add to Favorites** / **Remove from Favorites** | Adds the current tab to the Favorites grid, or takes it out. |
+| **Route this site to space…** | Starts a rule that opens this site's links in a space of your choice. See [Link routing](/guide/link-routing/). |
+| **Boost this site…** | Opens the Boost editor for this site. See [Boosts](/guide/boosts/). |
+| **Copy URL** | Copies the page's link, without tracking parameters. |
+| **Reload** | Reloads the page. |
+| **History**, **Downloads**, **Extensions**, **Settings** | Opens that page. |
+| **Import from Another Browser** | Opens the import page. See [Coming from Arc](/start/coming-from-arc/) and [Import from another browser](/start/browser-import/). |
+| **Keyboard shortcuts** | Opens the shortcuts settings. |
+| **Tidy Today** | Asks Claude to group your Today tabs into folders. |
+| **New Easel** | Makes a new Easel. See [Easels](/guide/easels/). |
+| **Capture to Easel…** | Captures part of the page to an Easel. |
+| **Reader Mode** / **Leave Reader Mode** | Shows the article in Reader, or goes back. See [Reader mode](/guide/reader-mode/). |
+| **Chat with Claude** / **Ask Claude** | Opens Claude's chat, or asks Claude what you typed. See [Claude](/guide/claude/). |
+
+## Ask Claude in the command bar
+
+If you've set up [Claude](/guide/claude/) and turned on **Answer Questions in the Command Bar** in Claude's settings, typing a question puts an **Ask Claude** row at the top. Press <kbd>Enter</kbd> (or <kbd>Tab</kbd>) on it and Claude's short answer appears right under the box.
+
+- **About this page** on that row includes the current page's title and site with your question.
+- **Continue in Chat** (or <kbd>Enter</kbd> again) opens the chat with the question and answer.
+- Keep typing to go back to the results.
+
+This works on iPhone, iPad and Android too.
+
+## On iPhone, iPad and Android
+
+The command bar opens as a sheet over the page. It finds web addresses and searches, your open, pinned and favorite tabs, your history, and tabs on your other devices. On iPhone and iPad, an empty command bar shows **Recently visited** pages. The desktop's commands aren't there: use the page menu instead.

@@ -1,0 +1,275 @@
+---
+title: Company sign-in (OIDC)
+description: Let only your company's people use your sync server, signed in with your identity provider (Keycloak, Microsoft Entra ID, Okta, Google Workspace).
+sidebar:
+  order: 6
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A company can make its sync server serve only its staff, signed in with its
+identity provider through OpenID Connect, and cut people off there when
+they leave.
+
+:::caution[New]
+Company sign-in is new in the server. Compass shows the sign-in with an
+update that's coming soon; until then, Compass can't sync with a server that
+has sign-in turned on.
+:::
+
+## How it works
+
+- **Sign-in is a gate, not a key.** It decides who may use the server. It
+  never touches the encryption keys: neither the server nor the identity
+  provider can read anything synced.
+- **Signing in.** When someone turns on sync, Compass shows a short code
+  and opens the server's sign-in page in a browser, which sends them to the
+  identity provider. Back on the server, a page shows the provider, their
+  email, the device's name and a code; they check that it matches the one in
+  Compass and allow the device. The code stops someone from tricking a
+  colleague into approving the attacker's device with a forwarded link.
+- **Per chain, not per device.** The sign-in is the sync chain's: devices
+  added to the chain by pairing, and the person's other Compass profiles,
+  are signed in already.
+- **Without sign-in, no sync.** A chain that isn't signed in keeps its data
+  on the server but every sync request gets
+  `401 {"error":"login_required"}`, and Compass asks to sign in.
+- **Checked again.** The server asks the identity provider about each user
+  every 24 hours (with a refresh token). Someone disabled or removed there,
+  or no longer in an allowed group, is signed out at the next check. If the
+  provider can't be reached, people keep access. Without a refresh token,
+  a sign-in lasts 30 days, then the person signs in again.
+
+`COMPASS_SYNC_ALLOWED_CHAINS` and `BLOCKED_CLIENT_IDS` still apply on top.
+
+## Set it up
+
+1. **Register the server at your identity provider** as a web application
+   (a confidential client with a secret, authorization code flow) with this
+   redirect URI:
+
+   ```
+   https://sync.example.com/v2/compass/login/callback
+   ```
+
+   `sync.example.com` is the server's public name, the same as
+   `COMPASS_SYNC_PUBLIC_HOST`. The server must be on HTTPS.
+
+2. **Store the client secret** in a file next to `docker-compose.yml`,
+   readable by the server's user (65532):
+
+   ```sh
+   printf '%s' 'the-client-secret' > oidc-secret.txt
+   sudo chown 65532:65532 oidc-secret.txt && sudo chmod 400 oidc-secret.txt
+   ```
+
+3. **Configure the server** in `docker-compose.yml` (see your provider
+   below for the values):
+
+   ```yaml
+   services:
+     sync:
+       # ...
+       environment:
+         COMPASS_SYNC_TRUSTED_PROXIES: 172.30.240.0/24
+         COMPASS_SYNC_PUBLIC_HOST: sync.example.com
+         COMPASS_SYNC_OIDC_ISSUER: https://id.example.com/realms/acme
+         COMPASS_SYNC_OIDC_CLIENT_ID: compass-sync
+         COMPASS_SYNC_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc
+         COMPASS_SYNC_OIDC_NAME: Acme SSO
+       secrets:
+         - oidc
+
+   secrets:
+     oidc:
+       file: ./oidc-secret.txt
+   ```
+
+   Docker Compose mounts the file at `/run/secrets/oidc`. (You can also put
+   the secret itself in `COMPASS_SYNC_OIDC_CLIENT_SECRET`, but not both.)
+
+4. **Apply it** and check the log:
+
+   ```sh
+   docker compose up -d
+   docker compose logs sync | grep -i "sign-in"
+   ```
+
+   The server reaches the identity provider at start. If it can't, it
+   logs `Sign-in: identity provider still unreachable` and keeps trying;
+   meanwhile Compass can't start a sign-in.
+
+5. **Turn on sync in Compass** with `https://sync.example.com/v2`. It asks
+   you to sign in.
+
+Devices that were already syncing with the server keep their data on it
+and ask to sign in at their next sync.
+
+## Identity providers
+
+<Tabs syncKey="idp">
+<TabItem label="Keycloak">
+
+In your realm (here `acme`), create a client:
+
+- Client type **OpenID Connect**, client ID `compass-sync`.
+- **Client authentication** on, **Standard flow** on.
+- **Valid redirect URIs**: `https://sync.example.com/v2/compass/login/callback`.
+- Copy the secret from the client's **Credentials** tab.
+
+To allow only some groups, add a mapper to the client (**Client scopes** →
+the client's dedicated scope → **Add mapper** → **By configuration** →
+**Group Membership**) named `groups`, with token claim name `groups` and
+**Full group path** off.
+
+```yaml
+      COMPASS_SYNC_PUBLIC_HOST: sync.example.com
+      COMPASS_SYNC_OIDC_ISSUER: https://id.example.com/realms/acme
+      COMPASS_SYNC_OIDC_CLIENT_ID: compass-sync
+      COMPASS_SYNC_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc
+      COMPASS_SYNC_OIDC_NAME: Acme SSO
+      COMPASS_SYNC_OIDC_ALLOWED_GROUPS: staff
+```
+
+Keycloak gives refresh tokens for `offline_access` (in the realm's default
+roles), so people are checked again every day.
+
+</TabItem>
+<TabItem label="Microsoft Entra ID">
+
+In the Entra admin center, **App registrations** → **New registration**:
+
+- Platform **Web**, redirect URI
+  `https://sync.example.com/v2/compass/login/callback`.
+- **Certificates & secrets** → **New client secret**; copy its value.
+- To choose who may use it, open the app under **Enterprise applications**,
+  set **Assignment required** to yes, and assign the people or groups.
+
+Entra doesn't send `email_verified`, so limit access by assignment or
+groups, not with `COMPASS_SYNC_OIDC_ALLOWED_DOMAINS` (which would refuse
+everyone). To use groups, add a groups claim under **Token configuration**;
+it carries the groups' object IDs.
+
+```yaml
+      COMPASS_SYNC_PUBLIC_HOST: sync.example.com
+      COMPASS_SYNC_OIDC_ISSUER: https://login.microsoftonline.com/<tenant id>/v2.0
+      COMPASS_SYNC_OIDC_CLIENT_ID: <application (client) id>
+      COMPASS_SYNC_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc
+      COMPASS_SYNC_OIDC_NAME: Acme (Microsoft)
+      COMPASS_SYNC_OIDC_ALLOWED_GROUPS: <group object id>
+```
+
+</TabItem>
+<TabItem label="Okta">
+
+In the Okta admin console, **Applications** → **Create App Integration** →
+**OIDC** → **Web Application**:
+
+- **Grant types**: Authorization Code and **Refresh Token** (for the daily
+  check).
+- **Sign-in redirect URIs**:
+  `https://sync.example.com/v2/compass/login/callback`.
+- **Assignments**: the people or groups allowed.
+- Copy the client ID and secret.
+
+The issuer is your Okta domain (the org authorization server), or a custom
+authorization server's issuer such as `https://acme.okta.com/oauth2/default`.
+
+```yaml
+      COMPASS_SYNC_PUBLIC_HOST: sync.example.com
+      COMPASS_SYNC_OIDC_ISSUER: https://acme.okta.com
+      COMPASS_SYNC_OIDC_CLIENT_ID: <client id>
+      COMPASS_SYNC_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc
+      COMPASS_SYNC_OIDC_NAME: Acme (Okta)
+```
+
+Assignment is the simplest way to choose who gets in. To check groups on
+the server too, configure a groups claim named `groups` for the app (the
+app's **Sign On** tab, or a claim on a custom authorization server), add
+`groups` to the scopes if your authorization server requires it
+(`COMPASS_SYNC_OIDC_SCOPES: "openid email profile offline_access groups"`),
+and set `COMPASS_SYNC_OIDC_ALLOWED_GROUPS`.
+
+</TabItem>
+<TabItem label="Google Workspace">
+
+In the Google Cloud console, for a project of your Workspace organization:
+
+- **OAuth consent screen**: user type **Internal**, so only accounts of
+  your organization can sign in.
+- **Credentials** → **Create credentials** → **OAuth client ID** →
+  **Web application**, with the authorized redirect URI
+  `https://sync.example.com/v2/compass/login/callback`.
+
+Google refuses the `offline_access` scope, so ask for the others only:
+
+```yaml
+      COMPASS_SYNC_PUBLIC_HOST: sync.example.com
+      COMPASS_SYNC_OIDC_ISSUER: https://accounts.google.com
+      COMPASS_SYNC_OIDC_CLIENT_ID: <client id>.apps.googleusercontent.com
+      COMPASS_SYNC_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc
+      COMPASS_SYNC_OIDC_NAME: Acme (Google)
+      COMPASS_SYNC_OIDC_SCOPES: "openid email profile"
+      COMPASS_SYNC_OIDC_ALLOWED_DOMAINS: acme.com
+```
+
+Without a refresh token the server can't check people again: a sign-in
+lasts `COMPASS_SYNC_OIDC_SESSION_DAYS` (30 days), and someone who leaves
+keeps access until it ends unless you revoke them on the server (below).
+Choose a shorter session if that matters. Google's ID tokens carry no
+groups, so `COMPASS_SYNC_OIDC_ALLOWED_GROUPS` can't be used; limit access
+with the domain.
+
+</TabItem>
+</Tabs>
+
+## Settings
+
+| Variable | Default | What it does |
+|---|---|---|
+| `COMPASS_SYNC_OIDC_ISSUER` | none (no sign-in) | The OpenID Connect issuer URL. Turns sign-in on; needs `COMPASS_SYNC_OIDC_CLIENT_ID` and `COMPASS_SYNC_PUBLIC_HOST`. |
+| `COMPASS_SYNC_OIDC_CLIENT_ID` | none | The client registered for the server |
+| `COMPASS_SYNC_OIDC_CLIENT_SECRET` | none | Its secret (none for a public client) |
+| `COMPASS_SYNC_OIDC_CLIENT_SECRET_FILE` | none | A file holding the secret, instead of the above |
+| `COMPASS_SYNC_OIDC_NAME` | the issuer's host | The name people see ("Sign in to Acme SSO") |
+| `COMPASS_SYNC_OIDC_SCOPES` | `openid email profile offline_access` | The scopes asked for, separated by spaces or commas. `offline_access` gets the refresh token the daily check needs. |
+| `COMPASS_SYNC_OIDC_ALLOWED_DOMAINS` | any | Comma-separated email domains allowed. The email must be verified (`email_verified` in the ID token). |
+| `COMPASS_SYNC_OIDC_ALLOWED_GROUPS` | any | Comma-separated groups; a member of any one is allowed |
+| `COMPASS_SYNC_OIDC_GROUPS_CLAIM` | `groups` | The ID token claim groups are read from |
+| `COMPASS_SYNC_OIDC_SESSION_DAYS` | `30` | Without a refresh token, how many days a sign-in lasts |
+| `COMPASS_SYNC_OIDC_REVALIDATE_HOURS` | `24` | How often each user is checked with the identity provider; `0` is never |
+
+The domain and group rules are checked at sign-in and at each check.
+
+## Manage users
+
+The server has admin commands for the users who signed in. Run them in the
+running container (the image has no shell, but the server's binary runs
+directly):
+
+```sh
+docker compose exec sync /compass-sync-server users list
+docker compose exec sync /compass-sync-server chains list
+docker compose exec sync /compass-sync-server users revoke alice@acme.com
+docker compose exec sync /compass-sync-server users restore alice@acme.com
+```
+
+- `users list`: each user's email, name, subject, number of chains, last
+  sign-in and status.
+- `chains list`: each signed-in chain with its user, when it was last
+  active and when its session ends ("never (revalidated)" with a refresh
+  token).
+- `users revoke EMAIL|SUBJECT`: signs out every chain of the user and keeps
+  them from signing in again until `users restore`. Add `--delete-data` to
+  also delete those chains' data from the server (their devices are told to
+  start again; what's on the devices stays).
+- `users restore EMAIL|SUBJECT`: lets them sign in again.
+
+They're safe while the server runs; it notices a change within 10 seconds.
+With `docker run`, use `docker exec compass-sync /compass-sync-server ...`.
+
+:::note
+The server stores each user's issuer, subject, email, name and latest
+refresh token in its database. Protect the database and its backups like
+any credential store.
+:::

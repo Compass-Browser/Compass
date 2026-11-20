@@ -1,0 +1,181 @@
+---
+title: Install Compass
+description: Download and install Compass on your Mac, Windows or Linux computer, iPhone, iPad or Android device.
+sidebar:
+  order: 1
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Compass is free. Get it from the download section of
+[compassbrowser.org](https://compassbrowser.org/#download), which always
+links to the newest version for each platform.
+
+## Install
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+
+You need macOS 13 Ventura or later, on an Apple silicon or Intel Mac.
+
+1. On [compassbrowser.org](https://compassbrowser.org/#download), click
+   **Download for Mac**.
+2. Open the downloaded disk image and drag **Compass** to your
+   Applications folder.
+3. Open Compass from Applications or Launchpad.
+
+**With Homebrew:** if you use [Homebrew](https://brew.sh), you can install
+Compass from a terminal instead:
+
+```sh
+brew install --cask compass-browser/tap/compass
+```
+
+This installs the newest build (the Canary channel). Compass then updates
+itself, so you don't need `brew upgrade` for it.
+
+</TabItem>
+<TabItem label="Windows">
+
+You need Windows 10 or 11, 64-bit. Compass for Windows is in beta.
+
+1. On [compassbrowser.org](https://compassbrowser.org/#download), click
+   **Download for Windows**.
+2. Run the downloaded installer. It installs Compass for your Windows
+   account only, so it doesn't ask for an administrator password.
+3. Compass opens when the installer finishes.
+
+:::note
+The first time you run the installer, Windows SmartScreen may warn you
+that it doesn't recognize the app. Compass's installer is signed, but new
+signing certificates take a while to build a reputation with SmartScreen.
+Click **More info**, then **Run anyway**.
+:::
+
+</TabItem>
+<TabItem label="Linux">
+
+You need a 64-bit (x64) Linux system. Linux builds come from the Canary
+channel, the newest builds.
+
+**With Flatpak (recommended):** click **Install with Flatpak** on
+[compassbrowser.org](https://compassbrowser.org/#download) to open it in
+your software center, or run this in a terminal:
+
+```sh
+flatpak install --user https://raw.githubusercontent.com/Compass-Browser/Compass/flatpak/compass-canary.flatpakref
+```
+
+Compass then updates with your software center's automatic updates or
+with `flatpak update`. A new version takes effect the next time you start
+Compass.
+
+**As a tarball:** click **Download tarball**, extract it and run Compass
+from the extracted folder. The tarball doesn't update itself: to get a
+new version, download it again.
+
+</TabItem>
+<TabItem label="iPhone and iPad">
+
+Compass for iPhone and iPad is in beta on Apple's TestFlight app. You need
+iOS or iPadOS 17 or later.
+
+1. On your iPhone or iPad, open the
+   [Compass beta invitation](https://testflight.apple.com/join/SE4bmbk1).
+2. If you don't have TestFlight yet, install it from the App Store when
+   asked, then go back to the invitation.
+3. Tap **Accept**, then **Install**.
+
+The app is called **Compass Browser** on your Home Screen and in TestFlight.
+TestFlight installs new beta versions as they come out.
+
+</TabItem>
+<TabItem label="Android">
+
+Compass for Android runs on 64-bit ARM phones and tablets (nearly every
+recent device) and is in beta through Google Play's testing program.
+
+1. With the Google account you use on your device, join the
+   [Compass testers group](https://groups.google.com/g/compass-browser-android).
+2. Open the [Compass test page on Google Play](https://play.google.com/apps/testing/it.cipi1965.compass)
+   and tap **Become a tester**.
+3. Install Compass from Google Play. Play keeps it up to date.
+
+**Without Google Play:** the download section also offers the APK. Install
+it directly (Android asks you to allow installs from your browser or file
+manager the first time). The APK and the Play version are the same app,
+so either one can update the other.
+
+</TabItem>
+</Tabs>
+
+## Make Compass your default browser
+
+With Compass as your default browser, links you open in other apps open
+in Compass, in a [little window](/guide/little-window/) or in the space
+you [route them to](/guide/link-routing/).
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+
+Open **Settings**, go to **Default browser** and click **Make default**,
+then confirm in the dialog macOS shows. You can also choose Compass in
+macOS's System Settings, under **Desktop & Dock**, **Default web
+browser**.
+
+</TabItem>
+<TabItem label="Windows">
+
+Open **Settings**, go to **Default browser** and click **Make default**.
+Windows opens its Default apps settings, where you pick Compass.
+
+</TabItem>
+<TabItem label="Linux">
+
+Open **Settings**, go to **Default browser** and click **Make default**,
+or choose Compass in your desktop's default applications settings.
+
+</TabItem>
+<TabItem label="iPhone and iPad">
+
+Not yet: Apple has to approve an app before it can be the default browser
+on iPhone and iPad, and Compass hasn't been approved yet. Until then, you
+can send pages to Compass with the **Share** button in other apps.
+
+</TabItem>
+<TabItem label="Android">
+
+1. Open the sidebar and tap **Settings**.
+2. Under **Browsing**, tap **Default Browser** and confirm in the dialog
+   Android shows.
+
+If Compass is already your default browser, the row opens Android's
+Default apps settings instead.
+
+</TabItem>
+</Tabs>
+
+## Channels: Stable, Beta and Canary
+
+On Mac and Windows, Compass comes in three channels:
+
+- **Stable** gets versions that have already been tested on Canary and
+  Beta. It's the default.
+- **Beta** gets new versions earlier.
+- **Canary** gets every new version first.
+
+Each channel also gets the versions of the channels above it whenever
+they're newer. You can switch channels at any time on the About page; see
+[Updates](/guide/updates/). Linux builds currently come from the Canary
+channel only, and iPhone, iPad and Android builds are betas.
+
+## Next steps
+
+- [The sidebar basics](/start/first-steps/): a quick tour of spaces,
+  pinned tabs and the command bar.
+- [Coming from Arc](/start/coming-from-arc/): bring your Arc spaces,
+  logins and Easels.
+- [Import from another browser](/start/browser-import/): bring bookmarks,
+  open tabs, history and passwords from Chrome, Safari, Firefox and more.
+- [Turn on sync](/sync/turn-on/): get your spaces and tabs on your other
+  devices.

@@ -1,13 +1,17 @@
 # Compass sync server behind Caddy (HTTPS with automatic certificates).
 # Set your domain in Caddyfile, then: docker compose up -d
+# Upgrade: docker compose pull && docker compose up -d
 # See README.md.
 
 name: compass-sync
 
 services:
   sync:
-    build: .
-    image: compass-sync-server:latest
+    # The prebuilt image (linux/amd64 and linux/arm64, from main). To build
+    # from source instead, in a checkout's server/ directory: uncomment
+    # build, then docker compose build sync && docker compose up -d
+    image: ghcr.io/compass-browser/compass-sync-server:latest
+    # build: .
     restart: unless-stopped
     volumes:
       - sync-data:/data
@@ -27,6 +31,15 @@ services:
       # COMPASS_SYNC_IDLE_CHAIN_DAYS: "180"
       # COMPASS_SYNC_BACKUP_INTERVAL: "24h"   # into /data/backups
       # COMPASS_SYNC_BACKUP_KEEP: "7"
+      # Company sign-in (README, "Company sign-in (OIDC)"); needs
+      # COMPASS_SYNC_PUBLIC_HOST. Redirect URI:
+      # https://<public host>/v2/compass/login/callback
+      # COMPASS_SYNC_OIDC_ISSUER: https://id.example.com/realms/acme
+      # COMPASS_SYNC_OIDC_CLIENT_ID: compass-sync
+      # COMPASS_SYNC_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc
+      # COMPASS_SYNC_OIDC_NAME: Acme SSO
+      # COMPASS_SYNC_OIDC_ALLOWED_DOMAINS: acme.com
+      # COMPASS_SYNC_OIDC_ALLOWED_GROUPS: staff
     networks:
       - internal
     healthcheck:

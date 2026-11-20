@@ -1,0 +1,186 @@
+---
+title: Add a device
+description: Add a computer, phone or tablet to your sync chain with a pairing code, a QR code or your recovery code.
+sidebar:
+  order: 2
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Once one device syncs (see [Turn on sync](/sync/turn-on/)), you add the
+others with a **pairing code**: a short code like `7-482913` that a device
+already in the chain shows. You need both devices at hand. No password, no
+email, no sign-in.
+
+The code works once and only for 5 minutes, and the device in the chain
+always asks you to approve the new one before it gets anything.
+
+## 1. Show a code on a device that syncs
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+
+1. Open **Settings** and choose **Sync** (or choose **Synced** in the app
+   menu).
+2. Under **Devices**, click **Add a device**.
+3. Compass shows a code, with **Expires in** and the time left, and a QR
+   code for an iPhone or iPad.
+
+Keep this page open until the new device has joined.
+
+</TabItem>
+<TabItem label="Windows">
+
+1. Open **Settings** and choose **Sync** (or choose **Synced** in the app
+   menu).
+2. Under **Devices**, click **Add a device**.
+3. Compass shows a code and a QR code, with the time left.
+
+Keep this page open until the new device has joined.
+
+</TabItem>
+<TabItem label="Linux">
+
+1. Open **Settings** and choose **Sync** (or choose **Synced** in the app
+   menu).
+2. Under **Devices**, click **Add a device**.
+3. Compass shows a code and a QR code, with the time left.
+
+Keep this page open until the new device has joined.
+
+</TabItem>
+<TabItem label="iPhone and iPad">
+
+An iPhone or iPad can join a chain, but can't add other devices to it. Show
+the code on a computer or an Android device instead.
+
+</TabItem>
+<TabItem label="Android">
+
+1. Open the menu, tap **Settings**, then **Sync**.
+2. Tap **Add a device**.
+3. Compass shows the code to enter on the other device.
+
+</TabItem>
+</Tabs>
+
+## 2. Enter the code on the new device
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+
+1. Open **Settings** and choose **Sync**.
+2. In **Sync server**, type the same server address as your other devices,
+   for example `https://sync.example.com/v2`.
+3. Click **I have another device**.
+4. Type the code shown on the other device, then click **Join**.
+5. Compass says **Confirm on the other device.** Go on with step 3 below.
+
+</TabItem>
+<TabItem label="Windows">
+
+1. Open **Settings** and choose **Sync**.
+2. In **Sync server**, type the same server address as your other devices.
+3. Click **I have another device**.
+4. Type the code shown on the other device, then click **Join**.
+5. Compass says **Confirm on the other device.** Go on with step 3 below.
+
+</TabItem>
+<TabItem label="Linux">
+
+1. Open **Settings** and choose **Sync**.
+2. In **Sync server**, type the same server address as your other devices.
+3. Click **I have another device**.
+4. Type the code shown on the other device, then click **Join**.
+5. Compass says **Confirm on the other device.** Go on with step 3 below.
+
+</TabItem>
+<TabItem label="iPhone and iPad">
+
+The quickest way is the QR code: point your iPhone or iPad's **Camera** at
+the QR code on your computer's screen and open the link. Compass opens with
+the server and code filled in and starts joining.
+
+Or, by hand:
+
+1. In Compass, open **Settings**. Under **Sync**, tap **Join with a Mac**.
+2. Check **Server**: it must be the same address as your other devices. It
+   starts with the Compass project's server filled in; change it if yours
+   is different.
+3. Type the code under **Code from your Mac**, or tap **Scan QR Code**.
+4. Tap **Join**. Compass shows **Confirm on your Mac…**
+
+The screens say "Mac", but a Windows or Linux computer works the same way.
+
+</TabItem>
+<TabItem label="Android">
+
+1. Open the menu, tap **Settings**, then **Sync**.
+2. In **Sync server**, type the same server address as your other devices.
+3. Under **Pair with a device**, type the code in **Pairing code**.
+4. Tap **Join**. Compass shows **Approve this device on your other
+   device.**
+
+</TabItem>
+</Tabs>
+
+## 3. Approve the new device
+
+Back on the device that showed the code, Compass asks whether to add the new
+device, by name (for example **Add MacBook Air to sync?**). Check that it's
+yours, then choose **Allow**. If you don't recognize it, choose **Deny**.
+
+On a computer, the new device then says **Joined. Restart Compass to start
+syncing.** Click **Restart Compass**. After the restart, your spaces,
+passwords and the rest arrive. On iPhone and iPad, Compass shows what it
+synced (for example **Synced 2 profiles: Personal, Work · 5 spaces**); tap
+**Continue**.
+
+:::note[A device that already has its own spaces]
+Nothing is lost when you join: Compass merges the chain's spaces with the
+ones already on the new device. If the new device has a fresh, untouched
+starting space, it makes way for the chain's.
+:::
+
+If the new computer has more than one profile, Compass asks which of your
+other devices' profiles each one should sync with. See
+[Profiles and sync](/sync/profiles/).
+
+## Use the recovery code
+
+If you don't have another device that syncs at hand (for example, you lost
+it), join with the 12-word recovery code instead:
+
+- **On a computer:** in **Sync**, type the server address, click **I have
+  another device**, then **Use a recovery code**. Type the 12 words in
+  **Recovery code (12 words)** and click **Join with the recovery code**.
+- **On iPhone and iPad:** in **Join with a Mac**, tap **Use a recovery
+  code** and type the 12 words.
+- **On Android:** in **Sync**, type the 12 words under **Or use your
+  recovery code** and tap **Join with recovery code**.
+
+### Show your recovery code again
+
+Any device that syncs can show the recovery code, so you can save it if you
+haven't:
+
+- **On a computer:** in **Sync**, under **Recovery code**, click **Show
+  recovery code**. Compass first asks for Touch ID or your password, where
+  your computer supports it.
+- **On iPhone and iPad:** in **Settings**, tap **Show Recovery Code** and
+  confirm with Face ID, Touch ID or your passcode.
+
+:::caution
+Anyone with your recovery code can join your chain and read your synced
+data. Keep it private, as you would a password.
+:::
+
+## If pairing doesn't work
+
+- **"Wrong code"**: a code allows a single try. Ask the other device for a
+  new code (click **Add a device** again).
+- **"Code expired"**: codes last 5 minutes. Show a new one.
+- **"Not added"**: the other device chose **Deny**.
+- Make sure both devices use exactly the same server address.
+
+More messages are explained in [Troubleshooting](/sync/troubleshooting/).

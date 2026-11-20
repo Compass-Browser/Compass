@@ -1,0 +1,20 @@
+/* Compass's colours (website/changelog/changelog.css) on Starlight's theme
+   variables. Starlight sets light values on [data-theme='light']. */
+:root {
+	--sl-color-accent-low: #142451;
+	--sl-color-accent: #7aa2ff;
+	--sl-color-accent-high: #d4e0ff;
+	--sl-color-bg: #0f1115;
+	--sl-color-bg-nav: #13161b;
+	--sl-color-bg-sidebar: #0f1115;
+	--sl-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+		sans-serif;
+}
+:root[data-theme='light'] {
+	--sl-color-accent-low: #dbe5ff;
+	--sl-color-accent: #2f6bff;
+	--sl-color-accent-high: #12306f;
+	--sl-color-bg: #ffffff;
+	--sl-color-bg-nav: #f6f7fa;
+	--sl-color-bg-sidebar: #f6f7fa;
+}

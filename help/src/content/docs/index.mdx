@@ -1,0 +1,83 @@
+---
+title: Compass Help
+description: How to use Compass Browser on Mac, Windows, Linux, iPhone, iPad and Android, and how to run your own sync server.
+template: splash
+hero:
+  tagline: How to use Compass, the open-source browser with a sidebar of spaces, on your computer, iPhone, iPad and Android.
+  image:
+    file: ../../assets/compass.svg
+  actions:
+    - text: Install Compass
+      link: /start/install/
+      icon: right-arrow
+    - text: Coming from Arc
+      link: /start/coming-from-arc/
+      icon: right-arrow
+      variant: secondary
+    - text: Run your own sync server
+      link: /self-hosting/
+      icon: right-arrow
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## Get started
+
+<CardGrid>
+	<LinkCard title="Install Compass" description="Mac, Windows, Linux, iPhone and iPad, and Android." href="/start/install/" />
+	<LinkCard title="First steps" description="A quick tour of the sidebar, spaces and the command bar." href="/start/first-steps/" />
+	<LinkCard title="Coming from Arc" description="Bring your spaces, pinned tabs, folders and Easels over from Arc." href="/start/coming-from-arc/" />
+	<LinkCard title="Import from another browser" description="Bookmarks, history and passwords from Chrome, Safari, Firefox and more." href="/start/browser-import/" />
+</CardGrid>
+
+## Using Compass
+
+<CardGrid>
+	<Card title="Spaces and the sidebar" icon="list-format">
+		Keep work, home and everything else apart, each with its own pinned
+		tabs, folders and colors. [Spaces](/guide/spaces/) ·
+		[The sidebar](/guide/sidebar/) · [Split view](/guide/split-view/)
+	</Card>
+	<Card title="Find anything" icon="magnifier">
+		Open pages, switch tabs and run commands from the keyboard.
+		[Command bar](/guide/command-bar/) ·
+		[Keyboard shortcuts](/guide/shortcuts/)
+	</Card>
+	<Card title="Open links your way" icon="external">
+		[Little windows](/guide/little-window/) · [Peek](/guide/peek/) ·
+		[Links from other apps](/guide/link-routing/) ·
+		[Send a tab](/guide/send-tab/)
+	</Card>
+	<Card title="Make the web yours" icon="pencil">
+		[Easels](/guide/easels/) · [Boosts](/guide/boosts/) ·
+		[Live folders](/guide/live-folders/) ·
+		[Reader mode](/guide/reader-mode/) ·
+		[Picture in picture](/guide/picture-in-picture/) ·
+		[Extensions](/guide/extensions/)
+	</Card>
+	<Card title="Claude in Compass" icon="star">
+		Ask about the page you're on, and let Claude help with your tabs.
+		[Set up Claude](/guide/claude/)
+	</Card>
+	<Card title="Settings and privacy" icon="setting">
+		[Settings](/guide/settings/) · [Privacy](/guide/privacy/) ·
+		[Updates](/guide/updates/) · [Profiles](/guide/profiles/)
+	</Card>
+</CardGrid>
+
+## Sync
+
+<CardGrid>
+	<Card title="Sync without an account" icon="random">
+		Your spaces, passwords and history on all your devices, encrypted on
+		each device: the server can't read them.
+		[Turn on sync](/sync/turn-on/) · [Add a device](/sync/add-a-device/) ·
+		[What syncs](/sync/what-syncs/) ·
+		[Encryption and privacy](/sync/encryption/)
+	</Card>
+	<Card title="Your own server" icon="laptop">
+		Run the Compass sync server yourself, at home or for your company.
+		[Run your own sync server](/self-hosting/)
+	</Card>
+</CardGrid>

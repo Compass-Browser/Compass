@@ -1,0 +1,122 @@
+---
+title: Claude in Compass
+description: Chat with Claude about the page you're on, let it act in your tabs, and turn on small sidebar helpers, using your own API key.
+sidebar:
+  order: 16
+---
+
+Compass has Claude built in. You can chat with it about the page you're on, ask it to click, type and scroll in that page for you, and, if you allow it, work across your other tabs. A few optional helpers also keep your sidebar tidy.
+
+Compass doesn't come with a key or a subscription. You connect your own: an Anthropic API key, a company gateway, or (on a computer) your own Claude Code. You can also use OpenAI, Google Gemini or another compatible server instead of Claude.
+
+## Set it up
+
+### On a computer
+
+1. Open **Settings** and choose **Claude** in the menu on the left.
+2. Under **Provider**, keep **Anthropic** (or pick **OpenAI**, **Google Gemini** or **Other (OpenAI-compatible)**, below).
+3. Under **Connect with**, choose one:
+   - **API key**: paste a key from [console.anthropic.com](https://console.anthropic.com) into **API key** and click **Save**. Usage is billed to that key's Console account.
+   - **Claude Code**: uses the Claude Code installed on your computer, signed in with your Claude subscription. Install Claude Code and sign in once by running `claude` in a terminal. Compass usually finds it on its own.
+4. Pick a **Model**, then click **Test connection** to check that everything works. Testing also lists the models your key can use.
+
+Your key is stored encrypted on this device only. It never syncs, and web pages never see it.
+
+:::tip[Gateways, Amazon Bedrock and Google Vertex AI]
+Open **Endpoint** to enter a **Base URL** for a gateway or proxy that serves the Anthropic API, and choose how to **Send the key as** (**x-api-key** for the Claude API, **Authorization: Bearer** for most gateways). Click **Save endpoint**.
+:::
+
+### On iPhone and iPad
+
+1. Open **Settings** (the button at the bottom left of the sidebar, or **Settings** in the page menu) and tap **AI**.
+2. Choose a **Provider**, enter your **API Key** and tap **Save Key**.
+3. Pick a **Model** and tap **Test Connection**.
+
+On iPhone and iPad, settings and buttons say "AI" instead of "Claude" (for example **Let AI Use the Whole Browser**), and the chat is named after your provider (**Ask Claude**, **Ask GPT**, **Ask Gemini**). There's no Claude Code option.
+
+### On Android
+
+Open **Settings** and tap **Claude**, or open the Claude sheet and choose **Settings** from its menu. Choose a provider, enter your key, and tap **Test Connection**. There's no Claude Code option.
+
+### Other providers
+
+Pick **OpenAI**, **Google Gemini** or **Other (OpenAI-compatible)** under **Provider** and enter that provider's API key. For an OpenAI-compatible server (OpenRouter, Ollama, LM Studio, a company gateway), also enter its **Server** address and the model to use. Each provider keeps its own key, so switching back and forth doesn't lose them.
+
+A ChatGPT or Gemini subscription can't be used, only API keys. Compass's instructions and tools are made for Claude, so other models may use the browser less well.
+
+## Chat with Claude
+
+### Open the chat
+
+On a computer, the chat opens in a panel on the right side of the window:
+
+- Press <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>E</kbd> on Mac, or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> on Windows and Linux. You can change this shortcut in [Keyboard shortcuts](/guide/shortcuts/), where it's called **Chat with Claude**.
+- Or open the [command bar](/guide/command-bar/) and choose **Chat with Claude** at the bottom. If you've typed something, the row reads **Ask Claude**: press <kbd>Enter</kbd> to send what you typed to the chat, with the current page attached.
+
+On iPhone and iPad, tap **Ask Claude** in the page menu (or press <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>E</kbd> with a keyboard). The chat opens as a sheet, so you can still see the page above it. On Android, tap the ✦ button in the bar.
+
+### What Claude sees
+
+- **The page you're on.** A chip above the message field names the current tab. While it's on, your message includes that page's text, so you can ask about it right away. Click the chip to leave the page out. Compass's own pages, settings and the Chrome Web Store are never sent.
+- **Your open tabs' titles and addresses** in that window, and today's date, so Claude knows what you have open.
+- **Screenshots and the page's console**, when Claude decides it needs them to do what you asked.
+
+### What Claude can do in the page
+
+Ask it to fill in a form, find something, click through a site or compare things. Claude reads the page, then clicks, types and scrolls on its own. It doesn't move your mouse pointer or use your keyboard, so you can keep working. While it works, the panel shows **Using** and the tab's name, and each step it takes appears as a small row you can expand.
+
+Claude stays on the tab it started with, even if you switch tabs. Click **Stop** (or press <kbd>Esc</kbd>) to stop it at any point.
+
+### Let Claude use the whole browser
+
+Off by default, Claude only works with the tab you chat about. Turn on **Let Claude use the whole browser** in Claude's settings to let it list, open and use your other tabs and windows: organize your sidebar, move tabs between spaces, make folders, search your history, check your downloads or send a tab to another device. Claude asks before closing tabs you didn't mention or moving many at once.
+
+:::caution
+With this on, Claude works in your tabs signed in as you. Web pages can contain text meant to trick it. Claude is told to ignore instructions from pages, but only turn this on for tasks you're watching.
+:::
+
+On Android, the **Whole browser** chip under the conversation does the same.
+
+### Conversations
+
+**New chat** starts over. Closing the panel keeps the conversation, but closing the window or quitting Compass ends it: chats aren't saved yet. Use the model menu at the top of the panel to switch models mid-conversation.
+
+## Memory
+
+Claude can remember short facts about you, like how you like answers, and starts every new chat with them. When it saves something, the chat shows **Saved to memory** with **Undo**.
+
+In Claude's settings:
+
+- **Use memory** turns memory on or off. Off, Claude neither sees nor saves memories.
+- **Let Claude save memories** lets Claude save on its own. Off, only you add them.
+- Below, you can see every memory, edit or delete one, add your own, or **Delete all memories**.
+
+Memories sync with your spaces, end-to-end encrypted. On iPhone and iPad they're under **Settings** → **AI** → **Memory**; on Android, in the Claude sheet's menu under **Memory**.
+
+## Optional extras
+
+All of these are in Claude's settings and are off until you turn them on.
+
+- **Files**: let Claude **Save files** it makes for you (like notes or a table) into one folder, or **Use a folder** to list, read and write files in a folder you choose and nowhere else. Claude asks before each file it saves or changes, with **Allow**, **Allow for this chat** and **Deny**.
+- **Let Claude use developer tools**: Claude can inspect the tab like a web developer would (network requests, styles, cookies and storage, performance) and try the page as another device. Values that look like passwords or tokens stay hidden unless you ask, and Claude asks before changing cookies or storage.
+- **Let Claude make Boosts**: Claude can restyle sites for you with [Boosts](/guide/boosts/). Style changes save at once, with **Undo** in the chat. JavaScript always asks you first.
+- **Allow MCP clients** (Mac and Windows): lets apps on your computer that speak MCP, like Claude Code and Claude Desktop, use Compass's tools to read and act in your tabs. Settings show the command to add Compass to Claude Code. Compass asks before each new app connects. These apps bring their own model, so no API key is needed.
+
+## Claude in the sidebar
+
+In Claude's settings, **Claude in the sidebar** has small helpers, each with its own switch and model:
+
+- **Name Link Folders**: folders that collect a page's links get a short name from their tabs' titles. Right-click a folder for **Undo Name**, or **Suggest a Name** on a folder you made.
+- **Tidy Today**: adds **Tidy** to Today's header (and the command bar). It groups Today's loose tabs into named folders. Nothing is closed, and **Undo** puts every tab back.
+- **Shorter Tab Titles**: long tab titles show as short ones in the sidebar. Hover cards keep the full title, and a name you give a tab always wins.
+- **Answer Questions in the Command Bar**: a question typed in the command bar gets an **Ask Claude** row, and a short answer shows right there. **Continue in Chat** takes it to the chat.
+
+These helpers need an API key. On a computer, Claude Code mode doesn't run them yet. They work the same on iPhone, iPad and Android (iPhone and iPad call this section **AI in the Sidebar**).
+
+## Privacy
+
+- Everything goes straight from your device to the provider you picked (Anthropic, OpenAI, Google, or your own server), under that provider's terms. Nothing goes through Compass's servers.
+- The chat sends your messages, plus the current page's text when the page chip is on, your open tabs' titles and addresses, and anything Claude reads with its tools.
+- The sidebar helpers send only tab titles and site names, never what pages contain. Answer Questions in the Command Bar sends your question, plus the current tab's title and site when **About this page** is on. At most 30 automatic requests are made an hour.
+- Incognito windows are never sent by the sidebar helpers, and Claude isn't offered in Incognito's command bar.
+- Your key stays encrypted on the device and never syncs.

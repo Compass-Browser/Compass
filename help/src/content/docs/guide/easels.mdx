@@ -1,0 +1,129 @@
+---
+title: Easels
+description: Collect text, drawings, images, links and captured bits of web pages on a canvas that syncs to all your devices.
+sidebar:
+  order: 10
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+An **Easel** is a free-form board: put text, shapes, freehand drawings, images, link cards and captures of web pages anywhere on it. Easels live in your sidebar like tabs and sync to all your devices.
+
+If you're coming from Arc, your Arc Easels come over with the Arc import on the Mac. See [Coming from Arc](/start/coming-from-arc/).
+
+## Make an Easel
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+- Click the **New Easel** button in the **Pinned** header of the sidebar, or
+- Type **New Easel** in the [command bar](/guide/command-bar/).
+</TabItem>
+<TabItem label="Windows">
+- Click the **New Easel** button in the **Pinned** header of the sidebar, or
+- Type **New Easel** in the [command bar](/guide/command-bar/).
+</TabItem>
+<TabItem label="Linux">
+- Click the **New Easel** button in the **Pinned** header of the sidebar, or
+- Type **New Easel** in the [command bar](/guide/command-bar/).
+</TabItem>
+<TabItem label="iPhone and iPad">
+Touch and hold **+** (in the sidebar or the bottom bar), then tap **New Easel**.
+</TabItem>
+<TabItem label="Android">
+In the sidebar, open the space's **⋯** menu and tap **New Easel**.
+</TabItem>
+</Tabs>
+
+The new board, called **Untitled Easel**, is pinned in the current space. Click its title at the top to rename it; the sidebar follows.
+
+An Easel's tab moves, splits, archives and syncs like any other tab. Closing or archiving the tab doesn't delete the board.
+
+## All your Easels
+
+**All Easels** (the **Easels** link at the top of a board) lists every board, with **New Easel**, **Rename** and **Delete**. Deleting a board here removes it from all your devices.
+
+## Add things to a board
+
+On the desktop and Android, pick a tool from the toolbar, or press its key:
+
+| Tool | Key |
+|---|---|
+| **Select** | <kbd>V</kbd> |
+| **Text** | <kbd>T</kbd> |
+| **Rectangle** | <kbd>R</kbd> |
+| **Circle** | <kbd>O</kbd> |
+| **Arrow** | <kbd>A</kbd> |
+| **Pen** (freehand) | <kbd>P</kbd> |
+| **Image** | <kbd>I</kbd> |
+
+You can also:
+
+- **Paste**: an image becomes an image, a link becomes a link card (with the page's title and picture), other text becomes text.
+- **Drop** files, images or links onto the board.
+- Double-click an empty spot to add text there.
+
+Text and shapes come in a small palette of colors. Text has styles (title, heading, body, caption) and fonts, including a handwriting one.
+
+Changes save as you make them.
+
+## Arrange and move around
+
+- **Select**: click an item, drag over several, or <kbd>Shift</kbd>-click to add to the selection. <kbd>⌘</kbd> <kbd>A</kbd> / <kbd>Ctrl</kbd>+<kbd>A</kbd> selects everything.
+- Right-click (or long-press) an item for **Open**, **Refresh**, **Edit Text**, **Bring to Front**, **Send to Back**, **Duplicate** and **Delete**.
+- Keys: <kbd>]</kbd> brings to front, <kbd>[</kbd> sends to back, <kbd>⌘</kbd> <kbd>D</kbd> / <kbd>Ctrl</kbd>+<kbd>D</kbd> duplicates, arrow keys nudge.
+- **Pan**: drag an empty spot while holding <kbd>Space</kbd> (or with the middle mouse button), or scroll. On a touch screen, drag with one finger.
+- **Zoom**: <kbd>⌘</kbd> / <kbd>Ctrl</kbd> and the mouse wheel, or pinch. <kbd>Shift</kbd>+<kbd>1</kbd> fits everything on screen, <kbd>Shift</kbd>+<kbd>0</kbd> goes to 100%.
+- Click a link card or a capture to open its page in a new tab.
+
+Each device remembers where you were looking on each board.
+
+### On iPhone and iPad
+
+The editor is built for touch: drag an empty spot to pan, pinch to zoom, tap to select, drag to move, and use the corner handle to resize. Double-tap text to edit it. The selection bar has color, text style and font, front, back, duplicate and delete. The **⋯** menu has **Select Area**, **Paste**, **Fit**, **Undo**, **Redo**, **Background** and **All Easels**. Tap the photo button to add a picture.
+
+## Capture to Easel
+
+Capture part of any web page and put it on a board. The capture remembers its page, so you can open it or refresh it later.
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+1. Right-click the page and choose **Capture to Easel…**, or type **Capture to Easel** in the command bar.
+2. Drag over the part of the page you want (<kbd>Esc</kbd> cancels).
+3. Under **Add to Easel**, pick a board, or **New Easel**.
+</TabItem>
+<TabItem label="Windows">
+1. Right-click the page and choose **Capture to Easel…**, or type **Capture to Easel** in the command bar.
+2. Drag over the part of the page you want (<kbd>Esc</kbd> cancels).
+3. Under **Add to Easel**, pick a board, or **New Easel**.
+</TabItem>
+<TabItem label="Linux">
+1. Right-click the page and choose **Capture to Easel…**, or type **Capture to Easel** in the command bar.
+2. Drag over the part of the page you want (<kbd>Esc</kbd> cancels).
+3. Under **Add to Easel**, pick a board, or **New Easel**.
+</TabItem>
+<TabItem label="iPhone and iPad">
+1. Open the page menu and tap **Capture to Easel**.
+2. Drag over the part of the page you want, then tap **Capture**.
+3. Pick a board, or **New Easel**.
+</TabItem>
+<TabItem label="Android">
+1. Open the page menu and tap **Capture to Easel**.
+2. Pick a board, or **New Easel**.
+
+On Android, the capture is the whole visible page.
+</TabItem>
+</Tabs>
+
+The board you used last is at the top of the list. A short message tells you where the capture went.
+
+Capture to Easel isn't available in Incognito.
+
+### Refresh a capture
+
+Captures are pictures of the page at the time you took them. To update one, right-click it (or touch and hold it) and choose **Refresh**. Compass loads the page in the background, with your sign-ins, and captures the same area again.
+
+Refreshing captures isn't available on Android yet.
+
+## Sync
+
+Easels sync with your other devices as part of your spaces. If two devices edit different things on the same board, both changes are kept. See [What syncs](/sync/what-syncs/).

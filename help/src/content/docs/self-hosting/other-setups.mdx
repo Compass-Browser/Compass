@@ -1,0 +1,227 @@
+---
+title: Other setups
+description: Run the Compass sync server behind nginx, Traefik or your own Caddy, on a home server with Tailscale, with Podman, or built from source.
+sidebar:
+  order: 3
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Behind your own reverse proxy
+
+If the machine already runs a reverse proxy, run the server alone (see
+[Just `docker run`](/self-hosting/docker/#just-docker-run)) and add a site
+for it. Whatever the proxy, three things matter:
+
+- **No buffering for `/v2/compass/events`.** Each device keeps one request
+  open there (Server-Sent Events) to hear of changes at once. The proxy
+  must pass it through as it comes and not time it out: the server sends a
+  keep-alive line every 25 seconds, so any idle timeout above that works.
+  Pairing and sign-in also use long polls of up to 30 seconds.
+- **Forward the client's address** in `X-Forwarded-For`, and list the
+  proxy's address in `COMPASS_SYNC_TRUSTED_PROXIES`. Otherwise every device
+  seems to come from the proxy, and the per-address limits (50
+  change-notification streams, 10 pairing joins per 10 minutes) are shared
+  by all of them.
+- **Requests up to 10 MB.** A sync upload can be large; the server accepts
+  up to 10 MB.
+
+Set `COMPASS_SYNC_PUBLIC_HOST` to the public name, too.
+
+<Tabs syncKey="proxy">
+<TabItem label="nginx">
+
+```nginx
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name sync.example.com;
+    ssl_certificate     /etc/letsencrypt/live/sync.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/sync.example.com/privkey.pem;
+
+    client_max_body_size 10m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8295;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Change notifications are a long-lived stream.
+        proxy_buffering off;
+        proxy_read_timeout 1h;
+    }
+}
+```
+
+Run the server with `-e COMPASS_SYNC_TRUSTED_PROXIES=172.17.0.1/32`:
+with nginx on the host and the container on Docker's default network,
+requests reach the server from that bridge gateway address. If nginx runs
+in a container, use its network's range instead.
+The server also sends `X-Accel-Buffering: no` on the stream, so nginx
+doesn't buffer it even where `proxy_buffering` is on, but turning it off
+for the site is simplest.
+
+</TabItem>
+<TabItem label="Traefik">
+
+Labels on the server's container, for a Traefik with a `websecure`
+entry point and a certificate resolver named `letsencrypt`:
+
+```yaml
+services:
+  sync:
+    image: ghcr.io/compass-browser/compass-sync-server:latest
+    restart: unless-stopped
+    volumes:
+      - sync-data:/data
+    environment:
+      COMPASS_SYNC_PUBLIC_HOST: sync.example.com
+      # The range of the network Traefik reaches the server on.
+      COMPASS_SYNC_TRUSTED_PROXIES: 172.18.0.0/16
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.compass-sync.rule=Host(`sync.example.com`)
+      - traefik.http.routers.compass-sync.entrypoints=websecure
+      - traefik.http.routers.compass-sync.tls.certresolver=letsencrypt
+      - traefik.http.services.compass-sync.loadbalancer.server.port=8295
+
+volumes:
+  sync-data:
+```
+
+Traefik streams Server-Sent Events and sets `X-Forwarded-For` without
+further settings. If you changed its entry point timeouts, keep them above
+30 seconds. `docker network inspect <network>` shows the range for
+`COMPASS_SYNC_TRUSTED_PROXIES`.
+
+</TabItem>
+<TabItem label="Caddy">
+
+In an existing Caddyfile:
+
+```txt
+sync.example.com {
+	reverse_proxy 127.0.0.1:8295 {
+		flush_interval -1
+	}
+}
+```
+
+Caddy already flushes `text/event-stream` responses at once and sets
+`X-Forwarded-For`; `flush_interval -1` makes it explicit. Reloading Caddy
+closes the open streams, and the devices reconnect within seconds. Trust
+the address Caddy connects from, as for nginx.
+
+</TabItem>
+</Tabs>
+
+:::caution
+List a proxy as trusted only if every request reaches the server through
+it. Anyone who can connect to the server directly could otherwise choose
+the address the limits see.
+:::
+
+If a proxy can't hold the stream open, sync still works: devices also
+sync on a timer (every 15 minutes by default), when a window gets focus
+and on wake. Changes just take longer to show up on the other devices.
+
+## Home server with Tailscale
+
+If all your devices are on your [Tailscale](https://tailscale.com) network,
+the server doesn't need to be on the internet at all. Publish its port on
+the machine's Tailscale address only:
+
+```sh
+docker run -d --name compass-sync --restart unless-stopped \
+  -p 100.x.y.z:8295:8295 -v compass-sync-data:/data \
+  ghcr.io/compass-browser/compass-sync-server:latest
+```
+
+`100.x.y.z` is the machine's address from `tailscale ip -4`. The server URL
+is then `http://100.x.y.z:8295/v2`, or with MagicDNS
+`http://<machine-name>:8295/v2`. Plain HTTP is fine here: Tailscale encrypts
+the traffic, and Compass encrypts the data anyway.
+
+For HTTPS inside the tailnet, publish the port on `127.0.0.1` instead
+(`-p 127.0.0.1:8295:8295`) and let Tailscale serve it:
+
+```sh
+tailscale serve --bg --https=443 http://127.0.0.1:8295
+```
+
+The server URL is then `https://<machine-name>.<tailnet>.ts.net/v2`. Add
+`-e COMPASS_SYNC_TRUSTED_PROXIES=127.0.0.1` to the `docker run`
+(`tailscale serve` connects from there) and
+`-e COMPASS_SYNC_PUBLIC_HOST=<machine-name>.<tailnet>.ts.net`.
+
+:::tip
+Pick one name for the server and use it on every device. Devices that pair
+bind the server's name into the pairing, so a device using the IP address
+and one using the MagicDNS name can't pair, unless
+`COMPASS_SYNC_PUBLIC_HOST` is set.
+:::
+
+## Podman
+
+The same files work with Podman 4 or later:
+
+```sh
+podman compose up -d
+```
+
+or, for the server alone, `podman run` with the same options as
+`docker run`. Rootless Podman can't bind ports below 1024 by default, which
+Caddy needs. Either run Caddy's container as root, or allow it with
+`sudo sysctl net.ipv4.ip_unprivileged_port_start=80` (add it to
+`/etc/sysctl.d/` to keep it).
+
+## Build from source
+
+The image is built from `server/` in the
+[Compass repository](https://github.com/Compass-Browser/Compass).
+
+<Tabs syncKey="build">
+<TabItem label="Docker image">
+
+```sh
+git clone https://github.com/Compass-Browser/Compass.git
+cd Compass/server
+docker build -t compass-sync-server .
+```
+
+To use it with the bundled `docker-compose.yml`, uncomment `build: .` under
+`sync` (and set the domain in `Caddyfile`), then:
+
+```sh
+docker compose build sync
+docker compose up -d
+```
+
+To upgrade, `git pull` and run both again.
+
+</TabItem>
+<TabItem label="Go binary">
+
+With Go 1.26 or later:
+
+```sh
+git clone https://github.com/Compass-Browser/Compass.git
+cd Compass/server
+CGO_ENABLED=0 go build -trimpath -o compass-sync-server .
+```
+
+It's one static binary (its SQLite needs no C library). It keeps its
+database in `/data/compass-sync.db` unless you say otherwise:
+
+```sh
+mkdir -p ~/compass-sync
+COMPASS_SYNC_DB=~/compass-sync/compass-sync.db ./compass-sync-server
+```
+
+It listens on port 8295 (`COMPASS_SYNC_ADDR`). Run it under systemd or
+similar, with the same `COMPASS_SYNC_DB` for the admin commands
+(`./compass-sync-server users list`, `backup`).
+
+</TabItem>
+</Tabs>

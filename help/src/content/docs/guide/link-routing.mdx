@@ -1,0 +1,108 @@
+---
+title: Link routing
+description: Send links from other apps to the right space, such as GitHub links to Work and YouTube links to Home.
+sidebar:
+  order: 8
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+When Compass is your default browser, links you open in other apps go to a
+[little window](/guide/little-window/). With link routing, links to the
+sites you choose open in a space of yours instead: GitHub links from Slack
+in your Work space, YouTube links from Mail in Home.
+
+## How rules work
+
+- A rule names a **site** and a **space**, for example `github.com` →
+  Work.
+- A rule covers the site's subdomains: `github.com` also takes
+  `gist.github.com`. A rule for a subdomain wins over its site's rule, so
+  you can send `gist.github.com` to Notes and the rest of GitHub to Work.
+- A matching link opens as a new tab in Today of the rule's space, and
+  Compass comes to the front. If no window shows that space, your
+  frontmost window switches to it (or a new window opens).
+- Only links **from other apps** are routed. Links you click inside
+  Compass stay where they open.
+- Links never open in incognito through a rule.
+- Rules sync with your spaces. If a rule's space is deleted, its links go
+  back to opening in a little window, and the rule shows as **Space
+  deleted** until you edit or delete it.
+
+Type a site's domain, such as `github.com`. You can also paste a whole
+address, and Compass keeps just the site.
+
+## Add a rule
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+**From a little window:** click the **⌄** button next to **Open in**, choose
+**Always Open** followed by the site's name, then the space. The page moves
+there too.
+
+**From a tab:** open the command bar (<kbd>⌘</kbd> <kbd>T</kbd> or
+<kbd>⌘</kbd> <kbd>L</kbd>) and choose **Route this site to space…**. The
+settings form opens with the current site filled in.
+
+**In Settings:** go to **Settings** > **Links from Other Apps**, click **Add
+Site**, type the site, choose a space and click **Save**.
+</TabItem>
+<TabItem label="Windows">
+**From a little window:** click the **⌄** button next to **Open in**, choose
+**Always Open** followed by the site's name, then the space. The page moves
+there too.
+
+**From a tab:** open the command bar (<kbd>Ctrl</kbd>+<kbd>T</kbd> or
+<kbd>Ctrl</kbd>+<kbd>L</kbd>) and choose **Route this site to space…**.
+The settings form opens with the current site filled in.
+
+**In Settings:** go to **Settings** > **Links from Other Apps**, click **Add
+Site**, type the site, choose a space and click **Save**.
+</TabItem>
+<TabItem label="Linux">
+**From a little window:** click the **⌄** button next to **Open in**, choose
+**Always Open** followed by the site's name, then the space. The page moves
+there too.
+
+**From a tab:** open the command bar (<kbd>Ctrl</kbd>+<kbd>T</kbd> or
+<kbd>Ctrl</kbd>+<kbd>L</kbd>) and choose **Route this site to space…**.
+The settings form opens with the current site filled in.
+
+**In Settings:** go to **Settings** > **Links from Other Apps**, click **Add
+Site**, type the site, choose a space and click **Save**.
+</TabItem>
+<TabItem label="iPhone and iPad">
+**From a little window:** tap **⌄** next to **Open in**, choose **Always
+Open** followed by the site's name, then the space.
+
+**In Settings:** go to **Settings** > **Links from Other Apps** > **Sites in
+Spaces** and tap **Add Site**. Type the site and pick a space.
+</TabItem>
+<TabItem label="Android">
+**From a little window:** tap **⌄** next to **Open in**, choose **Always
+Open** followed by the site's name, then the space.
+
+**In Settings:** go to **Settings** > **Browsing** > **Sites in Spaces** and
+tap **Add Site**. Type the site and pick a space.
+</TabItem>
+</Tabs>
+
+## Change or delete a rule
+
+- **Mac, Windows and Linux:** in **Settings** > **Links from Other Apps**,
+  click **Edit** or **Delete** next to the rule.
+- **iPhone and iPad:** in **Sites in Spaces**, tap a rule to edit it, or
+  swipe it to delete it.
+- **Android:** in **Sites in Spaces**, tap a rule to change its space or
+  delete it.
+
+## Things to know
+
+- On a computer, the rules and spaces in Settings are those of the profile
+  of the window you opened Settings from. A rule can only send links to a
+  space of its own profile.
+- On iPhone and iPad, links shared to **Compass Browser** from the share
+  sheet are routed too when **Share Sheet Opens a Little Window** is on.
+- Links from other apps open in a new tab of the shown space instead of a
+  little window when **Open in a Little Window** is off (iPhone, iPad and
+  Android). Rules still apply.

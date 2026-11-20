@@ -1,0 +1,102 @@
+---
+title: Extensions
+description: Add Chrome extensions from the Chrome Web Store, keep Manifest V2 extensions like uBlock Origin, and use extensions on your phone.
+sidebar:
+  order: 15
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Compass is built on Chromium, so Chrome extensions work in it: password managers, ad blockers, dark mode, and the rest. You can use them on iPhone, iPad and Android too.
+
+## Add an extension from the Chrome Web Store
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+1. Open [the Chrome Web Store](https://chromewebstore.google.com) in Compass and find the extension.
+2. Click **Add to Compass**, then confirm.
+</TabItem>
+<TabItem label="Windows">
+1. Open [the Chrome Web Store](https://chromewebstore.google.com) in Compass and find the extension.
+2. Click **Add to Compass**, then confirm.
+</TabItem>
+<TabItem label="Linux">
+1. Open [the Chrome Web Store](https://chromewebstore.google.com) in Compass and find the extension.
+2. Click **Add to Compass**, then confirm.
+</TabItem>
+<TabItem label="iPhone and iPad">
+Needs iOS 18.4 or later.
+
+1. Open the extension's page in the Chrome Web Store (or Firefox Add-ons) in Compass.
+2. Open the page menu and tap **Add to Compass**.
+3. Check what the extension can do, and confirm.
+
+You can also go to **Settings** › **Extensions** and paste a store link or an extension ID, use **Open the Chrome Web Store** or **Open Firefox Add-ons**, or **Add from Files…** for a `.crx`, `.xpi` or `.zip` file.
+</TabItem>
+<TabItem label="Android">
+1. Open [the Chrome Web Store](https://chromewebstore.google.com) in Compass and find the extension. (Compass shows the store's desktop site, which is the one that offers installs.)
+2. Tap **Add to Compass**, then confirm.
+</TabItem>
+</Tabs>
+
+## Use and manage extensions
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+- The **extensions** button (the puzzle piece) sits next to the address at the top of the sidebar. Click it to use an extension or pin it; pinned extensions show their icons there.
+- To turn extensions on or off, remove them or change their options, type **Extensions** in the [command bar](/guide/command-bar/) to open the Extensions page.
+</TabItem>
+<TabItem label="Windows">
+- The **extensions** button (the puzzle piece) sits next to the address at the top of the sidebar. Click it to use an extension or pin it; pinned extensions show their icons there.
+- To turn extensions on or off, remove them or change their options, type **Extensions** in the [command bar](/guide/command-bar/) to open the Extensions page.
+</TabItem>
+<TabItem label="Linux">
+- The **extensions** button (the puzzle piece) sits next to the address at the top of the sidebar. Click it to use an extension or pin it; pinned extensions show their icons there.
+- To turn extensions on or off, remove them or change their options, type **Extensions** in the [command bar](/guide/command-bar/) to open the Extensions page.
+</TabItem>
+<TabItem label="iPhone and iPad">
+- Your extensions' buttons are in a row in the page menu. Tap one to run it; its popup opens as a sheet.
+- Touch and hold an extension's button for its own menu: **Options**, **Turn Off**, and **Allow on** the current site (when you've limited it).
+- **Settings** › **Extensions** lists your extensions with a switch each; swipe to remove one. Tap one to see what it can do, set **Website Access** (**All Sites It Asks For** or **Only These Sites**), allow it in Incognito, open its **Options**, or **Remove** it.
+- Store extensions update on their own (at most once a day). An update that asks for more access waits for you to review it.
+</TabItem>
+<TabItem label="Android">
+- Your extensions' buttons are in a row in the page menu. Tap one to run it; its popup opens as a card over the page.
+- The last button in that row opens the **Extensions** sheet, with **Manage extensions** and a link to the **Chrome Web Store**.
+</TabItem>
+</Tabs>
+
+### Extensions from your computer on your iPhone
+
+If you [sync](/sync/turn-on/) your extensions, **Settings** › **Extensions** › **On Your Other Devices** on iPhone and iPad lists the Chrome Web Store extensions you use on your Mac or PC that the phone doesn't have yet. Tap **Add** to install one (you still review it first).
+
+Some extensions are made for computers, and parts of them may not work on a phone.
+
+## Manifest V2 extensions (uBlock Origin and others)
+
+Chrome has stopped running older extensions built on "Manifest V2", including the full **uBlock Origin**. Compass keeps them working on the desktop: they install, turn on and run, and the Extensions page doesn't nag you about them. If Chrome turned one off before you switched, Compass turns it back on the next time it starts.
+
+The Chrome Web Store no longer offers Manifest V2 extensions, so you get them from their authors. For example, to install uBlock Origin:
+
+1. Download the latest Chromium version (the file ending in `.chromium.zip`) from [uBlock Origin's releases on GitHub](https://github.com/gorhill/uBlock/releases), and unzip it.
+2. Type **Extensions** in the command bar to open the Extensions page.
+3. Turn on **Developer mode** (top right).
+4. Click **Load unpacked** and choose the unzipped folder.
+
+:::caution
+Extensions you install this way don't update on their own. Check for new versions now and then and install them the same way. Chromium still shows a "Manifest version 2 is deprecated" warning for them; you can ignore it.
+:::
+
+On iPhone and iPad, **uBlock Origin Lite** (from the Chrome Web Store) is known to work.
+
+## Password managers on your phone
+
+Desktop password manager extensions such as 1Password usually unlock with their desktop app's fingerprint or face check, which a phone doesn't have. Compass fills that gap:
+
+- **iPhone and iPad**: after you unlock the extension by typing your password once, Compass offers to **Unlock with Face ID** from then on. The password is kept in your Keychain, on this device only. Turn it off on the extension's page in **Settings** › **Extensions**.
+- **Android** (Android 11 or later): Compass offers to unlock it with your fingerprint or face. **Forget password** in the Extensions sheet turns it off.
+
+## Good to know
+
+- Extensions can see what you do in Incognito if you allow them there. On iPhone and iPad, the **Allow in Incognito** switch is on each extension's page.
+- [Boosts](/guide/boosts/) are a simpler way to restyle a site without an extension.

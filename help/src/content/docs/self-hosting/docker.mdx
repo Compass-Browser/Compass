@@ -1,0 +1,123 @@
+---
+title: Install with Docker
+description: Run the Compass sync server with Docker Compose and Caddy, with automatic HTTPS, in a few commands.
+sidebar:
+  order: 2
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+The recommended setup is two containers: the sync server, and
+[Caddy](https://caddyserver.com) in front of it, which gets and renews an
+HTTPS certificate by itself. The server image is
+`ghcr.io/compass-browser/compass-sync-server` (for `linux/amd64` and
+`linux/arm64`):
+
+| Tag | What it is |
+|---|---|
+| `latest` | The newest build of the `main` branch |
+| `sha-<short commit>` | One specific build, if you want to pin a version |
+
+## Docker Compose with Caddy
+
+You need a Linux machine with Docker and the Compose plugin
+(`docker compose version` prints a version), and a domain name. These
+steps use `sync.example.com`: put your own name in its place.
+
+<Steps>
+
+1. **Point the name at the machine.** Create a DNS `A` record (and `AAAA`
+   for IPv6) for `sync.example.com` with the machine's public address.
+
+2. **Open ports 80 and 443** (TCP, and UDP 443 for HTTP/3) in the
+   machine's firewall and your provider's. Caddy needs port 80 to get the
+   certificate.
+
+3. **Download the two files** into a new directory:
+
+   ```sh
+   mkdir compass-sync && cd compass-sync
+   curl -fsSLO https://raw.githubusercontent.com/Compass-Browser/Compass/main/server/docker-compose.yml
+   curl -fsSLO https://raw.githubusercontent.com/Compass-Browser/Compass/main/server/Caddyfile
+   ```
+
+4. **Set your domain** in `Caddyfile`:
+
+   ```sh
+   sed -i 's/sync.example.com/sync.your-domain.org/' Caddyfile
+   ```
+
+   The file is three lines of configuration; you can also edit it by hand.
+
+5. **Start it:**
+
+   ```sh
+   docker compose up -d
+   docker compose logs -f
+   ```
+
+   Caddy fetches the certificate at the first request. Press Ctrl+C to stop
+   following the logs; the containers keep running.
+
+6. **Check it** from any machine:
+
+   ```sh
+   curl https://sync.example.com/healthz
+   ```
+
+   It answers `ok`. `docker compose ps` should show the `sync` container as
+   `healthy` after half a minute.
+
+7. **Connect Compass.** Turn on sync with the server URL
+   `https://sync.example.com/v2` (the address followed by `/v2`). Other
+   devices join the chain as usual, by pairing or with the recovery code.
+
+</Steps>
+
+That's all: the containers restart with the machine, the server backs its
+database up once a day into its volume, and Caddy renews the certificate.
+
+### What's in the files
+
+- `docker-compose.yml` runs the server (no port published: only Caddy
+  reaches it), Caddy on ports 80 and 443, and three named volumes: the
+  server's data (`sync-data`, mounted at `/data`) and Caddy's certificates.
+  It puts both on a fixed internal network, `172.30.240.0/24`, and tells the
+  server to believe Caddy's `X-Forwarded-For` from it
+  (`COMPASS_SYNC_TRUSTED_PROXIES`), so per-address limits see the devices'
+  real addresses.
+- `Caddyfile` sends everything for your domain to the server, with
+  response buffering off for the long-lived change-notification stream.
+
+Settings go in `docker-compose.yml`, under `sync`'s `environment`; the file
+lists the common ones, commented out. After a change, run
+`docker compose up -d` again. See [Configuration](/self-hosting/configuration/)
+for all of them.
+
+:::tip
+Set `COMPASS_SYNC_PUBLIC_HOST: sync.example.com` too. Devices that pair
+must agree on the server's name, and company sign-in needs it.
+:::
+
+## Just `docker run`
+
+Without Caddy, the server alone listens on port 8295 over plain HTTP. Use
+this behind a reverse proxy you already have, or on a private network:
+
+```sh
+docker run -d --name compass-sync --restart unless-stopped \
+  -p 127.0.0.1:8295:8295 -v compass-sync-data:/data \
+  ghcr.io/compass-browser/compass-sync-server:latest
+```
+
+`-p 127.0.0.1:8295:8295` keeps it reachable from this machine only; point
+your proxy at `http://127.0.0.1:8295`. Settings are `-e NAME=value`
+options. See [Other setups](/self-hosting/other-setups/) for nginx, Traefik
+and Tailscale.
+
+## Next
+
+- Make it [friends only](/self-hosting/private-server/) or require
+  [company sign-in](/self-hosting/company-sign-in/).
+- Read [Operations](/self-hosting/operations/) for backups, upgrades and
+  monitoring.

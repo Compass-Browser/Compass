@@ -1,0 +1,69 @@
+---
+title: Updates
+description: How Compass keeps itself up to date on each platform, and how to pick an update channel.
+sidebar:
+  order: 20
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Compass updates itself. You don't need to download new versions by hand. To install Compass in the first place, see [Install Compass](/start/install/).
+
+## How updates arrive
+
+<Tabs syncKey="platform">
+  <TabItem label="Mac">
+    Compass checks for updates every few hours and downloads them in the background, without interrupting you.
+
+    Once an update is ready, the app menu shows **Relaunch to update**. Choose it to restart into the new version: your spaces and tabs come back. If you'd rather not restart now, just keep going: the update is installed the next time you quit Compass.
+
+    To check right away, open **Settings** → **About Compass**.
+
+    :::note[Installed with Homebrew?]
+    `brew upgrade` leaves Compass alone, and that's expected: Compass updates itself, as described above.
+    :::
+  </TabItem>
+  <TabItem label="Windows">
+    Compass checks for updates a couple of minutes after it starts and then every few hours, and installs them in the background.
+
+    Once an update is installed, **Settings** → **About Compass** offers **Relaunch** right away, and after a while the app menu shows **Relaunch to update**. Restarting switches to the new version, and your spaces and tabs come back.
+
+    To check right away, open **Settings** → **About Compass**.
+  </TabItem>
+  <TabItem label="Linux">
+    If you installed the Flatpak, Compass updates with your other Flatpak apps: run `flatpak update`, or use your software center's updates. The new version is used the next time you start Compass.
+
+    The tarball doesn't update itself. To update it, download the new version and replace your copy.
+  </TabItem>
+  <TabItem label="iPhone and iPad">
+    Compass for iPhone and iPad comes through TestFlight. TestFlight tells you when a new build is available, and you can install it from the TestFlight app (or turn on automatic updates there).
+  </TabItem>
+  <TabItem label="Android">
+    Compass for Android updates through Google Play, like your other apps.
+  </TabItem>
+</Tabs>
+
+## Update channels
+
+On Mac and Windows, you can choose how early you get new versions:
+
+| Channel | What you get |
+|---|---|
+| **Stable** | Releases once they've been on Beta. The default |
+| **Beta** | New features before Stable, plus Stable releases when they're newer |
+| **Canary** | New builds first, plus Beta and Stable releases when they're newer. Expect rough edges |
+
+Every release starts on Canary and moves up to Beta and then Stable once it has held up, without being rebuilt. So Stable is always a build that Canary and Beta users have already run.
+
+To change your channel:
+
+1. Open **Settings** → **About Compass**.
+2. Under **Update channel**, choose **Stable**, **Beta** or **Canary**.
+
+Compass checks for updates right away. Moving to a more stable channel never installs an older version: Compass stays on the version you have until that channel catches up.
+
+## Version numbers
+
+Compass versions are the date and time the release was made, as `YYYYMMDD.HHMM`. For example, `20261120.0052` was made on November 20, 2026, at 00:52. A larger number is always newer.
+
+**Settings** → **About Compass** shows Compass's version along with the version of Chromium it's built on.

@@ -17,11 +17,15 @@ In Compass, the server URL is the server's address followed by `/v2`, e.g.
 ## On a VPS, with HTTPS
 
 You need a machine with Docker (or Podman with `podman compose`), a domain
-name pointing at it, and ports 80 and 443 open.
+name pointing at it, and ports 80 and 443 open. The server is published as
+a prebuilt image for linux/amd64 and linux/arm64,
+`ghcr.io/compass-browser/compass-sync-server` (`latest` follows `main`;
+`sha-<short commit>` tags pin one build), so you only need two files:
 
 ```sh
-git clone https://github.com/<you>/compass.git
-cd compass/server
+mkdir compass-sync && cd compass-sync
+curl -fsSLO https://raw.githubusercontent.com/Compass-Browser/Compass/main/server/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/Compass-Browser/Compass/main/server/Caddyfile
 # Put your domain in place of sync.example.com:
 sed -i 's/sync.example.com/sync.your-domain.org/' Caddyfile
 docker compose up -d
@@ -31,6 +35,17 @@ docker compose logs -f
 Caddy fetches a certificate on the first request. Check it with
 `curl https://sync.your-domain.org/healthz` (answers `ok`).
 
+To build from source instead:
+
+```sh
+git clone https://github.com/Compass-Browser/Compass.git
+cd Compass/server
+sed -i 's/sync.example.com/sync.your-domain.org/' Caddyfile
+# In docker-compose.yml, uncomment "build: ." under sync, then:
+docker compose build sync
+docker compose up -d
+```
+
 ## On a home server, behind Tailscale
 
 If your devices are all on your tailnet, the server doesn't need to be on
@@ -38,10 +53,13 @@ the internet. Run the container alone and publish its port on the
 machine's Tailscale address only:
 
 ```sh
-docker build -t compass-sync-server .
 docker run -d --name compass-sync --restart unless-stopped \
-  -p 100.x.y.z:8295:8295 -v compass-sync-data:/data compass-sync-server
+  -p 100.x.y.z:8295:8295 -v compass-sync-data:/data \
+  ghcr.io/compass-browser/compass-sync-server:latest
 ```
+
+(To build the image yourself, `docker build -t compass-sync-server .` in
+`server/` and use `compass-sync-server` as the image name.)
 
 (`100.x.y.z` is the machine's address from `tailscale ip -4`.) The server
 URL is then `http://100.x.y.z:8295/v2`, or with MagicDNS
@@ -84,6 +102,16 @@ Environment variables (all optional):
 | `COMPASS_SYNC_FCM_CREDENTIALS` | none | A Firebase service account's JSON key, to wake Android devices through FCM (see "Push to iPhones"); without it, sent tabs reach them at the next sync |
 | `BLOCKED_CLIENT_IDS` | none | Comma-separated chain IDs (hex public keys) to refuse |
 | `COMPASS_SYNC_ALLOWED_CHAINS` | none | Comma-separated chain IDs (hex public keys) to serve; when set, every other chain is refused (see "Private server") |
+| `COMPASS_SYNC_OIDC_ISSUER` | none (no sign-in) | An OpenID Connect issuer URL: chains must sign in with it to sync (see "Company sign-in (OIDC)"); needs `COMPASS_SYNC_OIDC_CLIENT_ID` and `COMPASS_SYNC_PUBLIC_HOST` |
+| `COMPASS_SYNC_OIDC_CLIENT_ID` | none | The client registered for the server at the identity provider |
+| `COMPASS_SYNC_OIDC_CLIENT_SECRET` | none | Its secret (none for a public client); or `COMPASS_SYNC_OIDC_CLIENT_SECRET_FILE`, a file holding it |
+| `COMPASS_SYNC_OIDC_NAME` | the issuer's host | The name people see ("Sign in with Acme SSO") |
+| `COMPASS_SYNC_OIDC_SCOPES` | `openid email profile offline_access` | Scopes asked for; `offline_access` gives the refresh token revalidation needs |
+| `COMPASS_SYNC_OIDC_ALLOWED_DOMAINS` | any | Comma-separated email domains allowed; the email must be verified (`email_verified`) |
+| `COMPASS_SYNC_OIDC_ALLOWED_GROUPS` | any | Comma-separated groups allowed (any one of them), from the ID token's groups claim |
+| `COMPASS_SYNC_OIDC_GROUPS_CLAIM` | `groups` | The claim groups are read from |
+| `COMPASS_SYNC_OIDC_SESSION_DAYS` | `30` | Without a refresh token, how long a sign-in lasts |
+| `COMPASS_SYNC_OIDC_REVALIDATE_HOURS` | `24` | How often each user is checked with the identity provider (refresh token); `0` = never |
 
 Never list a proxy as trusted unless every request reaches the server
 through it: anyone who can connect directly could then choose the address
@@ -120,6 +148,83 @@ sqlite3 <volume dir>/compass-sync.db "SELECT DISTINCT lower(client_id) FROM item
 To remove someone, take their ID off the list (or put it in
 `BLOCKED_CLIENT_IDS`). Their data stays until `COMPASS_SYNC_IDLE_CHAIN_DAYS`
 expires it.
+
+## Company sign-in (OIDC)
+
+A company can make its server serve only its staff, signed in with its
+identity provider (Okta, Entra ID, Google Workspace, Keycloak, ...), and
+cut people off there. Sign-in gates access to the server; it never touches
+the keys, so neither the server nor the identity provider can read the
+data.
+
+Set `COMPASS_SYNC_OIDC_ISSUER`, `COMPASS_SYNC_OIDC_CLIENT_ID` (and the
+secret, for a confidential client) and `COMPASS_SYNC_PUBLIC_HOST`, and
+register this redirect URI with the identity provider:
+
+```
+https://<COMPASS_SYNC_PUBLIC_HOST>/v2/compass/login/callback
+```
+
+When someone turns on sync, Compass opens a browser at the server, which
+sends them to the identity provider; back on the server they check that
+the code shown matches the one in Compass and allow the device. That signs
+in the whole chain: devices they add by pairing, and their profiles, need
+no sign-in of their own. A chain that isn't signed in keeps its data on
+the server but gets `401 {"error":"login_required"}` from every sync
+endpoint, and Compass asks to sign in.
+
+With `offline_access`, the server checks each user with the identity
+provider every `COMPASS_SYNC_OIDC_REVALIDATE_HOURS`: someone disabled or
+removed there (or no longer in an allowed group) is signed out at the next
+check. If the identity provider can't be reached, people keep access.
+Without a refresh token, people sign in again after
+`COMPASS_SYNC_OIDC_SESSION_DAYS`. `COMPASS_SYNC_ALLOWED_CHAINS` and
+`BLOCKED_CLIENT_IDS` still apply.
+
+Keycloak (realm `acme`, client `compass-sync`, client authentication on,
+standard flow, valid redirect URI as above; add a "Group Membership"
+mapper named `groups` with "Full group path" off to use groups):
+
+```yaml
+      COMPASS_SYNC_PUBLIC_HOST: sync.acme.com
+      COMPASS_SYNC_OIDC_ISSUER: https://id.acme.com/realms/acme
+      COMPASS_SYNC_OIDC_CLIENT_ID: compass-sync
+      COMPASS_SYNC_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc
+      COMPASS_SYNC_OIDC_NAME: Acme SSO
+      COMPASS_SYNC_OIDC_ALLOWED_GROUPS: staff
+```
+
+Microsoft Entra ID (an app registration, platform "Web" with the redirect
+URI, a client secret; set "Assignment required" on its enterprise app and
+assign the people or groups allowed). Entra doesn't send
+`email_verified`, so limit access by assignment or groups (the `groups`
+claim carries group object IDs; add it under "Token configuration"), not
+by domain:
+
+```yaml
+      COMPASS_SYNC_PUBLIC_HOST: sync.acme.com
+      COMPASS_SYNC_OIDC_ISSUER: https://login.microsoftonline.com/<tenant id>/v2.0
+      COMPASS_SYNC_OIDC_CLIENT_ID: <application (client) id>
+      COMPASS_SYNC_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc
+      COMPASS_SYNC_OIDC_NAME: Acme (Microsoft)
+      COMPASS_SYNC_OIDC_ALLOWED_GROUPS: <group object id>
+```
+
+Admin commands, run in the container (safe while the server runs; it
+notices within 10 seconds):
+
+```sh
+docker compose exec sync /compass-sync-server users list
+docker compose exec sync /compass-sync-server chains list    # chain, user, last active, session end
+docker compose exec sync /compass-sync-server users revoke alice@acme.com
+docker compose exec sync /compass-sync-server users restore alice@acme.com
+```
+
+`users revoke EMAIL|SUBJECT` signs out every chain of the user and keeps
+them from signing in again until `users restore`; `--delete-data` also
+deletes those chains' data (their devices are told to start again). The
+server stores each user's issuer, subject, email, name and latest refresh
+token in its database: protect it and its backups.
 
 ## Change notifications and reverse proxies
 
@@ -230,6 +335,17 @@ history that no device has any more.
 
 ## Upgrades
 
+With the prebuilt image:
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+(A container started with `docker run`: `docker pull` the image, then
+remove the container and run the same command again; the data is in the
+volume.) Built from source:
+
 ```sh
 git pull
 docker compose build sync
@@ -258,7 +374,11 @@ upgrading if you may want to go back.
 ## Development
 
 From the repository root, `tools/compass sync-server` runs it locally on
-port 8296 (`--podman` to run the image instead of `go run`). Tests:
+port 8296 (`--podman` to run the image instead of `go run`).
+`COMPASS_SYNC_DEV_FAKE_OIDC=1` (with `COMPASS_SYNC_PUBLIC_HOST=localhost:<port>`,
+nothing else) turns on sign-in against a fake identity provider served at
+`/dev/fake-idp`, where you type any email and name; the server refuses it
+for any other host. Tests:
 
 ```sh
 cd server && go test ./...

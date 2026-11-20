@@ -1,0 +1,198 @@
+---
+title: Spaces
+description: Keep separate sets of tabs, each with its own name, colors, icon and profile, and switch between them.
+sidebar:
+  order: 1
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A space is a sidebar of its own: its own Pinned tabs and folders, its own
+Today and its own archive. You might keep one space for work, one for home
+and one for a side project. A window shows one space at a time, and the
+tabs of the other spaces stay open in the background, right where you left
+them.
+
+Your first space is called **Home**. [Favorites](/guide/sidebar/#favorites)
+aren't part of a space: they stay the same as you switch, as long as the
+spaces belong to the same [profile](/guide/profiles/).
+
+## Create a space
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+- Click **+** at the end of the space switcher, at the bottom of the
+  sidebar, or
+- open the command bar (<kbd>⌘</kbd> <kbd>T</kbd>) and choose **New space**,
+  or
+- choose **Spaces** > **New Space** in the menu bar.
+
+The new space is called "Space 2", "Space 3" and so on, and the window
+switches to it. [Rename it](#rename-a-space-and-choose-an-icon) whenever you
+like.
+</TabItem>
+<TabItem label="Windows">
+- Click **+** at the end of the space switcher, at the bottom of the
+  sidebar, or
+- open the command bar (<kbd>Ctrl</kbd>+<kbd>T</kbd>) and choose **New
+  space**.
+
+The new space is called "Space 2", "Space 3" and so on, and the window
+switches to it.
+</TabItem>
+<TabItem label="Linux">
+- Click **+** at the end of the space switcher, at the bottom of the
+  sidebar, or
+- open the command bar (<kbd>Ctrl</kbd>+<kbd>T</kbd>) and choose **New
+  space**.
+
+The new space is called "Space 2", "Space 3" and so on, and the window
+switches to it.
+</TabItem>
+<TabItem label="iPhone and iPad">
+Open the sidebar and tap **+** at the end of the space icons at the bottom.
+</TabItem>
+<TabItem label="Android">
+Open the sidebar and tap **+** at the end of the space icons in its bottom
+bar.
+</TabItem>
+</Tabs>
+
+:::tip
+**New space on this device** (in the command bar, and **New Space on This
+Device** in the Mac's Spaces menu) makes a space that doesn't sync to your
+other devices. See [What syncs](/sync/what-syncs/).
+:::
+
+## Switch spaces
+
+<Tabs syncKey="platform">
+<TabItem label="Mac">
+- Click a space's button in the switcher at the bottom of the sidebar.
+- Swipe left or right with two fingers on the sidebar to move to the next
+  or previous space.
+- Press <kbd>Control</kbd> <kbd>1</kbd> to <kbd>Control</kbd> <kbd>9</kbd>
+  for the first nine spaces.
+- Choose a space from the **Spaces** menu in the menu bar.
+- Type the space's name in the command bar.
+</TabItem>
+<TabItem label="Windows">
+- Click a space's button in the switcher at the bottom of the sidebar.
+- Swipe left or right with two fingers on the sidebar (on a touchpad).
+- Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd> to
+  <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>9</kbd> for the first nine spaces.
+- Type the space's name in the command bar.
+</TabItem>
+<TabItem label="Linux">
+- Click a space's button in the switcher at the bottom of the sidebar.
+- Swipe left or right with two fingers on the sidebar (on a touchpad).
+- Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd> to
+  <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>9</kbd> for the first nine spaces.
+- Type the space's name in the command bar.
+</TabItem>
+<TabItem label="iPhone and iPad">
+- In the sidebar, swipe sideways to page between spaces, or tap a space's
+  icon at the bottom.
+- With a hardware keyboard, press <kbd>⌃</kbd> <kbd>1</kbd> to
+  <kbd>⌃</kbd> <kbd>9</kbd>.
+</TabItem>
+<TabItem label="Android">
+In the sidebar, swipe sideways to go to the next space, or tap a space's
+icon in its bottom bar.
+</TabItem>
+</Tabs>
+
+You can change the space shortcuts in **Settings** > **Keyboard shortcuts**
+(see [Keyboard shortcuts](/guide/shortcuts/)).
+
+To change the order of your spaces on a computer, drag a space's button
+along the switcher. The shortcuts and swipes follow the new order.
+
+## The space menu
+
+Everything about a space lives in its menu.
+
+- **Mac, Windows and Linux:** right-click the space's button in the
+  switcher, or double-click the space's name at the top of the sidebar.
+- **iPhone, iPad and Android:** tap the **⋯** button next to the space's
+  name in the sidebar.
+
+### Rename a space and choose an icon
+
+On a computer, the space's name is the field at the top of the menu: type a
+new name and press <kbd>Return</kbd> / <kbd>Enter</kbd>. On iPhone, iPad and
+Android, choose **Rename**.
+
+Below **Edit theme**, a computer's space menu lists icons for the space's
+button: no icon (the name's first letter), a set of symbols, and an
+**Emoji** field. Type or pick any emoji there; on a Mac,
+<kbd>Fn</kbd> <kbd>E</kbd> opens the emoji picker. The icon shows on your
+phone too.
+
+### Colors and themes
+
+Each space can have its own color, which tints the sidebar and themes the
+whole window.
+
+1. Open the space menu and choose **Edit theme** (**Edit Theme** on iPhone,
+   iPad and Android).
+2. In the theme editor:
+   - Pick automatic, light or dark mode for the browser's own interface.
+     Web pages keep your system's light or dark setting.
+   - Drag the big dot around the color wheel to change the hue and
+     saturation. Use **−** and **+** to use one, two or three colors for a
+     gradient; the small dots are the gradient's other colors.
+   - Or pick a ready-made color or gradient from the palette, or any color
+     with the color picker.
+   - Adjust the intensity of the tint and the amount of grain.
+3. Changes show right away. On a computer, press <kbd>Esc</kbd> or click
+   the space's name at the top of the editor to go back to the menu.
+
+Grey, the default, leaves the window untinted. Incognito windows and
+profiles that use an extension theme keep their own colors.
+
+### Archive delay
+
+Tabs in Today that you haven't looked at for a while move to the space's
+archive on their own. Choose how long in the space menu: **Archive Today
+tabs after** on a computer (**Archive Tabs** on iPhone and iPad, **Archive
+Tabs After…** on Android): 12 hours (the default), 24 hours, 7 days, 30
+days, or never. More in [The archive](/guide/sidebar/#the-archive).
+
+### Profile
+
+A space can belong to any of your profiles, so that its tabs use that
+profile's cookies, history and favorites. On a computer, choose the profile
+in the space menu's **Profile** list. See [Profiles](/guide/profiles/).
+
+### Delete a space
+
+On a computer, click **Delete space** in the space menu, then click again
+(**Click again to delete**) to confirm. On iPhone, iPad and Android, choose
+**Delete Space**.
+
+The space's Pinned tabs, Today and archive go with it, and its open tabs
+close. You can't delete your only space.
+
+:::caution
+Deleting a space closes its open tabs without asking, even pages with
+unsaved changes.
+:::
+
+## Move tabs to another space
+
+- **Mac, Windows and Linux:** drag a tab, folder or split onto another
+  space's button in the switcher, or right-click it and choose **Move to
+  Space**. An open tab moves as it is, without reloading.
+- **iPhone and iPad:** long-press the entry and choose **Move to Space**.
+- **Android:** long-press the entry and choose **Move to** followed by the
+  space's name.
+
+A pinned entry goes to the end of the other space's Pinned, a Today entry
+to its Today. Tabs can only move between spaces of the same profile.
+
+## Links from other apps
+
+You can send links to certain sites, such as GitHub or YouTube, straight to
+a space of your choice when you open them from another app. See
+[Link routing](/guide/link-routing/).
