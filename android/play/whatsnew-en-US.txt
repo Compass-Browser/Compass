@@ -1,3 +1,4 @@
 - Easels: boards of notes, shapes, drawings, images and links, in the sidebar like a tab. New Easel is in a space's ⋯ menu.
 - Capture to Easel (page menu) adds the page you're on to a board.
 - Boards sync with your other devices, including easels imported from Arc.
+- Sync: starting a chain shows your recovery code; Show recovery code shows it again after your screen lock.

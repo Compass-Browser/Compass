@@ -1,7 +1,8 @@
-Easels: boards of notes, shapes, drawings, images, links and captures of pages, synced with your Mac.
+Easels, and sync that starts on this iPhone or iPad.
 
 - New Easel: the sidebar's + menu, or "New Easel" in the command bar. The board is pinned in the current space like a tab, with an easel icon; its title follows the board's.
 - On a board: add text, rectangles, circles, arrows, freehand drawing, images and links (a link becomes a card with the page's title and picture). Drag empty space to pan, pinch to zoom; Select Area in the ⋯ menu picks several things at once.
 - Capture to Easel: in the page menu. Drag over part of the page, then choose the board (or New Easel). The capture keeps the page's address; Refresh in its menu takes it again.
 - Boards sync with your other devices, and easels imported from Arc on your Mac show up here.
-- Please report: boards that look different here than on the Mac, captures that come out blank or cut, and anything lost while syncing.
+- Sync without a Mac: Settings → Sync → Start Sync on This iPhone starts a new chain and shows your 12-word recovery code once. Add a Device shows a code and a QR code for your other devices (Mac, Windows, Linux, Android, another iPhone or iPad), then asks you to Allow or Deny each one. Show Recovery Code shows the words again after Face ID or your passcode.
+- Please report: pairing that fails or hangs (with which devices), boards that look different here than on the Mac, captures that come out blank or cut, and anything lost while syncing.
