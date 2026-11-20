@@ -340,3 +340,19 @@ func AuthorizeRooms(gate LoginGate, removed DeviceRemovedCheck) RoomAuthorize {
 		return id, ChainListed(id), nil
 	}
 }
+
+// AuthenticateLinkedToken checks another chain's token (as in
+// X-Compass-Linked-Token) without the private server's allowlist (a
+// reset's new chain isn't listed yet): its signature, time and
+// BLOCKED_CLIENT_IDS. Returns the chain ID as the token sent it.
+func AuthenticateLinkedToken(token string) (string, error) {
+	token = strings.TrimPrefix(strings.TrimSpace(token), bearerPrefix)
+	if token == "" {
+		return "", errors.New("not a valid token")
+	}
+	id, err := verifyToken(token)
+	if err != nil {
+		return "", fmt.Errorf("error authorizing: %w", err)
+	}
+	return id, nil
+}

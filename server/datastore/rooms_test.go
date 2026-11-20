@@ -567,3 +567,104 @@ func TestMigrateSchema4(t *testing.T) {
 	require.NoError(t, raw.QueryRow(`PRAGMA user_version`).Scan(&version))
 	assert.Equal(t, 5, version)
 }
+
+func TestRoomSuccessor(t *testing.T) {
+	db := openSQLite(t, filepath.Join(t.TempDir(), "r.db"), 1000)
+	ctx := context.Background()
+	roomWithMembers(t, db)
+	require.NoError(t, db.TouchChain(ctx, strings.ToUpper(ownerID), roomNow))
+	_, _, err := db.CommitRoomRecords(ctx, roomID, editorID, []datastore.RoomRecordWrite{{ID: "a", Epoch: 1, Ciphertext: make([]byte, 99)}})
+	require.NoError(t, err)
+	newOwner := strings.Repeat("f0", 32)
+	envs := []datastore.RoomEnvelope{{Epoch: 1, Sealed: []byte("for the new chain")}}
+
+	// The current epoch's envelope is required; a member can't be its successor.
+	_, err = db.MoveRoomMembership(ctx, roomID, ownerID, newOwner, pub('n'), nil, roomNow)
+	require.ErrorIs(t, err, datastore.ErrStaleEpoch)
+	_, err = db.MoveRoomMembership(ctx, roomID, ownerID, newOwner, pub('n'),
+		[]datastore.RoomEnvelope{{Epoch: 2, Sealed: []byte("x")}}, roomNow)
+	require.ErrorIs(t, err, datastore.ErrStaleEpoch)
+	_, err = db.MoveRoomMembership(ctx, roomID, ownerID, editorID, pub('n'), envs, roomNow)
+	require.ErrorIs(t, err, datastore.ErrAlreadyMember)
+	_, err = db.MoveRoomMembership(ctx, roomID, otherID, newOwner, pub('n'), envs, roomNow)
+	require.ErrorIs(t, err, datastore.ErrRoomNotFound)
+
+	// The owner's reset: the new chain owns the room, with its bytes.
+	ch, err := db.MoveRoomMembership(ctx, roomID, strings.ToUpper(ownerID), strings.ToUpper(newOwner), pub('n'), envs, roomNow)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{newOwner, editorID, viewerID, ownerID}, ch.Members, "the old chain is told too")
+	v, err := db.GetRoom(ctx, roomID, newOwner)
+	require.NoError(t, err)
+	assert.Equal(t, newOwner, v.Room.Owner)
+	assert.Equal(t, datastore.RoleOwner, v.Me.Role)
+	assert.False(t, v.Me.Pending())
+	assert.Equal(t, pub('n'), v.Me.IdentityPub)
+	assert.Equal(t, []datastore.RoomEnvelope{{ClientID: newOwner, Epoch: 1, Sealed: []byte("for the new chain")}}, v.Envelopes)
+	assert.Len(t, v.Members, 3)
+	_, err = db.GetRoom(ctx, roomID, ownerID)
+	require.ErrorIs(t, err, datastore.ErrRoomMemberRemoved)
+	n, err := db.ChainBytes(ctx, strings.ToUpper(ownerID))
+	require.NoError(t, err)
+	assert.Zero(t, n)
+	n, err = db.ChainBytes(ctx, strings.ToUpper(newOwner))
+	require.NoError(t, err)
+	assert.Equal(t, int64(100), n, "on the new chain, as its token sent it")
+	key, err := db.IdentityKey(ctx, newOwner)
+	require.NoError(t, err)
+	assert.Equal(t, pub('n'), key)
+
+	// Clearing the old chain no longer touches the room.
+	_, err = db.ClearServerData(ctx, strings.ToUpper(ownerID))
+	require.NoError(t, err)
+	_, err = db.RotateRoomEpoch(ctx, roomID, newOwner, 2,
+		map[string][]byte{newOwner: []byte("o"), editorID: []byte("e"), viewerID: []byte("v")})
+	require.NoError(t, err, "the new owner owns it")
+
+	// A member's reset keeps its role.
+	newViewer := strings.Repeat("f1", 32)
+	_, err = db.MoveRoomMembership(ctx, roomID, viewerID, newViewer, pub('w'),
+		[]datastore.RoomEnvelope{{Epoch: 1, Sealed: []byte("1")}, {Epoch: 2, Sealed: []byte("2")}}, roomNow)
+	require.NoError(t, err)
+	v, err = db.GetRoom(ctx, roomID, newViewer)
+	require.NoError(t, err)
+	assert.Equal(t, datastore.RoleViewer, v.Me.Role)
+	assert.Len(t, v.Envelopes, 2)
+	_, _, err = db.CommitRoomRecords(ctx, roomID, newViewer, []datastore.RoomRecordWrite{{ID: "b", Epoch: 2, Ciphertext: []byte("x")}})
+	require.ErrorIs(t, err, datastore.ErrRoomForbidden)
+
+	// A pending member stays pending.
+	pendingID := strings.Repeat("e5", 32)
+	_, err = db.SetIdentityKey(ctx, pendingID, pub('p'), roomNow)
+	require.NoError(t, err)
+	_, err = db.AddRoomMembers(ctx, roomID, newOwner, []datastore.NewRoomMember{{ClientID: pendingID, Role: datastore.RoleEditor,
+		IdentityPub: pub('p'), Envelopes: []datastore.RoomEnvelope{{Epoch: 2, Sealed: []byte("p")}}}}, roomNow)
+	require.NoError(t, err)
+	newPending := strings.Repeat("e6", 32)
+	_, err = db.MoveRoomMembership(ctx, roomID, pendingID, newPending, pub('q'),
+		[]datastore.RoomEnvelope{{Epoch: 2, Sealed: []byte("q")}}, roomNow)
+	require.NoError(t, err)
+	v, err = db.GetRoom(ctx, roomID, newPending)
+	require.NoError(t, err)
+	assert.True(t, v.Me.Pending())
+	assert.Equal(t, datastore.RoleEditor, v.Me.Role)
+
+	// A full quota on the new chain refuses the owner's move.
+	big := strings.Repeat("f2", 32)
+	_, err = db.CreateRoom(ctx, datastore.NewRoom{ID: "33333333333333333333333333333333", Owner: newOwner, Kind: "easel",
+		IdentityPub: pub('n'), Envelope: []byte("e")}, roomNow)
+	require.NoError(t, err)
+	_, _, err = db.CommitRoomRecords(ctx, "33333333333333333333333333333333", newOwner,
+		[]datastore.RoomRecordWrite{{ID: "x", Epoch: 1, Ciphertext: make([]byte, 500)}})
+	require.NoError(t, err)
+	_, _, err = db.CommitRoomRecords(ctx, roomID, editorID, []datastore.RoomRecordWrite{{ID: "c", Epoch: 2, Ciphertext: make([]byte, 300)}})
+	require.NoError(t, err) // The new owner's chain: 100 + 501 + 301 bytes.
+	_, err = db.CreateRoom(ctx, datastore.NewRoom{ID: "44444444444444444444444444444444", Owner: big, Kind: "easel",
+		IdentityPub: pub('b'), Envelope: []byte("e")}, roomNow)
+	require.NoError(t, err)
+	_, _, err = db.CommitRoomRecords(ctx, "44444444444444444444444444444444", big,
+		[]datastore.RoomRecordWrite{{ID: "x", Epoch: 1, Ciphertext: make([]byte, 600)}})
+	require.NoError(t, err)
+	_, err = db.MoveRoomMembership(ctx, roomID, newOwner, big, pub('b'),
+		[]datastore.RoomEnvelope{{Epoch: 2, Sealed: []byte("b")}}, roomNow)
+	require.ErrorIs(t, err, datastore.ErrQuotaExceeded)
+}

@@ -808,3 +808,78 @@ func TestRoomsAdmin(t *testing.T) {
 	code, _ = b.api("GET", "/v2/compass/rooms/"+room, nil)
 	assert.Equal(t, http.StatusNotFound, code)
 }
+
+// A reset: each member's old chain hands its membership to the account's
+// new chain before the old one is cleared, owner included; on a private
+// server the new chains aren't listed.
+func TestRoomsSuccessorOnReset(t *testing.T) {
+	base, path := roomsServer(t, 0)
+	a, b, c, room := sharedRoom(t, base)
+	code, _ := b.write(room, 1, rec("x", "before the reset"))
+	require.Equal(t, http.StatusOK, code)
+	t.Setenv("COMPASS_SYNC_ALLOWED_CHAINS", a.id()+","+b.id()+","+c.id())
+	a2 := newDevice(t, base, randomSeed(t), "guid-a2")
+	c2 := newDevice(t, base, randomSeed(t), "guid-c2")
+	body := func(d *device) map[string]any {
+		return map[string]any{"identity_pub": b64(d.identity()),
+			"envelopes": []any{map[string]any{"epoch": 1, "sealed": b64(env("for " + d.id()))}}}
+	}
+	succeed := func(old, next *device, route string, extra ...string) (*http.Response, string) {
+		raw, err := json.Marshal(body(next))
+		require.NoError(t, err)
+		hdr := append([]string{"X-Compass-Linked-Token", next.token(time.Now())}, extra...)
+		return old.call("POST", "/v2/compass/rooms/"+room+route, raw, hdr...)
+	}
+
+	// Bad requests.
+	resp, text := a.call("POST", "/v2/compass/rooms/"+room+"/successor", []byte(`{}`), "X-Compass-Linked-Token", "nope")
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	assert.JSONEq(t, `{"error":"invalid_linked_token"}`, text)
+	resp, _ = succeed(a, a, "/successor")
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "its own chain")
+	resp, _ = succeed(a, b, "/successor")
+	assert.Equal(t, http.StatusConflict, resp.StatusCode, "already a member")
+	raw, _ := json.Marshal(map[string]any{"identity_pub": b64(a2.identity()),
+		"envelopes": []any{map[string]any{"epoch": 1, "sealed": b64(env("x")[:40])}}})
+	resp, _ = a.call("POST", "/v2/compass/rooms/"+room+"/successor", raw, "X-Compass-Linked-Token", a2.token(time.Now()))
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	resp, _ = succeed(a2, c2, "/successor")
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode, "a stranger, unlisted")
+
+	// The owner, through /owner's successor form; B hears of it.
+	sb, _ := b.subscribe(b.token(time.Now()))
+	resp, text = succeed(a, a2, "/owner")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode, text)
+	sb.expect("event: room", `data: {"room_id":"`+room+`","seq":1,"changes":["members"]}`, "")
+	// The viewer, through /successor.
+	resp, text = succeed(c, c2, "/successor")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode, text)
+
+	view := a2.mustAPI(http.StatusOK, "GET", "/v2/compass/rooms/"+room, nil)
+	assert.Equal(t, a2.id(), view["owner"])
+	assert.Equal(t, "owner", view["role"])
+	assert.Equal(t, []any{map[string]any{"epoch": 1.0, "sealed": b64(env("for " + a2.id()))}}, view["envelopes"])
+	view = c2.mustAPI(http.StatusOK, "GET", "/v2/compass/rooms/"+room, nil)
+	assert.Equal(t, "viewer", view["role"])
+	out := c2.mustAPI(http.StatusOK, "GET", "/v2/compass/rooms/"+room+"/changes", nil)
+	assert.Len(t, out["records"], 1, "the unlisted new chains use the room")
+	code, out = a.api("GET", "/v2/compass/rooms/"+room, nil)
+	assert.Equal(t, http.StatusForbidden, code)
+	assert.Equal(t, "removed", out["error"])
+	code, _ = c2.post(getUpdatesMsg(), c2.token(time.Now()))
+	assert.Equal(t, http.StatusUnauthorized, code, "its personal sync still needs the list")
+
+	// The old chains are cleared (reset): the room stays.
+	db, err := datastore.NewSQLite(path, datastore.SQLiteOptions{})
+	require.NoError(t, err)
+	defer db.Close()
+	for _, d := range []*device{a, c} {
+		require.NoError(t, db.DisableSyncChain(context.Background(), d.chainID()))
+		_, err = db.ClearServerData(context.Background(), d.chainID())
+		require.NoError(t, err)
+	}
+	a2.mustAPI(http.StatusNoContent, "POST", "/v2/compass/rooms/"+room+"/epochs", map[string]any{"epoch": 2,
+		"envelopes": []any{map[string]any{"client_id": a2.id(), "sealed": b64(env("2a"))},
+			map[string]any{"client_id": b.id(), "sealed": b64(env("2b"))},
+			map[string]any{"client_id": c2.id(), "sealed": b64(env("2c"))}}})
+}

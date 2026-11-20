@@ -196,7 +196,9 @@ docker compose exec sync /compass-sync-server rooms delete <room id>
 - `rooms delete`: deletes the room and its contents for everyone. Members
   find out the next time their devices ask.
 
-A room goes when its owner's chain does (reset sync, an idle chain, `users
+When someone resets sync, Compass moves their shared items (and their
+places in others') to their new chain first, so nothing is lost. A room
+goes when its owner's chain is deleted otherwise (an idle chain, `users
 revoke --delete-data`); a member's chain going away takes it out of the
 rooms it was in.
 

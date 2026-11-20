@@ -268,9 +268,15 @@ signed-in callers only).
   `COMPASS_SYNC_MAX_BYTES`, and show in the owner's `GET /v2/compass/quota`.
 - **Limits:** 50 members, 1 MiB per record, 100 open invites per room,
   1000 rooms per owner.
-- **Going away:** a chain's rooms go with its data. Reset sync,
-  `COMPASS_SYNC_IDLE_CHAIN_DAYS` and `users revoke --delete-data` delete the
-  rooms the chain owns and take it out of the others.
+- **Reset sync:** Compass moves each room membership (ownership
+  included, with the room's bytes) to the account's new chain before the
+  old chain is cleared (`POST /v2/compass/rooms/{room}/successor`), so the
+  rooms survive. On a private server the new chain can use those rooms
+  before you add it to the list.
+- **Going away:** a chain's rooms go with its data otherwise.
+  `COMPASS_SYNC_IDLE_CHAIN_DAYS`, `users revoke --delete-data`, or a reset
+  without the move delete the rooms the chain still owns and take it out of
+  the others.
 - **Private server:** a member who isn't listed in
   `COMPASS_SYNC_ALLOWED_CHAINS` can use the rooms they're in, nothing else
   (see "Private server").

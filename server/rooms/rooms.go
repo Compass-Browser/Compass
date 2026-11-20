@@ -18,7 +18,8 @@
 //	POST   /v2/compass/rooms/{room}/members             owner: email invite (company sign-in only)
 //	PATCH  /v2/compass/rooms/{room}/members/{client}    owner (role), the member itself (profile)
 //	DELETE /v2/compass/rooms/{room}/members/{client}    owner, or the member itself (leave)
-//	POST   /v2/compass/rooms/{room}/owner               owner: transfer
+//	POST   /v2/compass/rooms/{room}/owner               owner: transfer (with X-Compass-Linked-Token: successor)
+//	POST   /v2/compass/rooms/{room}/successor           any member: move its membership to a new chain (reset)
 //	POST   /v2/compass/rooms/{room}/epochs              owner: rotate the key
 //	POST   /v2/compass/rooms/{room}/envelopes           owner: keys of past epochs for members
 //	GET    /v2/compass/identity, PUT                    the caller's identity public key
@@ -67,6 +68,10 @@ const (
 	RoomIDBytes        = 16
 )
 
+// LinkedTokenHeader carries the successor chain's token on the successor
+// route (as on POST /v2/compass/account/link).
+const LinkedTokenHeader = "X-Compass-Linked-Token"
+
 // Kinds of room.
 var kinds = []string{"space", "folder", "easel"}
 
@@ -109,6 +114,8 @@ type Store interface {
 	SetRoomProfile(ctx context.Context, roomID, caller string, profile []byte) (datastore.RoomChange, error)
 	RemoveRoomMember(ctx context.Context, roomID, caller, target string, now time.Time) (datastore.RoomChange, error)
 	TransferRoomOwner(ctx context.Context, roomID, caller, target string) (datastore.RoomChange, error)
+	MoveRoomMembership(ctx context.Context, roomID, caller, successor string, identityPub []byte,
+		envelopes []datastore.RoomEnvelope, now time.Time) (datastore.RoomChange, error)
 	RotateRoomEpoch(ctx context.Context, roomID, caller string, epoch int64, envelopes map[string][]byte) (
 		datastore.RoomChange, error)
 	AddRoomEnvelopes(ctx context.Context, roomID, caller string, envelopes []datastore.RoomEnvelope) (
@@ -172,6 +179,7 @@ func (h *Handler) Register(r chi.Router) {
 		r.Patch("/members/{client}", h.updateMember)
 		r.Delete("/members/{client}", h.removeMember)
 		r.Post("/owner", h.transfer)
+		r.Post("/successor", h.successor)
 		r.Post("/epochs", h.rotate)
 		r.Post("/envelopes", h.envelopes)
 	})
@@ -1101,6 +1109,10 @@ func (h *Handler) removeMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get(LinkedTokenHeader) != "" {
+		h.successor(w, r) // The successor form, for a reset.
+		return
+	}
 	c, roomID := h.member(w, r)
 	if c == nil {
 		return
@@ -1124,6 +1136,73 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 	if len(ch.Members) > 0 {
 		h.changed(c, roomID, ch, "members")
 	}
+	noContent(w)
+}
+
+// successor moves the caller's membership (its role, the owner's room and
+// quota included) to the chain whose token is in X-Compass-Linked-Token:
+// the account's new chain after a reset. The new chain needs no invite and
+// no place in a private server's list for this room.
+func (h *Handler) successor(w http.ResponseWriter, r *http.Request) {
+	c, roomID := h.member(w, r)
+	if c == nil {
+		return
+	}
+	next, err := auth.AuthenticateLinkedToken(r.Header.Get(LinkedTokenHeader))
+	if err != nil {
+		fail(w, http.StatusBadRequest, "invalid_linked_token")
+		return
+	}
+	if strings.EqualFold(next, c.id) {
+		badRequest(w, "the successor is the caller's own chain")
+		return
+	}
+	var req struct {
+		IdentityPub []byte     `json:"identity_pub"`
+		Envelopes   []envelope `json:"envelopes"`
+	}
+	if !decode(w, r, maxBody, &req) {
+		return
+	}
+	if len(req.IdentityPub) != IdentityKeyBytes {
+		badRequest(w, "identity_pub must be 32 bytes")
+		return
+	}
+	if len(req.Envelopes) == 0 || len(req.Envelopes) > 1000 {
+		badRequest(w, "envelopes must hold 1 to 1000 envelopes")
+		return
+	}
+	envs := make([]datastore.RoomEnvelope, 0, len(req.Envelopes))
+	seen := map[int64]bool{}
+	for _, e := range req.Envelopes {
+		switch {
+		case seen[e.Epoch]:
+			badRequest(w, "two envelopes for one epoch")
+			return
+		case !validEnvelope(e.Sealed):
+			badRequest(w, "sealed must be 80 bytes")
+			return
+		}
+		seen[e.Epoch] = true
+		envs = append(envs, datastore.RoomEnvelope{Epoch: e.Epoch, Sealed: e.Sealed})
+	}
+	ctx := r.Context()
+	disabled, err := h.cfg.Store.IsSyncChainDisabled(ctx, next)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	if disabled {
+		fail(w, http.StatusConflict, "successor_disabled")
+		return
+	}
+	ch, err := h.cfg.Store.MoveRoomMembership(ctx, roomID, c.id, next, req.IdentityPub, envs, h.cfg.Now())
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	log.Info().Str("room", roomID).Str("from", c.id).Str("to", strings.ToLower(next)).Msg("Room membership moved")
+	h.changed(c, roomID, ch, "members")
 	noContent(w)
 }
 

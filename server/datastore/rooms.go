@@ -1464,3 +1464,95 @@ func clearChainRooms(ctx context.Context, tx *sql.Tx, clientID string) (deleted,
 	}
 	return deleted, left, nil
 }
+
+// MoveRoomMembership hands |caller|'s membership of room |roomID| to
+// chain |successor| (as its token sent it): the successor flow of a reset,
+// where the account's old chain gives way to a new one. The successor gets
+// the caller's role (the owner stays the owner, and the room's bytes move
+// to the successor's quota: ErrQuotaExceeded), its profile and pending
+// state, identity key |identityPub| and |envelopes|, which must include the
+// current epoch (ErrStaleEpoch; epochs from 1 to current). The caller is
+// marked removed. ErrAlreadyMember if the successor is a current member.
+// Pending members may move too.
+func (s *SQLite) MoveRoomMembership(ctx context.Context, roomID, caller, successor string, identityPub []byte,
+	envelopes []RoomEnvelope, now time.Time) (RoomChange, error) {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return RoomChange{}, err
+	}
+	defer tx.Rollback() //nolint:errcheck // no-op after Commit
+	room, me, err := access(ctx, tx, roomID, caller, true)
+	if err != nil {
+		return RoomChange{}, err
+	}
+	next := strings.ToLower(successor)
+	if m, err := loadMember(ctx, tx, roomID, next); err != nil {
+		return RoomChange{}, err
+	} else if m != nil && m.Removed.IsZero() {
+		return RoomChange{}, ErrAlreadyMember
+	}
+	current := false
+	for _, e := range envelopes {
+		if e.Epoch < 1 || e.Epoch > room.Epoch {
+			return RoomChange{}, ErrStaleEpoch
+		}
+		current = current || e.Epoch == room.Epoch
+	}
+	if !current {
+		return RoomChange{}, ErrStaleEpoch
+	}
+	if me.Role == RoleOwner {
+		qc, err := quotaChain(ctx, tx, next, successor)
+		if err != nil {
+			return RoomChange{}, err
+		}
+		if err = s.addBytes(ctx, tx, qc, room.Bytes); err != nil {
+			return RoomChange{}, err
+		}
+		if room.Bytes != 0 {
+			if _, err = tx.ExecContext(ctx, `UPDATE chains SET bytes = MAX(bytes - ?, 0) WHERE client_id = ?`,
+				room.Bytes, room.QuotaChain); err != nil {
+				return RoomChange{}, fmt.Errorf("error updating chain size: %w", err)
+			}
+		}
+		if _, err = tx.ExecContext(ctx, `UPDATE rooms SET owner_client_id = ?, quota_chain = ? WHERE id = ?`,
+			next, qc, roomID); err != nil {
+			return RoomChange{}, fmt.Errorf("error moving the room: %w", err)
+		}
+	}
+	var joined int64
+	if !me.Pending() {
+		joined = ms(now)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO room_members
+		(room_id, client_id, role, identity_pub, profile, invited, joined, removed)
+		VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+		ON CONFLICT (room_id, client_id) DO UPDATE SET role = excluded.role,
+			identity_pub = excluded.identity_pub, profile = excluded.profile, invited = excluded.invited,
+			joined = excluded.joined, removed = 0`,
+		roomID, next, me.Role, identityPub, blob(me.Profile), ms(me.Invited), joined); err != nil {
+		return RoomChange{}, fmt.Errorf("error adding the successor: %w", err)
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM room_envelopes WHERE room_id = ? AND client_id IN (?, ?)`,
+		roomID, me.ClientID, next); err != nil {
+		return RoomChange{}, fmt.Errorf("error moving envelopes: %w", err)
+	}
+	for _, e := range envelopes {
+		if err = putEnvelope(ctx, tx, roomID, next, e.Epoch, e.Sealed); err != nil {
+			return RoomChange{}, err
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE room_members SET removed = ?,
+		role = CASE WHEN role = ? THEN ? ELSE role END
+		WHERE room_id = ? AND client_id = ?`, ms(now), RoleOwner, RoleEditor, roomID, me.ClientID); err != nil {
+		return RoomChange{}, fmt.Errorf("error removing the old chain: %w", err)
+	}
+	if err = setIdentity(ctx, tx, next, identityPub, now); err != nil {
+		return RoomChange{}, err
+	}
+	ch, err := s.change(ctx, tx, roomID, me.ClientID)
+	if err != nil {
+		return ch, err
+	}
+	return ch, commit(tx)
+}
