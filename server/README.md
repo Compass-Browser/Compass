@@ -226,6 +226,27 @@ deletes those chains' data (their devices are told to start again). The
 server stores each user's issuer, subject, email, name and latest refresh
 token in its database: protect it and its backups.
 
+## Devices
+
+A device removed from its chain (in Compass's sync settings, or with the
+command below) disappears from every device's list, and the server refuses
+that installation from then on (`403 {"error":"device_removed"}`), so a copy
+still running can't put itself back. It stops getting pushes. It keeps its
+local data, and can join the chain again as a new device (pairing gives it a
+new identity). It can't be locked out for good: every device holds the
+chain's key; reset sync for that.
+
+```sh
+docker compose exec sync /compass-sync-server devices list <chain id>      # cache GUID, name, OS, last updated, status
+docker compose exec sync /compass-sync-server devices remove <chain id> <cache GUID>
+```
+
+The chain ID is the hex public key (as in `chains list` and the server's
+logs; either case). Devices see a removal made with the command at their
+next sync (at most 10 minutes for one that only polls). A chain's removals
+are forgotten with the chain (reset sync, `COMPASS_SYNC_IDLE_CHAIN_DAYS`,
+`users revoke --delete-data`).
+
 ## Change notifications and reverse proxies
 
 Each syncing device keeps one request open to `/v2/compass/events`

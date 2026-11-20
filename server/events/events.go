@@ -76,6 +76,7 @@ type listener struct {
 	mu      sync.Mutex
 	pending map[int]struct{} // Types changed since the last event was written.
 	wake    chan struct{}    // Capacity 1: "pending has something".
+	kicked  chan struct{}    // Closed by Disconnect (under Hub.mu).
 }
 
 // Hub holds the open streams by chain and sends them change notifications.
@@ -182,6 +183,26 @@ func (h *Hub) Notify(chain, exceptClient string, types []int) {
 	}
 }
 
+// Disconnect ends the open streams of device |client| (its cache GUID) in
+// |chain|: the device was removed from the chain (it can't open new ones,
+// see auth.RejectRemovedDevices).
+func (h *Hub) Disconnect(chain, client string) {
+	if client == "" {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for l := range h.byChain[chainKey(chain)] {
+		if l.client == client {
+			delete(h.byChain[l.chain], l)
+			close(l.kicked)
+		}
+	}
+	if len(h.byChain[chainKey(chain)]) == 0 {
+		delete(h.byChain, chainKey(chain))
+	}
+}
+
 // Close ends every stream and refuses new ones (graceful shutdown: pass it
 // to http.Server.RegisterOnShutdown, since Shutdown doesn't end handlers).
 func (h *Hub) Close() {
@@ -256,6 +277,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ip:      h.cfg.ClientIP(r),
 		pending: map[int]struct{}{},
 		wake:    make(chan struct{}, 1),
+		kicked:  make(chan struct{}),
 	}
 	switch err := h.add(l); {
 	case errors.Is(err, errShutdown):
@@ -302,6 +324,8 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		case <-h.closed:
+			return
+		case <-l.kicked:
 			return
 		case <-tick:
 			if !write(": keep-alive\n\n") {

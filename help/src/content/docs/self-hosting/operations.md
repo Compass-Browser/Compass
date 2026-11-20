@@ -148,6 +148,29 @@ Expiry runs every hour:
   later is told to stop syncing; its own data stays, and it can start sync
   again.
 
+## Devices
+
+Devices can remove each other from their sync chain in Compass's sync
+settings. The server can do the same:
+
+```sh
+docker compose exec sync /compass-sync-server devices list <chain id>
+docker compose exec sync /compass-sync-server devices remove <chain id> <cache GUID>
+```
+
+`devices list` shows each device's cache GUID, name, operating system, when
+it last updated its entry, and whether it's active or was removed. The chain
+ID is the long hex key in the server's logs (and in `chains list` with
+company sign-in); either case works.
+
+A removed device disappears from every device's list, stops getting pushes,
+and is refused by the server from then on, so a copy still running can't
+put itself back. It keeps its own data and can join the chain again as a
+new device. It isn't locked out for good, since every device holds the
+chain's key: to shut a device out for sure, reset sync on another device
+(which starts a new chain) and join the others again. Devices that only
+poll see a removal made with the command within 10 minutes.
+
 ## Troubleshooting
 
 **`curl https://sync.example.com/healthz` fails.** Check `docker compose ps`

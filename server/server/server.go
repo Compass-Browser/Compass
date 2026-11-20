@@ -26,11 +26,13 @@ import (
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 
+	"github.com/brave/go-sync/auth"
 	"github.com/brave/go-sync/cache"
 	"github.com/brave/go-sync/clientip"
 	"github.com/brave/go-sync/command"
 	"github.com/brave/go-sync/controller"
 	"github.com/brave/go-sync/datastore"
+	"github.com/brave/go-sync/devices"
 	"github.com/brave/go-sync/events"
 	"github.com/brave/go-sync/middleware"
 	"github.com/brave/go-sync/oidclogin"
@@ -272,11 +274,15 @@ func setupRouter(
 		log.Info().Str("issuer", oidcCfg.Issuer).Str("redirectURI", login.RedirectURL()).Msg("Company sign-in on")
 		go login.Run(ctx)
 	}
-	authorize := login.Authorize()
+	// Pairing isn't per device: it keeps the plain gate. Every other sync
+	// endpoint also refuses devices removed from their chain (sync.md,
+	// "Identity").
+	pairAuthorize := login.Authorize()
+	authorize := auth.RejectRemovedDevices(pairAuthorize, db.IsDeviceRemoved)
 
 	pairCfg := cfg.Pairing
 	pairCfg.ClientIP = ips.IP
-	pairCfg.Authorize = authorize
+	pairCfg.Authorize = pairAuthorize
 	evCfg := cfg.Events
 	evCfg.ClientIP = ips.IP
 	evCfg.Authorize = authorize
@@ -308,6 +314,17 @@ func setupRouter(
 		hub.Notify(chain, cacheGUID, types)
 		pusher.OnCommit(chain, cacheGUID, created)
 	}
+	devicesHandler := devices.New(devices.Config{
+		Store:     db,
+		Authorize: authorize,
+		DeleteDeviceInfo: func(ctx context.Context, chain, cacheGUID string) (bool, error) {
+			return command.DeleteDeviceInfo(ctx, c, instrumented, db, chain, cacheGUID)
+		},
+		Removed: func(chain, by, removed string) {
+			hub.Disconnect(chain, removed)
+			hub.Notify(chain, by, []int{datastore.DeviceInfoTypeID})
+		},
+	})
 	r.Route("/v2", func(r chi.Router) {
 		// Compass: change notifications (sync.md, "Change notifications"), a
 		// long-lived stream, so outside the request timeout below.
@@ -321,6 +338,8 @@ func setupRouter(
 			r.Method(http.MethodGet, "/compass/quota", quotaHandler)
 			// Compass: APNs tokens, for sent tabs (send-tab.md).
 			r.Handle("/compass/push", pusher)
+			// Compass: removing a device from the chain (sync.md, "Identity").
+			r.Mount("/compass/devices", devicesHandler.Routes())
 			// Compass: company sign-in (sync.md, "Company sign-in (OIDC)").
 			login.Register(r)
 			r.Mount("/", controller.SyncRouterWithAuth(c, instrumented, notify, authorize))

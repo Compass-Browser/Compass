@@ -26,8 +26,8 @@ var ErrQuotaExceeded = errors.New("chain storage quota exceeded")
 
 // schemaVersion is stored in PRAGMA user_version. 2 (slice 7): chains got
 // last_active, quota_full and quota_full_time. 3: oidc_users and
-// chain_logins (company sign-in, oidc.go).
-const schemaVersion = 3
+// chain_logins (company sign-in, oidc.go). 4: removed_devices (devices.go).
+const schemaVersion = 4
 
 const schema = `
 CREATE TABLE IF NOT EXISTS entities (
@@ -175,7 +175,7 @@ func migrate(db *sql.DB) error {
 	if version > schemaVersion {
 		return fmt.Errorf("database schema %d is newer than this server (%d)", version, schemaVersion)
 	}
-	if _, err := db.Exec(schema + pushSchema + oidcSchema); err != nil {
+	if _, err := db.Exec(schema + pushSchema + oidcSchema + removedDevicesSchema); err != nil {
 		return fmt.Errorf("error creating schema: %w", err)
 	}
 	if err := addMissingChainColumns(db); err != nil {
@@ -659,6 +659,7 @@ func (s *SQLite) ClearServerData(ctx context.Context, clientID string) ([]SyncEn
 		`DELETE FROM item_counts WHERE client_id = ?`,
 		`UPDATE chains SET bytes = 0 WHERE client_id = ?`,
 		`DELETE FROM push_tokens WHERE client_id = ?`,
+		`DELETE FROM removed_devices WHERE client_id = lower(?)`,
 	} {
 		if _, err = tx.ExecContext(ctx, stmt, clientID); err != nil {
 			return syncEntities, fmt.Errorf("error deleting sync entities for client %s: %w", clientID, err)
@@ -964,6 +965,7 @@ func (s *SQLite) AllItemCounts(ctx context.Context) ([]ClientItemCounts, error) 
 func (s *SQLite) DeleteAll(ctx context.Context) error {
 	_, err := s.w.ExecContext(ctx, `
 		DELETE FROM entities; DELETE FROM unique_tags;
-		DELETE FROM item_counts; DELETE FROM chains; DELETE FROM push_tokens;`)
+		DELETE FROM item_counts; DELETE FROM chains; DELETE FROM push_tokens;
+		DELETE FROM removed_devices;`)
 	return err
 }

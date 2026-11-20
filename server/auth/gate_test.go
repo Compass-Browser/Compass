@@ -67,3 +67,51 @@ func TestAuthorizeSync(t *testing.T) {
 	_, err = auth.AuthenticateToken("")
 	require.Error(t, err)
 }
+
+func TestRejectRemovedDevices(t *testing.T) {
+	_, key, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	token, id := authtest.TokenFor(key, time.Now().UnixMilli())
+	request := func(query string) *http.Request {
+		req := httptest.NewRequest("GET", "/"+query, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		return req
+	}
+	var asked []string
+	authorize := auth.RejectRemovedDevices(auth.Authorize, func(_ context.Context, chain, guid string) (bool, error) {
+		asked = append(asked, chain+" "+guid)
+		if guid == "broken" {
+			return false, errors.New("db down")
+		}
+		return guid == "gone", nil
+	})
+
+	got, err := authorize(request(""))
+	require.NoError(t, err)
+	assert.Equal(t, strings.ToUpper(id), got)
+	assert.Empty(t, asked, "no client_id: not checked")
+
+	got, err = authorize(request("?client_id=here"))
+	require.NoError(t, err)
+	assert.Equal(t, strings.ToUpper(id), got)
+	assert.Equal(t, []string{strings.ToUpper(id) + " here"}, asked)
+
+	got, err = authorize(request("?client_id=gone"))
+	assert.Empty(t, got)
+	require.ErrorIs(t, err, auth.ErrDeviceRemoved)
+	rec := httptest.NewRecorder()
+	assert.True(t, auth.WriteGateError(rec, err))
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+	assert.Equal(t, "removed", rec.Header().Get(auth.DeviceHeader))
+	assert.JSONEq(t, `{"error":"device_removed"}`, rec.Body.String())
+
+	_, err = authorize(request("?client_id=broken"))
+	require.ErrorIs(t, err, auth.ErrGateUnavailable)
+
+	// A bad token is refused before the check.
+	asked = nil
+	_, err = authorize(httptest.NewRequest("GET", "/?client_id=gone", nil))
+	require.Error(t, err)
+	assert.Empty(t, asked)
+	assert.False(t, auth.WriteGateError(httptest.NewRecorder(), err))
+}

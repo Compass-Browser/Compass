@@ -134,5 +134,5 @@ func TestMigrateSchema2(t *testing.T) {
 	defer raw.Close()
 	var version int
 	require.NoError(t, raw.QueryRow(`PRAGMA user_version`).Scan(&version))
-	assert.Equal(t, 3, version)
+	assert.Equal(t, 4, version) // The current schema.
 }

@@ -201,12 +201,16 @@ func WriteLoginRequired(w http.ResponseWriter) {
 }
 
 // WriteGateError answers an AuthorizeSync error that came from the gate
-// (401 login_required, or 503) and returns true; false for any other error,
+// (401 login_required, or 503), or a RejectRemovedDevices refusal (403
+// device_removed), and returns true; false for any other error,
 // which the caller answers as before.
 func WriteGateError(w http.ResponseWriter, err error) bool {
 	switch {
 	case errors.Is(err, ErrLoginRequired):
 		WriteLoginRequired(w)
+		return true
+	case errors.Is(err, ErrDeviceRemoved):
+		WriteDeviceRemoved(w)
 		return true
 	case errors.Is(err, ErrGateUnavailable):
 		w.Header().Set("Content-Type", "application/json")
@@ -216,4 +220,54 @@ func WriteGateError(w http.ResponseWriter, err error) bool {
 		return true
 	}
 	return false
+}
+
+// Compass: removed devices (docs/design/sync.md, "Identity"). A device
+// removed from its chain is refused by its cache GUID, which every
+// per-device request carries as the client_id query parameter.
+
+// ErrDeviceRemoved is returned by a RejectRemovedDevices authorize for a
+// request whose client_id was removed from the chain. Handlers answer it
+// with WriteDeviceRemoved (WriteGateError does).
+var ErrDeviceRemoved = errors.New("device_removed")
+
+// DeviceHeader is set to "removed" on a device_removed answer.
+const DeviceHeader = "X-Compass-Device"
+
+// DeviceRemovedCheck says whether |cacheGUID| was removed from chain
+// |chainID| (as the token gave it).
+type DeviceRemovedCheck func(ctx context.Context, chainID, cacheGUID string) (bool, error)
+
+// RejectRemovedDevices is |authorize| that also refuses a request whose
+// client_id query parameter is a device removed from the chain
+// (ErrDeviceRemoved). Requests without a client_id are unaffected.
+func RejectRemovedDevices(authorize func(*http.Request) (string, error),
+	removed DeviceRemovedCheck) func(*http.Request) (string, error) {
+	return func(r *http.Request) (string, error) {
+		id, err := authorize(r)
+		if id == "" || err != nil {
+			return id, err
+		}
+		guid := r.URL.Query().Get("client_id")
+		if guid == "" {
+			return id, nil
+		}
+		gone, err := removed(r.Context(), id, guid)
+		if err != nil {
+			return "", fmt.Errorf("%w: %w", ErrGateUnavailable, err)
+		}
+		if gone {
+			return "", ErrDeviceRemoved
+		}
+		return id, nil
+	}
+}
+
+// WriteDeviceRemoved answers 403 {"error":"device_removed"}.
+func WriteDeviceRemoved(w http.ResponseWriter) {
+	w.Header().Set(DeviceHeader, "removed")
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusForbidden)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": "device_removed"})
 }

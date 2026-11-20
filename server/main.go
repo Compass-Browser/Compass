@@ -6,6 +6,8 @@
 //	                                 (FILE "-": to stdout)
 //	compass-sync-server users list | revoke EMAIL|SUB [--delete-data] | restore EMAIL|SUB
 //	compass-sync-server chains list  company sign-in: users and signed-in chains
+//	compass-sync-server devices list CHAIN | remove CHAIN CACHE_GUID
+//	                                 a chain's devices; remove one from it
 package main
 
 import (
@@ -27,8 +29,10 @@ func main() {
 			os.Exit(server.Users(os.Args[2:], os.Stdout, os.Stderr))
 		case "chains":
 			os.Exit(server.Chains(os.Args[2:], os.Stdout, os.Stderr))
+		case "devices":
+			os.Exit(server.Devices(os.Args[2:], os.Stdout, os.Stderr))
 		default:
-			fmt.Fprintln(os.Stderr, "usage: compass-sync-server [serve | healthcheck | backup FILE | users ... | chains list]")
+			fmt.Fprintln(os.Stderr, "usage: compass-sync-server [serve | healthcheck | backup FILE | users ... | chains list | devices ...]")
 			os.Exit(2)
 		}
 	}
