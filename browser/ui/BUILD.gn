@@ -108,6 +108,8 @@ source_set("ui") {
     "webui/settings/compass_settings_ui.cc",
     "webui/settings/compass_settings_ui.h",
     "webui/settings/settings_sections.cc",
+    "webui/share/compass_share_ui.cc",
+    "webui/share/compass_share_ui.h",
     "webui/sidebar/now_playing_tracker.cc",
     "webui/sidebar/now_playing_tracker.h",
     "webui/sidebar/sidebar_page_handler.cc",
@@ -137,6 +139,7 @@ source_set("ui") {
     "//compass/browser/ui/webui/settings:sections",
     "//compass/browser/ui/webui/sidebar:mojo_bindings",
     "//compass/browser/ui/webui/sync:mojo_bindings",
+    "//compass/browser/ui/webui/share:mojo_bindings",
 
     # BrowserView's close hook calls into it (see patches/).
     "//compass/browser/window_sync",
@@ -170,6 +173,7 @@ source_set("ui") {
     "//compass/browser/live_folders",
     "//third_party/icu",
     "//compass/browser/prefs",
+    "//compass/browser/rooms",
     "//compass/browser/shortcuts",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",

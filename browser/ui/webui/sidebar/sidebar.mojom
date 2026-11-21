@@ -76,7 +76,21 @@ struct Node {
   // been opened.
   bool live_item;
   bool unseen;
+  // Shared with other people (docs/design/sync.md, "Rooms: clients"): set
+  // on the shared folder or easel tab itself, which shows a people badge
+  // with |shared_tooltip| (the members); |view_only| on everything of a
+  // viewer's shared item, which the page doesn't let change.
+  bool shared;
+  string shared_tooltip;
+  bool view_only;
   array<Node> children;
+};
+
+// A shared item this profile was removed from, or that was deleted: the
+// sidebar shows a banner until dismissed; the item stays, unshared.
+struct RoomNotice {
+  string room_id;
+  string text;
 };
 
 // A field of a plugin's settings form (its manifest's "config").
@@ -269,6 +283,11 @@ struct Space {
   // others, and switching to one swaps the window (docs/design/spaces.md,
   // slice 3).
   bool own_profile;
+  // Sharing (docs/design/sync.md, "Rooms: clients"): whether the menu offers
+  // Share, whether the space is shared, and whether it's a viewer's.
+  bool can_share;
+  bool shared;
+  bool view_only;
 };
 
 // A profile a space can be assigned to.
@@ -403,6 +422,13 @@ interface PageHandler {
   // it off removes it from them). See docs/design/sync.md, "Spaces that
   // don't sync".
   SetSpaceSynced(string space_id, bool synced);
+  // Opens the space's share sheet.
+  ShareSpace(string space_id);
+  // The banners of shared items this profile lost; the page asks again
+  // with each SetSpaces(), which a change of rooms also sends.
+  GetRoomNotices() => (array<RoomNotice> notices);
+  // Drops a room notice's banner.
+  DismissRoomNotice(string room_id);
 
   // The window's space's archive. Restoring puts the entry back at the end of
   // Today and opens it in the foreground.

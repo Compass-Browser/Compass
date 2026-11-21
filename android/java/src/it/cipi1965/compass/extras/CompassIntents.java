@@ -37,6 +37,9 @@ public final class CompassIntents {
     /** Joins a chain with a pairing invite ({@link #EXTRA_SERVER}, {@link #EXTRA_CODE}). */
     public static final String ACTION_PAIR = "it.cipi1965.compass.action.PAIR";
 
+    /** Shows the join screen of an invite link ({@link #EXTRA_URL}). */
+    public static final String ACTION_JOIN_ROOM = "it.cipi1965.compass.action.JOIN_ROOM";
+
     public static final String EXTRA_SPACE_ID = "it.cipi1965.compass.extra.SPACE_ID";
     public static final String EXTRA_SERVER = "it.cipi1965.compass.extra.SERVER";
     public static final String EXTRA_CODE = "it.cipi1965.compass.extra.CODE";
@@ -63,6 +66,7 @@ public final class CompassIntents {
                 || ACTION_OPEN_SPACE.equals(action)
                 || ACTION_PIN_URL.equals(action)
                 || ACTION_PAIR.equals(action)
+                || ACTION_JOIN_ROOM.equals(action)
                 || ACTION_INCOGNITO.equals(action)
                 || ACTION_CLAUDE.equals(action)
                 || ACTION_SIDEBAR.equals(action)

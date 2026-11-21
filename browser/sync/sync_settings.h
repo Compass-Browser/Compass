@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/containers/flat_set.h"
+#include "base/time/time.h"
 #include "compass/browser/sync/sync_controller.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync_device_info/device_info.h"
@@ -128,6 +129,26 @@ SyncLimit GetSyncLimit(bool throttled, bool server_full, bool history_full);
 // keeps it on and says so after the last-synced line. Other states are left
 // alone (their error comes first).
 void ApplySyncLimit(SyncLimit limit, SyncStatus& status);
+
+// What a profile's sync waits for while it starts, in the order it comes.
+enum class StartingStep {
+  // Decrypting the stored seed (os_crypt).
+  kReadingKey,
+  // The engine isn't up yet: it reaches the server, or waits for its turn.
+  kConnecting,
+  // The engine is up; the data types wait for the chain's passphrase.
+  kEncryption,
+  // The data types configure.
+  kConfiguring,
+};
+
+// How long one starting step may take before the page offers a restart.
+inline constexpr base::TimeDelta kStartingStuckAfter = base::Seconds(60);
+
+// The status for a profile whose sync starts (SyncState::kStarting): a line
+// naming |step|; once it has taken |kStartingStuckAfter| or more (|stuck|),
+// the line says so and the page offers to restart.
+SyncStatus StartingStatus(StartingStep step, bool stuck);
 
 }  // namespace compass::sync
 

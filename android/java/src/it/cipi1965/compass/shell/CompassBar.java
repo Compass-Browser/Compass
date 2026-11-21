@@ -144,6 +144,8 @@ public class CompassBar implements CompassBarUi.Actions {
     private @Nullable Spaces mSpaces;
     private @Nullable ClaudeChat mClaude;
     private @Nullable SyncScreen mSync;
+    // Sharing with other people: the share sheet and the join screen.
+    private @Nullable ShareSheet mShare;
     private @Nullable DevicesWidget mDevicesWidget;
     private @Nullable HistoryScreen mHistory;
     private @Nullable DownloadsScreen mDownloads;
@@ -220,6 +222,9 @@ public class CompassBar implements CompassBarUi.Actions {
         mSpaces = spaces;
         SyncScreen sync = new SyncScreen(mActivity, coordinator);
         mSync = sync;
+        ShareSheet share = new ShareSheet(mActivity, coordinator, spaces::refreshRooms);
+        mShare = share;
+        spaces.setShareSheet(share);
         mClaude =
                 new ClaudeChat(
                         mActivity,
@@ -449,6 +454,9 @@ public class CompassBar implements CompassBarUi.Actions {
         mActivity.getLifecycleDispatcher().unregister(mPipResume);
         if (mSpaces != null) mSpaces.destroy();
         if (mSync != null) mSync.destroy();
+        if (mSpaces != null) mSpaces.setShareSheet(null);
+        if (mShare != null) mShare.destroy();
+        mShare = null;
         if (mDevicesWidget != null) mDevicesWidget.destroy();
         mDevicesWidget = null;
         if (mHistory != null) mHistory.destroy();
@@ -559,6 +567,14 @@ public class CompassBar implements CompassBarUi.Actions {
             String server = intent.getStringExtra(CompassIntents.EXTRA_SERVER);
             String code = intent.getStringExtra(CompassIntents.EXTRA_CODE);
             if (server != null && code != null && mSync != null) mSync.join(server, code);
+        } else if (CompassIntents.ACTION_JOIN_ROOM.equals(action)) {
+            // An invite link to something shared (docs/design/sync.md, "Rooms: clients").
+            String link = intent.getStringExtra(CompassIntents.EXTRA_URL);
+            if (link != null && mShare != null) {
+                // The join screen goes over everything, the sidebar too.
+                if (mSpaces != null) mSpaces.onDismiss();
+                mShare.join(link);
+            }
         }
         // Handled once, even if the activity is recreated with it.
         intent.setAction(null);

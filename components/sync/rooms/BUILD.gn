@@ -23,18 +23,41 @@ source_set("crypto") {
   ]
 }
 
+# The rooms API of a sync server (docs/design/sync.md, "Rooms").
+source_set("client") {
+  sources = [
+    "room_client.cc",
+    "room_client.h",
+  ]
+  public_deps = [
+    ":crypto",
+    "//base",
+    "//url",
+  ]
+  deps = [
+    "//net",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+  ]
+}
+
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "room_client_unittest.cc",
     "room_crypto_unittest.cc",
     "room_invite_link_unittest.cc",
     "room_test_vectors.h",
   ]
   data = [ "//compass/common/rooms/vectors.json" ]
   deps = [
+    ":client",
     ":crypto",
     "//base",
     "//base/test:test_support",
+    "//net",
+    "//services/network:test_support",
+    "//services/network/public/cpp",
     "//testing/gtest",
   ]
 }

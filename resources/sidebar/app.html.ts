@@ -7,7 +7,7 @@ import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 import type {ArchiveDelay, CompassSidebarAppElement, Preview} from './app.js';
 import type {SpaceSymbol} from './space_icons.js';
 import {speakerIcon} from './speaker_icon.js';
-import type {ArchivedEntry, Node, ProfileOption, Space} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, Node, ProfileOption, RoomNotice, Space} from './sidebar.mojom-webui.js';
 
 export function getHtml(this: CompassSidebarAppElement) {
   // clang-format off
@@ -63,6 +63,12 @@ export function getHtml(this: CompassSidebarAppElement) {
         @dragover="${this.onDragover_}" @dragleave="${this.onDragleave_}"
         @drop="${this.onDrop_}" @dragend="${this.onDragend_}"
         @folder-toggle="${this.onFolderToggle_}">
+      ${this.roomNotices_.map((notice: RoomNotice) => html`
+        <div class="room-notice" role="status">
+          <span>${notice.text}</span>
+          <button aria-label="Dismiss" data-room-id="${notice.roomId}"
+              @click="${this.onDismissRoomNoticeClick_}">&times;</button>
+        </div>`)}
       ${this.hasPinned_ ? html`
         <div class="section-header" data-flip="pinned-header">
           <span>Pinned</span>
@@ -246,6 +252,11 @@ ${this.getMenuSpace_() && !this.themeOpen_ ? html`
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d="M3.5 8.5l3 3 6-7"></path>
       </svg>
+    </button>
+    <button id="shareSpace" role="menuitem"
+        ?hidden="${!this.canShareMenuSpace_()}"
+        @click="${this.onShareSpaceClick_}">
+      ${this.getShareSpaceLabel_()}
     </button>
     <button id="deleteSpace" role="menuitem"
         ?disabled="${!this.canDeleteSpace_()}"

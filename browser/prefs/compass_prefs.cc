@@ -15,6 +15,10 @@ void RegisterCompassProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(prefs::kPipOnLeavingWindow, true);
   registry->RegisterBooleanPref(prefs::kRemoveTrackingFromCopiedLinks, true);
   claude::prefs::RegisterProfilePrefs(registry);
+  // Sharing: "Your name for sharing" (compass::rooms::kDisplayNamePref,
+  // browser/rooms/room_service.h). Here rather than with RoomService's
+  // factory, which is built after profiles' prefs are.
+  registry->RegisterStringPref("compass.rooms.display_name", std::string());
 }
 
 }  // namespace compass

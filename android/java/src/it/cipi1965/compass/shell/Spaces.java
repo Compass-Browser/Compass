@@ -633,6 +633,7 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
 
     private void onModelChanged() {
         mState.update(mBridge.snapshot(), currentTabId());
+        refreshRooms();
         if (mState.getLoaded() && !mWhenLoaded.isEmpty()) {
             List<Runnable> waiting = new java.util.ArrayList<>(mWhenLoaded);
             mWhenLoaded.clear();
@@ -1056,5 +1057,63 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
     public void onDismiss() {
         mState.setOpen(false);
         mView.setVisibility(View.GONE);
+    }
+
+    // Sharing (docs/design/sync.md, "Rooms: clients").
+
+    private @Nullable ShareSheet mShare;
+
+    /** The share sheet, which also says what's shared (the badges, the banners). */
+    public void setShareSheet(@Nullable ShareSheet share) {
+        mShare = share;
+        refreshRooms();
+    }
+
+    /** Reads what's shared again: rooms changed. */
+    public void refreshRooms() {
+        if (mShare == null) {
+            mState.setCanShare(false);
+            return;
+        }
+        try {
+            JSONObject data = new JSONObject(mShare.bridge().snapshot());
+            mState.setCanShare(data.optBoolean("available"));
+            java.util.Map<String, String> shared = new java.util.HashMap<>();
+            JSONObject roots = data.optJSONObject("shared");
+            if (roots != null) {
+                for (java.util.Iterator<String> it = roots.keys(); it.hasNext(); ) {
+                    String key = it.next();
+                    shared.put(key, roots.optString(key));
+                }
+            }
+            mState.setShared(shared);
+            List<kotlin.Pair<String, String>> notices = new ArrayList<>();
+            JSONArray list = data.optJSONArray("notices");
+            for (int i = 0; list != null && i < list.length(); i++) {
+                JSONObject notice = list.optJSONObject(i);
+                if (notice != null) {
+                    notices.add(
+                            new kotlin.Pair<>(
+                                    notice.optString("room_id"), notice.optString("text")));
+                }
+            }
+            mState.setRoomNotices(notices);
+        } catch (JSONException e) {
+            // Left as it was.
+        }
+    }
+
+    @Override
+    public void onShare(String kind, String id) {
+        if (mShare == null) return;
+        onDismiss();
+        mShare.show(kind, id);
+    }
+
+    @Override
+    public void onDismissRoomNotice(String roomId) {
+        if (mShare == null) return;
+        mShare.bridge().dismissNotice(roomId);
+        refreshRooms();
     }
 }

@@ -222,13 +222,26 @@ void DeleteSpace(Profile* profile, SpaceModel& space);
 // windows showing it swap to a window of |to| that loads the entry it showed.
 // |from| leaves the switcher if that was its last space. See
 // docs/design/spaces.md, "Assigning a profile".
-void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to);
+// |new_profile|: |to| was just made for it, so its empty starting spaces go
+// even if it's listed already.
+void MoveSpaceToProfile(Profile* from,
+                        SpaceModel& space,
+                        Profile* to,
+                        bool new_profile = false);
 
 // MoveSpaceToProfile() for space |space_id| and the profile at
 // |profile_path|, or a new profile if there's none, once that profile and its
 // sidebar file have loaded. Does nothing if either is gone by then.
 void AssignSpaceToProfile(const base::Uuid& space_id,
                           std::optional<base::FilePath> profile_path);
+
+// Makes the new profile AssignSpaceToProfile() asks for, and runs |loaded|
+// with it (null if that failed); returns false, without running |loaded|, to
+// leave it to a plain CreateMultiProfileAsync(). Sync sets one
+// (CompassSyncService::CreateProfileInChain()), so that a profile made while
+// the chain runs is made in it and syncs without a restart.
+using NewProfileMaker = bool (*)(base::OnceCallback<void(Profile*)> loaded);
+void SetNewProfileMaker(NewProfileMaker maker);
 
 // Shows |space|, one of |profile|'s spaces, in |browser|'s window. A space of
 // the window's profile rebinds the window (SwitchToSpace()). One of another

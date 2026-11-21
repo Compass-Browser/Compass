@@ -22,6 +22,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "compass/browser/rooms/room_service.h"
 #include "compass/browser/claude/claude_activity.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -71,6 +72,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public LiveFolderService::Observer,
                            public LinkFolderNamer::Observer,
                            public TodayTidier::Observer,
+                           public rooms::RoomService::Observer,
                            public TabStripModelObserver {
  public:
   // What the entries' context menus offer (docs/design/sidebar.md, "Context
@@ -105,6 +107,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
     // Claude's folder names (docs/design/ai-sidebar.md).
     kUndoName,
     kSuggestName,
+    // Sharing with other people (docs/design/sync.md, "Rooms: clients"): a
+    // pinned folder's share sheet, or an easel tab's easel's.
+    kShare,
     // Then one per space in the "Move to Space" submenu, in their order.
     kMoveToSpaceFirst = 100,
     // Then one per device in "Send to Your Devices", in their order.
@@ -199,6 +204,12 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                     double progress) override;
   void SetArchiveAfter(const std::string& space_id, uint32_t hours) override;
   void SetSpaceSynced(const std::string& space_id, bool synced) override;
+  void ShareSpace(const std::string& space_id) override;
+  void GetRoomNotices(GetRoomNoticesCallback callback) override;
+  void DismissRoomNotice(const std::string& room_id) override;
+
+  // rooms::RoomService::Observer:
+  void OnRoomsChanged() override;
   void RestoreArchived(const std::string& id) override;
   void RemoveArchived(const std::string& id) override;
   void ClearArchive() override;
@@ -303,6 +314,13 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
       const TabStripSelectionChange& selection) override;
 
  private:
+  // Sharing (docs/design/sync.md, "Rooms: clients"): whether this profile
+  // can share, whether |node| is shared, and whether it's a viewer's (whose
+  // edits the handler refuses).
+  bool CanShare();
+  bool IsShared(const SidebarNode* node);
+  bool IsViewOnly(const SidebarNode* node);
+  bool IsViewOnlySpace(const std::string& id);
   TabStripModel* tab_strip_model();
   SpaceModel& space_model();
   // The profile's, shown in every window.
@@ -379,6 +397,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
       namer_observation_{this};
   base::ScopedObservation<TodayTidier, TodayTidier::Observer>
       tidier_observation_{this};
+  base::ScopedObservation<rooms::RoomService, rooms::RoomService::Observer>
+      rooms_observation_{this};
   // Tidy Today's switch and the key: whether Today's header offers Tidy.
   PrefChangeRegistrar tidy_prefs_;
   // What Page.TidyChanged() last said: available, busy.

@@ -20,6 +20,7 @@ test("compass_unittests") {
     "//compass/browser/live_folders:unit_tests",
     "//compass/browser/native_messaging:unit_tests",
     "//compass/browser/prefs:unit_tests",
+    "//compass/browser/rooms:unit_tests",
     "//compass/browser/shortcuts:unit_tests",
     "//compass/common:unit_tests",
     "//compass/browser/sidebar:unit_tests",

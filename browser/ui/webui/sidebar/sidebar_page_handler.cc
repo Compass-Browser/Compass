@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "compass/browser/rooms/room_model.h"
+#include "compass/browser/rooms/room_service.h"
+#include "compass/browser/ui/webui/share/compass_share_ui.h"
 #include "compass/browser/ui/webui/sidebar/sidebar_page_handler.h"
 
 #include <memory>
@@ -339,6 +342,11 @@ SidebarPageHandler::SidebarPageHandler(
     }
     // Shorter Tab Titles follows the profile's spaces from now on.
     ShortTitler::Get(browser_->GetProfile());
+    // Shared items' badges and view-only state.
+    if (rooms::RoomService* rooms =
+            rooms::RoomService::Get(browser_->GetProfile())) {
+      rooms_observation_.Observe(rooms);
+    }
     if (TodayTidier* tidier = TodayTidier::Get(browser_->GetProfile())) {
       tidier_observation_.Observe(tidier);
       tidy_prefs_.Init(browser_->GetProfile()->GetPrefs());
@@ -549,6 +557,9 @@ void SidebarPageHandler::MoveNode(const std::string& id,
                                   uint32_t index) {
   SidebarNode* node = FindNode(id);
   SidebarNode* new_parent = FindNode(new_parent_id);
+  if (IsViewOnly(node) || IsViewOnly(new_parent)) {
+    return;
+  }
   if (!node || !new_parent || index > new_parent->children().size()) {
     return;
   }
@@ -574,6 +585,9 @@ void SidebarPageHandler::OpenLink(const GURL& url,
                                   const std::string& parent_id,
                                   uint32_t index) {
   SidebarNode* parent = FindNode(parent_id);
+  if (IsViewOnly(parent)) {
+    return;
+  }
   if (!parent || index > parent->children().size() ||
       (parent->type() != SidebarNode::Type::kRoot &&
        parent->type() != SidebarNode::Type::kFolder) ||
@@ -595,6 +609,9 @@ void SidebarPageHandler::AddFolder(const std::string& parent_id,
                                    uint32_t index,
                                    const std::string& title) {
   SidebarNode* parent = FindNode(parent_id);
+  if (IsViewOnly(parent)) {
+    return;
+  }
   if (!parent || index > parent->children().size() ||
       !space_model().Contains(parent) ||
       (parent->type() != SidebarNode::Type::kRoot &&
@@ -612,6 +629,9 @@ void SidebarPageHandler::NewEasel() {
 void SidebarPageHandler::RenameFolder(const std::string& id,
                                       const std::string& title) {
   SidebarNode* node = FindNode(id);
+  if (IsViewOnly(node)) {
+    return;
+  }
   if (!node || node->type() != SidebarNode::Type::kFolder) {
     return;
   }
@@ -628,6 +648,9 @@ void SidebarPageHandler::RenameFolder(const std::string& id,
 void SidebarPageHandler::RenameTab(const std::string& id,
                                    const std::string& title) {
   SidebarNode* node = FindNode(id);
+  if (IsViewOnly(node)) {
+    return;
+  }
   if (!node || node->type() != SidebarNode::Type::kTab) {
     return;
   }
@@ -641,6 +664,9 @@ void SidebarPageHandler::SplitNode(const std::string& id,
                                    bool first) {
   SidebarNode* node = FindNode(id);
   SidebarNode* target = FindNode(target_id);
+  if (IsViewOnly(node) || IsViewOnly(target)) {
+    return;
+  }
   SpaceModel& space = space_model();
   if (!node || !target || !space.Contains(node) || !space.Contains(target) ||
       !space.CanSplit(target, node)) {
@@ -663,6 +689,9 @@ void SidebarPageHandler::SplitNode(const std::string& id,
 
 void SidebarPageHandler::DropNodeOutside(const std::string& id) {
   SidebarNode* node = FindNode(id);
+  if (IsViewOnly(node)) {
+    return;
+  }
   // A pane isn't dragged alone, and a split's tabs would have to leave their
   // upstream split first.
   if (!node || node->type() != SidebarNode::Type::kTab ||
@@ -703,6 +732,9 @@ void SidebarPageHandler::DropNodeOutside(const std::string& id) {
 void SidebarPageHandler::SetFolderCollapsed(const std::string& id,
                                             bool collapsed) {
   SidebarNode* node = FindNode(id);
+  if (IsViewOnly(node)) {
+    return;
+  }
   if (node && node->type() == SidebarNode::Type::kFolder) {
     space_model().SetCollapsed(node, collapsed);
   }
@@ -710,6 +742,9 @@ void SidebarPageHandler::SetFolderCollapsed(const std::string& id,
 
 void SidebarPageHandler::DeleteNode(const std::string& id) {
   SidebarNode* node = FindNode(id);
+  if (IsViewOnly(node)) {
+    return;
+  }
   if (!node || node->type() == SidebarNode::Type::kRoot) {
     return;
   }
@@ -770,6 +805,9 @@ void SidebarPageHandler::AddSpace() {
 
 void SidebarPageHandler::RenameSpace(const std::string& id,
                                      const std::string& name) {
+  if (IsViewOnlySpace(id)) {
+    return;
+  }
   SpaceModel* space = FindAnySpace(id).space;
   std::u16string name16;
   base::TrimWhitespace(base::UTF8ToUTF16(name), base::TRIM_ALL, &name16);
@@ -781,6 +819,9 @@ void SidebarPageHandler::RenameSpace(const std::string& id,
 void SidebarPageHandler::SetSpaceColor(
     const std::string& id,
     sidebar::mojom::SpaceColorPtr color) {
+  if (IsViewOnlySpace(id)) {
+    return;
+  }
   if (SpaceModel* space = FindAnySpace(id).space) {
     space->SetColor(color ? SpaceColor::FromRGB(color->red, color->green,
                                                 color->blue)
@@ -791,6 +832,9 @@ void SidebarPageHandler::SetSpaceColor(
 void SidebarPageHandler::SetSpaceGradient(
     const std::string& id,
     std::vector<sidebar::mojom::SpaceColorPtr> gradient) {
+  if (IsViewOnlySpace(id)) {
+    return;
+  }
   SpaceModel* space = FindAnySpace(id).space;
   if (!space) {
     return;
@@ -805,12 +849,18 @@ void SidebarPageHandler::SetSpaceGradient(
 
 void SidebarPageHandler::SetSpaceIntensity(const std::string& id,
                                            double intensity) {
+  if (IsViewOnlySpace(id)) {
+    return;
+  }
   if (SpaceModel* space = FindAnySpace(id).space) {
     space->SetIntensity(intensity);
   }
 }
 
 void SidebarPageHandler::SetSpaceGrain(const std::string& id, double grain) {
+  if (IsViewOnlySpace(id)) {
+    return;
+  }
   if (SpaceModel* space = FindAnySpace(id).space) {
     space->SetGrain(grain);
   }
@@ -819,6 +869,9 @@ void SidebarPageHandler::SetSpaceGrain(const std::string& id, double grain) {
 void SidebarPageHandler::SetSpaceAppearance(
     const std::string& id,
     sidebar::mojom::SpaceAppearance appearance) {
+  if (IsViewOnlySpace(id)) {
+    return;
+  }
   // Mojo has validated |appearance|.
   if (SpaceModel* space = FindAnySpace(id).space) {
     space->SetAppearance(static_cast<SpaceAppearance>(appearance));
@@ -827,6 +880,9 @@ void SidebarPageHandler::SetSpaceAppearance(
 
 void SidebarPageHandler::SetSpaceIcon(const std::string& id,
                                       sidebar::mojom::SpaceIconPtr icon) {
+  if (IsViewOnlySpace(id)) {
+    return;
+  }
   SpaceModel* space = FindAnySpace(id).space;
   if (!space) {
     return;
@@ -886,6 +942,9 @@ void SidebarPageHandler::MoveSpace(const std::string& id, uint32_t index) {
 void SidebarPageHandler::MoveNodeToSpace(const std::string& id,
                                          const std::string& space_id) {
   SidebarNode* node = FindNode(id);
+  if (IsViewOnly(node)) {
+    return;
+  }
   SpaceModel* space = FindSpace(space_id);
   if (node && space) {
     MoveEntryToSpace(browser_->GetProfile(), node, *space);
@@ -1047,6 +1106,11 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
       menu->AddItem(pinned ? kUnpin : kPin, pinned ? u"Unpin" : u"Pin");
     }
     menu->AddMoveToSpace(space_list.spaces(), space_model());
+    // Sharing a pinned folder with other people.
+    if (pinned && !node->is_live_folder() && CanShare()) {
+      menu->AddSeparator(ui::NORMAL_SEPARATOR);
+      menu->AddItem(kShare, IsShared(node) ? u"Sharing\u2026" : u"Share\u2026");
+    }
     menu->AddSeparator(ui::NORMAL_SEPARATOR);
     menu->AddItem(kRemove, u"Delete Folder");
     return menu;
@@ -1076,6 +1140,10 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
       menu->AddItem(kRename, u"Rename");
     }
     menu->AddItem(kCopyLink, u"Copy Link");
+    // An easel's tab: share the easel.
+    if (!rooms::EaselOfTab(*node).empty() && CanShare()) {
+      menu->AddItem(kShare, u"Share Easel\u2026");
+    }
     if (entry) {
       menu->AddItem(kDuplicate, u"Duplicate");
     }
@@ -1134,6 +1202,33 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
   SidebarNode* node = FindNode(id);
   if (!node) {
     return;
+  }
+  if (command == kShare) {
+    // A folder, or an easel's tab (docs/design/sync.md, "Rooms: clients").
+    if (node->type() == SidebarNode::Type::kFolder) {
+      OpenShareSheet(browser_->GetProfile(), "folder",
+                     node->id().AsLowercaseString());
+    } else if (std::string easel = rooms::EaselOfTab(*node); !easel.empty()) {
+      OpenShareSheet(browser_->GetProfile(), "easel", easel);
+    }
+    return;
+  }
+  // A viewer's shared items stay as the room has them.
+  switch (command) {
+    case kCopyLink:
+    case kReload:
+    case kMute:
+    case kUnmute:
+    case kCloseTab:
+    case kOpenInSplit:
+    case kSeparate:
+    case kRefreshLiveFolder:
+    case kMarkAllSeen:
+      break;
+    default:
+      if (IsViewOnly(node)) {
+        return;
+      }
   }
   SpaceModel& space = space_model();
   switch (command) {
@@ -1662,6 +1757,16 @@ void SidebarPageHandler::SendSpaces() {
         sync::CompassSyncServiceFactory::GetForProfileIfExists(
             entry.profile->GetOriginalProfile());
     mojo_space->sync_on = sync_service && sync_service->AreDataTypesReleased();
+    if (rooms::RoomService* rooms =
+            entry.profile->IsOffTheRecord()
+                ? nullptr
+                : rooms::RoomService::GetIfExists(entry.profile)) {
+      const rooms::SharedState state =
+          rooms->GetSpaceState(mojo_space->id);
+      mojo_space->can_share = rooms->IsAvailable();
+      mojo_space->shared = state.shared;
+      mojo_space->view_only = state.read_only;
+    }
     spaces.push_back(std::move(mojo_space));
   }
   // The profiles a space can be assigned to, as the profile menu lists them.
@@ -1901,6 +2006,22 @@ sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(
   result->live_folder = ToMojoLiveFolder(node);
   result->live_item = node.is_live_item();
   result->unseen = node.unseen();
+  if (rooms::RoomService* rooms =
+          browser_->GetProfile()->IsOffTheRecord()
+              ? nullptr
+              : rooms::RoomService::GetIfExists(browser_->GetProfile())) {
+    const rooms::SharedState state = rooms->GetNodeState(node);
+    result->view_only = state.read_only;
+    // The badge goes on the shared item itself, not what's in it.
+    const bool parent_shared = node.parent() &&
+                               node.parent()->type() !=
+                                   SidebarNode::Type::kRoot &&
+                               rooms->GetNodeState(*node.parent()).shared;
+    if (state.shared && !parent_shared) {
+      result->shared = true;
+      result->shared_tooltip = state.tooltip;
+    }
+  }
   for (const auto& child : node.children()) {
     result->children.push_back(ToMojo(*child, registry));
   }
@@ -1999,6 +2120,67 @@ void SidebarPageHandler::CloseTabNode(SidebarNode* tab_node, bool recorded) {
     closed.RecordRemoval(model, *tab_node);
   }
   model.Remove(tab_node);
+}
+
+void SidebarPageHandler::ShareSpace(const std::string& space_id) {
+  if (FindSpace(space_id) && CanShare()) {
+    OpenShareSheet(browser_->GetProfile(), "space", space_id);
+  }
+}
+
+void SidebarPageHandler::GetRoomNotices(GetRoomNoticesCallback callback) {
+  std::vector<sidebar::mojom::RoomNoticePtr> notices;
+  if (rooms::RoomService* rooms =
+          browser_->GetProfile()->IsOffTheRecord()
+              ? nullptr
+              : rooms::RoomService::GetIfExists(browser_->GetProfile())) {
+    for (const rooms::RemovedNotice& notice : rooms->GetRemovedNotices()) {
+      const std::string name =
+          notice.name.empty() ? std::string("A shared ") + notice.kind
+                              : "\u201c" + notice.name + "\u201d";
+      notices.push_back(sidebar::mojom::RoomNotice::New(
+          notice.room_id,
+          name + (notice.deleted ? " is no longer shared."
+                                 : ": you were removed.") +
+              " Your copy stays here."));
+    }
+  }
+  std::move(callback).Run(std::move(notices));
+}
+
+void SidebarPageHandler::DismissRoomNotice(const std::string& room_id) {
+  if (rooms::RoomService* rooms =
+          rooms::RoomService::GetIfExists(browser_->GetProfile())) {
+    rooms->DismissRemovedNotice(room_id);
+  }
+}
+
+void SidebarPageHandler::OnRoomsChanged() {
+  RequestTree();
+}
+
+bool SidebarPageHandler::CanShare() {
+  rooms::RoomService* rooms =
+      rooms::RoomService::GetIfExists(browser_->GetProfile());
+  return rooms && rooms->IsAvailable();
+}
+
+bool SidebarPageHandler::IsShared(const SidebarNode* node) {
+  rooms::RoomService* rooms =
+      rooms::RoomService::GetIfExists(browser_->GetProfile());
+  return node && rooms && rooms->GetNodeState(*node).shared;
+}
+
+bool SidebarPageHandler::IsViewOnly(const SidebarNode* node) {
+  rooms::RoomService* rooms =
+      rooms::RoomService::GetIfExists(browser_->GetProfile());
+  return node && rooms && rooms->GetNodeState(*node).read_only;
+}
+
+bool SidebarPageHandler::IsViewOnlySpace(const std::string& id) {
+  rooms::RoomService* rooms =
+      rooms::RoomService::GetIfExists(browser_->GetProfile());
+  return rooms && rooms->GetSpaceState(id).read_only;
 }
 
 }  // namespace compass

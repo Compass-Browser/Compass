@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "compass/browser/rooms/room_service.h"
 #include "compass/browser/ui/webui/easel/easel_page_handler.h"
 
 #include <utility>
@@ -87,7 +88,9 @@ void EaselPageHandler::GetEasel(const std::string& uuid,
   for (const sync_pb::CompassEaselObject* object : store_->ObjectsOf(uuid)) {
     objects.push_back(ToMojo(*object));
   }
-  std::move(callback).Run(mojom::EaselState::kOk, ToMojoEasel(*easel),
+  mojom::EaselPtr result = ToMojoEasel(*easel);
+  result->view_only = IsViewOnly(uuid);
+  std::move(callback).Run(mojom::EaselState::kOk, std::move(result),
                           std::move(objects));
 }
 
@@ -108,9 +111,17 @@ void EaselPageHandler::CreateEasel(const std::string& title,
   std::move(callback).Run(easel->uuid(), std::string());
 }
 
+bool EaselPageHandler::IsViewOnly(const std::string& easel_uuid) const {
+  // A viewer's shared easel (docs/design/sync.md, "Rooms: clients").
+  rooms::RoomService* rooms =
+      profile_->IsOffTheRecord() ? nullptr
+                                 : rooms::RoomService::GetIfExists(profile_);
+  return rooms && rooms->GetEaselState(easel_uuid).read_only;
+}
+
 void EaselPageHandler::RenameEasel(const std::string& uuid,
                                    const std::string& title) {
-  if (store_) {
+  if (store_ && !IsViewOnly(uuid)) {
     base::AutoReset<bool> changing(&changing_, true);
     store_->RenameEasel(uuid, title);
   }
@@ -118,14 +129,14 @@ void EaselPageHandler::RenameEasel(const std::string& uuid,
 
 void EaselPageHandler::SetPalette(const std::string& uuid,
                                   const std::string& palette) {
-  if (store_) {
+  if (store_ && !IsViewOnly(uuid)) {
     base::AutoReset<bool> changing(&changing_, true);
     store_->SetPalette(uuid, palette);
   }
 }
 
 void EaselPageHandler::DeleteEasel(const std::string& uuid) {
-  if (store_) {
+  if (store_ && !IsViewOnly(uuid)) {
     base::AutoReset<bool> changing(&changing_, true);
     store_->DeleteEasel(uuid);
   }
@@ -136,6 +147,10 @@ void EaselPageHandler::SaveObjects(const std::string& easel_uuid,
                                    SaveObjectsCallback callback) {
   if (!store_) {
     std::move(callback).Run("Easels aren't available in this window.", {});
+    return;
+  }
+  if (IsViewOnly(easel_uuid)) {
+    std::move(callback).Run("You can only view this shared easel.", {});
     return;
   }
   std::vector<sync_pb::CompassEaselObject> protos;
@@ -174,6 +189,10 @@ void EaselPageHandler::DeleteObjects(const std::vector<std::string>& uuids) {
   }
   base::AutoReset<bool> changing(&changing_, true);
   for (const std::string& uuid : uuids) {
+    const sync_pb::CompassEaselObject* object = store_->FindObject(uuid);
+    if (object && IsViewOnly(object->easel_uuid())) {
+      continue;
+    }
     store_->DeleteObject(uuid);
   }
 }

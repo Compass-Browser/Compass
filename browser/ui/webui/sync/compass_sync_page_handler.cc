@@ -122,8 +122,8 @@ sync::mojom::StatusPtr CompassSyncPageHandler::ToMojo(
     const sync::SyncStatus& status) {
   return sync::mojom::Status::New(
       StateToMojo(status.state), status.server_url, status.message,
-      base::UTF16ToUTF8(sync::GetSyncMenuLabel(status)),
-      status.device_removed);
+      base::UTF16ToUTF8(sync::GetSyncMenuLabel(status)), status.device_removed,
+      status.offer_restart);
 }
 
 // static

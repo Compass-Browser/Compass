@@ -53,6 +53,7 @@ source_set("easel") {
     "//url",
   ]
   deps = [
+    "//compass/browser/rooms",
     ":conversions",
     "//base:i18n",
     "//chrome/browser/profiles:profile",

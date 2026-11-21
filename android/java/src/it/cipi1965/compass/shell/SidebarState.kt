@@ -112,6 +112,19 @@ class SidebarState {
      * Tidy Today's result while the sidebar is open (it's a window of its own, over the toast):
      * the text, and whether it has Undo; empty: none.
      */
+    /**
+     * Shared with other people (docs/design/sync.md, "Rooms: clients"): the shared folders, easel
+     * boards and spaces here, by UUID, with their members for the badge; whether this profile can
+     * share; and the banners of shared items it lost (room ID to text).
+     */
+    var shared by mutableStateOf<Map<String, String>>(emptyMap())
+    var canShare by mutableStateOf(false)
+    var roomNotices by mutableStateOf<List<Pair<String, String>>>(emptyList())
+
+    /** The members of the shared item |node| is (a folder, or an easel's tab), or null. */
+    fun sharedTooltip(node: Node): String? =
+        shared[node.id] ?: easelOf(node.url)?.let { shared[it] }
+
     var toast by mutableStateOf("")
     var toastUndoable by mutableStateOf(false)
 
@@ -221,4 +234,15 @@ class SidebarState {
 
     private fun JSONArray?.objects(): List<JSONObject> =
         if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
+}
+
+/** The board of an easel tab's URL ("compass://easel/<uuid>" or chrome://compass-easel/...), or null. */
+fun easelOf(url: String): String? {
+    for (prefix in listOf("compass://easel/", "chrome://easel/", "chrome://compass-easel/")) {
+        if (url.startsWith(prefix, ignoreCase = true)) {
+            val rest = url.substring(prefix.length).lowercase().substringBefore('?').substringBefore('#').substringBefore('/')
+            return rest.takeIf { it.length == 36 }
+        }
+    }
+    return null
 }

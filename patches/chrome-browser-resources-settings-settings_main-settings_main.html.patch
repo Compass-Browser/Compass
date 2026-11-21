@@ -2,7 +2,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html 
 index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..47c5ba56d903d18cbfd8a268203c2fd43050152b 100644
 --- a/chrome/browser/resources/settings/settings_main/settings_main.html
 +++ b/chrome/browser/resources/settings/settings_main/settings_main.html
-@@ -52,13 +52,54 @@
+@@ -52,14 +52,55 @@
      show-all$="[[shouldShowAll_(inSearchMode_, lastRoute_)]]">
    <template is="dom-if" if="[[showPage_(pageVisibility_.people)]]">
      <div slot="view" id="people">
@@ -15,7 +15,7 @@ index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..47c5ba56d903d18cbfd8a268203c2fd4
        </template>
      </div>
    </template>
-+
+ 
 +  <!-- Compass's sections (compass/resources/sidebar/settings), defined by
 +       compass/settings/compass_settings.js (settings.html). -->
 +  <template is="dom-if" if="[[showPage_(pageVisibility_.people)]]">
@@ -56,9 +56,10 @@ index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..47c5ba56d903d18cbfd8a268203c2fd4
 +      <compass-claude-page></compass-claude-page>
 +    </template>
 +  </div>
- 
++
    <template is="dom-if" if="[[showPage_(pageVisibility_.privacy)]]">
      <div slot="view" id="privacy">
+       <template is="dom-if" if="[[renderPlugin_(
 @@ -130,14 +171,7 @@
    </template>
  </if>

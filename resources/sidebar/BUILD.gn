@@ -25,6 +25,7 @@ build_webui("build") {
     "placeholder.html",
     "compass_sidebar.html",
     "settings.html",
+    "share.html",
   ]
   ts_files = [
     "app.html.ts",
@@ -60,6 +61,8 @@ build_webui("build") {
     "preview.ts",
     "settings/page_base.ts",
     "settings/standalone.ts",
+    "share/app.ts",
+    "share/browser_proxy.ts",
     "space_icons.ts",
     "speaker_icon.ts",
     "theme_editor.html.ts",
@@ -107,6 +110,7 @@ build_webui("build") {
     "//compass/browser/ui/webui/live_folders:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/sidebar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/sync:mojo_bindings_ts__generator",
+    "//compass/browser/ui/webui/share:mojo_bindings_ts__generator",
   ]
   mojo_files = [
     "$root_gen_dir/compass/browser/ui/webui/claude/chat.mojom-webui.ts",
@@ -116,6 +120,7 @@ build_webui("build") {
     "$root_gen_dir/compass/browser/ui/webui/live_folders/live_folders.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/sidebar/sidebar.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/sync/compass_sync.mojom-webui.ts",
+    "$root_gen_dir/compass/browser/ui/webui/share/share.mojom-webui.ts",
   ]
 
   # chrome-untrusted://live-folders/: the plugin SDK, runtime and built-in

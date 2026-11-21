@@ -96,6 +96,11 @@ source_set("notifier") {
     # state (docs/design/sync.md, "Removing a device").
     "compass_device_remover.cc",
     "compass_device_remover.h",
+
+    # Linking a profile's account to the chain's on the server
+    # (docs/design/sync.md, "Profiles").
+    "compass_account_linker.cc",
+    "compass_account_linker.h",
   ]
   public_deps = [
     ":chain",
@@ -113,6 +118,7 @@ source_set("unit_tests") {
   sources = [
     "bip39_unittest.cc",
     "chain_unittest.cc",
+    "compass_account_linker_unittest.cc",
     "compass_device_remover_unittest.cc",
     "compass_sync_notifier_unittest.cc",
     "compass_sync_quota_unittest.cc",

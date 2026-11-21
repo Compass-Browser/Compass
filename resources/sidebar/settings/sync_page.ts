@@ -328,7 +328,10 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         (state === State.kOn || state === State.kStarting ||
          state === State.kError);
     this.show('off', state === State.kOff);
-    this.show('restartPanel', state === State.kNeedsRestart);
+    this.show(
+        'restartPanel',
+        state === State.kNeedsRestart ||
+            (state === State.kStarting && status.offerRestart));
     this.show('on', on && !pairingActive);
     this.show('removedPanel', removed);
     this.$<HTMLButtonElement>('addDevice').disabled = state !== State.kOn;

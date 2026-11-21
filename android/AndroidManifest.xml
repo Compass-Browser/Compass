@@ -87,6 +87,26 @@
                 <data android:scheme="compass-pair" />
             </intent-filter>
         </activity>
+        <!-- Invite links to shared items (docs/design/sync.md, "Rooms: clients").
+             Not autoVerify: the website's join page explains the link too. -->
+        <activity android:name="it.cipi1965.compass.extras.JoinRoomActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="compassbrowser.org" android:path="/join" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="compass" android:host="join" />
+            </intent-filter>
+        </activity>
         <service android:name="it.cipi1965.compass.autofill.CompassAutofillService"
             android:exported="true"
             android:label="Compass"

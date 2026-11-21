@@ -30,6 +30,17 @@ ${this.isTab_() ? html`
           @dblclick="${this.onTitleInputDblclick_}"
           @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`
       <span class="title">${this.getTitle_(this.node!)}</span>`}
+    ${this.node!.shared ? html`
+      <span class="shared-badge" role="img"
+          aria-label="${this.node!.sharedTooltip}"
+          title="${this.node!.sharedTooltip}">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="6" cy="5.5" r="2.25"></circle>
+          <path d="M2 13c0-2.2 1.8-3.75 4-3.75S10 10.8 10 13"></path>
+          <circle cx="11.25" cy="6.25" r="1.75"></circle>
+          <path d="M11 9.4c1.8.1 3 1.4 3 3.1"></path>
+        </svg>
+      </span>` : nothing}
     ${this.hasAudio_(this.node!) ? html`
       <button class="audio" data-node-id="${this.node!.id}"
           ?muted="${this.isMuted_(this.node!)}"
@@ -107,6 +118,17 @@ ${this.isFolder_() ? html`
       <span class="title" @dblclick="${this.onFolderTitleDblclick_}">
         ${this.node!.title}
       </span>`}
+    ${this.node!.shared ? html`
+      <span class="shared-badge" role="img"
+          aria-label="${this.node!.sharedTooltip}"
+          title="${this.node!.sharedTooltip}">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="6" cy="5.5" r="2.25"></circle>
+          <path d="M2 13c0-2.2 1.8-3.75 4-3.75S10 10.8 10 13"></path>
+          <circle cx="11.25" cy="6.25" r="1.75"></circle>
+          <path d="M11 9.4c1.8.1 3 1.4 3 3.1"></path>
+        </svg>
+      </span>` : nothing}
     ${this.liveState_().error ? html`
       <span class="live-error" role="img" aria-label="${this.liveState_().error}"
           title="${this.liveState_().error}"></span>` : nothing}

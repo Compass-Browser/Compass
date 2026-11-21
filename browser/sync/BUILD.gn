@@ -89,6 +89,9 @@ source_set("sync") {
   deps += [ "//compass/browser/boosts:store" ]
   # And Easels (docs/design/easels.md).
   deps += [ "//compass/browser/easels:store" ]
+  # And the mounts of rooms, which share items with other people
+  # (docs/design/sync.md, "Rooms: clients").
+  deps += [ "//compass/browser/rooms" ]
   if (is_android) {
     deps += [
       "//chrome/browser/gcm",
@@ -132,6 +135,7 @@ source_set("settings") {
 # so it's unit-testable on its own (docs/design/sync.md, "The bridge").
 source_set("spaces_bridge") {
   sources = [
+    "compass_spaces_specifics_util.h",
     "compass_spaces_sync_bridge.cc",
     "compass_spaces_sync_bridge.h",
   ]

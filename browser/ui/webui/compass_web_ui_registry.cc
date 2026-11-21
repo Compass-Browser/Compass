@@ -24,6 +24,8 @@
 #include "compass/browser/ui/webui/placeholder/compass_placeholder_ui.h"
 #include "compass/browser/ui/webui/reader/reader_untrusted_ui.h"
 #include "compass/browser/ui/webui/settings/compass_settings_ui.h"
+#include "compass/browser/ui/webui/share/compass_share_ui.h"
+#include "compass/browser/ui/webui/share/share.mojom.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "compass/browser/ui/webui/sidebar/compass_sidebar_ui.h"
 #include "compass/browser/ui/webui/sync/compass_sync.mojom.h"
@@ -42,6 +44,8 @@ void RegisterWebUIConfigs(content::WebUIConfigMap& map) {
   map.AddWebUIConfig(std::make_unique<CompassArcImportUIConfig>());
   map.AddWebUIConfig(std::make_unique<CompassSyncUIConfig>());
   map.AddWebUIConfig(std::make_unique<CompassSettingsUIConfig>());
+  // Sharing with other people (docs/design/sync.md, "Rooms: clients").
+  map.AddWebUIConfig(std::make_unique<CompassShareUIConfig>());
   // Easels (docs/design/easels.md); Android registers it too
   // (browser/android/android_web_ui_configs.cc).
   map.AddWebUIConfig(std::make_unique<easel::EaselUIConfig>());
@@ -76,6 +80,8 @@ void PopulateWebUIInterfaceBrokers(
       .Add<sync::mojom::PageHandlerFactory>();
   registry.ForWebUI<CompassSettingsUI>()
       .Add<sidebar::mojom::SettingsHandler>();
+  registry.ForWebUI<CompassShareUI>()
+      .Add<share::mojom::PageHandlerFactory>();
   registry.ForWebUI<easel::EaselUI>()
       .Add<easel::mojom::PageHandlerFactory>();
 

@@ -59,6 +59,12 @@ inline constexpr char kProfileDirs[] = "compass.sync.profile_dirs";
 // which it doesn't create again.
 inline constexpr char kProfilesRemoved[] = "compass.sync.profiles_removed";
 
+// Profile account: the server (its URL) this account was linked on, from the
+// chain's own (POST /compass/account/link), so a private server lets it in
+// (docs/design/sync.md, "Profiles"). Empty: not linked yet.
+inline constexpr char kAccountLinkedServer[] =
+    "compass.sync.account_linked_server";
+
 }  // namespace compass::sync::prefs
 
 #endif  // COMPASS_COMPONENTS_SYNC_PREF_NAMES_H_

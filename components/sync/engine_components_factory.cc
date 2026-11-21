@@ -137,6 +137,17 @@ class CompassConnectionManager : public syncer::SyncServerConnectionManager {
             buffer_in, buffer_out,
             signin::AccessTokenInfo(*token, now + base::Hours(1),
                                     /*id_token=*/std::string()));
+    // A 401: the server refuses this account (a private server that doesn't
+    // list it); the sync page says so. Any other answer from the server
+    // clears it; no answer leaves it as it was.
+    if (response.server_status == syncer::HttpResponse::SYNC_AUTH_ERROR) {
+      credentials_->SetRefused(true);
+    } else if (response.server_status ==
+                   syncer::HttpResponse::SERVER_CONNECTION_OK ||
+               response.server_status ==
+                   syncer::HttpResponse::SYNC_SERVER_ERROR) {
+      credentials_->SetRefused(false);
+    }
     // For the end-to-end helpers (tools/sync_e2e/README.md).
     VLOG(1) << "[compass-sync] POST " << sync_request_url_.GetPath() << " ("
             << buffer_in.size() << " bytes) -> " << response;

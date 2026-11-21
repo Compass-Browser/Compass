@@ -1,0 +1,108 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// chrome://compass-share: the share sheet of a space, folder or easel, and
+// the join page of an invite link (docs/design/sync.md, "Rooms: clients").
+module compass.share.mojom;
+
+struct Member {
+  string client_id;
+  // "" if the member has no name (the page says "Someone").
+  string name;
+  string email;
+  // "owner", "editor" or "viewer".
+  string role;
+  bool pending;
+  bool is_me;
+};
+
+struct Invite {
+  string id;
+  string role;
+  // Unix ms; 0 never.
+  int64 expires;
+  // -1 unlimited.
+  int32 uses_left;
+  bool revoked;
+};
+
+struct Room {
+  string room_id;
+  string kind;
+  string name;
+  // This account's.
+  string role;
+  // The server's host.
+  string server;
+  // Company sign-in: email invites work.
+  bool oidc;
+  array<Member> members;
+  array<Invite> invites;
+};
+
+// What's being shared, before the page shares it.
+struct Item {
+  // "space", "folder" or "easel".
+  string kind;
+  string id;
+  string name;
+  // Its room, "" if not shared yet.
+  string room_id;
+  // Whether this profile can share (it syncs).
+  bool can_share;
+};
+
+struct JoinPreview {
+  string name;
+  string kind;
+  string server;
+  bool already_joined;
+};
+
+struct SpaceOption {
+  string id;
+  string name;
+  bool active;
+};
+
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};
+
+interface PageHandler {
+  // The item the sheet is for.
+  GetItem(string kind, string id) => (Item? item);
+  // Shares it: its new room's ID, or an error to show.
+  Share(string kind, string id) => (string room_id, string error);
+  GetRoom(string room_id) => (Room? room, string error);
+  // A new invite link. |expires_days| 0 never; |uses| 0 unlimited.
+  CreateInviteLink(string room_id, string role, int32 expires_days,
+                   int32 uses) => (string link, string error);
+  RevokeInvite(string room_id, string invite_id) => (string error);
+  InviteByEmail(string room_id, string email, string role)
+      => (string error);
+  ChangeRole(string room_id, string client_id, string role)
+      => (string error);
+  RemoveMember(string room_id, string client_id) => (string error);
+  Leave(string room_id) => (string error);
+  DeleteRoom(string room_id) => (string error);
+  CopyToClipboard(string text);
+
+  // Joining.
+  PreviewJoin(string link) => (JoinPreview? preview);
+  GetSpaces() => (array<SpaceOption> spaces);
+  Join(string link, string space_id) => (string error);
+
+  GetDisplayName() => (string name);
+  SetDisplayName(string name);
+
+  // Closes the sheet's window.
+  Close();
+};
+
+interface Page {
+  // Rooms changed (members, roles): the page reads its room again.
+  RoomsChanged();
+};

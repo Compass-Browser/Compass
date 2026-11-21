@@ -1815,5 +1815,48 @@ TEST_F(SidebarPageHandlerTest, AssignsASpaceToAnotherProfile) {
               testing::SizeIs(1));
 }
 
+// A new profile for a space comes from the maker sync sets
+// (CompassSyncService::CreateProfileInChain(): already in the chain), when
+// it takes the request; the space then moves into it.
+TestingProfileManager* g_maker_profile_manager = nullptr;
+int g_maker_calls = 0;
+Profile* g_made_profile = nullptr;
+
+bool MakeTestingProfile(base::OnceCallback<void(Profile*)> loaded) {
+  ++g_maker_calls;
+  TestingProfile* made =
+      g_maker_profile_manager->CreateTestingProfile("made-in-chain");
+  SpaceDirectory::Get()->List(made);
+  g_made_profile = made;
+  std::move(loaded).Run(made);
+  return true;
+}
+
+TEST_F(SidebarPageHandlerTest, ANewProfileForASpaceComesFromTheMaker) {
+  g_maker_profile_manager = profile_manager();
+  g_maker_calls = 0;
+  SetNewProfileMaker(&MakeTestingProfile);
+  SpaceModel* work =
+      WindowFeatures::From(browser())->service().space_list().AddSpace(1,
+                                                                       u"Work");
+  work->AddTab(work->pinned_root(), 0, GURL("https://w.test/"), u"W");
+  Settle();
+  ASSERT_EQ(page_.spaces(), "[Home],Work");
+
+  handler_remote_->SetSpaceProfile(work->id().AsLowercaseString(),
+                                   std::nullopt);
+  Settle();
+  SetNewProfileMaker(nullptr);
+
+  EXPECT_EQ(g_maker_calls, 1);
+  EXPECT_EQ(page_.spaces(), "[Home],Work*");
+  Profile* made = g_made_profile;
+  ASSERT_TRUE(made);
+  SpaceList& made_list = SpaceService::Get(made)->space_list();
+  ASSERT_EQ(made_list.spaces().size(), 1u);
+  EXPECT_THAT(made_list.spaces()[0]->pinned_root()->children(),
+              testing::SizeIs(1));
+}
+
 }  // namespace
 }  // namespace compass

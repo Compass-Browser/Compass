@@ -314,6 +314,12 @@ object SidebarUi {
         fun onToastUndo()
 
         fun onDismiss()
+
+        /** The share sheet of a space, a pinned folder or an easel ("space", "folder", "easel"). */
+        fun onShare(kind: String, id: String)
+
+        /** Drops a lost shared item's banner. */
+        fun onDismissRoomNotice(roomId: String)
     }
 
     @JvmStatic
@@ -469,6 +475,24 @@ private fun SpacePage(state: SidebarState, listener: SidebarUi.Listener) {
             item(key = "favorites") { Box(Modifier.dropMark(drag, "favorites")) { FavoritesGrid(state, listener) } }
         }
         item(key = "header") { SpaceHeader(state, listener) }
+        // Shared items this profile lost: they stay, unshared.
+        for ((roomId, text) in state.roomNotices) {
+            item(key = "room-notice-$roomId") {
+                Row(
+                    Modifier.fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(CompassStyle.fill)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    Box(Modifier.size(28.dp).clip(CircleShape).clickable { listener.onDismissRoomNotice(roomId) }, contentAlignment = Alignment.Center) {
+                        Sym(R.drawable.compass_sym_close, 12f)
+                    }
+                }
+            }
+        }
         item(key = "pinned-header") { Box(Modifier.dropMark(drag, "pinned-header")) { SectionHeader("Pinned") } }
         if (state.pinned.isEmpty()) {
             item(key = "pinned-empty") { Box(Modifier.dropMark(drag, "pinned-empty")) { PinnedEmpty() } }
@@ -612,6 +636,12 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
                 MenuItem("Archive", R.drawable.compass_sym_archive) {
                     menu = false
                     archive = true
+                }
+                if (state.canShare && space.own) {
+                    MenuItem(if (state.shared.containsKey(space.id)) "Sharing…" else "Share Space…", R.drawable.compass_sym_person_add) {
+                        menu = false
+                        listener.onShare("space", space.id)
+                    }
                 }
                 MenuItem("Archive Tabs After…", R.drawable.compass_sym_schedule) {
                     menu = false
@@ -1054,6 +1084,7 @@ private fun NodeRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.alpha(nameAlpha.value),
                 )
+                SharedBadge(state.sharedTooltip(node))
             } else if (split) {
                 Box { EntryMenu(menu, { menu = false }, node, place, state, listener) }
                 // Its panes side by side, the one on screen marked; a tap opens that pane.
@@ -1104,6 +1135,7 @@ private fun NodeRow(
                 if (node.unseen) {
                     Box(Modifier.size(6.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
                 }
+                SharedBadge(state.sharedTooltip(node))
             }
         }
         if (today) {
@@ -1142,6 +1174,12 @@ private fun FolderMenu(
             }
         }
         Item("Rename", R.drawable.compass_sym_edit) { renaming = true }
+        // Sharing a pinned folder with other people.
+        if (state.canShare && !node.isLiveFolder && state.pinned.any { it.contains(node.id) }) {
+            Item(if (state.shared.containsKey(node.id)) "Sharing…" else "Share…", R.drawable.compass_sym_person_add) {
+                listener.onShare("folder", node.id)
+            }
+        }
         if (node.canUndoName) {
             Item("Undo Name", R.drawable.compass_sym_undo) { listener.onUndoName(node.id) }
         } else if (state.suggestNames && !state.incognito && !node.isLiveFolder && node.children.isNotEmpty()) {
@@ -1210,6 +1248,11 @@ private fun EntryMenu(
         }
         if (node.type == "split") {
             Item("Separate Tabs", R.drawable.compass_sym_split_off) { listener.onUnsplit(node.id) }
+        }
+        // An easel's tab: share the board.
+        val easel = easelOf(node.url)
+        if (easel != null && state.canShare) {
+            Item("Share Easel…", R.drawable.compass_sym_person_add) { listener.onShare("easel", easel) }
         }
         // A pinned tab's or favorite's pinned URL, while it's on another page (sidebar.md, "Pinned URL").
         if (place != SidebarUi.EntryPlace.TODAY && node.isAwayFromSavedUrl) {
@@ -1364,3 +1407,14 @@ private fun Modifier.claudeOutline(acting: Boolean, shape: Shape): Modifier {
         )
     return border(2.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = alpha), shape)
 }
+
+/** A shared item's people badge, which says who it's shared with. */
+@Composable
+private fun SharedBadge(tooltip: String?) {
+    if (tooltip == null) return
+    Sym(R.drawable.compass_sym_account_circle, 12f, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+}
+
+/** Is |id| this node or in it. */
+private fun SidebarState.Node.contains(id: String): Boolean =
+    this.id == id || children.any { it.contains(id) }

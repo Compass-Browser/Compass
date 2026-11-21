@@ -70,6 +70,8 @@ class EaselPageHandler : public mojom::PageHandler,
   void OnEaselChanged(const std::string& easel_uuid) override;
 
  private:
+  // A viewer's shared easel: edits are refused.
+  bool IsViewOnly(const std::string& easel_uuid) const;
   void OnImagePrepared(
       AddImageCallback callback,
       base::expected<easels::PreparedImage, std::string> image);

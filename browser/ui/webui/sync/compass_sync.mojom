@@ -24,6 +24,9 @@ struct Status {
   // The server removed this device from the chain on another device: the
   // page offers only leaving (docs/design/sync.md, "Removing a device").
   bool device_removed;
+  // Starting has taken long on one step: the page offers a restart next to
+  // the message.
+  bool offer_restart;
 };
 
 // See compass::sync::PairingStep.

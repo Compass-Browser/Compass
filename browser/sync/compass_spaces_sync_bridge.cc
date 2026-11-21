@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "compass/browser/sync/compass_spaces_sync_bridge.h"
+#include "compass/browser/sync/compass_spaces_specifics_util.h"
 
 #include <algorithm>
 #include <array>
@@ -72,6 +73,19 @@ std::string FaviconKey(std::string_view host) {
 std::string LinkRuleKey(std::string_view domain) {
   return HashKey("compass-link-rule:" + std::string(domain));
 }
+
+std::string RoomMountKey(std::string_view room_id) {
+  return HashKey("compass-room-mount:" + std::string(room_id));
+}
+
+std::string RoomTabKey(std::string_view room_id) {
+  return HashKey("compass-room-tab:" + std::string(room_id));
+}
+
+RoomRoots::RoomRoots() = default;
+RoomRoots::RoomRoots(const RoomRoots&) = default;
+RoomRoots& RoomRoots::operator=(const RoomRoots&) = default;
+RoomRoots::~RoomRoots() = default;
 
 namespace {
 
@@ -307,6 +321,27 @@ void CollectKeys(const SidebarNode& node, std::set<std::string>& keys) {
     keys.insert(Key(child->id()));
     CollectKeys(*child, keys);
   }
+}
+
+// The images (CompassEaselAsset sha256) an easel object shows.
+std::vector<std::string> EaselObjectAssets(
+    const sync_pb::CompassEaselObject& object) {
+  std::vector<std::string> assets;
+  if (object.has_image() && !object.image().asset().empty()) {
+    assets.push_back(object.image().asset());
+  }
+  if (object.has_link() && !object.link().image_asset().empty()) {
+    assets.push_back(object.link().image_asset());
+  }
+  if (object.has_capture()) {
+    if (!object.capture().image_asset().empty()) {
+      assets.push_back(object.capture().image_asset());
+    }
+    if (!object.capture().favicon_asset().empty()) {
+      assets.push_back(object.capture().favicon_asset());
+    }
+  }
+  return assets;
 }
 
 void CollectSplits(const SidebarNode& node, std::vector<base::Uuid>& splits) {
@@ -671,6 +706,15 @@ CompassSpacesSyncBridge::Delegate::GetEaselAssetData(
   return std::nullopt;
 }
 
+std::optional<std::vector<sync_pb::CompassRoomMount>>
+CompassSpacesSyncBridge::Delegate::GetLocalRoomMounts() {
+  return std::nullopt;
+}
+
+RoomRoots CompassSpacesSyncBridge::Delegate::GetRoomRoots() {
+  return RoomRoots();
+}
+
 std::string CompassSpacesSyncBridge::Delegate::GetProfileUuid() {
   return std::string();
 }
@@ -826,6 +870,7 @@ void CompassSpacesSyncBridge::SendLocalChanges() {
 
 size_t CompassSpacesSyncBridge::SendLocalChangesTo(
     syncer::DataTypeStore::WriteBatch& batch) {
+  room_roots_ = delegate_ ? delegate_->GetRoomRoots() : RoomRoots();
   Mirror local = ComputeLocalSpecifics();
   // The home profile's bridge also has the chain's profiles (slice 5).
   const std::optional<std::vector<sync_pb::CompassProfile>> profiles =
@@ -847,6 +892,11 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
       delegate_ ? delegate_->GetLocalEasels() : std::nullopt;
   if (easels) {
     AddLocalEasels(*easels, local);
+  }
+  const std::optional<std::vector<sync_pb::CompassRoomMount>> mounts =
+      delegate_ ? delegate_->GetLocalRoomMounts() : std::nullopt;
+  if (mounts) {
+    AddLocalRoomMounts(*mounts, local);
   }
   AddLocalLinkRules(local);
   const base::TimeTicks now = base::TimeTicks::Now();
@@ -893,6 +943,19 @@ size_t CompassSpacesSyncBridge::SendLocalChangesTo(
   std::optional<std::set<std::string>> entry_hosts;
   for (const auto& [key, specifics] : mirror_) {
     if (local.contains(key)) {
+      continue;
+    }
+    if (specifics.has_room_mount()) {
+      // Left here, unless the mounts aren't loaded.
+      if (mounts) {
+        gone.push_back(key);
+      }
+      continue;
+    }
+    if (IsRoomBacked(specifics)) {
+      // Shared since: the room carries it now. The chain keeps it as it was
+      // (a deleted entity can't come back under its ID), and takes it up
+      // again if the room goes.
       continue;
     }
     if (specifics.has_favicon()) {
@@ -1037,6 +1100,10 @@ CompassSpacesSyncBridge::ComputeLocalSpecifics() const {
   const std::string profile_uuid =
       delegate_ ? delegate_->GetProfileUuid() : std::string();
   for (size_t i = 0; i < spaces.size(); ++i) {
+    if (room_roots_.spaces.contains(keys[i])) {
+      // A shared space: its settings sync through its room.
+      continue;
+    }
     sync_pb::CompassSpacesSpecifics specifics;
     auto it = mirror_.find(keys[i]);
     if (it != mirror_.end() && it->second.has_space()) {
@@ -1071,8 +1138,12 @@ CompassSpacesSyncBridge::ComputeLocalSpecifics() const {
   }
   CollectKeys(*list_->favorites().pinned_root(), model_keys);
   for (const SpaceModel* space : spaces) {
-    AddLocalNodes(*space->pinned_root(), std::string(), kSectionPinned,
-                  Key(space->id()), model_keys, local);
+    // A shared space's Pinned syncs through its room; its Today and archive
+    // stay in this chain.
+    if (!room_roots_.spaces.contains(Key(space->id()))) {
+      AddLocalNodes(*space->pinned_root(), std::string(), kSectionPinned,
+                    Key(space->id()), model_keys, local);
+    }
     AddLocalNodes(*space->today_root(), std::string(), kSectionToday,
                   Key(space->id()), model_keys, local);
   }
@@ -1228,7 +1299,33 @@ void CompassSpacesSyncBridge::AddLocalBoosts(
 void CompassSpacesSyncBridge::AddLocalEasels(
     const std::vector<sync_pb::CompassSpacesSpecifics>& easels,
     Mirror& out) const {
+  // Images only shared easels show sync through their rooms.
+  std::set<std::string> personal_assets;
+  std::set<std::string> room_assets;
+  if (!room_roots_.easels.empty()) {
+    for (const sync_pb::CompassSpacesSpecifics& specifics : easels) {
+      if (!specifics.has_easel_object()) {
+        continue;
+      }
+      std::set<std::string>& into =
+          room_roots_.easels.contains(specifics.easel_object().easel_uuid())
+              ? room_assets
+              : personal_assets;
+      for (const std::string& sha256 :
+           EaselObjectAssets(specifics.easel_object())) {
+        into.insert(sha256);
+      }
+    }
+  }
   for (const sync_pb::CompassSpacesSpecifics& specifics : easels) {
+    if (IsRoomBacked(specifics)) {
+      continue;
+    }
+    if (specifics.has_easel_asset() &&
+        room_assets.contains(specifics.easel_asset().sha256()) &&
+        !personal_assets.contains(specifics.easel_asset().sha256())) {
+      continue;
+    }
     // The store keeps the entities as they came, unknown fields too.
     std::string key;
     if (specifics.has_easel()) {
@@ -1262,6 +1359,128 @@ void CompassSpacesSyncBridge::AddLocalEasels(
     }
     out[key] = specifics;
   }
+}
+
+void CompassSpacesSyncBridge::AddLocalRoomMounts(
+    const std::vector<sync_pb::CompassRoomMount>& mounts,
+    Mirror& out) const {
+  for (const sync_pb::CompassRoomMount& mount : mounts) {
+    if (mount.room_id().empty()) {
+      continue;
+    }
+    const std::string key = RoomMountKey(mount.room_id());
+    sync_pb::CompassSpacesSpecifics specifics;
+    auto it = mirror_.find(key);
+    if (it != mirror_.end() && it->second.has_room_mount()) {
+      // Keeps what this version doesn't know.
+      specifics = it->second;
+    }
+    sync_pb::CompassRoomMount& entity = *specifics.mutable_room_mount();
+    // Positions are compared as bytes: one that means the same stays.
+    const bool same_position = entity.has_position() && mount.has_position() &&
+                               entity.position().SerializeAsString() ==
+                                   mount.position().SerializeAsString();
+    sync_pb::UniquePosition kept = entity.position();
+    entity.MergeFrom(mount);
+    entity.clear_keys();
+    for (const sync_pb::CompassRoomKey& room_key : mount.keys()) {
+      *entity.add_keys() = room_key;
+    }
+    if (same_position) {
+      *entity.mutable_position() = kept;
+    } else if (!mount.has_position()) {
+      entity.clear_position();
+    }
+    out[key] = std::move(specifics);
+  }
+}
+
+bool CompassSpacesSyncBridge::IsRoomBackedNode(const std::string& key) const {
+  if (room_roots_.folders.empty() && room_roots_.spaces.empty()) {
+    return false;
+  }
+  const base::Uuid id = ParseKey(key);
+  if (const SidebarNode* node = id.is_valid() ? FindNode(id) : nullptr) {
+    for (const SidebarNode* n = node; n && n->type() != Type::kRoot;
+         n = n->parent()) {
+      if (room_roots_.folders.contains(Key(n->id()))) {
+        return true;
+      }
+    }
+    const SpaceModel* space = list_->FindSpaceOf(node);
+    return space && room_roots_.spaces.contains(Key(space->id())) &&
+           space->pinned_root()->Contains(node);
+  }
+  // Not in the model: as the mirror places it.
+  std::set<std::string> seen;
+  std::string current = key;
+  while (seen.insert(current).second) {
+    if (room_roots_.folders.contains(current)) {
+      return true;
+    }
+    auto it = mirror_.find(current);
+    if (it == mirror_.end() || !it->second.has_node()) {
+      return false;
+    }
+    const sync_pb::CompassNode& node = it->second.node();
+    if (node.parent_uuid().empty()) {
+      return node.section() == kSectionPinned &&
+             room_roots_.spaces.contains(node.space_uuid());
+    }
+    current = node.parent_uuid();
+  }
+  return false;
+}
+
+bool CompassSpacesSyncBridge::IsRoomBacked(
+    const sync_pb::CompassSpacesSpecifics& specifics) const {
+  if (room_roots_.empty()) {
+    return false;
+  }
+  if (specifics.has_space()) {
+    return room_roots_.spaces.contains(specifics.space().uuid());
+  }
+  if (specifics.has_easel()) {
+    return room_roots_.easels.contains(specifics.easel().uuid());
+  }
+  if (specifics.has_easel_object()) {
+    return room_roots_.easels.contains(specifics.easel_object().easel_uuid());
+  }
+  if (!specifics.has_node()) {
+    return false;
+  }
+  const sync_pb::CompassNode& node = specifics.node();
+  if (room_roots_.folders.contains(node.uuid())) {
+    return true;
+  }
+  if (node.section() == kSectionPinned && node.parent_uuid().empty()) {
+    return room_roots_.spaces.contains(node.space_uuid());
+  }
+  return (node.section() == kSectionPinned ||
+          node.section() == kSectionFavorites) &&
+         !node.parent_uuid().empty() && IsRoomBackedNode(node.parent_uuid());
+}
+
+void CompassSpacesSyncBridge::ApplyWaitingNodes(const std::string& space_uuid) {
+  if (!ready_) {
+    return;
+  }
+  std::vector<std::string> keys;
+  for (const auto& [key, specifics] : mirror_) {
+    if (specifics.has_node() && specifics.node().space_uuid() == space_uuid &&
+        !FindNode(ParseKey(key)) && !IsRoomBacked(specifics)) {
+      keys.push_back(key);
+    }
+  }
+  if (keys.empty()) {
+    return;
+  }
+  {
+    base::AutoReset<bool> applying(&applying_remote_, true);
+    SpaceModel::KeepEmptyFolders keep_empty_folders;
+    ApplyNodes(keys, {});
+  }
+  ScheduleSendLocalChanges();
 }
 
 void CompassSpacesSyncBridge::AddLocalLinkRules(Mirror& out) const {
@@ -1461,6 +1680,11 @@ void CompassSpacesSyncBridge::AddLocalNodes(
     }
     if (section == kSectionToday && !IsSyncableToday(*child)) {
       // A new tab or blank page stays here.
+      continue;
+    }
+    if (room_roots_.folders.contains(key)) {
+      // A shared folder: it and what's in it sync through its room, and
+      // its mount says where it is.
       continue;
     }
     if (child->is_live_item()) {
@@ -1774,9 +1998,44 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
   std::vector<std::string> deleted_link_rules;
   // Hosts whose icons or entries came: their icons go to the delegate.
   std::set<std::string> favicon_hosts;
+  // Room mounts first: what they share decides what of the rest applies.
+  {
+    std::vector<sync_pb::CompassRoomMount> mounts;
+    std::set<std::string> deleted_mounts;
+    for (const std::unique_ptr<syncer::EntityChange>& change : changes) {
+      if (change->type() == syncer::EntityChange::ACTION_DELETE) {
+        auto it = mirror_.find(change->storage_key());
+        if (it != mirror_.end() && it->second.has_room_mount()) {
+          deleted_mounts.insert(it->second.room_mount().room_id());
+        }
+      } else if (change->data().specifics.compass_spaces().has_room_mount()) {
+        mounts.push_back(
+            change->data().specifics.compass_spaces().room_mount());
+      }
+    }
+    if (delegate_ && (!mounts.empty() || !deleted_mounts.empty())) {
+      base::AutoReset<bool> applying(&applying_remote_, true);
+      delegate_->ApplyRoomMounts(mounts, deleted_mounts);
+    }
+    room_roots_ = delegate_ ? delegate_->GetRoomRoots() : RoomRoots();
+  }
+  // Deletions of what rooms carry: another device of this chain shared it
+  // and dropped it from the chain; it stays.
+  bool room_ignored = false;
   for (const std::unique_ptr<syncer::EntityChange>& change : changes) {
     const std::string& key = change->storage_key();
     if (change->type() == syncer::EntityChange::ACTION_DELETE) {
+      auto room_it = mirror_.find(key);
+      if (room_it != mirror_.end() &&
+          (room_it->second.has_room_mount() || IsRoomBacked(room_it->second) ||
+           (room_it->second.has_easel_asset() &&
+            !room_roots_.easels.empty()))) {
+        room_ignored = true;
+        mirror_.erase(key);
+        unparked_.erase(key);
+        batch->DeleteData(key);
+        continue;
+      }
       auto it = mirror_.find(key);
       if (it != mirror_.end() && it->second.has_profile()) {
         profiles_changed = true;
@@ -1805,6 +2064,15 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
         change->data().specifics.compass_spaces();
     mirror_[key] = specifics;
     batch->WriteData(key, specifics.SerializeAsString());
+    if (specifics.has_room_mount()) {
+      // Applied above.
+      continue;
+    }
+    if (IsRoomBacked(specifics)) {
+      // Its room carries it; it stays in the mirror as the chain has it.
+      room_ignored = true;
+      continue;
+    }
     if (specifics.has_profile()) {
       profiles_changed = true;
       continue;
@@ -1855,6 +2123,9 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
   if (local_ignored) {
     VLOG(1) << "[compass-sync] spaces: ignored deletes in local spaces";
   }
+  if (room_ignored) {
+    VLOG(1) << "[compass-sync] spaces: left shared items to their rooms";
+  }
 
   {
     base::AutoReset<bool> applying(&applying_remote_, true);
@@ -1893,7 +2164,8 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
     for (const auto& [key, specifics] : mirror_) {
       if (specifics.has_node() &&
           created.contains(specifics.node().space_uuid()) &&
-          !listed.contains(key)) {
+          !listed.contains(key) && !IsLocalOnly(specifics) &&
+          !IsRoomBacked(specifics)) {
         nodes.push_back(key);
         listed.insert(key);
       }
@@ -2166,71 +2438,10 @@ void CompassSpacesSyncBridge::ApplyNodes(const std::vector<std::string>& keys,
       continue;
     }
 
-    // Content. A live tab whose URL changed keeps its page (it isn't
-    // navigated); its next navigation here commits its own URL (see
-    // TabStripBridge::UpdateNode()). A page used here whose change waits to
-    // be sent keeps its own URL and title: it commits them next, last.
-    SpaceModel* model = ModelOf(node);
-    const std::u16string title = base::UTF8ToUTF16(remote.title());
-    if (node->type() == Type::kTab) {
-      if (!throttled_.contains(key)) {
-        const GURL url(remote.url());
-        if (node->url() != url) {
-          model->SetUrl(node, url);
-        }
-        if (node->title() != title) {
-          model->SetTitle(node, title);
-        }
-      }
-      model->SetCustomTitle(node, base::UTF8ToUTF16(remote.custom_title()));
-      // Only pinned tabs and favorites keep one; a node without one (from a
-      // client that predates it) keeps its own.
-      if (remote.has_saved_url() && !node->saved_url().is_empty()) {
-        const GURL saved_url(remote.saved_url());
-        if (saved_url.is_valid()) {
-          model->SetSavedUrl(node, saved_url,
-                             base::UTF8ToUTF16(remote.saved_title()));
-        }
-      }
-      // Every device commits its own use: the latest wins.
-      if (remote.has_last_active_time()) {
-        const base::Time last_active = FromProtoTime(remote.last_active_time());
-        if (last_active > node->last_active()) {
-          model->SetLastActive(node, last_active);
-        }
-      }
-    } else if (node->type() == Type::kFolder) {
-      if (node->title() != title) {
-        model->SetTitle(node, title);
-      }
-      model->SetCollapsed(node, remote.collapsed());
-      // Whose name it is: a name the user gave on another device stops
-      // Claude here too.
-      if (std::optional<SidebarNode::NameSource> name_source =
-              NameSourceFromProto(remote.name_source())) {
-        model->SetNameSource(node, *name_source);
-      }
-      if (node->is_live_folder()) {
-        if (std::optional<LiveSource> live = LiveSourceFromProto(remote)) {
-          // Its settings, changed on another device.
-          model->SetLiveSource(node, std::move(*live));
-        } else {
-          // Made a normal folder on another device, whose entries come with
-          // it: this device's go, rather than sync as copies.
-          std::vector<base::Uuid> entries;
-          for (const auto& child : node->children()) {
-            entries.push_back(child->id());
-          }
-          for (const base::Uuid& entry_id : entries) {
-            if (SidebarNode* entry = model->FindById(entry_id);
-                entry && entry->is_live_item()) {
-              model->Remove(entry);
-            }
-          }
-          model->ConvertToPlainFolder(node);
-        }
-      }
-    }
+    // Content. A page used here whose change waits to be sent keeps its
+    // own URL and title: it commits them next, last.
+    spaces_util::ApplyNodeContent(*ModelOf(node), node, remote,
+                                  /*keep_page=*/throttled_.contains(key));
     to_place.push_back(key);
   }
 
@@ -2926,6 +3137,9 @@ std::string CompassSpacesSyncBridge::GetStorageKey(
   if (specifics.has_easel_asset()) {
     return specifics.easel_asset().uuid();
   }
+  if (specifics.has_room_mount()) {
+    return RoomMountKey(specifics.room_mount().room_id());
+  }
   return specifics.node().uuid();
 }
 
@@ -2980,8 +3194,12 @@ bool CompassSpacesSyncBridge::IsEntityDataValid(
       !specifics.has_profile() && !specifics.has_favicon() &&
       !specifics.has_memory() && !specifics.has_link_rule() &&
       !specifics.has_boost() && !specifics.has_easel() &&
-      !specifics.has_easel_object() && !specifics.has_easel_asset()) {
+      !specifics.has_easel_object() && !specifics.has_easel_asset() &&
+      !specifics.has_room_mount()) {
     return false;
+  }
+  if (specifics.has_room_mount()) {
+    return !specifics.room_mount().room_id().empty();
   }
   if (specifics.has_link_rule()) {
     // Keyed by its domain, which must be one this version can match.
@@ -3080,5 +3298,114 @@ void CompassSpacesSyncBridge::OnArchiveChanged(const SpaceModel& space) {
 }
 
 #undef COMPASS_SET_STRING
+
+namespace spaces_util {
+
+std::optional<SidebarNode::Type> NodeTypeFromProto(int type) {
+  return compass::sync::TypeFromProto(type);
+}
+
+int NodeTypeToProto(SidebarNode::Type type) {
+  return compass::sync::TypeToProto(type);
+}
+
+void FillNodeContent(const SidebarNode& node, sync_pb::CompassNode& proto) {
+  compass::sync::FillNodeContent(node, proto);
+}
+
+std::optional<LiveSource> LiveSourceFromProto(
+    const sync_pb::CompassNode& node) {
+  return compass::sync::LiveSourceFromProto(node);
+}
+
+std::optional<syncer::UniquePosition> ValidPosition(
+    const sync_pb::UniquePosition& proto) {
+  return compass::sync::ValidPosition(proto);
+}
+
+void ThemeToProto(const SpaceModel& model, sync_pb::CompassSpace& space) {
+  compass::sync::ThemeToProto(model, space);
+}
+
+void ThemeFromProto(const sync_pb::CompassSpace& space, SpaceModel& model) {
+  compass::sync::ThemeFromProto(space, model);
+}
+
+std::vector<std::string> EaselObjectAssets(
+    const sync_pb::CompassEaselObject& object) {
+  return compass::sync::EaselObjectAssets(object);
+}
+
+void ApplyNodeContent(SpaceModel& model,
+                      SidebarNode* node,
+                      const sync_pb::CompassNode& remote,
+                      bool keep_page) {
+  // A live tab whose URL changed keeps its page (it isn't navigated); its
+  // next navigation here commits its own URL (see
+  // TabStripBridge::UpdateNode()). |keep_page|: the page's URL and title
+  // stay.
+  const std::u16string title = base::UTF8ToUTF16(remote.title());
+  if (node->type() == Type::kTab) {
+    if (!keep_page) {
+      const GURL url(remote.url());
+      if (node->url() != url) {
+        model.SetUrl(node, url);
+      }
+      if (node->title() != title) {
+        model.SetTitle(node, title);
+      }
+    }
+    model.SetCustomTitle(node, base::UTF8ToUTF16(remote.custom_title()));
+    // Only pinned tabs and favorites keep one; a node without one (from a
+    // client that predates it) keeps its own.
+    if (remote.has_saved_url() && !node->saved_url().is_empty()) {
+      const GURL saved_url(remote.saved_url());
+      if (saved_url.is_valid()) {
+        model.SetSavedUrl(node, saved_url,
+                          base::UTF8ToUTF16(remote.saved_title()));
+      }
+    }
+    // Every device commits its own use: the latest wins.
+    if (remote.has_last_active_time()) {
+      const base::Time last_active = FromProtoTime(remote.last_active_time());
+      if (last_active > node->last_active()) {
+        model.SetLastActive(node, last_active);
+      }
+    }
+  } else if (node->type() == Type::kFolder) {
+    if (node->title() != title) {
+      model.SetTitle(node, title);
+    }
+    model.SetCollapsed(node, remote.collapsed());
+    // Whose name it is: a name the user gave on another device stops
+    // Claude here too.
+    if (std::optional<SidebarNode::NameSource> name_source =
+            NameSourceFromProto(remote.name_source())) {
+      model.SetNameSource(node, *name_source);
+    }
+    if (node->is_live_folder()) {
+      if (std::optional<LiveSource> live = LiveSourceFromProto(remote)) {
+        // Its settings, changed on another device.
+        model.SetLiveSource(node, std::move(*live));
+      } else {
+        // Made a normal folder on another device, whose entries come with
+        // it: this device's go, rather than sync as copies.
+        std::vector<base::Uuid> entries;
+        for (const auto& child : node->children()) {
+          entries.push_back(child->id());
+        }
+        for (const base::Uuid& entry_id : entries) {
+          if (SidebarNode* entry = model.FindById(entry_id);
+              entry && entry->is_live_item()) {
+            model.Remove(entry);
+          }
+        }
+        model.ConvertToPlainFolder(node);
+      }
+    }
+  }
+}
+
+}  // namespace spaces_util
 
 }  // namespace compass::sync

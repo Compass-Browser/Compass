@@ -51,6 +51,9 @@ struct SyncStatus {
   // (docs/design/sync.md, "Removing a device"): kError, and the only way on
   // is leaving (then joining again).
   bool device_removed = false;
+  // kStarting for a long time on one step: the page offers a restart next to
+  // the message, which says so (StartingStatus()).
+  bool offer_restart = false;
 };
 
 enum class PairingStep {

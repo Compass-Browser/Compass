@@ -26,6 +26,7 @@
 #include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/easels/easel_store.h"
 #include "compass/browser/easels/easel_sync.h"
+#include "compass/browser/rooms/room_service.h"
 #include "compass/browser/claude/claude_memory.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -77,6 +78,16 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
       easels_ = store->GetWeakPtr();
       store->AddObserver(this);
     }
+    // And the mounts of rooms, shared with other people
+    // (docs/design/sync.md, "Rooms: clients").
+    if (::compass::rooms::RoomService* rooms = ::compass::rooms::RoomService::Get(profile)) {
+      rooms_ = rooms->GetWeakPtr();
+      rooms->SetSpacesSyncHooks(
+          base::BindRepeating(&CompassSpacesSyncBridge::NotifyLocalChange,
+                              base::Unretained(bridge_.get())),
+          base::BindRepeating(&CompassSpacesSyncBridge::ApplyWaitingNodes,
+                              base::Unretained(bridge_.get())));
+    }
     // The bridge starts once the spaces are in, as on the desktop
     // (compass_spaces_sync.cc, OnLoaded()). Without it, the bridge never told
     // sync it was ready and COMPASS_SPACES failed to configure ("Backend
@@ -95,6 +106,11 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
     }
     if (easels_) {
       easels_->RemoveObserver(this);
+    }
+    if (rooms_) {
+      rooms_->SetSpacesSyncHooks(base::RepeatingClosure(),
+                                 base::RepeatingCallback<void(
+                                     const std::string&)>());
     }
     bridge_.reset();
   }
@@ -212,6 +228,20 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
   // easels::EaselStore::Observer:
   void OnEaselsChanged() override { bridge_->NotifyLocalChange(); }
 
+  std::optional<std::vector<sync_pb::CompassRoomMount>> GetLocalRoomMounts()
+      override {
+    return rooms_ ? rooms_->GetLocalMounts() : std::nullopt;
+  }
+  void ApplyRoomMounts(const std::vector<sync_pb::CompassRoomMount>& changed,
+                       const std::set<std::string>& deleted) override {
+    if (rooms_) {
+      rooms_->ApplyRemoteMounts(changed, deleted);
+    }
+  }
+  RoomRoots GetRoomRoots() override {
+    return rooms_ ? rooms_->GetRoomRoots() : RoomRoots();
+  }
+
   void DeleteSpace(SpaceModel& space) override {
     SpaceList& list = spaces_->list();
     if (list.spaces().size() > 1) {
@@ -298,6 +328,7 @@ class SpacesSyncHolder : public SpacesAndroid::Attachment,
   base::WeakPtr<claude::ClaudeMemory> memory_;
   base::WeakPtr<boosts::BoostStore> boosts_;
   base::WeakPtr<easels::EaselStore> easels_;
+  base::WeakPtr<::compass::rooms::RoomService> rooms_;
   base::WeakPtrFactory<SpacesSyncHolder> weak_factory_{this};
 };
 

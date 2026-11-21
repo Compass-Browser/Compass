@@ -14,6 +14,9 @@
 #endif
 #include "compass/browser/sync/compass_spaces_sync.h"
 #include "compass/browser/sync/compass_sync_service.h"
+#if !BUILDFLAG(IS_ANDROID)
+#include "compass/browser/window_sync/window_features.h"
+#endif
 
 namespace compass::sync {
 
@@ -47,6 +50,11 @@ CompassSyncServiceFactory::CompassSyncServiceFactory()
   // Built before any profile loads: from now on, sync services get the
   // COMPASS_SPACES controller.
   RegisterSpacesSyncController();
+#if !BUILDFLAG(IS_ANDROID)
+  // A new profile made for a space joins the chain at once
+  // (docs/design/sync.md, "Profiles").
+  SetNewProfileMaker(&CompassSyncService::CreateProfileInChain);
+#endif
 }
 
 CompassSyncServiceFactory::~CompassSyncServiceFactory() = default;

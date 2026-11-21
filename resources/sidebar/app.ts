@@ -19,7 +19,7 @@ import './theme_editor.js';
 import './live_folders/editor.js';
 import type {LiveNode} from './node.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from './space_icons.js';
-import type {ArchivedEntry, ArchivedTab, LiveFolder, LiveFolderState, Node, NowPlaying, ProfileOption, Space, Tree} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, ArchivedTab, LiveFolder, LiveFolderState, Node, NowPlaying, ProfileOption, RoomNotice, Space, Tree} from './sidebar.mojom-webui.js';
 import {AudioState, NodeType, SwipePhase} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
@@ -210,8 +210,12 @@ export class CompassSidebarAppElement extends CrLitElement {
       tidyAvailable_: {type: Boolean},
       tidyBusy_: {type: Boolean},
       toast_: {type: Object},
+      roomNotices_: {type: Array},
     };
   }
+
+  // Shared items this profile lost (docs/design/sync.md, "Rooms: clients").
+  protected accessor roomNotices_: RoomNotice[] = [];
 
   // The live folder editor, while it's open: for a new folder in
   // |parentId|, or for folder |folderId| (docs/design/live-folders.md).
@@ -449,6 +453,28 @@ export class CompassSidebarAppElement extends CrLitElement {
     };
     return `--space-color: ${stop(0)}; --space-color-2: ${stop(0.5)}; ` +
         `--space-color-3: ${stop(1)}`;
+  }
+
+  protected canShareMenuSpace_(): boolean {
+    const space = this.getMenuSpace_();
+    return !!space && space.ownProfile && space.canShare;
+  }
+
+  protected getShareSpaceLabel_(): string {
+    return this.getMenuSpace_()?.shared ? 'Sharing\u2026' : 'Share space\u2026';
+  }
+
+  protected onShareSpaceClick_() {
+    if (this.menuSpaceId_) {
+      this.browserProxy_.handler.shareSpace(this.menuSpaceId_);
+    }
+    this.closeSpaceMenu_();
+  }
+
+  protected onDismissRoomNoticeClick_(e: Event) {
+    const id = (e.currentTarget as HTMLElement).dataset['roomId']!;
+    this.browserProxy_.handler.dismissRoomNotice(id);
+    this.roomNotices_ = this.roomNotices_.filter(n => n.roomId !== id);
   }
 
   protected canDeleteSpace_(): boolean {
@@ -1904,6 +1930,8 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   private onSetSpaces_(
       spaces: Space[], activeId: string, profiles: ProfileOption[]) {
+    this.browserProxy_.handler.getRoomNotices().then(
+        ({notices}) => this.roomNotices_ = notices);
     const previousId = this.activeSpaceId_;
     if (previousId && activeId !== previousId) {
       this.onActiveSpaceChanged_(previousId, activeId, spaces);

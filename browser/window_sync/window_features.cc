@@ -817,7 +817,10 @@ void DeleteSpace(Profile* profile, SpaceModel& space) {
   RemoveSpaceFromProfile(profile, space);
 }
 
-void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to) {
+void MoveSpaceToProfile(Profile* from,
+                        SpaceModel& space,
+                        Profile* to,
+                        bool new_profile) {
   SpaceService* source = SpaceService::Get(from);
   SpaceDirectory* directory = SpaceDirectory::Get();
   if (from == to || !directory || !SpaceDirectory::IsListable(from) ||
@@ -888,7 +891,7 @@ void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to) {
   // A profile new to the switcher comes with this space only, not with the
   // empty one it starts with (a new profile's "Home"). No window shows those:
   // a window lists its profile.
-  if (!was_listed) {
+  if (!was_listed || new_profile) {
     std::vector<SpaceModel*> empty;
     for (const auto& other : target_list.spaces()) {
       if (other.get() != &moved && other->pinned_root()->children().empty() &&
@@ -921,40 +924,59 @@ void MoveSpaceToProfile(Profile* from, SpaceModel& space, Profile* to) {
   RemoveSpaceFromProfile(from, space);
 }
 
+namespace {
+NewProfileMaker g_new_profile_maker = nullptr;
+}  // namespace
+
+void SetNewProfileMaker(NewProfileMaker maker) {
+  g_new_profile_maker = maker;
+}
+
 void AssignSpaceToProfile(const base::Uuid& space_id,
                           std::optional<base::FilePath> profile_path) {
   // Then once its sidebar file is in, so its spaces are known.
-  auto assign = base::BindOnce(
-      [](const base::Uuid& space_id, Profile* to) {
-        if (!to) {
-          return;
-        }
-        SpaceService::Get(to)->RunWhenLoaded(base::BindOnce(
-            [](const base::Uuid& space_id, base::WeakPtr<Profile> to) {
-              SpaceDirectory* directory = SpaceDirectory::GetIfExists();
-              SpaceDirectory::Entry entry =
-                  directory ? directory->FindSpace(space_id)
-                            : SpaceDirectory::Entry();
-              if (to && entry.space) {
-                MoveSpaceToProfile(entry.profile, *entry.space, to.get());
-              }
-            },
-            space_id, to->GetWeakPtr()));
-      },
-      space_id);
+  // |new_profile|: one just made for it (listed already when sync made it).
+  auto make_assign = [](const base::Uuid& space_id, bool new_profile) {
+    return base::BindOnce(
+        [](const base::Uuid& space_id, bool new_profile, Profile* to) {
+          if (!to) {
+            return;
+          }
+          SpaceService::Get(to)->RunWhenLoaded(base::BindOnce(
+              [](const base::Uuid& space_id, bool new_profile,
+                 base::WeakPtr<Profile> to) {
+                SpaceDirectory* directory = SpaceDirectory::GetIfExists();
+                SpaceDirectory::Entry entry =
+                    directory ? directory->FindSpace(space_id)
+                              : SpaceDirectory::Entry();
+                if (to && entry.space) {
+                  MoveSpaceToProfile(entry.profile, *entry.space, to.get(),
+                                     new_profile);
+                }
+              },
+              space_id, new_profile, to->GetWeakPtr()));
+        },
+        space_id, new_profile);
+  };
   ProfileManager* profile_manager = g_browser_process->profile_manager();
   if (!profile_path) {
+    // In the sync chain at once, when it runs here.
+    if (g_new_profile_maker &&
+        g_new_profile_maker(make_assign(space_id, /*new_profile=*/true))) {
+      return;
+    }
     ProfileAttributesStorage& storage =
         profile_manager->GetProfileAttributesStorage();
     ProfileManager::CreateMultiProfileAsync(
         storage.ChooseNameForNewProfile(),
         storage.ChooseAvatarIconIndexForNewProfile(), /*is_hidden=*/false,
-        std::move(assign));
+        make_assign(space_id, /*new_profile=*/true));
     return;
   }
   // Runs |assign| with null if it fails.
   profile_manager->LoadProfileByPath(*profile_path, /*incognito=*/false,
-                                     std::move(assign));
+                                     make_assign(space_id,
+                                                 /*new_profile=*/false));
 }
 
 BrowserWindowInterface* SwitchWindowToSpace(BrowserWindowInterface* browser,

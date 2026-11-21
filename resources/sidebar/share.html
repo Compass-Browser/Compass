@@ -1,0 +1,119 @@
+<!doctype html>
+<html dir="$i18n{textdirection}" lang="$i18n{language}">
+  <head>
+    <meta charset="utf-8">
+    <title>Share</title>
+    <link rel="stylesheet" href="chrome://resources/css/text_defaults_md.css">
+    <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome">
+    <style>
+      html {
+        color-scheme: light dark;
+      }
+
+      body {
+        background: var(--color-sys-base, #fff);
+        color: var(--color-sys-on-surface, #1f1f1f);
+        margin: 0;
+      }
+
+      main {
+        margin: 0 auto;
+        max-width: 520px;
+        padding: 20px 20px 32px;
+      }
+
+      h1 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 4px;
+      }
+
+      h2 {
+        font-size: 13px;
+        font-weight: 600;
+        margin: 22px 0 8px;
+      }
+
+      .sub {
+        color: var(--color-sys-on-surface-subtle, #5f6368);
+        font-size: 12px;
+        margin: 0 0 12px;
+      }
+
+      .row {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 6px 0;
+      }
+
+      .member {
+        border-bottom: 1px solid var(--color-sys-divider, #e3e3e3);
+        padding: 8px 0;
+      }
+
+      .member .who {
+        flex: 1;
+        min-width: 160px;
+      }
+
+      .member .email {
+        color: var(--color-sys-on-surface-subtle, #5f6368);
+        font-size: 12px;
+      }
+
+      button, select, input {
+        font: inherit;
+      }
+
+      button {
+        background: transparent;
+        border: 1px solid var(--color-sys-tonal-outline, #c7c7c7);
+        border-radius: 8px;
+        color: inherit;
+        cursor: pointer;
+        padding: 5px 12px;
+      }
+
+      button.primary {
+        background: var(--color-sys-primary, #0b57d0);
+        border-color: transparent;
+        color: var(--color-sys-on-primary, #fff);
+      }
+
+      button.danger {
+        color: var(--color-sys-error, #b3261e);
+      }
+
+      input[type=text], input[type=email], select {
+        border: 1px solid var(--color-sys-tonal-outline, #c7c7c7);
+        border-radius: 8px;
+        padding: 5px 8px;
+      }
+
+      input.link {
+        flex: 1;
+        min-width: 200px;
+      }
+
+      .error {
+        color: var(--color-sys-error, #b3261e);
+        font-size: 12px;
+      }
+
+      .note {
+        color: var(--color-sys-on-surface-subtle, #5f6368);
+        font-size: 12px;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="app"></main>
+    <script type="module" src="share/app.js"></script>
+  </body>
+</html>

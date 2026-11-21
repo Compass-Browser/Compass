@@ -248,6 +248,32 @@ void ApplySyncLimit(SyncLimit limit, SyncStatus& status) {
   }
 }
 
+SyncStatus StartingStatus(StartingStep step, bool stuck) {
+  SyncStatus status;
+  status.state = SyncState::kStarting;
+  switch (step) {
+    case StartingStep::kReadingKey:
+      status.message = "Starting: reading this device's sync key…";
+      break;
+    case StartingStep::kConnecting:
+      status.message = "Starting: connecting to the sync server…";
+      break;
+    case StartingStep::kEncryption:
+      status.message = "Starting: setting up encryption…";
+      break;
+    case StartingStep::kConfiguring:
+      status.message = "Starting: getting the data ready to sync…";
+      break;
+  }
+  if (stuck) {
+    status.message = base::StrCat(
+        {status.message,
+         " This is taking long. Restart Compass if it doesn't change."});
+    status.offer_restart = true;
+  }
+  return status;
+}
+
 void ApplyDeviceRemoved(SyncStatus& status) {
   status.state = SyncState::kError;
   status.limit = SyncLimit::kNone;

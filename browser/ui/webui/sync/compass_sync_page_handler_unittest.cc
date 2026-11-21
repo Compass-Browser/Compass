@@ -373,6 +373,29 @@ TEST_F(CompassSyncPageHandlerTest, RemovedStateReachesThePage) {
   EXPECT_FALSE(future.Get<0>()->device_removed);
 }
 
+// A start that takes long: the page gets the step and the restart offer.
+TEST_F(CompassSyncPageHandlerTest, StuckStartOffersRestart) {
+  controller_.Set(
+      sync::StartingStatus(sync::StartingStep::kConnecting, /*stuck=*/false),
+      {});
+  task_environment_.RunUntilIdle();
+  ASSERT_TRUE(page_.status());
+  EXPECT_EQ(page_.status()->state, sync::mojom::State::kStarting);
+  EXPECT_EQ(page_.status()->message,
+            "Starting: connecting to the sync server…");
+  EXPECT_FALSE(page_.status()->offer_restart);
+
+  controller_.Set(
+      sync::StartingStatus(sync::StartingStep::kConnecting, /*stuck=*/true),
+      {});
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(page_.status()->state, sync::mojom::State::kStarting);
+  EXPECT_TRUE(page_.status()->offer_restart);
+  EXPECT_EQ(page_.status()->message,
+            "Starting: connecting to the sync server… This is taking long. "
+            "Restart Compass if it doesn't change.");
+}
+
 TEST_F(CompassSyncPageHandlerTest, SwitchesReachTheController) {
   remote_->SetDataTypeEnabled(sync::mojom::DataType::kBookmarks, false);
   remote_->SetDataTypeEnabled(sync::mojom::DataType::kSpaces, true);

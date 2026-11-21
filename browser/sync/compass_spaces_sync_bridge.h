@@ -73,6 +73,38 @@ std::string FaviconKey(std::string_view host);
 // SHA-256("compass-link-rule:" + domain). See docs/design/link-routing.md.
 std::string LinkRuleKey(std::string_view domain);
 
+// A room mount's entity UUID (and client tag) for |room_id| (unpadded
+// base64url): the same shape as FaviconKey(), from
+// SHA-256("compass-room-mount:" + room_id). See docs/design/sync.md,
+// "Rooms: clients".
+std::string RoomMountKey(std::string_view room_id);
+
+// The UUID of the pinned tab a joined easel gets (as iOS's): from
+// SHA-256("compass-room-tab:" + room_id), the same shape. It stays on this
+// device's model and never syncs through the chain.
+std::string RoomTabKey(std::string_view room_id);
+
+// What syncs through rooms (shared with other people) rather than through
+// this chain, by lowercase UUID: shared spaces (their settings and Pinned;
+// Today and the archive stay personal), shared folders (with everything in
+// them) and shared easels (the board, its objects and images). The bridge
+// leaves them out of the chain, never applies them from it, and never
+// deletes them for the chain; the mounts sync instead.
+struct RoomRoots {
+  RoomRoots();
+  RoomRoots(const RoomRoots&);
+  RoomRoots& operator=(const RoomRoots&);
+  ~RoomRoots();
+
+  bool empty() const {
+    return spaces.empty() && folders.empty() && easels.empty();
+  }
+
+  std::set<std::string> spaces;
+  std::set<std::string> folders;
+  std::set<std::string> easels;
+};
+
 // A space of the switcher (SpaceDirectory), of any profile, and the directory
 // position its profile's bridge last synced for it, if known (slice 5).
 struct DirectorySlot {
@@ -212,6 +244,20 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
     virtual void ApplyEasels(
         const std::vector<sync_pb::CompassSpacesSpecifics>& changed,
         const std::set<std::string>& deleted) {}
+
+    // Rooms (docs/design/sync.md, "Rooms: clients"). This account's room
+    // mounts, once they're loaded; nullopt otherwise: the account's are
+    // then left alone.
+    virtual std::optional<std::vector<sync_pb::CompassRoomMount>>
+    GetLocalRoomMounts();
+    // Mounts another device added or changed, and the room IDs of those it
+    // deleted (left). Called while applying, before anything else of the
+    // batch, so what they share is known to GetRoomRoots() from then on.
+    virtual void ApplyRoomMounts(
+        const std::vector<sync_pb::CompassRoomMount>& changed,
+        const std::set<std::string>& deleted) {}
+    // What syncs through rooms, not this chain.
+    virtual RoomRoots GetRoomRoots();
   };
 
   // |list| is the profile's spaces; it must outlive the bridge. |delegate|
@@ -247,6 +293,11 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   bool OfferFavicon(const std::string& host,
                     const std::string& png,
                     int source_size);
+
+  // Nodes the mirror has for space |space_uuid| that aren't in the model
+  // (they came before the space did, which a room brought later): applies
+  // them now. Today and the archive of a shared space stay in this chain.
+  void ApplyWaitingNodes(const std::string& space_uuid);
 
   // Commits local changes now rather than in a task.
   void SendLocalChangesForTesting() { SendLocalChanges(); }
@@ -337,6 +388,16 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   void AddLocalEasels(
       const std::vector<sync_pb::CompassSpacesSpecifics>& easels,
       Mirror& out) const;
+  // The room mount entities of |mounts| (GetLocalRoomMounts()) into |out|.
+  void AddLocalRoomMounts(const std::vector<sync_pb::CompassRoomMount>& mounts,
+                          Mirror& out) const;
+  // Whether |specifics| is something a room carries (RoomRoots): a shared
+  // space's entity or Pinned node, a node in a shared folder (or the folder),
+  // a shared easel's board, object or (if any easel is shared) image.
+  bool IsRoomBacked(const sync_pb::CompassSpacesSpecifics& specifics) const;
+  // Whether node |key| (as the model or the mirror has it) is in a shared
+  // folder, or in a shared space's Pinned.
+  bool IsRoomBackedNode(const std::string& key) const;
   // The list's link rules as entities into |out|, except those for a space
   // that stays on this device.
   void AddLocalLinkRules(Mirror& out) const;
@@ -455,6 +516,9 @@ class CompassSpacesSyncBridge : public syncer::DataTypeSyncBridge,
   bool applying_remote_ = false;
   bool send_scheduled_ = false;
   Mirror mirror_;
+  // What rooms carry, as the delegate said at the start of the last pass or
+  // remote change.
+  RoomRoots room_roots_;
   // Nodes parked at their section's root whose awaited parent was deleted:
   // they stay there, and the next pass commits it.
   std::set<std::string> unparked_;

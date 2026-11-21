@@ -285,6 +285,43 @@ class TestDelegate : public CompassSpacesSyncBridge::Delegate {
     }
   }
 
+  // Room mounts by room ID; nullopt: not loaded. Each mount's root is a
+  // shared folder (the tests' rooms are folders).
+  std::optional<std::map<std::string, sync_pb::CompassRoomMount>> mounts;
+
+  std::optional<std::vector<sync_pb::CompassRoomMount>> GetLocalRoomMounts()
+      override {
+    if (!mounts) {
+      return std::nullopt;
+    }
+    std::vector<sync_pb::CompassRoomMount> list;
+    for (const auto& [id, mount] : *mounts) {
+      list.push_back(mount);
+    }
+    return list;
+  }
+  void ApplyRoomMounts(const std::vector<sync_pb::CompassRoomMount>& changed,
+                       const std::set<std::string>& deleted) override {
+    if (!mounts) {
+      return;
+    }
+    for (const sync_pb::CompassRoomMount& mount : changed) {
+      (*mounts)[mount.room_id()] = mount;
+    }
+    for (const std::string& id : deleted) {
+      mounts->erase(id);
+    }
+  }
+  RoomRoots GetRoomRoots() override {
+    RoomRoots roots;
+    if (mounts) {
+      for (const auto& [id, mount] : *mounts) {
+        roots.folders.insert(mount.root_uuid());
+      }
+    }
+    return roots;
+  }
+
   // Claude's memories by id; nullopt: not loaded.
   std::optional<std::map<std::string, sync_pb::CompassMemory>> memories;
   // Boosts by id; nullopt: not loaded.
@@ -2284,4 +2321,76 @@ TEST_F(CompassSpacesSyncBridgeTest, LocalSpacesKeepTheirPlace) {
 }
 
 }  // namespace
+// Rooms (docs/design/sync.md, "Rooms: clients") -----------------------------
+
+// A mount syncs to the account's other devices; the shared folder leaves the
+// chain as it was (frozen, not deleted), another device doesn't apply the
+// chain's copy, and when the mount goes the folder syncs again.
+TEST_F(CompassSpacesSyncBridgeTest, RoomMountsAndSharedFolders) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->delegate().mounts.emplace();
+  a->Join();
+  SidebarNode* work = a->space(0).pinned_root()->children()[0].get();
+  const std::string work_key = Key(work->id());
+  const std::string mail_key = Key(work->children()[0]->id());
+  ASSERT_TRUE(server_.entities.contains(work_key));
+
+  // A shares Work.
+  sync_pb::CompassRoomMount mount;
+  mount.set_room_id("n4bQgYhMfWWaL-qgxVrQFQ");
+  mount.set_server_url("https://sync.example/v2");
+  mount.set_kind("folder");
+  mount.set_root_uuid(work_key);
+  mount.set_role("owner");
+  sync_pb::CompassRoomKey& key = *mount.add_keys();
+  key.set_epoch(1);
+  key.set_key(std::string(32, 'k'));
+  (*a->delegate().mounts)[mount.room_id()] = mount;
+  a->bridge().NotifyLocalChange();
+  a->Push();
+  const std::string mount_key = RoomMountKey(mount.room_id());
+  ASSERT_TRUE(server_.entities.contains(mount_key));
+  EXPECT_EQ(server_.entities[mount_key].room_mount().keys(0).key(),
+            std::string(32, 'k'));
+  // Frozen in the chain: renames and deletions here don't go up.
+  EXPECT_TRUE(server_.entities.contains(work_key));
+  a->space(0).SetTitle(work, u"Renamed");
+  a->Push();
+  EXPECT_EQ(server_.entities[work_key].node().title(), "Work");
+
+  // B, another device of the account, gets the mount and leaves the chain's
+  // copy of the folder alone (its room brings it).
+  std::unique_ptr<Device> b = MakeDevice();
+  b->delegate().mounts.emplace();
+  b->Join();
+  ASSERT_TRUE(b->delegate().mounts->contains(mount.room_id()));
+  EXPECT_EQ(b->delegate().mounts->at(mount.room_id()).root_uuid(), work_key);
+  EXPECT_FALSE(b->space(0).FindById(base::Uuid::ParseLowercase(work_key)));
+  EXPECT_FALSE(b->space(0).FindById(base::Uuid::ParseLowercase(mail_key)));
+  EXPECT_EQ(b->Push(), 0u);
+
+  // A leaves the room: the mount goes everywhere, and the folder (still
+  // here) syncs in the chain again.
+  a->delegate().mounts->clear();
+  a->bridge().NotifyLocalChange();
+  a->Push();
+  EXPECT_FALSE(server_.entities.contains(mount_key));
+  EXPECT_EQ(server_.entities[work_key].node().title(), "Renamed");
+  b->Pull();
+  EXPECT_TRUE(b->delegate().mounts->empty());
+}
+
+TEST_F(CompassSpacesSyncBridgeTest, RoomMountEntitiesAreValid) {
+  std::unique_ptr<Device> a = MakeDevice();
+  sync_pb::CompassSpacesSpecifics specifics;
+  specifics.mutable_room_mount()->set_room_id("n4bQgYhMfWWaL-qgxVrQFQ");
+  syncer::EntityData data = Device::Data(specifics);
+  EXPECT_TRUE(a->bridge().IsEntityDataValid(data));
+  EXPECT_EQ(a->bridge().GetStorageKey(data),
+            RoomMountKey("n4bQgYhMfWWaL-qgxVrQFQ"));
+  data.specifics.mutable_compass_spaces()->mutable_room_mount()->clear_room_id();
+  EXPECT_FALSE(a->bridge().IsEntityDataValid(data));
+}
+
 }  // namespace compass::sync

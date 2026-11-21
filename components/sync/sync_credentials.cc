@@ -7,6 +7,7 @@
 #include <map>
 
 #include "base/no_destructor.h"
+#include "base/task/sequenced_task_runner.h"
 
 namespace compass::sync {
 namespace {
@@ -47,6 +48,7 @@ void SyncCredentials::Clear() {
   base::AutoLock lock(lock_);
   key_.reset();
   device_removed_ = false;
+  refused_ = false;
 }
 
 void SyncCredentials::SetDeviceRemoved() {
@@ -57,6 +59,35 @@ void SyncCredentials::SetDeviceRemoved() {
 bool SyncCredentials::IsDeviceRemoved() const {
   base::AutoLock lock(lock_);
   return device_removed_;
+}
+
+void SyncCredentials::SetRefused(bool refused) {
+  scoped_refptr<base::SequencedTaskRunner> runner;
+  base::RepeatingClosure callback;
+  {
+    base::AutoLock lock(lock_);
+    if (refused_ == refused) {
+      return;
+    }
+    refused_ = refused;
+    runner = refused_runner_;
+    callback = refused_callback_;
+  }
+  if (runner && callback) {
+    runner->PostTask(FROM_HERE, std::move(callback));
+  }
+}
+
+bool SyncCredentials::IsRefused() const {
+  base::AutoLock lock(lock_);
+  return refused_;
+}
+
+void SyncCredentials::SetRefusedCallback(base::RepeatingClosure callback) {
+  base::AutoLock lock(lock_);
+  refused_runner_ =
+      callback ? base::SequencedTaskRunner::GetCurrentDefault() : nullptr;
+  refused_callback_ = std::move(callback);
 }
 
 bool SyncCredentials::HasKey() const {

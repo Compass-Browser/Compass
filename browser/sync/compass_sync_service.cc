@@ -15,6 +15,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/i18n/time_formatting.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
@@ -36,6 +37,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/sync/device_info_sync_service_factory.h"
 #include "chrome/common/chrome_constants.h"
+#include "compass/browser/rooms/room_service.h"
 #include "compass/browser/sync/compass_profile_creator.h"
 #include "compass/browser/sync/compass_spaces_sync.h"
 #include "compass/browser/sync/compass_sync_service_factory.h"
@@ -90,6 +92,9 @@ constexpr char kThisDevice[] = "this computer";
 
 // Focus and wake ask the server for changes at most this often.
 constexpr base::TimeDelta kMinRefreshInterval = base::Seconds(10);
+// Linking a profile account again after the server refused it.
+constexpr base::TimeDelta kMinLinkInterval = base::Minutes(1);
+constexpr base::TimeDelta kLinkRetry = base::Minutes(5);
 
 // How often the server's quota status is asked for (slice 7): normally, and
 // while commits fail or a limit is in the way.
@@ -304,6 +309,10 @@ CompassSyncService::CompassSyncService(
   if (prefs_->GetBoolean(prefs::kDeviceRemoved)) {
     credentials_->SetDeviceRemoved();
   }
+  // The server refusing this account (401) shows on the page, and a
+  // profile account links itself again (sync.md, "Profiles").
+  credentials_->SetRefusedCallback(base::BindRepeating(
+      &CompassSyncService::OnRefusedChanged, weak_factory_.GetWeakPtr()));
   // A stable sync UUID, made once (slice 5).
   if (prefs_->GetString(prefs::kProfileUuid).empty()) {
     prefs_->SetString(prefs::kProfileUuid,
@@ -336,6 +345,7 @@ void CompassSyncService::RegisterProfilePrefs(
   registry->RegisterStringPref(prefs::kServerUrl, std::string());
   registry->RegisterStringPref(prefs::kSeed, std::string());
   registry->RegisterStringPref(prefs::kProfileUuid, std::string());
+  registry->RegisterStringPref(prefs::kAccountLinkedServer, std::string());
   registry->RegisterBooleanPref(prefs::kProfileAccount, false);
   registry->RegisterBooleanPref(prefs::kProfilesPending, false);
   registry->RegisterDictionaryPref(prefs::kProfileDirs);
@@ -346,6 +356,10 @@ void CompassSyncService::RegisterProfilePrefs(
 }
 
 void CompassSyncService::Shutdown() {
+  starting_timer_.Stop();
+  link_retry_timer_.Stop();
+  account_linker_.reset();
+  credentials_->SetRefusedCallback(base::RepeatingClosure());
   notifier_.reset();
 #if BUILDFLAG(IS_ANDROID)
   push_.reset();
@@ -356,6 +370,7 @@ void CompassSyncService::Shutdown() {
   joiner_.reset();
   missing_profiles_.reset();
   profile_creator_.reset();
+  space_profiles_.clear();
   attributes_observation_.Reset();
   // The directory goes with the profile manager, maybe first.
   if (SpaceDirectory* directory = SpaceDirectory::GetIfExists();
@@ -449,6 +464,19 @@ SyncStatus CompassSyncService::GetStatus() const {
     ApplyDeviceRemoved(status);
     return status;
   }
+  if (credentials_->IsRefused()) {
+    // A 401: a private server that doesn't list this account. A profile
+    // account links itself (LinkAccount()), which lets it in when the
+    // chain's own is listed.
+    status.state = SyncState::kError;
+    status.message =
+        IsProfileAccount()
+            ? "The sync server refused this profile (it may serve only invited "
+              "people). Ask the server's owner to allow it."
+            : "The sync server refused this device's chain (it may serve only "
+              "invited people). Ask the server's owner to allow it.";
+    return status;
+  }
   if (seed_unreadable_) {
     status.state = SyncState::kError;
     status.message =
@@ -487,9 +515,15 @@ SyncStatus CompassSyncService::GetStatus() const {
   if (!seed_ || types_held_ || setup_handle_ ||
       sync_service_->GetTransportState() !=
           syncer::SyncService::TransportState::ACTIVE) {
-    status.state = SyncState::kStarting;
-    status.message = "Starting…";
-    return status;
+    // Which step it waits on, and whether that has taken too long (the
+    // page then offers a restart).
+    const StartingStep step = GetStartingStep();
+    const bool stuck =
+        starting_step_ == step &&
+        base::TimeTicks::Now() - starting_since_ >= kStartingStuckAfter;
+    SyncStatus starting = StartingStatus(step, stuck);
+    starting.server_url = status.server_url;
+    return starting;
   }
   status.state = SyncState::kOn;
   if (GetProfileMapping().needed) {
@@ -509,11 +543,50 @@ SyncStatus CompassSyncService::GetStatus() const {
   return status;
 }
 
+StartingStep CompassSyncService::GetStartingStep() const {
+  if (!seed_) {
+    return StartingStep::kReadingKey;
+  }
+  switch (sync_service_->GetTransportState()) {
+    case syncer::SyncService::TransportState::DISABLED:
+    case syncer::SyncService::TransportState::PAUSED:
+    case syncer::SyncService::TransportState::START_DEFERRED:
+    case syncer::SyncService::TransportState::INITIALIZING:
+      return StartingStep::kConnecting;
+    case syncer::SyncService::TransportState::PENDING_DESIRED_CONFIGURATION:
+    case syncer::SyncService::TransportState::CONFIGURING:
+    case syncer::SyncService::TransportState::ACTIVE:
+      break;
+  }
+  return types_held_ ? StartingStep::kEncryption : StartingStep::kConfiguring;
+}
+
+void CompassSyncService::TrackStartingStep() {
+  std::optional<StartingStep> step;
+  if (GetStatus().state == SyncState::kStarting) {
+    step = GetStartingStep();
+  }
+  if (step == starting_step_) {
+    return;
+  }
+  starting_step_ = step;
+  starting_timer_.Stop();
+  if (!step) {
+    return;
+  }
+  starting_since_ = base::TimeTicks::Now();
+  // Once it has taken that long, the page hears of it (StartingStatus()).
+  starting_timer_.Start(FROM_HERE, kStartingStuckAfter,
+                        base::BindOnce(&CompassSyncService::NotifyObservers,
+                                       weak_factory_.GetWeakPtr()));
+}
+
 PairingStatus CompassSyncService::GetPairingStatus() const {
   return pairing_;
 }
 
 void CompassSyncService::NotifyObservers() {
+  TrackStartingStep();
   if (VLOG_IS_ON(1)) {
     // For the end-to-end helpers (tools/sync_e2e/README.md), which
     // run with --vmodule=compass_sync_service=1.
@@ -671,6 +744,7 @@ void CompassSyncService::LeaveProfile() {
   prefs_->ClearPref(prefs::kProfileDirs);
   prefs_->ClearPref(prefs::kProfilesRemoved);
   prefs_->ClearPref(prefs::kDeviceRemoved);
+  prefs_->ClearPref(prefs::kAccountLinkedServer);
   // This device joins again as a new device, with a new cache GUID: the
   // server refuses this one if the device was removed (sync.md, "Removing a
   // device"). Signing out (the next launch, without local sync) keeps the
@@ -736,6 +810,19 @@ void CompassSyncService::OnEncryptorForLoad(
   }
   Seed seed;
   std::copy(plain->begin(), plain->end(), seed.begin());
+  // A profile account not linked on this server yet links itself first, so
+  // a private server lets its first request in (sync.md, "Profiles"). The
+  // engine waits for the key meanwhile.
+  if (IsProfileAccount() &&
+      prefs_->GetString(prefs::kAccountLinkedServer) != GetServerUrl().spec()) {
+    LinkAccount(seed, base::BindOnce(&CompassSyncService::OnSeedLoaded,
+                                     weak_factory_.GetWeakPtr(), seed));
+    return;
+  }
+  OnSeedLoaded(seed);
+}
+
+void CompassSyncService::OnSeedLoaded(const Seed& seed) {
   seed_ = seed;
   // The home profile has the chain's own account; the others their own
   // (slice 5).
@@ -750,6 +837,75 @@ void CompassSyncService::OnEncryptorForLoad(
   // The home profile now knows its chain: profiles may join or be created.
   ReconcileProfiles();
   NotifyObservers();
+}
+
+void CompassSyncService::LinkAccount(const Seed& seed, base::OnceClosure done) {
+  if (!account_linker_) {
+    account_linker_ = std::make_unique<AccountLinker>(
+        profile_->GetDefaultStoragePartition()
+            ->GetURLLoaderFactoryForBrowserProcess(),
+        GetServerUrl());
+  }
+  const base::Time now = base::Time::Now();
+  last_link_ = base::TimeTicks::Now();
+  account_linker_->Link(
+      MakeAccessToken(DeriveAuthKey(seed), now),
+      MakeAccessToken(DeriveAuthKey(seed, AccountUuid()), now),
+      base::BindOnce(
+          [](base::WeakPtr<CompassSyncService> self, base::OnceClosure done,
+             AccountLinker::Result result) {
+            if (!self) {
+              return;
+            }
+            VLOG(1) << "[compass-sync] linking "
+                    << self->profile_->GetPath().BaseName().AsUTF8Unsafe()
+                    << "'s account -> " << static_cast<int>(result);
+            if (result == AccountLinker::Result::kLinked) {
+              self->prefs_->SetString(prefs::kAccountLinkedServer,
+                                      self->GetServerUrl().spec());
+              self->link_retry_timer_.Stop();
+            } else {
+              // Again later (the server, or the chain's listing, may
+              // change): the next refusal, or this timer.
+              self->link_retry_timer_.Start(
+                  FROM_HERE, kLinkRetry,
+                  base::BindOnce(&CompassSyncService::OnRefusedChanged,
+                                 self->weak_factory_.GetWeakPtr()));
+            }
+            if (done) {
+              std::move(done).Run();
+            }
+          },
+          weak_factory_.GetWeakPtr(), std::move(done)));
+}
+
+void CompassSyncService::OnRefusedChanged() {
+  NotifyObservers();
+  if (!credentials_->IsRefused() || !IsProfileAccount() || !seed_ ||
+      !IsChainRunning() || (account_linker_ && account_linker_->busy())) {
+    return;
+  }
+  // At most once a minute: a server that refuses the chain itself answers
+  // every request with 401.
+  if (!last_link_.is_null() &&
+      base::TimeTicks::Now() - last_link_ < kMinLinkInterval) {
+    link_retry_timer_.Start(
+        FROM_HERE, kMinLinkInterval,
+        base::BindOnce(&CompassSyncService::OnRefusedChanged,
+                       weak_factory_.GetWeakPtr()));
+    return;
+  }
+  LinkAccount(*seed_,
+              base::BindOnce(
+                  [](base::WeakPtr<CompassSyncService> self) {
+                    // Linked or not, ask again now.
+                    if (self && self->sync_service_) {
+                      self->sync_service_->TriggerRefresh(
+                          syncer::SyncService::TriggerRefreshSource::kUnknown,
+                          self->sync_service_->GetActiveDataTypes());
+                    }
+                  },
+                  weak_factory_.GetWeakPtr()));
 }
 
 void CompassSyncService::HoldTypes() {
@@ -1495,6 +1651,20 @@ void CompassSyncService::ResetChain(StartCallback callback) {
   if (!server_url.is_valid()) {
     server_url = GetServerUrl();
   }
+  const Seed seed = GenerateSeed();
+  // Shared items (rooms) move to the new chain's accounts first, each
+  // profile's with its own (docs/design/sync.md, "Rooms: clients"); the
+  // rooms keep their own keys, so the stops below don't cut them off.
+  for (Profile* profile : GetListableProfiles()) {
+    CompassSyncService* other =
+        CompassSyncServiceFactory::GetForProfileIfExists(profile);
+    if (other && other->HasSeed() && !other->left_ && !other->reset_) {
+      if (::compass::rooms::RoomService* rooms =
+              ::compass::rooms::RoomService::GetIfExists(profile)) {
+        rooms->MoveToNewChain(seed, base::DoNothing());
+      }
+    }
+  }
   // The whole device moves to the new chain, as it leaves: every profile in
   // the chain, each keeping its UUID and so its place (home or not) in the
   // new chain (slice 5).
@@ -1507,7 +1677,6 @@ void CompassSyncService::ResetChain(StartCallback callback) {
     }
   }
   StopForReset();
-  const Seed seed = GenerateSeed();
   // SaveChain() replaces the seed; the server URL stays.
   SaveChain(server_url, seed,
             base::BindOnce(&CompassSyncService::OnChainReset,
@@ -1813,6 +1982,8 @@ void CompassSyncService::EnrollProfile(Profile* profile,
   profile_prefs->SetString(prefs::kProfileUuid, uuid);
   profile_prefs->SetBoolean(prefs::kProfileAccount, true);
   profile_prefs->ClearPref(prefs::kProfilesPending);
+  // Its account (maybe another UUID) links itself at the next launch.
+  profile_prefs->ClearPref(prefs::kAccountLinkedServer);
   profile_prefs->SetBoolean(syncer::prefs::kEnableLocalSyncBackend, true);
   if (profile_prefs->GetFilePath(syncer::prefs::kLocalSyncBackendDir).empty()) {
     profile_prefs->SetFilePath(syncer::prefs::kLocalSyncBackendDir,
@@ -1894,29 +2065,88 @@ void CompassSyncService::ReconcileProfiles() {
   if (!missing_profiles_) {
     profile_creator_ = std::make_unique<CompassProfileCreator>(
         prefs_->GetString(prefs::kSeed), prefs_->GetString(prefs::kServerUrl),
-        base::BindRepeating(
-            [](base::WeakPtr<CompassSyncService> self, const std::string& uuid,
-               Profile* profile) {
-              if (!self) {
-                return;
-              }
-              if (profile->GetPrefs()->GetString(prefs::kProfileUuid) !=
-                  uuid) {
-                // Its first prefs didn't take: it joins as the chain's
-                // profile, from the next launch on.
-                LOG(ERROR) << "Compass sync: a new profile missed its chain";
-                self->EnrollProfile(profile, uuid);
-                return;
-              }
-              ScopedDictPrefUpdate dirs(self->prefs_, prefs::kProfileDirs);
-              dirs->Set(uuid, profile->GetPath().BaseName().AsUTF8Unsafe());
-              NotifySpacesSyncOfLocalChange(self->profile_);
-            },
-            weak_factory_.GetWeakPtr()));
+        base::BindRepeating(&CompassSyncService::OnChainProfileCreated,
+                            weak_factory_.GetWeakPtr()));
     missing_profiles_ =
         std::make_unique<MissingProfiles>(profile_creator_.get());
   }
   missing_profiles_->Update(chain_profiles_, local_uuids);
+}
+
+void CompassSyncService::OnChainProfileCreated(const std::string& uuid,
+                                               Profile* profile) {
+  if (profile->GetPrefs()->GetString(prefs::kProfileUuid) != uuid) {
+    // Its first prefs didn't take: it joins as the chain's profile, from the
+    // next launch on.
+    LOG(ERROR) << "Compass sync: a new profile missed its chain";
+    EnrollProfile(profile, uuid);
+    return;
+  }
+  ScopedDictPrefUpdate dirs(prefs_, prefs::kProfileDirs);
+  dirs->Set(uuid, profile->GetPath().BaseName().AsUTF8Unsafe());
+  NotifySpacesSyncOfLocalChange(profile_);
+}
+
+CompassSyncService::SpaceProfileCreation::SpaceProfileCreation() = default;
+CompassSyncService::SpaceProfileCreation::SpaceProfileCreation(
+    SpaceProfileCreation&&) = default;
+CompassSyncService::SpaceProfileCreation&
+CompassSyncService::SpaceProfileCreation::operator=(SpaceProfileCreation&&) =
+    default;
+CompassSyncService::SpaceProfileCreation::~SpaceProfileCreation() = default;
+
+// static
+bool CompassSyncService::CreateProfileInChain(
+    base::OnceCallback<void(Profile*)> loaded) {
+  CompassSyncService* home = FindHome();
+  if (!home || !home->seed_ || !home->IsChainRunning() ||
+      home->prefs_->GetBoolean(prefs::kProfilesPending)) {
+    return false;
+  }
+  const std::string uuid = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  SpaceProfileCreation& creation = home->space_profiles_[uuid];
+  creation.loaded = std::move(loaded);
+  creation.creator = std::make_unique<CompassProfileCreator>(
+      home->prefs_->GetString(prefs::kSeed),
+      home->prefs_->GetString(prefs::kServerUrl),
+      base::BindRepeating(
+          [](base::WeakPtr<CompassSyncService> self, const std::string& uuid,
+             Profile* profile) {
+            if (!self) {
+              return;
+            }
+            self->OnChainProfileCreated(uuid, profile);
+            auto it = self->space_profiles_.find(uuid);
+            if (it != self->space_profiles_.end()) {
+              it->second.profile = profile;
+            }
+          },
+          home->weak_factory_.GetWeakPtr()));
+  VLOG(1) << "[compass-sync] a new profile for a space joins the chain as "
+          << uuid << " (syncing at once)";
+  // No name or avatar: the creator picks them as for any new profile.
+  creation.creator->CreateProfile(
+      ChainProfile{.uuid = uuid},
+      base::BindOnce(
+          [](base::WeakPtr<CompassSyncService> self, const std::string& uuid,
+             bool created) {
+            if (!self) {
+              return;
+            }
+            auto it = self->space_profiles_.find(uuid);
+            if (it == self->space_profiles_.end()) {
+              return;
+            }
+            SpaceProfileCreation creation = std::move(it->second);
+            self->space_profiles_.erase(it);
+            std::move(creation.loaded)
+                .Run(created ? creation.profile.get() : nullptr);
+            // The creator is done; it goes after its callback returns.
+            base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+                FROM_HERE, std::move(creation.creator));
+          },
+          home->weak_factory_.GetWeakPtr(), uuid));
+  return true;
 }
 
 #if BUILDFLAG(IS_ANDROID)

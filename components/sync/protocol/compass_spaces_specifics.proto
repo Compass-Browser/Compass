@@ -30,7 +30,8 @@ import "components/sync/protocol/unique_position.proto";
 
 // One entity per space and per sidebar node, and in the home profile's
 // account one per profile of the chain; icons, Claude's memories, link
-// rules, Boosts and Easels. The client tag is `uuid` (a Boost's `id`).
+// rules, Boosts, Easels and room mounts. The client tag is `uuid` (a Boost's
+// `id`; a room mount's RoomMountKey(room_id)).
 message CompassSpacesSpecifics {
   oneof entity {
     CompassSpace space = 1;
@@ -43,6 +44,7 @@ message CompassSpacesSpecifics {
     CompassEasel easel = 8;
     CompassEaselObject easel_object = 9;
     CompassEaselAsset easel_asset = 10;
+    CompassRoomMount room_mount = 11;
   }
 }
 
@@ -393,4 +395,50 @@ message CompassEaselAsset {
   // When it was first added; an asset no object points at for 30 days is
   // deleted by the device that notices.
   optional int64 create_time = 5;
+}
+
+// A room this account is a member of (docs/design/sync.md, "Rooms: clients"):
+// a space, a pinned folder or an easel shared between users, whose content
+// syncs through the room (encrypted with the room's keys), not through this
+// chain. The mount is where it shows for this account, on every device of
+// the chain, and the keys to read it. Clients that predate it ignore it
+// (their IsEntityDataValid() refuses it). Not in proto_visitors.h: its keys
+// stay out of sync-internals. Leaving a room deletes the entity.
+//
+// The client tag is UUID-shaped, from the room ID, as CompassFavicon's from
+// its host: the first 16 bytes of SHA-256("compass-room-mount:" + room_id),
+// with byte 6 = (b & 0x0f) | 0x50 and byte 8 = (b & 0x3f) | 0x80, formatted
+// lowercase 8-4-4-4-12.
+message CompassRoomMount {
+  // The room's ID: 16 bytes as unpadded base64url (22 characters), as the
+  // server and invite links write it.
+  optional string room_id = 1;
+  // The room's server (the inviter's): https, or http on localhost.
+  optional string server_url = 2;
+  // "space", "folder" or "easel".
+  optional string kind = 3;
+  // The shared item's UUID, lowercase: the space, the folder node or the
+  // easel board. The same for every member.
+  optional string root_uuid = 4;
+  // This account's role: "owner", "editor" or "viewer".
+  optional string role = 5;
+  // The room keys this account has, one per epoch.
+  repeated CompassRoomKey keys = 6;
+  // Where it shows (a folder, or an easel's pinned tab): the space and the
+  // parent node (empty: the space's Pinned root), and the position among its
+  // siblings. Personal: each member places it where they like. Unused for a
+  // space, which is in the switcher.
+  optional string space_uuid = 7;
+  optional string parent_uuid = 8;
+  optional UniquePosition position = 9;
+  // The shared item's name when this account joined (or last saw it), for
+  // lists and the join preview; the room's records are authoritative.
+  optional string name = 10;
+}
+
+message CompassRoomKey {
+  // From 1.
+  optional uint32 epoch = 1;
+  // 32 bytes (AES-256-GCM).
+  optional bytes key = 2;
 }

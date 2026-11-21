@@ -21,6 +21,9 @@ struct Easel {
   string title;
   // "paper", "grid", "dots" or "dark"; anything else shows as "paper".
   string palette;
+  // A shared easel this profile can only view (docs/design/sync.md, "Rooms:
+  // clients"): the editor doesn't change it.
+  bool view_only;
 };
 
 // Which content an object has. kUnknown: one this version doesn't know

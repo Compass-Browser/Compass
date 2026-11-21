@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_SYNC_COMPASS_SYNC_SERVICE_H_
 #define COMPASS_BROWSER_SYNC_COMPASS_SYNC_SERVICE_H_
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <set>
@@ -18,6 +19,7 @@
 #include "base/power_monitor/power_observer.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_attributes_storage_observer.h"
@@ -31,6 +33,7 @@
 #include "compass/browser/sync/sync_settings.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/components/sync/chain.h"
+#include "compass/components/sync/compass_account_linker.h"
 #include "compass/components/sync/compass_device_remover.h"
 #include "compass/components/sync/compass_sync_quota.h"
 #include "compass/components/sync/pairing.h"
@@ -115,6 +118,15 @@ class CompassSyncService : public KeyedService,
 
   // Profiles (slice 5).
   //
+  // Makes a new profile for a space (AssignSpaceToProfile()). With the chain
+  // running on this device, the profile is made in it, as the chain's
+  // profiles sync brings are (CompassProfileCreator: its sync prefs are
+  // written before it loads), so it syncs at once, without a restart, and
+  // |loaded| runs with it once it's listed (null if that failed). Returns
+  // false, without running |loaded|, when sync doesn't run here: the caller
+  // makes a plain profile, which joins the chain from the next launch.
+  static bool CreateProfileInChain(base::OnceCallback<void(Profile*)> loaded);
+
   // The profile's sync UUID (compass.sync.profile_uuid).
   std::string GetProfileUuid() const;
   // Whether the profile is the chain's home here: it has the seed and syncs
@@ -317,6 +329,18 @@ class CompassSyncService : public KeyedService,
                       std::optional<Seed> seed);
   void SetPairing(PairingStatus status);
   void NotifyObservers();
+  // The step a starting profile waits on (GetStatus() is kStarting then).
+  StartingStep GetStartingStep() const;
+  // Keeps |starting_step_| and |starting_since_| for the step under way,
+  // and wakes the page once it has taken kStartingStuckAfter.
+  void TrackStartingStep();
+  // The seed is read: the engine gets the key, the passphrase follows.
+  void OnSeedLoaded(const Seed& seed);
+  // Profile account: links it to the chain's own on the server
+  // (AccountLinker), then runs |done|, linked or not.
+  void LinkAccount(const Seed& seed, base::OnceClosure done);
+  // The server started or stopped refusing this account (401).
+  void OnRefusedChanged();
 
   const raw_ptr<Profile> profile_;
   const raw_ptr<PrefService> prefs_;
@@ -345,6 +369,14 @@ class CompassSyncService : public KeyedService,
   bool reset_ = false;
   base::TimeTicks last_refresh_;
   std::string last_logged_;
+  // While starting: the step, since when, and a timer for when it counts as
+  // stuck (the page then offers a restart).
+  std::optional<StartingStep> starting_step_;
+  base::TimeTicks starting_since_;
+  base::OneShotTimer starting_timer_;
+  std::unique_ptr<AccountLinker> account_linker_;
+  base::TimeTicks last_link_;
+  base::OneShotTimer link_retry_timer_;
 
   std::unique_ptr<PairingHost> host_;
   std::unique_ptr<PairingJoiner> joiner_;
@@ -360,6 +392,21 @@ class CompassSyncService : public KeyedService,
   std::vector<ChainProfile> chain_profiles_;
   bool chain_profiles_known_ = false;
   std::unique_ptr<CompassProfileCreator> profile_creator_;
+  // CreateProfileInChain(): a creator per new profile, by its UUID, with
+  // its callback and the profile once loaded.
+  struct SpaceProfileCreation {
+    SpaceProfileCreation();
+    SpaceProfileCreation(SpaceProfileCreation&&);
+    SpaceProfileCreation& operator=(SpaceProfileCreation&&);
+    ~SpaceProfileCreation();
+    std::unique_ptr<CompassProfileCreator> creator;
+    base::OnceCallback<void(Profile*)> loaded;
+    raw_ptr<Profile> profile = nullptr;
+  };
+  std::map<std::string, SpaceProfileCreation> space_profiles_;
+  // A profile the chain's creator made (|uuid|): recorded in
+  // compass.sync.profile_dirs, and the chain's list gets it.
+  void OnChainProfileCreated(const std::string& uuid, Profile* profile);
   std::unique_ptr<MissingProfiles> missing_profiles_;
   bool scanning_dirs_ = false;
   bool dirs_scanned_ = false;

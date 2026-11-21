@@ -1,0 +1,112 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Sharing spaces, pinned folders and easels with other people: rooms
+# (docs/design/sync.md, "Rooms" and "Rooms: clients"). Desktop and Android.
+
+# A room's sync and its scoped view of the model: no profile, so it's
+# unit-testable on its own.
+source_set("sync") {
+  sources = [
+    "room_model.cc",
+    "room_model.h",
+    "room_sync.cc",
+    "room_sync.h",
+  ]
+  public_deps = [
+    "//base",
+    "//compass/components/sync/rooms:client",
+    "//compass/components/sync/rooms:crypto",
+    "//components/sync/base",
+    "//components/sync/protocol",
+  ]
+  deps = [
+    "//compass/browser/easels:store",
+    "//compass/browser/sidebar",
+    "//compass/browser/sync:spaces_bridge",
+    "//url",
+  ]
+}
+
+# The profile's rooms: RoomService.
+source_set("rooms") {
+  sources = [
+    "os_user_name.h",
+    "room_service.cc",
+    "room_service.h",
+  ]
+  if (is_mac) {
+    sources += [ "os_user_name_mac.mm" ]
+    frameworks = [ "Foundation.framework" ]
+  } else {
+    sources += [ "os_user_name.cc" ]
+  }
+  if (is_win) {
+    libs = [ "secur32.lib" ]
+  }
+  public_deps = [
+    ":sync",
+    "//base",
+    "//compass/browser/sidebar",
+    "//compass/browser/sync:spaces_bridge",
+    "//compass/components/sync:chain",
+    "//components/keyed_service/core",
+    "//components/prefs",
+  ]
+  deps = [
+    "//chrome/browser:browser_process",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/sync:factories",
+    "//compass/browser/easels:store",
+    "//compass/components/sync:engine",
+    "//components/os_crypt/async/browser",
+    "//components/os_crypt/async/common",
+    "//components/pref_registry",
+    "//components/sync/base",
+    "//components/sync_device_info",
+    "//content/public/browser",
+    "//services/network/public/cpp",
+  ]
+  if (is_android) {
+    deps += [ "//compass/browser/android:spaces" ]
+  } else {
+    deps += [ "//compass/browser/window_sync" ]
+  }
+}
+
+# Invite links opened in a tab go to the join page (desktop; Android takes
+# them with intent filters).
+source_set("link_interceptor") {
+  sources = [
+    "room_link_interceptor.cc",
+    "room_link_interceptor.h",
+  ]
+  deps = [
+    "//base",
+    "//compass/components/sync/rooms:crypto",
+    "//content/public/browser",
+    "//ui/base",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "room_link_interceptor_unittest.cc",
+    "room_sync_unittest.cc",
+  ]
+  deps = [
+    ":link_interceptor",
+    ":sync",
+    "//base",
+    "//base/test:test_support",
+    "//compass/browser/sidebar",
+    "//compass/browser/sync:spaces_bridge",
+    "//compass/components/sync/rooms:client",
+    "//compass/components/sync/rooms:crypto",
+    "//testing/gtest",
+    "//url",
+  ]
+}

@@ -115,6 +115,9 @@ export class Editor {
   private refreshTimer_ = 0;
   private viewTimer_ = 0;
   private loaded_ = false;
+  // A shared easel this profile can only view (docs/design/sync.md, "Rooms:
+  // clients"): nothing on the board changes here.
+  private viewOnly_ = false;
 
   // Built once loaded.
   private titleInput_: HTMLInputElement|null = null;
@@ -172,6 +175,15 @@ export class Editor {
     if (!this.loaded_) {
       this.build_();
       this.loaded_ = true;
+    }
+    this.viewOnly_ = easel.viewOnly;
+    this.root_.toggleAttribute('view-only', this.viewOnly_);
+    if (this.titleInput_) {
+      this.titleInput_.readOnly = this.viewOnly_;
+      this.titleInput_.title = this.viewOnly_ ? 'View only' : '';
+    }
+    if (this.paletteSelect_) {
+      this.paletteSelect_.disabled = this.viewOnly_;
     }
     this.title_ = easel.title;
     if (this.titleInput_ && document.activeElement !== this.titleInput_) {
@@ -572,6 +584,9 @@ export class Editor {
   }
 
   private onPointerDown_(e: PointerEvent) {
+    if (this.viewOnly_) {
+      return;
+    }
     const view = this.view_!;
     if (this.editing_) {
       const body = view.textBody(this.editing_.uuid);
@@ -1061,7 +1076,7 @@ export class Editor {
   }
 
   private onKeyDown_(e: KeyboardEvent) {
-    if (!this.view_) {
+    if (!this.view_ || this.viewOnly_) {
       return;
     }
     const target = e.target;

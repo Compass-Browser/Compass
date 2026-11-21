@@ -224,6 +224,29 @@ TEST_F(SyncSettingsTest, Limits) {
   EXPECT_EQ("Sync error", label(offline));
 }
 
+// "Starting…" names what it waits for, and after a while offers a restart
+// (a profile whose sync never started, docs/design/sync.md "Profiles").
+TEST_F(SyncSettingsTest, StartingNamesTheStep) {
+  SyncStatus status = StartingStatus(StartingStep::kReadingKey, false);
+  EXPECT_EQ(SyncState::kStarting, status.state);
+  EXPECT_EQ("Starting: reading this device's sync key…", status.message);
+  EXPECT_FALSE(status.offer_restart);
+  EXPECT_EQ("Starting: connecting to the sync server…",
+            StartingStatus(StartingStep::kConnecting, false).message);
+  EXPECT_EQ("Starting: setting up encryption…",
+            StartingStatus(StartingStep::kEncryption, false).message);
+  EXPECT_EQ("Starting: getting the data ready to sync…",
+            StartingStatus(StartingStep::kConfiguring, false).message);
+
+  status = StartingStatus(StartingStep::kEncryption, true);
+  EXPECT_EQ(SyncState::kStarting, status.state);
+  EXPECT_TRUE(status.offer_restart);
+  EXPECT_EQ(
+      "Starting: setting up encryption… This is taking long. Restart Compass "
+      "if it doesn't change.",
+      status.message);
+}
+
 // docs/design/sync.md, "Removing a device".
 TEST_F(SyncSettingsTest, DeviceRemoved) {
   SyncStatus status;
