@@ -5,6 +5,7 @@
 #include "compass/browser/rooms/room_service.h"
 
 #include <algorithm>
+#include <tuple>
 #include <utility>
 
 #include "base/barrier_closure.h"
@@ -63,6 +64,33 @@ using sync::rooms::RoomId;
 using sync::rooms::RoomInfo;
 using sync::rooms::RoomKey;
 using sync::rooms::RoomResult;
+
+// Whether what observers show of a room (people, roles, invites) differs.
+bool ShownDiffers(const RoomInfo& a, const RoomInfo& b) {
+  auto member = [](const sync::rooms::RoomMember& m) {
+    return std::tie(m.client_id, m.role, m.profile, m.name, m.email,
+                    m.pending);
+  };
+  auto invite = [](const sync::rooms::RoomInvite& i) {
+    return std::tie(i.id, i.role, i.expires, i.uses_left, i.revoked);
+  };
+  if (a.role != b.role || a.pending != b.pending || a.epoch != b.epoch ||
+      a.members.size() != b.members.size() ||
+      a.invites.size() != b.invites.size()) {
+    return true;
+  }
+  for (size_t i = 0; i < a.members.size(); ++i) {
+    if (member(a.members[i]) != member(b.members[i])) {
+      return true;
+    }
+  }
+  for (size_t i = 0; i < a.invites.size(); ++i) {
+    if (invite(a.invites[i]) != invite(b.invites[i])) {
+      return true;
+    }
+  }
+  return false;
+}
 
 constexpr base::FilePath::CharType kFileName[] =
     FILE_PATH_LITERAL("Compass Rooms.json");
@@ -854,6 +882,9 @@ void RoomService::OnRoomInfo(const std::string& room_id, const RoomInfo& info) {
     return;
   }
   const bool role_changed = !info.role.empty() && info.role != room->mount.role();
+  // Observers (the share sheet among them) ask for the room again when told
+  // it changed, so telling them on every answer would loop.
+  const bool changed = !room->info || ShownDiffers(*room->info, info);
   room->info = info;
   if (role_changed) {
     room->mount.set_role(info.role);
@@ -863,7 +894,9 @@ void RoomService::OnRoomInfo(const std::string& room_id, const RoomInfo& info) {
   if (info.role == sync::rooms::kRoleOwner) {
     SendMissingEnvelopes(*room, info);
   }
-  NotifyObservers();
+  if (changed || role_changed) {
+    NotifyObservers();
+  }
 }
 
 void RoomService::SendMissingEnvelopes(Room& room, const RoomInfo& info) {

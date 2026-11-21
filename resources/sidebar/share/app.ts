@@ -385,9 +385,44 @@ async function renderJoin(fragment: string) {
 // ------------------------------------------------------------------------
 
 ColorChangeUpdater.forDocument().start();
-proxy.callbackRouter.roomsChanged.addListener(() => {
-  if (currentRoomId) {
-    renderRoom();
+// A change elsewhere (someone joined, a role changed) redraws the sheet,
+// but never under the user's hands: an open menu or a half-typed field
+// would vanish. It waits until focus leaves them, and redraws are never
+// stacked.
+let refreshing = false;
+let refreshWanted = false;
+
+function busy(): boolean {
+  const active = document.activeElement;
+  return active instanceof HTMLSelectElement ||
+      (active instanceof HTMLInputElement && !active.readOnly);
+}
+
+async function refresh() {
+  if (!currentRoomId) {
+    return;
+  }
+  if (refreshing || busy()) {
+    refreshWanted = true;
+    return;
+  }
+  refreshing = true;
+  refreshWanted = false;
+  try {
+    await renderRoom();
+  } finally {
+    refreshing = false;
+  }
+  if (refreshWanted) {
+    refresh();
+  }
+}
+
+proxy.callbackRouter.roomsChanged.addListener(refresh);
+document.addEventListener('focusout', () => {
+  if (refreshWanted) {
+    // After focus has landed on whatever comes next.
+    setTimeout(refresh, 0);
   }
 });
 
