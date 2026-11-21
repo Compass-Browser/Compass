@@ -1058,6 +1058,36 @@ struct SavedCard {
   bool removable;
 };
 
+// A card being added (no guid) or edited (Passwords › Payment methods). Its
+// number is only ever sent to the browser, for a new card; editing keeps
+// the saved one.
+struct CardDraft {
+  string guid;
+  string name_on_card;
+  string number;
+  int32 expiration_month;
+  int32 expiration_year;
+  string nickname;
+  // For an edit: the saved card's last digits, as shown.
+  string last_four;
+};
+
+// An address being added (no guid) or edited.
+struct AddressDraft {
+  string guid;
+  string full_name;
+  string organization;
+  // Street lines, separated by newlines.
+  string street;
+  string city;
+  string state;
+  string postal_code;
+  // ISO 3166-1 alpha-2 ("US").
+  string country_code;
+  string phone;
+  string email;
+};
+
 struct SavedAddress {
   string guid;
   string name;
@@ -1208,6 +1238,13 @@ interface SettingsWindowHandler {
   RemoveCard(string guid);
   GetAddresses() => (array<SavedAddress> addresses);
   RemoveAddress(string guid);
+  // The card and address editors (phase 5d). A saved card or address as a
+  // draft to edit; null if there's none (or it's an account card).
+  GetCard(string guid) => (CardDraft? card);
+  // Saves a draft: why not, empty when saved.
+  SaveCard(CardDraft card) => (string error);
+  GetAddress(string guid) => (AddressDraft? address);
+  SaveAddress(AddressDraft address) => (string error);
 
   // Advanced (phase 5).
   GetAbout() => (AboutInfo about);

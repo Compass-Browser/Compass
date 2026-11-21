@@ -51,7 +51,7 @@ constexpr float kMaxScreenFraction = 0.85f;
 // Compass's sections, which the window has under upstream's paths
 // (settings_sections.h), and the window's panes whose names upstream doesn't
 // use. Upstream's sections the window has rebuilt (privacy's) are mapped in
-// SettingsWindowPathFor(); the others ("payments", "ai", "safetyCheck") stay
+// SettingsWindowPathFor(); the others ("safetyCheck", "ai") stay
 // upstream's until the window rebuilds them.
 constexpr auto kWindowPaths = std::to_array<std::string_view>({
     "general",
@@ -159,10 +159,16 @@ std::optional<std::string> SettingsWindowPathFor(std::string_view sub_page) {
   if (path == "help") {
     return std::string("advanced?focus=about");
   }
-  // And its passwords' (phase 4). Payments and addresses stay upstream's: the
-  // pane opens them to add or edit one.
+  // And its passwords' (phase 4).
   if (path == "passwords") {
     return std::string("passwords");
+  }
+  // And payments and addresses, which it edits (phase 5d).
+  if (path == "payments") {
+    return std::string("passwords?focus=saveCards");
+  }
+  if (path == "autofill" || path == "contactInfo" || path == "addresses") {
+    return std::string("passwords?focus=saveAddresses");
   }
   if (path == "security" || path == "cookies") {
     return base::StrCat({"privacy?focus=", path});

@@ -27,8 +27,10 @@
 #include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
+#include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/browsing_data/core/pref_names.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -92,7 +94,7 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PathsTheWindowHas) {
   EXPECT_EQ(SettingsWindowPathFor("languages"), "general?view=languages");
   EXPECT_EQ(SettingsWindowPathFor("ai"), std::nullopt);
   EXPECT_EQ(SettingsWindowPathFor("safetyCheck"), std::nullopt);
-  EXPECT_EQ(SettingsWindowPathFor("payments"), std::nullopt);
+  EXPECT_EQ(SettingsWindowPathFor("payments"), "passwords?focus=saveCards");
   EXPECT_EQ(SettingsWindowPathFor("passwords"), "passwords");
   EXPECT_EQ(SettingsWindowPathFor("help"), "advanced?focus=about");
   EXPECT_EQ(SettingsWindowPathFor("reset"), "advanced?focus=reset");
@@ -190,12 +192,12 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SettingsURLOpensTheWindow) {
 // Upstream's sections the window doesn't have yet still open
 // chrome://settings in a tab.
 IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, UpstreamSectionsStayInTabs) {
-  chrome::ShowSettingsSubPage(browser(), "payments");
+  chrome::ShowSettingsSubPage(browser(), "safetyCheck");
   EXPECT_FALSE(window());
   content::WebContents* tab =
       browser()->GetTabStripModel()->GetActiveWebContents();
   ASSERT_TRUE(content::WaitForLoadStop(tab));
-  EXPECT_EQ(tab->GetLastCommittedURL(), GURL("chrome://settings/payments"));
+  EXPECT_EQ(tab->GetLastCommittedURL(), GURL("chrome://settings/safetyCheck"));
 }
 
 // Closing the window lets settings open a new one.
@@ -441,7 +443,7 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PasswordsPane) {
   ASSERT_TRUE(content::ExecJs(window()->web_contents(), R"(
       [...document.querySelectorAll('.control-row')].find(
           r => r.textContent.includes('Ada Lovelace'))
-          .querySelector('button').click();)"));
+          .querySelector('button[data-guid]:last-of-type').click();)"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return data->address_data_manager().GetProfiles().empty(); }));
 
@@ -638,6 +640,85 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, LanguagesEditor) {
   ASSERT_TRUE(base::test::RunUntil([&] {
     return prefs->GetString(language::prefs::kAcceptLanguages).find("it") ==
            std::string::npos;
+  }));
+}
+
+// Passwords › the card and address editors (phase 5d): a card is refused
+// with a number that isn't one, added with one; an address is added, then
+// edited.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, CardAndAddressEditors) {
+  autofill::PersonalDataManager* data =
+      autofill::PersonalDataManagerFactory::GetForBrowserContext(profile());
+  chrome::ShowSettingsSubPage(browser(), "passwords");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  content::WebContents* page = window()->web_contents();
+  // Sets the fields (data-field) of the open editor, then clicks Save.
+  const std::string fill_and_save = R"(
+      (fields) => new Promise(resolve => setTimeout(() => {
+        for (const [field, value] of Object.entries(fields)) {
+          const input = document.querySelector(`[data-field="${field}"]`);
+          input.value = value;
+          input.dispatchEvent(new Event(
+              input.tagName === 'SELECT' ? 'change' : 'input'));
+        }
+        setTimeout(() => {
+          [...document.querySelectorAll('.actions .accent')]
+              .find(b => b.offsetParent).click();
+          resolve(true);
+        }, 50);
+      }, 50)))";
+  const std::string click = R"(
+      (label) => [...document.querySelectorAll('button.pill')]
+                     .find(b => b.textContent.trim() === label).click())";
+
+  ASSERT_TRUE(WaitFor("[...document.querySelectorAll('button.pill')].some("
+                      "b => b.textContent.trim() === 'Add Card…')")
+                  .ExtractBool());
+  ASSERT_TRUE(content::ExecJs(page, "(" + click + ")('Add Card…');"));
+  ASSERT_TRUE(content::ExecJs(
+      page,
+      "(" + fill_and_save +
+          ")({nameOnCard: 'Ada Lovelace', number: '4111 1111 1111 1112'});"));
+  EXPECT_EQ(WaitFor("document.querySelector('.actions .error:not([hidden])')"
+                    "?.textContent.includes('number')"),
+            true);
+  ASSERT_TRUE(content::ExecJs(
+      page, "(" + fill_and_save + ")({number: '4111 1111 1111 1111'});"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return data->payments_data_manager().GetCreditCards().size() == 1u;
+  }));
+  EXPECT_EQ(data->payments_data_manager().GetCreditCards()[0]->LastFourDigits(),
+            u"1111");
+
+  ASSERT_TRUE(content::ExecJs(page, "(" + click + ")('Add Address…');"));
+  ASSERT_TRUE(content::ExecJs(
+      page, "(" + fill_and_save +
+                ")({countryCode: 'GB', fullName: 'Ada Lovelace', "
+                "street: '12 St James\\'s Square', city: 'London'});"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return data->address_data_manager().GetProfiles().size() == 1u; }));
+  const std::string guid =
+      data->address_data_manager().GetProfiles()[0]->guid();
+  EXPECT_EQ(data->address_data_manager().GetProfiles()[0]->GetRawInfo(
+                autofill::ADDRESS_HOME_CITY),
+            u"London");
+
+  ASSERT_TRUE(
+      WaitFor("!!document.querySelector('[data-guid=\"" + guid + "\"]')")
+          .ExtractBool());
+  ASSERT_TRUE(content::ExecJs(
+      page, "document.querySelector('[data-guid=\"" + guid + "\"]').click();"));
+  ASSERT_TRUE(WaitFor("document.querySelector('[data-field=\"city\"]')?.value "
+                      "=== 'London'")
+                  .ExtractBool());
+  ASSERT_TRUE(
+      content::ExecJs(page, "(" + fill_and_save + ")({city: 'Cambridge'});"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    const autofill::AutofillProfile* address =
+        data->address_data_manager().GetProfileByGUID(guid);
+    return address &&
+           address->GetRawInfo(autofill::ADDRESS_HOME_CITY) == u"Cambridge";
   }));
 }
 

@@ -5,8 +5,9 @@
 import './icon.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {SavedAddress, SavedCard, SavedPassword} from '../sidebar.mojom-webui.js';
+import type {AddressDraft, CardDraft, SavedAddress, SavedCard, SavedPassword} from '../sidebar.mojom-webui.js';
 
 import {SettingsWindowBrowserProxy} from './browser_proxy.js';
 import {getHtml} from './passwords_pane.html.js';
@@ -18,15 +19,54 @@ export const PREF_AUTO_SIGN_IN = 'credentials_enable_autosignin';
 export const PREF_SAVE_CARDS = 'autofill.credit_card_enabled';
 export const PREF_SAVE_ADDRESSES = 'autofill.profile_enabled';
 
+// ISO 3166-1 alpha-2 codes, for the address editor's country menu (named by
+// Intl.DisplayNames in the browser's language).
+const COUNTRY_CODES = (
+    'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI ' +
+    'BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN ' +
+    'CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK ' +
+    'FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM ' +
+    'HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN ' +
+    'KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ' +
+    'ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP ' +
+    'NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW ' +
+    'SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF ' +
+    'TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI ' +
+    'VN VU WF WS YE YT ZA ZM ZW')
+                           .split(' ');
+
+export interface Country {
+  code: string;
+  name: string;
+}
+
+function listCountries(): Country[] {
+  let names: Intl.DisplayNames|null = null;
+  try {
+    names = new Intl.DisplayNames([navigator.language], {type: 'region'});
+  } catch {
+    // Codes, then.
+  }
+  return COUNTRY_CODES.map(code => ({code, name: names?.of(code) || code}))
+      .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// The browser's region ("en-US" → "US"), for a new address.
+function defaultCountry(): string {
+  const region = navigator.language.split('-')[1];
+  return region && COUNTRY_CODES.includes(region.toUpperCase()) ?
+      region.toUpperCase() :
+      'US';
+}
+
 // How long a revealed password stays shown.
 const REVEAL_MILLISECONDS = 30000;
 
 // Passwords (docs/design/settings-window.md, phase 4): saved passwords and
 // passkeys (shown after the system's authentication, copied without the page
-// seeing them), payment cards and addresses. Adding and editing them, the
-// checkup and import/export are the password manager's
-// (chrome://password-manager) and upstream's payments and addresses
-// sections.
+// seeing them), payment cards and addresses, with editors for cards and
+// addresses. Adding and editing passwords, the checkup and import/export are
+// the password manager's (chrome://password-manager).
 export class CompassSettingsPasswordsPaneElement extends CrLitElement {
   static get is() {
     return 'compass-settings-passwords-pane';
@@ -45,6 +85,9 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
       cards_: {type: Array},
       addresses_: {type: Array},
       prefsVersion_: {type: Number},
+      cardDraft_: {type: Object},
+      addressDraft_: {type: Object},
+      draftError_: {type: String},
     };
   }
 
@@ -57,11 +100,22 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
   protected accessor cards_: SavedCard[] = [];
   protected accessor addresses_: SavedAddress[] = [];
   protected accessor prefsVersion_: number = 0;
+  // The card or address being added or edited, if any.
+  protected accessor cardDraft_: CardDraft|null = null;
+  protected accessor addressDraft_: AddressDraft|null = null;
+  protected accessor draftError_: string = '';
+
+  protected readonly countries = listCountries();
+  protected readonly months = Array.from({length: 12}, (_, i) => i + 1);
+  protected readonly years = Array.from(
+      {length: 16}, (_, i) => new Date().getFullYear() + i);
 
   private handler_ = SettingsWindowBrowserProxy.getInstance().handler;
   private prefListener_ = (_name: string, _pref: PrefValue) =>
       this.prefsVersion_++;
   private listenerIds_: number[] = [];
+  // What the path asked to scroll to (?focus=saveCards, saveAddresses).
+  private focus_ = '';
 
   override createRenderRoot() {
     return this;
@@ -69,6 +123,7 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    this.focus_ = new URLSearchParams(window.location.search).get('focus') || '';
     prefs.addListener(this.prefListener_);
     prefs.load([
            PREF_OFFER_TO_SAVE,
@@ -96,6 +151,15 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
     this.listenerIds_ = [];
     // Nothing stays shown once the pane goes.
     this.revealed_ = {};
+  }
+
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+    if (this.focus_) {
+      this.querySelector(`[data-row="${CSS.escape(this.focus_)}"]`)
+          ?.scrollIntoView({block: 'start'});
+      this.focus_ = '';
+    }
   }
 
   // Template helpers.
@@ -144,6 +208,23 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
 
   protected getCardText_(card: SavedCard): string {
     return `${card.name} •••• ${card.lastFour}`;
+  }
+
+  protected isNewCard_(): boolean {
+    return !this.cardDraft_?.guid;
+  }
+
+  protected getCardDraftTitle_(): string {
+    return this.isNewCard_() ? 'Add a card' :
+                               `Edit card •••• ${this.cardDraft_!.lastFour}`;
+  }
+
+  protected getAddressDraftTitle_(): string {
+    return this.addressDraft_?.guid ? 'Edit address' : 'Add an address';
+  }
+
+  protected getMonthLabel_(month: number): string {
+    return String(month).padStart(2, '0');
   }
 
   // Events.
@@ -204,10 +285,119 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
     this.handler_.openUrl('chrome://password-manager/passwords');
   }
 
-  // Upstream's sections for adding and editing (data-sub-page).
-  protected onChromeSettingsClick_(e: Event) {
-    this.handler_.openChromeSettings(
-        (e.currentTarget as HTMLElement).dataset['subPage']!);
+  // The card editor.
+
+  protected onAddCardClick_() {
+    this.addressDraft_ = null;
+    this.draftError_ = '';
+    const now = new Date();
+    this.cardDraft_ = {
+      guid: '',
+      nameOnCard: '',
+      number: '',
+      expirationMonth: now.getMonth() + 1,
+      expirationYear: now.getFullYear() + 1,
+      nickname: '',
+      lastFour: '',
+    };
+  }
+
+  protected async onEditCardClick_(e: Event) {
+    const guid = (e.currentTarget as HTMLElement).dataset['guid']!;
+    const {card} = await this.handler_.getCard(guid);
+    if (card) {
+      this.addressDraft_ = null;
+      this.draftError_ = '';
+      this.cardDraft_ = card;
+    }
+  }
+
+  // A text field of the card (data-field: nameOnCard, number, nickname).
+  protected onCardInput_(e: Event) {
+    const input = e.target as HTMLInputElement;
+    this.cardDraft_ = {...this.cardDraft_!, [input.dataset['field']!]: input.value};
+    this.draftError_ = '';
+  }
+
+  // The expiry's month or year (data-field).
+  protected onCardExpiryChange_(e: Event) {
+    const select = e.target as HTMLSelectElement;
+    this.cardDraft_ = {
+      ...this.cardDraft_!,
+      [select.dataset['field']!]: Number(select.value),
+    };
+    this.draftError_ = '';
+  }
+
+  protected async onSaveCardClick_() {
+    const {error} = await this.handler_.saveCard(this.cardDraft_!);
+    if (error) {
+      this.draftError_ = error;
+      return;
+    }
+    this.cardDraft_ = null;
+  }
+
+  // The address editor.
+
+  protected onAddAddressClick_() {
+    this.cardDraft_ = null;
+    this.draftError_ = '';
+    this.addressDraft_ = {
+      guid: '',
+      fullName: '',
+      organization: '',
+      street: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      countryCode: defaultCountry(),
+      phone: '',
+      email: '',
+    };
+  }
+
+  protected async onEditAddressClick_(e: Event) {
+    const guid = (e.currentTarget as HTMLElement).dataset['guid']!;
+    const {address} = await this.handler_.getAddress(guid);
+    if (address) {
+      this.cardDraft_ = null;
+      this.draftError_ = '';
+      this.addressDraft_ = {
+        ...address,
+        countryCode: address.countryCode || defaultCountry(),
+      };
+    }
+  }
+
+  // A field of the address (data-field).
+  protected onAddressInput_(e: Event) {
+    const input = e.target as HTMLInputElement | HTMLTextAreaElement |
+        HTMLSelectElement;
+    this.addressDraft_ = {
+      ...this.addressDraft_!,
+      [input.dataset['field']!]: input.value,
+    };
+    this.draftError_ = '';
+  }
+
+  protected onCountryChange_(e: Event) {
+    this.onAddressInput_(e);
+  }
+
+  protected async onSaveAddressClick_() {
+    const {error} = await this.handler_.saveAddress(this.addressDraft_!);
+    if (error) {
+      this.draftError_ = error;
+      return;
+    }
+    this.addressDraft_ = null;
+  }
+
+  protected onCancelDraftClick_() {
+    this.cardDraft_ = null;
+    this.addressDraft_ = null;
+    this.draftError_ = '';
   }
 
   private hide_(id: number) {

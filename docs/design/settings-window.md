@@ -57,9 +57,9 @@ the window's, Chrome's included, and nothing shows upstream's settings page.
 4. **Done:** Passwords (below, "Passwords"). Adding and editing passwords,
    cards and addresses, the checkup, passkeys' details and import/export
    open the password manager or upstream's sections.
-5. Advanced (**done**, below), managing search engines and languages
-   (**done**), then the rows that still open upstream's sections: the card and
-   address editors, Safety check. Then no more fallback: every
+5. Advanced, managing search engines and languages, the card and address
+   editors (**done**, below), then Safety check, the last row that opens
+   upstream's settings. Then no more fallback: every
    `chrome://settings` URL opens the window, and the chrome://settings
    patches that add Compass's sections (menu, routes, views, BUILD.gn) go.
    The password manager (chrome://password-manager) is a page of its own
@@ -293,13 +293,22 @@ sections (docs/design/settings.md).
     when the pane goes), Copy and Remove. Passkeys are listed and removed,
     never shown.
   - Payment methods: "Save and fill payment methods", the cards (name, last
-    four digits, expiry; Compass's own can be removed, account ones can't),
-    and "Add or edit cards" (upstream's `payments`, in a tab).
+    four digits, expiry; Compass's own can be edited and removed, account
+    ones can't), and Add Card….
   - Addresses: "Save and fill addresses", the addresses (name, street and
-    city), Remove, and "Add or edit addresses" (upstream's `contactInfo`).
-- **Routing:** upstream's `passwords` sub-page is the pane. `payments` and
-  `contactInfo` stay upstream's, so the pane's add/edit rows don't come back
-  to it.
+    city), Edit, Remove, and Add Address….
+  - **The editors** (phase 5d) open under their group. A card: name on card,
+    number (a new card only; the saved number never goes to the page),
+    expiry month and year, nickname; the browser checks the number and that
+    the date hasn't passed (`CreditCard::HasValidCardNumber()`,
+    `IsValidCreditCardExpirationDate()`) and adds or updates it in the
+    `PaymentsDataManager`. An address: country (named by
+    `Intl.DisplayNames`), name, organization, street, city, state, postal
+    code, phone, email, set as user-verified and finalized
+    (`AutofillProfile::FinalizeAfterImport()`), then added or updated in the
+    `AddressDataManager`.
+- **Routing:** upstream's `passwords` sub-page is the pane; `payments`,
+  `autofill`, `contactInfo` and `addresses` open it at their group.
 - **Browser side** (`settings_window_handler_passwords.cc`):
   - Upstream's `PasswordsPrivateDelegate` (shared per profile, from
     `PasswordsPrivateDelegateFactory`), as the password manager page uses it.
@@ -314,8 +323,8 @@ sections (docs/design/settings.md).
     `GetProfiles()`, `RemoveProfile()`), observed:
     `Page.AutofillChanged()`.
   - The prefs are on the allowlist.
-- **Not done:** adding and editing passwords, cards and addresses in the
-  window; the checkup; passkeys' details; import and export. The password
+- **Not done:** adding and editing passwords in the window; the checkup;
+  passkeys' details; import and export. The password
   manager (chrome://password-manager) stays upstream's page.
 
 ## Advanced

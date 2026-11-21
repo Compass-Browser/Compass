@@ -12,8 +12,11 @@
 
 #include "base/functional/bind.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/ui/webui/settings/settings_window_handler.h"
@@ -21,6 +24,7 @@
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
+#include "components/autofill/core/browser/data_quality/validation.h"
 #include "components/autofill/core/browser/field_types.h"
 
 namespace compass {
@@ -195,6 +199,145 @@ void SettingsWindowHandler::RemoveAddress(const std::string& guid) {
   if (autofill::PersonalDataManager* data = GetPersonalDataManager()) {
     data->address_data_manager().RemoveProfile(guid);
   }
+}
+
+// The card and address editors ------------------------------------------------
+
+void SettingsWindowHandler::GetCard(const std::string& guid,
+                                    GetCardCallback callback) {
+  autofill::PersonalDataManager* data = GetPersonalDataManager();
+  const autofill::CreditCard* card =
+      data ? data->payments_data_manager().GetCreditCardByGUID(guid) : nullptr;
+  // Only Compass's own cards are edited here; account ones in the account.
+  if (!card || !autofill::CreditCard::IsLocalCard(card)) {
+    std::move(callback).Run(nullptr);
+    return;
+  }
+  std::move(callback).Run(sidebar::mojom::CardDraft::New(
+      card->guid(),
+      base::UTF16ToUTF8(card->GetRawInfo(autofill::CREDIT_CARD_NAME_FULL)),
+      std::string(), card->expiration_month(), card->expiration_year(),
+      base::UTF16ToUTF8(card->nickname()),
+      base::UTF16ToUTF8(card->LastFourDigits())));
+}
+
+void SettingsWindowHandler::SaveCard(sidebar::mojom::CardDraftPtr draft,
+                                     SaveCardCallback callback) {
+  autofill::PersonalDataManager* data = GetPersonalDataManager();
+  if (!data) {
+    std::move(callback).Run("Payment methods aren't available here.");
+    return;
+  }
+  autofill::PaymentsDataManager& payments = data->payments_data_manager();
+  autofill::CreditCard card;
+  if (!draft->guid.empty()) {
+    const autofill::CreditCard* existing =
+        payments.GetCreditCardByGUID(draft->guid);
+    if (!existing || !autofill::CreditCard::IsLocalCard(existing)) {
+      std::move(callback).Run("This card can't be edited here.");
+      return;
+    }
+    card = *existing;
+  } else {
+    std::u16string number;
+    base::RemoveChars(base::UTF8ToUTF16(draft->number), u" -", &number);
+    card.SetNumber(number);
+    if (!card.HasValidCardNumber()) {
+      std::move(callback).Run("That card number isn't valid.");
+      return;
+    }
+  }
+  if (!autofill::IsValidCreditCardExpirationDate(
+          draft->expiration_year, draft->expiration_month, base::Time::Now())) {
+    std::move(callback).Run("Use an expiry date that hasn't passed.");
+    return;
+  }
+  card.SetRawInfo(autofill::CREDIT_CARD_NAME_FULL,
+                  base::UTF8ToUTF16(draft->name_on_card));
+  card.SetExpirationMonth(draft->expiration_month);
+  card.SetExpirationYear(draft->expiration_year);
+  card.SetNickname(base::UTF8ToUTF16(draft->nickname));
+  if (draft->guid.empty()) {
+    payments.AddCreditCard(card);
+  } else {
+    payments.UpdateCreditCard(card);
+  }
+  std::move(callback).Run(std::string());
+}
+
+void SettingsWindowHandler::GetAddress(const std::string& guid,
+                                       GetAddressCallback callback) {
+  autofill::PersonalDataManager* data = GetPersonalDataManager();
+  const autofill::AutofillProfile* profile =
+      data ? data->address_data_manager().GetProfileByGUID(guid) : nullptr;
+  if (!profile) {
+    std::move(callback).Run(nullptr);
+    return;
+  }
+  auto raw = [&](autofill::FieldType type) {
+    return base::UTF16ToUTF8(profile->GetRawInfo(type));
+  };
+  std::move(callback).Run(sidebar::mojom::AddressDraft::New(
+      profile->guid(), raw(autofill::NAME_FULL), raw(autofill::COMPANY_NAME),
+      raw(autofill::ADDRESS_HOME_STREET_ADDRESS),
+      raw(autofill::ADDRESS_HOME_CITY), raw(autofill::ADDRESS_HOME_STATE),
+      raw(autofill::ADDRESS_HOME_ZIP), raw(autofill::ADDRESS_HOME_COUNTRY),
+      raw(autofill::PHONE_HOME_WHOLE_NUMBER), raw(autofill::EMAIL_ADDRESS)));
+}
+
+void SettingsWindowHandler::SaveAddress(sidebar::mojom::AddressDraftPtr draft,
+                                        SaveAddressCallback callback) {
+  autofill::PersonalDataManager* data = GetPersonalDataManager();
+  if (!data) {
+    std::move(callback).Run("Addresses aren't available here.");
+    return;
+  }
+  autofill::AddressDataManager& addresses = data->address_data_manager();
+  const std::string country = base::ToUpperASCII(draft->country_code);
+  if (country.size() != 2 || !base::IsAsciiAlpha(country[0]) ||
+      !base::IsAsciiAlpha(country[1])) {
+    std::move(callback).Run("Pick a country.");
+    return;
+  }
+  autofill::AutofillProfile profile{autofill::AddressCountryCode(country)};
+  if (!draft->guid.empty()) {
+    const autofill::AutofillProfile* existing =
+        addresses.GetProfileByGUID(draft->guid);
+    if (!existing) {
+      std::move(callback).Run("This address was removed.");
+      return;
+    }
+    profile = *existing;
+  }
+  if (draft->full_name.empty() && draft->street.empty() &&
+      draft->email.empty() && draft->phone.empty()) {
+    std::move(callback).Run("Fill in at least a name or a street.");
+    return;
+  }
+  const std::string locale = g_browser_process->GetApplicationLocale();
+  const std::pair<autofill::FieldType, const std::string*> fields[] = {
+      {autofill::ADDRESS_HOME_COUNTRY, &country},
+      {autofill::NAME_FULL, &draft->full_name},
+      {autofill::COMPANY_NAME, &draft->organization},
+      {autofill::ADDRESS_HOME_STREET_ADDRESS, &draft->street},
+      {autofill::ADDRESS_HOME_CITY, &draft->city},
+      {autofill::ADDRESS_HOME_STATE, &draft->state},
+      {autofill::ADDRESS_HOME_ZIP, &draft->postal_code},
+      {autofill::PHONE_HOME_WHOLE_NUMBER, &draft->phone},
+      {autofill::EMAIL_ADDRESS, &draft->email},
+  };
+  for (const auto& [type, value] : fields) {
+    profile.SetInfoWithVerificationStatus(
+        type, base::UTF8ToUTF16(*value), locale,
+        autofill::VerificationStatus::kUserVerified);
+  }
+  profile.FinalizeAfterImport();
+  if (draft->guid.empty()) {
+    addresses.AddProfile(profile);
+  } else {
+    addresses.UpdateProfile(profile);
+  }
+  std::move(callback).Run(std::string());
 }
 
 void SettingsWindowHandler::OnPersonalDataChanged() {

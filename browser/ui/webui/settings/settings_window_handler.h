@@ -131,6 +131,13 @@ class SettingsWindowHandler
   void RemoveCard(const std::string& guid) override;
   void GetAddresses(GetAddressesCallback callback) override;
   void RemoveAddress(const std::string& guid) override;
+  void GetCard(const std::string& guid, GetCardCallback callback) override;
+  void SaveCard(sidebar::mojom::CardDraftPtr card,
+                SaveCardCallback callback) override;
+  void GetAddress(const std::string& guid,
+                  GetAddressCallback callback) override;
+  void SaveAddress(sidebar::mojom::AddressDraftPtr address,
+                   SaveAddressCallback callback) override;
   void GetAbout(GetAboutCallback callback) override;
   void CheckForUpdates() override;
   void InstallUpdate() override;

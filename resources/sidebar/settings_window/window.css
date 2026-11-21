@@ -757,3 +757,13 @@ button.pill.danger {
   gap: 6px;
   margin-inline-end: 8px;
 }
+
+.draft-title {
+  margin-top: 16px;
+}
+
+textarea.field {
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
