@@ -58,6 +58,8 @@ Data:
 | `profiles.js --arg op=dump\|assign` | sidebar | Profiles and their spaces; moves a space to another profile. |
 | `navigate.js --arg url=URL` | an open page (`in`) | Navigates that tab as a link would. |
 | `trigger_refresh.js` | `chrome://sync-internals` | Asks the engine to fetch now ("Trigger GetUpdates"). |
+| `share.js [--arg role=editor\|viewer]` | `chrome://compass-share/?kind=K&id=UUID` | Shares a space, folder or easel (if it isn't yet) and returns `{roomId, link}`, a new invite link. |
+| `room.js --arg op=join\|room\|role\|remove\|leave\|delete\|name` | `chrome://compass-share/` | Joins with a link, reads a room (members, invites), changes roles, removes, leaves, deletes, names. The file lists the args. |
 | `sync_dump.js` | `chrome://sync-internals` | The "Dump status" JSON: types, passphrase state, errors. |
 
 Checking results:

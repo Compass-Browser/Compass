@@ -250,7 +250,7 @@ The phone syncs every profile of the chain, each in its own account, as the desk
   - A pairing join starts every account at once. A recovery-code join starts the home account; the others start when its first sync brings the list (`SpaceDirectory.onProfilesChanged`).
   - Home UUID: the entity marked home, the smallest of several (the desktop's rule for two homes). It goes into `SpaceStore.homeProfileUUID`, and the home's spaces carry it in `profile_uuid`, as the desktop's do.
   - The phone never writes, creates or deletes chain profiles.
-- **Accounts.** `SyncController.Account` per profile: its own engine, metadata file, cache GUID, NIGORI (its own passphrase), bridges and `SyncNotifier` stream, as each desktop profile runs its own. The home's files keep their original names; the others live in `Profiles/<uuid>/`. A cycle runs the home first, then the others. DEVICE_INFO goes in every account, so each profile's device list on the Mac shows the phone; Settings shows the home's list. The SSE stream is one per account, not multiplexed, which matches the desktop.
+- **Accounts.** `SyncController.Account` per profile: its own engine, metadata file, cache GUID, NIGORI (its own passphrase), bridges and `SyncNotifier` stream, as each desktop profile runs its own. The home's files keep their original names; the others live in `Profiles/<uuid>/`. A cycle runs the home first, then the others; one account's failure doesn't stop the others, and only the home's fails sync as a whole (`SyncOutcome`): a profile account that fails, or that has no NIGORI yet (a profile the Mac made and hasn't synced, since a new desktop profile syncs only after a restart; phones before 20261120.1815 don't start one), shows its reason under Settings → Profiles ("Waiting for the Mac to start syncing this profile.") while the rest syncs. Before, it set the whole state to failed and Last synced stopped (TestFlight 1739, a friend's chain with a new Mac profile). Tests: `SyncOutcomeTests`, `ProfilesServerTests.aProfileAddedAfterTheMacStartsLater` and `aProfileThePhoneStartsFirst`. On a private server (an allowlist of chains) a profile account is refused (401) until it's linked to the chain's: the phone links each profile account once a run as it starts, and again after a 401 (at most once a minute; `AccountLinker`, `POST /compass/account/link` with the home's token and the profile's in `X-Compass-Linked-Token`, sync.md "Private servers and profile accounts"); a 401 shows as "The sync server refused this profile (it may serve only invited people). Ask the server's owner to allow it." Test: `ProfilesServerTests.aPrivateServerLetsLinkedProfilesIn`. DEVICE_INFO goes in every account, so each profile's device list on the Mac shows the phone; Settings shows the home's list. The SSE stream is one per account, not multiplexed, which matches the desktop.
 - **`SpaceDirectory`** (CompassSync): one `SpaceStore`, one `CompassSpacesBridge` per account, and who owns what.
   - A space belongs to the bridge of its profile UUID; home spaces (empty UUID or the home's) and profiles without an account here go to the home's. Nodes follow their space.
   - **Favorites are per profile**, as on the desktop: `SpaceStore.favorites` is the home's, `favorites(forProfile:)` the others' (root ID `favorites:<uuid>`). A space page shows its profile's favorites.
@@ -278,6 +278,121 @@ The phone syncs every profile of the chain, each in its own account, as the desk
   - A remote adoption doesn't reload the adopted space's live tabs in the new data store. They change store the next time they load.
   - Devices in Settings come from the home account only.
   - A chain profile the desktop deletes stays listed (sync never deletes profiles, as on the desktop).
+
+### Rooms: sharing with other people
+
+Shared spaces, pinned folders and easels (docs/design/sync.md, "Rooms" for
+the server's API, "Rooms: crypto and links" for the crypto). CompassKit's
+`CompassRooms`; the app's `App/Rooms/`.
+
+- **`RoomClient`**: every route of `/v2/compass/rooms`, `/identity`,
+  `/directory` and `/info`'s sign-in, with URLSession, signed with the
+  account's chain token (`Chain.accessToken(authKey:)`, the profile's auth
+  key for a profile account), `client_id` = the account's cache GUID on its
+  own server. Paths take only IDs checked against the server's grammar (room
+  IDs: canonical unpadded base64url of 16 bytes; chain IDs: 64 hex; invite
+  IDs: `[A-Za-z0-9_-]{1,64}`), escaped again; binary fields are standard
+  base64, the join `secret` unpadded base64url. Answers map to `RoomError`
+  (`conflict` with the stored records, `staleEpoch`, `removed`, `notFound`,
+  `envelopesMismatch`, `refused(status, code)` with words for the user).
+- **Identity key** per account: `RoomCrypto.identityKey(chain:profileUUID:)`,
+  registered (`PUT /identity`) once a run on the account's server, and before
+  creating or joining a room on another.
+- **Mounts** (`room_mount = 11`, `CompassRoomMount`): carried by the
+  account's `CompassSpacesBridge` (client tag
+  `CompassSpacesBridge.mountTag(roomID:)`: SHA-256("compass-room-mount:" +
+  room ID) as a version-5 UUID). `putRoomMount` / `deleteRoomMount` /
+  `roomMounts()`; a remote batch with mounts calls
+  `SpaceDirectory.rooms?.mountsChanged(bridge)` *before* anything else of it
+  is applied, so the other device of an owner who just shared a folder
+  doesn't apply the chain's deletions of it.
+- **Exclusions** (`RoomBacking`, which `RoomsManager` implements and
+  `SpaceDirectory.rooms` holds): `isLocal(node)` is also true for a room's
+  node (a shared folder's subtree, a shared space's Pinned, a shared easel's
+  tab), so `desired()` leaves it out and the bridge deletes from the chain
+  what it had of it (as for a space that doesn't sync); remote puts and
+  deletions of room entities are dropped; a shared space's own entity isn't
+  committed (its Today and archive still are); shared boards, their objects
+  and images used by no personal board leave the chain's Easels
+  (`personalEasels`). `bridge.roomsChanged()` reconciles after a share, a
+  join or a leave: what's now a room's goes, what isn't any more (a removed
+  member's copy) comes back, and Today entries waiting for a shared space
+  that's here now are applied. The home-account-only rule for personal
+  easels stays; shared boards come from their room whatever the account.
+- **Records** (`RoomSync`, one per mounted room): a record is a serialized
+  `CompassSpacesSpecifics` under the entity's UUID, encrypted per epoch.
+  Folder: a `node` per folder, tab and split, section PINNED, no
+  `space_uuid`; the shared folder itself has no `parent_uuid` and no
+  `position` (its placement is the mount's). Space: one `space` (uuid, name,
+  theme only) and its Pinned's nodes with its `space_uuid`. Easel: the
+  `easel`, its `easel_object`s and the `easel_asset`s they show (with their
+  bytes). Boards that tabs of a shared folder or space show are shared with
+  it. A joiner finds the root among the records (the folder without a parent,
+  the space, the board): links don't carry it. A record whose entity ID isn't
+  its record ID, of a kind rooms don't carry, outside the room, or that would
+  take over a node of this device that isn't the room's, is skipped.
+- **Cycle**: write (the diff of `desired()` against the mirror, with
+  `base_seq` = the mirror's `seq`, 0 for a new one; a conflict applies the
+  stored records, theirs win; `stale_epoch` reads the room, opens the new
+  envelope and retries once), then read `changes?since=` and apply (create,
+  update, then `place()` parents first, orphans under the shared root; a
+  shared folder at the mount's placement, else the end of the account's first
+  space's Pinned). Moving the shared folder (or easel tab) here updates the
+  mount's placement. The node and space helpers are the bridge's
+  (`CompassSpacesBridge.nodeSpecifics`, `spaceSpecifics`, `position`,
+  `liveSource`…, factored out of `desired()`), so a room's records are the
+  chain's wire format. A shared item deleted here isn't deleted for
+  everyone: no deletions are written while it's gone, and it's put back
+  (the menu offers Leave or Delete for Everyone instead).
+- **Viewers** write nothing: a local change in the room's scope is reverted
+  at once (`revertLocalEdits`, boards with `EaselStore.applyRemote(force:)`),
+  the sidebar menu says View Only, the easel editor shows no tools.
+- **Keys**: the mount keeps every epoch's key; `GET /rooms/{id}` envelopes
+  are opened into it. Creating a room: the client chooses its ID (16 random
+  bytes, sent as `id`), so the epoch 1 envelope is sealed for it (the HPKE
+  `info` binds it) and sent with it; `409 room_exists` picks another ID and
+  retries (twice). Removing a member rotates (`POST .../epochs`, a new key
+  sealed to every remaining member). The owner sends every epoch's key to
+  joined members it hasn't yet (link joins after a rotation).
+- **Names**: a member's `profile` is epoch (BE uint32) || the record
+  encryption of `{"name": …}` as record "profile:<chain id>"; company
+  sign-in's name and email win. Settings → Sharing → "Your Name for Sharing".
+- **Removal**: `403 removed` / `404 not_found` end the room here: the mount
+  goes, the copy stays as an ordinary item and syncs in the chain, and a
+  banner says so above the sidebar.
+- **Notifications**: `SyncNotifier.run(room:)` hands `event: room` to
+  `RoomsManager.handle` (members and keys read again, records pulled); while
+  the app is active each room also long-polls `changes` (`wait=30`), which
+  covers rooms on another server than the chain's. Email invitations are
+  found with `GET /rooms` (pending) at start and on a `room` event for an
+  unknown room.
+- **UI** (`App/Rooms/`): `RoomsModel` (started, fed and stopped by
+  `SyncController` hooks), `ShareSheet` (invite link with role, expiry and
+  uses, Copy and ShareLink; Invite by Email on company sign-in servers;
+  People with role menus and Remove; Open Links with Turn Off; Leave or
+  Delete for Everyone), `JoinSheet` (the preview: what, server, space; after
+  Join, who shared it and the role), `RoomBanners`, `RoomBadge`. Both sheets
+  are presented by UIKit (`Presenter`) over everything, never from a List
+  row ("Presentations" above). Share is in the space menu, a pinned folder's
+  menu and the easel's ⋯ menu.
+- **Links**: `AppLinks.decide` turns a main-frame
+  `https://compassbrowser.org/join#…` (not in Incognito) into `.joinRoom`;
+  `CompassApp.open` takes `compass://join#…` and the https link from other
+  apps.
+- **Debug switches**: `-CompassRoomsJoin <link>` (the preview),
+  `-CompassRoomsAutoJoin YES` (join at once), `-CompassRoomsShareDemo YES`
+  (share a demo folder and show its sheet). `RoomsSeedForSimulator`
+  (CompassRoomsTests, `COMPASS_ROOMS_SEED_SERVER`) plays the inviter.
+- **Tests**: `RoomClientTests` (requests and encodings over a stub
+  URLProtocol, error mapping, path escaping), `RoomSyncTests` (scoped records,
+  apply at the placement, foreign records refused, diffs, viewer reverts,
+  shared easels out of the chain), `RoomServerTests` against the Go server:
+  a folder shared by link both ways plus the owner's second device and a
+  no-plaintext check of the database; an easel with a viewer (refused, edits
+  reverted), removal and rotation (the removed member can't read epoch 2);
+  an email invite on a server with the fake identity provider.
+- **Not yet**: Reset sync's ownership transfer (`POST /rooms/{id}/owner`
+  with `X-Compass-Linked-Token`; iOS has no Reset Sync), presence, comments.
 
 ## App
 
@@ -831,7 +946,7 @@ Design and the desktop and server parts: [send-tab.md](send-tab.md).
 
 - **Unit tests:** `compass ios test` (= `swift test` in `ios/CompassKit`). It covers the crypto vectors, the UniquePosition port, the model invariants (ported from the SpaceModel unit tests) and the apply rules: unknown parent, cycle, invalid placement, delete subtree. Run only the suites a change touches.
 - **Engine against the server:** server test suites start the repo's Go server on a random port and check two Swift clients on one chain, for each type (above).
-- **Simulator:** run headless (`xcrun simctl`, with screenshots through `simctl io screenshot`), never in front of the user. A debug build launched with `-CompassServer <url> -CompassJoinRecovery "<words>"` joins a chain seeded by `SeedForSimulator` (a test that plays "the Mac"; `COMPASS_SEED_PUSH=1` keeps writing, `COMPASS_SEED_PROFILES=1` makes two profiles). `-CompassShow <title>` opens an entry, `-CompassSpace <name>` picks a space page and `-CompassJoinSummary YES` shows the join summary.
+- **Simulator:** run headless (`xcrun simctl`, with screenshots through `simctl io screenshot`), never in front of the user. A debug build launched with `-CompassServer <url> -CompassJoinRecovery "<words>"` joins a chain seeded by `SeedForSimulator` (a test that plays "the Mac"; `COMPASS_SEED_PUSH=1` keeps writing, `COMPASS_SEED_PROFILES=1` makes two profiles). `-CompassLeave YES` leaves sync first (Settings → Leave Sync); `-CompassServer <url> -CompassJoinCode <slot>-<6 digits>` joins by pairing (Allow it on the Mac, `tools/sync_e2e/answer_device.js`); `-CompassInvite "compass-pair:?server=…&code=…"` is the Mac's QR opened from the Camera app (Settings → Join Sync joins at once). `-CompassShow <title>` opens an entry, `-CompassSpace <name>` picks a space page and `-CompassJoinSummary YES` shows the join summary.
 - **Interop with the desktop:**
   1. Pair the simulator, then a device, with a desktop Compass, on the public server or the local server.
   2. On the desktop, create a pinned folder and tab, then check them on the phone.

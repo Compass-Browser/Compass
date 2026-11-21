@@ -1089,6 +1089,23 @@ controls that count are the bottom ones, where Compass's bar is
     (`COMPASS_SYNC_FCM_CREDENTIALS`); it lives with the server's
     configuration, never in this repository.
 
+- **Sharing** (sync.md, "Rooms: clients"). The desktop's `RoomService`
+  runs on Android too (created with the COMPASS_SPACES holder,
+  `compass_spaces_sync_android.cc`). `RoomsBridge`
+  (`browser/android/rooms_bridge.*`, `RoomsBridge.java`) gives the shell JSON
+  answers, slow ones through a request ID. `ShareSheet` (`ShareSheet.java`,
+  `ShareSheetUi.kt`) is the share sheet (Start sharing; the invite link's
+  role, expiry and uses, copied to the clipboard; Invite by email on company
+  sign-in servers; People with role menus and Remove; open links with
+  Revoke; Your name for sharing; Leave or Delete for everyone) and the join
+  screen (what, server, the space to put it in, Join). The sidebar offers
+  Share… on a pinned folder, Share Easel… on an easel tab, Share Space… in
+  the space's ⋯ menu, shows a badge on shared rows and the banners of items
+  this profile lost (`SidebarState.shared`, `roomNotices`). Invite links
+  open `JoinRoomActivity` (VIEW intents for `https://compassbrowser.org/join`,
+  not autoVerify, and `compass://join`), which hands the link to the shell
+  (`CompassIntents.ACTION_JOIN_ROOM`).
+
 ## Building
 
 - **Checkout.** A checkout builds both desktop and Android once `.gclient`

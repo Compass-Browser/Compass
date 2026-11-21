@@ -367,6 +367,14 @@ local-sync service without it. Leaving clears the seed and the local-sync
 pref; the next launch's sync service, not signed in, clears sync's
 metadata as for a signed-out user and keeps the data.
 
+While it starts, the page names the step it waits on
+(`StartingStatus()`, `CompassSyncService::GetStartingStep()`): reading the
+sync key, connecting to the server (the engine isn't up), setting up
+encryption (types held for the passphrase), or getting the data ready
+(configuring). One step that takes 60 s (`kStartingStuckAfter`, a timer
+wakes the page) adds "This is taking long. Restart Compass if it doesn't
+change." and the Restart button (`SyncStatus::offer_restart`).
+
 ### Passphrase
 
 At each start with a chain, `CompassSyncService` selects no data type
@@ -430,7 +438,10 @@ event: changed
 data: {"types":[32904,970000]}
 ```
 
-(EntitySpecifics field numbers, sorted; never contents.) The controller
+(EntitySpecifics field numbers, sorted; never contents.) The same stream
+also carries `event: room` for the rooms the chain is a member of ("Rooms"
+below); clients act on `changed` only and skip other event types, which
+is what kept the older ones working when `room` was added. The controller
 calls the hub after every successful Commit with the types of the entries
 that got `SUCCESS` (a conflict-only commit tells nobody), excluding streams
 whose `client_id` is the commit's `cache_guid` (the committer). A stream
@@ -1087,6 +1098,32 @@ its own:
   profile), so `SyncCredentials`, `sync_hooks` and the engine don't know
   about profiles.
 
+**Private servers and profile accounts.** A server that serves only the
+chains it lists (`COMPASS_SYNC_ALLOWED_CHAINS`) can't know a profile
+account's ID in advance, so it would answer it 401 forever (a friend's new
+profile, 2026-11-20: its page said "Starting…" and the phone failed that
+account). The chain links them: `POST /compass/account/link` with the home
+account's token and the profile account's in `X-Compass-Linked-Token`
+(`AccountLinker`, `components/sync/compass_account_linker.*`, and the
+phone's `AccountLinker`). The server keeps `chain_links {client_id, root}`
+(the root is the listed chain, also when a linked chain links another; at
+most 64 per root) and lets a linked chain in while its root is listed and
+not blocked (`auth.ChainAllowed()`); with sign-in on it also binds it to
+the same user, as before. Clients link:
+- desktop: a profile account not linked on its server yet
+  (`compass.sync.account_linked_server` differs) links itself before its
+  engine gets the key, so its first request already passes; and again,
+  at most once a minute (else every 5), while the server refuses it.
+  `EnrollProfile()` and leaving clear the pref;
+- iOS: every profile account once a run as it starts, and again after a
+  401 (at most once a minute).
+A 401 on an account shows as such, not as "Starting…": the connection
+manager records it (`SyncCredentials::SetRefused()`, any other answer
+clears it) and the page says "The sync server refused this profile (it may
+serve only invited people). Ask the server's owner to allow it." (or "this
+device's chain" for the home). The phone shows the same under Settings →
+Profiles. Older clients don't link; the server's README says so.
+
 **Passphrase per profile.** Each account derives its own rather than
 sharing the chain's. It costs nothing (one more derivation; each profile
 has its own Nigori anyway) and buys domain separation: an entity the
@@ -1128,7 +1165,12 @@ entity after a remote change (`OnChainProfiles()`). Rules:
 **Restart behaviour.** As for one profile, a profile already loaded when it
 joins the chain syncs from the next launch, and a profile made locally
 while syncing ("New profile…") syncs after the next restart; its page says
-so. Profiles **created by sync** don't wait: the creator writes the new
+so. A new profile made **for a space** (Assign to profile → a new one,
+`AssignSpaceToProfile()`) doesn't wait: while the chain runs here, the home
+makes it through `CompassProfileCreator` with a new UUID
+(`CompassSyncService::CreateProfileInChain()`, set as window_sync's
+`SetNewProfileMaker()`), as below, so it syncs at once; without a running
+chain it's a plain profile. Profiles **created by sync** don't wait either: the creator writes the new
 directory's `Preferences` before the profile loads (the seed as the home
 stores it, server, UUID, `profile_account`,
 `sync.enable_local_sync_backend` and its directory), then
@@ -1239,12 +1281,15 @@ every profile's bridge.
   (limits), `/v2/compass/push` (push tokens), `GET /v2/compass/info`,
   `/v2/compass/account` and `/v2/compass/login` (company sign-in, see
   "Company sign-in (OIDC)"), `DELETE /v2/compass/devices/{cache_guid}`
-  (removing a device, see "Identity"), `GET /healthz` and `/health-check`.
+  (removing a device, see "Identity"), `/v2/compass/rooms`,
+  `/v2/compass/identity` and `GET /v2/compass/directory` (see "Rooms"),
+  `GET /healthz` and `/health-check`.
 - Admin commands (`compass-sync-server`): `backup`, `users ...` and
   `chains list` (see "Company sign-in (OIDC)"), `devices list CHAIN` (cache
   GUID, name and OS from the unencrypted `DEVICE_INFO`, last updated,
   active or removed) and `devices remove CHAIN CACHE_GUID` (as the
-  endpoint; the running server's poll cache sees it within 10 min).
+  endpoint; the running server's poll cache sees it within 10 min), and
+  `rooms list`, `rooms show ROOM`, `rooms delete ROOM` (see "Rooms").
 - It stores specifics opaquely (it can't read them anyway) and only
   interprets envelope fields, so types newer than its protos sync.
 - Ships a `docker-compose.yml` with the server and a Caddy front for HTTPS,
@@ -1333,8 +1378,9 @@ leaves.
 and last activity; 3 adds `oidc_users` and `chain_logins` (company
 sign-in); 4 adds `removed_devices` (`client_id` lower-case, `cache_guid`
 compared exactly, `removed_at`; deleted with the chain's data by reset,
-idle-chain expiry and `users revoke --delete-data`); older databases
-migrate on start. An older server refuses
+idle-chain expiry and `users revoke --delete-data`); 5 adds the room
+tables and `identity_keys` (see "Rooms"); older databases migrate on
+start. An older server refuses
 a newer database, so take a backup before updating (the update script
 does).
 
@@ -1677,6 +1723,409 @@ The C++ is shared; iOS has its own (ios.md).
   `#loginPanel` with the code, Open the sign-in page and Cancel,
   `#signedInAs`); Android `SyncScreenUi.kt` (android.md, "Sync and push").
 
+## Rooms
+
+Rooms share a space, a pinned folder or an easel between users (chains of
+different people), live, with roles. The server stores and orders a room's
+records but can't read them: each is encrypted with the room key of an
+epoch, and members get the keys as envelopes sealed to their identity keys.
+This section is the server's contract (`server/rooms`,
+`server/datastore/rooms.go`, schema 5); clients are written against it.
+Why rooms and not more sync chains, and how clients use them (crypto,
+links, mounts, UI): the collaboration plan.
+
+**Concepts.**
+
+- **Room**: one shared item. `id`: 16 random bytes, chosen by the creating
+  client (or by the server when it sends none),
+  written everywhere (JSON, paths, events, the admin commands) as base64url
+  without padding: 22 characters of `[A-Za-z0-9_-]`, exactly as a link's
+  `r`; its bytes are the `room_id` of the record AAD and envelope `info`
+  ("Rooms: crypto and links"). IDs are case-sensitive; a path whose ID isn't
+  canonical unpadded base64url of 16 bytes is `404 not_found`. `kind`:
+  `space`, `folder` or `easel` (a hint
+  for clients; the server doesn't use it). The root's UUID, names and every
+  other content live in encrypted records, never in the clear.
+- **Member**: a chain account (`client_id`, the chain ID: the account's
+  Ed25519 public key, 64 lower-case hex digits in answers, any case in
+  requests). Roles: `owner` (exactly one), `editor`, `viewer`. A member
+  invited by email is **pending** until it joins: it sees the room, its
+  members and its envelopes, can set its profile, join or decline (leave),
+  and nothing else.
+- **Identity key**: an X25519 public key, 32 bytes, per chain; the server
+  stores it opaquely (`identity_keys`) and in each membership.
+- **Epoch**: the room key's generation, from 1. Records carry the epoch of
+  the key that encrypted them; the server accepts writes of the current
+  epoch only. A rotation (after a removal) starts the next epoch.
+- **Envelope**: a room key of one epoch sealed to one member: exactly 80
+  bytes (HPKE `enc` 32, sealed key 32, tag 16; any other size is `400`),
+  otherwise opaque to the server.
+- **Record**: `id` (1 to 128 of `A-Z a-z 0-9 . _ : -`, chosen by clients,
+  unique in the room), `seq`, `epoch`, `deleted`, `author` (the chain that
+  wrote it last), `ciphertext` (nonce 12 || ciphertext || tag 16: 28 bytes
+  to 1 MiB, else `400` or `413`; none once deleted). Each
+  write gets the room's next `seq`, so a record's `seq` is its last
+  change's; the latest write wins. Deletes keep a tombstone (in the changes
+  feed for good).
+- **Invite**: a link invite: `id` (16 random bytes made by the server, as
+  unpadded base64url, 22 characters; paths accept 1 to 64 of
+  `[A-Za-z0-9_-]`, as a link's `i`), a role (`editor` or `viewer`), an
+  optional expiry and number of uses, and `SHA-256(secret)` as 64
+  lower-case hex digits. The secret is 32 random bytes the clients keep; it
+  goes in the link's fragment (`x`) and reaches the server only when a join
+  presents it.
+- **Profile**: a member's own blob (at most 4096 bytes), for the
+  self-chosen name, encrypted by clients; the server never reads it.
+
+**Conventions.** Every route takes the chain token (`Authorization: Bearer
+<token>`, as `/v2/command/`). Bodies and answers are JSON
+(`Content-Type: application/json`, `Cache-Control: no-store`); a request
+body is one JSON object (anything after it is a `400`); unknown fields are
+ignored except on `PATCH .../members/{client}`. Binary fields
+(`identity_pub`, `envelope`, `sealed`, `ciphertext`, `profile`) are base64,
+standard alphabet with padding (RFC 4648 §4). The exceptions follow the
+link's format: room and invite IDs and a join's `secret` are base64url
+without padding (RFC 4648 §5), and `secret_hash` is lower-case hex. Times
+are Unix milliseconds;
+`0` means none. An optional `client_id=<cache GUID>` query parameter names
+the calling device: the `room` events its change causes skip that device's
+stream, and a removed device is refused (`403 device_removed`). Request
+bodies are at most 1 MiB, 24 MiB for `POST .../records`.
+
+**Checks, in order**, on every route: the token (`401 invalid sync token`);
+company sign-in, when on (`401 login_required`, as everywhere); a removed
+device (`403 device_removed`); a disabled chain (reset or expired, `403
+chain_disabled`); the private server's gate (below, `403
+chain_not_allowed`); the request's form (`400`); then the room's rules
+(roles, epochs, limits), checked in the same database transaction as the
+write. A request with a valid token marks its chain active
+(`last_active`), as `/v2/command/` does.
+
+**The private server's gate.** With `COMPASS_SYNC_ALLOWED_CHAINS` set, a
+chain it doesn't list may still use rooms (its personal sync, pairing,
+push, quota and events stay refused): `GET`, `DELETE` and every route under
+`/v2/compass/rooms/{room}` of a room it is or was a member of (a removed
+member then gets `403 removed`); `POST /rooms/{room}/join` with a valid
+invite, or as a pending member; `GET /v2/compass/rooms` and
+`GET`/`PUT /v2/compass/identity` while it's a current member of some room.
+`POST /v2/compass/rooms` and the directory need a listed chain. Every
+other case is `403 {"error":"chain_not_allowed"}`. The token checks
+(signature, time, `BLOCKED_CLIENT_IDS`) are the same as everywhere. With
+company sign-in, every room route needs a signed-in chain, members
+included.
+
+**Errors** are `{"error": "<code>"}`, with more fields where said:
+
+| Status | `error` | When |
+|---|---|---|
+| 400 | `bad_request` (and `detail`, a sentence for logs) | malformed body or parameter |
+| 400 | `invalid_linked_token` | successor: `X-Compass-Linked-Token` missing, bad, expired or blocked |
+| 401 | `invalid sync token` | no or bad token |
+| 401 | `login_required` | company sign-in on, chain not signed in (`X-Compass-Login: required`) |
+| 403 | `device_removed` | the `client_id` was removed from its chain (`X-Compass-Device: removed`) |
+| 403 | `chain_disabled` | the chain was reset or expired |
+| 403 | `chain_not_allowed` | private server, chain not listed, route not open to it (above) |
+| 403 | `removed` | the caller was removed from the room (or left) |
+| 403 | `forbidden` | the caller's role doesn't allow it |
+| 403 | `not_joined` | the caller is a pending member (join first) |
+| 403 | `invite_invalid` | unknown invite, wrong secret, or no such room (a join never tells which) |
+| 403 | `invite_expired`, `invite_used_up`, `invite_revoked` | the secret was right, the invite can't be used |
+| 404 | `not_found` | no such room, or the caller was never a member |
+| 404 | `member_not_found` | the target isn't a current member |
+| 404 | `invite_not_found` | no such invite (revoking) |
+| 404 | `directory_disabled` | company sign-in is off (directory, email invites) |
+| 409 | `conflict` and `current` | a `base_seq` didn't match (see records) |
+| 409 | `stale_epoch` | an epoch other than the one expected; read the room again |
+| 409 | `envelopes_mismatch`, `missing`, `unknown` | a rotation's envelopes don't match the members |
+| 409 | `owner_must_transfer` | the owner tried to leave or be removed |
+| 409 | `room_full` | 50 members (joined and pending) |
+| 409 | `too_many_rooms` | the chain owns 1000 rooms |
+| 409 | `room_exists` | creating a room with an ID already taken |
+| 409 | `too_many_invites` | 100 invites not revoked |
+| 409 | `already_member` | email invite, or successor, of a current member |
+| 409 | `successor_disabled` | successor: the new chain was reset or expired |
+| 409 | `no_identity_key`, `identity_mismatch` | email invite: the account has no key, or another one than sent; joining: another key than the email invite's |
+| 409 | `not_signed_in` and `client_id` | email invite of an account not signed in |
+| 413 | `record_too_large` | a record's ciphertext over 1 MiB |
+| 413 | `too_large` | the body, or a write's ciphertext in all (16 MiB) |
+| 507 | `quota_exceeded` | the owner's chain is full (`COMPASS_SYNC_MAX_BYTES`) |
+| 503 | `login check unavailable` | the sign-in gate couldn't tell |
+| 500 | `unable to complete request` | |
+
+**Objects in answers.**
+
+Room (`GET /rooms/{room}` and the routes that answer a room):
+
+```json
+{
+  "id": "n4bQgYhMfWWaL-qgxVrQFQ",
+  "kind": "folder",
+  "owner": "<chain id>",
+  "created": 1793491200000,
+  "epoch": 2,
+  "seq": 42,
+  "bytes": 18234,
+  "role": "editor",
+  "pending": false,
+  "members": [Member, ...],
+  "envelopes": [{"epoch": 1, "sealed": "<base64>"}, {"epoch": 2, "sealed": "<base64>"}],
+  "invites": [Invite, ...]
+}
+```
+
+`role` and `pending` are the caller's. `seq` is the latest record's (0: no
+record yet). `bytes` counts the records' ciphertext and IDs, against the
+owner's quota. `members`: the current members, joined and pending, by
+`client_id`. `envelopes`: the caller's own, by epoch (other members' are
+never shown). `invites`: only in the owner's answers (absent for others),
+oldest first, revoked and used-up ones included.
+
+Member:
+
+```json
+{"client_id": "<chain id>", "role": "viewer", "identity_pub": "<base64, 32 bytes>",
+ "profile": "<base64>" | null, "name": "Ada Lovelace", "email": "ada@example.com",
+ "invited": 1793491200000, "joined": 1793491260000, "pending": false}
+```
+
+`name` and `email` come from company sign-in (the user the chain is bound
+to); `""` without sign-in or binding. `joined` is `0` while `pending`.
+
+Invite: `{"id", "role", "created", "expires" (0 = never), "uses_left"
+(null = unlimited), "revoked"}`. The secret's hash is never answered.
+
+Record:
+
+```json
+{"id": "node:3f2a…", "seq": 42, "epoch": 2, "deleted": false,
+ "author": "<chain id>", "ciphertext": "<base64>"}
+```
+
+`ciphertext` is absent when `deleted` is true.
+
+**Routes** (all under `/v2/compass`):
+
+`GET /rooms`. Any account (on a private server: a member of some room).
+`200 {"rooms": [{"id", "kind", "owner", "role", "pending", "epoch",
+"seq"}]}`, the caller's current memberships, pending included, by `id`. A
+client calls it when a `room` event names a room it doesn't know (an email
+invite) and at start.
+
+`POST /rooms` `{"id"?, "kind", "identity_pub", "envelope", "profile"?}`.
+Any listed account; the caller becomes the owner. `id`, optional: the room
+ID the client chose (16 random bytes, canonical unpadded base64url, `400`
+otherwise), so it can seal the first envelope with the room ID in its HPKE
+`info` before the room exists; absent or `""`, the server picks one (then
+the client must seal for an ID it doesn't know yet, so clients send it).
+`identity_pub`: its X25519 public key (32 bytes, also stored as its
+identity key); `envelope`: the epoch 1 key sealed to itself, for this
+room's ID. `201` Room (epoch 1, seq 0, no invites). `409 room_exists` if
+the ID is taken (pick another), `409 too_many_rooms`.
+
+`GET /rooms/{room}`. Any member, pending too. `200` Room. `403 removed`,
+`404 not_found`.
+
+`DELETE /rooms/{room}`. Owner. `204`. Everything of the room goes (records,
+envelopes, invites, memberships); its bytes go back to the owner's quota.
+Members get a `room` event with `"deleted"`, and `404` afterwards.
+
+`GET /rooms/{room}/changes?since=<seq>&limit=<n>&wait=<seconds>`. Joined
+member. `since` default 0, `limit` 1 to 1000 (default 1000), `wait` 0 to
+30 (default 0). `200 {"seq": <room's latest>, "epoch": <current>,
+"records": [Record, ...], "more": <bool>}`: the records whose `seq` is
+greater than `since`, by `seq`, each in its latest state (a record changed
+twice comes once). A page also ends after about 8 MiB of ciphertext (at
+least one record); with `more` true, ask again with `since` = the last
+record's `seq`. With `wait` and nothing new, the request is held until a
+record newer than `since` is written (then it answers at once), the
+caller stops being a member (`403 removed`, `404 not_found` if the room
+was deleted) or the wait ends (then `"records": []`). Other changes
+(members, keys) don't end it: they come as `room` events. Start from `since=0` (or the `seq` the client
+kept) and keep the last `seq` seen.
+
+`POST /rooms/{room}/records` `{"records": [{"id", "epoch", "ciphertext",
+"deleted"?, "base_seq"?}, ...]}`. Editor or owner. 1 to 500 records, each
+`id` once. `epoch` must be the room's current one (`409 stale_epoch`
+otherwise: read the room, decrypt the new envelope, re-encrypt).
+`ciphertext` (28 bytes to 1 MiB) is required unless `deleted` is true
+(then it's dropped).
+`base_seq`, optional: the `seq` the client based the write on; `0` means
+"must not exist" (a tombstone exists). All or nothing: if any `base_seq`
+doesn't match, nothing is written and the answer is `409 {"error":
+"conflict", "current": [Record, ...]}` with the stored state of each
+mismatched record (`seq` 0 and no ciphertext: it doesn't exist); merge and
+write again. Without `base_seq` the write wins. `200 {"seq": <room's
+latest>, "records": [{"id", "seq"}, ...]}` in request order. The room's
+bytes (ciphertext plus ID length) count against the owner chain's
+`COMPASS_SYNC_MAX_BYTES` (`507 quota_exceeded` when a write would grow it
+past; shrinking always works). `413 record_too_large`.
+
+`POST /rooms/{room}/invites` `{"role": "editor" | "viewer", "secret_hash":
+<SHA-256 of the 32-byte secret, 64 lower-case hex digits>, "expires"?: <ms, 0 = never,
+else in the future>, "uses"?: <1 to 1000, 0 = unlimited>}`. Owner. `201`
+Invite. `409 too_many_invites`.
+
+`DELETE /rooms/{room}/invites/{invite}`. Owner. `204` (again: `204`).
+The invite stays listed as `revoked`. `404 invite_not_found`.
+
+`POST /rooms/{room}/join` `{"invite_id"?, "secret"?, "identity_pub",
+"profile"?}`. `secret`: the invite's secret itself, 32 bytes as unpadded
+base64url (the link's `x` as is); the server compares its SHA-256 with the
+stored one in constant time. A malformed `invite_id` or `secret` is `403
+invite_invalid`. `200` Room.
+
+- A current joined member: nothing changes (no invite needed, none used).
+- A pending member (email invite): joins without an invite; `identity_pub`
+  must be the key it was invited with (`409 identity_mismatch`).
+- Anyone else needs a valid invite and becomes a member with its role,
+  using one use. `403 invite_invalid` for an unknown invite or room or a
+  wrong secret, else `invite_revoked`, `invite_expired` (at or after
+  `expires`), `invite_used_up`; `409 room_full`.
+- A member who was removed (or left) needs an invite created after that
+  (`403 removed` otherwise), so an old link doesn't bring it back.
+
+A link invite carries the key of the epoch it was made in; a member who
+joins after a rotation needs the newer keys from the owner (`POST
+.../envelopes`). The join's `room` event (`"members"`) tells the owner's
+devices.
+
+`POST /rooms/{room}/members` `{"members": [{"client_id", "role",
+"identity_pub", "envelopes": [{"epoch", "sealed"}, ...]}, ...]}`. Owner,
+company sign-in servers only (`404 directory_disabled` otherwise). The
+email invite: 1 to 50 accounts, found with the directory. Each must be
+signed in (`409 not_signed_in` with its `client_id`), have registered
+`identity_pub` as its identity key (`409 no_identity_key`,
+`identity_mismatch`: look it up again), not be a current member
+(`409 already_member`), and come with an envelope for the current epoch
+(earlier epochs optional; an epoch outside 1 to current is `409
+stale_epoch`). They're added pending. All or nothing. `200` Room. Each
+invitee's chain gets a `room` event; it calls `GET /rooms`, then joins or
+declines.
+
+`PATCH /rooms/{room}/members/{client}` `{"role"?: "editor" | "viewer",
+"profile"?: <base64> | null}`. At least one; no other fields. `role`:
+owner only, on a member other than itself (`403 forbidden` for the owner's
+own role: use the transfer). `profile`: only on oneself (pending members
+too); null or `""` clears it. `204`.
+
+`DELETE /rooms/{room}/members/{client}`. The owner, or the member itself
+(leaving; a pending member declining). The owner can't leave or be removed
+(`409 owner_must_transfer`). `204`. The member's envelopes are deleted;
+its row stays, marked removed (`403 removed` from then on, also on its open
+long polls). After removing someone the owner's client rotates the key.
+
+`POST /rooms/{room}/owner` `{"client_id"}`. Owner. The target must be a
+joined member (`404 member_not_found`, `403 not_joined`). It becomes the
+owner, the old owner an editor; the room's bytes move to the new owner's
+quota (`507 quota_exceeded` if they don't fit). `204`. With an
+`X-Compass-Linked-Token` header, the same route is the successor form
+below (any member, body as below).
+
+`POST /rooms/{room}/successor`, header `X-Compass-Linked-Token: <a token
+of the new chain>`, body `{"identity_pub": <the new chain's X25519 key,
+32 bytes>, "envelopes": [{"epoch", "sealed"}, ...]}`. Any member, pending
+too, called by the old chain (Bearer). For "Reset sync": before the old
+chain is cleared, the client moves each of its memberships to the
+account's new chain, so a reset doesn't lose the rooms. The linked token
+proves control of the new chain (signature and time checked,
+`BLOCKED_CLIENT_IDS` applies, the private server's list doesn't; `400
+invalid_linked_token`; the caller's own chain is a `400`). `envelopes`:
+the room keys sealed to the new chain's key, 1 to 1000, one per epoch,
+each 80 bytes, epochs 1 to current, the current one required (`409
+stale_epoch`); seal every epoch the client holds a key for, so the new
+chain reads the older records too. The new chain becomes a member with
+the caller's role, profile and pending state (the owner's successor owns
+the room, and the room's bytes move to its quota: `507 quota_exceeded`),
+its identity key is recorded, and the old chain is marked removed (`403
+removed` from then on). It needs no invite and, on a private server, no
+place in the list for this room (as any member, "The private server's
+gate"); with company sign-in it needs to be signed in to use the room, as
+always. `409 already_member` if the new chain is a current member, `409
+successor_disabled` if it was reset or expired. `204`; members, the old
+chain included, get a `"members"` event. No key rotation is needed: the
+same account holds both chains.
+
+`POST /rooms/{room}/epochs` `{"epoch": <current + 1>, "envelopes":
+[{"client_id", "sealed"}, ...]}`. Owner. Starts the next epoch: exactly one
+envelope for every current member, joined and pending, the owner included.
+`409 stale_epoch` if `epoch` isn't current + 1; `409 {"error":
+"envelopes_mismatch", "missing": [<client ids without one>], "unknown":
+[<client ids that aren't members>]}` (a member joined or left meanwhile:
+read the room and retry). `204`. Writes must use the new epoch from then
+on; older records stay readable with older keys.
+
+`POST /rooms/{room}/envelopes` `{"envelopes": [{"client_id", "epoch",
+"sealed"}, ...]}`. Owner. 1 to 1000 envelopes of existing epochs (1 to
+current; `409 stale_epoch` beyond) for current members (`404
+member_not_found`); an existing one of the same member and epoch is
+replaced. For members who joined by a link made before a rotation. `204`.
+
+`GET /identity`. `200 {"identity_pub": <base64> | null}`, the caller's.
+`PUT /identity` `{"identity_pub"}` (32 bytes). `204`. Registers or
+replaces the caller's identity key (and in its current memberships; the
+rooms' members get a `"members"` event). Clients register it on sign-in
+(company servers, so the directory finds them) and before joining.
+
+`GET /directory?email=<address>`. Company sign-in servers only (`404
+directory_disabled` otherwise); listed, signed-in callers. `200
+{"accounts": [{"client_id", "identity_pub", "name", "email"}, ...]}`: the
+chains bound to the users of this server's issuer whose email is that
+address (case-insensitive), not revoked, session not expired, with an
+identity key; by `client_id`, empty if none. A user's profiles are separate
+chains: each is an account to invite.
+
+**Notifications.** Every change sends a `room` event on the change stream
+(`/v2/compass/events`, "Change notifications") of every current member's
+chain (and of a removed member, for its removal), except the stream of the
+device that made it (its `client_id`):
+
+```
+event: room
+data: {"room_id":"n4bQgYhMfWWaL-qgxVrQFQ","seq":42,"changes":["records"]}
+```
+
+`changes` (sorted): `records` (a write), `members` (join, email invite,
+role, profile, removal, leave, transfer, identity key), `keys` (rotation;
+envelopes added, to their members only), `invites` (to the owner only),
+`deleted`. Changes of one room merge while the stream is busy; `seq` is the
+room's latest. Clients that predate rooms ignore it: `CompassSyncNotifier`
+and iOS's `SyncNotifier` act on `event: changed` only. No push (APNs,
+FCM): rooms aren't urgent. An admin's `rooms delete` (another process)
+sends nothing; members find out at their next request.
+
+**Limits.** 50 members (joined and pending), 1 MiB ciphertext per record,
+500 records and 16 MiB of ciphertext per write, 1000 records or about 8
+MiB per changes page, 100 open invites per room, 1000 rooms owned per
+chain, long polls of 30 s at most, envelopes exactly 80 bytes, records
+28 bytes or more, identity keys 32, profiles at most 4096.
+Room bytes count against the owner chain's `COMPASS_SYNC_MAX_BYTES` (its
+row in `chains`, found case-insensitively; `GET /v2/compass/quota` shows
+them in `bytes`).
+
+**Going away.** Rooms follow their chains. On "Reset sync" clients first
+move the old chain's memberships to the new chain (`POST
+.../successor`), so its rooms survive. When a chain's data is cleared
+(reset sync, `COMPASS_SYNC_IDLE_CHAIN_DAYS`, `users revoke --delete-data`),
+every room it still owns is deleted, its other memberships, envelopes and
+identity key are deleted (the member just disappears from the room;
+clients should rotate), and its room bytes go. No events are sent then.
+
+**Storage** (schema 5): `rooms` (id, owner lower-case, the `chains` row
+its bytes count in, kind, created, seq, epoch, bytes), `room_members`
+(room, chain lower-case, role, identity key, profile, invited, joined (0:
+pending), removed (0: current)), `room_records` (room, record ID, seq,
+epoch, deleted, author, ciphertext, size; indexed by room and seq),
+`room_envelopes` (room, chain, epoch, sealed), `room_invites` (room, id,
+SHA-256 of the secret, role, created, expires, uses left (NULL:
+unlimited), revoked), `identity_keys` (chain, key, updated). Room tables
+cascade from `rooms`. Nothing in them is readable without the room keys,
+which the server never sees.
+
+**Admin** (`compass-sync-server rooms ...`, README "Rooms"): `list` (ID,
+kind, owner, members, epoch, seq, bytes, created), `show ROOM` (members
+with role and status, removed ones too, and invites; never contents),
+`delete ROOM`.
+
 ## Decisions
 
 1. **Server**: self-hostable; the project runs a public instance too, but
@@ -1754,3 +2203,280 @@ The C++ is shared; iOS has its own (ios.md).
   the reference for how they keep up.
 - **Protocol drift**: newer Chromium may send fields go-sync doesn't know.
   The server stores specifics opaquely and only interprets envelope fields.
+
+## Rooms: crypto and links
+
+The cryptography every client shares for rooms (shared spaces, folders and
+easels), and the invite link. The desktop and Android use
+`components/sync/rooms/` (`//compass/components/sync/rooms:crypto`); iOS uses
+CompassKit's `CompassRooms` (`RoomCrypto.swift`, `RoomInviteLink.swift`).
+Both test the same vectors, `common/rooms/vectors.json`, which
+`common/rooms/make_vectors.swift` writes with its own RFC 9180 code on
+CryptoKit primitives (so neither client checks only itself). In the
+formulas, `||` is byte concatenation and `epoch` is a big-endian `uint32`.
+
+**Identity key.** Each server account has an X25519 key pair derived from
+the chain seed, in the style of the auth key:
+
+    private = HKDF-SHA256(ikm = seed, salt = "", info = "compass-identity-x25519"
+                          [":" + profile_uuid], L = 32)
+    public  = X25519(private, 9)
+
+An empty profile UUID gives the chain's home account's key; a profile
+account uses its sync UUID, as for `compass-sync-auth`. The private key is
+used as the scalar; X25519 clamps it. Members publish `public` when they join
+a room.
+
+**IDs.** A room ID is 16 random bytes (base64url without padding in links;
+the server's encoding is its own). A record ID is the entity's UUID string
+(space, node, easel, easel object or asset), as in `CompassSpacesSpecifics`.
+
+**Room keys and envelopes.** A room key is 32 random bytes per epoch. It
+reaches each member as an envelope, HPKE (RFC 9180) base mode with
+DHKEM(X25519, HKDF-SHA256), HKDF-SHA256 and AES-256-GCM (suite
+0x0020/0x0001/0x0002; BoringSSL `EVP_HPKE_*`, CryptoKit
+`HPKE.Ciphersuite(kem: .Curve25519_HKDF_SHA256, kdf: .HKDF_SHA256,
+aead: .AES_GCM_256)`, since CryptoKit has no preset for it):
+
+    info     = "compass-room-key" || room_id || epoch
+    envelope = enc (32) || Seal(room_key, aad = "")       -- 80 bytes
+
+The room and epoch are bound by `info`, so an envelope can't be replayed into
+another room or epoch. Each seal uses a fresh ephemeral key, so the vectors
+hold envelopes with a fixed ephemeral key (BoringSSL's
+`EVP_HPKE_CTX_setup_sender_with_seed_for_testing` reproduces them byte for
+byte; iOS opens them) and envelopes CryptoKit sealed (both open them).
+
+**Records.** A record's content (a serialized `CompassSpacesSpecifics`; bytes
+at this layer) is AES-256-GCM under the epoch's room key:
+
+    aad    = "compass-room-record" || room_id || record_id (UTF-8) || epoch
+    record = nonce (12, random) || ciphertext || tag (16)
+
+The associated data stops the server moving a record to another room, record
+ID or epoch. Fixed nonces exist for the vectors only
+(`EncryptRecordWithNonceForTesting`, the Swift internal `nonce:` overload).
+
+**Invite links.**
+
+    https://compassbrowser.org/join#<base64url, no padding, of the JSON>
+    compass://join#<same>                       (accepted when reading)
+
+The JSON is compact with sorted keys, and strings escape only `"`, `\` and
+control characters (UTF-8 otherwise), so every client writes the same bytes:
+
+    {"e":epoch,"i":invite_id,"k":b64url(epoch_key),"n":name,
+     "r":b64url(room_id),"s":server_url,"t":"space"|"folder"|"easel",
+     "x":b64url(invite_secret)}
+
+A reader refuses the link unless all of these hold, and ignores unknown keys
+(for later versions):
+
+- The whole link is at most 4096 bytes, starts with one of the two prefixes,
+  and the fragment is canonical unpadded base64url of a JSON object.
+- `r` decodes to 16 bytes, `x` and `k` to 32 (canonical base64url, no
+  padding).
+- `e` is a whole number from 0 to 2^32 - 1 (not a string or boolean).
+- `i` is 1 to 64 of `[A-Za-z0-9_-]`.
+- `n` is a string of at most 256 UTF-8 bytes (it may be empty).
+- `t` is `space`, `folder` or `easel`, lowercase.
+- `s` starts with `https://`, or `http://` with the host `localhost`,
+  `127.0.0.1` or `[::1]` exactly; uses only the characters
+  `A-Za-z0-9-._~:/[]!$&'()*+,;=%` (so no user info, query, fragment, spaces
+  or backslashes); has a non-empty host, and a port of 1 to 65535 if any.
+  The host and port are read from the text itself, then the platform's URL
+  parser must accept it too.
+
+The fragment never reaches a server. The invite secret is 32 random bytes;
+the server stores only `SHA-256(secret)` as lowercase hex
+(`InviteSecretHash()` / `RoomCrypto.inviteSecretHash`) and the joiner proves
+the invite by sending the secret. Anyone with the link can read the room at
+the link's epoch until the key rotates: revoking a link stops new joins, and
+only a rotation stops someone holding it from reading later records.
+
+## Rooms: clients
+
+How the desktop and Android use rooms (C++, shared by both); iOS's twin is
+ios.md, "Rooms: sharing with other people", and both write the same
+records, mounts, profiles and links.
+
+**Code.**
+
+- `components/sync/rooms/room_client.{h,cc}` (`:client`): `RoomClient`,
+  every route of "Rooms" over `SimpleURLLoader` (traffic annotation
+  `compass_rooms`), signed with the account's chain token, `client_id` = the
+  device's cache GUID. Answers parse into `RoomInfo`, `RoomChanges`,
+  `CommitResult`…; failures into `RoomError` (`status` 0 for the network;
+  `is_gone()` for `403 removed`/`404 not_found`, `is_conflict()` with
+  `current`, `is_stale_epoch()`, `is_forbidden()`, `is_too_large()`,
+  `is_quota_exceeded()`, `is_login_required()`, `is_chain_not_allowed()`).
+  `MoveToSuccessor()` is Reset sync's `POST .../successor` with
+  `X-Compass-Linked-Token`.
+- `browser/rooms/room_model.{h,cc}` (`:sync`): `RoomModel`, the shared item
+  as records and applying them, scoped to it: `CreateFolderRoomModel()`,
+  `CreateSpaceRoomModel()`, `CreateEaselRoomModel()` over the profile's
+  `SpaceList` and an `EaselSource` (the `EaselStore`). Node and theme
+  conversions are the bridge's (`compass_spaces_specifics_util.h`:
+  `FillNodeContent()`, `ApplyNodeContent()`, `ThemeToProto()`…, defined in
+  `compass_spaces_sync_bridge.cc`), positions are
+  `internal::AssignPositions()`, so a room's records are the chain's wire
+  format.
+- `browser/rooms/room_sync.{h,cc}` (`:sync`): `RoomSync`, one per mounted
+  room, over a `RoomServer` (the client, or a fake in tests).
+- `browser/rooms/room_service.{h,cc}` (`:rooms`): `RoomService`, a
+  `KeyedService` per regular profile (none for Incognito or Guest), desktop
+  and Android; created by the profile's COMPASS_SPACES holder
+  (`compass_spaces_sync.cc`, `compass_spaces_sync_android.cc`).
+- `browser/rooms/room_link_interceptor.{h,cc}` (desktop), the share sheet
+  and join page (`browser/ui/webui/share/`, `chrome://compass-share`,
+  `resources/sidebar/share/`), Android's `RoomsBridge`
+  (`browser/android/rooms_bridge.*`, `RoomsBridge.java`, `ShareSheet*.{java,kt}`,
+  `JoinRoomActivity`).
+
+**The account and its identity.** The member is the profile's sync account:
+the chain's own for the home profile, the profile's for a profile account
+(`compass.sync.profile_account`, `compass.sync.profile_uuid`).
+`RoomService` reads the seed itself (`compass.sync.seed` through
+`os_crypt_async`, as `CompassSyncService::LoadSeed()`), derives the auth key
+(`DeriveAuthKey(seed, uuid)`, tokens with `MakeAccessToken()`) and the
+identity key (`DeriveIdentityKey(seed, uuid)`), and registers the public key
+once per server (`PUT /identity`, remembered in the rooms file). Rooms stop
+when the seed pref is cleared (Leave).
+
+**Mounts** (`room_mount = 11`, `CompassRoomMount`: `room_id` 1,
+`server_url` 2 (the sync server's URL, path included, as in links' `s`),
+`kind` 3, `root_uuid` 4, `role` 5, `keys` 6 (`CompassRoomKey {epoch 1, key
+2}`), `space_uuid` 7, `parent_uuid` 8, `position` 9, `name` 10). Client tag
+`RoomMountKey(room_id)`. The bridge's delegate carries them
+(`GetLocalRoomMounts()`, `ApplyRoomMounts()`, applied before anything else
+of a remote batch), so every device of the account mounts its rooms;
+`RoomService` keeps them, and each room's state, in
+`<profile>/Compass Rooms.json` (the mount, the cursor, every record's seq
+and plaintext, the members the owner sent keys to, the removed notices).
+Moving a shared folder updates its mount's placement.
+
+**What the chain leaves out** (`Delegate::GetRoomRoots()` → `RoomRoots`):
+shared spaces (their entity and Pinned; Today and the archive stay in the
+chain, keyed under the space's UUID, and wait in the mirror until a room
+brings the space: `ApplyWaitingNodes()`), shared folders and their
+subtrees, shared easels (boards, objects, and images only they show), the
+boards of easel tabs inside shared folders and spaces, and a joined easel's
+pinned tab (`RoomTabKey(room_id)`, never synced through the chain).
+`ComputeLocalSpecifics()` skips them; remote puts of them are kept in the
+mirror but not applied, and remote deletions of them are dropped (another
+device of the account shared them). Unlike iOS, the desktop doesn't delete
+what the chain had of a shared item: it stays frozen there (a deleted
+entity can't come back under its ID), and comes back to life if the room
+goes. Each side ignores the other's handling, so mixed devices agree.
+
+**Records.** A record is a serialized `CompassSpacesSpecifics` under the
+entity's UUID, sealed per epoch (`EncryptRecord()`). Folder room: `node`s,
+section PINNED, no `space_uuid`; the folder itself has no `parent_uuid` or
+`position`. Space room: one `space` (uuid, name, theme only) and its
+Pinned's nodes with its `space_uuid`. Easel room: the `easel`, its
+`easel_object`s and the `easel_asset`s they show, with bytes. Last-active
+and archive times never go into a room. A joiner finds the root among the
+records (the folder without a parent, the space, the board); links don't
+carry it. An item shared on its own inside another shared item (a
+joined folder placed in a shared space) belongs to its own room only: the
+outer room's model leaves it and what's in it out of its records, never
+applies records of it, and doesn't count it for view-only
+(`RoomModel::set_excluded()`, every other room's root and joined-easel tab).
+
+**RoomSync's cycle.** `GET /rooms/{id}` (role, epoch, envelopes opened with
+the identity key into the mount's keys), then the changes feed as a long
+poll (`wait=25`, `since` = the cursor): each record past what's known is
+decrypted with its epoch's key (a missing key reads the room again), the
+mirror updated, and `RoomModel::Apply()` run with what changed and went
+(create in the container, content, then placement parents first by
+position, then deletions, then splits fixed). Local changes (`SpaceModel`
+and `EaselStore` observers in `RoomService`) schedule a pass 800 ms later:
+`GetLocal()` diffed with the mirror, writes of the current epoch with
+`base_seq` (the mirror's seq, 0 for a new record), up to 200 records or
+8 MiB a request. `409 conflict`: the stored records win (into the mirror
+and the model), the rest goes again; `409 stale_epoch` or `403 forbidden`
+read the room again; `413`/`507` are reported and not retried until the
+next change; network errors back off (2 s to 5 min). Our own writes come
+back in the feed with seqs we already have and are skipped. The room is
+read again every minute (members, roles, keys); `event: room` isn't
+followed yet.
+
+**Viewers** write nothing: a pass with local changes applies the mirror
+back instead (`Revert()`). The sidebar's handler refuses edits of a
+viewer's shared items (`IsViewOnly()`, `IsViewOnlySpace()`: move, add,
+rename, delete, collapse, split, the menu's commands), the easel page's
+handler refuses changes and its editor shows the board read-only
+(`Easel.view_only`).
+
+**A shared item deleted here** comes back from the room (as on iOS); the
+share sheet has Leave and Delete for Everyone.
+
+**Sharing** (`RoomService::Share()`): a room key, a room ID chosen here
+(`GenerateRoomId()`; `409 room_exists` tries another), the epoch 1
+envelope sealed to the account's identity for that ID, the member profile;
+`POST /rooms` with `id`. A server that answers another ID gets the
+envelope and profile again for it (`POST .../envelopes`, `PATCH
+.../members/{me}`). The mount (role owner, key 1) follows, and the first
+pass writes the item's records.
+
+**Invites.** `CreateInviteLink()`: a secret, its hash to `POST .../invites`
+(role, expiry, uses), and `EncodeInviteLink()` with the current epoch's key
+and the item's name. Joining (`Join()`): `POST .../join` with the secret,
+the identity key and the profile; the mount gets the link's key and any
+envelopes; the root is found in the first records; the item goes in the
+chosen space (folder, easel tab), else the account's first space. Email
+invites (company sign-in): `GET /directory`, then `POST .../members` with
+every epoch's key sealed to each account. The owner sends every key to
+members it hasn't yet (`POST .../envelopes`; links made before a rotation).
+
+**Members.** Change role (`PATCH`), remove (`DELETE`, then a rotation:
+`POST .../epochs` with the new key sealed to every remaining member),
+leave (`DELETE` of oneself; the owner gets `owner_must_transfer` and is
+offered Delete for Everyone), delete (`DELETE /rooms/{id}`). Leaving,
+deleting, or `403 removed`/`404 not_found` from the feed unmount the room;
+the item stays as an ordinary one and syncs in the chain again. A removal
+leaves a notice: a banner above the sidebar until dismissed.
+
+**Names.** A member's `profile` is epoch (uint32, big-endian) ||
+`EncryptRecord(key, room_id, "profile:" + chain ID, epoch, {"name": …})`;
+company sign-in's name and email win. "Your name for sharing"
+(`compass.rooms.display_name`, in the share sheet) defaults to the
+computer's user's full name (`NSFullUserName()`, `GetUserNameExW()`, the
+GECOS name; Android: none).
+
+**Reset sync.** `CompassSyncService::ResetChain()` makes the new seed first
+and calls `RoomService::MoveToNewChain()` for each of the device's profiles
+in the chain, before they stop: `POST .../successor` for every mount, with
+the old account's token, the new one's as `X-Compass-Linked-Token`, its
+identity key, and every epoch's key sealed to it. The mounts then go up to
+the new chain with the rest.
+
+**UI (desktop).** Share… in a pinned folder's context menu, Share Easel… in
+an easel tab's, Share space… in the space menu: `chrome://compass-share/
+?kind=&id=` in a small popup window (Start sharing; Invite with a link with
+role, expiry and uses, Copy invite link; Invite by email on company sign-in
+servers; People with role menus and Remove; open invite links with Revoke;
+Your name for sharing; Leave or Delete for everyone). A people badge with
+the members in its tooltip on shared items (`Node.shared`,
+`shared_tooltip`, `view_only`; `Space.shared`, `view_only`, `can_share`).
+`RoomLinkInterceptor` sends a tab opening `https://compassbrowser.org/join#…`
+or `compass://join#…` to `chrome://compass-share/#join=<fragment>` (the
+website never loads), whose page shows what's shared and on which server,
+asks for the space, and joins.
+
+**UI (Android).** The same through `RoomsBridge`: Share… in a pinned
+folder's menu, Share Easel… in an easel tab's, Share Space… in the space's ⋯
+menu; the Compose share sheet and join screen (`ShareSheetUi.kt`); a badge on
+shared rows and the removed banners in the sidebar. Invite links come
+through `JoinRoomActivity` (intent filters for
+`https://compassbrowser.org/join`, not autoVerify, and `compass://join`).
+
+**Tests.** `RoomClientTest` (requests, encodings, errors, the successor's
+header), `RoomSyncTest` (a folder shared to a member through a fake server,
+edits both ways, deletes and moves, a viewer's edits undone and nothing
+written, conflicts, the state file), `RoomLinkInterceptorTest`,
+`CompassSpacesSyncBridgeTest` for the mounts and exclusions.
+
+**Not yet.** `event: room` (long polls and a refresh every minute instead);
+pending email invitations found with `GET /rooms`; ownership transfer in the
+UI; a mount's position among siblings (it goes at the end).
