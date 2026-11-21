@@ -1,0 +1,21 @@
+diff --git a/extensions/browser/sandboxed_unpacker.cc b/extensions/browser/sandboxed_unpacker.cc
+index f590c5f00affaf0c0f19fb8764adc56927b4b9bb..129d2f744ee25d6178a9a44798b10da3b92fbf59 100644
+--- a/extensions/browser/sandboxed_unpacker.cc
++++ b/extensions/browser/sandboxed_unpacker.cc
+@@ -946,8 +946,14 @@ bool SandboxedUnpacker::ValidateSignature(
+           SandboxedUnpackerFailureReason::CRX_EXPECTED_HASH_INVALID);
+       break;
+     case crx_file::VerifierResult::ERROR_REQUIRED_PROOF_MISSING:
+-      FailWithPackageError(
+-          SandboxedUnpackerFailureReason::CRX_REQUIRED_PROOF_MISSING);
++      // Compass: say what to do instead of "CRX_REQUIRED_PROOF_MISSING"
++      // (docs/design/extensions.md, "Installing a .crx").
++      ReportFailure(
++          SandboxedUnpackerFailureReason::CRX_REQUIRED_PROOF_MISSING,
++          u"This extension isn't from the Chrome Web Store, so Compass "
++          u"installs it only with Developer mode on. Turn on Developer mode "
++          u"at the top right of chrome://extensions, then open the file "
++          u"again (or drag it onto that page).");
+       break;
+     case crx_file::VerifierResult::ERROR_FILE_HASH_FAILED:
+       // We should never get this result unless we had specifically asked for

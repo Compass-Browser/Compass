@@ -3,16 +3,27 @@
 # found in the LICENSE file.
 
 # Tests for Compass's changes to upstream extensions behaviour, made in
-# chromium_src/extensions/.
+# chromium_src/extensions/ and patches/ (download_crx_util.cc,
+# sandboxed_unpacker.cc).
 source_set("unit_tests") {
   testonly = true
-  sources = [ "manifest_v2_unittest.cc" ]
+  sources = [
+    "crx_download_unittest.cc",
+    "manifest_v2_unittest.cc",
+  ]
   deps = [
     "//base",
+    "//chrome/browser",
     "//chrome/browser/extensions:test_support",
+    "//chrome/common",
+    "//chrome/test:test_support",
+    "//components/download/public/common:test_support",
+    "//components/prefs",
+    "//content/test:test_support",
     "//extensions/browser",
     "//extensions/common",
     "//testing/gmock",
     "//testing/gtest",
+    "//url",
   ]
 }

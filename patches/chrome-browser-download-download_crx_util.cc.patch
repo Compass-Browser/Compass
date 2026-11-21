@@ -1,0 +1,25 @@
+diff --git a/chrome/browser/download/download_crx_util.cc b/chrome/browser/download/download_crx_util.cc
+index 77e32a025e1086f24fa2c7549438ecdb9f7019f5..5c0fe75036d92be3486a35c85f8ee3051af56457 100644
+--- a/chrome/browser/download/download_crx_util.cc
++++ b/chrome/browser/download/download_crx_util.cc
+@@ -15,7 +15,9 @@
+ #include "chrome/browser/extensions/extension_management.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/tab_list/tab_list_interface.h"
++#include "chrome/common/pref_names.h"
+ #include "components/download/public/common/download_item.h"
++#include "components/prefs/pref_service.h"
+ #include "content/public/browser/browser_thread.h"
+ #include "content/public/browser/download_item_utils.h"
+ #include "extensions/browser/crx_installer.h"
+@@ -91,6 +93,10 @@ std::unique_ptr<ExtensionInstallPrompt> CreateExtensionInstallPrompt(
+ 
+ bool OffStoreInstallAllowedByPrefs(Profile* profile, const DownloadItem& item) {
+   return g_allow_offstore_install_for_testing ||
++         // Compass: with Developer mode on, a .crx downloaded from a link
++         // installs as one dropped on chrome://extensions does
++         // (docs/design/extensions.md, "Installing a .crx").
++         profile->GetPrefs()->GetBoolean(prefs::kExtensionsUIDeveloperMode) ||
+          extensions::ExtensionManagementFactory::GetForBrowserContext(profile)
+              ->IsOffstoreInstallAllowed(item.GetURL(), item.GetReferrerUrl());
+ }
