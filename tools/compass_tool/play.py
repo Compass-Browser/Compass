@@ -15,6 +15,7 @@ check that changes nothing).
 from __future__ import annotations
 
 import base64
+import http.client
 import json
 import os
 import re
@@ -281,11 +282,15 @@ class Client:
                       b'{}', 'application/json')['id']
 
   def upload_bundle(self, edit: str, aab: Path) -> int:
-    url = '%s%s/edits/%s/bundles?uploadType=media' % (UPLOAD_API,
-                                                      self.package, edit)
-    # A large bundle takes a while on a slow uplink.
-    response = self._call('POST', url, aab, 'application/octet-stream',
-                          timeout=1800)
+    base = '%s%s/edits/%s/bundles' % (UPLOAD_API, self.package, edit)
+    if self._transport is _urllib:
+      # Resumable, in chunks: one 150 MB request over a slow or flaky
+      # uplink broke with "Broken pipe" after twenty minutes.
+      response = resumable_upload(base + '?uploadType=resumable', aab,
+                                  self._token)
+    else:
+      response = self._call('POST', base + '?uploadType=media', aab,
+                            'application/octet-stream', timeout=1800)
     return int(response['versionCode'])
 
   def update_track(self, edit: str, body: dict) -> dict:
@@ -324,6 +329,98 @@ def _urllib(method: str, url: str, body, headers: dict, timeout: int):
     if isinstance(body, Path):
       data.close()
   return json.loads(text) if text.strip() else {}
+
+
+CHUNK = 8 * 1024 * 1024  # a multiple of 256 KiB, as the protocol asks
+
+
+def next_offset(status: int, range_header: Optional[str]) -> Optional[int]:
+  """Where a resumable upload continues after a 308 (its Range header,
+  "bytes=0-N", says what the server has); None when it's done (200/201)."""
+  if status in (200, 201):
+    return None
+  if status != 308:
+    raise ValueError('unexpected status %d' % status)
+  if not range_header:
+    return 0
+  match = re.match(r'bytes=0-(\d+)$', range_header.strip())
+  if not match:
+    raise ValueError('unexpected Range header %r' % range_header)
+  return int(match.group(1)) + 1
+
+
+def resumable_upload(url: str, path: Path, token: Callable[[], str],
+                     chunk: int = CHUNK, attempts: int = 8,
+                     log: Callable[[str], None] = print) -> dict:
+  """Uploads |path| with Google's resumable protocol: starts a session, then
+  PUTs |chunk|-sized pieces; after a dropped connection or a 5xx it asks the
+  session how much arrived and goes on from there."""
+  total = path.stat().st_size
+
+  def request(method, target, body, headers):
+    parts = urllib.parse.urlsplit(target)
+    connection = http.client.HTTPSConnection(parts.netloc, timeout=300)
+    try:
+      connection.request(method, parts.path + ('?' + parts.query if
+                                               parts.query else ''),
+                         body=body, headers=headers)
+      response = connection.getresponse()
+      return response.status, response.headers, response.read().decode(
+          errors='replace')
+    finally:
+      connection.close()
+
+  status, headers, text = request('POST', url, b'{}', {
+      'Authorization': 'Bearer ' + token(),
+      'Content-Type': 'application/json; charset=UTF-8',
+      'X-Upload-Content-Type': 'application/octet-stream',
+      'X-Upload-Content-Length': str(total),
+  })
+  if status != 200 or not headers.get('Location'):
+    raise ApiError(status, 'POST', url.split('?')[0], text)
+  session = headers['Location']
+  offset, failures = 0, 0
+  with open(path, 'rb') as f:
+    while True:
+      try:
+        if offset is None:
+          break
+        f.seek(offset)
+        data = f.read(chunk)
+        end = offset + len(data) - 1
+        status, headers, text = request('PUT', session, data, {
+            'Authorization': 'Bearer ' + token(),
+            'Content-Length': str(len(data)),
+            'Content-Range': 'bytes %d-%d/%d' % (offset, end, total),
+        })
+        if status >= 500:
+          raise OSError('HTTP %d' % status)
+        if status not in (200, 201, 308):
+          raise ApiError(status, 'PUT', session.split('?')[0], text)
+        offset = next_offset(status, headers.get('Range'))
+        failures = 0
+        if offset is not None:
+          log('  %d of %d MB' % (offset // 2**20, total // 2**20))
+        else:
+          return json.loads(text) if text.strip() else {}
+      except (OSError, http.client.HTTPException) as e:
+        failures += 1
+        if failures > attempts:
+          raise
+        log('  upload interrupted (%s); resuming' % e)
+        time.sleep(min(60, 5 * failures))
+        try:
+          status, headers, text = request('PUT', session, b'', {
+              'Authorization': 'Bearer ' + token(),
+              'Content-Length': '0',
+              'Content-Range': 'bytes */%d' % total,
+          })
+          if status in (200, 201):
+            return json.loads(text) if text.strip() else {}
+          offset = next_offset(status, headers.get('Range'))
+        except (OSError, http.client.HTTPException):
+          pass  # try the chunk again from the last known offset
+  return {}
 
 
 def service_account_token(info: dict) -> str:

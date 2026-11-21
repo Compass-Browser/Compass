@@ -451,5 +451,73 @@ class TracksTest(unittest.TestCase):
     self.assertEqual(['POST', 'GET', 'DELETE'], [c[0] for c in calls])
 
 
+class ResumableUploadTest(unittest.TestCase):
+  """play.resumable_upload against a fake session that drops a chunk."""
+
+  def test_next_offset(self):
+    self.assertIsNone(play.next_offset(200, None))
+    self.assertEqual(play.next_offset(308, None), 0)
+    self.assertEqual(play.next_offset(308, 'bytes=0-1023'), 1024)
+    with self.assertRaises(ValueError):
+      play.next_offset(308, 'bytes=5-9')
+
+  def test_resumes_after_a_drop(self):
+    import http.client
+    from unittest import mock
+    data = bytes(range(256)) * 40  # 10240 bytes
+    received = bytearray()
+    calls = []
+    state = {'dropped': False}
+
+    class Response:
+      def __init__(self, status, headers, body=b''):
+        self.status, self.headers, self._body = status, headers, body
+      def read(self):
+        return self._body
+
+    class Connection:
+      def __init__(self, host, timeout):
+        pass
+      def request(self, method, path, body=None, headers=None):
+        calls.append((method, headers.get('Content-Range')))
+        if method == 'POST':
+          self.response = Response(200, {'Location': 'https://up/session'})
+          return
+        content_range = headers['Content-Range']
+        if content_range.startswith('bytes */'):
+          self.response = Response(
+              308, {'Range': 'bytes=0-%d' % (len(received) - 1)}
+              if received else {})
+          return
+        start = int(content_range.split()[1].split('-')[0])
+        if start == 4096 and not state['dropped']:
+          state['dropped'] = True
+          received.extend(body[:100])  # arrives in part, then the pipe breaks
+          raise BrokenPipeError(32, 'Broken pipe')
+        del received[start:]
+        received.extend(body)
+        if len(received) == len(data):
+          self.response = Response(200, {}, b'{"versionCode": 42}')
+        else:
+          self.response = Response(
+              308, {'Range': 'bytes=0-%d' % (len(received) - 1)})
+      def getresponse(self):
+        return self.response
+      def close(self):
+        pass
+
+    with tempfile.TemporaryDirectory() as d:
+      path = Path(d) / 'app.aab'
+      path.write_bytes(data)
+      with mock.patch.object(http.client, 'HTTPSConnection', Connection), \
+          mock.patch.object(play.time, 'sleep'):
+        result = play.resumable_upload('https://up/start?uploadType=resumable',
+                                       path, lambda: 'token', chunk=2048,
+                                       log=lambda _: None)
+    self.assertEqual(result, {'versionCode': 42})
+    self.assertEqual(bytes(received), data)
+    self.assertIn(('PUT', 'bytes */10240'), calls)
+
+
 if __name__ == '__main__':
   unittest.main()
