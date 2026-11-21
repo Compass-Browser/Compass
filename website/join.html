@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>An invitation to Compass Browser</title>
+<meta name="description" content="Someone shared a space, a folder or an easel with you in Compass Browser.">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="/compass.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/changelog/changelog.css">
+<style>
+  .kind { color: var(--muted); margin: -8px 0 20px; font-size: 18px; overflow-wrap: anywhere; }
+  .open {
+    background: color-mix(in srgb, var(--blue) 10%, transparent);
+    border-radius: 18px; padding: 18px 22px; margin: 0 0 16px;
+  }
+  .open p { margin: 0 0 10px; }
+  .open p:last-child { margin: 0; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+  .buttons a, .buttons button {
+    padding: 8px 16px; border-radius: 999px; background: var(--surface);
+    border: 1px solid var(--line); color: var(--text); text-decoration: none;
+    font: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+  .buttons .primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .note { color: var(--muted); font-size: 14px; }
+  .error { color: var(--accent); font-weight: 600; }
+  ol { margin: 0 0 16px; padding-left: 22px; }
+  ol li { margin: 0 0 6px; }
+</style>
+<script type="module" src="/join-page.js"></script>
+</head>
+<body>
+<main>
+<p class="back"><a href="/">Compass Browser</a></p>
+
+<div id="invite" hidden>
+  <h1 id="name"></h1>
+  <p class="kind"><span id="kind"></span>, shared with you on <span id="server"></span></p>
+  <div class="open">
+    <p><strong>Open this invitation in Compass to join.</strong> Compass shows you what it is and where it goes before you join, and keeps it in sync with everyone who shares it.</p>
+    <p class="buttons"><a id="open" class="primary" href="#">Open in Compass</a><button id="copy" type="button">Copy Link</button></p>
+    <p id="copied" class="note" hidden>Copied. In Compass on a computer, paste it in the address bar.</p>
+  </div>
+  <article>
+    <h3>On a computer</h3>
+    <ol>
+      <li>Copy this link.</li>
+      <li>In Compass, paste it in the address bar and press Return.</li>
+    </ol>
+    <h3>On iPhone, iPad or Android</h3>
+    <p>Tap <strong>Open in Compass</strong>, or open the link from Compass.</p>
+    <p class="note">Anyone with this link can join until it expires or the person who shared it turns it off, so share it only with the people you mean to. It travels after the <code>#</code>, which browsers never send to a server: this page reads it on your device, and the content it gives access to is encrypted.</p>
+  </article>
+  <p class="buttons"><a href="/#download">Download Compass</a></p>
+</div>
+
+<div id="about">
+  <h1>Sharing in Compass</h1>
+  <p id="error" class="error" hidden></p>
+  <p class="intro">In Compass Browser you can share a space, a folder or an easel with other people. Everyone sees the same tabs and boards, kept in sync and end-to-end encrypted: the sync server can't read them. Share from the item's menu, and whoever opens the invitation link in Compass can join.</p>
+  <p class="intro">An invitation travels inside its link, after the <code>#</code>, which browsers never send to a server: this page reads it on your device.</p>
+  <p class="buttons"><a href="/#download">Download Compass</a></p>
+</div>
+</main>
+</body>
+</html>
