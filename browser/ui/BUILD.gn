@@ -138,6 +138,7 @@ source_set("ui") {
     "webui/settings/settings_window_handler.cc",
     "webui/settings/settings_window_handler.h",
     "webui/settings/settings_window_handler_general.cc",
+    "webui/settings/settings_window_handler_passwords.cc",
     "webui/settings/settings_window_handler_privacy.cc",
     "webui/share/compass_share_ui.cc",
     "webui/share/compass_share_ui.h",
@@ -209,6 +210,10 @@ source_set("ui") {
     "//components/history/core/browser",
     "//components/password_manager/core/browser:password_form",
     "//compass/browser/live_folders",
+
+    # The settings window's Passwords pane uses the password manager's
+    # PasswordsPrivateDelegate and its API types.
+    "//chrome/common/extensions/api",
     "//third_party/icu",
     "//compass/browser/prefs",
     "//compass/browser/rooms",

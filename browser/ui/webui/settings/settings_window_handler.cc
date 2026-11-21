@@ -24,9 +24,11 @@
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/views/settings_window/settings_window.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "components/autofill/core/common/autofill_prefs.h"
 #include "components/browsing_data/core/pref_names.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/language/core/browser/pref_names.h"
+#include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/spellcheck/browser/pref_names.h"
@@ -79,6 +81,15 @@ constexpr AllowedPref kAllowedPrefs[] = {
     // Read here; set with SetSafeBrowsingLevel(), which keeps them coherent.
     {::prefs::kSafeBrowsingEnabled, base::Value::Type::BOOLEAN, false},
     {::prefs::kSafeBrowsingEnhanced, base::Value::Type::BOOLEAN, false},
+    // Passwords.
+    {::password_manager::prefs::kCredentialsEnableService,
+     base::Value::Type::BOOLEAN, false},
+    {::password_manager::prefs::kCredentialsEnableAutosignin,
+     base::Value::Type::BOOLEAN, false},
+    {::autofill::prefs::kAutofillCreditCardEnabled, base::Value::Type::BOOLEAN,
+     false},
+    {::autofill::prefs::kAutofillProfileEnabled, base::Value::Type::BOOLEAN,
+     false},
     // Privacy › Clear browsing data: the choices, kept for next time.
     {::browsing_data::prefs::kDeleteTimePeriod, base::Value::Type::INTEGER,
      false},
@@ -132,6 +143,9 @@ SettingsWindowHandler::SettingsWindowHandler(
   if (TemplateURLService* service =
           TemplateURLServiceFactory::GetForProfile(profile_)) {
     template_url_observation_.Observe(service);
+  }
+  if (autofill::PersonalDataManager* data = GetPersonalDataManager()) {
+    personal_data_observation_.Observe(data);
   }
   if (ProfileManager* manager = g_browser_process->profile_manager()) {
     profile_attributes_observation_.Observe(

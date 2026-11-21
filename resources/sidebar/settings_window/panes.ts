@@ -196,35 +196,27 @@ export const PANES: Pane[] = [
   {
     id: 'passwords',
     label: 'Passwords',
-    sections: [],
-    groups: [
-      {
-        title: 'Passwords and autofill',
-        rows: [
-          {
-            id: 'passwordManager',
-            label: 'Passwords and passkeys',
-            detail: 'Saved passwords, passkeys and password checkup.',
-            url: 'chrome://password-manager/passwords',
-            keywords: 'password manager passkeys login',
-          },
-          {
-            id: 'payments',
-            label: 'Payment methods',
-            detail: 'Saved cards and other ways to pay.',
-            subPage: 'payments',
-            keywords: 'credit card',
-          },
-          {
-            id: 'autofill',
-            label: 'Addresses and more',
-            detail: 'Addresses, contact details and other autofill.',
-            subPage: 'autofill',
-            keywords: 'address phone email autofill',
-          },
-        ],
-      },
-    ],
+    sections: [{
+      tag: 'compass-settings-passwords-pane',
+      path: 'passwords',
+      keywords: '',
+      searchRows: [
+        {id: 'offerToSave', label: 'Offer to save passwords and passkeys'},
+        {id: 'autoSignIn', label: 'Sign in automatically'},
+        {id: 'passwordManager', label: 'Password Manager',
+         keywords: 'checkup import export passkeys'},
+        {id: 'savedPasswords', label: 'Saved passwords',
+         keywords: 'login username'},
+        {id: 'saveCards', label: 'Save and fill payment methods',
+         keywords: 'credit card'},
+        {id: 'payments', label: 'Payment methods', keywords: 'credit card'},
+        {id: 'saveAddresses', label: 'Save and fill addresses',
+         keywords: 'autofill'},
+        {id: 'addresses', label: 'Addresses',
+         keywords: 'autofill phone email'},
+      ],
+    }],
+    groups: [],
   },
   {
     id: 'advanced',

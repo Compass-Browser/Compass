@@ -687,3 +687,43 @@ input.check {
   padding: 18px;
   text-align: center;
 }
+
+/* A group's caption with a control beside it (the passwords' filter). */
+.group-header {
+  align-items: flex-end;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.group-header .group-title {
+  margin-bottom: 0;
+}
+
+input.field.filter {
+  min-height: 22px;
+  padding: 2px 8px;
+  width: 180px;
+}
+
+button.pill.small {
+  font-size: 12px;
+  min-height: 20px;
+  padding: 1px 9px;
+}
+
+.password-row {
+  gap: 6px;
+}
+
+.secret {
+  color: var(--fg-dim);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  margin-inline-end: 6px;
+  user-select: text;
+}
+
+.secret[revealed] {
+  color: var(--fg);
+}

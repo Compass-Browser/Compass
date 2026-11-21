@@ -1,7 +1,7 @@
 # Settings window
 
-Status: phases 1–3 of 5 (the window, its toolbar, Compass's own sections;
-General, Profiles and Privacy rebuilt).
+Status: phases 1–4 of 5 (the window, its toolbar, Compass's own sections;
+General, Profiles, Privacy and Passwords rebuilt).
 Based on Chromium 157.0.8103.51.
 
 ## Goal
@@ -54,8 +54,9 @@ the window's, Chrome's included, and nothing shows upstream's settings page.
    search, and editing the languages list.
 3. **Done:** Privacy rebuilt (below, "Privacy"). Safety check still opens
    upstream's section.
-4. Passwords and autofill: passwords and passkeys (`passwordsPrivate`),
-   payment methods, addresses.
+4. **Done:** Passwords (below, "Passwords"). Adding and editing passwords,
+   cards and addresses, the checkup, passkeys' details and import/export
+   open the password manager or upstream's sections.
 5. Advanced, then no more fallback: every `chrome://settings` URL opens the
    window. The chrome://settings patches that add Compass's sections
    (menu, routes, views, BUILD.gn) go.
@@ -248,6 +249,43 @@ sections (docs/design/settings.md).
   site with stored data, as upstream's "All sites" does, nor its storage.
   Chooser permissions (the USB, serial or HID devices a site may use) and
   file system grants aren't listed.
+
+## Passwords
+
+- **The pane** (`<compass-settings-passwords-pane>`, `passwords_pane.ts`):
+  - Passwords: "Offer to save passwords and passkeys"
+    (`credentials_enable_service`), "Sign in automatically"
+    (`credentials_enable_autosignin`), and the password manager
+    (chrome://password-manager, in a tab).
+  - Saved passwords, with a filter: each site and username, with Show
+    (after the system's authentication; hidden again after 30 seconds, or
+    when the pane goes), Copy and Remove. Passkeys are listed and removed,
+    never shown.
+  - Payment methods: "Save and fill payment methods", the cards (name, last
+    four digits, expiry; Compass's own can be removed, account ones can't),
+    and "Add or edit cards" (upstream's `payments`, in a tab).
+  - Addresses: "Save and fill addresses", the addresses (name, street and
+    city), Remove, and "Add or edit addresses" (upstream's `contactInfo`).
+- **Routing:** upstream's `passwords` sub-page is the pane. `payments` and
+  `contactInfo` stay upstream's, so the pane's add/edit rows don't come back
+  to it.
+- **Browser side** (`settings_window_handler_passwords.cc`):
+  - Upstream's `PasswordsPrivateDelegate` (shared per profile, from
+    `PasswordsPrivateDelegateFactory`), as the password manager page uses it.
+    `GetSavedPasswordsList()` gives the list, with ids; the handler keeps
+    each one's store, to `RemoveCredential()` it from there.
+  - `RequestPlaintextPassword()` asks the system to authenticate first
+    (`kView` returns the password, `kCopy` copies it in the browser and
+    clears the clipboard later, so the page never has it).
+  - The presenter is observed: `Page.PasswordsChanged()`.
+  - Cards and addresses: the `PersonalDataManager`'s payments and address
+    managers (`GetCreditCards()`, `RemoveByGUID()` for local cards only;
+    `GetProfiles()`, `RemoveProfile()`), observed:
+    `Page.AutofillChanged()`.
+  - The prefs are on the allowlist.
+- **Not done:** adding and editing passwords, cards and addresses in the
+  window; the checkup; passkeys' details; import and export. The password
+  manager (chrome://password-manager) stays upstream's page.
 
 ## Visual design
 

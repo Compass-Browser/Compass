@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_UI_WEBUI_SETTINGS_SETTINGS_WINDOW_HANDLER_H_
 #define COMPASS_BROWSER_UI_WEBUI_SETTINGS_SETTINGS_WINDOW_HANDLER_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -12,13 +13,18 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_attributes_storage_observer.h"
 #include "chrome/browser/shell_integration.h"
+#include "chrome/common/extensions/api/passwords_private.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager_observer.h"
 #include "components/content_settings/core/browser/content_settings_observer.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/search_engines/template_url_service_observer.h"
@@ -42,12 +48,15 @@ namespace compass {
 // color), its height, links out of it, the paths the window is opened at
 // while open, and the prefs its rebuilt panes show (an allowlist, instead of
 // settingsPrivate).
-class SettingsWindowHandler : public sidebar::mojom::SettingsWindowHandler,
-                              public SpaceList::Observer,
-                              public TemplateURLServiceObserver,
-                              public ProfileAttributesStorageObserver,
-                              public content_settings::Observer,
-                              public ui::SelectFileDialog::Listener {
+class SettingsWindowHandler
+    : public sidebar::mojom::SettingsWindowHandler,
+      public SpaceList::Observer,
+      public TemplateURLServiceObserver,
+      public ProfileAttributesStorageObserver,
+      public content_settings::Observer,
+      public password_manager::SavedPasswordsPresenter::Observer,
+      public autofill::PersonalDataManagerObserver,
+      public ui::SelectFileDialog::Listener {
  public:
   SettingsWindowHandler(
       Profile* profile,
@@ -98,6 +107,21 @@ class SettingsWindowHandler : public sidebar::mojom::SettingsWindowHandler,
   void ClearBrowsingData(sidebar::mojom::ClearBrowsingDataOptionsPtr options,
                          ClearBrowsingDataCallback callback) override;
   void SetSafeBrowsingLevel(int32_t level) override;
+  void GetPasswords(GetPasswordsCallback callback) override;
+  void RevealPassword(int32_t id, RevealPasswordCallback callback) override;
+  void CopyPassword(int32_t id, CopyPasswordCallback callback) override;
+  void RemovePassword(int32_t id) override;
+  void GetCards(GetCardsCallback callback) override;
+  void RemoveCard(const std::string& guid) override;
+  void GetAddresses(GetAddressesCallback callback) override;
+  void RemoveAddress(const std::string& guid) override;
+
+  // password_manager::SavedPasswordsPresenter::Observer:
+  void OnSavedPasswordsChanged(
+      const password_manager::PasswordStoreChangeList& changes) override;
+
+  // autofill::PersonalDataManagerObserver:
+  void OnPersonalDataChanged() override;
 
   // content_settings::Observer:
   void OnContentSettingChanged(
@@ -134,6 +158,10 @@ class SettingsWindowHandler : public sidebar::mojom::SettingsWindowHandler,
   sidebar::mojom::SearchEnginesPtr DescribeSearchEngines();
   sidebar::mojom::ProfileDetailsPtr DescribeProfile();
   std::vector<sidebar::mojom::ProfileIconPtr> DescribeProfileIcons();
+  // settings_window_handler_passwords.cc. The password manager's, made on
+  // first use.
+  extensions::PasswordsPrivateDelegate* GetPasswordsDelegate();
+  autofill::PersonalDataManager* GetPersonalDataManager();
   void OnDefaultBrowserState(
       base::OnceCallback<void(sidebar::mojom::DefaultBrowserStatePtr)> callback,
       shell_integration::DefaultWebClientState state);
@@ -143,6 +171,16 @@ class SettingsWindowHandler : public sidebar::mojom::SettingsWindowHandler,
   mojo::Remote<sidebar::mojom::SettingsWindowPage> page_;
   mojo::Receiver<sidebar::mojom::SettingsWindowHandler> receiver_;
   scoped_refptr<ui::SelectFileDialog> folder_dialog_;
+  scoped_refptr<extensions::PasswordsPrivateDelegate> passwords_delegate_;
+  // Where each listed password is stored, by id, to remove it from there.
+  std::map<int, extensions::api::passwords_private::PasswordStoreSet>
+      password_stores_;
+  base::ScopedObservation<password_manager::SavedPasswordsPresenter,
+                          password_manager::SavedPasswordsPresenter::Observer>
+      saved_passwords_observation_{this};
+  base::ScopedObservation<autofill::PersonalDataManager,
+                          autofill::PersonalDataManagerObserver>
+      personal_data_observation_{this};
   base::ScopedObservation<HostContentSettingsMap, content_settings::Observer>
       content_settings_observation_{this};
   base::ScopedObservation<TemplateURLService, TemplateURLServiceObserver>

@@ -70,6 +70,8 @@ build_webui("build") {
     "settings_window/general_pane.html.ts",
     "settings_window/general_pane.ts",
     "settings_window/panes.ts",
+    "settings_window/passwords_pane.html.ts",
+    "settings_window/passwords_pane.ts",
     "settings_window/prefs.ts",
     "settings_window/privacy_pane.html.ts",
     "settings_window/privacy_pane.ts",

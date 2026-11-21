@@ -6,10 +6,13 @@
 
 #include <string>
 
+#include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/run_until.h"
+#include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/password_manager/factories/profile_password_store_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
@@ -22,10 +25,18 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/field_types.h"
 #include "components/browsing_data/core/pref_names.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/pref_names.h"
+#include "components/keyed_service/core/service_access_type.h"
+#include "components/password_manager/core/browser/password_store/password_store_interface.h"
+#include "components/password_manager/core/browser/password_store/stored_credential.h"
+#include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/search_engines/template_url_service.h"
@@ -76,6 +87,8 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PathsTheWindowHas) {
   EXPECT_EQ(SettingsWindowPathFor("searchEngines"), std::nullopt);
   EXPECT_EQ(SettingsWindowPathFor("ai"), std::nullopt);
   EXPECT_EQ(SettingsWindowPathFor("safetyCheck"), std::nullopt);
+  EXPECT_EQ(SettingsWindowPathFor("payments"), std::nullopt);
+  EXPECT_EQ(SettingsWindowPathFor("passwords"), "passwords");
   // Upstream's privacy sections are the Privacy pane's.
   EXPECT_EQ(SettingsWindowPathFor("privacy"), "privacy");
   EXPECT_EQ(SettingsWindowPathFor("security"), "privacy?focus=security");
@@ -371,6 +384,72 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PrivacyPrefsAndClearing) {
             true);
   EXPECT_TRUE(prefs->GetBoolean(browsing_data::prefs::kDeleteCache));
   EXPECT_FALSE(prefs->GetBoolean(browsing_data::prefs::kDeleteBrowsingHistory));
+}
+
+// Passwords (phase 4): a saved password is listed, never with its secret,
+// and removed there; so is an address. The switches write their prefs.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PasswordsPane) {
+  scoped_refptr<password_manager::PasswordStoreInterface> store =
+      ProfilePasswordStoreFactory::GetForProfile(
+          profile(), ServiceAccessType::EXPLICIT_ACCESS);
+  password_manager::StoredCredential credential;
+  credential.signon_realm = "https://example.com/";
+  credential.url = GURL("https://example.com/login");
+  credential.username_value = u"ada";
+  credential.password_value =
+      password_manager::PasswordString(u"correct horse battery staple");
+  credential.in_store = password_manager::PasswordForm::Store::kProfileStore;
+  base::RunLoop added;
+  store->AddLogin(std::move(credential), added.QuitClosure());
+  added.Run();
+
+  autofill::PersonalDataManager* data =
+      autofill::PersonalDataManagerFactory::GetForBrowserContext(profile());
+  autofill::AutofillProfile address(autofill::AddressCountryCode("US"));
+  address.SetRawInfo(autofill::NAME_FULL, u"Ada Lovelace");
+  address.SetRawInfo(autofill::ADDRESS_HOME_LINE1, u"12 St James's Square");
+  address.SetRawInfo(autofill::ADDRESS_HOME_CITY, u"London");
+  data->address_data_manager().AddProfile(address);
+
+  chrome::ShowSettingsSubPage(browser(), "passwords");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  EXPECT_EQ(WaitFor("document.querySelector('.password-row .row-detail')"
+                    "?.textContent"),
+            "ada");
+  // The page has no password until the user asks (and authenticates).
+  EXPECT_EQ(content::EvalJs(window()->web_contents(),
+                            "document.body.textContent.includes("
+                            "'correct horse')"),
+            false);
+  EXPECT_EQ(WaitFor("[...document.querySelectorAll('.row-label')].some("
+                    "l => l.textContent === 'Ada Lovelace')"),
+            true);
+
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "document.querySelector('[aria-label=\"Remove example.com\"]')"
+      ".click();"));
+  EXPECT_EQ(WaitFor("!document.querySelector('.password-row')"), true);
+
+  ASSERT_TRUE(content::ExecJs(window()->web_contents(), R"(
+      [...document.querySelectorAll('.control-row')].find(
+          r => r.textContent.includes('Ada Lovelace'))
+          .querySelector('button').click();)"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return data->address_data_manager().GetProfiles().empty(); }));
+
+  PrefService* prefs = profile()->GetPrefs();
+  const bool offer =
+      prefs->GetBoolean(password_manager::prefs::kCredentialsEnableService);
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "document.querySelector('input[data-pref=\"credentials_enable_service"
+      "\"]').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return prefs->GetBoolean(
+               password_manager::prefs::kCredentialsEnableService) != offer;
+  }));
 }
 
 }  // namespace

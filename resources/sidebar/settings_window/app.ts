@@ -12,6 +12,7 @@ import '../settings/shortcuts_page.js';
 import '../settings/sync_page.js';
 import './general_pane.js';
 import './icon.js';
+import './passwords_pane.js';
 import './privacy_pane.js';
 import './profile_section.js';
 

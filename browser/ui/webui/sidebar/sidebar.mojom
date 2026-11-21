@@ -999,9 +999,40 @@ struct ClearBrowsingDataOptions {
   bool site_settings;
 };
 
+// A saved password or passkey (Passwords pane): never its secret.
+struct SavedPassword {
+  // The password manager's id for it (PasswordsPrivateDelegate).
+  int32 id;
+  // The site, as the password manager names it.
+  string site;
+  string username;
+  bool is_passkey;
+};
+
+// A saved payment card: its name and last digits, never its number.
+struct SavedCard {
+  string guid;
+  string name;
+  string last_four;
+  string expiration;
+  // Saved in Compass (not one from the account), so it can be removed here.
+  bool removable;
+};
+
+struct SavedAddress {
+  string guid;
+  string name;
+  // The street and city.
+  string summary;
+};
+
 // The settings window (chrome://compass-settings in a window of its own,
 // docs/design/settings-window.md): the page's side.
 interface SettingsWindowPage {
+  // Passwords were saved, changed or removed.
+  PasswordsChanged();
+  // Payment cards or addresses changed.
+  AutofillChanged();
   // A permission's default or a site's permission changed.
   ContentSettingsChanged();
   DefaultBrowserChanged(DefaultBrowserState state);
@@ -1083,6 +1114,20 @@ interface SettingsWindowHandler {
   ClearBrowsingData(ClearBrowsingDataOptions options) => ();
   // Safe Browsing: 0 off, 1 standard, 2 enhanced (SafeBrowsingState).
   SetSafeBrowsingLevel(int32 level);
+
+  // Passwords (phase 4), through upstream's PasswordsPrivateDelegate.
+  GetPasswords() => (array<SavedPassword> passwords);
+  // The password, once the user has authenticated to the system (Touch ID,
+  // the account password); null if they didn't.
+  RevealPassword(int32 id) => (string? password);
+  // Copies the password, once authenticated; it's cleared from the
+  // clipboard after a while. Whether it was copied.
+  CopyPassword(int32 id) => (bool copied);
+  RemovePassword(int32 id);
+  GetCards() => (array<SavedCard> cards);
+  RemoveCard(string guid);
+  GetAddresses() => (array<SavedAddress> addresses);
+  RemoveAddress(string guid);
 };
 
 interface SettingsWindowHandlerFactory {
