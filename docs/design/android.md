@@ -1088,6 +1088,16 @@ controls that count are the bottom ones, where Compass's bar is
   - The server needs the project's service account key
     (`COMPASS_SYNC_FCM_CREDENTIALS`); it lives with the server's
     configuration, never in this repository.
+- **Company sign-in** (sync.md, "Company sign-in (OIDC)"). The C++ is the
+  desktop's (`CompassSyncService`, `LoginClient`). The sync screen
+  (`SyncScreenUi.kt`, `SyncScreenState.kt`) shows the `login_required`
+  state with "Sign in to <provider>", the code while a sign-in runs (Open
+  the page, Cancel), and "Signed in as name (email)". The service doesn't
+  open tabs on Android: `SyncBridge` (native) opens the server's page
+  through the Java `SyncBridge.LoginPages` of the screen that started the
+  sign-in (`SyncScreen.open()`, a new tab over the screen), once per page,
+  and closes it when the sign-in ends if it still shows the server's
+  origin, then shows the sync screen again.
 
 - **Sharing** (sync.md, "Rooms: clients"). The desktop's `RoomService`
   runs on Android too (created with the COMPASS_SPACES holder,

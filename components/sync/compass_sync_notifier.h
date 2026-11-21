@@ -163,6 +163,13 @@ class CompassSyncNotifier
   void SetDeviceRemovedCallback(base::OnceClosure callback);
   bool IsDeviceRemoved() const { return device_removed_; }
 
+  // Runs when the server refuses the stream with a 401: the chain's key, or
+  // a server that asks the chain to sign in first (docs/design/sync.md,
+  // "Company sign-in (OIDC)"). The notifier keeps retrying with backoff.
+  void SetAuthErrorCallback(base::RepeatingClosure callback) {
+    auth_error_ = std::move(callback);
+  }
+
   bool IsConnected() const { return connected_; }
   int failures() const { return backoff_.failure_count(); }
 
@@ -199,6 +206,7 @@ class CompassSyncNotifier
   TokenGetter token_getter_;
   ClientIdGetter client_id_getter_;
   RefreshCallback refresh_;
+  base::RepeatingClosure auth_error_;
   raw_ptr<network::NetworkConnectionTracker> network_;
   bool observing_power_ = false;
 

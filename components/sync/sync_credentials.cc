@@ -107,4 +107,37 @@ std::optional<std::string> SyncCredentials::MakeToken(base::Time now) const {
   return MakeAccessToken(*key, now);
 }
 
+void SyncCredentials::SetRetryHook(
+    const void* owner,
+    scoped_refptr<base::SequencedTaskRunner> runner,
+    base::RepeatingClosure retry) {
+  base::AutoLock lock(lock_);
+  retry_owner_ = owner;
+  retry_runner_ = std::move(runner);
+  retry_ = std::move(retry);
+}
+
+void SyncCredentials::ClearRetryHook(const void* owner) {
+  base::AutoLock lock(lock_);
+  if (retry_owner_ != owner) {
+    return;
+  }
+  retry_owner_ = nullptr;
+  retry_runner_ = nullptr;
+  retry_.Reset();
+}
+
+void SyncCredentials::RetryNow() {
+  scoped_refptr<base::SequencedTaskRunner> runner;
+  base::RepeatingClosure retry;
+  {
+    base::AutoLock lock(lock_);
+    runner = retry_runner_;
+    retry = retry_;
+  }
+  if (runner && retry) {
+    runner->PostTask(FROM_HERE, std::move(retry));
+  }
+}
+
 }  // namespace compass::sync

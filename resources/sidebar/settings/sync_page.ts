@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {DataTypeState, Details, Device, Pairing, ProfileMapping, ProfileMappingEntry, Status} from '../compass_sync.mojom-webui.js';
+import type {DataTypeState, Details, Device, Login, Pairing, ProfileMapping, ProfileMappingEntry, Status} from '../compass_sync.mojom-webui.js';
 import {DataType, PageCallbackRouter, PageHandlerFactory, PageHandlerRemote, PairingStep, State} from '../compass_sync.mojom-webui.js';
 
 import {CompassSettingsPage} from './page_base.js';
@@ -14,7 +14,8 @@ import {getTemplate} from './sync_page.html.js';
 // devices, adding one, what syncs, the recovery code (behind Touch ID), the
 // server, leaving and resetting, removing another device. Removed on
 // another device: only leaving. Joining on a Mac with other profiles: which
-// of the chain's each one syncs with (slice 5).
+// of the chain's each one syncs with (slice 5). A server that asks for
+// company sign-in: the sign-in, its code, and who the chain is signed in as.
 
 // The switches, in the page's order: name and what they cover. Bookmarks
 // and the reading list have none: Compass has neither (ARCHITECTURE.md
@@ -39,6 +40,8 @@ function stateName(state: State): string {
       return 'restart';
     case State.kError:
       return 'error';
+    case State.kLoginRequired:
+      return 'login';
     default:
       return 'off';
   }
@@ -158,6 +161,13 @@ export class CompassSyncPageElement extends CompassSettingsPage {
       $<HTMLTextAreaElement>('recovery').value = '';
       this.refresh_();
     });
+
+    $('startLogin').addEventListener('click', () => this.handler_.startLogin());
+    // Again while it runs: the page opens again.
+    $('reopenLogin')
+        .addEventListener('click', () => this.handler_.startLogin());
+    $('cancelLogin')
+        .addEventListener('click', () => this.handler_.cancelLogin());
 
     $('addDevice').addEventListener('click', () => this.handler_.addDevice());
     $('allow').addEventListener(
@@ -326,7 +336,8 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     const removed = status.deviceRemoved;
     const on = !removed &&
         (state === State.kOn || state === State.kStarting ||
-         state === State.kError);
+         state === State.kError || state === State.kLoginRequired);
+    this.renderLogin_(state, status.login);
     this.show('off', state === State.kOff);
     this.show(
         'restartPanel',
@@ -357,6 +368,30 @@ export class CompassSyncPageElement extends CompassSettingsPage {
       this.show('restartPanel', true);
     }
     this.renderMapping_();
+  }
+
+  // Company sign-in: the button while the chain must sign in, the code while
+  // a sign-in runs (on #off too: starting or joining a chain signs in
+  // first), and who the chain is signed in as.
+  private renderLogin_(state: State, login: Login) {
+    const provider = login.providerName;
+    this.show(
+        'loginRequired', state === State.kLoginRequired && !login.inProgress);
+    this.$('startLogin').textContent =
+        provider ? `Sign in to ${provider}` : 'Sign in';
+    this.show('loginPanel', login.inProgress);
+    this.$('loginTitle').textContent =
+        provider ? `Sign in with ${provider}` : 'Sign in';
+    this.$('loginCode').textContent = login.userCode;
+    this.$<HTMLButtonElement>('reopenLogin').disabled = !login.userCode;
+    for (const id of ['start', 'join', 'recover']) {
+      this.$<HTMLButtonElement>(id).disabled = login.inProgress;
+    }
+    const user = login.userName && login.userEmail ?
+        `${login.userName} (${login.userEmail})` :
+        login.userName || login.userEmail;
+    this.show('signedInAs', !!user);
+    this.$('signedInAs').textContent = user ? `Signed in as ${user}.` : '';
   }
 
   // "Expires in 4:12" under the code, once a second, while A shows it. At
@@ -486,7 +521,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     this.showingWords_ = true;
     for (const id of
              ['off', 'on', 'pairing', 'restartPanel', 'mapping',
-              'removedPanel']) {
+              'removedPanel', 'loginRequired', 'loginPanel']) {
       this.show(id, false);
     }
     this.show('wordsPanel', true);

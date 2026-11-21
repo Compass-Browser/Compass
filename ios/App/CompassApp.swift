@@ -7,6 +7,7 @@ import CompassBoosts
 import CompassCrypto
 import CompassEasels
 import CompassShared
+import CompassSync
 import CoreSpotlight
 import SwiftUI
 
@@ -225,6 +226,10 @@ struct WindowRoot: View {
     // An invite to a shared space, folder or easel (compass://join#… or
     // https://compassbrowser.org/join#…): the join preview.
     if RoomsModel.shared.open(url) { return }
+    // The end of a company sign-in (compass://sync-login-done): the
+    // ASWebAuthenticationSession takes it; if it ever lands here, it's no
+    // page, and the sign-in's poll has the answer.
+    if LoginClient.isCallback(url) { return }
     // compass: links from widgets, the icon menu and the extensions.
     if let link = DeepLink(url: url) {
       app.system.handle(link)

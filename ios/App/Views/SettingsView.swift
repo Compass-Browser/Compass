@@ -336,6 +336,9 @@ struct SettingsView: View {
     Section {
       LabeledContent("Status", value: status)
       if let server = app.sync.serverURL { LabeledContent("Server", value: server.host() ?? server.absoluteString) }
+      if let user = app.sync.signedInUser {
+        LabeledContent("Signed in as", value: SyncSignIn.describe(user))
+      }
       if let last = app.sync.lastSync {
         LabeledContent("Last synced") { Text(last, style: .relative) }
       }
@@ -348,6 +351,9 @@ struct SettingsView: View {
       Text("Sync")
     } footer: {
       if isRemoved { Text(SyncController.removedMessage) }
+    }
+    if app.sync.state == .loginRequired || app.sync.isSigningIn {
+      Section { SyncSignIn() } header: { Text("Sign In") }
     }
     if !app.sync.profiles.isEmpty {
       Section {
@@ -427,6 +433,7 @@ struct SettingsView: View {
     case .on: "On"
     case .failed(let message): message
     case .removed: "Removed from sync"
+    case .loginRequired: "Sign-in needed"
     }
   }
 
@@ -624,12 +631,20 @@ struct JoinView: View {
   @State private var waitingForMac = false
   @State private var message: String?
   @State private var scanning = false
+  /// The server's identity provider, when it requires sign-in.
+  @State private var loginProvider: String?
 
   var body: some View {
     Form {
-      Section("Server") {
+      Section {
         TextField("https://sync.example.com/v2", text: $server)
           .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+      } header: {
+        Text("Server")
+      } footer: {
+        if let loginProvider {
+          Text("This server requires sign-in with \(loginProvider.isEmpty ? "your company's account" : loginProvider). A chain your Mac already signed in syncs at once; otherwise you'll sign in after joining.")
+        }
       }
       if useRecovery {
         Section {
@@ -674,6 +689,14 @@ struct JoinView: View {
       }
     }
     .navigationTitle("Join Sync")
+    // Does the server require company sign-in? Asked as the address settles.
+    .task(id: server) {
+      loginProvider = nil
+      guard let url = URL(string: server.trimmingCharacters(in: .whitespaces)), url.host() != nil else { return }
+      try? await Task.sleep(for: .milliseconds(600))
+      guard !Task.isCancelled else { return }
+      if let name = try? await LoginClient.info(serverURL: url), !Task.isCancelled { loginProvider = name }
+    }
     .onAppear {
       if let invite = app.pendingInvite, code.isEmpty {
         server = invite.server.absoluteString
@@ -744,16 +767,22 @@ struct JoinSummaryView: View {
   var body: some View {
     VStack(spacing: 18) {
       Spacer()
-      if app.sync.state == .syncing || app.sync.lastSync == nil, !isFailed {
+      if needsSignIn {
+        Image(systemName: "person.crop.circle.badge.exclamationmark")
+          .font(.system(size: 44)).foregroundStyle(Color.orange)
+      } else if app.sync.state == .syncing || app.sync.lastSync == nil, !isFailed {
         ProgressView()
         Text("Syncing…").font(.title3.weight(.semibold))
       } else {
         Image(systemName: isFailed ? "exclamationmark.icloud" : "checkmark.icloud")
           .font(.system(size: 44)).foregroundStyle(isFailed ? Color.orange : Color.accentColor)
       }
-      Text(summary).font(.body).multilineTextAlignment(.center).padding(.horizontal)
+      if !needsSignIn { Text(summary).font(.body).multilineTextAlignment(.center).padding(.horizontal) }
       if case .failed(let message) = app.sync.state {
         Text(message).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(.horizontal)
+      }
+      if needsSignIn {
+        SyncSignIn().padding(.horizontal)
       }
       Spacer()
       Button {
@@ -770,6 +799,7 @@ struct JoinSummaryView: View {
   }
 
   private var isFailed: Bool { if case .failed = app.sync.state { true } else { false } }
+  private var needsSignIn: Bool { app.sync.state == .loginRequired || app.sync.isSigningIn }
 
   /// "Synced 2 profiles: Personal, Work · 5 spaces".
   private var summary: String {
@@ -779,6 +809,53 @@ struct JoinSummaryView: View {
     var text = count == 1 ? "Synced 1 profile" : "Synced \(count) profiles"
     if !names.isEmpty { text += ": " + names.joined(separator: ", ") }
     return text + " · " + (spaces == 1 ? "1 space" : "\(spaces) spaces")
+  }
+}
+
+/// Company sign-in (docs/design/sync.md, "Company sign-in (OIDC)"): the
+/// server requires the chain to be signed in with its identity provider.
+/// "Sign in" opens the server's page; while it's open, the code the page
+/// must show too, so a link someone else sent can't sign their device in.
+struct SyncSignIn: View {
+  @Environment(AppModel.self) private var app
+
+  static func describe(_ user: LoginClient.User) -> String {
+    switch (user.name.isEmpty, user.email.isEmpty) {
+    case (false, false): "\(user.name) (\(user.email))"
+    case (true, false): user.email
+    default: user.name
+    }
+  }
+
+  private var provider: String {
+    app.sync.loginProvider.flatMap { $0.isEmpty ? nil : $0 } ?? "your company's account"
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      if let code = app.sync.loginCode {
+        Text("Check that the sign-in page shows this code:").font(.footnote).foregroundStyle(.secondary)
+        Text(code).font(.title2.monospaced().weight(.semibold)).textSelection(.enabled)
+          .accessibilityLabel("Code \(code.map(String.init).joined(separator: " "))")
+        HStack {
+          ProgressView()
+          Text("Waiting for the sign-in…").font(.footnote).foregroundStyle(.secondary)
+          Spacer()
+          Button("Cancel", role: .cancel) { app.sync.cancelLogin() }
+        }
+      } else if app.sync.isSigningIn {
+        ProgressView()
+      } else {
+        Text("This server requires sign-in with \(provider) before it syncs. Your data stays encrypted: signing in doesn't give the server or \(provider) your keys.")
+          .font(.footnote).foregroundStyle(.secondary)
+        Button("Sign in with \(provider)") { app.sync.startLogin() }
+          .buttonStyle(.borderedProminent)
+      }
+      if let message = app.sync.loginMessage {
+        Text(message).font(.footnote).foregroundStyle(.red)
+      }
+    }
+    .padding(.vertical, 4)
   }
 }
 

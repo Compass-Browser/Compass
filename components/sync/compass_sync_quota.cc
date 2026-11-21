@@ -12,6 +12,7 @@
 #include "base/strings/strcat.h"
 #include "base/values.h"
 #include "compass/components/sync/compass_device_remover.h"
+#include "net/http/http_response_headers.h"
 #include "net/http/http_request_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -142,6 +143,8 @@ void QuotaFetcher::OnResponse(Callback callback,
   const network::mojom::URLResponseHead* head = loader_->ResponseInfo();
   const bool removed =
       head && IsDeviceRemovedResponse(head->headers.get());
+  last_refused_ =
+      head && head->headers && head->headers->response_code() == 401;
   loader_.reset();
   if (removed) {
     LOG(WARNING) << "Compass sync: the server removed this device";

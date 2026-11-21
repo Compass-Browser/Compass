@@ -18,12 +18,12 @@ final class TestServer: @unchecked Sendable {
   let directory: URL
   let url: URL
 
-  /// `environment`: more server settings (COMPASS_SYNC_ALLOWED_CHAINS...).
-  init(environment: [String: String] = [:]) async throws {
+  /// `environment` adds to the server's (e.g. COMPASS_SYNC_DEV_FAKE_OIDC);
+  /// `port` is the one it listens on, picked at random unless given.
+  init(environment: [String: String] = [:], port: Int = Int.random(in: 20000..<40000)) async throws {
     directory = FileManager.default.temporaryDirectory
       .appendingPathComponent("compass-sync-test-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    let port = Int.random(in: 20000..<40000)
     url = URL(string: "http://127.0.0.1:\(port)/v2")!
     process.executableURL = URL(fileURLWithPath: Self.binary!)
     process.environment = [

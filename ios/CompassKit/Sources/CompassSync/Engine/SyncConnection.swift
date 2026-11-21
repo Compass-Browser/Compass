@@ -13,6 +13,9 @@ public enum SyncConnectionError: Error, Equatable {
   case network(String)
   /// An HTTP status other than 200.
   case http(Int)
+  /// 401 from the server's sign-in gate (`X-Compass-Login: required`): the
+  /// chain must sign in (LoginClient) before it syncs.
+  case loginRequired
   case badReply
   /// Another device removed this one from the chain: the server refuses
   /// its cache GUID (403 with `X-Compass-Device: removed`) until it leaves
@@ -93,6 +96,7 @@ public struct HTTPSyncConnection: SyncConnection {
       throw SyncConnectionError.network(error.localizedDescription)
     }
     guard let http = response as? HTTPURLResponse else { throw SyncConnectionError.badReply }
+    if LoginGate.isLoginRequired(http) { throw SyncConnectionError.loginRequired }
     guard http.statusCode == 200 else { throw SyncConnectionError.status(http) }
     do {
       return try SyncPb_ClientToServerResponse(serializedBytes: data)

@@ -169,6 +169,7 @@ TEST_F(SyncSettingsTest, MenuLabels) {
   EXPECT_EQ(label(SyncState::kStarting), "Syncing…");
   EXPECT_EQ(label(SyncState::kError), "Sync error");
   EXPECT_EQ(label(SyncState::kNeedsRestart), "Sync: restart to finish");
+  EXPECT_EQ(label(SyncState::kLoginRequired), "Sync: sign in needed");
 }
 
 TEST_F(SyncSettingsTest, Limits) {

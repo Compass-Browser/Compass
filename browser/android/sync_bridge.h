@@ -49,6 +49,8 @@ class SyncBridge : public sync::SyncController::Observer {
   // Removes another device of the chain; how it went shows in the
   // snapshot's "removing" and "remove_error".
   void RemoveDevice(JNIEnv* env, const std::string& guid);
+  void StartLogin(JNIEnv* env);
+  void CancelLogin(JNIEnv* env);
   void Restart(JNIEnv* env);
   void SetDataTypeEnabled(JNIEnv* env, int32_t type, bool enabled);
   // On: the chain's 12 words (empty if the seed isn't loaded). Java asks
@@ -74,6 +76,10 @@ class SyncBridge : public sync::SyncController::Observer {
   // A removal under way, and the last one's error.
   bool removing_ = false;
   std::string remove_error_;
+  // Company sign-in: this screen started one (so opens its page), and the
+  // page it opened.
+  bool opens_login_ = false;
+  std::string opened_login_url_;
   base::ScopedObservation<sync::SyncController,
                           sync::SyncController::Observer>
       observation_{this};

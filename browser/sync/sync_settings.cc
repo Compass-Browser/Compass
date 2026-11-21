@@ -201,6 +201,8 @@ std::u16string GetSyncMenuLabel(const SyncStatus& status) {
       return u"Synced";
     case SyncState::kError:
       return u"Sync error";
+    case SyncState::kLoginRequired:
+      return u"Sync: sign in needed";
   }
   return u"Sync";
 }

@@ -14,9 +14,11 @@
 #include "compass/components/sync/device_state.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
+#include "net/http/http_response_headers.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "services/network/test/test_utils.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_url_loader_factory.h"
 #include "services/network/test/test_utils.h"
@@ -139,6 +141,26 @@ TEST_F(QuotaFetcherTest, ARemovedDeviceIsReported) {
   url_loader_factory_.AddResponse(kQuotaUrl, "{}", net::HTTP_FORBIDDEN);
   FetchOnce(fetcher);
   EXPECT_EQ(1, removed);
+}
+
+// A server whose chain must sign in first answers 401 (docs/design/sync.md,
+// "Company sign-in (OIDC)").
+TEST_F(QuotaFetcherTest, Refused) {
+  QuotaFetcher fetcher = MakeFetcher("token-1");
+  auto head = network::CreateURLResponseHead(net::HTTP_UNAUTHORIZED);
+  head->headers->AddHeader("X-Compass-Login", "required");
+  url_loader_factory_.AddResponse(GURL(kQuotaUrl), std::move(head),
+                                  R"({"error":"login_required"})",
+                                  network::URLLoaderCompletionStatus(net::OK));
+  const auto result = FetchOnce(fetcher);
+  ASSERT_TRUE(result);
+  EXPECT_FALSE(*result);
+  EXPECT_TRUE(fetcher.last_refused());
+
+  url_loader_factory_.ClearResponses();
+  url_loader_factory_.AddResponse(kQuotaUrl, "", net::HTTP_BAD_GATEWAY);
+  FetchOnce(fetcher);
+  EXPECT_FALSE(fetcher.last_refused());
 }
 
 TEST_F(QuotaFetcherTest, NoTokenNoRequest) {

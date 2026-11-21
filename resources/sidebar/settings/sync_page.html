@@ -53,7 +53,8 @@
   }
 
   .compass-page #statusDot[data-state=starting],
-  .compass-page #statusDot[data-state=restart] {
+  .compass-page #statusDot[data-state=restart],
+  .compass-page #statusDot[data-state=login] {
     background: #f9ab00;
   }
 
@@ -324,6 +325,30 @@
   <p id="status"></p>
 </div>
 
+<!-- Company sign-in (docs/design/sync.md, "Company sign-in (OIDC)"): the
+     server asks the chain to sign in. -->
+<section id="loginRequired" class="card" hidden>
+  <p>This server only syncs for people of its organization: sign in with
+    your work account. Your data stays encrypted on your devices; signing
+    in only lets this chain use the server.</p>
+  <div class="buttons">
+    <button id="startLogin">Sign in</button>
+  </div>
+</section>
+
+<!-- A sign-in runs, in a tab: the server's page shows the same code. -->
+<section id="loginPanel" class="card" hidden>
+  <p id="loginTitle"></p>
+  <div id="loginCode" class="code"></div>
+  <p class="note">Sign in in the tab that opened. Allow only if the
+    page shows this code.</p>
+  <div class="buttons">
+    <button id="reopenLogin" class="secondary">Open the sign-in
+      page</button>
+    <button id="cancelLogin" class="secondary">Cancel</button>
+  </div>
+</section>
+
 <!-- Off. -->
 <section id="off" hidden>
   <label class="field" for="server">Sync server</label>
@@ -444,6 +469,7 @@
 
   <h2>Server</h2>
   <p id="serverUrl"></p>
+  <p id="signedInAs" hidden></p>
   <p class="note">To use another server, leave sync and join again
     with the new one.</p>
 

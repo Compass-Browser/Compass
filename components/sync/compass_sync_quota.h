@@ -70,6 +70,10 @@ class QuotaFetcher {
   // and |callback| isn't called).
   bool Fetch(Callback callback);
   bool IsFetching() const { return loader_ != nullptr; }
+  // The last answer was the server's 401: a refused key, or a chain that
+  // must sign in first (docs/design/sync.md, "Company sign-in (OIDC)"; the
+  // caller asks /compass/account which).
+  bool last_refused() const { return last_refused_; }
 
   // Runs |callback| when a reply says the server removed this device
   // (device_state.h); that fetch's callback gets nullopt.
@@ -85,6 +89,7 @@ class QuotaFetcher {
   TokenGetter token_getter_;
   std::unique_ptr<network::SimpleURLLoader> loader_;
   base::RepeatingClosure on_device_removed_;
+  bool last_refused_ = false;
   base::WeakPtrFactory<QuotaFetcher> weak_factory_{this};
 };
 

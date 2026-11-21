@@ -31,8 +31,15 @@ public final class SyncNotifier: Sendable {
     session = URLSession(configuration: configuration)
   }
 
-  /// How a connection ended.
-  enum Outcome { case connected, failed, removed }
+  /// How a connection ended: a 200, the server's word that another device
+  /// removed this one, a 401 (true when it's the sign-in gate's, see
+  /// LoginClient), or anything else.
+  enum Outcome: Equatable {
+    case connected
+    case failed
+    case removed
+    case refused(loginRequired: Bool)
+  }
 
   /// A room's change (docs/design/sync.md, "Rooms", Notifications):
   ///
@@ -55,12 +62,15 @@ public final class SyncNotifier: Sendable {
   /// this one (then `removed` is called and it stops: the server refuses
   /// this cache GUID for good). `changed` gets the types another device
   /// changed, or nil to refresh everything (on each (re)connect: changes
-  /// made while disconnected weren't announced). `room` gets the `room`
-  /// events of the rooms the account is a member of (shared spaces, folders
-  /// and easels); nothing else changes for those who don't pass it.
+  /// made while disconnected weren't announced). `refused` hears each 401
+  /// (true when it's the sign-in gate's): the owner should stop the stream
+  /// until it has signed in, not let it retry every minute. `room` gets the
+  /// `room` events of the rooms the account is a member of (shared spaces,
+  /// folders and easels); nothing else changes for those who don't pass it.
   public func run(
     changed: @escaping @Sendable ([DataType]?) async -> Void,
     removed: @escaping @Sendable () async -> Void = {},
+    refused: (@Sendable (_ loginRequired: Bool) async -> Void)? = nil,
     room: (@Sendable (RoomEvent) async -> Void)? = nil
   ) async {
     var failures = 0
@@ -71,6 +81,8 @@ public final class SyncNotifier: Sendable {
         await removed()
         return
       }
+      if case .refused(let loginRequired) = outcome { await refused?(loginRequired) }
+      if Task.isCancelled { return }
       failures = outcome == .connected ? 0 : failures + 1
       // 1 s, 2 s, 4 s … up to a minute.
       let delay = min(60, pow(2, Double(min(failures, 6))))
@@ -78,7 +90,7 @@ public final class SyncNotifier: Sendable {
     }
   }
 
-  /// One connection: whether it got as far as a 200.
+  /// One connection: how it ended.
   private func stream(
     changed: @escaping @Sendable ([DataType]?) async -> Void, room: (@Sendable (RoomEvent) async -> Void)?
   ) async -> Outcome {
@@ -88,6 +100,7 @@ public final class SyncNotifier: Sendable {
     guard let (bytes, response) = try? await session.bytes(for: request),
       let http = response as? HTTPURLResponse
     else { return .failed }
+    if http.statusCode == 401 { return .refused(loginRequired: LoginGate.isLoginRequired(http)) }
     guard http.statusCode == 200 else {
       return SyncConnectionError.status(http) == .deviceRemoved ? .removed : .failed
     }

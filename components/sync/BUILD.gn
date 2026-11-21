@@ -101,6 +101,11 @@ source_set("notifier") {
     # (docs/design/sync.md, "Profiles").
     "compass_account_linker.cc",
     "compass_account_linker.h",
+
+    # The server's optional company sign-in (docs/design/sync.md, "Company
+    # sign-in (OIDC)").
+    "login_client.cc",
+    "login_client.h",
   ]
   public_deps = [
     ":chain",
@@ -123,6 +128,7 @@ source_set("unit_tests") {
     "compass_sync_notifier_unittest.cc",
     "compass_sync_quota_unittest.cc",
     "engine_unittest.cc",
+    "login_client_unittest.cc",
     "pairing_unittest.cc",
     "profile_list_unittest.cc",
   ]

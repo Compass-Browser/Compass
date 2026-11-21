@@ -32,6 +32,8 @@ const char* StateName(sync::SyncState state) {
       return "on";
     case sync::SyncState::kError:
       return "error";
+    case sync::SyncState::kLoginRequired:
+      return "login_required";
   }
   return "off";
 }
@@ -85,6 +87,14 @@ std::string SyncBridge::Snapshot(JNIEnv* env) {
   snapshot.Set("server", status.server_url);
   snapshot.Set("message", status.message);
   snapshot.Set("removed", status.device_removed);
+  base::DictValue login;
+  login.Set("required", status.login.server_requires);
+  login.Set("provider", status.login.provider_name);
+  login.Set("user_name", status.login.user_name);
+  login.Set("user_email", status.login.user_email);
+  login.Set("in_progress", status.login.in_progress);
+  login.Set("code", status.login.user_code);
+  snapshot.Set("login", std::move(login));
   const sync::PairingStatus pairing = controller_->GetPairingStatus();
   base::DictValue pairing_dict;
   pairing_dict.Set("step", StepName(pairing.step));
@@ -126,6 +136,8 @@ void SyncBridge::StartNewChain(JNIEnv* env, const std::string& server_url) {
     return;
   }
   error_.clear();
+  // A server that asks for sign-in runs it first: this screen opens it.
+  opens_login_ = true;
   controller_->StartNewChain(server_url,
                              base::BindOnce(&SyncBridge::OnStarted,
                                             weak_factory_.GetWeakPtr()));
@@ -147,6 +159,7 @@ void SyncBridge::JoinWithRecoveryCode(JNIEnv* env,
     return;
   }
   error_.clear();
+  opens_login_ = true;
   controller_->JoinWithRecoveryCode(
       server_url, words,
       base::BindOnce(&SyncBridge::OnDone, weak_factory_.GetWeakPtr()));
@@ -193,6 +206,23 @@ void SyncBridge::OnDeviceRemoved(bool ok, std::string error) {
   OnSyncControllerChanged();
 }
 
+void SyncBridge::StartLogin(JNIEnv* env) {
+  if (!controller_) {
+    return;
+  }
+  opens_login_ = true;
+  // Again while it runs: the page opens again.
+  opened_login_url_.clear();
+  controller_->StartLogin();
+  OnSyncControllerChanged();
+}
+
+void SyncBridge::CancelLogin(JNIEnv* env) {
+  if (controller_) {
+    controller_->CancelLogin();
+  }
+}
+
 void SyncBridge::Restart(JNIEnv* env) {
   if (controller_) {
     controller_->Restart();
@@ -219,7 +249,25 @@ void SyncBridge::ClearNewWords(JNIEnv* env) {
 }
 
 void SyncBridge::OnSyncControllerChanged() {
-  Java_SyncBridge_onChanged(jni_zero::AttachCurrentThread(), java_object_);
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  // Company sign-in: the screen that started it opens the server's page in
+  // a tab, once per page, and closes it when the sign-in ends (the service
+  // opens it itself on the desktop).
+  if (controller_) {
+    const sync::SyncLogin login = controller_->GetStatus().login;
+    if (!login.in_progress) {
+      if (!opened_login_url_.empty()) {
+        Java_SyncBridge_closeLoginPage(env, java_object_);
+      }
+      opened_login_url_.clear();
+      opens_login_ = false;
+    } else if (opens_login_ && !login.url.empty() &&
+               login.url != opened_login_url_) {
+      opened_login_url_ = login.url;
+      Java_SyncBridge_openLoginPage(env, java_object_, login.url);
+    }
+  }
+  Java_SyncBridge_onChanged(env, java_object_);
 }
 
 void SyncBridge::OnDone(bool ok, std::string error) {

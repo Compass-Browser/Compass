@@ -43,12 +43,21 @@
 #include "compass/browser/sync/compass_sync_service_factory.h"
 #include "compass/browser/sync/sync_settings.h"
 #include "compass/components/sync/compass_sync_notifier.h"
+#include "compass/components/sync/login_client.h"
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/gcm/gcm_profile_service_factory.h"
 #include "chrome/browser/gcm/instance_id/instance_id_profile_service_factory.h"
 #include "compass/browser/sync/compass_push_android.h"
 #include "components/gcm_driver/gcm_profile_service.h"
 #include "components/gcm_driver/instance_id/instance_id_profile_service.h"
+#else
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
+#include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/web_contents.h"
+#include "url/origin.h"
 #endif
 #include "compass/components/sync/pairing_network_transport.h"
 #include "compass/components/sync/pref_names.h"
@@ -100,6 +109,10 @@ constexpr base::TimeDelta kLinkRetry = base::Minutes(5);
 // while commits fail or a limit is in the way.
 constexpr base::TimeDelta kQuotaCheckInterval = base::Minutes(30);
 constexpr base::TimeDelta kQuotaRecheckInterval = base::Minutes(1);
+
+// The chain's sign-in state is asked again at most this often when the
+// engine or the notifier is refused (Company sign-in).
+constexpr base::TimeDelta kLoginCheckInterval = base::Seconds(30);
 
 // The types Compass never syncs are GetUnwantedSelectableTypes()
 // (sync_settings.h). History (kHistory: HISTORY and
@@ -352,6 +365,7 @@ void CompassSyncService::RegisterProfilePrefs(
   registry->RegisterListPref(prefs::kProfilesRemoved);
   registry->RegisterBooleanPref(prefs::kResetPending, false);
   registry->RegisterBooleanPref(prefs::kDeviceRemoved, false);
+  registry->RegisterListPref(prefs::kLoginLinksPending);
   RegisterSyncSettingsPrefs(registry);
 }
 
@@ -366,6 +380,10 @@ void CompassSyncService::Shutdown() {
 #endif
   quota_fetcher_.reset();
   device_remover_.reset();
+  login_.reset();
+  login_client_.reset();
+  setup_client_.reset();
+  oneshot_clients_.clear();
   host_.reset();
   joiner_.reset();
   missing_profiles_.reset();
@@ -434,6 +452,29 @@ void CompassSyncService::RemoveObserver(Observer* observer) {
 SyncStatus CompassSyncService::GetStatus() const {
   SyncStatus status;
   status.server_url = prefs_->GetString(prefs::kServerUrl);
+  // Company sign-in. A profile account's sign-in runs in its home profile.
+  const CompassSyncService* home = IsProfileAccount() ? FindHome() : nullptr;
+  const LoginFlow* flow =
+      login_ ? login_.get() : (home ? home->login_.get() : nullptr);
+  if (server_login_ && server_login_->login) {
+    status.login.server_requires = true;
+    status.login.provider_name = server_login_->name;
+  }
+  if (account_ && !account_->login_required && account_->user) {
+    status.login.user_name = account_->user->name;
+    status.login.user_email = account_->user->email;
+  }
+  if (flow) {
+    status.login.in_progress = true;
+    status.login.user_code = flow->request.user_code;
+    status.login.url = flow->started ? flow->request.url.spec() : std::string();
+  }
+  const std::string finish_in_tab =
+      flow && flow->started
+          ? base::StrCat({"Finish signing in in the tab that opened. Check "
+                          "that it shows the code ",
+                          flow->request.user_code, "."})
+          : "Starting sign-in…";
   if (left_) {
     status.state = SyncState::kNeedsRestart;
     status.message = "Restart Compass to finish leaving sync.";
@@ -448,6 +489,15 @@ SyncStatus CompassSyncService::GetStatus() const {
   }
   if (!HasSeed()) {
     status.state = SyncState::kOff;
+    if (flow) {
+      // Starting or joining a chain on a server that asks for sign-in.
+      status.message = base::StrCat(
+          {"This server requires sign-in",
+           status.login.provider_name.empty()
+               ? std::string()
+               : base::StrCat({" with ", status.login.provider_name}),
+           ". ", finish_in_tab});
+    }
     return status;
   }
   if (!sync_service_) {
@@ -464,10 +514,11 @@ SyncStatus CompassSyncService::GetStatus() const {
     ApplyDeviceRemoved(status);
     return status;
   }
-  if (credentials_->IsRefused()) {
+  if (credentials_->IsRefused() && !(account_ && account_->login_required)) {
     // A 401: a private server that doesn't list this account. A profile
     // account links itself (LinkAccount()), which lets it in when the
-    // chain's own is listed.
+    // chain's own is listed. (A server that asks the chain to sign in
+    // refuses it too: kLoginRequired below says so instead.)
     status.state = SyncState::kError;
     status.message =
         IsProfileAccount()
@@ -495,6 +546,17 @@ SyncStatus CompassSyncService::GetStatus() const {
     status.message = base::StrCat(
         {"Sync stopped: ",
          sync_service_->GetUnrecoverableErrorMessageForDebugging()});
+    return status;
+  }
+  if (account_ && account_->login_required && seed_ && IsChainRunning()) {
+    // The server refuses the chain until it signs in.
+    status.state = SyncState::kLoginRequired;
+    status.message =
+        flow ? finish_in_tab
+             : base::StrCat({login_error_.empty()
+                                 ? std::string()
+                                 : base::StrCat({login_error_, " "}),
+                             SignInPhrase(), " to sync."});
     return status;
   }
   const syncer::SyncTokenStatus token =
@@ -642,23 +704,63 @@ void CompassSyncService::StartNewChain(const std::string& server_url,
         false, "Enter the server's URL, like https://sync.example.com/v2.", {});
     return;
   }
-  const Seed seed = GenerateSeed();
-  // This profile is the home; the switcher's other profiles join the chain
-  // as its other profiles, with their own accounts.
-  ProfileMapping mapping;
-  for (const LocalProfile& local : GetOtherLocalProfiles()) {
-    mapping.push_back({local.id, std::string()});
+  if (login_ || setup_client_) {
+    std::move(callback).Run(false, "Sync is being set up.", {});
+    return;
   }
-  FinishJoin(url, seed, /*chain=*/{}, std::move(mapping),
-             /*profiles_pending=*/false,
-             base::BindOnce(
-                 [](StartCallback callback, std::vector<std::string> words,
-                    bool ok, std::string error) {
-                   std::move(callback).Run(
-                       ok, std::move(error),
-                       ok ? std::move(words) : std::vector<std::string>());
-                 },
-                 std::move(callback), SeedToRecoveryWords(seed)));
+  const Seed seed = GenerateSeed();
+  // On a server that asks for sign-in, the new chain signs in first: it's
+  // saved, and syncs after the restart, only once it has (sync.md, "Company
+  // sign-in (OIDC)", "Client").
+  CheckServerLogin(
+      url, seed,
+      base::BindOnce(
+          [](base::WeakPtr<CompassSyncService> self, GURL url, Seed seed,
+             StartCallback callback, bool needed) {
+            if (!self) {
+              return;
+            }
+            DoneCallback save = base::BindOnce(
+                [](base::WeakPtr<CompassSyncService> self, GURL url, Seed seed,
+                   StartCallback callback, bool ok, std::string error) {
+                  if (!self) {
+                    return;
+                  }
+                  if (!ok || self->HasSeed()) {
+                    std::move(callback).Run(
+                        false, ok ? "Sync is already set up." : error, {});
+                    return;
+                  }
+                  // This profile is the home; the switcher's other profiles
+                  // join the chain as its other profiles, with their own
+                  // accounts.
+                  ProfileMapping mapping;
+                  for (const LocalProfile& local :
+                       self->GetOtherLocalProfiles()) {
+                    mapping.push_back({local.id, std::string()});
+                  }
+                  self->FinishJoin(
+                      url, seed, /*chain=*/{}, std::move(mapping),
+                      /*profiles_pending=*/false,
+                      base::BindOnce(
+                          [](StartCallback callback,
+                             std::vector<std::string> words, bool ok,
+                             std::string error) {
+                            std::move(callback).Run(
+                                ok, std::move(error),
+                                ok ? std::move(words)
+                                   : std::vector<std::string>());
+                          },
+                          std::move(callback), SeedToRecoveryWords(seed)));
+                },
+                self, url, seed, std::move(callback));
+            if (!needed) {
+              std::move(save).Run(true, std::string());
+              return;
+            }
+            self->RunLogin(std::move(self->setup_client_), std::move(save));
+          },
+          weak_factory_.GetWeakPtr(), url, seed, std::move(callback)));
 }
 
 void CompassSyncService::JoinWithRecoveryCode(const std::string& server_url,
@@ -680,11 +782,48 @@ void CompassSyncService::JoinWithRecoveryCode(const std::string& server_url,
         false, "That recovery code isn't valid. Check the 12 words.");
     return;
   }
-  // The chain's profiles aren't known before the first sync: this profile is
-  // the home, and the others, if any, are mapped once the list has come.
-  FinishJoin(url, *seed, /*chain=*/{}, /*mapping=*/{},
-             /*profiles_pending=*/!GetOtherLocalProfiles().empty(),
-             std::move(callback));
+  if (login_ || setup_client_) {
+    std::move(callback).Run(false, "Sync is being set up.");
+    return;
+  }
+  // As StartNewChain(): a chain the server wants signed in (no device of it
+  // has) signs in before it's saved.
+  CheckServerLogin(
+      url, *seed,
+      base::BindOnce(
+          [](base::WeakPtr<CompassSyncService> self, GURL url, Seed seed,
+             DoneCallback callback, bool needed) {
+            if (!self) {
+              return;
+            }
+            DoneCallback save = base::BindOnce(
+                [](base::WeakPtr<CompassSyncService> self, GURL url, Seed seed,
+                   DoneCallback callback, bool ok, std::string error) {
+                  if (!self) {
+                    return;
+                  }
+                  if (!ok || self->HasSeed()) {
+                    std::move(callback).Run(
+                        false, ok ? "Sync is already set up." : error);
+                    return;
+                  }
+                  // The chain's profiles aren't known before the first
+                  // sync: this profile is the home, and the others, if any,
+                  // are mapped once the list has come.
+                  self->FinishJoin(
+                      url, seed, /*chain=*/{}, /*mapping=*/{},
+                      /*profiles_pending=*/
+                      !self->GetOtherLocalProfiles().empty(),
+                      std::move(callback));
+                },
+                self, url, seed, std::move(callback));
+            if (!needed) {
+              std::move(save).Run(true, std::string());
+              return;
+            }
+            self->RunLogin(std::move(self->setup_client_), std::move(save));
+          },
+          weak_factory_.GetWeakPtr(), url, *seed, std::move(callback)));
 }
 
 void CompassSyncService::SaveChain(const GURL& server_url,
@@ -724,7 +863,8 @@ void CompassSyncService::OnEncryptorForSave(
 }
 
 void CompassSyncService::Leave() {
-  // The whole device leaves: every profile in the chain.
+  // The whole device leaves: every profile in the chain. Company sign-in
+  // isn't signed out: it's the chain's, and the other devices sync with it.
   for (Profile* profile : GetListableProfiles()) {
     CompassSyncService* other =
         CompassSyncServiceFactory::GetForProfileIfExists(profile);
@@ -737,6 +877,10 @@ void CompassSyncService::Leave() {
 
 void CompassSyncService::LeaveProfile() {
   CancelPairing();
+  CancelLogin();
+  login_error_.clear();
+  account_.reset();
+  prefs_->ClearPref(prefs::kLoginLinksPending);
   prefs_->ClearPref(prefs::kSeed);
   prefs_->ClearPref(prefs::kResetPending);
   prefs_->ClearPref(prefs::kProfileAccount);
@@ -834,6 +978,12 @@ void CompassSyncService::OnSeedLoaded(const Seed& seed) {
           << (IsHome() ? " (home profile)"
                        : base::StrCat({" (profile ", AccountUuid(), ")"}));
   UpdatePassphrase();
+  // Company sign-in: whether the server asks for it, and who the chain is
+  // signed in as; the home links its profiles that wait for it.
+  RefreshLogin(/*force=*/true);
+  if (IsHome() && IsChainRunning()) {
+    LinkProfiles(GetServerUrl(), seed, /*all=*/false);
+  }
   // The home profile now knows its chain: profiles may join or be created.
   ReconcileProfiles();
   NotifyObservers();
@@ -1058,6 +1208,8 @@ void CompassSyncService::UpdateNotifier() {
       content::GetNetworkConnectionTracker());
   notifier_->SetDeviceRemovedCallback(base::BindOnce(
       &CompassSyncService::OnDeviceRemoved, weak_factory_.GetWeakPtr()));
+  notifier_->SetAuthErrorCallback(base::BindRepeating(
+      &CompassSyncService::OnAuthErrorHint, weak_factory_.GetWeakPtr()));
   notifier_->Start();
 #if BUILDFLAG(IS_ANDROID)
   StartPush();
@@ -1158,6 +1310,9 @@ void CompassSyncService::MaybeCheckQuota() {
 void CompassSyncService::OnQuotaStatus(std::optional<QuotaStatus> status) {
   // No answer (an older server, the network): keep what was known.
   if (!status) {
+    if (quota_fetcher_ && quota_fetcher_->last_refused()) {
+      OnAuthErrorHint();
+    }
     return;
   }
   VLOG(1) << "[compass-sync] quota: entities " << status->entities << "/"
@@ -1191,6 +1346,16 @@ void CompassSyncService::OnStateChanged(syncer::SyncService* sync) {
   }
   UpdatePassphrase();
   UpdateNotifier();
+  if (sync_service_ && seed_ && IsChainRunning()) {
+    // The server refusing the chain may mean it must sign in (or, from
+    // another device, has signed in since): ask, spaced out.
+    const bool refused =
+        sync_service_->GetSyncTokenStatusForDebugging().connection_status ==
+        syncer::CONNECTION_AUTH_ERROR;
+    if (refused || (account_ && account_->login_required)) {
+      RefreshLogin(/*force=*/false);
+    }
+  }
   NotifyObservers();
 }
 
@@ -1942,16 +2107,19 @@ void CompassSyncService::FinishJoin(const GURL& server_url,
   }
   SaveChain(server_url, seed,
             base::BindOnce(
-                [](base::WeakPtr<CompassSyncService> self,
-                   ProfileMapping mapping, DoneCallback callback, bool ok,
-                   std::string error) {
+                [](base::WeakPtr<CompassSyncService> self, GURL server_url,
+                   Seed seed, ProfileMapping mapping, DoneCallback callback,
+                   bool ok, std::string error) {
                   if (self && ok) {
                     self->ApplyMapping(mapping);
+                    // Company sign-in: the profiles that joined take the
+                    // chain's (best effort; again at the next start).
+                    self->LinkProfiles(server_url, seed, /*all=*/false);
                   }
                   std::move(callback).Run(ok, std::move(error));
                 },
-                weak_factory_.GetWeakPtr(), std::move(mapping),
-                std::move(callback)));
+                weak_factory_.GetWeakPtr(), server_url, seed,
+                std::move(mapping), std::move(callback)));
 }
 
 void CompassSyncService::ApplyMapping(const ProfileMapping& mapping) {
@@ -1993,6 +2161,16 @@ void CompassSyncService::EnrollProfile(Profile* profile,
   {
     ScopedDictPrefUpdate dirs(prefs_, prefs::kProfileDirs);
     dirs->Set(uuid, profile->GetPath().BaseName().AsUTF8Unsafe());
+  }
+  // Company sign-in: its account takes the chain's sign-in on the server.
+  {
+    ScopedListPrefUpdate pending(prefs_, prefs::kLoginLinksPending);
+    if (!pending->contains(uuid)) {
+      pending->Append(uuid);
+    }
+  }
+  if (seed_ && IsChainRunning()) {
+    LinkProfiles(GetServerUrl(), *seed_, /*all=*/false);
   }
   VLOG(1) << "[compass-sync] profile "
           << profile->GetPath().BaseName().AsUTF8Unsafe()
@@ -2082,8 +2260,13 @@ void CompassSyncService::OnChainProfileCreated(const std::string& uuid,
     EnrollProfile(profile, uuid);
     return;
   }
-  ScopedDictPrefUpdate dirs(prefs_, prefs::kProfileDirs);
-  dirs->Set(uuid, profile->GetPath().BaseName().AsUTF8Unsafe());
+  {
+    ScopedDictPrefUpdate dirs(prefs_, prefs::kProfileDirs);
+    dirs->Set(uuid, profile->GetPath().BaseName().AsUTF8Unsafe());
+  }
+  // Company sign-in: usually linked already by the device that made it;
+  // linking again is harmless.
+  LinkProfileFromHome(uuid);
   NotifySpacesSyncOfLocalChange(profile_);
 }
 
@@ -2402,6 +2585,559 @@ void CompassSyncService::OnProfileWillBeRemoved(
     removed->Append(uuid);
   }
 }
+
+// Company sign-in ---------------------------------------------------------
+//
+// docs/design/sync.md, "Company sign-in (OIDC)", "Client".
+
+CompassSyncService::LoginFlow::LoginFlow() = default;
+CompassSyncService::LoginFlow::~LoginFlow() = default;
+
+std::unique_ptr<LoginClient> CompassSyncService::MakeLoginClient(
+    const GURL& server_url,
+    const AuthKey& key) {
+  return std::make_unique<LoginClient>(
+      profile_->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess(),
+      server_url,
+      base::BindRepeating(
+          [](const AuthKey& key) -> std::optional<std::string> {
+            return MakeAccessToken(key, base::Time::Now());
+          },
+          key));
+}
+
+LoginClient* CompassSyncService::GetLoginClient() {
+  const GURL server_url = GetServerUrl();
+  if (!login_client_ || login_client_->server_url() != server_url) {
+    login_client_ = std::make_unique<LoginClient>(
+        profile_->GetDefaultStoragePartition()
+            ->GetURLLoaderFactoryForBrowserProcess(),
+        server_url,
+        base::BindRepeating(
+            [](scoped_refptr<SyncCredentials> credentials) {
+              return credentials->MakeToken(base::Time::Now());
+            },
+            credentials_));
+  }
+  return login_client_.get();
+}
+
+std::string CompassSyncService::SignInPhrase() const {
+  return server_login_ && !server_login_->name.empty()
+             ? base::StrCat({"Sign in to ", server_login_->name})
+             : std::string("Sign in");
+}
+
+void CompassSyncService::RefreshLogin(bool force) {
+  if (!seed_ || !IsChainRunning() || fetching_login_) {
+    return;
+  }
+  const base::TimeTicks now = base::TimeTicks::Now();
+  if (!force && !last_login_check_.is_null() &&
+      now - last_login_check_ < kLoginCheckInterval) {
+    return;
+  }
+  last_login_check_ = now;
+  fetching_login_ = true;
+  if (server_login_ && server_login_url_ == GetServerUrl()) {
+    OnServerLoginInfo(server_login_, LoginError::kNone);
+    return;
+  }
+  GetLoginClient()->GetInfo(base::BindOnce(
+      &CompassSyncService::OnServerLoginInfo, weak_factory_.GetWeakPtr()));
+}
+
+void CompassSyncService::OnServerLoginInfo(
+    std::optional<ServerLoginInfo> info,
+    LoginError error) {
+  if (!info) {
+    // No answer: asked again at the next refusal or start.
+    fetching_login_ = false;
+    return;
+  }
+  server_login_ = info;
+  server_login_url_ = GetServerUrl();
+  if (!info->login) {
+    fetching_login_ = false;
+    if (account_) {
+      account_.reset();
+      NotifyObservers();
+    }
+    return;
+  }
+  GetLoginClient()->GetAccount(base::BindOnce(
+      &CompassSyncService::OnAccountStatus, weak_factory_.GetWeakPtr()));
+}
+
+void CompassSyncService::OnAccountStatus(std::optional<AccountStatus> account,
+                                         LoginError error) {
+  fetching_login_ = false;
+  if (!account) {
+    // A 401 here is the key itself refused, not a sign-in to ask for; no
+    // answer keeps what was known.
+    if (error == LoginError::kUnauthorized && account_) {
+      account_.reset();
+      NotifyObservers();
+    }
+    return;
+  }
+  const bool was_required = account_ && account_->login_required;
+  account_ = std::move(account);
+  VLOG(1) << "[compass-sync] login: "
+          << (account_->login_required
+                  ? std::string("required")
+                  : base::StrCat({"signed in as ",
+                                  account_->user ? account_->user->email
+                                                 : std::string("?")}));
+  if (account_->login_required) {
+    // A profile account whose home is signed in only needs its link (it
+    // failed, or the server forgot it).
+    if (IsProfileAccount() && !link_requested_) {
+      CompassSyncService* home = FindHome();
+      if (home && home->account_ && !home->account_->login_required) {
+        link_requested_ = true;
+        home->LinkProfileFromHome(GetProfileUuid());
+      }
+    }
+  } else if (was_required) {
+    // Signed in meanwhile (on another device of the chain).
+    OnChainSignedIn();
+  }
+  NotifyObservers();
+}
+
+void CompassSyncService::OnAuthErrorHint() {
+  RefreshLogin(/*force=*/false);
+}
+
+void CompassSyncService::CheckServerLogin(
+    const GURL& server_url,
+    const Seed& seed,
+    base::OnceCallback<void(bool needed)> callback) {
+  setup_client_ = MakeLoginClient(server_url, DeriveAuthKey(seed));
+  setup_client_->GetInfo(base::BindOnce(
+      [](base::WeakPtr<CompassSyncService> self, GURL server_url,
+         base::OnceCallback<void(bool needed)> callback,
+         std::optional<ServerLoginInfo> info, LoginError error) {
+        if (!self || !self->setup_client_) {
+          return;
+        }
+        if (info) {
+          self->server_login_ = info;
+          self->server_login_url_ = server_url;
+        }
+        if (!info || !info->login) {
+          // No sign-in, or no answer (the chain is saved as before; the
+          // engine's first request tells).
+          base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+              FROM_HERE, std::move(self->setup_client_));
+          std::move(callback).Run(false);
+          return;
+        }
+        self->setup_client_->GetAccount(base::BindOnce(
+            [](base::WeakPtr<CompassSyncService> self,
+               base::OnceCallback<void(bool needed)> callback,
+               std::optional<AccountStatus> account, LoginError error) {
+              if (!self || !self->setup_client_) {
+                return;
+              }
+              const bool needed = !account || account->login_required;
+              if (!needed) {
+                // A chain already signed in (its other devices did).
+                base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+                    FROM_HERE, std::move(self->setup_client_));
+              }
+              std::move(callback).Run(needed);
+            },
+            self, std::move(callback)));
+      },
+      weak_factory_.GetWeakPtr(), server_url, std::move(callback)));
+}
+
+void CompassSyncService::RunLogin(std::unique_ptr<LoginClient> client,
+                                  DoneCallback done) {
+  CHECK(client);
+  login_error_.clear();
+  login_ = std::make_unique<LoginFlow>();
+  login_->client = std::move(client);
+  login_->done = std::move(done);
+  NotifyObservers();
+  // The server's consent page names the device, as DEVICE_INFO does.
+  const syncer::DeviceInfo* local =
+      device_info_ && device_info_->GetLocalDeviceInfoProvider()
+          ? device_info_->GetLocalDeviceInfoProvider()->GetLocalDeviceInfo()
+          : nullptr;
+  if (local && !local->client_name().empty()) {
+    OnLoginDeviceName(local->client_name());
+    return;
+  }
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&syncer::GetPersonalizableDeviceNameBlocking),
+      base::BindOnce(&CompassSyncService::OnLoginDeviceName,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void CompassSyncService::OnLoginDeviceName(std::string device_name) {
+  if (!login_ || login_->started || login_->requested) {
+    return;
+  }
+  login_->requested = true;
+  login_->client->StartLogin(
+      device_name, base::BindOnce(&CompassSyncService::OnLoginStarted,
+                                  weak_factory_.GetWeakPtr()));
+}
+
+void CompassSyncService::OnLoginStarted(std::optional<LoginRequest> request,
+                                        LoginError error) {
+  if (!login_) {
+    return;
+  }
+  if (!request) {
+    switch (error) {
+      case LoginError::kLoginDisabled:
+        // The server stopped asking for sign-in: nothing to do.
+        FinishLogin(true, std::string());
+        return;
+      case LoginError::kNetwork:
+        FinishLogin(false, "Couldn't reach the server.");
+        return;
+      case LoginError::kLoginUnavailable:
+        FinishLogin(false, base::StrCat({"Can't reach ",
+                                         server_login_ &&
+                                                 !server_login_->name.empty()
+                                             ? server_login_->name
+                                             : std::string("the sign-in service"),
+                                         " right now. Try again."}));
+        return;
+      case LoginError::kRateLimited:
+        FinishLogin(false,
+                    "Too many sign-in attempts. Try again in a few minutes.");
+        return;
+      default:
+        FinishLogin(false, "The server couldn't start the sign-in.");
+        return;
+    }
+  }
+  login_->request = std::move(*request);
+  login_->started = true;
+  VLOG(1) << "[compass-sync] login: waiting for the user (code "
+          << login_->request.user_code << ")";
+  OpenLoginPage(login_->request.url);
+  login_->client->WaitForLogin(
+      login_->request.id, login_->request.expires,
+      base::BindOnce(&CompassSyncService::OnLoginResult,
+                     weak_factory_.GetWeakPtr()));
+  NotifyObservers();
+}
+
+void CompassSyncService::OnLoginResult(LoginResult result) {
+  if (!login_) {
+    return;
+  }
+  switch (result.state) {
+    case LoginState::kDone:
+      if (seed_ && IsChainRunning()) {
+        // The running chain: "Signed in as" at once.
+        AccountStatus account;
+        account.user = result.user;
+        account_ = std::move(account);
+      }
+      FinishLogin(true, std::string());
+      return;
+    case LoginState::kDenied:
+      FinishLogin(false, "Sign-in was denied.");
+      return;
+    case LoginState::kExpired:
+      FinishLogin(false, "The sign-in timed out.");
+      return;
+    case LoginState::kPending:
+    case LoginState::kFailed:
+      FinishLogin(false, "Couldn't reach the server.");
+      return;
+  }
+}
+
+void CompassSyncService::FinishLogin(bool ok, std::string error) {
+  if (!login_) {
+    return;
+  }
+  std::unique_ptr<LoginFlow> flow = std::move(login_);
+  VLOG(1) << "[compass-sync] login: "
+          << (ok ? std::string("done") : base::StrCat({"failed: ", error}));
+  CloseLoginPage(flow->request.url);
+  login_error_ = ok ? std::string() : error;
+  DoneCallback done = std::move(flow->done);
+  // This may run inside the client's callback.
+  base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(FROM_HERE,
+                                                             std::move(flow));
+  std::move(done).Run(ok, std::move(error));
+  NotifyObservers();
+}
+
+void CompassSyncService::StartLogin() {
+  if (login_) {
+    // Again while it runs: the page again (its tab was closed).
+    if (login_->started) {
+      OpenLoginPage(login_->request.url);
+    }
+    return;
+  }
+  if (IsProfileAccount()) {
+    // A profile account takes its home's sign-in.
+    CompassSyncService* home = FindHome();
+    if (home && home != this) {
+      home->StartLogin();
+      return;
+    }
+  }
+  if (!seed_ || !IsChainRunning()) {
+    return;
+  }
+  if (account_ && !account_->login_required) {
+    // Signed in already (a profile account asked): the links.
+    if (IsHome()) {
+      LinkProfiles(GetServerUrl(), *seed_, /*all=*/true);
+    }
+    return;
+  }
+  RunLogin(MakeLoginClient(GetServerUrl(), DeriveAuthKey(*seed_, AccountUuid())),
+           base::BindOnce(
+               [](base::WeakPtr<CompassSyncService> self, bool ok,
+                  std::string error) {
+                 if (self && ok) {
+                   self->OnChainSignedIn();
+                 }
+               },
+               weak_factory_.GetWeakPtr()));
+}
+
+void CompassSyncService::CancelLogin() {
+  if (!login_) {
+    CompassSyncService* home = IsProfileAccount() ? FindHome() : nullptr;
+    if (home && home != this && home->login_) {
+      home->CancelLogin();
+    }
+    return;
+  }
+  FinishLogin(false, "Sign-in canceled.");
+  // Not an error to show.
+  login_error_.clear();
+  NotifyObservers();
+}
+
+void CompassSyncService::OnChainSignedIn() {
+  RefreshLogin(/*force=*/true);
+  // The engine backs off after the server's 401s: it tries again now.
+  credentials_->RetryNow();
+  last_refresh_ = base::TimeTicks();
+  TriggerRefresh();
+  // The notifier and the quota were refused too.
+  notifier_.reset();
+  UpdateNotifier();
+  last_quota_check_ = base::TimeTicks();
+  // The profile accounts take the chain's sign-in (the server may have
+  // forgotten their links with it, as revoking does).
+  if (IsHome() && seed_) {
+    LinkProfiles(GetServerUrl(), *seed_, /*all=*/true);
+  }
+}
+
+void CompassSyncService::OnLinked() {
+  link_requested_ = false;
+  if (!account_ || account_->login_required) {
+    account_.reset();
+    RefreshLogin(/*force=*/true);
+  }
+  credentials_->RetryNow();
+  last_refresh_ = base::TimeTicks();
+  TriggerRefresh();
+  notifier_.reset();
+  UpdateNotifier();
+  NotifyObservers();
+}
+
+void CompassSyncService::LinkProfileFromHome(const std::string& uuid) {
+  if (uuid.empty() || !IsHome()) {
+    return;
+  }
+  {
+    ScopedListPrefUpdate pending(prefs_, prefs::kLoginLinksPending);
+    if (!pending->contains(uuid)) {
+      pending->Append(uuid);
+    }
+  }
+  if (seed_ && IsChainRunning()) {
+    LinkProfiles(GetServerUrl(), *seed_, /*all=*/false);
+  }
+}
+
+void CompassSyncService::LinkProfiles(const GURL& server_url,
+                                      const Seed& seed,
+                                      bool all) {
+  std::set<std::string> uuids;
+  for (const base::Value& uuid : prefs_->GetList(prefs::kLoginLinksPending)) {
+    if (uuid.is_string() && !uuid.GetString().empty()) {
+      uuids.insert(uuid.GetString());
+    }
+  }
+  if (all) {
+    for (Profile* profile : GetListableProfiles()) {
+      const PrefService* profile_prefs = profile->GetPrefs();
+      if (profile != profile_.get() &&
+          !profile_prefs->GetString(prefs::kSeed).empty() &&
+          profile_prefs->GetBoolean(prefs::kProfileAccount)) {
+        uuids.insert(profile_prefs->GetString(prefs::kProfileUuid));
+      }
+    }
+    for (const auto [uuid, dir] : prefs_->GetDict(prefs::kProfileDirs)) {
+      uuids.insert(uuid);
+    }
+    uuids.erase(GetProfileUuid());
+  }
+  if (uuids.empty() || !server_url.is_valid()) {
+    return;
+  }
+  if (!server_login_ || server_login_url_ != server_url) {
+    // Whether the server has sign-in at all, first.
+    const int id = next_client_id_++;
+    std::unique_ptr<LoginClient> client =
+        MakeLoginClient(server_url, DeriveAuthKey(seed));
+    LoginClient* raw = client.get();
+    oneshot_clients_[id] = std::move(client);
+    raw->GetInfo(base::BindOnce(
+        [](base::WeakPtr<CompassSyncService> self, int id, GURL server_url,
+           Seed seed, bool all, std::optional<ServerLoginInfo> info,
+           LoginError error) {
+          if (!self) {
+            return;
+          }
+          if (auto it = self->oneshot_clients_.find(id);
+              it != self->oneshot_clients_.end()) {
+            base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+                FROM_HERE, std::move(it->second));
+            self->oneshot_clients_.erase(it);
+          }
+          if (!info) {
+            return;  // No answer: they stay pending.
+          }
+          self->server_login_ = info;
+          self->server_login_url_ = server_url;
+          self->LinkProfiles(server_url, seed, all);
+        },
+        weak_factory_.GetWeakPtr(), id, server_url, seed, all));
+    return;
+  }
+  if (!server_login_->login) {
+    // Nothing to link on this server.
+    prefs_->ClearPref(prefs::kLoginLinksPending);
+    return;
+  }
+  for (const std::string& uuid : uuids) {
+    const int id = next_client_id_++;
+    std::unique_ptr<LoginClient> client =
+        MakeLoginClient(server_url, DeriveAuthKey(seed));
+    LoginClient* raw = client.get();
+    oneshot_clients_[id] = std::move(client);
+    raw->Link(MakeAccessToken(DeriveAuthKey(seed, uuid), base::Time::Now()),
+              base::BindOnce(&CompassSyncService::OnProfileLinked,
+                             weak_factory_.GetWeakPtr(), id, uuid));
+  }
+}
+
+void CompassSyncService::OnProfileLinked(int client_id,
+                                         std::string uuid,
+                                         LoginError error) {
+  if (auto it = oneshot_clients_.find(client_id);
+      it != oneshot_clients_.end()) {
+    base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+        FROM_HERE, std::move(it->second));
+    oneshot_clients_.erase(it);
+  }
+  VLOG(1) << "[compass-sync] login: link " << uuid << " -> "
+          << static_cast<int>(error);
+  if (error == LoginError::kNetwork || error == LoginError::kUnauthorized) {
+    // Again at the next start, or once the chain has signed in.
+    return;
+  }
+  {
+    ScopedListPrefUpdate pending(prefs_, prefs::kLoginLinksPending);
+    pending->EraseValue(base::Value(uuid));
+  }
+  if (error != LoginError::kNone) {
+    return;
+  }
+  for (Profile* profile : GetListableProfiles()) {
+    if (profile->GetPrefs()->GetString(prefs::kProfileUuid) != uuid) {
+      continue;
+    }
+    if (CompassSyncService* service =
+            CompassSyncServiceFactory::GetForProfileIfExists(profile);
+        service && service != this && service->IsProfileAccount()) {
+      service->OnLinked();
+    }
+  }
+}
+
+#if BUILDFLAG(IS_ANDROID)
+// SyncBridge opens the page from GetStatus().login.url, in the window
+// whose sync screen started the sign-in, and closes it.
+void CompassSyncService::OpenLoginPage(const GURL& url) {}
+void CompassSyncService::CloseLoginPage(const GURL& page_url) {}
+#else
+void CompassSyncService::OpenLoginPage(const GURL& url) {
+  // This profile's window, else any: the page needs no cookies of the
+  // profile (the login's id ties it to the chain).
+  BrowserWindowInterface* window = nullptr;
+  BrowserWindowInterface* any = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* browser) {
+        if (browser->GetType() != BrowserWindowInterface::TYPE_NORMAL) {
+          return true;
+        }
+        if (!any) {
+          any = browser;
+        }
+        if (browser->GetProfile() == profile_.get()) {
+          window = browser;
+          return false;
+        }
+        return true;
+      });
+  if (!window) {
+    window = any;
+  }
+  if (!window) {
+    LOG(WARNING) << "Compass sync: no window for the sign-in page";
+    return;
+  }
+  NavigateParams params(window, url, ui::PAGE_TRANSITION_LINK);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  Navigate(&params);
+  if (params.navigated_or_inserted_contents) {
+    login_tab_ = params.navigated_or_inserted_contents->GetWeakPtr();
+  }
+}
+
+void CompassSyncService::CloseLoginPage(const GURL& page_url) {
+  content::WebContents* contents = login_tab_.get();
+  login_tab_.reset();
+  if (!contents) {
+    return;
+  }
+  // Only while it still shows the server's pages ("You can return to
+  // Compass"): not a tab the user has gone on with.
+  const GURL& shown = contents->GetLastCommittedURL();
+  if (shown.is_valid() && !url::IsSameOriginWith(shown, page_url)) {
+    return;
+  }
+  if (tabs::TabInterface* tab =
+          tabs::TabInterface::MaybeGetFromContents(contents)) {
+    tab->Close();
+  }
+}
+#endif
 
 GURL ParseServerUrl(std::string_view text) {
   GURL url(base::TrimWhitespaceASCII(text, base::TRIM_ALL));

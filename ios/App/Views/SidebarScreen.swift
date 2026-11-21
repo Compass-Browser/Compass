@@ -104,6 +104,7 @@ struct SidebarScreen: View {
     case .failed: "exclamationmark.icloud"
     // Removed on another device: nothing syncs until Leave Sync.
     case .removed: "xmark.icloud"
+    case .loginRequired: "person.crop.circle.badge.exclamationmark"
     }
   }
 }
