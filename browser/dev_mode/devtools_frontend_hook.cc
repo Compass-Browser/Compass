@@ -7,7 +7,6 @@
 #include <optional>
 #include <utility>
 
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -152,7 +151,7 @@ bool DevToolsFrontendHook::OnMessageFromFrontend(std::string_view message) {
   }
   base::DictValue* params = dict->FindDict("params");
   const std::string* request_id = params ? RequestIdOf(*params) : nullptr;
-  if (!request_id || !base::Contains(replayed_, *request_id)) {
+  if (!request_id || !replayed_.contains(*request_id)) {
     return false;
   }
   // The frontend's session never saw this request; the log's did.
@@ -229,7 +228,8 @@ void DevToolsFrontendHook::OnLogReply(int id,
                                       const std::string& session_id,
                                       Result result) {
   base::DictValue reply;
-  reply.Set("id", id).Set("sessionId", session_id);
+  reply.Set("id", id);
+  reply.Set("sessionId", session_id);
   if (result.has_value()) {
     reply.Set("result", std::move(result.value()));
   } else {

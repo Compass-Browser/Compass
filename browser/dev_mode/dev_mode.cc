@@ -51,7 +51,8 @@ std::optional<std::string> NormalizeHost(std::string_view input) {
     subdomains = true;
     rest.remove_prefix(2);
   }
-  if (rest.empty()) {
+  // A star only as "*." in front: GURL would take "*" as a host.
+  if (rest.empty() || rest.find('*') != std::string_view::npos) {
     return std::nullopt;
   }
   // GURL does the host's parsing (case, IDN, ports, IP addresses).

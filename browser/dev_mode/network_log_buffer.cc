@@ -4,9 +4,9 @@
 
 #include "compass/browser/dev_mode/network_log_buffer.h"
 
+#include <algorithm>
 #include <array>
 
-#include "base/containers/contains.h"
 #include "base/strings/string_util.h"
 
 namespace compass::dev_mode {
@@ -50,7 +50,7 @@ NetworkLogBuffer::~NetworkLogBuffer() = default;
 
 // static
 bool NetworkLogBuffer::Keeps(std::string_view method) {
-  return base::Contains(kKeptEvents, method);
+  return std::ranges::contains(kKeptEvents, method);
 }
 
 void NetworkLogBuffer::Add(const std::string& method,
@@ -101,7 +101,7 @@ void NetworkLogBuffer::ForEach(
 }
 
 bool NetworkLogBuffer::Contains(const std::string& request_id) const {
-  return base::Contains(index_, request_id);
+  return index_.contains(request_id);
 }
 
 }  // namespace compass::dev_mode
