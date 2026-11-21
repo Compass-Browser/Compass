@@ -138,7 +138,9 @@ per change:
   (Import from Arc), keyboard (Keyboard shortcuts), cleaning_services
   (Tidy Today), menu_book (Reader Mode and Leave Reader Mode,
   [reader-mode.md](reader-mode.md), while the active tab is an article or
-  in Reader), chat_bubble (Claude's chat row) and auto_awesome (Ask
+  in Reader), code (Development Mode for This Site and Leave Development
+  Mode, [dev-mode.md](dev-mode.md), for a web page), chat_bubble (Claude's
+  chat row) and auto_awesome (Ask
   Claude's answer row). A name the page doesn't know shows the old "›". Commands that need an
   entry are left out when there's none. Pin and unpin are left out for a
   favorite. "Add to Favorites" puts the entry at the end of the grid (a

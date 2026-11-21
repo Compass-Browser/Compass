@@ -20,6 +20,8 @@ wins and upstream's command loses it. The user can change them (see
 | Shift+Alt+N (Windows, Linux) | A new little window, as Cmd+Option+N | New Split Tab |
 | Cmd+Option+R | Shows or hides Reader in the active tab (`kToggleReaderModeCommand`, reader-mode.md) | Chromium's Reading mode side panel, which Compass doesn't use |
 | Shift+Alt+R (Windows, Linux) | The same, as Cmd+Option+R | Chromium's Reading mode |
+| Cmd+Shift+D | Turns development mode on for the active tab's site, or off (`kToggleDevModeCommand`, dev-mode.md) | Bookmark All Tabs, which Compass removes with bookmarks |
+| Ctrl+Shift+D (Windows, Linux) | The same, as Cmd+Shift+D | Bookmark All Tabs |
 | Cmd+Shift+M | Mutes the active tab, or unmutes it (`kToggleTabMuteCommand`, sidebar.md "Sound") | The profile menu (`IDC_SHOW_AVATAR_MENU`), which no longer has a shortcut |
 | Cmd+Z, Cmd+Shift+Z | Outside text, and only when the page passes on the keys: undo and redo closing sidebar entries (`kUndoCloseTabCommand`, `kRedoCloseTabCommand`, sidebar.md "Undo closing"). Cmd+Shift+T undoes the same | The Edit menu's Undo and Redo, which text keeps |
 
