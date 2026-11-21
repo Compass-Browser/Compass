@@ -727,3 +727,11 @@ button.pill.small {
 .secret[revealed] {
   color: var(--fg);
 }
+
+button.pill.danger {
+  color: var(--danger);
+}
+
+.confirm-row {
+  background: color-mix(in srgb, var(--danger) 6%, transparent);
+}

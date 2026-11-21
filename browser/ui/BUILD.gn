@@ -137,6 +137,7 @@ source_set("ui") {
     "webui/settings/settings_sections.cc",
     "webui/settings/settings_window_handler.cc",
     "webui/settings/settings_window_handler.h",
+    "webui/settings/settings_window_handler_advanced.cc",
     "webui/settings/settings_window_handler_general.cc",
     "webui/settings/settings_window_handler_passwords.cc",
     "webui/settings/settings_window_handler_privacy.cc",
@@ -214,6 +215,9 @@ source_set("ui") {
     # The settings window's Passwords pane uses the password manager's
     # PasswordsPrivateDelegate and its API types.
     "//chrome/common/extensions/api",
+
+    # The settings window's About Compass: the version and the updater.
+    "//compass/browser/updates:hooks",
     "//third_party/icu",
     "//compass/browser/prefs",
     "//compass/browser/rooms",

@@ -140,6 +140,13 @@ std::optional<std::string> SettingsWindowPathFor(std::string_view sub_page) {
   if (path == "privacy") {
     return std::string("privacy");
   }
+  // Upstream's advanced sections are the Advanced pane's (phase 5).
+  if (path == "performance" || path == "accessibility" || path == "reset") {
+    return base::StrCat({"advanced?focus=", path});
+  }
+  if (path == "help") {
+    return std::string("advanced?focus=about");
+  }
   // And its passwords' (phase 4). Payments and addresses stay upstream's: the
   // pane opens them to add or edit one.
   if (path == "passwords") {

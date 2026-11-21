@@ -221,46 +221,35 @@ export const PANES: Pane[] = [
   {
     id: 'advanced',
     label: 'Advanced',
-    sections: [{
-      tag: 'compass-dev-mode-page',
-      path: 'devMode',
-      keywords: 'development developer localhost devtools cache',
-    }],
-    groups: [
+    sections: [
       {
-        title: 'More',
-        rows: [
-          {
-            id: 'performance',
-            label: 'Performance',
-            detail: 'Memory saver and energy saver.',
-            subPage: 'performance',
-            keywords: 'memory energy battery tabs',
-          },
-          {
-            id: 'accessibility',
-            label: 'Accessibility',
-            detail: 'Captions, focus highlight and caret browsing.',
-            subPage: 'accessibility',
-            keywords: 'captions a11y',
-          },
-          {
-            id: 'reset',
-            label: 'Reset settings',
-            detail: 'Put upstream\'s settings back to their defaults.',
-            subPage: 'reset',
-            keywords: 'restore defaults',
-          },
-          {
-            id: 'help',
-            label: 'About Compass',
-            detail: 'Version and updates.',
-            subPage: 'help',
-            keywords: 'version update about',
-          },
+        tag: 'compass-settings-advanced-pane',
+        path: 'advanced',
+        keywords: '',
+        searchRows: [
+          {id: 'updates', label: 'About Compass',
+           keywords: 'version update check'},
+          {id: 'channel', label: 'Update channel',
+           keywords: 'beta canary stable'},
+          {id: 'memorySaver', label: 'Memory saver', keywords: 'performance'},
+          {id: 'energySaver', label: 'Energy saver',
+           keywords: 'battery performance'},
+          {id: 'liveCaption', label: 'Live caption',
+           keywords: 'accessibility captions'},
+          {id: 'focusHighlight', label: 'Highlight the focused object',
+           keywords: 'accessibility'},
+          {id: 'caretBrowsing', label: 'Navigate pages with a text cursor',
+           keywords: 'caret browsing accessibility'},
+          {id: 'reset', label: 'Reset settings', keywords: 'restore defaults'},
         ],
       },
+      {
+        tag: 'compass-dev-mode-page',
+        path: 'devMode',
+        keywords: 'development developer localhost devtools cache',
+      },
     ],
+    groups: [],
   },
 ];
 

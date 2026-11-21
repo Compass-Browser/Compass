@@ -12,6 +12,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
+#include "chrome/browser/profile_resetter/profile_resetter.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -23,12 +24,15 @@
 #include "chrome/common/webui_url_constants.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/views/settings_window/settings_window.h"
+#include "compass/browser/updates/update_hooks.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/browsing_data/core/pref_names.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/language/core/browser/pref_names.h"
+#include "components/live_caption/pref_names.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
+#include "components/performance_manager/public/user_tuning/prefs.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/spellcheck/browser/pref_names.h"
@@ -90,6 +94,16 @@ constexpr AllowedPref kAllowedPrefs[] = {
      false},
     {::autofill::prefs::kAutofillProfileEnabled, base::Value::Type::BOOLEAN,
      false},
+    // Advanced.
+    {::performance_manager::user_tuning::prefs::kMemorySaverModeState,
+     base::Value::Type::INTEGER, true},
+    {::performance_manager::user_tuning::prefs::kBatterySaverModeState,
+     base::Value::Type::INTEGER, true},
+    {::prefs::kLiveCaptionEnabled, base::Value::Type::BOOLEAN, false},
+    {::prefs::kAccessibilityFocusHighlightEnabled, base::Value::Type::BOOLEAN,
+     false},
+    {::prefs::kCaretBrowsingEnabled, base::Value::Type::BOOLEAN, false},
+    {updates::kUpdateChannelPref, base::Value::Type::STRING, true},
     // Privacy › Clear browsing data: the choices, kept for next time.
     {::browsing_data::prefs::kDeleteTimePeriod, base::Value::Type::INTEGER,
      false},
@@ -106,6 +120,34 @@ constexpr AllowedPref kAllowedPrefs[] = {
     {::browsing_data::prefs::kDeleteSiteSettings, base::Value::Type::BOOLEAN,
      false},
 };
+
+// Whether |value| (of the pref's type) is one the pref takes.
+bool IsValidValue(std::string_view name, const base::Value& value) {
+  if (name == updates::kUpdateChannelPref) {
+    const std::string& channel = value.GetString();
+    return channel == updates::kChannelStable ||
+           channel == updates::kChannelBeta ||
+           channel == updates::kChannelCanary;
+  }
+  if (name ==
+      ::performance_manager::user_tuning::prefs::kMemorySaverModeState) {
+    // Off or on (the middle value is deprecated).
+    return value.GetInt() == 0 || value.GetInt() == 2;
+  }
+  if (name ==
+      ::performance_manager::user_tuning::prefs::kBatterySaverModeState) {
+    return value.GetInt() >= 0 && value.GetInt() <= 3;
+  }
+  if (name == ::prefs::kCookieControlsMode) {
+    return value.GetInt() >= 0 && value.GetInt() <= 2;
+  }
+  if (name == ::prefs::kDnsOverHttpsMode) {
+    // The window only turns it on (automatic) or off; a custom provider is
+    // upstream's to set.
+    return value.GetString() == "off" || value.GetString() == "automatic";
+  }
+  return true;
+}
 
 // Set only through their own methods.
 bool IsReadOnly(std::string_view name) {
@@ -295,7 +337,8 @@ void SettingsWindowHandler::SetPref(const std::string& name,
   std::optional<base::Value> value =
       base::JSONReader::Read(value_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!allowed || !pref || !value || value->type() != allowed->type ||
-      !pref->IsUserModifiable() || IsReadOnly(name)) {
+      !pref->IsUserModifiable() || IsReadOnly(name) ||
+      !IsValidValue(name, *value)) {
     std::move(callback).Run(false);
     return;
   }

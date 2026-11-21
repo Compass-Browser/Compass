@@ -1026,9 +1026,32 @@ struct SavedAddress {
   string summary;
 };
 
+// Advanced › About Compass.
+struct AboutInfo {
+  // Compass's own ("20261121.1830"), and the Chromium it's built on.
+  string compass_version;
+  string chromium_version;
+  // Whether this build updates itself (release builds).
+  bool can_update;
+  // An update downloaded and waiting for a relaunch.
+  string? pending_version;
+};
+
+// Where an update check is (compass::updates::CheckStatus).
+enum UpdateState {
+  kChecking,
+  kUpdating,
+  kReady,
+  kUpToDate,
+  kFailed,
+};
+
 // The settings window (chrome://compass-settings in a window of its own,
 // docs/design/settings-window.md): the page's side.
 interface SettingsWindowPage {
+  // An update check moved on: |progress| 0-100 (or -1) while updating,
+  // |message| why it failed.
+  UpdateStatusChanged(UpdateState state, int32 progress, string message);
   // Passwords were saved, changed or removed.
   PasswordsChanged();
   // Payment cards or addresses changed.
@@ -1128,6 +1151,16 @@ interface SettingsWindowHandler {
   RemoveCard(string guid);
   GetAddresses() => (array<SavedAddress> addresses);
   RemoveAddress(string guid);
+
+  // Advanced (phase 5).
+  GetAbout() => (AboutInfo about);
+  // Checks for an update now; UpdateStatusChanged() follows.
+  CheckForUpdates();
+  // Installs a downloaded update and relaunches.
+  InstallUpdate();
+  // Puts upstream's settings back to their defaults (ProfileResetter, as
+  // chrome://settings/reset does).
+  ResetSettings() => ();
 };
 
 interface SettingsWindowHandlerFactory {

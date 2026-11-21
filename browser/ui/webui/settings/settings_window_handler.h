@@ -6,6 +6,7 @@
 #define COMPASS_BROWSER_UI_WEBUI_SETTINGS_SETTINGS_WINDOW_HANDLER_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -36,6 +37,7 @@
 
 class PrefService;
 class Profile;
+class ProfileResetter;
 
 namespace content {
 class WebContents;
@@ -115,6 +117,10 @@ class SettingsWindowHandler
   void RemoveCard(const std::string& guid) override;
   void GetAddresses(GetAddressesCallback callback) override;
   void RemoveAddress(const std::string& guid) override;
+  void GetAbout(GetAboutCallback callback) override;
+  void CheckForUpdates() override;
+  void InstallUpdate() override;
+  void ResetSettings(ResetSettingsCallback callback) override;
 
   // password_manager::SavedPasswordsPresenter::Observer:
   void OnSavedPasswordsChanged(
@@ -172,6 +178,7 @@ class SettingsWindowHandler
   mojo::Receiver<sidebar::mojom::SettingsWindowHandler> receiver_;
   scoped_refptr<ui::SelectFileDialog> folder_dialog_;
   scoped_refptr<extensions::PasswordsPrivateDelegate> passwords_delegate_;
+  std::unique_ptr<ProfileResetter> resetter_;
   // Where each listed password is stored, by id, to remove it from there.
   std::map<int, extensions::api::passwords_private::PasswordStoreSet>
       password_stores_;

@@ -37,6 +37,7 @@
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/browser/password_store/stored_credential.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
+#include "components/performance_manager/public/user_tuning/prefs.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/search_engines/template_url_service.h"
@@ -89,6 +90,8 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PathsTheWindowHas) {
   EXPECT_EQ(SettingsWindowPathFor("safetyCheck"), std::nullopt);
   EXPECT_EQ(SettingsWindowPathFor("payments"), std::nullopt);
   EXPECT_EQ(SettingsWindowPathFor("passwords"), "passwords");
+  EXPECT_EQ(SettingsWindowPathFor("help"), "advanced?focus=about");
+  EXPECT_EQ(SettingsWindowPathFor("reset"), "advanced?focus=reset");
   // Upstream's privacy sections are the Privacy pane's.
   EXPECT_EQ(SettingsWindowPathFor("privacy"), "privacy");
   EXPECT_EQ(SettingsWindowPathFor("security"), "privacy?focus=security");
@@ -450,6 +453,63 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PasswordsPane) {
     return prefs->GetBoolean(
                password_manager::prefs::kCredentialsEnableService) != offer;
   }));
+}
+
+// Advanced (phase 5): memory saver writes Local State's pref, a channel that
+// isn't one is refused, and Reset puts upstream's settings back.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, AdvancedPane) {
+  PrefService* local_state = g_browser_process->local_state();
+  local_state->SetInteger(
+      performance_manager::user_tuning::prefs::kMemorySaverModeState, 0);
+  HostContentSettingsMap* map =
+      HostContentSettingsMapFactory::GetForProfile(profile());
+  const ContentSetting popups =
+      map->GetDefaultContentSetting(ContentSettingsType::POPUPS);
+  map->SetDefaultContentSetting(ContentSettingsType::POPUPS,
+                                popups == CONTENT_SETTING_ALLOW
+                                    ? CONTENT_SETTING_BLOCK
+                                    : CONTENT_SETTING_ALLOW);
+
+  chrome::ShowSettingsSubPage(browser(), "help");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  EXPECT_EQ(WaitFor("document.querySelector('compass-settings-advanced-pane "
+                    "[data-row=\"updates\"] .row-label')?.textContent"
+                    ".startsWith('Version')"),
+            true);
+
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "document.querySelector('[data-row=\"memorySaver\"] input').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return local_state->GetInteger(performance_manager::user_tuning::prefs::
+                                       kMemorySaverModeState) == 2;
+  }));
+
+  // Not a channel: refused.
+  EXPECT_EQ(content::EvalJs(window()->web_contents(), R"(
+      (async () => {
+        const {SettingsWindowBrowserProxy} =
+            await import('/settings_window/browser_proxy.js');
+        const {ok} = await SettingsWindowBrowserProxy.getInstance()
+            .handler.setPref('compass.update_channel', '"nightly"');
+        return ok;
+      })())"),
+            false);
+
+  ASSERT_TRUE(content::ExecJs(window()->web_contents(), R"(
+      document.querySelector('[data-row="reset"] .pill').click();)"));
+  ASSERT_TRUE(
+      WaitFor("!document.querySelector('.confirm-row').hidden").ExtractBool());
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "document.querySelector('.confirm-row .danger').click();"));
+  EXPECT_EQ(WaitFor("document.querySelector('[data-row=\"reset\"] "
+                    ".row-detail').textContent.trim() === "
+                    "'Settings were reset.'"),
+            true);
+  EXPECT_EQ(map->GetDefaultContentSetting(ContentSettingsType::POPUPS),
+            CONTENT_SETTING_BLOCK);
 }
 
 }  // namespace

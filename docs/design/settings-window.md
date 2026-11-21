@@ -1,7 +1,8 @@
 # Settings window
 
-Status: phases 1–4 of 5 (the window, its toolbar, Compass's own sections;
-General, Profiles, Privacy and Passwords rebuilt).
+Status: phases 1–4 and the first part of 5 (the window, its toolbar,
+Compass's own sections; General, Profiles, Privacy, Passwords and Advanced
+rebuilt).
 Based on Chromium 157.0.8103.51.
 
 ## Goal
@@ -57,9 +58,13 @@ the window's, Chrome's included, and nothing shows upstream's settings page.
 4. **Done:** Passwords (below, "Passwords"). Adding and editing passwords,
    cards and addresses, the checkup, passkeys' details and import/export
    open the password manager or upstream's sections.
-5. Advanced, then no more fallback: every `chrome://settings` URL opens the
-   window. The chrome://settings patches that add Compass's sections
-   (menu, routes, views, BUILD.gn) go.
+5. Advanced (**done**, below), then the rows that still open upstream's
+   sections: managing search engines, editing languages, the card and
+   address editors, Safety check. Then no more fallback: every
+   `chrome://settings` URL opens the window, and the chrome://settings
+   patches that add Compass's sections (menu, routes, views, BUILD.gn) go.
+   The password manager (chrome://password-manager) is a page of its own
+   and stays.
 
 While upstream's settings page is still reachable, it keeps Compass's
 sections (docs/design/settings.md).
@@ -286,6 +291,31 @@ sections (docs/design/settings.md).
 - **Not done:** adding and editing passwords, cards and addresses in the
   window; the checkup; passkeys' details; import and export. The password
   manager (chrome://password-manager) stays upstream's page.
+
+## Advanced
+
+- **The pane** (`<compass-settings-advanced-pane>`, `advanced_pane.ts`, then
+  Development Mode):
+  - About Compass: the version (Compass's, `compass::updates::
+    CompassVersion()`, and Chromium's), Check for Updates or Relaunch to
+    Update, the update channel (`compass.update_channel`: stable, beta,
+    canary; docs/design/updates.md), and the open-source licenses.
+  - Performance: memory saver (`performance_tuning.high_efficiency_mode.
+    state`, off or on) and energy saver (`…battery_saver_mode.state`: off,
+    when the battery is low, when unplugged, always). Both are Local State's.
+  - Accessibility: live caption, highlighting the focused object, caret
+    browsing.
+  - Reset settings, confirmed in the row: upstream's `ProfileResetter` with
+    every flag and the default brandcoded settings, as chrome://settings/
+    reset does.
+- **Routing:** upstream's `performance`, `accessibility`, `reset` and `help`
+  are the pane (`advanced?focus=…`).
+- **Browser side** (`settings_window_handler_advanced.cc`): the updater is
+  `compass::updates::GetUpdater()` (Sparkle on macOS; none in builds that
+  don't update), whose `CheckNow()` progress goes to the page
+  (`Page.UpdateStatusChanged()`). The prefs are on the allowlist, which also
+  checks values: the channel's three names, memory saver's two states,
+  energy saver's four, the cookie modes, and secure DNS's off and automatic.
 
 ## Visual design
 

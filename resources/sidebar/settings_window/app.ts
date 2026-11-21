@@ -10,6 +10,7 @@ import '../settings/links_page.js';
 import '../settings/plugins_page.js';
 import '../settings/shortcuts_page.js';
 import '../settings/sync_page.js';
+import './advanced_pane.js';
 import './general_pane.js';
 import './icon.js';
 import './passwords_pane.js';
