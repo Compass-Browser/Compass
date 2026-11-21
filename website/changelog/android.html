@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compass for Android: What's New</title>
+<meta name="description" content="What changed in each test build of Compass Browser for Android.">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="/compass.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/compass-256.png">
+<link rel="stylesheet" href="/changelog/changelog.css">
+</head>
+<body>
+<main>
+<p class="back"><a href="/">Compass Browser</a></p>
+<h1>What's new on Android</h1>
+<nav class="platforms"><a href="/changelog/mac">Mac</a><a href="/changelog/windows">Windows</a><a href="/changelog/linux">Linux</a><a href="/changelog/ios">iPhone and iPad</a><a aria-current="page" href="/changelog/android">Android</a></nav>
+<p class="intro">Compass for Android is in testing on Google Play: canary builds go to internal testing first, then to the <a href="https://groups.google.com/g/compass-browser-android">testing program</a> as beta. Every build is also an APK on <a href="https://github.com/Compass-Browser/Compass/releases">GitHub</a>.</p>
+
+<article>
+<h2>20261121.1035 <span class="badge canary">Canary</span></h2>
+<p class="meta">21 November 2026 · Chromium 157.0.8103.51</p>
+<p class="lead">Sharing with other people, and company sign-in for sync.</p>
+<ul>
+  <li><strong>Share spaces, folders and easels with other people</strong>: touch and hold a pinned folder and tap Share&hellip;, tap &hellip; next to a space&rsquo;s name, or touch and hold an easel&rsquo;s tab. Invite people as editors or viewers with a link that can expire or be limited to a number of people. Everyone sees the same tabs and boards, end-to-end encrypted: the sync server can&rsquo;t read them.</li>
+  <li><strong>Join from an invite link</strong>: open it, choose Compass if Android asks, pick the space to put it in and tap Join. Set the name others see under &ldquo;Your name for sharing&rdquo;.</li>
+  <li><strong>Company sign-in for sync servers</strong>: a self-hosted sync server can ask for a sign-in with your company&rsquo;s identity provider (OIDC); Compass shows the sign-in and a code to check.</li>
+  <li>Fixed: a new profile could stay at &ldquo;Starting&hellip;&rdquo; forever while syncing.</li>
+</ul>
+</article>
+
+<article>
+<h2>20261120.2050 <span class="badge">Beta</span></h2>
+<p class="meta">20 November 2026 · Chromium 157.0.8103.51</p>
+<ul>
+  <li><strong>Remove a device from sync</strong>: in Settings &rarr; Sync, remove a device from your list. It stops syncing; what&rsquo;s on it stays there, and it can join again with a pairing code.</li>
+</ul>
+</article>
+
+<article>
+<h2>20261120.1815 <span class="badge">Beta</span></h2>
+<p class="meta">20 November 2026 · Chromium 157.0.8103.51</p>
+<ul>
+  <li><strong>Your recovery code</strong>: starting a sync chain on the phone shows your 12-word recovery code, and Show Recovery Code shows it again after your screen lock.</li>
+</ul>
+</article>
+
+<article>
+<h2>20261120.1740 <span class="badge canary">Canary</span></h2>
+<p class="meta">20 November 2026 · Chromium 157.0.8103.51</p>
+<p class="lead">Easels.</p>
+<ul>
+  <li><strong>Easels</strong>: boards of notes, shapes, drawings, images and links, in the sidebar like a tab. New Easel is in a space&rsquo;s &ctdot; menu.</li>
+  <li><strong>Capture to Easel</strong> in the page menu adds the page you&rsquo;re on to a board.</li>
+  <li>Boards sync with your other devices, including easels imported from Arc on your Mac.</li>
+</ul>
+</article>
+
+<article>
+<h2>20261119.1754</h2>
+<p class="meta">19 November 2026 · Chromium 157.0.8103.51</p>
+<ul>
+  <li><strong>Copy URL leaves out tracking parameters</strong> (Settings &rarr; Privacy and Security).</li>
+</ul>
+</article>
+
+<article>
+<h2>20261119.1431</h2>
+<p class="meta">19 November 2026 · Chromium 157.0.8103.51</p>
+<ul>
+  <li><strong>Other AI providers</strong>: chat with OpenAI, Gemini or your own server instead of Claude.</li>
+</ul>
+</article>
+
+<article>
+<h2>20261118.1710</h2>
+<p class="meta">18 November 2026 · Chromium 157.0.8103.51</p>
+<p class="lead">The first build on Google Play.</p>
+<ul>
+  <li><strong>Peek</strong>: long-press a link to look at it without opening a tab.</li>
+  <li>Links from other apps open in a <strong>little window</strong> over what you&rsquo;re doing.</li>
+  <li><strong>Reader</strong>: tap the book in the address bar to read an article on its own.</li>
+  <li>A playing video goes <strong>picture-in-picture</strong> when you switch tabs.</li>
+  <li>The bottom bar floats over the page and hides as you scroll.</li>
+  <li><strong>Link folders</strong> gather the links you open from a page.</li>
+  <li>Claude names folders, tidies Today and shortens tab titles.</li>
+  <li>Compass can be your <strong>default browser</strong>.</li>
+</ul>
+</article>
+
+<article>
+<h2>20261113.0903 <span class="badge canary">Canary</span></h2>
+<p class="meta">13 November 2026 · Chromium 157.0.8103.51</p>
+<ul>
+  <li><strong>Privacy and Site Settings</strong> are Compass&rsquo;s own pages: Safe Browsing, third-party cookies, secure connections, preloading and Do Not Track, and each permission&rsquo;s default for every site.</li>
+  <li><strong>History and Downloads</strong> open Compass&rsquo;s own screens: search your history by day and remove visits; follow, pause, resume, open and delete downloads.</li>
+  <li><strong>Tabs on other devices</strong> show up as you type in the command bar.</li>
+  <li><strong>Pin to Compass</strong> from the share sheet lets you choose where the link goes.</li>
+  <li><strong>Widgets</strong>: Quick Actions, Today and Other Devices, besides search.</li>
+  <li><strong>Save passwords from other apps</strong> with Compass as your autofill app.</li>
+</ul>
+</article>
+
+<article>
+<h2>20261113.0831 <span class="badge canary">Canary</span></h2>
+<p class="meta">13 November 2026 · Chromium 157.0.8103.51</p>
+<ul>
+  <li><strong>Drag and drop in the sidebar</strong>: long-press an entry and drag it to reorder it, or into a folder, Pinned, Today or the favorites.</li>
+  <li><strong>On Launch</strong>: open on the sidebar or on the tab you last looked at.</li>
+  <li><strong>Claude&rsquo;s memory</strong> across chats, synced with your other devices, and a model menu in the chat&rsquo;s header.</li>
+  <li><strong>Search Engine</strong> settings are Compass&rsquo;s own page.</li>
+  <li>A Today tab playing sound isn&rsquo;t archived for being unseen.</li>
+</ul>
+</article>
+
+<article>
+<h2>20261113.0803 <span class="badge canary">Canary</span></h2>
+<p class="meta">13 November 2026 · Chromium 157.0.8103.51</p>
+<ul>
+  <li><strong>The archive</strong>: closing a Today entry sends it to its space&rsquo;s archive, with Undo; unseen Today entries are archived on their own after the space&rsquo;s delay (12 or 24 hours, 7 or 30 days, or never).</li>
+  <li><strong>Pinned URL</strong>: a pinned tab that wandered off has Use This Page as Pinned URL and Back to Pinned URL; closing it takes it back.</li>
+</ul>
+</article>
+
+<article>
+<h2>20261112.1555 <span class="badge canary">Canary</span></h2>
+<p class="meta">12 November 2026 · Chromium 157.0.8103.51</p>
+<p class="lead">The first Compass for Android.</p>
+<ul>
+  <li>Spaces, pinned tabs, favorites and Today in a sidebar, synced end-to-end encrypted with Compass on your Mac and iPhone.</li>
+  <li>A bottom bar you swipe to switch tabs, and swipe up for all of them.</li>
+  <li>A command bar, Claude with your own key, and Chrome Web Store extensions.</li>
+  <li>Widgets, a Quick Settings tile, and your passwords in other apps.</li>
+</ul>
+</article>
+</main>
+</body>
+</html>
