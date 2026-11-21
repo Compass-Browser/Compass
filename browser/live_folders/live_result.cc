@@ -4,6 +4,8 @@
 
 #include "compass/browser/live_folders/live_result.h"
 
+#include <algorithm>
+#include <cmath>
 #include <set>
 #include <utility>
 
@@ -21,6 +23,10 @@ constexpr size_t kMaxIdLength = 512;
 constexpr size_t kMaxTitleLength = 300;
 constexpr size_t kMaxUrlLength = 2048;
 constexpr size_t kMaxFolderTitleLength = 100;
+constexpr size_t kMaxSubtitleLength = 300;
+constexpr size_t kMaxBadgeLength = 12;
+// PREVIEW_LIMITS.
+constexpr size_t kMaxFooterLength = 120;
 
 }  // namespace
 
@@ -73,6 +79,100 @@ base::expected<LiveResult, LiveError> ParseLiveResult(std::string_view json) {
   if (std::optional<double> next = dict->FindDouble("nextRefresh");
       next && *next > 0) {
     result.next_refresh = base::Seconds(*next);
+  }
+  return result;
+}
+
+LivePreviewItem::LivePreviewItem() = default;
+LivePreviewItem::LivePreviewItem(const LivePreviewItem&) = default;
+LivePreviewItem& LivePreviewItem::operator=(const LivePreviewItem&) = default;
+LivePreviewItem::LivePreviewItem(LivePreviewItem&&) = default;
+LivePreviewItem& LivePreviewItem::operator=(LivePreviewItem&&) = default;
+LivePreviewItem::~LivePreviewItem() = default;
+
+LivePreviewResult::LivePreviewResult() = default;
+LivePreviewResult::LivePreviewResult(const LivePreviewResult&) = default;
+LivePreviewResult& LivePreviewResult::operator=(const LivePreviewResult&) =
+    default;
+LivePreviewResult::LivePreviewResult(LivePreviewResult&&) = default;
+LivePreviewResult& LivePreviewResult::operator=(LivePreviewResult&&) = default;
+LivePreviewResult::~LivePreviewResult() = default;
+
+base::expected<LivePreviewResult, LiveError> ParseLivePreviewResult(
+    std::string_view json,
+    base::FunctionRef<bool(const GURL&)> icon_allowed) {
+  std::optional<base::Value> value =
+      base::JSONReader::Read(json, base::JSON_PARSE_RFC);
+  const base::DictValue* dict = value ? value->GetIfDict() : nullptr;
+  const base::ListValue* items = dict ? dict->FindList("items") : nullptr;
+  if (!items) {
+    return base::unexpected(
+        LiveError{"bad_result", "previewTab must return {items: [...]}"});
+  }
+  auto clip = [](const std::string& s, size_t max) {
+    std::u16string out = base::UTF8ToUTF16(s);
+    if (out.size() > max) {
+      out.resize(max);
+    }
+    return out;
+  };
+  LivePreviewResult result;
+  std::set<std::string, std::less<>> keys;
+  for (const base::Value& item : *items) {
+    if (result.items.size() == kMaxLivePreviewItems) {
+      break;
+    }
+    const base::DictValue* d = item.GetIfDict();
+    const std::string* id = d ? d->FindString("id") : nullptr;
+    const std::string* title = d ? d->FindString("title") : nullptr;
+    if (!id || id->empty() || id->size() > kMaxIdLength || !title ||
+        title->empty() || keys.contains(*id)) {
+      continue;
+    }
+    LivePreviewItem out;
+    if (const std::string* url = d->FindString("url")) {
+      GURL gurl(*url);
+      if (url->size() > kMaxUrlLength || !gurl.is_valid() ||
+          !gurl.SchemeIsHTTPOrHTTPS()) {
+        continue;
+      }
+      out.url = std::move(gurl);
+    }
+    out.id = *id;
+    out.title = clip(*title, kMaxTitleLength);
+    if (const std::string* subtitle = d->FindString("subtitle")) {
+      out.subtitle = clip(*subtitle, kMaxSubtitleLength);
+    }
+    if (const std::string* icon = d->FindString("icon")) {
+      // Loading an image is a request: only to hosts the preview may reach.
+      GURL gurl(*icon);
+      if (icon->size() <= kMaxUrlLength && gurl.is_valid() &&
+          gurl.SchemeIsHTTPOrHTTPS() && icon_allowed(gurl)) {
+        out.icon = std::move(gurl);
+      }
+    }
+    if (std::optional<double> time = d->FindDouble("time")) {
+      out.time = base::Time::FromMillisecondsSinceUnixEpoch(*time);
+    }
+    if (const std::string* badge = d->FindString("badge")) {
+      out.badge = clip(*badge, kMaxBadgeLength);
+    }
+    keys.insert(*id);
+    result.items.push_back(std::move(out));
+  }
+  if (const std::string* title = dict->FindString("title")) {
+    result.title = clip(*title, kMaxFolderTitleLength);
+  }
+  if (const std::string* footer = dict->FindString("footer")) {
+    result.footer = clip(*footer, kMaxFooterLength);
+  }
+  if (const base::Value* count = dict->Find("count")) {
+    if (count->is_bool()) {
+      result.some = count->GetBool();
+    } else if (std::optional<double> n = count->GetIfDouble();
+               n && *n >= 0 && std::isfinite(*n)) {
+      result.count = static_cast<int>(std::min(*n, 99999.0));
+    }
   }
   return result;
 }

@@ -1,0 +1,62 @@
+{
+  "url": "https://github.com/notifications",
+  "title": "Notifications",
+  "live": true,
+  "groups": {
+    "notifications": [
+      {
+        "attrs": {
+          "class": "notifications-list-item js-notifications-list-item notification-unread"
+        },
+        "fields": {
+          "href": "https://github.com/compass-browser/compass/pull/412?notification_referrer_id=NT_abc",
+          "repo": "compass-browser/compass #412",
+          "title": "Sidebar: tab previews from plugins",
+          "reason": "review requested",
+          "time": "2026-11-21T09:12:00Z",
+          "type": "octicon octicon-git-pull-request color-fg-open",
+          "avatar": "https://avatars.githubusercontent.com/u/1?s=40&v=4"
+        }
+      },
+      {
+        "attrs": {
+          "class": "notifications-list-item js-notifications-list-item notification-read"
+        },
+        "fields": {
+          "href": "https://github.com/compass-browser/compass/issues/398?notification_referrer_id=NT_def",
+          "repo": "compass-browser/compass #398",
+          "title": "Hover card flickers when scrolling",
+          "reason": "subscribed",
+          "time": "2026-11-20T17:40:00Z",
+          "type": "octicon octicon-issue-opened color-fg-open"
+        }
+      },
+      {
+        "attrs": {
+          "class": "notifications-list-item js-notifications-list-item notification-unread"
+        },
+        "fields": {
+          "href": "https://github.com/compass-browser/website/actions/runs/77?notification_referrer_id=NT_ghi",
+          "repo": "compass-browser/website",
+          "title": "Deploy workflow run failed for main branch",
+          "reason": "ci activity",
+          "time": "2026-11-21T08:03:00Z",
+          "type": "octicon octicon-x-circle-fill color-fg-danger"
+        }
+      },
+      {
+        "attrs": {
+          "class": "notifications-list-item notification-unread"
+        },
+        "fields": {
+          "repo": "broken/row"
+        }
+      }
+    ],
+    "counter": [
+      {
+        "text": "12"
+      }
+    ]
+  }
+}

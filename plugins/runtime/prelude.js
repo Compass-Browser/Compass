@@ -12,13 +12,20 @@
 // `globalThis.__compassHost`:
 //
 //   {
-//     fetch(request) → Promise<{status, url, headers, body}>
-//         request: {url, method, headers, body, credentials}
+//     fetch(request) → Promise<{status, url, headers, body, groups?}>
+//         request: {url, method, headers, body, credentials, select?: [names],
+//                   via?}
 //         Rejects with an Error whose `code` says why (host_not_allowed,
-//         too_many_fetches, response_too_large, network).
+//         session_not_granted, too_many_fetches, response_too_large,
+//         network). `select` names some of the manifest's preview.select
+//         groups: the host applies them to the HTML it fetched and returns
+//         `groups` (tab previews only).
 //     log(message),
-//     env: {now, locale, timeZone, secrets: {key: value}},
+//     env: {now, locale, timeZone, secrets: {key: value}, session: bool},
 //   }
+//
+// A refresh calls __compassRun(config), which calls fetchItems(); a tab
+// preview calls __compassRunPreview(page, config), which calls previewTab().
 //
 // The host enforces every limit itself: nothing here is a security
 // boundary, since the plugin shares this context.
@@ -42,14 +49,16 @@
   function response(r) {
     const body = typeof r.body === 'string' ? r.body : '';
     const headers = Object.freeze(headerObject(r.headers));
-    return Object.freeze({
+    const out = {
       status: r.status,
       ok: r.status >= 200 && r.status < 300,
       url: r.url,
       headers,
       text: () => Promise.resolve(body),
       json: () => new Promise((resolve) => resolve(JSON.parse(body))),
-    });
+    };
+    if (r.groups && typeof r.groups === 'object') out.groups = r.groups;
+    return Object.freeze(out);
   }
 
   function fetch(url, options) {
@@ -61,6 +70,10 @@
       body: o.body === undefined || o.body === null ? null : String(o.body),
       credentials: o.credentials === 'include' ? 'include' : 'omit',
     };
+    // One selector group's name, or several.
+    if (typeof o.select === 'string') request.select = [o.select];
+    else if (Array.isArray(o.select)) request.select = o.select.map(String);
+    if (o.via === 'browser' || o.via === 'page') request.via = o.via;
     return Promise.resolve(host.fetch(request)).then(response);
   }
 
@@ -79,6 +92,8 @@
     now: () => (typeof env.now === 'number' ? env.now : Date.now()),
     locale: env.locale || 'en-US',
     timeZone: env.timeZone || 'UTC',
+    // Tab previews: whether the user let this plugin use the tab's session.
+    hasSession: env.session === true,
     text: sdk.text,
     xml: sdk.xml,
     html: sdk.html,
@@ -97,6 +112,29 @@
         return Promise.reject(e);
       }
       return Promise.resolve().then(() => root.fetchItems(Object.freeze(Object.assign({}, config)), compass));
+    },
+  });
+
+  function deepFreeze(v) {
+    if (v && typeof v === 'object' && !Object.isFrozen(v)) {
+      Object.freeze(v);
+      for (const k of Object.keys(v)) deepFreeze(v[k]);
+    }
+    return v;
+  }
+
+  // A tab preview: `page` is the host's snapshot of the tab
+  // ({url, title, live, groups, text?, cookies?}).
+  Object.defineProperty(root, '__compassRunPreview', {
+    value: function (page, config) {
+      if (typeof root.previewTab !== 'function') {
+        const e = new Error('The plugin does not define previewTab(page, config, compass)');
+        e.code = 'bad_plugin';
+        return Promise.reject(e);
+      }
+      return Promise.resolve().then(() => root.previewTab(
+          deepFreeze(JSON.parse(JSON.stringify(page || {}))),
+          Object.freeze(Object.assign({}, config)), compass));
     },
   });
 })(globalThis);

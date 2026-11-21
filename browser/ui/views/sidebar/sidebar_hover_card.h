@@ -5,9 +5,15 @@
 #ifndef COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HOVER_CARD_H_
 #define COMPASS_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_HOVER_CARD_H_
 
+#include <memory>
+#include <optional>
+
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "chrome/browser/ui/tabs/tab_data.h"
+#include "compass/browser/ui/live_folders/tab_preview_service.h"
 #include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_thumbnail_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "ui/gfx/geometry/rect.h"
@@ -45,10 +51,15 @@ class SidebarHoverCard
   // |row_height| in the sidebar, or moves it there. |show_preview| asks for a
   // screenshot of the live tab, which it gets if hover card images are on (see
   // ArePreviewsEnabled() in the .cc) and the tab has a thumbnail.
+  // |tab_contents| is the live tab's (null for an unloaded entry); unless
+  // |is_active_tab|, a plugin that previews its page shows that instead of
+  // the screenshot (docs/design/live-folders.md, "Tab previews").
   void Show(const tabs::TabData& data,
             int row_top,
             int row_height,
-            bool show_preview);
+            bool show_preview,
+            content::WebContents* tab_contents = nullptr,
+            bool is_active_tab = true);
   void Hide();
 
   bool IsShowing() const { return !!bubble_; }
@@ -66,6 +77,15 @@ class SidebarHoverCard
   void OnPreviewImageAvailable(TabHoverCardThumbnailObserver* observer,
                                gfx::ImageSkia preview);
 
+  // The screenshot part of Show(), also when a plugin had nothing to show.
+  void ShowThumbnail(const tabs::TabData& data, bool show_preview);
+  // Puts |view| (a plugin's preview, or null for none) in the card.
+  void SetPluginPreview(std::unique_ptr<views::View> view);
+  void OnPluginPreview(int request,
+                       tabs::TabData data,
+                       bool show_preview,
+                       std::optional<TabPreview> preview);
+
   const raw_ptr<views::View> sidebar_;
   // The card's anchor, a child of |sidebar_| over the hovered row. Created
   // with the first card.
@@ -79,6 +99,11 @@ class SidebarHoverCard
 
   TabHoverCardThumbnailObserver thumbnail_observer_;
   base::CallbackListSubscription thumbnail_subscription_;
+  // Whether a plugin's preview (or its loading row) is in the card.
+  bool has_plugin_preview_ = false;
+  // The latest Show() that asked a plugin: older answers are dropped.
+  int plugin_request_ = 0;
+  base::WeakPtrFactory<SidebarHoverCard> weak_factory_{this};
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

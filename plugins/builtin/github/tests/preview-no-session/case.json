@@ -1,0 +1,16 @@
+{
+  "mode": "preview",
+  "page": {
+    "url": "https://github.com/compass-browser/compass/pulls",
+    "title": "Pull requests",
+    "live": true,
+    "groups": {
+      "notifications": [],
+      "inbox": [
+        {
+          "text": "You have unread notifications(g then n)"
+        }
+      ]
+    }
+  }
+}

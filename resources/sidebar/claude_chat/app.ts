@@ -34,6 +34,8 @@ interface ToolResultJson {
   memory?: MemoryView;
   // A Boost tool's change (docs/design/boosts.md).
   boost?: MemoryView;
+  // A plugin tool's change (docs/design/claude.md, "Plugins").
+  plugin?: MemoryView;
 }
 
 function toolView(result: ToolResultJson): ToolView {
@@ -50,7 +52,8 @@ function toolView(result: ToolResultJson): ToolView {
     image: source ? `data:${source.media_type};base64,${source.data}` :
                     undefined,
     memory: result.memory ??
-        (result.boost ? {...result.boost, boost: true} : undefined),
+        (result.boost ? {...result.boost, boost: true} : undefined) ??
+        (result.plugin ? {...result.plugin, plugin: true} : undefined),
   };
 }
 
@@ -560,6 +563,8 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     }
     const {undone} = view.memory.boost ?
         await this.browserProxy_.handler.undoBoost(undo) :
+        view.memory.plugin ?
+        await this.browserProxy_.handler.undoPlugin(undo) :
         await this.browserProxy_.handler.undoMemory(undo);
     if (undone) {
       view.memory.undone = true;

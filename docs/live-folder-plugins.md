@@ -606,6 +606,74 @@ Record real responses (save the feed or the API's JSON next to the case),
 cut them down to a few entries and replace anything private. Cover the
 error paths too: an HTTP error, a malformed response, an empty list.
 
+## Tab previews
+
+A plugin can also show what matters on a site's tab when the user hovers
+it in the sidebar, in place of the tab's screenshot. Add a `preview`
+section to the manifest and a `previewTab()` function; add `"folder":
+false` if the plugin doesn't fill live folders. The full rules are in
+[docs/design/live-folders.md](design/live-folders.md), "Tab previews".
+
+A preview doesn't fetch. Compass reads the page for it, with the selectors
+the manifest declares, and hands over what they found:
+
+```json
+"folder": false,
+"preview": {
+  "matches": ["https://tracker.example.com/*"],
+  "select": {
+    "issues": {
+      "selector": ".issue-row",
+      "attrs": ["data-state"],
+      "fields": {"title": ".issue-title", "url": "a.issue-link@href",
+                 "updated": "time@datetime"},
+      "max": 50
+    }
+  },
+  "config": [{"key": "count", "type": "number", "label": "Issues",
+              "default": 5, "min": 1, "max": 10}]
+}
+```
+
+```js
+async function previewTab(page, config) {
+  const open = page.groups.issues.filter((i) => i.attrs['data-state'] === 'open');
+  return {
+    title: 'Open issues',
+    items: open.slice(0, config.count).map((i) => ({
+      id: i.fields.url, title: i.fields.title, url: i.fields.url,
+      time: i.fields.updated,
+    })),
+    footer: open.length + ' open',
+  };
+}
+```
+
+`page` is `{url, title, live, groups, text?, cookies?}`; `live` is false
+for an unloaded tab, whose groups are empty. Return at most 10 items; `url`
+is optional, `title` is a header and `footer` a line under the rows. An
+`icon` loads only from the tab's own site. Return `{items: []}` to leave
+the screenshot.
+
+When the page doesn't show what you need, declare `"session":
+{"related": [...]}` and use `compass.fetch()` on the tab's own site: it
+works once the user turns on "use your session" for your plugin in
+Settings › Plugins (check `compass.hasSession`), with their cookies, and
+`compass.fetch(url, {select: "issues"})` parses an HTML response with a
+selector group. Related hosts are reached without cookies; nothing else is
+reachable. `compass.github`'s notifications preview does both (page first,
+session fetch otherwise).
+
+To put a count on the tab's row in the sidebar (unread messages, open
+reviews), add `"badge": true` to `preview` and return `count`: a number, or
+`true` when you only know that something is waiting. Compass runs the
+preview in the background about once a minute (every 5 minutes with the
+session) for open tabs your plugin matches, so the count stays current
+without a hover. Return `count: 0` to clear it.
+
+Preview test cases set `"mode": "preview"` and give the snapshot as `page`
+or `pageFile`; see `plugins/builtin/github/tests/preview-*`.
+
 ## Installing and sharing
 
 To share a plugin, host its files on a web server, side by side:

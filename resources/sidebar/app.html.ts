@@ -34,6 +34,11 @@ export function getHtml(this: CompassSidebarAppElement) {
         ?active="${this.isActive_(node)}" ?unloaded="${!node.live}"
         ?claude="${node.claude}" @click="${this.onTileClick_}">
       <img class="favicon" alt="" src="${this.getFaviconUrl_(node.url, 32)}">
+      ${node.badgeCount ? html`
+        <span class="tile-badge" role="status"
+            aria-label="${node.badgeCount < 0 ? 'New notifications' :
+                          `${node.badgeCount} notifications`}"></span>` :
+        nothing}
       ${this.hasAudio_(node) ? html`
         <button class="audio" data-node-id="${node.id}"
             ?muted="${this.isMuted_(node)}"

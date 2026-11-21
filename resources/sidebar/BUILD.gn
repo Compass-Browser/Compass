@@ -76,6 +76,7 @@ build_webui("build") {
     "settings/claude_page.ts",
     "settings/dev_mode_page.ts",
     "settings/links_page.ts",
+    "settings/plugins_page.ts",
     "settings/shortcuts_page.ts",
     "settings/sync_page.ts",
   ]
@@ -190,6 +191,7 @@ generate_grd("build_live_plugins_grdp") {
     "builtin/web-list/manifest.json",
     "runtime/prelude.js",
     "runtime/result.js",
+    "runtime/select.js",
     "sdk/html.js",
     "sdk/ics.js",
     "sdk/text.js",

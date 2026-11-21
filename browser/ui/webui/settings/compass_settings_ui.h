@@ -105,6 +105,32 @@ class ShortcutsPageHandler : public sidebar::mojom::SettingsHandler,
                       AddDevModeHostCallback callback) override;
   void RemoveDevModeHost(const std::string& host,
                          RemoveDevModeHostCallback callback) override;
+  // Plugins (plugin_settings.cc).
+  void GetPlugins(GetPluginsCallback callback) override;
+  void SetTabPreviewsEnabled(bool enabled,
+                             SetTabPreviewsEnabledCallback callback) override;
+  void SetPluginPreviewEnabled(
+      const std::string& id,
+      bool enabled,
+      SetPluginPreviewEnabledCallback callback) override;
+  void SetPluginSessionGranted(
+      const std::string& id,
+      bool granted,
+      SetPluginSessionGrantedCallback callback) override;
+  void SetPluginPreviewConfig(const std::string& id,
+                              const std::string& config_json,
+                              SetPluginPreviewConfigCallback callback) override;
+  void GetPluginSource(const std::string& id,
+                       GetPluginSourceCallback callback) override;
+  void PreviewPlugin(const std::string& url,
+                     PreviewPluginCallback callback) override;
+  void InstallPlugin(const std::string& url,
+                     const std::string& sha256,
+                     InstallPluginCallback callback) override;
+  void RemovePlugin(const std::string& id,
+                    RemovePluginCallback callback) override;
+  void OpenPluginsFolder() override;
+  void MakePluginWithClaude() override;
   void GetBoosts(GetBoostsCallback callback) override;
   void SaveBoost(sidebar::mojom::BoostPtr boost,
                  SaveBoostCallback callback) override;

@@ -9,6 +9,9 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/profiles/profile.h"
+#include "compass/browser/ui/live_folders/live_folder_service.h"
+#include "compass/browser/ui/views/sidebar/tab_preview_view.h"
 #include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/tabs/hovercard/hover_card_anchor_target.h"
@@ -86,19 +89,80 @@ SidebarHoverCard::~SidebarHoverCard() {
 void SidebarHoverCard::Show(const tabs::TabData& data,
                             int row_top,
                             int row_height,
-                            bool show_preview) {
+                            bool show_preview,
+                            content::WebContents* tab_contents,
+                            bool is_active_tab) {
   if (!target_) {
     target_ =
         sidebar_->AddChildView(std::make_unique<SidebarHoverCardTarget>());
   }
+  // A moved anchor moves the card.
+  target_->SetBounds(0, row_top, sidebar_->width(), row_height);
+  ++plugin_request_;
+
+  // A plugin that previews the page shows it where the screenshot goes
+  // (docs/design/live-folders.md, "Tab previews").
+  LiveFolderService* service = LiveFolderService::Get(
+      Profile::FromBrowserContext(GetWebContents().GetBrowserContext()));
+  const GURL& url = data.last_committed_url.is_valid() ? data.last_committed_url
+                                                       : data.visible_url;
+  if (service && !is_active_tab && service->previews().FindPlugin(url)) {
+    target_->SetData(data, /*show_preview=*/false);
+    ShowThumbnail(data, /*show_preview=*/false);
+    TabPreviewService& previews = service->previews();
+    if (std::optional<TabPreview> cached = previews.GetCached(url)) {
+      SetPluginPreview(
+          std::make_unique<TabPreviewView>(*cached, base::Time::Now()));
+      return;
+    }
+    SetPluginPreview(std::make_unique<TabPreviewView>());
+    previews.Fetch(tab_contents, url,
+                   base::BindOnce(&SidebarHoverCard::OnPluginPreview,
+                                  weak_factory_.GetWeakPtr(), plugin_request_,
+                                  data, show_preview));
+    return;
+  }
+  SetPluginPreview(nullptr);
+  ShowThumbnail(data, show_preview);
+}
+
+void SidebarHoverCard::OnPluginPreview(int request,
+                                       tabs::TabData data,
+                                       bool show_preview,
+                                       std::optional<TabPreview> preview) {
+  // The card moved on to another row, or closed.
+  if (request != plugin_request_ || !bubble_ ||
+      bubble_->GetWidget()->IsClosed()) {
+    return;
+  }
+  if (preview) {
+    SetPluginPreview(
+        std::make_unique<TabPreviewView>(*preview, base::Time::Now()));
+    return;
+  }
+  // Nothing to show: the screenshot, as without a plugin.
+  SetPluginPreview(nullptr);
+  ShowThumbnail(data, show_preview);
+}
+
+void SidebarHoverCard::SetPluginPreview(std::unique_ptr<views::View> view) {
+  if (!bubble_ || bubble_->GetWidget()->IsClosed() ||
+      (!view && !has_plugin_preview_)) {
+    return;
+  }
+  has_plugin_preview_ = !!view;
+  bubble_->SetCustomPreview(std::move(view));
+  bubble_->SizeToContents();
+}
+
+void SidebarHoverCard::ShowThumbnail(const tabs::TabData& data,
+                                     bool show_preview) {
   // Only a card made with previews has room for one.
   const bool previews_enabled = bubble_ && !bubble_->GetWidget()->IsClosed()
                                     ? bubble_has_previews_
                                     : ArePreviewsEnabled();
   show_preview = show_preview && previews_enabled && data.thumbnail;
   target_->SetData(data, show_preview);
-  // A moved anchor moves the card.
-  target_->SetBounds(0, row_top, sidebar_->width(), row_height);
 
   // Close is asynchronous; a closing card can't be reused.
   if (bubble_ && bubble_->GetWidget()->IsClosed()) {
@@ -107,6 +171,7 @@ void SidebarHoverCard::Show(const tabs::TabData& data,
   }
   const bool create = !bubble_;
   if (create) {
+    has_plugin_preview_ = false;
     TabHoverCardBubbleView::InitParams params;
     params.use_animation = false;
     params.show_memory_usage = false;
@@ -137,6 +202,8 @@ void SidebarHoverCard::Show(const tabs::TabData& data,
 
 void SidebarHoverCard::Hide() {
   thumbnail_observer_.Observe(nullptr);
+  ++plugin_request_;
+  has_plugin_preview_ = false;
   if (!bubble_) {
     return;
   }
@@ -149,6 +216,7 @@ void SidebarHoverCard::Hide() {
 void SidebarHoverCard::OnViewIsDeleting(views::View* observed_view) {
   bubble_observation_.Reset();
   bubble_ = nullptr;
+  has_plugin_preview_ = false;
   thumbnail_observer_.Observe(nullptr);
 }
 

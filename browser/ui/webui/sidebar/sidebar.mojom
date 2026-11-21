@@ -68,6 +68,10 @@ struct Node {
   // Claude is acting in the tab now (docs/design/claude.md): its row is
   // tinted.
   bool claude;
+  // A plugin's notification count for the tab's page
+  // (docs/design/live-folders.md, "Badges"): 0 for none, -1 for some
+  // without a number.
+  int32 badge_count;
   // Whether a folder shows only its own row. The same in every window.
   bool collapsed;
   // Set for a live folder.
@@ -156,9 +160,50 @@ struct LivePluginPreview {
   // Its address, and the hash InstallLivePlugin() checks.
   string source;
   string sha256;
+  // Its tab preview (docs/design/live-folders.md, "Tab previews"): the sites
+  // whose pages it reads ("calendar.google.com"), and with the session, the
+  // site it may make requests to as the user and the other hosts it reaches.
+  array<string> preview_sites;
+  string session_site;
+  array<string> related_hosts;
 };
 
-// What the live folder editor shows for an existing folder.
+// Settings › Plugins (compass://settings/plugins): a plugin, what it does,
+// and the user's settings for its tab preview.
+struct PluginSettings {
+  string id;
+  string name;
+  string version;
+  string description;
+  // A data: URL, or empty.
+  string icon_url;
+  // "builtin", "installed", "local" or "claude" (a local plugin Claude made).
+  string source;
+  // An installed plugin's address.
+  string source_url;
+
+  // Live folders: whether it fills them, how many use it, and what they
+  // reach.
+  bool folder;
+  int32 folder_count;
+  array<string> hosts;
+  array<string> cookie_hosts;
+
+  // Tab previews.
+  bool preview;
+  array<string> preview_sites;
+  bool preview_enabled;
+  // Its count shows on the tab's row (a badge).
+  bool badge;
+  string session_site;
+  array<string> related_hosts;
+  bool session_granted;
+  array<LiveConfigField> preview_config;
+  // The user's values, as JSON.
+  string preview_config_json;
+  // What it logged on its last preview.
+  array<string> log;
+};
 struct LiveFolderSource {
   string plugin_id;
   string title;
@@ -441,6 +486,10 @@ interface PageHandler {
   // moves the card there. Other nodes hide the card.
   ShowHoverCard(string id, int32 row_top, int32 row_height);
   HideHoverCard();
+  // The pointer came to rest on tab node |id|'s row and its card will open:
+  // starts a plugin's preview of the tab, if one previews its page, so the
+  // card opens with it (docs/design/live-folders.md, "Tab previews").
+  PrefetchHoverPreview(string id);
 
   // The page was right-clicked on node |id|'s row or tile, at |x|, |y| in the
   // page: shows the node's context menu there (docs/design/sidebar.md,
@@ -490,6 +539,8 @@ interface Page {
   NodeLiveChanged(string id, bool live);
   NodeAudioChanged(string id, AudioState audio);
   NodeClaudeChanged(string id, bool claude);
+  // As Node.badge_count.
+  NodeBadgeChanged(string id, int32 count);
   // A tab's short title came or went (Node.short_title). A new title drops
   // it before NodeChanged() brings the title.
   NodeShortTitleChanged(string id, string short_title);
@@ -805,6 +856,30 @@ interface SettingsHandler {
   // are dropped). The pattern kept, or null if it isn't a web host.
   AddDevModeHost(string host) => (string? host);
   RemoveDevModeHost(string host) => ();
+
+  // Plugins (compass://settings/plugins): live folders' and tab previews'.
+  // Whether hover cards show previews, and every plugin, by name.
+  // |claude_can_make| when "Let Claude make plugins" is on.
+  GetPlugins() => (bool previews_enabled, array<PluginSettings> plugins,
+                   bool claude_can_make);
+  SetTabPreviewsEnabled(bool enabled) => ();
+  SetPluginPreviewEnabled(string id, bool enabled) => ();
+  // The tab's session for |id|'s requests, for the related hosts it lists
+  // now.
+  SetPluginSessionGranted(string id, bool granted) => ();
+  // Checked against the preview's fields: empty, or why not.
+  SetPluginPreviewConfig(string id, string config_json) => (string error);
+  // Its files, read-only.
+  GetPluginSource(string id) => (string manifest, string entry);
+  // As the sidebar's PreviewLivePlugin() and InstallLivePlugin().
+  PreviewPlugin(string url) => (LivePluginPreview? preview, string error);
+  InstallPlugin(string url, string sha256) => (string error);
+  // An installed or local plugin; built-ins stay.
+  RemovePlugin(string id) => ();
+  OpenPluginsFolder();
+  // Opens Claude in this window, asking it to help make a plugin (with "Let
+  // Claude make plugins" on).
+  MakePluginWithClaude();
 
   GetShortcuts() => (array<Shortcut> shortcuts);
   // While the page records keys, the browser's shortcuts don't run, so the

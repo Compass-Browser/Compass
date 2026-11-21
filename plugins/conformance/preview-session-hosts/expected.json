@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "r",
+        "title": "200 200 200 https://cdn.example-static.net/a.png"
+      }
+    ],
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://api.example.com/me",
+      "cookies": true,
+      "via": "page"
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.example-static.net/list.json",
+      "cookies": false,
+      "via": "browser"
+    },
+    {
+      "method": "GET",
+      "url": "https://app.example.com/avatar",
+      "cookies": true,
+      "via": "page"
+    },
+    {
+      "method": "GET",
+      "url": "https://app.example.com/avatar",
+      "cookies": true,
+      "via": "browser",
+      "redirect": true
+    },
+    {
+      "method": "GET",
+      "url": "https://cdn.example-static.net/a.png",
+      "cookies": false,
+      "via": "browser",
+      "redirect": true
+    }
+  ]
+}

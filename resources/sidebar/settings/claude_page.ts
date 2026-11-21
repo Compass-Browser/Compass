@@ -203,6 +203,9 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     this.$<HTMLInputElement>('boosts').addEventListener('change', () => {
       this.handler_.setBoosts(this.$<HTMLInputElement>('boosts').checked);
     });
+    this.$<HTMLInputElement>('plugins').addEventListener('change', () => {
+      this.handler_.setPlugins(this.$<HTMLInputElement>('plugins').checked);
+    });
     this.$<HTMLInputElement>('acceptTokenRisks')
         .addEventListener('change', () => {
           this.handler_.setAcceptTokenRisks(
@@ -313,6 +316,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     this.$<HTMLInputElement>('browserScope').checked = state.browserScope;
     this.$<HTMLInputElement>('devtools').checked = state.devtools;
     this.$<HTMLInputElement>('boosts').checked = state.boosts;
+    this.$<HTMLInputElement>('plugins').checked = state.plugins;
     this.renderSidebarFeatures_(state);
     this.$<HTMLInputElement>('acceptTokenRisks').checked =
         state.acceptTokenRisks;

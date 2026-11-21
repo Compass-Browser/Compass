@@ -1,0 +1,38 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "https://github.com/compass-browser/compass/pull/412",
+        "title": "Sidebar: tab previews from plugins",
+        "url": "https://github.com/compass-browser/compass/pull/412?notification_referrer_id=NT_abc",
+        "subtitle": "compass-browser/compass #412 · Review requested",
+        "icon": "https://avatars.githubusercontent.com/u/1?s=40&v=4",
+        "time": 1795252320000,
+        "badge": "PR"
+      },
+      {
+        "id": "https://github.com/compass-browser/compass/discussions/9",
+        "title": "Ideas for plugins",
+        "url": "https://github.com/compass-browser/compass/discussions/9",
+        "subtitle": "compass-browser/compass · Mentioned",
+        "time": 1795082400000,
+        "badge": "Discussion"
+      }
+    ],
+    "title": "Notifications",
+    "footer": "7 unread",
+    "count": 7,
+    "warnings": [
+      "items[1]: icon must be on the tab's site or a related host"
+    ]
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://github.com/notifications?query=is%3Aunread",
+      "cookies": true,
+      "via": "page"
+    }
+  ]
+}

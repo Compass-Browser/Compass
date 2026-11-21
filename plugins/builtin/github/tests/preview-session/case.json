@@ -1,0 +1,57 @@
+{
+  "mode": "preview",
+  "page": {
+    "url": "https://github.com/compass-browser/compass",
+    "title": "compass-browser/compass",
+    "live": true
+  },
+  "grantSession": true,
+  "config": {
+    "count": 2
+  },
+  "responses": {
+    "https://github.com/notifications?query=is%3Aunread": {
+      "headers": {
+        "content-type": "text/html; charset=utf-8"
+      },
+      "file": "notifications.html",
+      "groups": {
+        "notifications": [
+          {
+            "attrs": {
+              "class": "notifications-list-item notification-unread"
+            },
+            "fields": {
+              "href": "https://github.com/compass-browser/compass/pull/412?notification_referrer_id=NT_abc",
+              "repo": "compass-browser/compass #412",
+              "title": "Sidebar: tab previews from plugins",
+              "reason": "review requested",
+              "time": "2026-11-21T09:12:00Z",
+              "type": "octicon octicon-git-pull-request",
+              "avatar": "https://avatars.githubusercontent.com/u/1?s=40&v=4"
+            }
+          },
+          {
+            "attrs": {
+              "class": "notifications-list-item notification-unread"
+            },
+            "fields": {
+              "href": "https://github.com/compass-browser/compass/discussions/9",
+              "repo": "compass-browser/compass",
+              "title": "Ideas for plugins",
+              "reason": "mention",
+              "time": "2026-11-19T10:00:00Z",
+              "type": "octicon octicon-comment-discussion",
+              "avatar": "https://evil.example/collect?x=1"
+            }
+          }
+        ],
+        "counter": [
+          {
+            "text": "7"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -59,6 +59,63 @@ struct LivePluginManifest {
     bool optional = false;
   };
 
+  // A tab preview's selector group (docs/design/live-folders.md, "Tab
+  // previews"): what the page agent reads from each element |selector|
+  // matches, at most |max| of them.
+  struct SelectGroup {
+    SelectGroup();
+    SelectGroup(const SelectGroup&);
+    SelectGroup& operator=(const SelectGroup&);
+    SelectGroup(SelectGroup&&);
+    SelectGroup& operator=(SelectGroup&&);
+    ~SelectGroup();
+
+    std::string selector;
+    std::vector<std::string> attrs;
+    bool text = false;
+    // Name → "selector", "selector@attribute" or "@attribute".
+    std::map<std::string, std::string, std::less<>> fields;
+    int max = 50;
+  };
+
+  // A tab preview's advanced mode: requests with the tab's session.
+  struct PreviewSession {
+    PreviewSession();
+    PreviewSession(const PreviewSession&);
+    PreviewSession& operator=(const PreviewSession&);
+    PreviewSession(PreviewSession&&);
+    PreviewSession& operator=(PreviewSession&&);
+    ~PreviewSession();
+
+    // The registrable domain every match is on.
+    std::string site;
+    // Narrows the site to these host patterns, when not empty.
+    std::vector<std::string> hosts;
+    // Cross-site host patterns, reached without cookies.
+    std::vector<std::string> related;
+    // Non-HttpOnly cookies of the site the plugin may read.
+    std::vector<std::string> page_cookies;
+  };
+
+  struct Preview {
+    Preview();
+    Preview(const Preview&);
+    Preview& operator=(const Preview&);
+    Preview(Preview&&);
+    Preview& operator=(Preview&&);
+    ~Preview();
+
+    // "https://host/path*" patterns.
+    std::vector<std::string> matches;
+    std::map<std::string, SelectGroup, std::less<>> select;
+    bool page_text = false;
+    // Its result's count shows on the tab's row, kept current in the
+    // background.
+    bool badge = false;
+    std::optional<PreviewSession> session;
+    std::vector<ConfigField> config;
+  };
+
   // No plugin refreshes more often than this.
   static constexpr base::TimeDelta kRefreshFloor = base::Seconds(300);
   static constexpr base::TimeDelta kDefaultRefresh = base::Seconds(900);
@@ -87,6 +144,10 @@ struct LivePluginManifest {
   std::vector<ConfigField> config;
   base::TimeDelta refresh_default = kDefaultRefresh;
   base::TimeDelta refresh_min = kRefreshFloor;
+  // Whether it fills live folders ("folder": false opts out).
+  bool folder = true;
+  // Whether, and on which pages, it shows tab previews.
+  std::optional<Preview> preview;
 
   const ConfigField* FindConfigField(std::string_view key) const;
 };
@@ -102,6 +163,20 @@ base::expected<LivePluginManifest, LivePluginErrors> ParseLivePluginManifest(
 base::expected<base::DictValue, LivePluginErrors> ValidateLiveConfig(
     const LivePluginManifest& manifest,
     const base::DictValue& config);
+
+// The same against other fields, such as a preview's.
+base::expected<base::DictValue, LivePluginErrors> ValidateLiveConfigFields(
+    const std::vector<LivePluginManifest::ConfigField>& fields,
+    const base::DictValue& config);
+
+// The registrable domain (eTLD+1, with the Public Suffix List's private
+// registries, so each github.io site is its own) of |host|, or empty for a
+// public suffix or an IP address.
+std::string LiveSiteOf(std::string_view host);
+
+// Whether |url| is one of |preview|'s matches.
+bool LivePreviewMatches(const LivePluginManifest::Preview& preview,
+                        const GURL& url);
 
 // A plugin's secrets by key.
 using LiveSecrets = std::map<std::string, std::string, std::less<>>;

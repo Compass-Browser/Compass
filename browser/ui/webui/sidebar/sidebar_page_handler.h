@@ -30,6 +30,7 @@
 #include "compass/browser/ui/claude/short_titler.h"
 #include "compass/browser/ui/claude/today_tidier.h"
 #include "compass/browser/ui/live_folders/live_folder_service.h"
+#include "compass/browser/ui/live_folders/tab_preview_service.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "compass/browser/window_sync/live_tab_registry.h"
 #include "compass/browser/window_sync/space_directory.h"
@@ -73,6 +74,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                            public LinkFolderNamer::Observer,
                            public TodayTidier::Observer,
                            public rooms::RoomService::Observer,
+                           public TabPreviewService::Observer,
                            public TabStripModelObserver {
  public:
   // What the entries' context menus offer (docs/design/sidebar.md, "Context
@@ -110,6 +112,11 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
     // Sharing with other people (docs/design/sync.md, "Rooms: clients"): a
     // pinned folder's share sheet, or an easel tab's easel's.
     kShare,
+    // Asks Claude to make a tab preview plugin for the tab's site
+    // (docs/design/claude.md, "Plugins").
+    kMakePreview,
+    // Asks Claude to make a live folder plugin.
+    kDescribeLiveFolder,
     // Then one per space in the "Move to Space" submenu, in their order.
     kMoveToSpaceFirst = 100,
     // Then one per device in "Send to Your Devices", in their order.
@@ -217,6 +224,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                      int32_t row_top,
                      int32_t row_height) override;
   void HideHoverCard() override;
+  void PrefetchHoverPreview(const std::string& id) override;
   void ShowContextMenu(const std::string& id, int32_t x, int32_t y) override;
   void ActOnNowPlaying(const std::string& id,
                        sidebar::mojom::NowPlayingAction action) override;
@@ -307,6 +315,9 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // claude::ClaudeActivity::Observer:
   void OnClaudeActingChanged(content::WebContents* contents) override;
 
+  // TabPreviewService::Observer:
+  void OnTabCountsChanged() override;
+
   // TabStripModelObserver:
   void OnTabStripModelChanged(
       TabStripModel* tab_strip_model,
@@ -340,6 +351,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // With |registry|'s live tabs: another profile's, for its spaces.
   sidebar::mojom::NodePtr ToMojo(const SidebarNode& node,
                                  const LiveTabRegistry& registry);
+  // Node.badge_count for |node|'s live tab in |registry|.
+  int32_t BadgeCount(const SidebarNode& node, const LiveTabRegistry& registry);
   void SendSpaces();
   void SendArchive();
   // The devices |url| can be sent to, most recently active first, or none
@@ -393,6 +406,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   base::RepeatingClosure tree_shown_callback_;
   base::ScopedObservation<LiveFolderService, LiveFolderService::Observer>
       live_folders_observation_{this};
+  base::ScopedObservation<TabPreviewService, TabPreviewService::Observer>
+      previews_observation_{this};
   base::ScopedObservation<LinkFolderNamer, LinkFolderNamer::Observer>
       namer_observation_{this};
   base::ScopedObservation<TodayTidier, TodayTidier::Observer>

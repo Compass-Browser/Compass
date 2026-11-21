@@ -1,0 +1,1 @@
+{"id": "test.preview-session-hosts", "name": "Preview test", "version": "1.0.0", "api": 1, "folder": false, "preview": {"matches": ["https://app.example.com/*"], "session": {"related": ["cdn.example-static.net"]}}}

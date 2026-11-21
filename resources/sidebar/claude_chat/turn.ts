@@ -107,6 +107,12 @@ export class CompassClaudeTurnElement extends CrLitElement {
                                                'Saved';
       return `${verb} Boost for ${memory.text}`;
     }
+    if (memory.plugin) {
+      const verb = memory.kind === 'deleted' ? 'Deleted' :
+          memory.kind === 'updated'          ? 'Updated' :
+                                               'Saved';
+      return `${verb} plugin ${memory.text}`;
+    }
     const verb = memory.kind === 'forgot' ? 'Forgot' :
         memory.kind === 'updated'         ? 'Updated memory' :
                                             'Saved to memory';
@@ -170,6 +176,17 @@ export class CompassClaudeTurnElement extends CrLitElement {
         return `Save Boost for ${short(input['match'])}`;
       case 'delete_boost':
         return 'Delete a Boost';
+      case 'list_plugins':
+        return 'List plugins';
+      case 'get_plugin':
+        return `Read plugin ${short(input['id'])}`;
+      case 'test_plugin':
+        return input['mode'] === 'folder' ? 'Test a live folder plugin' :
+                                            'Test a tab preview';
+      case 'save_plugin':
+        return 'Save a plugin';
+      case 'delete_plugin':
+        return `Delete plugin ${short(input['id'])}`;
       case 'save_file':
         return `Save “${short(input['name'])}”`;
       case 'list_files':

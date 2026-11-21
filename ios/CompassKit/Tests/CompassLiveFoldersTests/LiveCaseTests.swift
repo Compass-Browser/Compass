@@ -23,6 +23,15 @@ struct LiveCaseTests {
     var testDescription: String { name }
   }
 
+  /// Tab preview cases ("mode": "preview") are desktop-only: iOS has no hover
+  /// cards, so no preview runtime (docs/design/live-folders.md, "Tab previews").
+  static func isPreviewCase(_ dir: URL) -> Bool {
+    guard let data = try? Data(contentsOf: dir.appendingPathComponent("case.json")),
+      let spec = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    else { return false }
+    return spec["mode"] as? String == "preview"
+  }
+
   static let cases: [Case] = {
     let fm = FileManager.default
     var out: [Case] = []
@@ -43,7 +52,7 @@ struct LiveCaseTests {
         out.append(Case(name: "conformance/\(c)", dir: dir, pluginDir: dir.appendingPathComponent("plugin")))
       }
     }
-    return out
+    return out.filter { !isPreviewCase($0.dir) }
   }()
 
   /// Recorded responses: {"<url>" | "POST <url>": {status, headers, file |

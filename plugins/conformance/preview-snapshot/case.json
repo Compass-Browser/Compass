@@ -1,0 +1,4 @@
+{"mode": "preview", "grantSession": true,
+ "page": {"url": "https://example.com/a", "title": "A",
+          "groups": {"rows": [{"text": "1"}, {"text": "2"}, {"text": "3"}], "other": [{"text": "x"}]},
+          "cookies": {"SID": "abc", "HSID": "secret"}}}

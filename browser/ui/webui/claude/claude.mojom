@@ -96,6 +96,8 @@ struct SettingsState {
   bool devtools;
   // "Let Claude make Boosts" (docs/design/boosts.md).
   bool boosts;
+  // "Let Claude make plugins" (docs/design/claude.md, "Plugins").
+  bool plugins;
   // Claude in the sidebar (docs/design/ai-sidebar.md): false where the
   // profile can't use it (Guest). Each feature has its own switch, which
   // needs the provider set up (set_up). "Name Link Folders":
@@ -181,6 +183,7 @@ interface SettingsHandler {
   SetClaudeCodeOwnTools(bool enabled);
   SetDevTools(bool enabled);
   SetBoosts(bool enabled);
+  SetPlugins(bool enabled);
   SetNameLinkFolders(bool enabled);
   // Empty goes back to the provider's default (Claude Haiku; the chat's
   // model for an OpenAI-compatible server). The same for the others.

@@ -1,0 +1,15 @@
+diff --git a/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.h b/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.h
+index 4091112541511dc4dcbd8568b5e8bf3078ffac2b..5a0c0699dc1bedad392863326c13e2a2de2fabea 100644
+--- a/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.h
++++ b/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.h
+@@ -84,6 +84,10 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
+ 
+   void SetSliding(bool sliding) { sliding_ = sliding; }
+ 
++  // Compass: shows |view| where the preview image goes (a plugin's tab
++  // preview), or the image again when null.
++  void SetCustomPreview(std::unique_ptr<views::View> view);
++
+   // Accessors used by tests.
+   views::View* GetTabCardViewForTesting();
+   views::View* GetGroupCardViewForTesting();

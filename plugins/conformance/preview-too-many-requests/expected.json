@@ -1,0 +1,38 @@
+{
+  "ok": false,
+  "error": {
+    "code": "too_many_fetches"
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://example.com/n",
+      "cookies": true,
+      "via": "page"
+    },
+    {
+      "method": "GET",
+      "url": "https://example.com/n",
+      "cookies": true,
+      "via": "page"
+    },
+    {
+      "method": "GET",
+      "url": "https://example.com/n",
+      "cookies": true,
+      "via": "page"
+    },
+    {
+      "method": "GET",
+      "url": "https://example.com/n",
+      "cookies": true,
+      "via": "page"
+    },
+    {
+      "method": "GET",
+      "url": "https://example.com/n",
+      "cookies": true,
+      "via": "page"
+    }
+  ]
+}

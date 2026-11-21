@@ -31,6 +31,10 @@ namespace compass {
 struct LiveError {
   std::string code;
   std::string message;
+  // A redirect refused only because the request carried cookies and its
+  // target isn't a cookie host: where it wanted to go. Tab previews follow
+  // it again without cookies when the target is a related host.
+  GURL cookie_redirect;
 };
 
 // What a plugin asks compass.fetch() for.
@@ -46,6 +50,8 @@ struct LiveFetchRequest {
   std::optional<std::string> body;
   // credentials: "include".
   bool include_credentials = false;
+  // Tab previews with the tab's session: {via: "browser"}.
+  bool prefer_browser = false;
 };
 
 struct LiveFetchResponse {
@@ -68,22 +74,38 @@ struct LiveFetchRecord {
   std::string method;
   GURL url;
   bool cookies = false;
+  // Tab previews: "page" (from the tab) or "browser"; empty for folders.
+  std::string via;
+  // A redirect hop of the request before it.
+  bool redirect = false;
+};
+
+// Headers a plugin can't set (the host owns them): cookie, origin, referer,
+// sec-*, hop-by-hop headers.
+bool IsForbiddenHeader(std::string_view name);
+
+// compass.fetch() for one run, in the browser process.
+class LiveFetchClient {
+ public:
+  using Callback =
+      base::OnceCallback<void(base::expected<LiveFetchResponse, LiveError>)>;
+
+  virtual ~LiveFetchClient() = default;
+  virtual void Fetch(const LiveFetchRequest& request, Callback callback) = 0;
+  virtual const std::vector<LiveFetchRecord>& fetches() const = 0;
 };
 
 // compass.fetch() for one refresh, in the browser process: every rule the
 // plugin's context can't be trusted with. Hosts are checked on every
 // redirect hop, the host owns the sensitive headers, responses are capped,
 // and the profile's cookies go only to granted cookie hosts.
-class LiveFetcher {
+class LiveFetcher : public LiveFetchClient {
  public:
   struct Limits {
     size_t max_fetches = 10;
     size_t max_response_bytes = 2 * 1024 * 1024;
     int max_redirects = 5;
   };
-
-  using Callback =
-      base::OnceCallback<void(base::expected<LiveFetchResponse, LiveError>)>;
 
   LiveFetcher(scoped_refptr<network::SharedURLLoaderFactory> loader_factory,
               LiveAllowedHosts allowed,
@@ -92,11 +114,12 @@ class LiveFetcher {
   LiveFetcher(const LiveFetcher&) = delete;
   LiveFetcher& operator=(const LiveFetcher&) = delete;
   // Cancels requests in flight; their callbacks don't run.
-  ~LiveFetcher();
+  ~LiveFetcher() override;
 
-  void Fetch(const LiveFetchRequest& request, Callback callback);
+  // LiveFetchClient:
+  void Fetch(const LiveFetchRequest& request, Callback callback) override;
+  const std::vector<LiveFetchRecord>& fetches() const override;
 
-  const std::vector<LiveFetchRecord>& fetches() const { return fetches_; }
 
  private:
   struct Pending;

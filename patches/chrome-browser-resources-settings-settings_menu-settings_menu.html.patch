@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html b/chrome/browser/resources/settings/settings_menu/settings_menu.html
-index c35c985ddf3447612e803fc595cdae2b514953a7..e6c7ecedc287c86894f7f3cdf5a1c9aea570d689 100644
+index c35c985ddf3447612e803fc595cdae2b514953a7..018e6f33aa2dfda3e0f28efc4a8f184ff3ce9e40 100644
 --- a/chrome/browser/resources/settings/settings_menu/settings_menu.html
 +++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html
 @@ -2,9 +2,10 @@
@@ -15,7 +15,7 @@ index c35c985ddf3447612e803fc595cdae2b514953a7..e6c7ecedc287c86894f7f3cdf5a1c9ae
              class="cr-nav-menu-item">
  <if expr="not _google_chrome">
            <cr-icon icon="settings:person"></cr-icon>
-@@ -15,6 +16,50 @@
+@@ -15,6 +16,56 @@
            <span class="menu-label">$i18n{peoplePageTitle}</span>
            <cr-ripple></cr-ripple>
          </a>
@@ -45,6 +45,12 @@ index c35c985ddf3447612e803fc595cdae2b514953a7..e6c7ecedc287c86894f7f3cdf5a1c9ae
 +          <span class="menu-label">Boosts</span>
 +          <cr-ripple></cr-ripple>
 +        </a>
++        <a role="menuitem" id="compassPlugins" href="/plugins"
++            class="cr-nav-menu-item">
++          <cr-icon icon="cr:extension"></cr-icon>
++          <span class="menu-label">Plugins</span>
++          <cr-ripple></cr-ripple>
++        </a>
 +        <a role="menuitem" id="compassDevMode" href="/devMode"
 +            class="cr-nav-menu-item">
 +          <cr-icon icon="settings:build"></cr-icon>
@@ -66,7 +72,7 @@ index c35c985ddf3447612e803fc595cdae2b514953a7..e6c7ecedc287c86894f7f3cdf5a1c9ae
          <a role="menuitem" id="autofill" href="/autofill"
              @click="${this.onAutofillClick_}"
              class="cr-nav-menu-item"
-@@ -65,9 +110,9 @@
+@@ -65,9 +116,9 @@
            <cr-ripple></cr-ripple>
          </a>
  </if>

@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html b/chrome/browser/resources/settings/settings_main/settings_main.html
-index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..8882c98b8651f4f52dfaf993d0cea097e9f7cc93 100644
+index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..9922786cf2433a4c2c32e1bf843b792e09fc7a7c 100644
 --- a/chrome/browser/resources/settings/settings_main/settings_main.html
 +++ b/chrome/browser/resources/settings/settings_main/settings_main.html
-@@ -52,14 +52,61 @@
+@@ -52,14 +52,67 @@
      show-all$="[[shouldShowAll_(inSearchMode_, lastRoute_)]]">
    <template is="dom-if" if="[[showPage_(pageVisibility_.people)]]">
      <div slot="view" id="people">
@@ -44,6 +44,12 @@ index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..8882c98b8651f4f52dfaf993d0cea097
 +      <compass-boosts-page></compass-boosts-page>
 +    </template>
 +  </div>
++  <div slot="view" id="compassPlugins">
++    <template is="dom-if" if="[[renderPlugin_(
++        routes_.COMPASS_PLUGINS, lastRoute_, inSearchMode_)]]">
++      <compass-plugins-page></compass-plugins-page>
++    </template>
++  </div>
 +  <div slot="view" id="compassDevMode">
 +    <template is="dom-if" if="[[renderPlugin_(
 +        routes_.COMPASS_DEV_MODE, lastRoute_, inSearchMode_)]]">
@@ -66,7 +72,7 @@ index db5a40e8bdcfe9c0b02f9cac489b11394b5c3ce8..8882c98b8651f4f52dfaf993d0cea097
    <template is="dom-if" if="[[showPage_(pageVisibility_.privacy)]]">
      <div slot="view" id="privacy">
        <template is="dom-if" if="[[renderPlugin_(
-@@ -130,14 +177,7 @@
+@@ -130,14 +183,7 @@
    </template>
  </if>
  

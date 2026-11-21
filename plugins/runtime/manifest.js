@@ -30,6 +30,218 @@
   const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
   const isString = (v) => typeof v === 'string' && v.length > 0;
 
+  // Checks a list of settings form fields; returns their keys.
+  function checkFields(list, what, errors) {
+    const keys = new Set();
+    for (const [i, f] of list.entries()) {
+      const where = what + '[' + i + ']';
+      if (!isObject(f)) {
+        errors.push(where + ' must be an object');
+        continue;
+      }
+      if (!isString(f.key) || !/^[A-Za-z][A-Za-z0-9_]*$/.test(f.key)) errors.push(where + '.key is invalid');
+      else if (keys.has(f.key)) errors.push(where + '.key "' + f.key + '" is repeated');
+      else keys.add(f.key);
+      if (FIELD_TYPES.indexOf(f.type) < 0) errors.push(where + '.type must be one of ' + FIELD_TYPES.join(', '));
+      if (!isString(f.label)) errors.push(where + '.label is required');
+      if (f.type === 'select') {
+        if (!Array.isArray(f.options) || f.options.length === 0) {
+          errors.push(where + '.options is required for a select');
+        } else if (!f.options.every((o) => isString(o) || (isObject(o) && isString(o.value) && isString(o.label)))) {
+          errors.push(where + '.options must be strings or {value, label}');
+        }
+      }
+    }
+    return keys;
+  }
+
+  // Multi-label public suffixes the reference runtime knows: a small part of
+  // the Public Suffix List, including its private section (on github.io,
+  // every user's pages are their own site). Browser hosts use the real list
+  // (net::registry_controlled_domains); this is only good enough for the
+  // fixture tests and the Node harness.
+  const MULTI_LABEL_SUFFIXES = new Set([
+    'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'com.au', 'net.au', 'org.au', 'co.jp', 'ne.jp',
+    'co.nz', 'com.br', 'com.cn', 'com.mx', 'co.in', 'co.za', 'com.tr',
+    'github.io', 'githubusercontent.com', 'gitlab.io', 'herokuapp.com', 'netlify.app',
+    'vercel.app', 'pages.dev', 'workers.dev', 'web.app', 'firebaseapp.com',
+    'appspot.com', 's3.amazonaws.com', 'cloudfront.net', 'azurewebsites.net',
+    'blogspot.com', 'glitch.me', 'fly.dev', 'onrender.com',
+  ]);
+
+  function isPublicSuffix(host) {
+    return !host.includes('.') || MULTI_LABEL_SUFFIXES.has(host);
+  }
+
+  // The registrable domain (eTLD+1) of `host`, or null for a public suffix
+  // or an IP address.
+  function siteOf(host) {
+    host = String(host).toLowerCase().replace(/\.$/, '');
+    if (!host || /^[0-9.]+$/.test(host) || host.includes(':')) return null;
+    const labels = host.split('.');
+    for (let i = 0; i < labels.length; i++) {
+      if (isPublicSuffix(labels.slice(i).join('.'))) {
+        return i === 0 ? null : labels.slice(i - 1).join('.');
+      }
+    }
+    return null;
+  }
+
+  // "https://calendar.google.com/calendar/*", "*://*.example.com/*".
+  const MATCH = /^(https?|\*):\/\/((?:\*\.)?[a-z0-9.-]+)(\/\S*)$/;
+
+  function parseMatch(pattern) {
+    const m = typeof pattern === 'string' ? MATCH.exec(pattern) : null;
+    if (!m || !HOST.test(m[2])) return null;
+    const bare = m[2].replace(/^\*\./, '');
+    if (isPublicSuffix(bare)) return null;
+    const path = new RegExp('^' + m[3].split('*').map(
+        (p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$');
+    return {scheme: m[1], host: m[2], path, site: siteOf(bare)};
+  }
+
+  // Whether `url` is one of a preview's `matches`.
+  function previewMatches(preview, url) {
+    let u;
+    try {
+      u = new URL(url);
+    } catch (e) {
+      return false;
+    }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+    return preview.matches.some((pattern) => {
+      const p = parseMatch(pattern);
+      if (!p) return false;
+      if (p.scheme !== '*' && p.scheme + ':' !== u.protocol) return false;
+      return hostMatches(p.host, u.hostname) && p.path.test(u.pathname + u.search);
+    });
+  }
+
+  const SELECTOR_MAX = 500;
+  const NAME = /^[A-Za-z][A-Za-z0-9_]*$/;
+  const ATTR = /^[a-zA-Z_:][-a-zA-Z0-9_:.]*$/;
+  const FIELD_SPEC = /^([^@]*)(?:@([a-zA-Z_:][-a-zA-Z0-9_:.]*))?$/;
+  const COOKIE_NAME = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+
+  function checkSelectGroups(select, errors) {
+    const out = {};
+    if (select === undefined) return out;
+    if (!isObject(select)) {
+      errors.push('preview.select must map names to selector groups');
+      return out;
+    }
+    const names = Object.keys(select);
+    if (names.length > 10) errors.push('preview.select has more than 10 groups');
+    for (const name of names) {
+      const g = select[name];
+      const where = 'preview.select.' + name;
+      if (!NAME.test(name)) errors.push(where + ': invalid group name');
+      if (!isObject(g) || !isString(g.selector) || g.selector.length > SELECTOR_MAX) {
+        errors.push(where + '.selector must be a CSS selector of at most ' + SELECTOR_MAX + ' characters');
+        continue;
+      }
+      const attrs = g.attrs === undefined ? [] : g.attrs;
+      if (!Array.isArray(attrs) || attrs.length > 20 || !attrs.every((a) => typeof a === 'string' && ATTR.test(a))) {
+        errors.push(where + '.attrs must list at most 20 attribute names');
+      }
+      const fields = g.fields === undefined ? {} : g.fields;
+      if (!isObject(fields) || Object.keys(fields).length > 20) {
+        errors.push(where + '.fields must map at most 20 names to "selector" or "selector@attribute"');
+      } else {
+        for (const [k, spec] of Object.entries(fields)) {
+          const f = typeof spec === 'string' ? FIELD_SPEC.exec(spec) : null;
+          if (!NAME.test(k) || !f || spec.length > SELECTOR_MAX || (!f[1].trim() && !f[2])) {
+            errors.push(where + '.fields.' + k + ' must be "selector", "selector@attribute" or "@attribute"');
+          }
+        }
+      }
+      const max = g.max === undefined ? 50 : g.max;
+      if (typeof max !== 'number' || max < 1 || max > 200) errors.push(where + '.max must be 1-200');
+      out[name] = {
+        selector: g.selector,
+        attrs: Array.isArray(attrs) ? attrs.slice() : [],
+        text: !!g.text,
+        fields: isObject(fields) ? Object.assign({}, fields) : {},
+        max: typeof max === 'number' ? Math.floor(max) : 50,
+      };
+    }
+    return out;
+  }
+
+  function checkSession(s, sites, errors) {
+    if (!isObject(s)) {
+      errors.push('preview.session must be an object');
+      return null;
+    }
+    if (sites.size !== 1 || sites.has(null)) {
+      errors.push('preview.matches must all be on one site to use preview.session');
+    }
+    const site = sites.size === 1 ? [...sites][0] : null;
+    const hosts = s.hosts === undefined ? [] : s.hosts;
+    if (!Array.isArray(hosts)) errors.push('preview.session.hosts must be a list');
+    for (const h of Array.isArray(hosts) ? hosts : []) {
+      if (typeof h !== 'string' || !HOST.test(h) || siteOf(h.replace(/^\*\./, '')) !== site) {
+        errors.push('preview.session.hosts: "' + h + '" must be a host on ' + site);
+      }
+    }
+    const related = s.related === undefined ? [] : s.related;
+    if (!Array.isArray(related) || related.length > 5) {
+      errors.push('preview.session.related must list at most 5 hosts');
+    }
+    for (const h of Array.isArray(related) ? related : []) {
+      const bare = typeof h === 'string' ? h.replace(/^\*\./, '') : '';
+      if (typeof h !== 'string' || !HOST.test(h) || isPublicSuffix(bare) || !siteOf(bare)) {
+        errors.push('preview.session.related: "' + h + '" must be a host or "*.domain" under a registrable domain');
+      } else if (siteOf(bare) === site) {
+        errors.push('preview.session.related: "' + h + '" is on the tab\'s own site, which needs no listing');
+      }
+    }
+    const pageCookies = s.pageCookies === undefined ? [] : s.pageCookies;
+    if (!Array.isArray(pageCookies) || pageCookies.length > 5 ||
+        !pageCookies.every((c) => typeof c === 'string' && COOKIE_NAME.test(c))) {
+      errors.push('preview.session.pageCookies must list at most 5 cookie names');
+    }
+    return {
+      site,
+      hosts: Array.isArray(hosts) ? hosts.slice() : [],
+      related: Array.isArray(related) ? related.slice() : [],
+      pageCookies: Array.isArray(pageCookies) ? pageCookies.slice() : [],
+    };
+  }
+
+  // Validates a manifest's "preview" section (docs/design/live-folders.md,
+  // "Tab previews"); returns it normalized.
+  function checkPreview(p, errors) {
+    if (!isObject(p)) {
+      errors.push('preview must be an object');
+      return null;
+    }
+    const matches = Array.isArray(p.matches) ? p.matches : [];
+    if (matches.length === 0 || matches.length > 20) errors.push('preview.matches must list 1-20 URL patterns');
+    const sites = new Set();
+    for (const m of matches) {
+      const parsed = parseMatch(m);
+      if (!parsed) errors.push('preview.matches: "' + m + '" must look like "https://host/path*"');
+      else sites.add(parsed.site);
+    }
+    const select = checkSelectGroups(p.select, errors);
+    const session = p.session === undefined ? null : checkSession(p.session, sites, errors);
+    const config = Array.isArray(p.config) ? p.config : (p.config === undefined ? [] : null);
+    if (config === null) errors.push('preview.config must be a list of fields');
+    checkFields(config || [], 'preview.config', errors);
+    if (p.badge !== undefined && typeof p.badge !== 'boolean') errors.push('preview.badge must be true or false');
+    return {
+      matches: matches.slice(),
+      select,
+      pageText: !!p.pageText,
+      // Its result's count shows on the tab's row, kept current in the
+      // background.
+      badge: p.badge === true,
+      session,
+      config: (config || []).map((f) => Object.assign({}, f, {optional: !!f.optional})),
+    };
+  }
+
   // Returns a normalized copy of `m` (defaults filled in) or throws a
   // ManifestError listing every problem.
   function validateManifest(m) {
@@ -56,26 +268,7 @@
 
     const config = Array.isArray(m.config) ? m.config : (m.config === undefined ? [] : null);
     if (config === null) errors.push('config must be a list of fields');
-    const keys = new Set();
-    for (const [i, f] of (config || []).entries()) {
-      const where = 'config[' + i + ']';
-      if (!isObject(f)) {
-        errors.push(where + ' must be an object');
-        continue;
-      }
-      if (!isString(f.key) || !/^[A-Za-z][A-Za-z0-9_]*$/.test(f.key)) errors.push(where + '.key is invalid');
-      else if (keys.has(f.key)) errors.push(where + '.key "' + f.key + '" is repeated');
-      else keys.add(f.key);
-      if (FIELD_TYPES.indexOf(f.type) < 0) errors.push(where + '.type must be one of ' + FIELD_TYPES.join(', '));
-      if (!isString(f.label)) errors.push(where + '.label is required');
-      if (f.type === 'select') {
-        if (!Array.isArray(f.options) || f.options.length === 0) {
-          errors.push(where + '.options is required for a select');
-        } else if (!f.options.every((o) => isString(o) || (isObject(o) && isString(o.value) && isString(o.label)))) {
-          errors.push(where + '.options must be strings or {value, label}');
-        }
-      }
-    }
+    const keys = checkFields(config || [], 'config', errors);
 
     const secrets = Array.isArray(m.secrets) ? m.secrets : (m.secrets === undefined ? [] : null);
     if (secrets === null) errors.push('secrets must be a list');
@@ -129,6 +322,11 @@
       }
     }
 
+    const preview = m.preview === undefined ? null : checkPreview(m.preview, errors);
+    if (m.folder !== undefined && typeof m.folder !== 'boolean') errors.push('folder must be true or false');
+    const folder = m.folder !== false;
+    if (!folder && !preview) errors.push('a plugin must provide a live folder, a preview or both');
+
     if (errors.length) throw new ManifestError(errors);
     return {
       id: m.id, name: m.name, version: m.version, api: m.api, entry,
@@ -138,6 +336,8 @@
                                              help: typeof s.help === 'string' ? s.help : ''})),
       config: (config || []).map((f) => Object.assign({}, f, {optional: !!f.optional})),
       refresh,
+      folder,
+      preview,
     };
   }
 
@@ -150,13 +350,14 @@
     }
   }
 
-  // Checks values against the manifest's fields and fills in defaults.
-  // Unknown keys are dropped. Throws a ManifestError (code 'bad_config').
-  function validateConfig(manifest, config) {
+  // Checks values against the manifest's fields (or `fields`, such as a
+  // preview's) and fills in defaults. Unknown keys are dropped. Throws a
+  // ManifestError (code 'bad_config').
+  function validateConfig(manifest, config, fields) {
     const errors = [];
     const out = {};
     const input = isObject(config) ? config : {};
-    for (const f of manifest.config) {
+    for (const f of fields || manifest.config) {
       let v = input[f.key];
       if (v === undefined || v === null || v === '') v = f.default;
       if (v === undefined || v === null || v === '') {
@@ -247,6 +448,7 @@
   const api = Object.freeze({
     API_VERSION, REFRESH_FLOOR, ManifestError,
     validateManifest, validateConfig, resolveHosts, hostMatches, urlAllowed,
+    siteOf, isPublicSuffix, previewMatches,
   });
   root.CompassLive = root.CompassLive || {};
   root.CompassLive.manifest = api;

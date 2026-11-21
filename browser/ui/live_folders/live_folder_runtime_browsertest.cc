@@ -27,7 +27,12 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "base/memory/raw_ptr.h"
+#include "compass/browser/live_folders/live_plugin_manifest.h"
 #include "compass/browser/live_folders/live_plugin_package.h"
+#include "compass/browser/ui/live_folders/preview_session_fetcher.h"
+#include "net/cookies/site_for_cookies.h"
+#include "net/url_request/redirect_info.h"
 #include "compass/browser/ui/live_folders/live_folder_host.h"
 #include "compass/browser/ui/live_folders/live_folder_service.h"
 #include "compass/browser/ui/live_folders/live_plugin_registry.h"
@@ -90,6 +95,8 @@ struct Case {
   base::FilePath dir;
   // The built-in plugin it runs.
   std::string plugin_id;
+  // Its plugin's manifest is invalid on purpose.
+  bool bad_manifest = false;
 };
 
 std::vector<Case> BuiltinCases() {
@@ -118,9 +125,69 @@ std::vector<Case> BuiltinCases() {
   return cases;
 }
 
+// A case's recorded response for |method| |url|, or null.
+const base::DictValue* FindResponse(const base::DictValue& responses,
+                                    const std::string& method,
+                                    const std::string& url) {
+  const base::DictValue* entry = responses.FindDict(method + " " + url);
+  if (!entry && method == "GET") {
+    entry = responses.FindDict(url);
+  }
+  return entry;
+}
+
+std::string ResponseBody(const base::DictValue& entry,
+                         const base::FilePath& dir) {
+  std::string body;
+  if (const std::string* file = entry.FindString("file")) {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    base::ReadFileToString(dir.AppendASCII(*file), &body);
+  } else if (const base::Value* json = entry.Find("json")) {
+    body = base::WriteJson(*json).value_or("");
+  } else if (const std::string* text = entry.FindString("body")) {
+    body = *text;
+  }
+  return body;
+}
+
+network::mojom::URLResponseHeadPtr ResponseHead(const base::DictValue& entry) {
+  std::string raw_headers =
+      "HTTP/1.1 " +
+      base::NumberToString(entry.FindInt("status").value_or(200)) + " OK\n";
+  if (const base::DictValue* headers = entry.FindDict("headers")) {
+    for (const auto [name, value] : *headers) {
+      if (value.is_string()) {
+        raw_headers += name + ": " + value.GetString() + "\n";
+      }
+    }
+  }
+  auto head = network::mojom::URLResponseHead::New();
+  head->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
+      net::HttpUtil::AssembleRawHeaders(raw_headers));
+  std::string charset;
+  if (head->headers->GetCharset(&charset)) {
+    head->charset = charset;
+  }
+  return head;
+}
+
+// A redirect entry's target: {status: 3xx, headers: {location}}.
+std::optional<GURL> RedirectTarget(const base::DictValue& entry,
+                                   const GURL& url) {
+  const int status = entry.FindInt("status").value_or(200);
+  const base::DictValue* headers = entry.FindDict("headers");
+  const std::string* location =
+      headers ? headers->FindString("location") : nullptr;
+  if (status < 300 || status >= 400 || !location) {
+    return std::nullopt;
+  }
+  return url.Resolve(*location);
+}
+
 // Answers the case's recorded responses: {"<url>" | "POST <url>": {status,
 // headers, file | body | json, rejectHeaders}}, as fixtureFetcher() in
-// tools/live_folders/runtime.mjs does.
+// tools/live_folders/runtime.mjs does. A 3xx entry with a location is a
+// redirect, followed to the entry it names.
 void ServeResponses(network::TestURLLoaderFactory& factory,
                     const base::DictValue& responses,
                     const base::FilePath& dir) {
@@ -128,18 +195,36 @@ void ServeResponses(network::TestURLLoaderFactory& factory,
       [](network::TestURLLoaderFactory* factory,
          const base::DictValue* responses, base::FilePath dir,
          const network::ResourceRequest& request) {
-        const std::string url = request.url.spec();
-        const base::DictValue* entry =
-            responses->FindDict(request.method + " " + url);
-        if (!entry && request.method == "GET") {
-          entry = responses->FindDict(url);
-        }
         auto fail = [&] {
           factory->AddResponse(request.url,
                                network::mojom::URLResponseHead::New(), "",
                                network::URLLoaderCompletionStatus(
                                    net::ERR_CONNECTION_REFUSED));
         };
+        network::TestURLLoaderFactory::Redirects redirects;
+        GURL url = request.url;
+        std::string method = request.method;
+        const base::DictValue* entry =
+            FindResponse(*responses, method, url.spec());
+        while (entry) {
+          std::optional<GURL> next = RedirectTarget(*entry, url);
+          if (!next || redirects.size() > 10) {
+            break;
+          }
+          net::RedirectInfo info;
+          info.status_code = entry->FindInt("status").value_or(302);
+          if (info.status_code == 303 ||
+              ((info.status_code == 301 || info.status_code == 302) &&
+               method == "POST")) {
+            method = "GET";
+          }
+          info.new_method = method;
+          info.new_url = *next;
+          info.new_site_for_cookies = net::SiteForCookies::FromUrl(*next);
+          redirects.emplace_back(info, ResponseHead(*entry));
+          url = *next;
+          entry = FindResponse(*responses, method, url.spec());
+        }
         if (!entry) {
           return fail();
         }
@@ -151,38 +236,55 @@ void ServeResponses(network::TestURLLoaderFactory& factory,
             }
           }
         }
-        std::string body;
-        if (const std::string* file = entry->FindString("file")) {
-          base::ScopedAllowBlockingForTesting allow_blocking;
-          base::ReadFileToString(dir.AppendASCII(*file), &body);
-        } else if (const base::Value* json = entry->Find("json")) {
-          body = base::WriteJson(*json).value_or("");
-        } else if (const std::string* text = entry->FindString("body")) {
-          body = *text;
-        }
-        std::string raw_headers =
-            "HTTP/1.1 " +
-            base::NumberToString(entry->FindInt("status").value_or(200)) +
-            " OK\n";
-        if (const base::DictValue* headers = entry->FindDict("headers")) {
-          for (const auto [name, value] : *headers) {
-            if (value.is_string()) {
-              raw_headers += name + ": " + value.GetString() + "\n";
-            }
-          }
-        }
-        auto head = network::mojom::URLResponseHead::New();
-        head->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
-            net::HttpUtil::AssembleRawHeaders(raw_headers));
-        std::string charset;
-        if (head->headers->GetCharset(&charset)) {
-          head->charset = charset;
-        }
-        factory->AddResponse(request.url, std::move(head), body,
-                             network::URLLoaderCompletionStatus());
+        factory->AddResponse(request.url, ResponseHead(*entry),
+                             ResponseBody(*entry, dir),
+                             network::URLLoaderCompletionStatus(),
+                             std::move(redirects));
       },
       &factory, &responses, dir));
 }
+
+// The tab's side of a preview's session requests, answered from the case's
+// recorded responses as the tab would: a redirect comes back opaque.
+class FixturePageTransport : public PreviewPageTransport {
+ public:
+  FixturePageTransport(const base::DictValue* responses, base::FilePath dir)
+      : responses_(responses), dir_(std::move(dir)) {}
+
+  void Fetch(const LiveFetchRequest& request,
+             size_t max_response_bytes,
+             Callback callback) override {
+    const base::DictValue* entry =
+        FindResponse(*responses_, request.method, request.url);
+    if (!entry) {
+      std::move(callback).Run(base::unexpected(
+          LiveError{"network", "No fixture for " + request.url}));
+      return;
+    }
+    Response response;
+    if (RedirectTarget(*entry, GURL(request.url))) {
+      response.redirect = true;
+      std::move(callback).Run(std::move(response));
+      return;
+    }
+    response.response.status = entry->FindInt("status").value_or(200);
+    response.response.url = GURL(request.url);
+    if (const base::DictValue* headers = entry->FindDict("headers")) {
+      for (const auto [name, value] : *headers) {
+        if (value.is_string()) {
+          response.response.headers[base::ToLowerASCII(name)] =
+              value.GetString();
+        }
+      }
+    }
+    response.response.body = ResponseBody(*entry, dir_);
+    std::move(callback).Run(std::move(response));
+  }
+
+ private:
+  const raw_ptr<const base::DictValue> responses_;
+  const base::FilePath dir_;
+};
 
 class LiveFolderRuntimeBrowserTest : public InProcessBrowserTest {
  protected:
@@ -194,6 +296,13 @@ class LiveFolderRuntimeBrowserTest : public InProcessBrowserTest {
     EXPECT_TRUE(spec_value && spec_value->is_dict()) << c.name;
     const base::DictValue& spec = spec_value->GetDict();
 
+    if (c.bad_manifest) {
+      return base::Value(
+          base::DictValue()
+              .Set("ok", false)
+              .Set("error", base::DictValue().Set("code", "bad_manifest"))
+              .Set("fetches", base::ListValue()));
+    }
     const LivePlugin* plugin = LivePluginRegistry::Get().Find(c.plugin_id);
     EXPECT_TRUE(plugin) << c.plugin_id;
 
@@ -248,12 +357,37 @@ class LiveFolderRuntimeBrowserTest : public InProcessBrowserTest {
     ServeResponses(factory, responses ? *responses : empty, c.dir);
 
     const base::DictValue* config = spec.FindDict("config");
-    auto run_spec = MakeLiveRunSpec(
-        *plugin, config ? *config : empty, secrets,
-        spec.FindBool("grantCookies").value_or(false), std::move(env),
-        base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
-            &factory),
-        limits, timeout);
+    // A tab preview case: {"mode": "preview", "page" | "pageFile",
+    // "grantSession"}.
+    const std::string* mode = spec.FindString("mode");
+    const bool preview = mode && *mode == "preview";
+    base::expected<LiveFolderHost::RunSpec, LiveError> run_spec =
+        base::unexpected(LiveError{"harness", ""});
+    if (preview) {
+      std::optional<base::Value> page_file;
+      const base::DictValue* page = spec.FindDict("page");
+      if (const std::string* file = spec.FindString("pageFile")) {
+        page_file = ReadJson(c.dir.AppendASCII(*file));
+        page = page_file && page_file->is_dict() ? &page_file->GetDict()
+                                                 : nullptr;
+      }
+      const bool live = page && page->FindBool("live").value_or(true);
+      run_spec = MakeLivePreviewRunSpec(
+          *plugin, page ? *page : empty, config ? *config : empty,
+          spec.FindBool("grantSession").value_or(false), std::move(env),
+          base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
+              &factory),
+          live ? std::make_unique<FixturePageTransport>(
+                     responses ? responses : &empty, c.dir)
+               : nullptr);
+    } else {
+      run_spec = MakeLiveRunSpec(
+          *plugin, config ? *config : empty, secrets,
+          spec.FindBool("grantCookies").value_or(false), std::move(env),
+          base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
+              &factory),
+          limits, timeout);
+    }
     if (run_spec.has_value() && max_items) {
       run_spec->max_items = *max_items;
     }
@@ -267,8 +401,9 @@ class LiveFolderRuntimeBrowserTest : public InProcessBrowserTest {
       outcome.Set("fetches", std::move(fetches));
       return base::Value(std::move(outcome));
     }
-    // The fetcher goes with the refresh: its record is taken as it ends.
-    LiveFetcher* fetcher = run_spec->fetcher.get();
+    // The fetcher goes with the refresh: its record is taken as it ends. A
+    // preview without the session has none.
+    LiveFetchClient* fetcher = run_spec->fetcher.get();
     std::vector<LiveFetchRecord> records;
     base::test::TestFuture<base::expected<std::string, LiveError>,
                            std::vector<std::string>>
@@ -278,13 +413,15 @@ class LiveFolderRuntimeBrowserTest : public InProcessBrowserTest {
     service->host().Run(
         std::move(*run_spec),
         base::BindOnce(
-            [](LiveFetcher* fetcher, std::vector<LiveFetchRecord>* records,
+            [](LiveFetchClient* fetcher, std::vector<LiveFetchRecord>* records,
                base::OnceCallback<void(
                    base::expected<std::string, LiveError>,
                    std::vector<std::string>)> callback,
                base::expected<std::string, LiveError> result,
                std::vector<std::string> log) {
-              *records = fetcher->fetches();
+              if (fetcher) {
+                *records = fetcher->fetches();
+              }
               std::move(callback).Run(std::move(result), std::move(log));
             },
             fetcher, &records, done.GetCallback()));
@@ -299,10 +436,17 @@ class LiveFolderRuntimeBrowserTest : public InProcessBrowserTest {
       outcome.Set("error", base::DictValue().Set("code", result.error().code));
     }
     for (const LiveFetchRecord& record : records) {
-      fetches.Append(base::DictValue()
-                         .Set("method", record.method)
-                         .Set("url", record.url.spec())
-                         .Set("cookies", record.cookies));
+      base::DictValue fetch;
+      fetch.Set("method", record.method);
+      fetch.Set("url", record.url.spec());
+      fetch.Set("cookies", record.cookies);
+      if (!record.via.empty()) {
+        fetch.Set("via", record.via);
+      }
+      if (record.redirect) {
+        fetch.Set("redirect", true);
+      }
+      fetches.Append(std::move(fetch));
     }
     outcome.Set("fetches", std::move(fetches));
     return base::Value(std::move(outcome));
@@ -326,6 +470,15 @@ std::vector<Case> InstallConformanceCases(const base::FilePath& plugins_dir) {
         !base::ReadFileToString(plugin.AppendASCII("main.js"), &entry)) {
       continue;
     }
+    // A case whose manifest is wrong on purpose fails as run.mjs's
+    // loadPlugin() does.
+    std::optional<base::Value> raw =
+        base::JSONReader::Read(manifest_json, base::JSON_PARSE_RFC);
+    if (!raw || !ParseLivePluginManifest(*raw).has_value()) {
+      cases.push_back({"conformance/" + dir.BaseName().MaybeAsASCII(), dir,
+                       std::string(), /*bad_manifest=*/true});
+      continue;
+    }
     auto package = MakeLivePluginPackage(
         GURL("https://plugins.test/" + dir.BaseName().MaybeAsASCII() +
              "/manifest.json"),
@@ -346,7 +499,7 @@ IN_PROC_BROWSER_TEST_F(LiveFolderRuntimeBrowserTest, ConformanceCases) {
   LiveFolderService* service = LiveFolderService::Get(browser()->GetProfile());
   ASSERT_TRUE(service);
   std::vector<Case> cases = InstallConformanceCases(service->plugins_dir());
-  ASSERT_GE(cases.size(), 12u);
+  ASSERT_GE(cases.size(), 22u);
   for (const Case& c : cases) {
     SCOPED_TRACE(c.name);
     std::optional<base::Value> expected =
@@ -361,7 +514,7 @@ IN_PROC_BROWSER_TEST_F(LiveFolderRuntimeBrowserTest, ConformanceCases) {
 
 IN_PROC_BROWSER_TEST_F(LiveFolderRuntimeBrowserTest, BuiltinCases) {
   std::vector<Case> cases = BuiltinCases();
-  ASSERT_GE(cases.size(), 15u);
+  ASSERT_GE(cases.size(), 21u);
   for (const Case& c : cases) {
     SCOPED_TRACE(c.name);
     std::optional<base::Value> expected =

@@ -74,6 +74,7 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler,
   void SetMemorySave(bool enabled) override;
   void SetDevTools(bool enabled) override;
   void SetBoosts(bool enabled) override;
+  void SetPlugins(bool enabled) override;
   void SetNameLinkFolders(bool enabled) override;
   void SetNameLinkFoldersModel(const std::string& model) override;
   void SetTidyToday(bool enabled) override;

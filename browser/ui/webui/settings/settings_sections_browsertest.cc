@@ -13,6 +13,7 @@
 #include "base/uuid.h"
 #include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/dev_mode/dev_mode.h"
+#include "compass/browser/prefs/compass_prefs.h"
 #include "components/prefs/pref_service.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -96,6 +97,8 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, MenuOpensEachSection) {
             "/boosts");
   EXPECT_EQ(WaitFor("deepQuery('a#compassDevMode')?.getAttribute('href')"),
             "/devMode");
+  EXPECT_EQ(WaitFor("deepQuery('a#compassPlugins')?.getAttribute('href')"),
+            "/plugins");
 
   ASSERT_TRUE(content::ExecJs(contents(), std::string(kDeepQuery) +
                                               "deepQuery('a#compassShortcuts')"
@@ -325,6 +328,62 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, SearchFindsASection) {
           return found.matchCount > 0 && missing.matchCount === 0;
         })())"),
       true);
+}
+
+// compass://settings/plugins (docs/design/settings.md, "Plugins"): the
+// built-ins with what they do, and a preview's switches write its settings.
+IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, PluginsSection) {
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
+  Open("chrome://settings/plugins");
+  EXPECT_EQ(WaitFor("deepQuery('compass-plugins-page .compass-title')"
+                    "?.textContent"),
+            "Plugins");
+  // GitHub fills live folders, previews tabs and counts on them; RSS only
+  // fills folders.
+  EXPECT_EQ(WaitFor("[...deepQuery('compass-plugins-page "
+                    "li[data-id=\"compass.github\"]').querySelectorAll("
+                    "'.plugin-chip')].map(c => c.textContent).join(',')"),
+            "Live folder,Tab preview,Badge");
+  EXPECT_EQ(WaitFor("[...deepQuery('compass-plugins-page "
+                    "li[data-id=\"compass.rss\"]').querySelectorAll("
+                    "'.plugin-chip')].map(c => c.textContent).join(',')"),
+            "Live folder");
+
+  // Built-ins' previews are on; turning GitHub's off is kept.
+  ASSERT_TRUE(content::ExecJs(
+      contents(),
+      std::string(kDeepQuery) +
+          "deepQuery('compass-plugins-page "
+          "#plugin-toggle-preview-compass\\\\.github').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    const base::DictValue* github =
+        prefs->GetDict(prefs::kTabPreviewPlugins).FindDict("compass.github");
+    return github && github->FindBool("enabled") == false;
+  }));
+
+  // The session, off by default, is granted for the hosts it lists.
+  ASSERT_TRUE(content::ExecJs(
+      contents(),
+      std::string(kDeepQuery) +
+          "deepQuery('compass-plugins-page "
+          "#plugin-toggle-session-compass\\\\.github').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    const base::DictValue* github =
+        prefs->GetDict(prefs::kTabPreviewPlugins).FindDict("compass.github");
+    const base::ListValue* hosts =
+        github ? github->FindList("session_hosts") : nullptr;
+    return github && github->FindBool("session_granted") == true && hosts &&
+           hosts->size() == 1 &&
+           (*hosts)[0] == base::Value("avatars.githubusercontent.com");
+  }));
+
+  // Hover cards' previews, all at once.
+  ASSERT_TRUE(content::ExecJs(contents(),
+                              std::string(kDeepQuery) +
+                                  "deepQuery('compass-plugins-page "
+                                  "#tabPreviewsEnabled').click();"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return !prefs->GetBoolean(prefs::kTabPreviewsEnabled); }));
 }
 
 }  // namespace

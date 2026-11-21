@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// One live folder refresh, in a dedicated Worker the host page starts for it
-// (host.ts). A classic script: it defines globalThis.__compassHost from
-// messages to the page, loads the SDK, the prelude and the plugin with
-// importScripts(), and posts back what fetchItems() returned.
+// One live folder refresh or tab preview, in a dedicated Worker the host page
+// starts for it (host.ts). A classic script: it defines
+// globalThis.__compassHost from messages to the page, loads the SDK, the
+// prelude and the plugin with importScripts(), and posts back what
+// fetchItems() (or previewTab()) returned.
 //
 // Nothing here is a security boundary: the plugin shares this global, and the
 // browser checks every fetch and the result itself.
@@ -47,14 +48,16 @@
       return;
     }
     Promise.resolve()
-        .then(() => self.__compassRun(message.config))
+        .then(() => (message.preview ? self.__compassRunPreview(message.page, message.config)
+                                     : self.__compassRun(message.config)))
         .then((raw) => {
           try {
             self.postMessage({type: 'done', result: raw === undefined ? null : raw});
           } catch (e) {
             self.postMessage({
               type: 'error', code: 'bad_result',
-              message: 'fetchItems returned something that is not plain data',
+              message: (message.preview ? 'previewTab' : 'fetchItems') +
+                  ' returned something that is not plain data',
             });
           }
         }, (e) => self.postMessage(errorOf(e, 'plugin_error')));

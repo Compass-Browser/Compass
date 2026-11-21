@@ -99,6 +99,11 @@ std::string BuildMessageContext(const ChatOptions& options) {
   if (options.boosts) {
     context += "You can make Boosts (list_boosts, save_boost, delete_boost).\n";
   }
+  if (options.plugins) {
+    context +=
+        "You can make plugins: live folders and tab previews (list_plugins, "
+        "get_plugin, test_plugin, save_plugin, delete_plugin).\n";
+  }
   if (!options.window_tabs.empty()) {
     base::StrAppend(
         &context,
@@ -167,7 +172,7 @@ ChatRequest BuildChatRequest(base::ListValue messages,
     // take one of the API's 4.
     base::ListValue tools = ClaudeTools::Definitions(
         options.memory_tools, /*files=*/true, options.devtools_tools,
-        options.boosts_tools);
+        options.boosts_tools, options.plugins_tools);
     if (!tools.empty()) {
       tools.back().GetDict().Remove("cache_control");
     }

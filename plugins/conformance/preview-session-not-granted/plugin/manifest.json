@@ -1,0 +1,1 @@
+{"id": "test.preview-session-not-granted", "name": "Preview test", "version": "1.0.0", "api": 1, "folder": false, "preview": {"matches": ["https://example.com/*"], "session": {}}}

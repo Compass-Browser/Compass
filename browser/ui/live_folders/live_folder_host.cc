@@ -142,6 +142,12 @@ void LiveFolderHost::StartOnPage(int run_id) {
   request->timeout_ms =
       static_cast<int32_t>(running.spec.timeout.InMilliseconds());
   request->max_items = running.spec.max_items;
+  request->preview = running.spec.preview;
+  if (running.spec.preview) {
+    request->page_json = base::WriteJson(running.spec.page).value_or("{}");
+    request->select_json = base::WriteJson(running.spec.select).value_or("{}");
+    request->icon_hosts = running.spec.icon_hosts;
+  }
   page_->Run(std::move(request),
              base::BindOnce(&LiveFolderHost::OnRunDone,
                             weak_factory_.GetWeakPtr(), run_id));
@@ -204,8 +210,18 @@ void LiveFolderHost::Fetch(int32_t run_id,
   callback = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
       std::move(callback), FetchError("network", "The refresh ended"));
   auto it = runs_.find(run_id);
-  if (it == runs_.end() || !it->second->spec.fetcher) {
+  if (it == runs_.end()) {
     std::move(callback).Run(FetchError("network", "No such refresh"));
+    return;
+  }
+  if (!it->second->spec.fetcher) {
+    // A tab preview that may not make requests; the prelude says so too,
+    // but the page isn't trusted.
+    const std::string& code = it->second->spec.no_fetcher_code;
+    std::move(callback).Run(FetchError(
+        code, code == "session_not_granted"
+                  ? "The user hasn't let this plugin use the tab's session"
+                  : "Previews can't make requests"));
     return;
   }
   LiveFetchRequest fetch;
@@ -216,6 +232,7 @@ void LiveFolderHost::Fetch(int32_t run_id,
   }
   fetch.body = request->body;
   fetch.include_credentials = request->include_credentials;
+  fetch.prefer_browser = request->prefer_browser;
   it->second->spec.fetcher->Fetch(
       fetch, base::BindOnce(
                  [](FetchCallback callback,

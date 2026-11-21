@@ -1,0 +1,34 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "e2@1794729600000",
+        "title": "Unload van",
+        "subtitle": "9:00–10:00",
+        "time": 1794729600000
+      },
+      {
+        "id": "e3@1794733200000",
+        "title": "Stage setup (Anna, Bruno, Carla)",
+        "subtitle": "10:00–18:00",
+        "time": 1794733200000
+      },
+      {
+        "id": "e1@1794783600000",
+        "title": "Team offsite",
+        "subtitle": "Tomorrow (all day)",
+        "time": 1794783600000
+      },
+      {
+        "id": "e4@1794862800000",
+        "title": "Load van",
+        "subtitle": "Tomorrow 22:00–23:00",
+        "time": 1794862800000
+      }
+    ],
+    "title": "Coming up",
+    "warnings": []
+  },
+  "fetches": []
+}

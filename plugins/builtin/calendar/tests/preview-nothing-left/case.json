@@ -1,0 +1,4 @@
+{"mode": "preview", "config": {"allDay": true},
+ "page": {"url": "https://calendar.google.com/calendar/u/0/r/day", "title": "Google Calendar", "live": true,
+          "groups": {"events": [{"fields": {"label": "8am to 9am, Gym, Matteo, Accepted, November 21, 2026"}}]}},
+ "env": {"now": "2026-11-21T19:00:00Z", "timeZone": "Europe/Rome"}}

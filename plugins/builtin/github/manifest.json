@@ -25,5 +25,33 @@
      "placeholder": "is:pr is:open label:bug"},
     {"key": "limit", "type": "number", "label": "Items to show", "default": 20, "min": 1, "max": 50}
   ],
-  "refresh": {"default": 600, "min": 300}
+  "refresh": {"default": 600, "min": 300},
+  "preview": {
+    "matches": ["https://github.com/*"],
+    "select": {
+      "notifications": {
+        "selector": "li.notifications-list-item",
+        "attrs": ["class"],
+        "fields": {
+          "href": "a.notification-list-item-link@href",
+          "repo": "a.notification-list-item-link p.f6, .notification-list-item-link .f6.flex-auto",
+          "title": ".markdown-title",
+          "reason": ".notification-list-item-link .f6.flex-self-center, .f6.flex-self-center",
+          "time": "relative-time@datetime",
+          "type": "svg.octicon@class",
+          "avatar": "img.avatar-user, img.avatar@src"
+        },
+        "max": 50
+      },
+      "counter": {"selector": "a[href=\"/notifications\"] .Counter", "text": true, "max": 1},
+      "inbox": {"selector": "header a[href=\"/notifications\"] + [data-component=\"Tooltip\"]", "text": true, "max": 1}
+    },
+    "badge": true,
+    "session": {"related": ["avatars.githubusercontent.com"]},
+    "config": [
+      {"key": "count", "type": "number", "label": "Notifications to show", "default": 5, "min": 1, "max": 10},
+      {"key": "unreadOnly", "type": "bool", "label": "Only unread", "default": true},
+      {"key": "hint", "type": "bool", "label": "Say where to turn them on when the session is off", "default": true}
+    ]
+  }
 }

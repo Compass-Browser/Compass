@@ -190,6 +190,10 @@ bool IsBoostsTool(const std::string& name) {
   return ScopeOf(name) == "boosts";
 }
 
+bool IsPluginsTool(const std::string& name) {
+  return ScopeOf(name) == "plugins";
+}
+
 constexpr char kDevToolsOff[] =
     "Not permitted: the user hasn't turned on \"Let Claude use developer "
     "tools\" (Compass settings, Claude). Tell the user if the task needs "
@@ -233,6 +237,29 @@ MemoryChange::MemoryChange() = default;
 MemoryChange::MemoryChange(const MemoryChange&) = default;
 MemoryChange& MemoryChange::operator=(const MemoryChange&) = default;
 MemoryChange::~MemoryChange() = default;
+
+PluginChange::PluginChange() = default;
+PluginChange::PluginChange(const PluginChange& other)
+    : kind(other.kind),
+      id(other.id),
+      name(other.name),
+      before(other.before ? std::optional<base::DictValue>(other.before->Clone())
+                          : std::nullopt) {}
+PluginChange& PluginChange::operator=(const PluginChange& other) {
+  if (this != &other) {
+    *this = PluginChange(other);
+  }
+  return *this;
+}
+PluginChange::PluginChange(PluginChange&&) = default;
+PluginChange& PluginChange::operator=(PluginChange&&) = default;
+PluginChange::~PluginChange() = default;
+
+void ClaudeTools::SetPlugins(std::unique_ptr<PluginsDelegate> delegate,
+                             base::RepeatingCallback<bool()> allowed) {
+  plugins_ = std::move(delegate);
+  plugins_allowed_ = std::move(allowed);
+}
 
 BoostChange::BoostChange() = default;
 BoostChange::BoostChange(const BoostChange&) = default;
@@ -301,12 +328,14 @@ void ClaudeTools::StopActing() {
 base::ListValue ClaudeTools::Definitions(bool memory,
                                          bool files,
                                          bool devtools,
-                                         bool boosts) {
+                                         bool boosts,
+                                         bool plugins) {
   base::ListValue definitions;
   for (const base::Value& tool : ToolEntries()) {
     const std::string scope = Describe(tool.GetDict(), "scope");
     if ((!memory && scope == "memory") || (!files && scope == "files") ||
-        (!devtools && scope == "devtools") || (!boosts && scope == "boosts")) {
+        (!devtools && scope == "devtools") || (!boosts && scope == "boosts") ||
+        (!plugins && scope == "plugins")) {
       continue;
     }
     definitions.Append(tool.GetDict().FindDict("definition")->Clone());
@@ -507,6 +536,13 @@ void ClaudeTools::Run(const std::string& name,
     // No tab either: the profile's Boosts, with the setting, and the user's
     // approval for JavaScript.
     RunBoostTool(name, std::move(input));
+    return;
+  }
+  if (IsPluginsTool(name)) {
+    // The profile's plugins, with the setting; test_plugin's preview reads
+    // the tab, saving and deleting ask the user. Previews have their own
+    // time limits.
+    RunPluginTool(name, std::move(input));
     return;
   }
   if (IsDevToolsTool(name) && !CheckDevTools()) {

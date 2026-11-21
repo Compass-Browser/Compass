@@ -9,6 +9,7 @@ Compass's own settings are sections of upstream's `chrome://settings`
 | Keyboard shortcuts | `/shortcuts` | `<compass-shortcuts-page>` | chrome://compass-settings |
 | Links from Other Apps | `/links` | `<compass-links-page>` | none |
 | Boosts | `/boosts` | `<compass-boosts-page>` | chrome://compass-settings/boosts.html |
+| Plugins | `/plugins` | `<compass-plugins-page>` | none |
 | Import from Another Browser | `/importArc` | `<compass-arc-import-page>` | chrome://compass-import |
 
 The command bar ("Keyboard shortcuts", "Import from Another Browser",
@@ -71,10 +72,27 @@ end-to-end sync steps (`tools/sync_e2e/`) and browser tests drive them with
   `//chrome/browser/ui/webui/settings` can include it without depending on
   `//compass/browser/ui`.
 
+## Plugins
+
+`/plugins` (`plugins_page.{ts,html}`, `browser/ui/webui/settings/plugin_settings.cc`)
+lists every live folder and tab preview plugin (docs/design/live-folders.md):
+built-in, installed, local or made by Claude, each with its kinds ("Live
+folder", "Tab preview", "Badge"). Expanding one shows, for a preview, the sites it
+reads, its switch, its settings form and the "Advanced: use your session on
+<site>" switch (off by default, naming the related hosts it reaches); for a
+folder, how many folders use it and what they reach; its source, read-only,
+and what its last preview logged; and Remove for plugins that aren't
+built-in. At the top: "Show tab previews in hover cards"
+(`compass.tab_previews.enabled`), Install plugin… (review, then install),
+Open plugins folder, and, with "Let Claude make plugins" on, Make one with
+Claude. `plugins?id=<id>` opens one. Through `SettingsHandler`
+(`GetPlugins()`, `SetPluginPreviewEnabled()`, `SetPluginSessionGranted()`,
+`SetPluginPreviewConfig()`, …). Test: `SettingsSectionsBrowserTest.PluginsSection`.
+
 ## Not done
 
 - Strings are English only, as on the standalone pages.
 - The menu icons are upstream's closest (`cr:sync`, `settings20:keyboard-lock`,
-  `cr:open-in-new`, `settings20:archive`); adding Compass icons means patching settings'
+  `cr:open-in-new`, `settings20:archive`, `cr:extension`); adding Compass icons means patching settings'
   icons.html.ts (a late `<cr-iconset>` would trip `cr-icon`'s assert).
 - Search doesn't highlight matches inside the sections.

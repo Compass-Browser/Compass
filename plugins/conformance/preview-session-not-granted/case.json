@@ -1,0 +1,2 @@
+{"mode": "preview", "page": {"url": "https://example.com/a", "title": "A"},
+ "responses": {"https://example.com/data": {"body": "{}"}}}

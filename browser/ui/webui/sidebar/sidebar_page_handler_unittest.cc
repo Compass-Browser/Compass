@@ -147,6 +147,9 @@ class FakePage : public sidebar::mojom::Page {
   void NodeClaudeChanged(const std::string& id, bool claude) override {
     events_.push_back(hosts_[id] + (claude ? " claude" : " no claude"));
   }
+  // Plugins' badges: not recorded, so the other tests' sequences stay as
+  // they were.
+  void NodeBadgeChanged(const std::string& id, int32_t count) override {}
   // Short titles: kept, not recorded, so the other tests' sequences stay as
   // they were.
   void NodeShortTitleChanged(const std::string& id,

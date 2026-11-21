@@ -18,7 +18,9 @@
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "base/json/json_writer.h"
 #include "compass/browser/live_folders/live_result.h"
+#include "compass/browser/ui/live_folders/tab_preview_service.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/common/encryptor.h"
@@ -128,6 +130,133 @@ base::expected<LiveFolderHost::RunSpec, LiveError> MakeLiveRunSpec(
   return spec;
 }
 
+base::expected<base::DictValue, LiveError> NormalizePreviewSnapshot(
+    const LivePluginManifest::Preview& preview,
+    const base::DictValue& raw,
+    bool session_granted) {
+  base::DictValue page;
+  const std::string* url = raw.FindString("url");
+  const std::string* title = raw.FindString("title");
+  const bool live = raw.FindBool("live").value_or(true);
+  page.Set("url", url ? *url : std::string());
+  page.Set("title", title ? *title : std::string());
+  page.Set("live", live);
+  base::DictValue groups;
+  const base::DictValue* raw_groups = raw.FindDict("groups");
+  for (const auto& [name, group] : preview.select) {
+    base::ListValue nodes;
+    const base::ListValue* raw_nodes =
+        live && raw_groups ? raw_groups->FindList(name) : nullptr;
+    if (raw_nodes) {
+      for (const base::Value& node : *raw_nodes) {
+        if (nodes.size() >= static_cast<size_t>(group.max)) {
+          break;
+        }
+        nodes.Append(node.Clone());
+      }
+    }
+    groups.Set(name, std::move(nodes));
+  }
+  page.Set("groups", std::move(groups));
+  if (preview.page_text && live) {
+    if (const std::string* text = raw.FindString("text")) {
+      std::string capped = *text;
+      base::TruncateUTF8ToByteSize(capped, kMaxPreviewPageText, &capped);
+      page.Set("text", std::move(capped));
+    }
+  }
+  if (session_granted && preview.session &&
+      !preview.session->page_cookies.empty() && live) {
+    base::DictValue cookies;
+    if (const base::DictValue* raw_cookies = raw.FindDict("cookies")) {
+      for (const std::string& name : preview.session->page_cookies) {
+        if (const std::string* value = raw_cookies->FindString(name)) {
+          cookies.Set(name, *value);
+        }
+      }
+    }
+    page.Set("cookies", std::move(cookies));
+  }
+  if (base::WriteJson(page).value_or("").size() > kMaxPreviewSnapshotBytes) {
+    return base::unexpected(
+        LiveError{"response_too_large", "The page snapshot is too large"});
+  }
+  return page;
+}
+
+base::expected<LiveFolderHost::RunSpec, LiveError> MakeLivePreviewRunSpec(
+    const LivePlugin& plugin,
+    const base::DictValue& snapshot,
+    const base::DictValue& config,
+    bool session_granted,
+    base::DictValue env,
+    scoped_refptr<network::SharedURLLoaderFactory> loader_factory,
+    std::unique_ptr<PreviewPageTransport> page_transport,
+    PreviewSessionFetcher::Limits limits) {
+  const LivePluginManifest& manifest = plugin.manifest;
+  if (!manifest.preview) {
+    return base::unexpected(
+        LiveError{"bad_plugin", "The plugin has no preview"});
+  }
+  const LivePluginManifest::Preview& preview = *manifest.preview;
+  const bool granted = session_granted && preview.session.has_value();
+  auto validated = ValidateLiveConfigFields(preview.config, config);
+  if (!validated.has_value()) {
+    return base::unexpected(
+        LiveError{"bad_config", base::JoinString(validated.error(), ". ")});
+  }
+  auto page = NormalizePreviewSnapshot(preview, snapshot, granted);
+  if (!page.has_value()) {
+    return base::unexpected(std::move(page.error()));
+  }
+  LiveFolderHost::RunSpec spec;
+  for (const char* script : kContextScripts) {
+    spec.scripts.push_back(script);
+  }
+  spec.scripts.push_back(plugin.EntryPath());
+  spec.env = std::move(env);
+  spec.env.Set("secrets", base::DictValue());
+  spec.env.Set("session", granted);
+  spec.preview = true;
+  spec.timeout = granted ? kPreviewSessionTimeout : kPreviewTimeout;
+  spec.max_items = static_cast<int>(kMaxLivePreviewItems);
+  for (const auto& [name, group] : preview.select) {
+    base::DictValue g;
+    g.Set("selector", group.selector);
+    base::ListValue attrs;
+    for (const std::string& attr : group.attrs) {
+      attrs.Append(attr);
+    }
+    g.Set("attrs", std::move(attrs));
+    g.Set("text", group.text);
+    base::DictValue fields;
+    for (const auto& [key, field] : group.fields) {
+      fields.Set(key, field);
+    }
+    g.Set("fields", std::move(fields));
+    g.Set("max", group.max);
+    spec.select.Set(name, std::move(g));
+  }
+  const GURL tab_url(*page->FindString("url"));
+  if (const std::string site = LiveSiteOf(tab_url.host()); !site.empty()) {
+    spec.icon_hosts.push_back("*." + site);
+  }
+  if (granted) {
+    spec.icon_hosts.insert(spec.icon_hosts.end(),
+                           preview.session->related.begin(),
+                           preview.session->related.end());
+    spec.fetcher = std::make_unique<PreviewSessionFetcher>(
+        preview, tab_url, std::move(loader_factory), std::move(page_transport),
+        limits);
+  } else {
+    spec.no_fetcher_code =
+        preview.session ? "session_not_granted" : "host_not_allowed";
+  }
+  spec.page = std::move(*page);
+  spec.config = std::move(*validated);
+  return spec;
+}
+
 LiveFolderState::LiveFolderState() = default;
 LiveFolderState::LiveFolderState(const LiveFolderState&) = default;
 LiveFolderState& LiveFolderState::operator=(const LiveFolderState&) = default;
@@ -137,7 +266,8 @@ LiveFolderService::LiveFolderService(Profile* profile)
     : profile_(profile),
       registry_(LivePluginRegistry::Get()),
       host_(profile),
-      store_(profile->GetPath().AppendASCII(kStoreFileName)) {
+      store_(profile->GetPath().AppendASCII(kStoreFileName)),
+      previews_(std::make_unique<TabPreviewService>(profile, this)) {
   g_browser_process->os_crypt_async()->GetInstance(base::BindOnce(
       [](base::WeakPtr<LiveFolderService> service,
          scoped_refptr<os_crypt_async::Encryptor> encryptor) {
@@ -490,6 +620,16 @@ void LiveFolderService::ForEachLiveFolder(
   }
 }
 
+size_t LiveFolderService::CountFoldersUsing(const std::string& plugin_id) {
+  size_t count = 0;
+  ForEachLiveFolder([&](SidebarNode& folder) {
+    if (folder.live_source() && folder.live_source()->plugin_id == plugin_id) {
+      ++count;
+    }
+  });
+  return count;
+}
+
 void LiveFolderService::StartRefresh(const base::Uuid& folder_id) {
   SidebarNode* folder = FindFolder(folder_id);
   if (!folder) {
@@ -736,6 +876,13 @@ void LiveFolderService::OnNodeWillBeRemoved(const SidebarNode& node) {
 
 base::Time LiveFolderService::Now() const {
   return now_for_testing_ ? now_for_testing_.Run() : base::Time::Now();
+}
+
+base::DictValue LiveFolderService::MakeEnv() const {
+  return base::DictValue()
+      .Set("now", Now().InMillisecondsFSinceUnixEpoch())
+      .Set("locale", g_browser_process->GetApplicationLocale())
+      .Set("timeZone", TimeZoneId());
 }
 
 scoped_refptr<network::SharedURLLoaderFactory>

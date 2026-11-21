@@ -104,6 +104,9 @@ interface PageHandler {
   // Undoes what a Boost tool did: |undo_id| is its result's "boost.undo".
   // False if it can't (already undone, the list full).
   UndoBoost(int32 undo_id) => (bool undone);
+  // Undoes what a plugin tool did (a result's "plugin": {"kind" (saved,
+  // updated, deleted), "text" (its name), "undo"}). False if it can't.
+  UndoPlugin(int32 undo_id) => (bool undone);
 
   // Answers OnApproval(|id|).
   AnswerApproval(int32 id, ApprovalDecision decision);

@@ -208,6 +208,154 @@ rejectHeaders}`. `expected.json` is the outcome: `{ok, result | error:
 Native runtimes run the same cases: the desktop runtime in a browser test,
 the iOS one in `CompassKitTests`.
 
+A tab preview case has `"mode": "preview"`, the snapshot as `page` (or
+`pageFile`) and `grantSession`; its recorded responses may give `groups`,
+what the host's parse of the fetched HTML gives for a `select` (the Node
+runtime has no DOM; the desktop browser test parses the file for real, so
+the two must agree). Its `fetches` also have `via` ("page" or "browser")
+and `redirect`. iOS skips preview cases: it has no hover cards.
+
+## Tab previews
+
+A plugin can also show what matters on a page in the sidebar's hover card,
+where the screenshot would be: the next events on a Google Calendar tab,
+the latest notifications on a GitHub tab. The manifest's `preview` section
+says on which pages and what to read; the entry defines `previewTab(page,
+config, compass)`. A plugin can fill folders, show previews or both
+(`"folder": false` for a preview only).
+
+```json
+"preview": {
+  "matches": ["https://calendar.google.com/calendar/*"],
+  "select": {
+    "events": {"selector": "[data-eventid]", "attrs": ["data-eventid"],
+               "text": true, "fields": {"label": ".XuJrye"}, "max": 200}
+  },
+  "pageText": false,
+  "session": {"related": ["*.googleapis.com"], "pageCookies": ["SAPISID"]},
+  "config": [{"key": "count", "type": "number", "label": "Events",
+              "default": 5, "min": 1, "max": 10}]
+}
+```
+
+| Key | Rules |
+|---|---|
+| `matches` | 1–20 patterns `scheme://host/path`: scheme `http`, `https` or `*`; host or `*.domain`, never a public suffix (`*.com`, `*.github.io`) or an IP; a path where `*` is any run of characters, matched against path and query. |
+| `select` | At most 10 groups: `selector` (CSS, ≤ 500 characters), `attrs` (≤ 20 attribute names; `href`, `src` and the like made absolute), `text` (the element's text, collapsed, ≤ 1,000 characters), `fields` (≤ 20 names → `"selector"`, `"selector@attribute"` or `"@attribute"`, read from the first match inside the element), `max` (1–200, default 50). |
+| `pageText` | The page's text too (≤ 50,000 characters). |
+| `badge` | Its result's `count` shows on the tab's row, kept current in the background ("Badges", below). |
+| `session` | Advanced mode, below: `hosts` (narrows the tab's site), `related` (≤ 5 other hosts), `pageCookies` (≤ 5 non-HttpOnly cookie names). Every match must be on one registrable domain. |
+| `config` | The preview's own settings form, like a folder's `config`, set in Settings › Plugins. |
+
+`previewTab()` gets `page = {url, title, live, groups: {<group>: [{attrs,
+text, fields}]}, text?, cookies?}` and returns `{items: [{id, title,
+subtitle?, url?, time?, badge?, icon?}], title?, footer?, count?}`: at
+most 10 items, `url` optional (a click shows the tab), `title` a header and
+`footer` a line under the rows. An empty result (no items, no footer)
+leaves the screenshot.
+
+### Security model
+
+A preview reads the page, which a folder never does, so:
+
+1. **Compass reads the page, not the plugin.** The browser runs
+   `plugins/runtime/select.js` (Compass's code) in an isolated world of the
+   tab, applying the manifest's selectors; the page's scripts can't see or
+   change it. The plugin runs in the same sandboxed Worker as a folder's
+   refresh and gets the snapshot as data.
+2. **No requests.** In a preview, `compass.fetch()` fails with
+   `host_not_allowed` (or `session_not_granted` when it declares `session`),
+   whatever `hosts` says, so what it read can't be sent anywhere. Limits: 2
+   s, no fetches.
+3. **Icons are requests too.** An item's `icon` loads only from the tab's
+   site (and, with the session granted, the related hosts); others are
+   dropped. `url` isn't restricted: only a click opens it.
+4. **Where.** `matches` can't name browser pages or the Web Store
+   (`claude::CanUsePage()`); previews never run off the record.
+5. **Consent.** Built-ins' previews are on; installed plugins' are off until
+   the user turns them on in Settings › Plugins, where each says which
+   sites it reads.
+
+**Advanced mode (`session`).** When the page doesn't show what's needed (a
+month view, a list that loads later, an unloaded tab), a plugin may make
+requests with the user's session, once the user allows it for that plugin
+("Advanced: use your session on google.com", off by default, even for
+built-ins). Then:
+
+- Requests may go to the tab's **site**, subdomains included (eTLD+1 with
+  the Public Suffix List's private registries, so `alice.github.io` can't
+  reach `bob.github.io`), narrowed by `session.hosts`; they carry the
+  user's cookies. While the tab is live they're sent from the tab's
+  isolated world (`select.js`'s `startFetch()`, polled by the browser),
+  with the page's origin; otherwise from the browser.
+- **Related hosts** (`session.related`, for CDNs and API domains) are
+  reached from the browser, never with cookies. A redirect from the site to
+  one drops the cookies; a redirect anywhere else fails with
+  `host_not_allowed`. An in-page request that gets a redirect is sent again
+  from the browser, which checks each hop.
+- `pageCookies` lets the plugin read the named non-HttpOnly cookies (to
+  sign requests, as Google's APIs want); `compass.hasSession` says whether
+  it may.
+- `compass.fetch(url, {select: "<group>"})` (or several names) applies
+  selector groups to the fetched HTML (parsed with `DOMParser`, which runs no scripts, in the
+  host page, since the Worker has no DOM) and returns `groups`.
+- Limits: 5 requests, 5 s, 2 MB each. The guarantee becomes: *page data can
+  reach only the tab's site and the hosts listed when the user allowed it*.
+  The grant is for the related hosts it was given for: an update that adds
+  one asks again.
+
+### Badges
+
+A preview with `"badge": true` can put a notification count on its tab's
+row in the sidebar: its result's `count`, a number (0 for none, at most
+99,999, shown as "99+" past 99) or `true` for "some, number unknown" (a
+dot). The count is the result's, whether or not the result has rows, and
+needs no hover:
+
+- `TabPreviewService::RefreshCounts()` runs every 15 s
+  (`kCountTick`): for each tab of the profile whose page a badge plugin
+  matches, it runs the preview again once a minute (`kCountEvery`; 5 min
+  with the session, `kSessionCountEvery`), and right away for a page it
+  hasn't counted yet, so a new page gets its count within 15 s. Discarded
+  tabs keep their last count. Pages no longer open, or no longer matched (a
+  plugin turned off, previews off), lose theirs.
+- Any run of the preview (a hover too) updates the count (`counts_`, by
+  page URL); `TabPreviewService::Observer::OnTabCountsChanged()` tells the
+  sidebar, which sends `Page.NodeBadgeChanged(id, count)` for its tab rows
+  (`Node.badge_count`: 0 none, -1 a dot).
+- The sidebar shows a pill at the row's end (`.tab-badge`), a dot without a
+  number, and a dot in a favorite tile's corner (`.tile-badge`). Live tabs
+  only.
+
+`compass.github` counts unread notifications: on github.com/notifications
+from the Inbox counter, elsewhere (with the session) from the fetched page's
+counter; without the session, the header's "You have unread
+notifications" gives a dot. Tests: the `preview-count` conformance case,
+`github/preview-*`, `LiveResultTest.PreviewRules`,
+`CompassSidebarPreviewBrowserTest.PluginBadges`.
+
+### Desktop
+
+- **Runtime:** the live folders' host runs previews too (`RunRequest.preview`,
+  `page_json`, `select_json`, `icon_hosts`; `worker.js` calls
+  `__compassRunPreview()`). `MakeLivePreviewRunSpec()`
+  (`live_folder_service.cc`) builds the run; without the session there's no
+  fetcher and the browser refuses every fetch.
+  `PreviewSessionFetcher` (`browser/ui/live_folders/`) implements the
+  session's rules over `LiveFetcher` and the tab transport.
+  `ParseLivePreviewResult()` checks the result again, icons included.
+- **`TabPreviewService`** (owned by `LiveFolderService`): which plugin
+  previews a URL (built-ins first), the snapshot, the run, results kept 30
+  s (2 min with the session) and the last good one per page, shown for an
+  unloaded tab under "Last seen 10:42". Settings live in
+  `compass.tab_previews.enabled` and `compass.tab_previews.plugins`
+  (profile prefs, not synced).
+- **Hover card:** see docs/design/sidebar.md, "Hover cards".
+- **Built-ins:** `compass.calendar` reads Google Calendar's event chips
+  (English labels); `compass.github` shows recent notifications from
+  `github.com/notifications`, from the page there, else (with the session)
+  by fetching it.
+
 ## Plan
 
 ### Data model (desktop and Android, shared C++)
@@ -278,8 +426,10 @@ the iOS one in `CompassKitTests`.
   `manifest.config` and `secrets`, and the cookie grant when the plugin asks.
 - Folder context menu: Refresh, Edit Source…, Mark All Seen, Convert to
   Normal Folder.
-- Settings › Live folder plugins: installed plugins, install from a URL or
-  file (showing hosts, cookie access and secrets first), secrets, removal.
+- Settings › Plugins (docs/design/settings.md, "Plugins"): every plugin
+  with what it does (Live folder, Tab preview), install from a URL (showing
+  hosts, cookie access, secrets and the pages a preview reads first),
+  previews' switches, settings and session grants, source, removal.
 - Android: the same states in `SidebarState.kt` / `SidebarUi.kt` (the
   snapshot in `spaces_android.cc` carries them) and Compose sheets for the
   picker and form; the runtime is the shared C++ service.
@@ -344,6 +494,9 @@ Done (`ios/CompassKit/Sources/CompassLiveFolders`, `ios/App/Model/LiveFolders.sw
 5. Installing plugins, Settings page, cookie grants.
 6. Android UI.
 7. iOS. **Done.**
+8. Tab previews (desktop): contract, runtime, session mode, hover card,
+   Settings › Plugins, Claude's plugin tools, the Calendar and GitHub
+   previews. **Done.**
 
 ## Known gaps
 
@@ -352,6 +505,14 @@ Done (`ios/CompassKit/Sources/CompassLiveFolders`, `ios/App/Model/LiveFolders.sw
   name are read in the viewer's zone. RRULE `BYWEEKNO`, `BYYEARDAY`,
   `BYHOUR` and sub-daily frequencies are ignored.
 - GitHub needs a token; there's no OAuth flow.
+- Tab previews: rows don't show item icons yet (the icon rule is enforced,
+  but the hover card loads no images), and can't be clicked (the card
+  takes no focus). The Calendar preview reads English labels only and has
+  no session mode yet; the GitHub selectors follow today's
+  github.com/notifications markup and will need updates when it changes.
+  The Node runtime can't parse HTML, so `select` on fetched pages is
+  checked by the desktop browser test only. Desktop only: iOS and Android
+  have no hover cards.
 - iOS: a plugin stuck in a synchronous loop times out, but its thread keeps
   running until the app quits (JavaScriptCore has no public way to stop a
   script). Installed plugins' SVG icons show as a bolt. A synced folder

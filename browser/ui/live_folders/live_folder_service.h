@@ -29,6 +29,7 @@
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/live_folders/live_folder_host.h"
 #include "compass/browser/ui/live_folders/live_plugin_registry.h"
+#include "compass/browser/ui/live_folders/preview_session_fetcher.h"
 #include "components/keyed_service/core/keyed_service.h"
 
 class Profile;
@@ -79,6 +80,36 @@ base::expected<LiveFolderHost::RunSpec, LiveError> MakeLiveRunSpec(
     scoped_refptr<network::SharedURLLoaderFactory> loader_factory,
     LiveFetcher::Limits limits = LiveFetcher::Limits(),
     base::TimeDelta timeout = base::Seconds(30));
+
+class TabPreviewService;
+
+// A tab preview's limits (docs/design/live-folders.md, "Tab previews"): no
+// requests in 2 s, or with the tab's session, 5 requests in 5 s.
+inline constexpr base::TimeDelta kPreviewTimeout = base::Seconds(2);
+inline constexpr base::TimeDelta kPreviewSessionTimeout = base::Seconds(5);
+inline constexpr size_t kMaxPreviewSnapshotBytes = 256 * 1024;
+inline constexpr size_t kMaxPreviewPageText = 50000;
+
+// The snapshot previewTab() gets: the manifest's groups only, capped, the
+// page's text if it asks, and cookies only with the session granted
+// (normalizeSnapshot() in tools/live_folders/runtime.mjs).
+base::expected<base::DictValue, LiveError> NormalizePreviewSnapshot(
+    const LivePluginManifest::Preview& preview,
+    const base::DictValue& raw,
+    bool session_granted);
+
+// Everything one tab preview of |plugin| needs: the scripts, the validated
+// preview config, the normalized snapshot, and, with the session granted, a
+// fetcher (PreviewSessionFetcher); without it, requests fail.
+base::expected<LiveFolderHost::RunSpec, LiveError> MakeLivePreviewRunSpec(
+    const LivePlugin& plugin,
+    const base::DictValue& snapshot,
+    const base::DictValue& config,
+    bool session_granted,
+    base::DictValue env,
+    scoped_refptr<network::SharedURLLoaderFactory> loader_factory,
+    std::unique_ptr<PreviewPageTransport> page_transport,
+    PreviewSessionFetcher::Limits limits = PreviewSessionFetcher::Limits());
 
 // Runs a profile's live folders (docs/design/live-folders.md): the plugins
 // they can use, the secrets and cookie grants users gave them, and when each
@@ -169,6 +200,16 @@ class LiveFolderService : public KeyedService,
   // Refresh results use this as now; the timer doesn't run.
   void SetClockForTesting(base::RepeatingCallback<base::Time()> now);
 
+  // Tab previews in the sidebar's hover cards, run on this host.
+  TabPreviewService& previews() { return *previews_; }
+
+  // How many live folders, in every space, use |plugin_id|.
+  size_t CountFoldersUsing(const std::string& plugin_id);
+
+  // {now, locale, timeZone} for a run.
+  base::DictValue MakeEnv() const;
+  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory();
+
   // KeyedService:
   void Shutdown() override;
 
@@ -205,7 +246,6 @@ class LiveFolderService : public KeyedService,
   void RefreshIfStale(const SidebarNode& folder);
 
   base::Time Now() const;
-  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory();
   void NotifyStateChanged(const base::Uuid& folder_id);
 
   const raw_ptr<Profile> profile_;
@@ -226,6 +266,8 @@ class LiveFolderService : public KeyedService,
   base::ScopedMultiSourceObservation<SpaceModel, SpaceModel::Observer>
       model_observations_{this};
   base::ObserverList<Observer> observers_;
+  // After host_: previews run on it.
+  std::unique_ptr<TabPreviewService> previews_;
   base::WeakPtrFactory<LiveFolderService> weak_factory_{this};
 };
 

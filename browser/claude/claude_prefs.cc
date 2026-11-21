@@ -50,6 +50,7 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(kClaudeCodeOwnTools, false);
   registry->RegisterBooleanPref(kDevTools, false);
   registry->RegisterBooleanPref(kBoosts, false);
+  registry->RegisterBooleanPref(kPlugins, false);
   registry->RegisterStringPref(kCacheLevelUrl, std::string());
   registry->RegisterIntegerPref(kCacheLevel, 0);
   registry->RegisterBooleanPref(kNameLinkFolders, false);

@@ -1,0 +1,47 @@
+diff --git a/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.cc b/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.cc
+index dc571ae36e3b9b695e86ab9329c20919b455cf4e..6ae05af6183d0f3a625fca65797d6d88572c184a 100644
+--- a/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.cc
++++ b/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.cc
+@@ -521,6 +521,22 @@ class TabHoverCardBubbleView::TabCardView : public views::View {
+     }
+   }
+ 
++  // Compass: TabHoverCardBubbleView::SetCustomPreview().
++  void SetCustomPreview(std::unique_ptr<views::View> view) {
++    if (custom_preview_) {
++      views::View* old = custom_preview_;
++      custom_preview_ = nullptr;
++      RemoveChildViewT(old);
++    }
++    if (thumbnail_view_) {
++      thumbnail_view_->SetVisible(!view);
++    }
++    if (view) {
++      custom_preview_ =
++          AddChildViewAt(std::move(view), *GetIndexOf(footer_view_));
++    }
++  }
++
+   ThumbnailView* thumbnail_view() { return thumbnail_view_; }
+   FadeLabelView* title_label() { return title_label_; }
+   FadeLabelView* domain_label() { return domain_label_; }
+@@ -537,6 +553,7 @@ class TabHoverCardBubbleView::TabCardView : public views::View {
+   raw_ptr<FadeLabelView> domain_label_ = nullptr;
+   raw_ptr<FooterView> footer_view_ = nullptr;
+   raw_ptr<ThumbnailView> thumbnail_view_ = nullptr;
++  raw_ptr<views::View> custom_preview_ = nullptr;
+   const raw_ptr<TabHoverCardBubbleView> bubble_view_;
+ };
+ 
+@@ -729,6 +746,11 @@ void TabHoverCardBubbleView::SetTextFade(double percent) {
+   group_card_view_->SetTextFade(percent);
+ }
+ 
++void TabHoverCardBubbleView::SetCustomPreview(
++    std::unique_ptr<views::View> view) {
++  tab_card_view_->SetCustomPreview(std::move(view));
++}
++
+ void TabHoverCardBubbleView::SetTargetTabImage(gfx::ImageSkia preview_image) {
+   DCHECK(tab_card_view_);
+   DCHECK(tab_card_view_->thumbnail_view())

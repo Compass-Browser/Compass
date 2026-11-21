@@ -50,6 +50,10 @@ struct ChatOptions {
   bool boosts = false;
   // Send the Boost tools (docs/design/boosts.md).
   bool boosts_tools = false;
+  // "Let Claude make plugins", said in the context.
+  bool plugins = false;
+  // Send the plugin tools (docs/design/claude.md, "Plugins").
+  bool plugins_tools = false;
   // The <memory> block (FormatMemoryBlock()), as it was when the chat
   // started: it's in the system prompt, which never changes in a chat. Empty
   // for none.

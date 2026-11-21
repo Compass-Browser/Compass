@@ -58,12 +58,6 @@ constexpr auto kForbiddenHeaders = std::to_array<std::string_view>({
     "proxy-authorization", "set-cookie",
 });
 
-bool IsForbiddenHeader(std::string_view name) {
-  const std::string lower = base::ToLowerASCII(name);
-  return lower.starts_with("sec-") ||
-         std::ranges::find(kForbiddenHeaders, lower) != kForbiddenHeaders.end();
-}
-
 std::string DecodeBody(const std::string& bytes, const std::string& charset) {
   std::string decoded;
   if (!charset.empty() &&
@@ -84,6 +78,12 @@ bool InCookieHosts(const LiveAllowedHosts& allowed, const GURL& url) {
 }
 
 }  // namespace
+
+bool IsForbiddenHeader(std::string_view name) {
+  const std::string lower = base::ToLowerASCII(name);
+  return lower.starts_with("sec-") ||
+         std::ranges::find(kForbiddenHeaders, lower) != kForbiddenHeaders.end();
+}
 
 LiveFetchRequest::LiveFetchRequest() = default;
 LiveFetchRequest::LiveFetchRequest(const LiveFetchRequest&) = default;
@@ -201,6 +201,10 @@ void LiveFetcher::Fetch(const LiveFetchRequest& request, Callback callback) {
       limits_.max_response_bytes);
 }
 
+const std::vector<LiveFetchRecord>& LiveFetcher::fetches() const {
+  return fetches_;
+}
+
 void LiveFetcher::OnRedirect(Pending* pending, const GURL& new_url) {
   if (++pending->redirects > limits_.max_redirects) {
     // Finish() deletes the loader, which stops the redirect: SimpleURLLoader
@@ -219,7 +223,8 @@ void LiveFetcher::OnRedirect(Pending* pending, const GURL& new_url) {
     return Finish(pending, base::unexpected(LiveError{
                                "host_not_allowed",
                                "Redirect to " + std::string(new_url.host()) +
-                                   " would send it cookies"}));
+                                   " would send it cookies",
+                               new_url}));
   }
   pending->url = new_url;
 }

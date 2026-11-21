@@ -72,6 +72,8 @@ export interface MemoryView {
   undone?: boolean;
   // A Boost's change, not a memory's.
   boost?: boolean;
+  // A plugin's change (save_plugin, delete_plugin): `text` is its name.
+  plugin?: boolean;
 }
 
 // How many screenshots the request keeps; older ones are replaced by a note

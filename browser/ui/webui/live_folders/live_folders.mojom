@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// chrome-untrusted://live-folders/ runs live folder plugins, each refresh in
-// a dedicated Worker (docs/design/live-folders.md, "Runtime"). The browser
+// chrome-untrusted://live-folders/ runs live folder plugins, each refresh (or
+// tab preview) in a dedicated Worker (docs/design/live-folders.md,
+// "Runtime"). The browser
 // asks the page to run a refresh; the page relays the plugin's fetches and
 // logs back. The page is untrusted: the browser checks every fetch, and
 // checks results again.
@@ -22,6 +23,17 @@ struct RunRequest {
   // How long the refresh may take, in milliseconds.
   int32 timeout_ms;
   int32 max_items;
+  // A tab preview (docs/design/live-folders.md, "Tab previews"): the Worker
+  // calls previewTab(page, config) instead of fetchItems(config).
+  bool preview = false;
+  // The page snapshot, as JSON (previews).
+  string page_json;
+  // The manifest's preview.select, as JSON: what compass.fetch(url,
+  // {select}) applies to the HTML it fetched (plugins/runtime/select.js).
+  string select_json;
+  // Host patterns a preview's icons may load from: the tab's site, and with
+  // the session granted, the related hosts. The browser checks them again.
+  array<string> icon_hosts;
 };
 
 struct RunResult {
@@ -40,6 +52,9 @@ struct FetchRequest {
   map<string, string> headers;
   string? body;
   bool include_credentials;
+  // Previews with the tab's session: send it from the browser even while the
+  // tab is live ({via: "browser"}).
+  bool prefer_browser = false;
 };
 
 struct FetchResult {

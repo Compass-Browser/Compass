@@ -1,0 +1,16 @@
+{
+  "mode": "preview",
+  "page": {"url": "https://github.com/compass-browser/compass", "title": "compass-browser/compass", "live": false},
+  "grantSession": true,
+  "responses": {
+    "https://github.com/notifications?query=is%3Aunread": {
+      "status": 302,
+      "headers": {"location": "/login?return_to=https%3A%2F%2Fgithub.com%2Fnotifications"}
+    },
+    "https://github.com/login?return_to=https%3A%2F%2Fgithub.com%2Fnotifications": {
+      "headers": {"content-type": "text/html"},
+      "body": "<title>Sign in to GitHub</title>",
+      "groups": {"notifications": []}
+    }
+  }
+}

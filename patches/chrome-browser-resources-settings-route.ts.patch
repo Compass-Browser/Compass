@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/resources/settings/route.ts b/chrome/browser/resources/settings/route.ts
-index 257eee5f0e7f7b9a14f56041384ddd7b0ee0ba9d..e9fb57ca081743501a20694cd254de17b0f69d92 100644
+index 257eee5f0e7f7b9a14f56041384ddd7b0ee0ba9d..35da82b73a84c206cc01fb84683a543602862f1c 100644
 --- a/chrome/browser/resources/settings/route.ts
 +++ b/chrome/browser/resources/settings/route.ts
-@@ -253,10 +253,26 @@ function createRoutes(): SettingsRoutes {
+@@ -253,10 +253,28 @@ function createRoutes(): SettingsRoutes {
    }
    // </if>
  
@@ -23,6 +23,8 @@ index 257eee5f0e7f7b9a14f56041384ddd7b0ee0ba9d..e9fb57ca081743501a20694cd254de17
 +      '/links', 'compassLinks', 'Links from Other Apps');
 +  r.COMPASS_BOOSTS =
 +      r.BASIC.createSection('/boosts', 'compassBoosts', 'Boosts');
++  r.COMPASS_PLUGINS =
++      r.BASIC.createSection('/plugins', 'compassPlugins', 'Plugins');
 +  r.COMPASS_DEV_MODE = r.BASIC.createSection(
 +      '/devMode', 'compassDevMode', 'Development Mode');
 +  r.COMPASS_ARC_IMPORT = r.BASIC.createSection(
@@ -32,7 +34,7 @@ index 257eee5f0e7f7b9a14f56041384ddd7b0ee0ba9d..e9fb57ca081743501a20694cd254de17
  
    // Advanced Routes
    r.ADVANCED = new Route('/advanced');
-@@ -341,7 +357,8 @@ export let routes: SettingsRoutes = Router.getInstance().getRoutes();
+@@ -341,7 +359,8 @@ export let routes: SettingsRoutes = Router.getInstance().getRoutes();
  // Returns the "effective" route when at chrome://settings/.
  export function getTopLevelRoute(): Route {
    if (!loadTimeData.getBoolean('isGuest')) {

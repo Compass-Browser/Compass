@@ -27,6 +27,7 @@
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "compass/browser/boosts/boost_injector.h"
 #include "compass/browser/boosts/boost_store.h"
+#include "compass/browser/ui/live_folders/claude_plugins.h"
 #include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_client.h"
@@ -127,6 +128,13 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
             injector->WhenRegistered(std::move(done));
           },
           browser_->GetProfile()->GetWeakPtr()));
+  // Plugins (docs/design/claude.md, "Plugins"): live folders' and tab
+  // previews'.
+  tools_.SetPlugins(
+      std::make_unique<ClaudePlugins>(browser_->GetProfile()),
+      base::BindRepeating(
+          [](PrefService* prefs) { return prefs->GetBoolean(prefs::kPlugins); },
+          browser_->GetProfile()->GetPrefs()));
   pref_registrar_.Init(browser_->GetProfile()->GetPrefs());
   const base::RepeatingClosure changed = base::BindRepeating(
       &ClaudeChatPageHandler::OnSettingsChanged, base::Unretained(this));
@@ -142,6 +150,7 @@ ClaudeChatPageHandler::ClaudeChatPageHandler(
   pref_registrar_.Add(prefs::kClaudeCodeOwnTools, changed);
   pref_registrar_.Add(prefs::kDevTools, changed);
   pref_registrar_.Add(prefs::kBoosts, changed);
+  pref_registrar_.Add(prefs::kPlugins, changed);
   active_tab_subscription_ = browser_->RegisterActiveTabDidChange(
       base::BindRepeating(&ClaudeChatPageHandler::OnActiveTabChanged,
                           base::Unretained(this)));
@@ -296,6 +305,13 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   options.boosts = prefs->GetBoolean(prefs::kBoosts);
   chat_boosts_ = chat_boosts_ || options.boosts;
   options.boosts_tools = chat_boosts_;
+  // And the plugin tools.
+  if (messages->GetList().size() == 1) {
+    chat_plugins_ = false;
+  }
+  options.plugins = prefs->GetBoolean(prefs::kPlugins);
+  chat_plugins_ = chat_plugins_ || options.plugins;
+  options.plugins_tools = chat_plugins_;
   // A gateway that adds cache breakpoints of its own refused the usual ones
   // before: the level that got through with it. Another URL forgets it.
   if (!prefs->GetString(prefs::kCacheLevelUrl).empty() &&
@@ -347,7 +363,17 @@ const ClaudeChatPageHandler::ChatMemory& ClaudeChatPageHandler::FreezeMemory(
 std::string ClaudeChatPageHandler::ToolResultJson(ToolResult result) {
   std::optional<MemoryChange> change = std::move(result.memory_change);
   std::optional<BoostChange> boost_change = std::move(result.boost_change);
+  std::optional<PluginChange> plugin_change = std::move(result.plugin_change);
   base::DictValue dict = std::move(result).ToDict();
+  if (plugin_change) {
+    // "Saved plugin GitHub notifications", with Undo.
+    const int32_t undo_id = next_undo_id_++;
+    dict.Set("plugin", base::DictValue()
+                           .Set("kind", plugin_change->kind)
+                           .Set("text", plugin_change->name)
+                           .Set("undo", undo_id));
+    plugin_undo_.emplace(undo_id, std::move(*plugin_change));
+  }
   if (change) {
     const int32_t undo_id = next_undo_id_++;
     dict.Set("memory", base::DictValue()
@@ -398,6 +424,21 @@ void ClaudeChatPageHandler::UndoBoost(int32_t undo_id,
   const bool undone = change.before ? store->Restore(*change.before)
                                     : store->Remove(change.id).has_value();
   std::move(callback).Run(undone);
+}
+
+void ClaudeChatPageHandler::UndoPlugin(int32_t undo_id,
+                                       UndoPluginCallback callback) {
+  auto it = plugin_undo_.find(undo_id);
+  if (it == plugin_undo_.end()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  const PluginChange change = std::move(it->second);
+  plugin_undo_.erase(it);
+  if (!undo_plugins_) {
+    undo_plugins_ = std::make_unique<ClaudePlugins>(browser_->GetProfile());
+  }
+  undo_plugins_->Undo(change, std::move(callback));
 }
 
 void ClaudeChatPageHandler::OnStreamEvent(const SseParser::Event& event) {
@@ -856,6 +897,7 @@ void ClaudeChatPageHandler::StartNewChat() {
   chat_memory_.reset();
   chat_devtools_ = false;
   chat_boosts_ = false;
+  chat_plugins_ = false;
   EndClaudeCode(/*forget=*/true);
 }
 

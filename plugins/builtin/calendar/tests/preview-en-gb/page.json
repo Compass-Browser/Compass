@@ -1,0 +1,18 @@
+{
+  "url": "https://calendar.google.com/calendar/u/0/r/week",
+  "title": "Google Calendar - Week of 15 November 2026",
+  "live": true,
+  "groups": {
+    "events": [
+      {"attrs": {"data-eventid": "e1"}, "text": "Team offsiteAll day, Team offsite, Calendar: Shared, No location, 16 November 2026",
+       "fields": {"label": "All day, Team offsite, Calendar: Shared, No location, 16 November 2026"}},
+      {"attrs": {"data-eventid": "e2"}, "text": "",
+       "fields": {"label": "9am to 10am, Unload van, Calendar: Work, No location, 15 November 2026", "title": "Unload van"}},
+      {"attrs": {"data-eventid": "e3"}, "text": "",
+       "fields": {"label": "10am to 6pm, Stage setup (Anna, Bruno, Carla), Calendar: Work, No location, 15 November 2026",
+                  "title": "Stage setup (Anna, Bruno, Carla)"}},
+      {"attrs": {"data-eventid": "e4"}, "text": "",
+       "fields": {"label": "10pm to 11pm, Load van, Calendar: Work, No location, 16 November 2026", "title": "Load van"}}
+    ]
+  }
+}

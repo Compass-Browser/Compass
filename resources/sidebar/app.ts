@@ -339,6 +339,13 @@ export class CompassSidebarAppElement extends CrLitElement {
       router.nodeAudioChanged.addListener(this.onNodeAudioChanged_.bind(this)),
       router.nodeClaudeChanged.addListener(
           this.onNodeClaudeChanged_.bind(this)),
+      router.nodeBadgeChanged.addListener((id: string, count: number) => {
+        const node = this.nodes_.get(id);
+        if (node && node.badgeCount !== count) {
+          node.badgeCount = count;
+          this.requestUpdate();
+        }
+      }),
       router.nodeShortTitleChanged.addListener(
           (id: string, shortTitle: string) => {
             const node = this.nodes_.get(id);
@@ -1286,6 +1293,8 @@ export class CompassSidebarAppElement extends CrLitElement {
     if (this.hoverCardShown_) {
       this.showHoverCard_(row);
     } else {
+      // A plugin's preview of the tab starts now, so the card opens with it.
+      this.browserProxy_.handler.prefetchHoverPreview(id);
       this.hoverShowTimer_ =
           setTimeout(() => this.showHoverCard_(row), HOVER_CARD_DELAY_MS);
     }

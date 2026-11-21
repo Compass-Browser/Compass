@@ -40,6 +40,17 @@ inline constexpr char kRemoveTrackingFromCopiedLinks[] =
 // to the machine they work on.
 inline constexpr char kDevModeHosts[] = "compass.dev_mode.hosts";
 
+// Whether sidebar hover cards show plugins' tab previews
+// (docs/design/live-folders.md, "Tab previews"). Default on.
+inline constexpr char kTabPreviewsEnabled[] = "compass.tab_previews.enabled";
+
+// Each preview plugin's settings: {<plugin id>: {"enabled": bool, "config":
+// {...}, "session_granted": bool, "session_hosts": [...]}}. Built-ins are on
+// unless turned off; installed plugins are off until turned on. A session
+// grant is for the related hosts it lists, so an update adding hosts asks
+// again. Not synced: the grant is for this device's sessions.
+inline constexpr char kTabPreviewPlugins[] = "compass.tab_previews.plugins";
+
 }  // namespace prefs
 
 // Compass's own profile prefs. Called by upstream's RegisterProfilePrefs()

@@ -1057,6 +1057,44 @@ compass-sidebar-node {
   padding: 0 5px;
 }
 
+/* A plugin's notification count for the tab's page
+   (docs/design/live-folders.md, "Badges"): a pill at the row's end, a dot
+   when there's no number, a dot in a favorite tile's corner. */
+.tab-badge {
+  background: var(--color-sys-primary, #0b57d0);
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: var(--color-sys-on-primary, #fff);
+  flex-shrink: 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 16px;
+  margin-inline-start: 4px;
+  min-width: 16px;
+  padding: 0 5px;
+  text-align: center;
+}
+
+.tab-badge[dot] {
+  border-radius: 50%;
+  height: 8px;
+  min-width: 0;
+  padding: 0;
+  width: 8px;
+}
+
+.tile-badge {
+  background: var(--color-sys-primary, #0b57d0);
+  border: 2px solid var(--color-sys-base, #fff);
+  border-radius: 50%;
+  height: 8px;
+  inset-block-start: 4px;
+  inset-inline-end: 4px;
+  position: absolute;
+  width: 8px;
+}
+
 /* Shared with other people (docs/design/sync.md, "Rooms: clients"). */
 .shared-badge {
   display: inline-flex;

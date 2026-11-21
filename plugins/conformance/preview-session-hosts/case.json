@@ -1,0 +1,8 @@
+{"mode": "preview", "grantSession": true,
+ "page": {"url": "https://app.example.com/inbox", "title": "Inbox"},
+ "responses": {
+   "https://api.example.com/me": {"body": "{}"},
+   "https://cdn.example-static.net/list.json": {"body": "[]"},
+   "https://app.example.com/avatar": {"status": 302, "headers": {"location": "https://cdn.example-static.net/a.png"}},
+   "https://cdn.example-static.net/a.png": {"body": "png"}
+ }}

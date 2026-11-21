@@ -15,7 +15,7 @@
 import {existsSync, readdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {isDeepStrictEqual} from 'node:util';
 import path from 'node:path';
-import {ROOT, fixtureFetcher, loadPlugin, runPlugin} from './runtime.mjs';
+import {ROOT, fixtureFetcher, loadPlugin, runPlugin, runPreview} from './runtime.mjs';
 
 function usage() {
   console.error('usage: run.mjs test [--update] [filter] | run <plugin-dir> [options] | check <plugin-dir>');
@@ -63,13 +63,24 @@ async function test(args) {
     let actual;
     try {
       const plugin = loadPlugin(c.pluginDir);
-      actual = outcome(await runPlugin(plugin, {
-        config: spec.config ?? {}, secrets: spec.secrets ?? {}, grantCookies: !!spec.grantCookies,
-        env: spec.env ?? {}, limits: spec.limits ?? {},
-        fetcher: fixtureFetcher(spec.responses ?? {}, c.dir),
-      }));
+      const fetcher = fixtureFetcher(spec.responses ?? {}, c.dir);
+      // A preview case: {"mode": "preview", "page": {...} | "pageFile": "page.json",
+      // "grantSession": bool}.
+      actual = outcome(spec.mode === 'preview'
+        ? await runPreview(plugin, {
+          page: spec.pageFile ? JSON.parse(readFileSync(path.join(c.dir, spec.pageFile), 'utf8')) : spec.page,
+          config: spec.config ?? {}, grantSession: !!spec.grantSession,
+          env: spec.env ?? {}, limits: spec.limits ?? {}, fetcher,
+        })
+        : await runPlugin(plugin, {
+          config: spec.config ?? {}, secrets: spec.secrets ?? {}, grantCookies: !!spec.grantCookies,
+          env: spec.env ?? {}, limits: spec.limits ?? {}, fetcher,
+        }));
     } catch (e) {
-      actual = {ok: false, error: {code: e.code ?? 'harness'}, fetches: [], message: e.message};
+      // A plugin that doesn't load (a bad manifest, on purpose): the code is
+      // the contract, the wording isn't.
+      actual = {ok: false, error: {code: e.code ?? 'harness'}, fetches: []};
+      if (!e.code) console.log(`      ${c.name}: ${e.message}`);
     }
     const expectedPath = path.join(c.dir, 'expected.json');
     if (update) {

@@ -30,6 +30,13 @@ ${this.isTab_() ? html`
           @dblclick="${this.onTitleInputDblclick_}"
           @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`
       <span class="title">${this.getTitle_(this.node!)}</span>`}
+    ${this.node!.badgeCount ? html`
+      <span class="tab-badge" role="status" ?dot="${this.node!.badgeCount < 0}"
+          aria-label="${this.node!.badgeCount < 0 ? 'New notifications' :
+                        `${this.node!.badgeCount} notifications`}"
+          >${this.node!.badgeCount < 0 ? '' :
+              this.node!.badgeCount > 99 ? '99+' :
+              String(this.node!.badgeCount)}</span>` : nothing}
     ${this.node!.shared ? html`
       <span class="shared-badge" role="img"
           aria-label="${this.node!.sharedTooltip}"

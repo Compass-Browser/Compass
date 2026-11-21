@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "https://github.com/compass-browser/compass/pull/412",
+        "title": "Sidebar: tab previews from plugins",
+        "url": "https://github.com/compass-browser/compass/pull/412?notification_referrer_id=NT_abc",
+        "subtitle": "compass-browser/compass #412 · Review requested",
+        "time": 1795252320000,
+        "badge": "PR"
+      },
+      {
+        "id": "https://github.com/compass-browser/website/actions/runs/77",
+        "title": "Deploy workflow run failed for main branch",
+        "url": "https://github.com/compass-browser/website/actions/runs/77?notification_referrer_id=NT_ghi",
+        "subtitle": "compass-browser/website · CI",
+        "time": 1795248180000,
+        "badge": "CI"
+      }
+    ],
+    "title": "Notifications",
+    "footer": "12 unread",
+    "count": 12,
+    "warnings": [
+      "items[0]: icon must be on the tab's site or a related host"
+    ]
+  },
+  "fetches": []
+}

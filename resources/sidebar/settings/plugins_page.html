@@ -1,0 +1,211 @@
+<style>
+  .compass-page .plugins-lead {
+    margin: 0 0 12px;
+    opacity: 0.75;
+  }
+
+  .compass-page .plugins-row {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    min-height: 40px;
+  }
+
+  .compass-page .plugins-row label {
+    flex: 1;
+  }
+
+  .compass-page .plugins-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0 16px;
+  }
+
+  .compass-page button {
+    background: var(--color-sys-primary,
+        var(--cr-fallback-color-primary, #0b57d0));
+    border: none;
+    border-radius: 18px;
+    color: var(--color-sys-on-primary,
+        var(--cr-fallback-color-on-primary, #fff));
+    cursor: pointer;
+    font: inherit;
+    padding: 6px 16px;
+  }
+
+  .compass-page button.secondary {
+    background: none;
+    border: 1px solid var(--color-sys-outline,
+        var(--cr-fallback-color-outline, #747775));
+    color: inherit;
+  }
+
+  .compass-page button:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+
+  .compass-page input[type=text],
+  .compass-page input[type=url],
+  .compass-page input[type=number],
+  .compass-page select {
+    background: var(--color-sys-base,
+        var(--cr-fallback-color-surface, #fff));
+    border: 1px solid var(--color-sys-outline,
+        var(--cr-fallback-color-outline, #747775));
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: inherit;
+    font: inherit;
+    padding: 6px 10px;
+  }
+
+  .compass-page .plugins-install {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 16px;
+  }
+
+  .compass-page .plugins-install input {
+    flex: 1;
+    min-width: 240px;
+  }
+
+  .compass-page .plugins-review {
+    border: 1px solid var(--color-sys-divider,
+        var(--cr-separator-color, rgba(0, 0, 0, 0.12)));
+    border-radius: 12px;
+    margin: 0 0 16px;
+    padding: 12px 16px;
+  }
+
+  .compass-page .plugins-review ul,
+  .compass-page .plugin-facts {
+    margin: 6px 0;
+    padding-inline-start: 20px;
+  }
+
+  .compass-page .plugins-note {
+    color: var(--color-sys-error, #b3261e);
+    margin: 0 0 12px;
+  }
+
+  .compass-page .plugins-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .compass-page .plugin {
+    border-top: 1px solid var(--color-sys-divider,
+        var(--cr-separator-color, rgba(0, 0, 0, 0.12)));
+  }
+
+  .compass-page .plugin:first-child {
+    border-top: none;
+  }
+
+  .compass-page .plugin summary {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    gap: 10px;
+    list-style: none;
+    min-height: 52px;
+  }
+
+  .compass-page .plugin summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .compass-page .plugin-icon {
+    flex: none;
+    height: 20px;
+    width: 20px;
+  }
+
+  .compass-page .plugin-name {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .compass-page .plugin-meta {
+    font-size: 12px;
+    opacity: 0.7;
+  }
+
+  .compass-page .plugin-chip {
+    background: var(--color-sys-tonal-container, rgba(0, 0, 0, 0.06));
+    border-radius: 8px;
+    font-size: 11px;
+    padding: 2px 8px;
+    white-space: nowrap;
+  }
+
+  .compass-page .plugin-body {
+    padding: 0 0 16px 30px;
+  }
+
+  .compass-page .plugin-body h3 {
+    font-size: 13px;
+    font-weight: 500;
+    margin: 12px 0 4px;
+  }
+
+  .compass-page .plugin-hint {
+    font-size: 12px;
+    margin: 2px 0 6px;
+    opacity: 0.7;
+  }
+
+  .compass-page .plugin-field {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    margin: 6px 0;
+  }
+
+  .compass-page .plugin-field > span {
+    min-width: 180px;
+  }
+
+  .compass-page .plugin-source,
+  .compass-page .plugin-log {
+    background: var(--color-sys-surface-container, rgba(0, 0, 0, 0.04));
+    border-radius: 8px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+    max-height: 320px;
+    overflow: auto;
+    padding: 8px 10px;
+    white-space: pre-wrap;
+  }
+</style>
+<p class="plugins-lead">
+  Plugins fill live folders in the sidebar and show what's new when you hover
+  a tab. They run apart from your pages and only reach the sites listed for
+  each.
+</p>
+<div class="plugins-row">
+  <label for="tabPreviewsEnabled">Show tab previews in hover cards</label>
+  <input type="checkbox" id="tabPreviewsEnabled">
+</div>
+<div class="plugins-actions">
+  <button id="installPlugin" class="secondary">Install plugin…</button>
+  <button id="openPluginsFolder" class="secondary">Open plugins folder</button>
+  <button id="makeWithClaude" class="secondary" hidden>Make one with
+    Claude</button>
+</div>
+<form id="installForm" class="plugins-install" hidden>
+  <input type="url" id="installUrl" aria-label="Plugin address"
+      placeholder="https://example.com/my-plugin/manifest.json">
+  <button type="submit">Review</button>
+  <button type="button" id="installCancel" class="secondary">Cancel</button>
+</form>
+<div id="installReview" class="plugins-review" hidden></div>
+<p id="pluginsNote" class="plugins-note" hidden></p>
+<ul id="pluginList" class="plugins-list"></ul>

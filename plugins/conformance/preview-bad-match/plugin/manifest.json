@@ -1,0 +1,1 @@
+{"id": "test.preview-bad-match", "name": "Preview test", "version": "1.0.0", "api": 1, "folder": false, "preview": {"matches": ["https://*.co.uk/*"]}}

@@ -53,8 +53,18 @@ class LiveFolderHost : public live_folders::mojom::PageHandler {
     base::DictValue env;
     base::TimeDelta timeout = base::Seconds(30);
     int max_items = 50;
-    // compass.fetch() for this refresh.
-    std::unique_ptr<LiveFetcher> fetcher;
+    // compass.fetch() for this refresh. A tab preview without the tab's
+    // session has none: every fetch fails.
+    std::unique_ptr<LiveFetchClient> fetcher;
+    // A tab preview (docs/design/live-folders.md, "Tab previews"): the page
+    // snapshot previewTab() gets, and the manifest's selector groups as JSON
+    // for compass.fetch(url, {select}).
+    bool preview = false;
+    base::DictValue page;
+    base::DictValue select;
+    std::vector<std::string> icon_hosts;
+    // Why a fetch fails when there is no fetcher.
+    std::string no_fetcher_code = "network";
   };
 
   // The normalized result's JSON, or why the refresh failed; and what the

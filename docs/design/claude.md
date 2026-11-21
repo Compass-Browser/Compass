@@ -323,6 +323,53 @@ Claude can make and change Boosts, per-site CSS and JavaScript
   on.
 - **Tests:** `BoostToolsBrowserTest.SaveBoost`, `ListAndSetting`.
 
+### Plugins
+
+Claude can write, test and save plugins for live folders and tab previews
+(docs/design/live-folders.md), with "Let Claude make plugins"
+(`compass.claude.plugins`, off, doesn't sync; Settings, Claude). Desktop
+only.
+
+- **Tools** (`tools.json`, `scope: "plugins"`, `platforms: ["desktop"]`):
+  `list_plugins`, `get_plugin {id}` (manifest and entry; built-ins too),
+  `test_plugin {manifest, main_js, mode, config?}`, `save_plugin {manifest,
+  main_js, icon_svg?}`, `delete_plugin {id}`. Sent only while the setting is
+  on and kept for the rest of a chat that had them (`Definitions(…,
+  plugins)`, `chat_plugins_`); refused while it's off
+  (`ClaudeTools::RunPluginTool()`, `claude_plugin_tools.cc`). Not for MCP
+  clients or Claude Code mode yet.
+- **Where the work is.** `ClaudeTools` can't reach the live folder service
+  (UI layer), so it asks a `PluginsDelegate`: `ClaudePlugins`
+  (`browser/ui/live_folders/claude_plugins.{h,cc}`).
+  - Ids are forced into `claude.` (`compass.*` refused; an installed
+    plugin's id refused), and the manifest is checked as an install's is.
+  - `test_plugin` writes the files to `Compass Plugins/.claude-test/<uuid>/`
+    (served like a local plugin's, never read by the plugin scan), runs a
+    preview on the tab Claude acts on (`TabPreviewService::RunTest()`: the
+    snapshot, the run, what it logged, its requests and the start of the
+    snapshot) or a folder with no cookies and no secrets, and removes them.
+  - `save_plugin` writes a local plugin, `Compass Plugins/<id>/`, rescans
+    and turns its preview on (with the session, if it declares one): the
+    approval counts as the user's consent.
+- **Approval.** Saving and deleting ask every time (`always_ask`), showing
+  what the plugin reads and reaches and its code. A test with the tab's
+  session asks once per site in a chat (the approval's tool is
+  `test_plugin_session:<site>`, so "Allow for this chat" covers that site).
+  A test without it asks nothing: it reads only the tab Claude may already
+  read, and the sandbox's rules hold.
+- **Undo:** "Saved plugin <name>" (or "Updated", "Deleted") with Undo
+  (`chat.mojom` `UndoPlugin()`): the files before the change come back, or a
+  new plugin goes.
+- **Entry points** (with the setting on): a live tab's sidebar menu, "Make
+  a Preview for <site>…" (shows the tab, then asks Claude); the sidebar's
+  "Describe a Live Folder to Claude…" next to New Live Folder; Settings ›
+  Plugins, "Make one with Claude".
+- **Prompt:** `system_prompt.md`, "Plugins"; the context says when they're
+  on.
+- **Tests:** `PluginToolsBrowserTest.TestSaveAndUndo` (a preview tested on a
+  page, saved with approval, previewing the tab from its saved files, undone),
+  `AsksAndRefuses` (built-ins, a denied save, the setting off).
+
 ### Browser tools
 
 Claude may use every feature of the browser: it may close, move and rename

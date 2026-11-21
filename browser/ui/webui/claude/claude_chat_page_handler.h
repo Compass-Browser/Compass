@@ -38,6 +38,10 @@ namespace network {
 class SharedURLLoaderFactory;
 }  // namespace network
 
+namespace compass {
+class ClaudePlugins;
+}  // namespace compass
+
 namespace compass::claude {
 
 class ClaudeClient;
@@ -83,6 +87,7 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   void TakeQuestion(TakeQuestionCallback callback) override;
   void UndoMemory(int32_t undo_id, UndoMemoryCallback callback) override;
   void UndoBoost(int32_t undo_id, UndoBoostCallback callback) override;
+  void UndoPlugin(int32_t undo_id, UndoPluginCallback callback) override;
   void AnswerApproval(int32_t id,
                       chat::mojom::ApprovalDecision decision) override;
 
@@ -205,10 +210,15 @@ class ClaudeChatPageHandler : public chat::mojom::PageHandler,
   bool chat_devtools_ = false;
   // The chat has the Boost tools, likewise.
   bool chat_boosts_ = false;
+  // And the plugin tools.
+  bool chat_plugins_ = false;
   // What the memory tools changed in this page's chats, by undo id.
   std::map<int32_t, MemoryChange> memory_undo_;
   // What the Boost tools changed, by undo id (the same counter).
   std::map<int32_t, BoostChange> boost_undo_;
+  // What the plugin tools changed, likewise; undone through this.
+  std::map<int32_t, PluginChange> plugin_undo_;
+  std::unique_ptr<ClaudePlugins> undo_plugins_;
   int32_t next_undo_id_ = 1;
   // Counts Send() calls, so a stopped request's late callbacks are ignored.
   int request_id_ = 0;

@@ -1,0 +1,5 @@
+{"mode": "preview", "grantSession": true, "page": {"url": "https://app.example.com/a", "title": "A"},
+ "responses": {
+   "https://app.example.com/go": {"status": 302, "headers": {"location": "https://collector.example.org/"}},
+   "https://collector.example.org/": {"body": ""}
+ }}

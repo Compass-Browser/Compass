@@ -761,6 +761,27 @@ doesn't show its card again until the pointer moves to another tab. Folders
 and splits as a whole have no card; panes do. The card can't take focus or
 activate the window.
 
+**Plugin previews.** A tab whose page a plugin previews
+(docs/design/live-folders.md, "Tab previews") shows the plugin's rows where
+the screenshot would go, unless it's the window's active tab. A small patch
+to `TabHoverCardBubbleView` adds `SetCustomPreview(view)`, which hides the
+thumbnail and puts the view in its place (null brings the thumbnail back).
+`SidebarHoverCard::Show()` asks `TabPreviewService`: a fresh result shows
+at once (`TabPreviewView`: a header, a row per item with its title,
+subtitle, badge and how long ago, a footer); otherwise a "Loading…" row
+shows until the plugin answers, and nothing to show brings the screenshot
+back. Answers for a row the card has left are dropped. To hide the wait,
+the page sends `PrefetchHoverPreview(id)` when the 500 ms timer starts, so
+the card usually opens filled. An unloaded tab shows what its page showed
+last time ("Last seen 10:42"), or, with the session granted, what the
+plugin fetched. Test: `CompassSidebarPreviewBrowserTest.HoverCardPluginPreview`.
+
+**Badges.** A plugin's notification count shows on its tab's row: a pill
+at the row's end, a dot when there's no number, a dot in a favorite tile's
+corner (`Node.badge_count`, `Page.NodeBadgeChanged()`;
+docs/design/live-folders.md, "Badges"). Test:
+`CompassSidebarPreviewBrowserTest.PluginBadges`.
+
 **Not done:** cards for keyboard focus, upstream's slide and fade
 animations, and the memory usage footer.
 

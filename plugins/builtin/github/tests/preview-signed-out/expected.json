@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "result": {
+    "items": [],
+    "count": 0,
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://github.com/notifications?query=is%3Aunread",
+      "cookies": true,
+      "via": "browser"
+    }
+  ]
+}

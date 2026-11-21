@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "notes": "Shared by desktop and Android (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it; `files` tools save, list, read and write files on the user's computer, need the Files setting, and ask the user before each write (docs/design/claude.md, \"Files\"); `memory` tools change the profile's memory of the user, need no permission, and are sent only when memory is on (docs/design/claude.md, \"Memory\"). `devtools` tools inspect the target tab like the browser's developer tools (network, styles, storage, performance, emulation), need the \"Let Claude use developer tools\" setting, are sent only when it's on, and ask the user before changing the page's storage (docs/design/claude.md, \"Developer tools\"). `boosts` tools list, save and delete the profile's Boosts (per-site CSS and JavaScript), need the \"Let Claude make Boosts\" setting, are sent only when it's on, and ask the user before any change that gives a Boost JavaScript to run, and before deleting one that has some; CSS-only changes save at once and the chat offers Undo (docs/design/boosts.md). Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md. `platforms`, when present, lists where a tool exists (\"desktop\", \"android\", \"ios\"); without it, everywhere.",
+  "notes": "Shared by desktop and Android (grit resource) and iOS (bundle resource). Each entry's `definition` goes to the Messages API as is; `scope` stays local: `page` tools act on the session's target tab, `browser` tools need the \"Let Claude use the whole browser\" setting and are refused without it; `files` tools save, list, read and write files on the user's computer, need the Files setting, and ask the user before each write (docs/design/claude.md, \"Files\"); `memory` tools change the profile's memory of the user, need no permission, and are sent only when memory is on (docs/design/claude.md, \"Memory\"). `devtools` tools inspect the target tab like the browser's developer tools (network, styles, storage, performance, emulation), need the \"Let Claude use developer tools\" setting, are sent only when it's on, and ask the user before changing the page's storage (docs/design/claude.md, \"Developer tools\"). `boosts` tools list, save and delete the profile's Boosts (per-site CSS and JavaScript), need the \"Let Claude make Boosts\" setting, are sent only when it's on, and ask the user before any change that gives a Boost JavaScript to run, and before deleting one that has some; CSS-only changes save at once and the chat offers Undo (docs/design/boosts.md). `plugins` tools list, read, test, save and delete live folder and tab preview plugins, need the \"Let Claude make plugins\" setting, are sent only when it is on, and ask the user before saving or deleting one; the chat offers Undo (docs/design/claude.md, \"Plugins\"). Coordinates are in the pixel space of the latest screenshot. See docs/design/claude.md. `platforms`, when present, lists where a tool exists (\"desktop\", \"android\", \"ios\"); without it, everywhere.",
   "tools": [
     {
       "scope": "page",
@@ -1372,6 +1372,131 @@
       "definition": {
         "name": "delete_boost",
         "description": "Delete a Boost, by the id list_boosts gives: when the user asks, or it no longer works. Deleting one that has JavaScript asks the user first.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "plugins",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "list_plugins",
+        "description": "List Compass's plugins: the ones that fill live folders in the sidebar and the ones that show a tab preview in the sidebar's hover cards (or both). Each with its id, name, kind, where it comes from (built-in, installed, local, made by you) and, for a preview, the pages it matches and whether it may use the tab's session. Check here before making a plugin: change the one there is (get_plugin) rather than adding another.",
+        "input_schema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "scope": "plugins",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "get_plugin",
+        "description": "A plugin's files: manifest.json and its entry script. Built-ins are readable too: start from one that does something close (compass.github and compass.calendar have previews).",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "plugins",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "test_plugin",
+        "description": "Run a plugin you're writing, without saving it. mode \"preview\" takes a snapshot of the tab you act on (select_tab picks another) with the manifest's preview.select and runs previewTab(page, config, compass) on it; mode \"folder\" runs fetchItems(config, compass) with no cookies and no secrets. Returns the items, what it logged, any error, the requests it made and, for a preview, the start of the snapshot, so you can fix selectors and code until the items are right. With preview.session in the manifest, requests use the user's session on the tab's site: the first such test for a site in a chat asks the user.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "manifest": {
+              "type": "string",
+              "description": "manifest.json, as text."
+            },
+            "main_js": {
+              "type": "string",
+              "description": "The entry script (a classic script defining previewTab and/or fetchItems)."
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "preview",
+                "folder"
+              ]
+            },
+            "config": {
+              "type": "object",
+              "description": "Settings form values (preview.config's for a preview, config's for a folder); defaults fill the rest."
+            }
+          },
+          "required": [
+            "manifest",
+            "main_js",
+            "mode"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "plugins",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "save_plugin",
+        "description": "Save a plugin you made, or change one you made before (same id), once test_plugin shows it works. Its id becomes \"claude.<what you gave>\"; built-ins and installed plugins can't be changed, so fork them under a new id. It's saved as a local plugin on this computer. Always asks the user, showing the code and what it reads and reaches; once they allow it, a preview is on (with the tab's session, if it asks for one). The user can turn it off or remove it in Settings › Plugins, or undo it in the chat.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "manifest": {
+              "type": "string",
+              "description": "manifest.json, as text."
+            },
+            "main_js": {
+              "type": "string"
+            },
+            "icon_svg": {
+              "type": "string",
+              "description": "An optional 16×16 SVG icon that uses currentColor; name it in the manifest's icon as icon.svg."
+            }
+          },
+          "required": [
+            "manifest",
+            "main_js"
+          ]
+        }
+      }
+    },
+    {
+      "scope": "plugins",
+      "platforms": [
+        "desktop"
+      ],
+      "definition": {
+        "name": "delete_plugin",
+        "description": "Delete a plugin you made (or a local one), by id. Asks the user first. Live folders that use it stop refreshing.",
         "input_schema": {
           "type": "object",
           "properties": {

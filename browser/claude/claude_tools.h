@@ -92,6 +92,70 @@ struct BoostChange {
   std::optional<boosts::Boost> before;
 };
 
+// What a plugin tool changed, so the chat can undo it (docs/design/claude.md,
+// "Plugins").
+struct PluginChange {
+  PluginChange();
+  PluginChange(const PluginChange&);
+  PluginChange& operator=(const PluginChange&);
+  PluginChange(PluginChange&&);
+  PluginChange& operator=(PluginChange&&);
+  ~PluginChange();
+
+  // "saved", "updated" or "deleted".
+  std::string kind;
+  std::string id;
+  // Its name, as the chat shows it.
+  std::string name;
+  // Its files before the change ({"manifest", "main_js", "icon_svg"}); none
+  // if it's new.
+  std::optional<base::DictValue> before;
+};
+
+// Live folders' and tab previews' plugins, for the plugin tools: in the UI
+// layer (ClaudePlugins), which has the live folder service.
+class PluginsDelegate {
+ public:
+  using DictCallback =
+      base::OnceCallback<void(base::expected<base::DictValue, std::string>)>;
+  using ChangeCallback =
+      base::OnceCallback<void(base::expected<PluginChange, std::string>)>;
+
+  virtual ~PluginsDelegate() = default;
+
+  // Every plugin: [{id, name, kind, source, matches?, session_site?}].
+  virtual base::ListValue List() = 0;
+  // {id, name, source, manifest, main_js}, or why not.
+  virtual void Get(const std::string& id, DictCallback callback) = 0;
+  // A plugin Claude wrote, checked: {manifest (as saved: its id in
+  // "claude."), id, name, kind, exists, preview_sites, session_site,
+  // related_hosts, hosts}, or the manifest's errors.
+  virtual base::expected<base::DictValue, std::string> Check(
+      const std::string& manifest_json) = 0;
+  // Runs it without saving (test_plugin): its preview on |tab|'s page, or
+  // its folder; with the tab's session if |session|. {ok, result | error,
+  // log, requests, snapshot?}.
+  virtual void Test(const std::string& manifest_json,
+                    const std::string& main_js,
+                    bool preview,
+                    content::WebContents* tab,
+                    base::DictValue config,
+                    bool session,
+                    DictCallback callback) = 0;
+  // Saves a checked plugin as a local one and turns its preview on, with the
+  // tab's session if |grant_session|.
+  virtual void Save(const std::string& manifest_json,
+                    const std::string& main_js,
+                    const std::string& icon_svg,
+                    bool grant_session,
+                    ChangeCallback callback) = 0;
+  // A local plugin (Claude's or the user's).
+  virtual void Delete(const std::string& id, ChangeCallback callback) = 0;
+  // Undoes |change|: false if it can't.
+  virtual void Undo(const PluginChange& change,
+                    base::OnceCallback<void(bool)> callback) = 0;
+};
+
 // What a tool returns: the tool_result's content blocks (text, image).
 struct ToolResult {
   ToolResult();
@@ -111,6 +175,8 @@ struct ToolResult {
   std::optional<MemoryChange> memory_change;
   // A Boost tool's change; not part of the tool_result either.
   std::optional<BoostChange> boost_change;
+  // A plugin tool's change; nor this.
+  std::optional<PluginChange> plugin_change;
 };
 
 // The browser around ClaudeTools, for the browser tools (list_tabs,
@@ -193,10 +259,13 @@ class ClaudeTools : public content::WebContentsObserver {
   // developer tools" is on (docs/design/claude.md, "Developer tools").
   // |boosts|: the Boost tools, sent only while "Let Claude make Boosts" is
   // on (docs/design/boosts.md).
+  // |plugins|: the plugin tools, sent only while "Let Claude make plugins"
+  // is on (docs/design/claude.md, "Plugins").
   static base::ListValue Definitions(bool memory = false,
                                      bool files = true,
                                      bool devtools = false,
-                                     bool boosts = false);
+                                     bool boosts = false,
+                                     bool plugins = false);
 
   // The memory the memory tools change, and whether they may now ("Let
   // Claude save memories"). Without it, they refuse.
@@ -224,6 +293,12 @@ class ClaudeTools : public content::WebContentsObserver {
   void SetBoosts(boosts::BoostStore* store,
                  base::RepeatingCallback<bool()> allowed,
                  base::RepeatingCallback<void(base::OnceClosure)> when_applied);
+
+  // The plugins the plugin tools list, test and change, and whether they may
+  // now ("Let Claude make plugins"). Without a delegate, the tools refuse.
+  // Saving and deleting ask through the approver SetFiles() gave.
+  void SetPlugins(std::unique_ptr<PluginsDelegate> delegate,
+                  base::RepeatingCallback<bool()> allowed);
 
   // The task's tab: the page tools act on it until select_tab or open_tab
   // picks another. Setting another one stops what runs.
@@ -377,6 +452,20 @@ class ClaudeTools : public content::WebContentsObserver {
   void DeleteBoost(boosts::Boost before);
   // Finishes with |text| and |change| once the change is registered.
   void FinishBoostChange(BoostChange change, std::string text);
+  // list_plugins, get_plugin, test_plugin, save_plugin, delete_plugin
+  // (claude_plugin_tools.cc).
+  void RunPluginTool(const std::string& name, base::DictValue input);
+  void TestPlugin(std::string manifest,
+                  std::string main_js,
+                  bool preview,
+                  base::DictValue config,
+                  bool session);
+  void SavePlugin(std::string manifest,
+                  std::string main_js,
+                  std::string icon_svg,
+                  bool grant_session);
+  void DeletePlugin(std::string id);
+  void OnPluginChange(base::expected<PluginChange, std::string> change);
   // Asks the user about |request|, then runs |write| on the file sequence.
   void ApproveThenWrite(
       ApprovalRequest request,
@@ -409,6 +498,8 @@ class ClaudeTools : public content::WebContentsObserver {
   base::WeakPtr<boosts::BoostStore> boosts_;
   base::RepeatingCallback<bool()> boosts_allowed_;
   base::RepeatingCallback<void(base::OnceClosure)> boosts_applied_;
+  std::unique_ptr<PluginsDelegate> plugins_;
+  base::RepeatingCallback<bool()> plugins_allowed_;
   // Where file work runs (blocking).
   scoped_refptr<base::SequencedTaskRunner> file_runner_;
   // The tab the user's message was about (SetTarget()).

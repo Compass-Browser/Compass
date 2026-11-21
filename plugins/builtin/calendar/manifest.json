@@ -18,5 +18,21 @@
     {"key": "fallback", "type": "url", "label": "Open events without a link at", "optional": true,
      "placeholder": "https://calendar.google.com"}
   ],
-  "refresh": {"default": 900, "min": 300}
+  "refresh": {"default": 900, "min": 300},
+  "preview": {
+    "matches": ["https://calendar.google.com/calendar/*"],
+    "select": {
+      "events": {
+        "selector": "[data-eventid]",
+        "attrs": ["data-eventid"],
+        "text": true,
+        "fields": {"label": ".XuJrye", "title": ".I0UMhf"},
+        "max": 200
+      }
+    },
+    "config": [
+      {"key": "count", "type": "number", "label": "Events to show", "default": 5, "min": 1, "max": 10},
+      {"key": "allDay", "type": "bool", "label": "Include all-day events"}
+    ]
+  }
 }

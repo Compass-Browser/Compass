@@ -1,0 +1,17 @@
+{
+  "url": "https://calendar.google.com/calendar/u/0/r/week",
+  "title": "Google Calendar - Week of November 16, 2026",
+  "live": true,
+  "groups": {
+    "events": [
+      {"attrs": {"data-eventid": "ev_past"}, "fields": {"label": "8am to 9am, Gym, Matteo, Accepted, November 21, 2026"}},
+      {"attrs": {"data-eventid": "ev_now"}, "fields": {"label": "10 to 11:30am, Design review, Matteo, Accepted, Google Meet, November 21, 2026"}},
+      {"attrs": {"data-eventid": "ev_now"}, "fields": {"label": "10 to 11:30am, Design review, Matteo, Accepted, Google Meet, November 21, 2026"}},
+      {"attrs": {"data-eventid": "ev_lunch"}, "fields": {"label": "12:30pm to 1:30pm, Lunch with Sara, Matteo, Accepted, Trattoria, November 21, 2026"}},
+      {"attrs": {"data-eventid": "ev_holiday"}, "fields": {"label": "All day, Festa, Holidays in Italy, November 22, 2026"}},
+      {"attrs": {"data-eventid": "ev_late"}, "fields": {"label": "11pm to 1am, Release night, Matteo, Needs RSVP, November 21, 2026"}},
+      {"attrs": {"data-eventid": "ev_mon"}, "text": "9:15am to 9:30am, Standup, Matteo, Accepted, November 23, 2026"},
+      {"attrs": {"data-eventid": "ev_bad"}, "fields": {"label": "Not an event chip"}}
+    ]
+  }
+}

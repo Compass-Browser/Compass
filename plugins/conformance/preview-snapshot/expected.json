@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "s",
+        "title": "{\"groups\":[\"rows\"],\"rows\":2,\"cookies\":{\"SID\":\"abc\"},\"frozen\":true}"
+      }
+    ],
+    "warnings": []
+  },
+  "fetches": []
+}

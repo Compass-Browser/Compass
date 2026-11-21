@@ -1,0 +1,21 @@
+{
+  "ok": false,
+  "error": {
+    "code": "host_not_allowed"
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://app.example.com/go",
+      "cookies": true,
+      "via": "page"
+    },
+    {
+      "method": "GET",
+      "url": "https://app.example.com/go",
+      "cookies": true,
+      "via": "browser",
+      "redirect": true
+    }
+  ]
+}

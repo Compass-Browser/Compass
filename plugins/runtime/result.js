@@ -42,10 +42,19 @@
     return s.length > max ? s.slice(0, max - 1) + '…' : s;
   }
 
-  function normalizeResult(raw, limits) {
-    const lim = Object.assign({}, LIMITS, limits || {});
+  // A tab preview's result (docs/design/live-folders.md, "Tab previews"):
+  // fewer items, `url` optional, a header and a footer, and icons only from
+  // hosts the host allows, since loading an image is a request.
+  const PREVIEW_LIMITS = Object.freeze({maxItems: 10, footerLength: 120, maxCount: 99999});
+
+  // `options.preview`: normalize as a preview. `options.iconAllowed(url)`:
+  // whether an icon may load (previews only; every icon is dropped without it).
+  function normalizeResult(raw, limits, options) {
+    const preview = !!(options && options.preview);
+    const iconAllowed = (options && options.iconAllowed) || (() => !preview);
+    const lim = Object.assign({}, LIMITS, preview ? PREVIEW_LIMITS : {}, limits || {});
     if (raw === null || typeof raw !== 'object' || !Array.isArray(raw.items)) {
-      throw new ResultError('fetchItems must return {items: [...]}');
+      throw new ResultError((preview ? 'previewTab' : 'fetchItems') + ' must return {items: [...]}');
     }
     const warnings = [];
     const items = [];
@@ -67,7 +76,7 @@
         return;
       }
       const url = httpUrl(it.url, lim.urlLength);
-      if (!url) {
+      if (!url && !(preview && (it.url === undefined || it.url === null))) {
         warnings.push(where + ': url must be an http(s) URL');
         return;
       }
@@ -82,14 +91,15 @@
         return;
       }
       seen.add(id);
-      const item = {id, title, url};
+      const item = url ? {id, title, url} : {id, title};
       if (typeof it.subtitle === 'string' && text.collapse(it.subtitle)) {
         item.subtitle = clip(it.subtitle, lim.subtitleLength);
       }
       if (it.icon !== undefined) {
         const icon = httpUrl(it.icon, lim.urlLength);
-        if (icon) item.icon = icon;
-        else warnings.push(where + ': icon must be an http(s) URL');
+        if (!icon) warnings.push(where + ': icon must be an http(s) URL');
+        else if (!iconAllowed(icon)) warnings.push(where + ': icon must be on the tab\'s site or a related host');
+        else item.icon = icon;
       }
       if (it.time !== undefined && it.time !== null) {
         const t = typeof it.time === 'number' ? it.time : text.parseDate(it.time);
@@ -106,14 +116,27 @@
     if (typeof raw.title === 'string' && text.collapse(raw.title)) {
       result.title = clip(raw.title, lim.folderTitleLength);
     }
-    if (typeof raw.nextRefresh === 'number' && isFinite(raw.nextRefresh) && raw.nextRefresh > 0) {
+    if (preview && typeof raw.footer === 'string' && text.collapse(raw.footer)) {
+      result.footer = clip(raw.footer, lim.footerLength);
+    }
+    // The tab row's badge: how many (0 for none), or true for some.
+    if (preview && raw.count !== undefined && raw.count !== null) {
+      if (raw.count === true) {
+        result.count = true;
+      } else if (typeof raw.count === 'number' && isFinite(raw.count) && raw.count >= 0) {
+        result.count = Math.min(Math.floor(raw.count), lim.maxCount);
+      } else if (raw.count !== false) {
+        warnings.push('count must be a number of 0 or more, or true');
+      }
+    }
+    if (!preview && typeof raw.nextRefresh === 'number' && isFinite(raw.nextRefresh) && raw.nextRefresh > 0) {
       result.nextRefresh = Math.round(raw.nextRefresh);
     }
     result.warnings = warnings;
     return result;
   }
 
-  const api = Object.freeze({LIMITS, ResultError, normalizeResult});
+  const api = Object.freeze({LIMITS, PREVIEW_LIMITS, ResultError, normalizeResult});
   root.CompassLive = root.CompassLive || {};
   root.CompassLive.result = api;
   if (typeof module === 'object' && module && module.exports) module.exports = api;

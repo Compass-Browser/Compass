@@ -81,6 +81,7 @@ source_set("claude") {
     "claude_api.cc",
     "claude_api.h",
     "claude_boost_tools.cc",
+    "claude_plugin_tools.cc",
     "claude_client.cc",
     "claude_client.h",
     "claude_credentials.cc",

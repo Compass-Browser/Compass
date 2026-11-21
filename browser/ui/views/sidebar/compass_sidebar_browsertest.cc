@@ -75,6 +75,15 @@
 #include "compass/browser/ui/views/frame/window_frame.h"
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
+#include "compass/browser/ui/views/sidebar/tab_preview_view.h"
+#include "compass/browser/live_folders/live_plugin_package.h"
+#include "compass/browser/ui/live_folders/live_folder_service.h"
+#include "compass/browser/ui/live_folders/live_plugin_registry.h"
+#include "compass/browser/ui/live_folders/tab_preview_service.h"
+#include "net/dns/mock_host_resolver.h"
+#include "net/test/embedded_test_server/http_request.h"
+#include "net/test/embedded_test_server/http_response.h"
+#include "ui/views/controls/label.h"
 #include "compass/browser/ui/views/sidebar/sidebar_swap.h"
 #include "compass/browser/ui/views/sidebar/sidebar_tint.h"
 #include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
@@ -2751,6 +2760,216 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, HoverCards) {
 
   ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(kHover, -1)));
   EXPECT_TRUE(base::test::RunUntil([&] { return !card->IsShowing(); }));
+}
+
+// The plugin preview in |view|'s tree, or null.
+TabPreviewView* FindTabPreview(views::View* view) {
+  if (auto* preview = views::AsViewClass<TabPreviewView>(view)) {
+    return preview;
+  }
+  for (views::View* child : view->children()) {
+    if (TabPreviewView* found = FindTabPreview(child)) {
+      return found;
+    }
+  }
+  return nullptr;
+}
+
+// The texts of |view|'s labels, in order.
+std::vector<std::u16string> LabelTexts(views::View* view) {
+  std::vector<std::u16string> texts;
+  if (auto* label = views::AsViewClass<views::Label>(view)) {
+    texts.push_back(std::u16string(label->GetText()));
+  }
+  for (views::View* child : view->children()) {
+    std::vector<std::u16string> more = LabelTexts(child);
+    texts.insert(texts.end(), more.begin(), more.end());
+  }
+  return texts;
+}
+
+// Pages on real-looking hosts (preview.example.com), from the test server:
+// previews match registrable domains, not IP addresses.
+class CompassSidebarPreviewBrowserTest : public CompassSidebarBrowserTest {
+ protected:
+  void SetUpOnMainThread() override {
+    CompassSidebarBrowserTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+  }
+};
+
+// A plugin's tab preview takes the screenshot's place in the card of a tab
+// whose page it matches (docs/design/live-folders.md, "Tab previews").
+IN_PROC_BROWSER_TEST_F(CompassSidebarPreviewBrowserTest,
+                       HoverCardPluginPreview) {
+  embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+      [](const net::test_server::HttpRequest& request)
+          -> std::unique_ptr<net::test_server::HttpResponse> {
+        if (request.relative_url != "/inbox") {
+          return nullptr;
+        }
+        auto response = std::make_unique<net::test_server::BasicHttpResponse>();
+        response->set_content_type("text/html");
+        response->set_content(
+            "<title>Inbox</title><ul><li data-id=1>Alpha</li>"
+            "<li data-id=2>Beta</li></ul>");
+        return response;
+      }));
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  LiveFolderService* service = LiveFolderService::Get(browser()->GetProfile());
+  ASSERT_TRUE(service);
+  auto package = MakeLivePluginPackage(
+      GURL("https://plugins.test/hover-preview/manifest.json"),
+      R"({"id": "test.hover-preview", "name": "Hover preview",
+          "version": "1", "api": 1, "folder": false,
+          "preview": {"matches": ["http://preview.example.com/*"],
+                      "select": {"rows": {"selector": "li",
+                                          "attrs": ["data-id"],
+                                          "text": true}}}})",
+      R"(async function previewTab(page) {
+           return {title: 'Rows', items: page.groups.rows.map(
+               (r) => ({id: r.attrs['data-id'], title: r.text}))};
+         })",
+      std::string());
+  ASSERT_TRUE(package.has_value()) << package.error();
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(WriteLivePluginPackage(service->plugins_dir(), *package));
+  }
+  LivePluginRegistry::Get().AddInstalled(*package);
+  // Installed plugins wait for the user.
+  const GURL inbox =
+      embedded_test_server()->GetURL("preview.example.com", "/inbox");
+  EXPECT_FALSE(service->previews().FindPlugin(inbox));
+  service->previews().SetEnabled("test.hover-preview", true);
+  ASSERT_TRUE(service->previews().FindPlugin(inbox));
+
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), inbox));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("data:text/html,<title>Two</title>"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  ASSERT_EQ(true, content::EvalJs(contents,
+                                  content::JsReplace(kWaitForTitles,
+                                                     base::ListValue()
+                                                         .Append("Inbox")
+                                                         .Append("Two"))));
+  SidebarHoverCard* card = SidebarHoverCard::FromWebContents(contents);
+  ASSERT_TRUE(card);
+
+  // The background tab: the plugin's rows, not the screenshot.
+  ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(kHover, 0)));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    if (!card->IsShowing()) {
+      return false;
+    }
+    TabPreviewView* preview = FindTabPreview(card->bubble_for_testing());
+    return preview && !preview->is_loading();
+  }));
+  TabPreviewView* preview = FindTabPreview(card->bubble_for_testing());
+  EXPECT_EQ(LabelTexts(preview),
+            (std::vector<std::u16string>{u"Rows", u"Alpha", u"Beta"}));
+  if (views::View* thumbnail =
+          card->bubble_for_testing()->GetThumbnailViewForTesting()) {
+    EXPECT_FALSE(thumbnail->GetVisible());
+  }
+
+  // The active tab is on screen: no preview.
+  ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(kHover, 1)));
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return card->IsShowing() &&
+           card->bubble_for_testing()->GetTitleViewForTesting()->GetText() ==
+               u"Two" &&
+           !FindTabPreview(card->bubble_for_testing());
+  }));
+
+  // Turned off, the background tab has its screenshot again.
+  service->previews().SetEnabled("test.hover-preview", false);
+  ASSERT_TRUE(content::ExecJs(contents, content::JsReplace(kHover, 0)));
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return card->bubble_for_testing()->GetTitleViewForTesting()->GetText() ==
+               u"Inbox" &&
+           !FindTabPreview(card->bubble_for_testing());
+  }));
+}
+
+// A badge plugin's count shows on its tab's row, kept current without a
+// hover, and goes with the plugin (docs/design/live-folders.md, "Badges").
+IN_PROC_BROWSER_TEST_F(CompassSidebarPreviewBrowserTest, PluginBadges) {
+  embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+      [](const net::test_server::HttpRequest& request)
+          -> std::unique_ptr<net::test_server::HttpResponse> {
+        if (request.relative_url != "/inbox") {
+          return nullptr;
+        }
+        auto response = std::make_unique<net::test_server::BasicHttpResponse>();
+        response->set_content_type("text/html");
+        response->set_content(
+            "<title>Inbox</title><ul><li class=unread>A</li>"
+            "<li class=unread>B</li><li>C</li></ul>");
+        return response;
+      }));
+  ASSERT_TRUE(embedded_test_server()->Start());
+  LiveFolderService* service = LiveFolderService::Get(browser()->GetProfile());
+  ASSERT_TRUE(service);
+  auto package = MakeLivePluginPackage(
+      GURL("https://plugins.test/badge/manifest.json"),
+      R"({"id": "test.badge", "name": "Badge", "version": "1", "api": 1,
+          "folder": false,
+          "preview": {"matches": ["http://badge.example.com/*"],
+                      "badge": true,
+                      "select": {"unread": {"selector": "li.unread"}}}})",
+      R"(async function previewTab(page) {
+           return {items: [], count: page.groups.unread.length};
+         })",
+      std::string());
+  ASSERT_TRUE(package.has_value()) << package.error();
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(WriteLivePluginPackage(service->plugins_dir(), *package));
+  }
+  LivePluginRegistry::Get().AddInstalled(*package);
+  service->previews().SetEnabled("test.badge", true);
+
+  content::WebContents* contents = sidebar_contents();
+  const GURL inbox =
+      embedded_test_server()->GetURL("badge.example.com", "/inbox");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), inbox));
+  ASSERT_EQ(true, content::EvalJs(contents,
+                                  content::JsReplace(kWaitForTitles,
+                                                     base::ListValue()
+                                                         .Append("Inbox"))));
+  constexpr char kBadge[] = R"(
+    (async () => {
+      const r = () => document.querySelector('compass-sidebar-app').shadowRoot;
+      for (let i = 0; i < 200; i++) {
+        const badge = r().querySelector('.tab .tab-badge');
+        if ((badge?.textContent ?? '') === $1) return true;
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      return r().querySelector('.tab .tab-badge')?.textContent ?? 'none';
+    })())";
+
+  // Counted in the background, even for the active tab.
+  service->previews().RefreshCounts();
+  EXPECT_EQ(true, content::EvalJs(contents, content::JsReplace(kBadge, "2")));
+  EXPECT_EQ(service->previews().GetCount(inbox).count, 2);
+
+  // The plugin off: the badge goes.
+  service->previews().SetEnabled("test.badge", false);
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return service->previews().GetCount(inbox).empty();
+  }));
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const r = () => document.querySelector('compass-sidebar-app').shadowRoot;
+      for (let i = 0; i < 200 && r().querySelector('.tab .tab-badge'); i++) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      return !r().querySelector('.tab .tab-badge');
+    })())"));
 }
 
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ArchivePanel) {

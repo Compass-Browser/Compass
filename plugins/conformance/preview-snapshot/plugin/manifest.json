@@ -1,0 +1,2 @@
+{"id": "test.preview-snapshot", "name": "Preview test", "version": "1.0.0", "api": 1, "folder": false, "preview": {"matches": ["https://example.com/*"],
+  "select": {"rows": {"selector": "tr", "max": 2}}, "session": {"pageCookies": ["SID"]}}}

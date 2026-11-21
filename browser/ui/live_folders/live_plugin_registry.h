@@ -63,6 +63,10 @@ class LivePluginRegistry {
   const std::vector<LivePlugin>& plugins() const { return plugins_; }
   const LivePlugin* Find(std::string_view id) const;
 
+  // A file Compass ships under plugins/ ("plugins/builtin/rss/main.js"), or
+  // empty.
+  static std::string ReadBuiltinFile(std::string_view path);
+
   // Installed plugins (<user data>/Compass Plugins), served on
   // chrome-untrusted://live-folders/installed/<id>/<version>/, or for a
   // local plugin installed/<its folder>/. Adding one

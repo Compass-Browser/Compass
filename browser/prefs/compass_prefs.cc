@@ -15,6 +15,8 @@ void RegisterCompassProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(prefs::kPipOnLeavingWindow, true);
   registry->RegisterBooleanPref(prefs::kRemoveTrackingFromCopiedLinks, true);
   registry->RegisterListPref(prefs::kDevModeHosts);
+  registry->RegisterBooleanPref(prefs::kTabPreviewsEnabled, true);
+  registry->RegisterDictionaryPref(prefs::kTabPreviewPlugins);
   claude::prefs::RegisterProfilePrefs(registry);
   // Sharing: "Your name for sharing" (compass::rooms::kDisplayNamePref,
   // browser/rooms/room_service.h). Here rather than with RoomService's

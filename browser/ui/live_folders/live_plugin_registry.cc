@@ -105,6 +105,18 @@ void LivePluginRegistry::ReplaceInstalled(
   }
 }
 
+// static
+std::string LivePluginRegistry::ReadBuiltinFile(std::string_view path) {
+  for (const webui::ResourcePath& resource : kCompassSidebarResources) {
+    if (std::string_view(resource.path) == path) {
+      return std::string(
+          ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
+              resource.id));
+    }
+  }
+  return std::string();
+}
+
 const LivePlugin* LivePluginRegistry::Find(std::string_view id) const {
   auto it = std::ranges::find(plugins_, id, [](const LivePlugin& plugin) {
     return std::string_view(plugin.manifest.id);

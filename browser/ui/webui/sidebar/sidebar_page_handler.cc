@@ -18,10 +18,13 @@
 #include "compass/browser/dev_mode/dev_mode.h"
 #include "compass/browser/ui/easels/easel_capture.h"
 #include "compass/browser/ui/live_folders/live_plugin_registry.h"
+#include "compass/browser/ui/webui/sidebar/live_plugin_mojo.h"
 #include "base/check_op.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -59,6 +62,8 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/ui/views/claude/claude_panel.h"
+#include "components/prefs/pref_service.h"
 #include "compass/browser/claude/claude_quick.h"
 #include "compass/browser/sidebar/closed_entries.h"
 #include "compass/browser/sync/compass_sync_service.h"
@@ -121,41 +126,7 @@ sidebar::mojom::LivePluginPtr ToMojoPlugin(const LivePlugin& plugin,
   result->name = manifest.name;
   result->description = manifest.description;
   result->icon_url = plugin.IconUrl();
-  using Type = LivePluginManifest::ConfigField::Type;
-  for (const auto& field : manifest.config) {
-    auto f = sidebar::mojom::LiveConfigField::New();
-    f->key = field.key;
-    switch (field.type) {
-      case Type::kString:
-        f->type = "string";
-        break;
-      case Type::kUrl:
-        f->type = "url";
-        break;
-      case Type::kNumber:
-        f->type = "number";
-        break;
-      case Type::kBool:
-        f->type = "bool";
-        break;
-      case Type::kSelect:
-        f->type = "select";
-        break;
-    }
-    f->label = field.label;
-    f->placeholder = field.placeholder;
-    f->optional = field.optional;
-    if (field.default_value) {
-      f->default_json = base::WriteJson(*field.default_value).value_or("");
-    }
-    f->min = field.min;
-    f->max = field.max;
-    for (const auto& option : field.options) {
-      f->options.push_back(
-          sidebar::mojom::LiveSelectOption::New(option.value, option.label));
-    }
-    result->config.push_back(std::move(f));
-  }
+  result->config = ToMojoConfigFields(manifest.config);
   for (const auto& secret : manifest.secrets) {
     result->secrets.push_back(sidebar::mojom::LiveSecretField::New(
         secret.key, secret.label, secret.help, secret.optional,
@@ -333,6 +304,7 @@ SidebarPageHandler::SidebarPageHandler(
   if (LiveFolderService* live_folders =
           LiveFolderService::Get(browser_->GetProfile())) {
     live_folders_observation_.Observe(live_folders);
+    previews_observation_.Observe(&live_folders->previews());
   }
   // Claude's names for link folders, and Tidy Today; incognito windows
   // have neither.
@@ -381,6 +353,7 @@ void SidebarPageHandler::StopObserving() {
   }
   registry().RemoveObserver(this);
   live_folders_observation_.Reset();
+  previews_observation_.Reset();
   namer_observation_.Reset();
   tidier_observation_.Reset();
   tidy_prefs_.RemoveAll();
@@ -1020,8 +993,29 @@ void SidebarPageHandler::ShowHoverCard(const std::string& id,
     data.last_committed_url = node->url();
   }
   // The window's active tab is on screen already.
-  const bool show_preview = tab && tab != tab_strip_model()->GetActiveTab();
-  card->Show(data, row_top, row_height, show_preview);
+  const bool is_active = tab && tab == tab_strip_model()->GetActiveTab();
+  card->Show(data, row_top, row_height, /*show_preview=*/tab && !is_active,
+             tab ? tab->GetContents() : nullptr, is_active);
+}
+
+void SidebarPageHandler::PrefetchHoverPreview(const std::string& id) {
+  // While the card waits to open: a plugin's preview of the tab
+  // (docs/design/live-folders.md, "Tab previews") is ready when it does.
+  SidebarNode* node = FindNode(id);
+  LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
+  if (!node || node->type() != SidebarNode::Type::kTab || !service) {
+    return;
+  }
+  tabs::TabInterface* tab = registry().GetTab(node);
+  if (tab && tab == tab_strip_model()->GetActiveTab()) {
+    return;
+  }
+  const GURL url = tab ? tab->GetContents()->GetLastCommittedURL() : node->url();
+  if (!service->previews().FindPlugin(url)) {
+    return;
+  }
+  service->previews().Fetch(tab ? tab->GetContents() : nullptr, url,
+                            base::DoNothing());
 }
 
 void SidebarPageHandler::HideHoverCard() {
@@ -1090,6 +1084,13 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
       if (space_model().CanAddLiveFolder(node) &&
           LiveFolderService::Get(browser_->GetProfile())) {
         menu->AddItem(kNewLiveFolder, u"New Live Folder\u2026");
+        // Or one Claude writes a plugin for (docs/design/claude.md,
+        // "Plugins").
+        if (browser_->GetProfile()->GetPrefs()->GetBoolean(
+                claude::prefs::kPlugins)) {
+          menu->AddItem(kDescribeLiveFolder,
+                        u"Describe a Live Folder to Claude\u2026");
+        }
       }
     }
     menu->AddItem(kRename, u"Rename");
@@ -1159,6 +1160,14 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
                                            : u"Use This Page as Pinned URL");
       menu->AddItem(kBackToSavedUrl, favorite ? u"Back to Favorite URL"
                                               : u"Back to Pinned URL");
+    }
+    // With "Let Claude make plugins": a preview of this site's pages.
+    if (live && node->url().SchemeIsHTTPOrHTTPS() &&
+        browser_->GetProfile()->GetPrefs()->GetBoolean(
+            claude::prefs::kPlugins)) {
+      menu->AddItem(kMakePreview,
+                    u"Make a Preview for " +
+                        base::UTF8ToUTF16(node->url().host()) + u"…");
     }
     if (live) {
       menu->AddItem(kReload, u"Reload");
@@ -1230,6 +1239,29 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
       if (IsViewOnly(node)) {
         return;
       }
+  }
+  if (command == kDescribeLiveFolder) {
+    if (claude::ClaudePanel* panel = claude::ClaudePanel::From(browser_)) {
+      panel->Ask(
+          "Help me make a live folder: a plugin that keeps a sidebar folder "
+          "filled with links. Ask me what it should list and from where, "
+          "write it, test it, and save it; then I'll add the folder with New "
+          "Live Folder.");
+    }
+    return;
+  }
+  if (command == kMakePreview) {
+    // Claude works on the tab: it's shown, then asked.
+    ActivateNode(id);
+    if (claude::ClaudePanel* panel = claude::ClaudePanel::From(browser_)) {
+      panel->Ask(base::StrCat(
+          {"Make a tab preview plugin for ", node->url().host(),
+           ": when I hover this tab in the sidebar, show what matters on "
+           "this page at a glance (what's new, next or waiting for me). Look "
+           "at the page, tell me what you'd show, then test it before "
+           "saving."}));
+    }
+    return;
   }
   SpaceModel& space = space_model();
   switch (command) {
@@ -1683,6 +1715,35 @@ void SidebarPageHandler::OnClaudeActingChanged(
   }
 }
 
+void SidebarPageHandler::OnTabCountsChanged() {
+  // Every tab row of the window's space and the favorites; the page ignores
+  // what didn't change.
+  auto visit = [this](auto& self, const SidebarNode& node) -> void {
+    if (node.type() == SidebarNode::Type::kTab) {
+      page_->NodeBadgeChanged(node.id().AsLowercaseString(),
+                              BadgeCount(node, registry()));
+    }
+    for (const auto& child : node.children()) {
+      self(self, *child);
+    }
+  };
+  visit(visit, *favorites().pinned_root());
+  visit(visit, *space_model().pinned_root());
+  visit(visit, *space_model().today_root());
+}
+
+int32_t SidebarPageHandler::BadgeCount(const SidebarNode& node,
+                                       const LiveTabRegistry& registry) {
+  LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
+  const tabs::TabInterface* tab = registry.GetTab(&node);
+  if (!service || !tab) {
+    return 0;
+  }
+  const TabCount count = service->previews().GetCount(
+      tab->GetContents()->GetLastCommittedURL());
+  return count.some && count.count <= 0 ? -1 : count.count;
+}
+
 void SidebarPageHandler::OnNodeAudioChanged(const SidebarNode& node) {
   page_->NodeAudioChanged(node.id().AsLowercaseString(),
                           ToMojoAudio(registry().GetAudioState(&node)));
@@ -1939,20 +2000,8 @@ void SidebarPageHandler::PreviewLivePlugin(
               std::move(callback).Run(nullptr, package.error());
               return;
             }
-            const LivePluginManifest& manifest = package->manifest;
-            auto preview = sidebar::mojom::LivePluginPreview::New();
-            preview->id = manifest.id;
-            preview->name = manifest.name;
-            preview->description = manifest.description;
-            preview->version = manifest.version;
-            preview->hosts = manifest.hosts;
-            preview->cookie_hosts = manifest.cookies;
-            for (const auto& secret : manifest.secrets) {
-              preview->secrets.push_back(secret.label);
-            }
-            preview->source = package->source.spec();
-            preview->sha256 = package->sha256;
-            std::move(callback).Run(std::move(preview), std::string());
+            std::move(callback).Run(ToMojoPluginPreview(*package),
+                                    std::string());
           },
           std::move(callback)));
 }
@@ -2009,6 +2058,8 @@ sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(
   const tabs::TabInterface* tab = registry.GetTab(&node);
   result->claude =
       tab && claude::ClaudeActivity::IsActing(tab->GetContents());
+  result->badge_count =
+      node.type() == SidebarNode::Type::kTab ? BadgeCount(node, registry) : 0;
   result->collapsed = node.collapsed();
   result->live_folder = ToMojoLiveFolder(node);
   result->live_item = node.is_live_item();
