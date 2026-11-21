@@ -59,6 +59,7 @@ source_set("ui") {
     "views/dev_mode/dev_mode_bar.h",
     "views/dev_mode/dev_mode_controller.cc",
     "views/dev_mode/dev_mode_controller.h",
+    "views/dev_mode/dev_mode_page_info.cc",
     "views/find_bar/find_bar.cc",
     "views/find_bar/find_bar.h",
     "views/frame/browser_view_exchange.cc",
@@ -131,6 +132,7 @@ source_set("ui") {
   ]
   public_deps = [
     ":app_menu_hooks",
+    ":page_info_hooks",
     "//chrome/browser:browser_public_dependencies",
     "//compass/browser/sync",
     "//compass/browser/ui/webui/command_bar:mojo_bindings",
@@ -351,6 +353,14 @@ source_set("app_menu_hooks") {
     "compass_command_ids.h",
   ]
   public_deps = [ "//chrome/app:command_ids" ]
+}
+
+# The site information popup's development mode switch, which upstream's
+# PageInfoMainView adds (see
+# patches/chrome-browser-ui-views-page_info-page_info_main_view.cc.patch);
+# defined in :ui.
+source_set("page_info_hooks") {
+  public = [ "views/dev_mode/dev_mode_page_info.h" ]
 }
 
 source_set("unit_tests") {
