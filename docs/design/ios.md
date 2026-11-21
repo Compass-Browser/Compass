@@ -408,7 +408,7 @@ A server can require that a chain sign in with the company's identity provider b
 ## App
 
 - `AppServices` (one per app; below, "Multiple windows") holds the store, live tabs, sync, passwords, extensions, downloads and system bridges. `AppModel` (one per window) holds what the window shows.
-- `TabManager`: one WKWebView per live entry, at most 6 (LRU), and a `WKWebsiteDataStore(forIdentifier:)` per profile UUID, so cookies are separated as on desktop. Links that open a new window become Today tabs.
+- `TabManager`: one WKWebView per live entry, at most 6 (LRU), and a `WKWebsiteDataStore(forIdentifier:)` per profile UUID, so cookies are separated as on desktop. Links that open a new window (`target=_blank`, `window.open()` on a tap) become Today tabs of the opener's space, made from WebKit's own configuration so they keep `window.opener` (`TabManager.onOpenedPage`, `AppModel.adoptOpened`): Google's sign-in popup posts its credential back through it, then calls `window.close()`, which closes that tab and shows its opener again (`onTabClosedByPage`, `AppModel.closeOpened`). They used to open by URL with no opener, and sign-in popups never got back to the page. From a page that isn't a tab (a peeked one, a little window) they still open by URL.
 - `SyncController`: Keychain seed and server; joining by pairing code (typed, or from the Mac's QR, `compass-pair:` URL scheme) or by recovery code.
 - The app icon is the desktop's Icon Composer file (`assets/Compass.icon`), used as is.
 

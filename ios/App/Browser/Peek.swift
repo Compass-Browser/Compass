@@ -190,6 +190,30 @@ extension AppModel {
     show(tab)
   }
 
+  /// A tab's page opened `page` (WebKit's, keeping `window.opener`): it
+  /// becomes the newest Today entry of the opener's space, shown. An
+  /// incognito opener's page stays incognito (same space, same store).
+  func adoptOpened(_ page: WKWebView, from source: String) {
+    guard let node = store.node(id: source),
+      let space = store.space(of: node) ?? peekSpace(profile: store.profile(of: node), of: nil),
+      let tab = store.addTab(url: page.url?.absoluteString ?? "", to: space.today)
+    else { return }
+    tabs.adopt(page, as: tab)
+    services.claim(tab.id, for: self)
+    openers[tab.id] = source
+    show(tab)
+  }
+
+  /// A tab a page opened closed itself (`window.close()`: a sign-in popup
+  /// done). It goes, and if it was shown its opener comes back.
+  func closeOpened(_ id: String) {
+    guard let node = store.node(id: id) else { return }
+    let opener = openers.removeValue(forKey: id).flatMap(store.node(id:))
+    let shown = shownTab?.id == id
+    close(node)
+    if shown, let opener { show(opener) }
+  }
+
   /// A space of `profile` for a peeked page: `node`'s own, else this
   /// window's (a favorite's page goes where the user is), else the
   /// profile's first.

@@ -38,6 +38,9 @@ final class AppModel {
   /// This window's link folders for pinned entries and favorites, and each
   /// opener's last link (docs/design/sidebar.md, "Link folders").
   @ObservationIgnored var linkFolders = LinkFolders()
+  /// Tabs a page opened (`window.open()`, `target=_blank`): tab ID → the
+  /// opener's, so the opener comes back when the page closes itself.
+  @ObservationIgnored var openers: [String: String] = [:]
   var directory: URL { services.directory }
   /// Widgets, the share sheet, Spotlight, the Focus filter (App/System).
   var system: SystemBridge { services.system }

@@ -191,6 +191,16 @@ final class AppServices {
     Task { [contentBlocking] in await contentBlocking.refresh() }
     // A page's window.open: a new tab in the window the user is in.
     tabs.openInNewTab = { [weak self] url in self?.active?.open(url.absoluteString) }
+    // A tab's page opened one: a tab in the opener's window, keeping
+    // window.opener (Google's sign-in popup needs it).
+    tabs.onOpenedPage = { [weak self] page, source in
+      guard let self, let window = self.owner(of: source) ?? self.active else { return }
+      window.adoptOpened(page, from: source)
+    }
+    tabs.onTabClosedByPage = { [weak self] id in
+      guard let self, let window = self.owner(of: id) ?? self.active else { return }
+      window.closeOpened(id)
+    }
     // Peek: the card shows in the window of the tab the page came from.
     tabs.onPeek = { [weak self] page, source in
       guard let self, let window = self.owner(of: source) ?? self.active else { return }

@@ -46,8 +46,17 @@ final class TabManager: NSObject {
   /// Web extensions: every tab's web view is attached to them (set by
   /// AppModel).
   @ObservationIgnored var extensions: WebExtensions?
-  /// A link that wants a new window opens as a new Today entry.
+  /// A link that wants a new window, from a page that isn't a tab, opens
+  /// as a new Today entry.
   var openInNewTab: ((URL) -> Void)?
+  /// A tab's page opened a new one (`target=_blank`, `window.open()`):
+  /// (its web view, made from WebKit's configuration so it keeps
+  /// `window.opener`, and the opener's tab ID). It has to become a tab now:
+  /// WebKit loads the request in it once the delegate returns.
+  var onOpenedPage: ((WKWebView, String) -> Void)?
+  /// A tab's page closed itself (`window.close()`, which WebKit allows only
+  /// for a page a script opened): tab ID.
+  var onTabClosedByPage: ((String) -> Void)?
   /// A page to show in Peek's card: (its web view, the tab it came from).
   var onPeek: ((WKWebView, String) -> Void)?
   /// A link's long-press item: (what to do, the link, the tab it's in).
@@ -759,8 +768,9 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
   /// A page wants a new tab or window (`target=_blank`, `window.open()`):
   /// from a pinned tab or a favorite it peeks, so the pinned app stays put
   /// (as on the desktop: docs/design/peek.md); from anywhere else it's a
-  /// new Today entry. WebKit only asks on a user's tap (iOS blocks pop-ups
-  /// that aren't).
+  /// new Today entry, with the opener kept (Google's sign-in popup posts
+  /// its credential back through `window.opener`, then closes itself).
+  /// WebKit only asks on a user's tap (iOS blocks pop-ups that aren't).
   nonisolated func webView(
     _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
     for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures
@@ -778,23 +788,34 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
         _ = handle(decision, in: webView, request: navigationAction.request)
         return nil
       }
-      if onPeek != nil, let id = live.first(where: { $0.value === webView })?.key, let node = store.node(id: id),
-        node.section == .pinned || node.section == .favorites, url.map(Self.isWeb) ?? true
-      {
-        // WebKit's configuration, so the page keeps its opener; WebKit loads
-        // the request in it.
-        let page = makeWebView(for: node, url: url, configuration: configuration)
-        onPeek?(page, id)
-        return page
+      let source = live.first(where: { $0.value === webView })?.key
+      // WebKit's configuration, so the page keeps its opener; WebKit loads
+      // the request in it.
+      if let id = source, let node = store.node(id: id), url.map(Self.isWeb) ?? true {
+        if onPeek != nil, node.section == .pinned || node.section == .favorites {
+          let page = makeWebView(for: node, url: url, configuration: configuration)
+          onPeek?(page, id)
+          return page
+        }
+        if onOpenedPage != nil {
+          let page = makeWebView(for: node, url: url, configuration: configuration)
+          onOpenedPage?(page, id)
+          // Not made a tab (no space for it): WebKit gets no window.
+          return live.values.contains { $0 === page } ? page : nil
+        }
       }
       if let url { openInNewTab?(url) }
       return nil
     }
   }
 
-  /// `window.close()`: a peeked page's card closes (tabs stay, as before).
+  /// `window.close()`: a peeked page's card closes; a tab a page opened
+  /// closes too (WebKit asks only for pages a script opened).
   func webViewDidClose(_ webView: WKWebView) {
-    guard !live.values.contains(where: { $0 === webView }) else { return }
+    if let id = live.first(where: { $0.value === webView })?.key {
+      onTabClosedByPage?(id)
+      return
+    }
     onPageClosed?(webView)
   }
 
