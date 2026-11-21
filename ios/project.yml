@@ -96,6 +96,10 @@ targets:
         # APNs for tabs sent from the desktop (docs/design/send-tab.md);
         # exported as production for TestFlight and the App Store.
         aps-environment: development
+        # Compass can be the default browser (granted by Apple 2026-11-21):
+        # iOS offers it under Settings → Apps → Default Browser App and
+        # sends it web links from other apps.
+        com.apple.developer.web-browser: true
     dependencies:
       - target: AutoFill
         embed: true
@@ -123,6 +127,8 @@ targets:
         product: CompassBoosts
       - package: CompassKit
         product: CompassEasels
+      - package: CompassKit
+        product: CompassRooms
     info:
       path: App/Info.plist
       properties:
@@ -160,9 +166,8 @@ targets:
           # Widgets, the icon menu, Spotlight and the extensions (DeepLink).
           - CFBundleURLName: it.cipi1965.compass.link
             CFBundleURLSchemes: [compass]
-          # Web links, for when Compass is the default browser (that needs
-          # the com.apple.developer.web-browser entitlement; until Apple
-          # grants it, iOS doesn't send these here).
+          # Web links, for when Compass is the default browser (the
+          # com.apple.developer.web-browser entitlement above).
           - CFBundleURLName: it.cipi1965.compass.web
             CFBundleTypeRole: Viewer
             CFBundleURLSchemes: [http, https]

@@ -104,6 +104,9 @@ public final class SpaceDirectory {
   public private(set) var profiles: [ChainProfile] = []
   /// The chain's profile list changed (from the home account).
   public var onProfilesChanged: (([ChainProfile]) -> Void)?
+  /// What's shared with other people (CompassRooms' RoomsManager): every
+  /// bridge leaves it to its room, and hands it the mounts it carries.
+  public weak var rooms: (any RoomBacking)?
 
   struct WeakBridge {
     weak var bridge: CompassSpacesBridge?

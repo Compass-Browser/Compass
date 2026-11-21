@@ -49,7 +49,8 @@ enum ServerEndpoint {
     var base = c.percentEncodedPath
     while base.hasSuffix("/") { base.removeLast() }
     c.percentEncodedPath = base + "/" + path
-    c.percentEncodedQuery = query.map { escape($0.key) + "=" + escape($0.value) }.joined(separator: "&")
+    c.percentEncodedQuery =
+      query.isEmpty ? nil : query.map { escape($0.key) + "=" + escape($0.value) }.joined(separator: "&")
     return c.url!
   }
 }

@@ -39,15 +39,16 @@ final class ProfilesDevice {
     await addAccount("")
   }
 
-  /// Starts a profile's account (empty: the home's).
-  func addAccount(_ profile: String) async {
+  /// Starts a profile's account (empty: the home's). `createChainIfEmpty`
+  /// defaults to `first`.
+  func addAccount(_ profile: String, createChainIfEmpty: Bool? = nil) async {
     guard accounts[profile] == nil else { return }
     let metadata = SyncMetadata()
     let engine = SyncEngine(
       connection: HTTPSyncConnection(
         serverURL: server, cacheGUID: metadata.cacheGUID, authKey: chain.authKey(profileUUID: profile)),
       passphrase: chain.passphrase(profileUUID: profile), store: MemorySyncMetadataStore(metadata),
-      createChainIfEmpty: first)
+      createChainIfEmpty: createChainIfEmpty ?? first)
     let passwordStore = MemoryPasswordStore()
     let account = Account(
       engine: engine,
@@ -76,6 +77,27 @@ final class ProfilesDevice {
       await a.spaces.flush()
       if await a.engine.hasPendingChanges { try await a.engine.sync() }
     }
+  }
+
+  /// One cycle of every account as the app runs it (SyncController): an
+  /// account that fails doesn't stop the others, and the home's decides.
+  func cycle() async -> SyncOutcome {
+    var results: [String: SyncOutcome.AccountResult] = [:]
+    for profile in [""] + accounts.keys.filter({ !$0.isEmpty }).sorted() {
+      guard let a = accounts[profile] else { continue }
+      do {
+        await a.spaces.flush()
+        try await a.engine.sync()
+        await a.spaces.flush()
+        if await a.engine.hasPendingChanges { try await a.engine.sync() }
+        results[profile] = .synced
+      } catch SyncEngineError.chainNotStarted {
+        results[profile] = .notStarted
+      } catch {
+        results[profile] = .failed("\(error)")
+      }
+    }
+    return SyncOutcome(results: results)
   }
 
   func syncUntilQuiet() async throws {
@@ -285,5 +307,110 @@ struct ProfilesServerTests {
     for text in ["work-secret", "jira.example", "git.example", "Projects", "Personal", "news.example", home, work] {
       #expect((db + wal).range(of: Data(text.utf8)) == nil, "\(text) on the server")
     }
+  }
+
+  /// The Mac makes a profile after the phone joined (a new profile for a
+  /// space), and its account doesn't run until the Mac restarts. A phone
+  /// that doesn't start accounts (TestFlight 1739 and before) finds it
+  /// without a NIGORI: that profile waits, and the rest syncs on. Once the
+  /// Mac starts it, its spaces arrive.
+  @Test func aProfileAddedAfterTheMacStartsLater() async throws {
+    let server = try await TestServer()
+    let mac = try await makeMac(server)
+    let phone = try await joinPhone(server)
+    let studio = "2b5c3e1a-0000-4000-8000-00000000000c"
+
+    // The Mac's home lists the new profile; its account isn't running.
+    await mac.publishProfiles([ChainProfile(uuid: studio, name: "Studio")])
+    try await mac.syncUntilQuiet()
+    var outcome = await phone.cycle()
+    #expect(phone.directory.profiles.map(\.name) == ["Personal", "Studio", "Work"])
+    await phone.addListedProfiles()
+    #expect(phone.accounts[studio] != nil)
+    let phoneTab = phone.store.addTab(url: "https://bank.example/", title: "Bank", to: phone.space("Personal").pinned)!
+    outcome = await phone.cycle()
+    #expect(outcome.failure == nil)
+    #expect(outcome.profileProblems == [studio: SyncOutcome.waitingMessage])
+    // The home and Work accounts still sync both ways.
+    let macTab = mac.store.addTab(url: "https://git.example/pr", title: "PR", to: mac.space("Work").pinned)!
+    try await mac.syncUntilQuiet()
+    outcome = await phone.cycle()
+    #expect(outcome.failure == nil)
+    #expect(phone.space("Work").allNodes.contains { $0.id == macTab.id })
+    #expect(mac.space("Personal").allNodes.contains { $0.id == phoneTab.id })
+
+    // The Mac restarts: Studio's account starts, with a space.
+    await mac.addAccount(studio, createChainIfEmpty: true)
+    let s = mac.store.addSpace(name: "Studio", theme: SpaceTheme(.red), profile: studio)
+    mac.store.addTab(url: "https://studio.example/", title: "Studio", to: s.pinned)
+    try await mac.syncUntilQuiet()
+    outcome = await phone.cycle()
+    _ = await phone.cycle()
+    #expect(outcome == SyncOutcome())
+    #expect(phone.space("Studio").profileUUID == studio)
+    #expect(phone.outline == mac.outline, "\n\(phone.outline)\n---\n\(mac.outline)")
+  }
+
+  /// The same with a phone that starts any account without a NIGORI (as
+  /// the app does since 1815): it sets the profile's passphrase first, and
+  /// the Mac's profile takes it when it starts.
+  @Test func aProfileThePhoneStartsFirst() async throws {
+    let server = try await TestServer()
+    let mac = try await makeMac(server)
+    let phone = try await joinPhone(server)
+    let studio = "2b5c3e1a-0000-4000-8000-00000000000c"
+    await mac.publishProfiles([ChainProfile(uuid: studio, name: "Studio")])
+    try await mac.syncUntilQuiet()
+    _ = await phone.cycle()
+    await phone.addAccount(studio, createChainIfEmpty: true)
+    #expect(await phone.cycle() == SyncOutcome())
+
+    await mac.addAccount(studio, createChainIfEmpty: true)
+    let s = mac.store.addSpace(name: "Studio", theme: SpaceTheme(.red), profile: studio)
+    mac.store.addTab(url: "https://studio.example/", title: "Studio", to: s.pinned)
+    try await mac.syncUntilQuiet()
+    #expect(await phone.cycle() == SyncOutcome())
+    _ = await phone.cycle()
+    #expect(phone.space("Studio").profileUUID == studio)
+    #expect(phone.outline == mac.outline, "\n\(phone.outline)\n---\n\(mac.outline)")
+  }
+
+  /// A private server (COMPASS_SYNC_ALLOWED_CHAINS lists the chain only):
+  /// a profile the Mac adds later is its own account, refused (401) until
+  /// it's linked from the chain's (`AccountLinker`); then it syncs. A chain
+  /// that isn't listed can't link anything.
+  @Test func aPrivateServerLetsLinkedProfilesIn() async throws {
+    let server = try await TestServer(environment: ["COMPASS_SYNC_ALLOWED_CHAINS": chain.chainID])
+    // The Mac links its Work account first, or the server refuses it.
+    #expect(await AccountLinker(serverURL: server.url).link(chain: chain, profileUUID: work) == .linked)
+    let mac = try await makeMac(server)
+    let phone = try await joinPhone(server)
+    #expect(phone.space("Work").profileUUID == work)
+
+    let studio = "2b5c3e1a-0000-4000-8000-00000000000c"
+    await mac.publishProfiles([ChainProfile(uuid: studio, name: "Studio")])
+    await mac.addAccount(studio, createChainIfEmpty: true)
+    let s = mac.store.addSpace(name: "Studio", theme: SpaceTheme(.red), profile: studio)
+    mac.store.addTab(url: "https://studio.example/", title: "Studio", to: s.pinned)
+    // Not linked yet: refused, the rest syncs.
+    var outcome = await mac.cycle()
+    #expect(outcome.failure == nil)
+    #expect(outcome.profileProblems[studio]?.contains("401") == true, "\(outcome)")
+
+    // A chain the server doesn't list can't link it.
+    let stranger = try Chain(seed: Chain.generateSeed())
+    #expect(await AccountLinker(serverURL: server.url).link(chain: stranger, profileUUID: studio) == .refused)
+
+    // The phone links it (as SyncController does on a 401); then both sync.
+    #expect(await AccountLinker(serverURL: server.url).link(chain: chain, profileUUID: studio) == .linked)
+    outcome = await mac.cycle()
+    #expect(outcome == SyncOutcome(), "\(outcome)")
+    _ = await phone.cycle()
+    await phone.addListedProfiles()
+    _ = await phone.cycle()
+    outcome = await phone.cycle()
+    #expect(outcome == SyncOutcome(), "\(outcome)")
+    #expect(phone.space("Studio").profileUUID == studio)
+    #expect(phone.outline == mac.outline, "\n\(phone.outline)\n---\n\(mac.outline)")
   }
 }

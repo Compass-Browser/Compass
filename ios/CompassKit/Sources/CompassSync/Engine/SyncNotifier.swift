@@ -34,18 +34,38 @@ public final class SyncNotifier: Sendable {
   /// How a connection ended.
   enum Outcome { case connected, failed, removed }
 
+  /// A room's change (docs/design/sync.md, "Rooms", Notifications):
+  ///
+  ///     event: room
+  ///     data: {"room_id":"n4bQgYhMfWWaL-qgxVrQFQ","seq":42,"changes":["records"]}
+  public struct RoomEvent: Sendable, Equatable {
+    public var roomID: String
+    public var seq: Int64
+    /// "records", "members", "keys", "invites", "deleted".
+    public var changes: [String]
+
+    public init(roomID: String, seq: Int64, changes: [String]) {
+      self.roomID = roomID
+      self.seq = seq
+      self.changes = changes
+    }
+  }
+
   /// Runs until cancelled, or until the server says another device removed
   /// this one (then `removed` is called and it stops: the server refuses
   /// this cache GUID for good). `changed` gets the types another device
   /// changed, or nil to refresh everything (on each (re)connect: changes
-  /// made while disconnected weren't announced).
+  /// made while disconnected weren't announced). `room` gets the `room`
+  /// events of the rooms the account is a member of (shared spaces, folders
+  /// and easels); nothing else changes for those who don't pass it.
   public func run(
     changed: @escaping @Sendable ([DataType]?) async -> Void,
-    removed: @escaping @Sendable () async -> Void = {}
+    removed: @escaping @Sendable () async -> Void = {},
+    room: (@Sendable (RoomEvent) async -> Void)? = nil
   ) async {
     var failures = 0
     while !Task.isCancelled {
-      let outcome = await stream(changed: changed)
+      let outcome = await stream(changed: changed, room: room)
       if Task.isCancelled { return }
       if outcome == .removed {
         await removed()
@@ -59,7 +79,9 @@ public final class SyncNotifier: Sendable {
   }
 
   /// One connection: whether it got as far as a 200.
-  private func stream(changed: @escaping @Sendable ([DataType]?) async -> Void) async -> Outcome {
+  private func stream(
+    changed: @escaping @Sendable ([DataType]?) async -> Void, room: (@Sendable (RoomEvent) async -> Void)?
+  ) async -> Outcome {
     var request = URLRequest(url: url)
     request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
     request.setValue("Bearer " + Chain.accessToken(authKey: authKey, now: Date()), forHTTPHeaderField: "Authorization")
@@ -73,12 +95,25 @@ public final class SyncNotifier: Sendable {
     var parser = EventStreamParser()
     do {
       for try await byte in bytes {
-        for event in parser.feed(byte) where event.name == "changed" {
-          await changed(Self.types(event.data))
+        for event in parser.feed(byte) {
+          if event.name == "changed" {
+            await changed(Self.types(event.data))
+          } else if event.name == "room", let room, let roomEvent = Self.roomEvent(event.data) {
+            await room(roomEvent)
+          }
         }
       }
     } catch {}
     return .connected
+  }
+
+  /// A `room` event's data; nil if unreadable.
+  static func roomEvent(_ data: String) -> RoomEvent? {
+    guard let json = try? JSONSerialization.jsonObject(with: Data(data.utf8)) as? [String: Any],
+      let id = json["room_id"] as? String, !id.isEmpty
+    else { return nil }
+    return RoomEvent(
+      roomID: id, seq: (json["seq"] as? NSNumber)?.int64Value ?? 0, changes: json["changes"] as? [String] ?? [])
   }
 
   /// The data types of a `changed` event; nil (refresh all) if unreadable.

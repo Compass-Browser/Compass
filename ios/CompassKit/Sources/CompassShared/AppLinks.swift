@@ -28,6 +28,9 @@ public enum AppLinks {
     /// Cancelled; the shared Boost in the link's fragment is shown, to add
     /// or not (`boostShareFragment`), Incognito tabs too.
     case importBoost(fragment: String)
+    /// Cancelled; the join preview of a shared space, folder or easel's
+    /// invite link (`isRoomInvite`), outside Incognito.
+    case joinRoom(URL)
   }
 
   /// What WebKit says about the navigation, and what the tab knows.
@@ -71,6 +74,7 @@ public enum AppLinks {
   public static func decide(_ n: Navigation) -> Decision {
     let scheme = n.url.scheme?.lowercased() ?? ""
     if n.isMainFrame, let fragment = boostShareFragment(n.url) { return .importBoost(fragment: fragment) }
+    if n.isMainFrame, !n.isIncognito, isRoomInvite(n.url) { return .joinRoom(n.url) }
     if scheme.isEmpty || browserSchemes.contains(scheme) {
       return universalLink(n) ? .tryUniversalLink(n.url) : .allow
     }
@@ -100,6 +104,18 @@ public enum AppLinks {
       let fragment = url.fragment(percentEncoded: true), !fragment.isEmpty
     else { return nil }
     return fragment
+  }
+
+  /// A room's invite link (docs/design/sync.md, "Rooms: crypto and links"):
+  /// https://compassbrowser.org/join (or /join/, /join.html) with a
+  /// fragment, which carries the invite and never reaches a server.
+  public static func isRoomInvite(_ url: URL) -> Bool {
+    guard url.scheme?.lowercased() == "https", let host = url.host()?.lowercased(),
+      host == "compassbrowser.org" || host == "www.compassbrowser.org", url.port == nil, url.user() == nil,
+      ["/join", "/join/", "/join.html"].contains(url.path(percentEncoded: true)),
+      let fragment = url.fragment(percentEncoded: true), !fragment.isEmpty
+    else { return false }
+    return true
   }
 
   /// Same host, or one a subdomain of the other ("www." aside). No public

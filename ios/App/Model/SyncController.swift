@@ -92,6 +92,10 @@ final class SyncController {
   private(set) var chain: Chain?
   /// The chain's profiles (home first), from the home account or pairing.
   private(set) var profiles: [ChainProfile] = []
+  /// Profile accounts (not the home's) that didn't sync in the last cycle,
+  /// with why: one the Mac hasn't started yet, or a failure. They don't
+  /// fail sync as a whole (SyncOutcome).
+  private(set) var profileProblems: [String: String] = [:]
   /// Other devices' open tabs, per account ("" = the home's).
   private(set) var sessionsByAccount: [String: [ForeignSession]] = [:]
   /// Extensions on the chain's other devices (every profile's account),
@@ -311,8 +315,13 @@ final class SyncController {
     serverURL = nil
     devices = []
     profiles = []
+    profileProblems = [:]
+    linking = []
+    linked = []
+    lastLink = [:]
     sessionsByAccount = [:]
     passwords.removeBridges()
+    RoomsModel.shared.syncStopped()
     state = .off
     store.onLocalChange = nil
   }
@@ -336,6 +345,8 @@ final class SyncController {
     serverURL = server
     let spaceDirectory = SpaceDirectory(store: store)
     self.spaceDirectory = spaceDirectory
+    // Sharing with other people (App/Rooms, docs/design/ios.md "Rooms").
+    RoomsModel.shared.syncStarted(directory: spaceDirectory, stateDirectory: directory.appendingPathComponent("Rooms"))
     startAccount("")
     spaceDirectory.adoptPairingProfiles(pairingProfiles)
     spaceDirectory.onProfilesChanged = { [weak self] list in self?.profilesChanged(list) }
@@ -357,9 +368,44 @@ final class SyncController {
     var started = false
     for profile in list where profile.uuid != home && accounts[profile.uuid] == nil {
       startAccount(profile.uuid)
+      link(profile.uuid)
       started = true
     }
     if started { syncSoon(after: 0) }
+  }
+
+  // MARK: Linking profile accounts
+
+  /// Profile accounts linked (or being linked) this run.
+  @ObservationIgnored private var linking: Set<String> = []
+  @ObservationIgnored private var linked: Set<String> = []
+  @ObservationIgnored private var lastLink: [String: Date] = [:]
+
+  /// Links a profile's account to the chain's on the server, once a run
+  /// (again with `force`, after the server refused the account): a private
+  /// server lets it in with the chain then (`AccountLinker`, sync.md
+  /// "Profiles"). Best effort: a failure is tried again at the next 401.
+  private func link(_ profile: String, force: Bool = false) {
+    guard let chain, let server = serverURL, !profile.isEmpty, !linking.contains(profile),
+      force || !linked.contains(profile),
+      // After a refusal, at most once a minute.
+      !force || Date().timeIntervalSince(lastLink[profile] ?? .distantPast) >= 60
+    else { return }
+    linking.insert(profile)
+    lastLink[profile] = Date()
+    Task { [weak self] in
+      let result = await AccountLinker(serverURL: server).link(chain: chain, profileUUID: profile)
+      guard let self, self.chain?.seed == chain.seed else { return }
+      self.linking.remove(profile)
+      if result == .linked {
+        self.linked.insert(profile)
+        // After a refusal, the account may sync now.
+        if force { self.syncSoon(after: 1) }
+      } else {
+        Logger(subsystem: "it.cipi1965.compass", category: "sync")
+          .error("Sync: linking a profile account failed: \(String(describing: result), privacy: .public)")
+      }
+    }
   }
 
   private func startAccount(_ profile: String) {
@@ -440,6 +486,7 @@ final class SyncController {
     account.cacheGUID = cacheGUID
     account.authKey = authKey
     accounts[profile] = account
+    RoomsModel.shared.accountStarted(profile: profile, bridge: spaces, chain: chain, server: server, cacheGUID: cacheGUID)
     writePushAccounts()
     if let token = pushToken { registerPush(token, account: account) }
     collectExtensions()
@@ -608,6 +655,7 @@ final class SyncController {
   /// while active (iOS suspends background sockets anyway).
   func setActive(_ isActive: Bool) {
     active = isActive
+    RoomsModel.shared.setActive(isActive && state != .removed)
     for account in accounts.values {
       if isActive, state != .removed {
         listen(account)
@@ -627,7 +675,8 @@ final class SyncController {
     account.listening = Task { [weak self] in
       await notifier.run(
         changed: { _ in await MainActor.run { self?.syncSoon(after: 0.3) } },
-        removed: { await MainActor.run { self?.deviceRemoved() } })
+        removed: { await MainActor.run { self?.deviceRemoved() } },
+        room: { [profile = account.profile] event in await MainActor.run { RoomsModel.shared.handle(event, account: profile) } })
     }
   }
 
@@ -656,22 +705,26 @@ final class SyncController {
     running = true
     state = .syncing
     defer { running = false }
-    var failure: String?
+    var results: [String: SyncOutcome.AccountResult] = [:]
     var poll: TimeInterval = .infinity
     var done: Set<String> = []
+    // One account's failure doesn't stop the others: each runs, and only the
+    // home's decides the state (SyncOutcome).
     while let profile = ([""] + accounts.keys.sorted()).first(where: { accounts[$0] != nil && !done.contains($0) }) {
       done.insert(profile)
       guard let account = accounts[profile] else { continue }
-      let message = await cycle(account)
+      let result = await cycle(account)
       if state == .removed { return }
-      if let message {
-        failure = failure ?? message
+      results[profile] = result
+      if case .failed(let message) = result {
         Logger(subsystem: "it.cipi1965.compass", category: "sync")
           .error("Sync failed (\(profile.isEmpty ? "home" : profile, privacy: .public)): \(message, privacy: .public)")
       }
       poll = min(poll, await account.engine.pollInterval ?? 30)
     }
-    if let failure {
+    let outcome = SyncOutcome(results: results)
+    profileProblems = outcome.profileProblems
+    if let failure = outcome.failure {
       state = .failed(failure)
     } else {
       lastSync = Date()
@@ -687,8 +740,8 @@ final class SyncController {
     }
   }
 
-  /// One account's cycle; an error message if it failed.
-  private func cycle(_ account: Account) async -> String? {
+  /// One account's cycle.
+  private func cycle(_ account: Account) async -> SyncOutcome.AccountResult {
     do {
       await account.spaces.flush()
       try await account.engine.sync()
@@ -697,19 +750,23 @@ final class SyncController {
       await account.spaces.flush()
       if await account.engine.hasPendingChanges { try await account.engine.sync() }
       account.foreignSessions = account.sessions.foreignSessions()
-      return nil
+      return .synced
     } catch SyncEngineError.chainNotStarted {
-      return account.profile.isEmpty
-        ? "No device has started sync on this chain yet." : "A profile's sync hasn't started on the Mac yet."
+      return .notStarted
+    } catch SyncEngineError.connection(.http(401)) {
+      // A private server that doesn't know this profile's account: linking
+      // it from the home account lets it in (sync.md, "Profiles").
+      if !account.profile.isEmpty { link(account.profile, force: true) }
+      return .failed(account.profile.isEmpty ? SyncOutcome.homeRefusedMessage : SyncOutcome.profileRefusedMessage)
     } catch SyncEngineError.connection(.deviceRemoved) {
       deviceRemoved()
-      return nil
+      return .synced
     } catch SyncEngineError.crypto {
-      return "This chain was reset on another device. Join it again."
+      return .failed("This chain was reset on another device. Join it again.")
     } catch SyncEngineError.connection(let error) {
-      return "Can't reach the sync server (\(error))."
+      return .failed("Can't reach the sync server (\(error)).")
     } catch {
-      return "\(error)"
+      return .failed("\(error)")
     }
   }
 
@@ -785,6 +842,11 @@ final class SyncController {
   func profile(of space: Space) -> ChainProfile? {
     if store.isHome(space.profileUUID) { return profiles.first(where: \.home) }
     return profiles.first { $0.uuid == space.profileUUID }
+  }
+
+  /// Why a chain profile's account didn't sync last time; nil if it did.
+  func problem(_ profile: ChainProfile) -> String? {
+    profile.uuid == ChainProfile.homeUUID(profiles) ? nil : profileProblems[profile.uuid]
   }
 
   /// How many spaces a chain profile has here.

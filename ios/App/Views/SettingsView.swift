@@ -357,6 +357,11 @@ struct SettingsView: View {
             Text(count == 1 ? "1 space" : "\(count) spaces")
           } label: {
             Text(profile.name.isEmpty ? "Profile" : profile.name)
+            // A profile account that didn't sync (one the Mac hasn't
+            // started yet): the others sync on.
+            if let problem = app.sync.problem(profile) {
+              Text(problem).font(.caption).foregroundStyle(.secondary)
+            }
           }
         }
       } header: {
@@ -397,6 +402,8 @@ struct SettingsView: View {
       Button("Add a Device") { app.sync.addDevice() }
         .disabled(!canAddDevice)
     }
+    // Sharing with other people (App/Rooms).
+    Section("Sharing") { SharingNameRow() }
     Section {
       Button("Show Recovery Code") { authenticate() }
       // Removed: it's at the top, by the reason.

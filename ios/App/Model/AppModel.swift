@@ -211,6 +211,31 @@ final class AppModel {
       // Simulator checks (docs/design/ios.md, "Verification"):
       //   -CompassServer <url> -CompassJoinRecovery "<12 words>"
       let defaults = UserDefaults.standard
+      //   -CompassLeave YES: leave sync first, as Settings → Leave Sync.
+      if defaults.bool(forKey: "CompassLeave"), sync.isOn { sync.leave() }
+      //   -CompassServer <url> -CompassJoinCode <slot>-<6 digits>: join by
+      //   pairing, as "I Have Another Device" (Allow it on the Mac).
+      if !sync.isOn, let code = defaults.string(forKey: "CompassJoinCode"),
+        let server = defaults.string(forKey: "CompassServer").flatMap(URL.init(string:))
+      {
+        Task { [weak self] in
+          guard let self else { return }
+          let result = await self.sync.join(code: code, server: server) {}
+          print("CompassJoinCode: \(result)")
+          if case .joined = result {
+            self.showingSettings = true
+            self.showingJoinSummary = true
+          }
+        }
+      }
+      //   -CompassInvite "compass-pair:?server=…&code=…": as the Mac's QR
+      //   opened from the Camera app (Settings → Join Sync joins at once).
+      if !sync.isOn, let link = defaults.string(forKey: "CompassInvite").flatMap(URL.init(string:)),
+        let invite = PairingInvite(url: link)
+      {
+        pendingInvite = invite
+        showingSettings = true
+      }
       if !sync.isOn, let words = defaults.string(forKey: "CompassJoinRecovery"),
         let server = defaults.string(forKey: "CompassServer").flatMap(URL.init(string:))
       {
@@ -259,6 +284,9 @@ final class AppModel {
       //   -CompassEaselDemo YES: a new board with one of each kind of
       //   object, shown (EaselLibrary).
       if defaults.bool(forKey: "CompassEaselDemo") { easelDemo() }
+      //   -CompassRoomsJoin <link>, -CompassRoomsAutoJoin YES,
+      //   -CompassRoomsShareDemo YES: sharing (App/Rooms/RoomsDebug.swift).
+      RoomsModel.shared.runDebugSwitches(self)
       //   -CompassSidebarDrag <0...1>: hold the sidebar there, as under a
       //   finger.
       if let drag = defaults.object(forKey: "CompassSidebarDrag").flatMap({ Double("\($0)") }) {

@@ -18,7 +18,8 @@ final class TestServer: @unchecked Sendable {
   let directory: URL
   let url: URL
 
-  init() async throws {
+  /// `environment`: more server settings (COMPASS_SYNC_ALLOWED_CHAINS...).
+  init(environment: [String: String] = [:]) async throws {
     directory = FileManager.default.temporaryDirectory
       .appendingPathComponent("compass-sync-test-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -30,7 +31,7 @@ final class TestServer: @unchecked Sendable {
       "COMPASS_SYNC_DB": directory.appendingPathComponent("sync.db").path,
       "ENV": "local",
       "PATH": "/usr/bin:/bin",
-    ]
+    ].merging(environment) { _, new in new }
     process.standardOutput = FileHandle(forWritingAtPath: "/dev/null")
     process.standardError = try FileHandle(
       forWritingTo: {
@@ -57,7 +58,11 @@ final class TestServer: @unchecked Sendable {
 
   deinit {
     process.terminate()
-    process.waitUntilExit()
+    // Not waitUntilExit(): it waits on a run loop, and with tests running in
+    // parallel on Swift's cooperative threads it could miss the exit and
+    // hang the whole run. Poll, with a deadline.
+    let deadline = Date().addingTimeInterval(5)
+    while process.isRunning && Date() < deadline { usleep(10_000) }
     try? FileManager.default.removeItem(at: directory)
   }
 }

@@ -129,12 +129,15 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
 
   /// Whether `id` is a space that stays on this device.
   @MainActor func isLocalSpace(id: String) -> Bool { store.space(id: id).map { !$0.synced } ?? false }
-  /// Whether `node` is in a space that stays on this device.
-  @MainActor func isLocal(_ node: SidebarNode) -> Bool { store.space(of: node).map { !$0.synced } ?? false }
+  /// Whether `node` is in a space that stays on this device, or comes from
+  /// a room (shared with other people: it syncs there, not here; +Rooms).
+  @MainActor func isLocal(_ node: SidebarNode) -> Bool {
+    store.space(of: node).map { !$0.synced } ?? false || isRoomNode(node)
+  }
   /// Whether a remote entity is of a local space, or of a node in or for one:
   /// never applied, deleted again.
   @MainActor func isLocal(id: String, _ specifics: SyncPb_CompassSpacesSpecifics?) -> Bool {
-    if isLocalSpace(id: id) { return true }
+    if isLocalSpace(id: id) || isRoomEntity(id: id, specifics) { return true }
     if let node = store.node(id: id), isLocal(node) { return true }
     if case .node(let n)? = specifics?.entity, isLocalSpace(id: n.spaceUuid) { return true }
     return false
@@ -172,7 +175,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       }
     }
     guard tracking else { return }
-    for space in store.spaces where owns(space) { commit(space.id, desired(space)) }
+    for space in store.spaces where owns(space) && !isRoomSpace(space.id) { commit(space.id, desired(space)) }
     drain()
   }
 
@@ -213,26 +216,26 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
 
   /// Microseconds since 1601-01-01 UTC (base::Time's internal value).
   static let windowsEpochOffset: Int64 = 11_644_473_600 * 1_000_000
-  static func windowsMicros(_ date: Date) -> Int64 {
+  public static func windowsMicros(_ date: Date) -> Int64 {
     Int64((date.timeIntervalSince1970 * 1_000_000).rounded(.down)) + windowsEpochOffset
   }
-  static func date(windowsMicros: Int64) -> Date {
+  public static func date(windowsMicros: Int64) -> Date {
     Date(timeIntervalSince1970: TimeInterval(windowsMicros - windowsEpochOffset) / 1_000_000)
   }
 
-  static func position(_ proto: SyncPb_UniquePosition) -> UniquePosition {
+  public static func position(_ proto: SyncPb_UniquePosition) -> UniquePosition {
     if proto.hasCustomCompressedV1 { return UniquePosition(compressed: [UInt8](proto.customCompressedV1)) }
     if proto.hasValue, !proto.value.isEmpty { return UniquePosition(uncompressedValue: [UInt8](proto.value)) }
     return UniquePosition(compressed: [])
   }
 
-  static func proto(_ position: UniquePosition) -> SyncPb_UniquePosition {
+  public static func proto(_ position: UniquePosition) -> SyncPb_UniquePosition {
     var p = SyncPb_UniquePosition()
     p.customCompressedV1 = Data(position.compressed)
     return p
   }
 
-  static func isValidUUID(_ s: String) -> Bool {
+  public static func isValidUUID(_ s: String) -> Bool {
     s.count == 36 && s == s.lowercased() && UUID(uuidString: s) != nil
   }
 
@@ -248,6 +251,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     case .easel(let easel): easel.uuid
     case .easelObject(let object): object.uuid
     case .easelAsset(let asset): asset.uuid
+    case .roomMount(let mount): mount.roomID.isEmpty ? nil : mountTag(roomID: mount.roomID)
     case nil: nil
     }
   }
@@ -272,11 +276,8 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   /// What we'd commit for a space now: the mirror with our fields over it.
   @MainActor
   func desired(_ space: Space) -> SyncPb_CompassSpacesSpecifics {
-    var specifics = mirror[space.id] ?? SyncPb_CompassSpacesSpecifics()
+    var specifics = Self.spaceSpecifics(space, existing: mirror[space.id])
     var s = specifics.space
-    s.uuid = space.id
-    if space.name.isEmpty { s.clearName() } else { s.name = space.name }
-    s.setTheme(space.theme)
     s.directoryPosition = Self.proto(space.position)
     if !ownProfile.isEmpty { s.profileUuid = ownProfile }
     s.archiveAfterSeconds = Int64(space.archiveAfter ?? 0)
@@ -289,12 +290,25 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   func desired(_ node: SidebarNode) -> SyncPb_CompassSpacesSpecifics? {
     if isLocal(node) { return nil }
     if parked.contains(node.id) { return mirror[node.id] }
-    // A live folder's entries stay on this device.
-    guard !node.isLiveItem, let section = node.section, let type = node.kind.nodeType else { return nil }
+    guard let section = node.section else { return nil }
     let existing = mirror[node.id]
     if section == .today, existing == nil, !node.tabs.allSatisfy({ Self.isRestorable($0.url) }) || node.isSplit && node.children.isEmpty {
       return nil
     }
+    return Self.nodeSpecifics(node, existing: existing, store: store)
+  }
+
+  /// A node as a CompassNode over `existing` (the last one synced, whose
+  /// fields this client doesn't know survive), or nil for one that never
+  /// syncs (a live folder's entry, a section root). Rooms use it too
+  /// (CompassRooms' RoomSync), and then set the space and parent of their
+  /// scope.
+  @MainActor
+  public static func nodeSpecifics(
+    _ node: SidebarNode, existing: SyncPb_CompassSpacesSpecifics?, store: SpaceStore
+  ) -> SyncPb_CompassSpacesSpecifics? {
+    // A live folder's entries stay on this device.
+    guard !node.isLiveItem, let section = node.section, let type = node.kind.nodeType else { return nil }
     var specifics = existing ?? SyncPb_CompassSpacesSpecifics()
     var n = specifics.node
     let space = store.space(of: node)
@@ -323,8 +337,8 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     if node.isFolder, node.collapsed { n.collapsed = true } else { n.clearCollapsed() }
     // Where a folder's name came from (docs/design/ai-sidebar.md): unset for
     // the user's. A value this client doesn't know is passed on as it is.
-    let nameSource = node.isFolder ? Self.protoNameSource(node.nameSource) : 0
-    if let remote = Self.nameSource(proto: n.nameSource), Self.protoNameSource(remote) != nameSource {
+    let nameSource = node.isFolder ? protoNameSource(node.nameSource) : 0
+    if let remote = Self.nameSource(proto: n.nameSource), protoNameSource(remote) != nameSource {
       if nameSource == 0 { n.clearNameSource() } else { n.nameSource = nameSource }
     }
     if let source = node.liveSource {
@@ -347,8 +361,8 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       n.clearLiveSource()
     }
 
-    // A position from the mirror stays only under the same parent, section
-    // and space; elsewhere ours goes.
+    // A position from the existing one stays only under the same parent,
+    // section and space; elsewhere ours goes.
     let sameSlot =
       existing.map {
         $0.node.section == n.section && $0.node.spaceUuid == n.spaceUuid && $0.node.parentUuid == n.parentUuid
@@ -380,13 +394,34 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     return specifics
   }
 
+  /// A space's shared fields (name, theme) over `existing`: what a room
+  /// syncs of a shared space. The account adds its own (profile, place in
+  /// the list, archiving).
+  @MainActor
+  public static func spaceSpecifics(_ space: Space, existing: SyncPb_CompassSpacesSpecifics?)
+    -> SyncPb_CompassSpacesSpecifics
+  {
+    var specifics = existing ?? SyncPb_CompassSpacesSpecifics()
+    var s = specifics.space
+    s.uuid = space.id
+    if space.name.isEmpty { s.clearName() } else { s.name = space.name }
+    s.setTheme(space.theme)
+    specifics.space = s
+    return specifics
+  }
+
+  /// A space's theme as received, over `current`.
+  public static func theme(of space: SyncPb_CompassSpace, over current: SpaceTheme) -> SpaceTheme {
+    space.theme(over: current)
+  }
+
   /// CompassNode.name_source: 1 OPENER, 2 CLAUDE, unset (0) the user's, as
   /// a folder from an older client reads.
   static let nameSourceOpener: Int32 = 1
   static let nameSourceClaude: Int32 = 2
 
   /// The proto's name_source; nil for a value this client doesn't know.
-  static func nameSource(proto value: Int32) -> SidebarNode.NameSource? {
+  public static func nameSource(proto value: Int32) -> SidebarNode.NameSource? {
     switch value {
     case 0: .user
     case nameSourceOpener: .opener
@@ -411,7 +446,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   }
 
   /// A remote live folder's source, or nil if it has none (or no plugin).
-  static func liveSource(_ n: SyncPb_CompassNode) -> LiveSource? {
+  public static func liveSource(_ n: SyncPb_CompassNode) -> LiveSource? {
     guard n.hasLiveSource, !n.liveSource.pluginID.isEmpty else { return nil }
     let live = n.liveSource
     let config = (try? JSONSerialization.jsonObject(with: Data(live.configJson.utf8))) is [String: Any]
@@ -431,6 +466,15 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     }
     for id in change.putSpaces {
       guard let space = store.space(id: id), owns(space) else { continue }
+      if isRoomSpace(space.id) {
+        // A shared space: its name and theme sync in its room; its Today
+        // and archive here.
+        deleteFromServer([space.id])
+        for node in space.allNodes where mirror[node.id] == nil {
+          if let specifics = desired(node) { commit(node.id, specifics) }
+        }
+        continue
+      }
       if !space.synced {
         // Turned off (or changed while off): what the others have goes.
         deleteFromServer([space.id] + space.allNodes.map(\.id))
@@ -582,6 +626,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
     var deletedBoosts: Set<String> = []
     var easels = EaselEntities()
     var deletedEasels: Set<String> = []
+    var mountsChanged = false
     let byHash = Dictionary(
       mirror.keys.map { (ClientTagHash.make(type: .compassSpaces, tag: $0), $0) }, uniquingKeysWith: { a, _ in a })
     for change in changes {
@@ -600,9 +645,11 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         case .easel(let e): easels.easels.append(e)
         case .easelObject(let o): easels.objects.append(o)
         case .easelAsset(let a): easels.assets.append(a)
+        case .roomMount: mountsChanged = true
         case nil: break
         }
       } else if let id = byHash[change.clientTagHash] {
+        if case .roomMount = mirror[id]?.entity { mountsChanged = true }
         if case .profile = mirror[id]?.entity { profilesChanged = true }
         if case .memory = mirror[id]?.entity { deletedMemories.insert(id) }
         if case .linkRule(let r)? = mirror[id]?.entity { deletedRules.append(r) }
@@ -612,6 +659,11 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
         deleted.insert(id)
       }
     }
+    // Rooms first: what they share (their mounts say) doesn't come from
+    // here, and isn't deleted by what does (+Rooms).
+    if mountsChanged { directory.rooms?.mountsChanged(self) }
+    easels = personalEasels(easels)
+    deletedEasels = deletedEasels.filter { !isRoomEasel($0) }
     // Spaces that stay on this device: nothing remote changes them or what's
     // in them, and what came is deleted again (docs/design/sync.md).
     let local = (putSpaces + putNodes).filter { isLocal(id: $0, mirror[$0]) }
@@ -946,7 +998,9 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
       e.compassSpaces = s
       result.append((id, e))
     }
-    for space in store.spaces where owns(space) && space.synced { add(space.id, desired(space)) }
+    for space in store.spaces where owns(space) && space.synced && !isRoomSpace(space.id) {
+      add(space.id, desired(space))
+    }
     for node in store.allNodes where owns(node) { add(node.id, desired(node)) }
     if isHome, let memories = localMemories?() {
       for memory in memories { add(memory.id, desired(memory)) }

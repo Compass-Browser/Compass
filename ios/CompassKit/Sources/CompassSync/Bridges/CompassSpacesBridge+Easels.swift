@@ -37,7 +37,9 @@ extension CompassSpacesBridge {
   /// images the account doesn't have with their bytes (left out while
   /// those can't be read).
   @MainActor
-  func easelSpecifics(_ easels: EaselEntities) -> [SyncPb_CompassSpacesSpecifics] {
+  func easelSpecifics(_ all: EaselEntities) -> [SyncPb_CompassSpacesSpecifics] {
+    // Shared boards sync in their rooms (+Rooms).
+    let easels = personalEasels(all)
     var out: [SyncPb_CompassSpacesSpecifics] = []
     for easel in easels.easels where Self.isValidUUID(easel.uuid) {
       var s = SyncPb_CompassSpacesSpecifics()
@@ -66,7 +68,8 @@ extension CompassSpacesBridge {
   @MainActor
   public func easelsChanged(_ easels: EaselEntities) {
     guard isHome, tracking else { return }
-    let ids = Set(easels.easels.map(\.uuid) + easels.objects.map(\.uuid) + easels.assets.map(\.uuid))
+    let mine = personalEasels(easels)
+    let ids = Set(mine.easels.map(\.uuid) + mine.objects.map(\.uuid) + mine.assets.map(\.uuid))
     for (id, s) in mirror where Self.isEasel(s) && !ids.contains(id) {
       mirror[id] = nil
       lastCommit[id] = nil

@@ -47,6 +47,9 @@ public final class EaselStore {
   @ObservationIgnored private var saveTask: Task<Void, Never>?
   /// After every change, local or remote: sync commits what differs.
   @ObservationIgnored public var onChange: (() -> Void)?
+  /// Also called after every change, after `onChange`: rooms, which sync
+  /// shared boards (CompassRooms).
+  @ObservationIgnored public var changeObservers: [() -> Void] = []
   @ObservationIgnored public var now: () -> Date = Date.init
 
   /// `directory` nil: in memory only (tests).
@@ -268,15 +271,17 @@ public final class EaselStore {
   /// What another device changed: `changed` replace or add by uuid unless
   /// the one here was edited later (images are kept once, they never
   /// change); `deleted` are client tags of any of the three kinds.
-  public func applyRemote(_ changed: EaselEntities, deleted: Set<String>) {
+  /// `force`: replace even what was edited here later (a shared board's
+  /// viewer, whose edits don't count).
+  public func applyRemote(_ changed: EaselEntities, deleted: Set<String>, force: Bool = false) {
     var any = false
     for easel in changed.easels where Easels.isLowerUUID(easel.uuid) {
-      if let old = easelsByID[easel.uuid], easel.updateTime < old.updateTime || easel == old { continue }
+      if let old = easelsByID[easel.uuid], (!force && easel.updateTime < old.updateTime) || easel == old { continue }
       easelsByID[easel.uuid] = easel
       any = true
     }
     for object in changed.objects where Easels.isLowerUUID(object.uuid) {
-      if let old = objectsByID[object.uuid], object.updateTime < old.updateTime || object == old { continue }
+      if let old = objectsByID[object.uuid], (!force && object.updateTime < old.updateTime) || object == old { continue }
       objectsByID[object.uuid] = object
       any = true
     }
@@ -438,5 +443,6 @@ public final class EaselStore {
   private func changed() {
     scheduleSave()
     onChange?()
+    for observer in changeObservers { observer() }
   }
 }

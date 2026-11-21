@@ -766,6 +766,7 @@ struct EaselEditor: View {
     HStack(spacing: 8) {
       TextField("Title", text: $title)
         .font(.headline)
+        .disabled(!RoomsModel.shared.canEdit(easel: board))
         .focused($editTitleFocused)
         .submitLabel(.done)
         .onSubmit(rename)
@@ -796,8 +797,20 @@ struct EaselEditor: View {
 
   @ViewBuilder private func bottomBars(_ objects: [EaselObject]) -> some View {
     VStack(spacing: 8) {
-      if !selection.isEmpty { selectionBar(objects) }
-      toolBar(objects)
+      if !RoomsModel.shared.canEdit(easel: board) {
+        // Shared with you to view (App/Rooms): no tools.
+        Button { RoomsModel.shared.share(easel: board) } label: {
+          Label("View Only", systemImage: "eye")
+            .font(.subheadline.weight(.medium))
+            .padding(.horizontal, 16)
+            .frame(height: 40)
+            .floatingGlass(in: Capsule(), frosted: true)
+        }
+        .buttonStyle(.plain)
+      } else {
+        if !selection.isEmpty { selectionBar(objects) }
+        toolBar(objects)
+      }
     }
     .padding(.horizontal, 12)
   }
@@ -902,6 +915,11 @@ struct EaselEditor: View {
         }
         .pickerStyle(.menu)
         Button("All Easels", systemImage: "rectangle.stack") { app.store.update(tab, url: EaselURL.list, title: "Easels") }
+        if RoomsModel.shared.isAvailable {
+          Button(RoomsModel.shared.room(ofEasel: board) == nil ? "Share…" : "Sharing…", systemImage: "person.crop.circle.badge.plus") {
+            RoomsModel.shared.share(easel: board)
+          }
+        }
       } label: {
         BarGlyph(symbol: "ellipsis.circle")
       }

@@ -1,10 +1,9 @@
-Easels, and sync that starts on this iPhone or iPad.
+Sharing spaces, folders and easels with other people, and Compass as your default browser.
 
-- New Easel: the sidebar's + menu, or "New Easel" in the command bar. The board is pinned in the current space like a tab, with an easel icon; its title follows the board's.
-- On a board: add text, rectangles, circles, arrows, freehand drawing, images and links (a link becomes a card with the page's title and picture). Drag empty space to pan, pinch to zoom; Select Area in the ⋯ menu picks several things at once.
-- Capture to Easel: in the page menu. Drag over part of the page, then choose the board (or New Easel). The capture keeps the page's address; Refresh in its menu takes it again.
-- Boards sync with your other devices, and easels imported from Arc on your Mac show up here.
-- Sync without a Mac: Settings → Sync → Start Sync on This iPhone starts a new chain and shows your 12-word recovery code once. Add a Device shows a code and a QR code for your other devices (Mac, Windows, Linux, Android, another iPhone or iPad), then asks you to Allow or Deny each one. Show Recovery Code shows the words again after Face ID or your passcode.
-- Remove a device: in Settings → Sync, swipe left on a device (or long-press it) and tap Remove. It stops syncing and leaves your list; it keeps what's on it and can join again with a pairing code.
-- Fixed: sheets opened from Settings (like Show Recovery Code) closed by themselves.
-- Please report: pairing that fails or hangs (with which devices), boards that look different here than on the Mac, captures that come out blank or cut, and anything lost while syncing.
+- Default browser: in the Settings app, Apps → Default Browser App → Compass. Links from Mail, Messages and other apps then open in Compass, in a little window or in the space a link rule sends them to.
+- Share: in the sidebar, touch and hold a pinned folder and tap Share…; for a space, tap ⋯ next to its name; for an easel, ⋯ inside the board. Tap Share This Folder (or space, or easel), pick the role (Editor or Viewer), when the link expires and how many people can use it, then Create Invite Link and send it.
+- Join: tap an invite link (with Compass as your default browser it opens straight here; otherwise tap Open in Compass on the page it shows). Pick the space to put it in and tap Join. Shared items have a people badge, and your other devices join too.
+- In Sharing…: see who's in, change someone's role or remove them, Leave, or Delete for everyone if you shared it. Set the name others see in Settings → Sharing.
+- Viewers can open everything but can't change it.
+- Fixed: a new profile on the Mac could stay at "Starting…" forever while syncing.
+- Please report: invites that don't open or fail to join, changes that don't show up for the others (and on which devices), and anything that disappears.

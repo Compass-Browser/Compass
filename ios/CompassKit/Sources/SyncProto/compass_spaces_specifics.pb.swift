@@ -46,7 +46,8 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
 
 /// One entity per space and per sidebar node, and in the home profile's
 /// account one per profile of the chain; icons, Claude's memories, link
-/// rules, Boosts and Easels. The client tag is `uuid` (a Boost's `id`).
+/// rules, Boosts, Easels and room mounts. The client tag is `uuid` (a Boost's
+/// `id`; a room mount's RoomMountKey(room_id)).
 public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -134,6 +135,14 @@ public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
     set {entity = .easelAsset(newValue)}
   }
 
+  public var roomMount: SyncPb_CompassRoomMount {
+    get {
+      if case .roomMount(let v)? = entity {return v}
+      return SyncPb_CompassRoomMount()
+    }
+    set {entity = .roomMount(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Entity: Equatable, Sendable {
@@ -147,6 +156,7 @@ public nonisolated struct SyncPb_CompassSpacesSpecifics: Sendable {
     case easel(SyncPb_CompassEasel)
     case easelObject(SyncPb_CompassEaselObject)
     case easelAsset(SyncPb_CompassEaselAsset)
+    case roomMount(SyncPb_CompassRoomMount)
 
   }
 
@@ -1605,13 +1615,175 @@ public nonisolated struct SyncPb_CompassEaselAsset: Sendable {
   fileprivate var _createTime: Int64? = nil
 }
 
+/// A room this account is a member of (docs/design/sync.md, "Rooms: clients"):
+/// a space, a pinned folder or an easel shared between users, whose content
+/// syncs through the room (encrypted with the room's keys), not through this
+/// chain. The mount is where it shows for this account, on every device of
+/// the chain, and the keys to read it. Clients that predate it ignore it
+/// (their IsEntityDataValid() refuses it). Not in proto_visitors.h: its keys
+/// stay out of sync-internals. Leaving a room deletes the entity.
+///
+/// The client tag is UUID-shaped, from the room ID, as CompassFavicon's from
+/// its host: the first 16 bytes of SHA-256("compass-room-mount:" + room_id),
+/// with byte 6 = (b & 0x0f) | 0x50 and byte 8 = (b & 0x3f) | 0x80, formatted
+/// lowercase 8-4-4-4-12.
+public nonisolated struct SyncPb_CompassRoomMount: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The room's ID: 16 bytes as unpadded base64url (22 characters), as the
+  /// server and invite links write it.
+  public var roomID: String {
+    get {_roomID ?? String()}
+    set {_roomID = newValue}
+  }
+  /// Returns true if `roomID` has been explicitly set.
+  public var hasRoomID: Bool {self._roomID != nil}
+  /// Clears the value of `roomID`. Subsequent reads from it will return its default value.
+  public mutating func clearRoomID() {self._roomID = nil}
+
+  /// The room's server (the inviter's): https, or http on localhost.
+  public var serverURL: String {
+    get {_serverURL ?? String()}
+    set {_serverURL = newValue}
+  }
+  /// Returns true if `serverURL` has been explicitly set.
+  public var hasServerURL: Bool {self._serverURL != nil}
+  /// Clears the value of `serverURL`. Subsequent reads from it will return its default value.
+  public mutating func clearServerURL() {self._serverURL = nil}
+
+  /// "space", "folder" or "easel".
+  public var kind: String {
+    get {_kind ?? String()}
+    set {_kind = newValue}
+  }
+  /// Returns true if `kind` has been explicitly set.
+  public var hasKind: Bool {self._kind != nil}
+  /// Clears the value of `kind`. Subsequent reads from it will return its default value.
+  public mutating func clearKind() {self._kind = nil}
+
+  /// The shared item's UUID, lowercase: the space, the folder node or the
+  /// easel board. The same for every member.
+  public var rootUuid: String {
+    get {_rootUuid ?? String()}
+    set {_rootUuid = newValue}
+  }
+  /// Returns true if `rootUuid` has been explicitly set.
+  public var hasRootUuid: Bool {self._rootUuid != nil}
+  /// Clears the value of `rootUuid`. Subsequent reads from it will return its default value.
+  public mutating func clearRootUuid() {self._rootUuid = nil}
+
+  /// This account's role: "owner", "editor" or "viewer".
+  public var role: String {
+    get {_role ?? String()}
+    set {_role = newValue}
+  }
+  /// Returns true if `role` has been explicitly set.
+  public var hasRole: Bool {self._role != nil}
+  /// Clears the value of `role`. Subsequent reads from it will return its default value.
+  public mutating func clearRole() {self._role = nil}
+
+  /// The room keys this account has, one per epoch.
+  public var keys: [SyncPb_CompassRoomKey] = []
+
+  /// Where it shows (a folder, or an easel's pinned tab): the space and the
+  /// parent node (empty: the space's Pinned root), and the position among its
+  /// siblings. Personal: each member places it where they like. Unused for a
+  /// space, which is in the switcher.
+  public var spaceUuid: String {
+    get {_spaceUuid ?? String()}
+    set {_spaceUuid = newValue}
+  }
+  /// Returns true if `spaceUuid` has been explicitly set.
+  public var hasSpaceUuid: Bool {self._spaceUuid != nil}
+  /// Clears the value of `spaceUuid`. Subsequent reads from it will return its default value.
+  public mutating func clearSpaceUuid() {self._spaceUuid = nil}
+
+  public var parentUuid: String {
+    get {_parentUuid ?? String()}
+    set {_parentUuid = newValue}
+  }
+  /// Returns true if `parentUuid` has been explicitly set.
+  public var hasParentUuid: Bool {self._parentUuid != nil}
+  /// Clears the value of `parentUuid`. Subsequent reads from it will return its default value.
+  public mutating func clearParentUuid() {self._parentUuid = nil}
+
+  public var position: SyncPb_UniquePosition {
+    get {_position ?? SyncPb_UniquePosition()}
+    set {_position = newValue}
+  }
+  /// Returns true if `position` has been explicitly set.
+  public var hasPosition: Bool {self._position != nil}
+  /// Clears the value of `position`. Subsequent reads from it will return its default value.
+  public mutating func clearPosition() {self._position = nil}
+
+  /// The shared item's name when this account joined (or last saw it), for
+  /// lists and the join preview; the room's records are authoritative.
+  public var name: String {
+    get {_name ?? String()}
+    set {_name = newValue}
+  }
+  /// Returns true if `name` has been explicitly set.
+  public var hasName: Bool {self._name != nil}
+  /// Clears the value of `name`. Subsequent reads from it will return its default value.
+  public mutating func clearName() {self._name = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _roomID: String? = nil
+  fileprivate var _serverURL: String? = nil
+  fileprivate var _kind: String? = nil
+  fileprivate var _rootUuid: String? = nil
+  fileprivate var _role: String? = nil
+  fileprivate var _spaceUuid: String? = nil
+  fileprivate var _parentUuid: String? = nil
+  fileprivate var _position: SyncPb_UniquePosition? = nil
+  fileprivate var _name: String? = nil
+}
+
+public nonisolated struct SyncPb_CompassRoomKey: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// From 1.
+  public var epoch: UInt32 {
+    get {_epoch ?? 0}
+    set {_epoch = newValue}
+  }
+  /// Returns true if `epoch` has been explicitly set.
+  public var hasEpoch: Bool {self._epoch != nil}
+  /// Clears the value of `epoch`. Subsequent reads from it will return its default value.
+  public mutating func clearEpoch() {self._epoch = nil}
+
+  /// 32 bytes (AES-256-GCM).
+  public var key: Data {
+    get {_key ?? Data()}
+    set {_key = newValue}
+  }
+  /// Returns true if `key` has been explicitly set.
+  public var hasKey: Bool {self._key != nil}
+  /// Clears the value of `key`. Subsequent reads from it will return its default value.
+  public mutating func clearKey() {self._key = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _epoch: UInt32? = nil
+  fileprivate var _key: Data? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompassSpacesSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0\u{1}favicon\0\u{1}memory\0\u{3}link_rule\0\u{1}boost\0\u{1}easel\0\u{3}easel_object\0\u{3}easel_asset\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}space\0\u{1}node\0\u{1}profile\0\u{1}favicon\0\u{1}memory\0\u{3}link_rule\0\u{1}boost\0\u{1}easel\0\u{3}easel_object\0\u{3}easel_asset\0\u{3}room_mount\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1749,6 +1921,19 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
           self.entity = .easelAsset(v)
         }
       }()
+      case 11: try {
+        var v: SyncPb_CompassRoomMount?
+        var hadOneofValue = false
+        if let current = self.entity {
+          hadOneofValue = true
+          if case .roomMount(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.entity = .roomMount(v)
+        }
+      }()
       default: break
       }
     }
@@ -1799,6 +1984,10 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
     case .easelAsset?: try {
       guard case .easelAsset(let v)? = self.entity else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    }()
+    case .roomMount?: try {
+      guard case .roomMount(let v)? = self.entity else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
     }()
     case nil: break
     }
@@ -2993,6 +3182,124 @@ nonisolated extension SyncPb_CompassEaselAsset: SwiftProtobuf.Message, SwiftProt
     if lhs._mimeType != rhs._mimeType {return false}
     if lhs._data != rhs._data {return false}
     if lhs._createTime != rhs._createTime {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassRoomMount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassRoomMount"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}room_id\0\u{3}server_url\0\u{1}kind\0\u{3}root_uuid\0\u{1}role\0\u{1}keys\0\u{3}space_uuid\0\u{3}parent_uuid\0\u{1}position\0\u{1}name\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._roomID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._serverURL) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._kind) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self._rootUuid) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self._role) }()
+      case 6: try { try decoder.decodeRepeatedMessageField(value: &self.keys) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self._spaceUuid) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self._parentUuid) }()
+      case 9: try { try decoder.decodeSingularMessageField(value: &self._position) }()
+      case 10: try { try decoder.decodeSingularStringField(value: &self._name) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._roomID {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._serverURL {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._kind {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._rootUuid {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._role {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 5)
+    } }()
+    if !self.keys.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.keys, fieldNumber: 6)
+    }
+    try { if let v = self._spaceUuid {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 7)
+    } }()
+    try { if let v = self._parentUuid {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 8)
+    } }()
+    try { if let v = self._position {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    } }()
+    try { if let v = self._name {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 10)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassRoomMount, rhs: SyncPb_CompassRoomMount) -> Bool {
+    if lhs._roomID != rhs._roomID {return false}
+    if lhs._serverURL != rhs._serverURL {return false}
+    if lhs._kind != rhs._kind {return false}
+    if lhs._rootUuid != rhs._rootUuid {return false}
+    if lhs._role != rhs._role {return false}
+    if lhs.keys != rhs.keys {return false}
+    if lhs._spaceUuid != rhs._spaceUuid {return false}
+    if lhs._parentUuid != rhs._parentUuid {return false}
+    if lhs._position != rhs._position {return false}
+    if lhs._name != rhs._name {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_CompassRoomKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CompassRoomKey"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}epoch\0\u{1}key\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self._epoch) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self._key) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._epoch {
+      try visitor.visitSingularUInt32Field(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._key {
+      try visitor.visitSingularBytesField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_CompassRoomKey, rhs: SyncPb_CompassRoomKey) -> Bool {
+    if lhs._epoch != rhs._epoch {return false}
+    if lhs._key != rhs._key {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

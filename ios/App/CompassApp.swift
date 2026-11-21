@@ -222,6 +222,9 @@ struct WindowRoot: View {
   private func open(_ url: URL, in app: AppModel) {
     // The window that got the link is the one to act in.
     AppServices.shared.activate(app)
+    // An invite to a shared space, folder or easel (compass://join#… or
+    // https://compassbrowser.org/join#…): the join preview.
+    if RoomsModel.shared.open(url) { return }
     // compass: links from widgets, the icon menu and the extensions.
     if let link = DeepLink(url: url) {
       app.system.handle(link)

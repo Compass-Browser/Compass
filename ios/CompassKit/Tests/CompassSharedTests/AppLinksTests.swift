@@ -129,4 +129,23 @@ final class AppLinksTests: XCTestCase {
     XCTAssertFalse(AppLinks.sameSite(URL(string: "https://notexample.com/")!, page))
     XCTAssertFalse(AppLinks.sameSite(URL(string: "https://a.example.com/")!, URL(string: "https://b.example.com/")!))
   }
+
+  func testRoomInviteLinksOpenTheJoinPreview() {
+    let invite = URL(string: "https://compassbrowser.org/join#eyJlIjoxfQ")!
+    let tap = AppLinks.Navigation(url: invite, page: URL(string: "https://mail.example/"), isMainFrame: true, isUserTap: true)
+    XCTAssertEqual(AppLinks.decide(tap), .joinRoom(invite))
+    // Not in a frame, not in Incognito, not without a fragment or elsewhere.
+    var frame = tap
+    frame.isMainFrame = false
+    XCTAssertNotEqual(AppLinks.decide(frame), .joinRoom(invite))
+    var incognito = tap
+    incognito.isIncognito = true
+    XCTAssertNotEqual(AppLinks.decide(incognito), .joinRoom(invite))
+    for link in ["https://compassbrowser.org/join", "https://evil.example/join#x", "http://compassbrowser.org/join#x",
+      "https://compassbrowser.org/joinx#x", "https://compassbrowser.org:444/join#x"]
+    {
+      XCTAssertFalse(AppLinks.isRoomInvite(URL(string: link)!), link)
+    }
+    XCTAssertTrue(AppLinks.isRoomInvite(URL(string: "https://www.compassbrowser.org/join.html#x")!))
+  }
 }

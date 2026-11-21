@@ -27,6 +27,12 @@ struct EventStreamParserTests {
     #expect(SyncNotifier.types("{\"types\":[45873,970000,1]}") == [.passwords, .compassSpaces])
     #expect(SyncNotifier.types("nonsense") == nil)
   }
+
+  @Test func roomEvents() {
+    let event = SyncNotifier.roomEvent(#"{"room_id":"n4bQgYhMfWWaL-qgxVrQFQ","seq":42,"changes":["members","records"]}"#)
+    #expect(event == .init(roomID: "n4bQgYhMfWWaL-qgxVrQFQ", seq: 42, changes: ["members", "records"]))
+    #expect(SyncNotifier.roomEvent(#"{"seq":1}"#) == nil)
+  }
 }
 
 actor Heard {

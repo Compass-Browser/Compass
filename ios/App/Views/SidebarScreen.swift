@@ -26,6 +26,10 @@ struct SidebarScreen: View {
         }
       }
       .tabViewStyle(.page(indexDisplayMode: .never))
+      // Removed from a shared item, or invited to one (App/Rooms).
+      if let rooms = RoomsModel.shared.manager, !rooms.notices.isEmpty || !rooms.invitations.isEmpty {
+        RoomBanners(rooms: rooms).padding(.bottom, 6)
+      }
       bottomBar
     }
     .animation(.easeInOut(duration: 0.25), value: app.selectedSpaceID)
@@ -303,6 +307,7 @@ struct SpacePage: View {
       Text(space.name)
         .font(.system(size: 17, weight: .semibold))
         .lineLimit(1)
+      if let room = RoomsModel.shared.room(ofSpace: space) { RoomBadge(role: room.role) }
       if !space.synced {
         Image(systemName: "icloud.slash")
           .font(.system(size: 12, weight: .medium))
@@ -350,6 +355,9 @@ struct SpacePage: View {
       renaming = true
     }
     Button("Edit Theme", systemImage: "paintpalette") { editingTheme = true }
+    if RoomsModel.shared.isAvailable {
+      Button("Share…", systemImage: "person.crop.circle.badge.plus") { RoomsModel.shared.share(space: space) }
+    }
     Button("New Live Folder…", systemImage: LiveFolderMenu.newSymbol) {
       app.liveEditor = LiveEditorTarget(mode: .create(parent: space.pinned.id))
     }
@@ -617,6 +625,8 @@ struct NodeRow: View {
             if item.isTab { app.shortener.want(item) }
           }
         Spacer(minLength: 0)
+        // A shared folder or easel (App/Rooms).
+        if let room = RoomsModel.shared.room(rootedAt: item) { RoomBadge(role: room.role) }
         if item.isLiveFolder { LiveFolderStatus(folder: item) }
         if item.unseen {
           // A new entry since the folder was last looked at.
@@ -741,6 +751,30 @@ struct NodeRow: View {
   }
 
   @ViewBuilder private var menu: some View {
+    // Shared with you to view: nothing here changes it (App/Rooms).
+    if !RoomsModel.shared.canEdit(node) {
+      Label("View Only", systemImage: "eye")
+      if node.isFolder || RoomsModel.shared.room(rootedAt: node) != nil {
+        Button("Sharing…", systemImage: "person.2") { shareMenuAction() }
+      }
+    } else {
+      editMenu
+    }
+  }
+
+  /// Share (a pinned folder, a shared easel's tab), or the sheet of what's
+  /// shared already.
+  private func shareMenuAction() {
+    if let room = RoomsModel.shared.room(rootedAt: node), room.kind == .easel {
+      RoomsModel.shared.share(easel: room.rootUUID)
+    } else if node.isTab, let board = EaselURL.uuid(from: node.url) {
+      RoomsModel.shared.share(easel: board)
+    } else {
+      RoomsModel.shared.share(folder: node)
+    }
+  }
+
+  @ViewBuilder private var editMenu: some View {
     let space = app.store.space(of: node)
     // iPad: the entry in a window of its own (its page moves there).
     if !node.isFolder, UIApplication.shared.supportsMultipleScenes {
@@ -763,6 +797,13 @@ struct NodeRow: View {
       }
     }
     SavedURLItems(tab: node)
+    if RoomsModel.shared.isAvailable, space?.isIncognito == false, node.section == .pinned,
+      node.isFolder || RoomsModel.shared.room(rootedAt: node) != nil || (node.isTab && EaselURL.uuid(from: node.url) != nil)
+    {
+      Button(RoomsModel.shared.room(rootedAt: node) == nil ? "Share…" : "Sharing…", systemImage: "person.crop.circle.badge.plus") {
+        shareMenuAction()
+      }
+    }
     // Incognito: nothing that would copy it into synced lists (pinned,
     // favorites, other spaces); Close removes it.
     if let space, space.isIncognito {
@@ -802,8 +843,14 @@ struct NodeRow: View {
       splitItems
     }
     Divider()
-    Button(node.section == .today ? "Close" : "Delete", systemImage: "trash", role: .destructive) {
-      app.userClose([(node, .remove)])
+    if RoomsModel.shared.room(rootedAt: node) != nil {
+      // A shared item isn't deleted for everyone from here: its sheet has
+      // Leave and Delete for Everyone.
+      Button("Leave or Delete…", systemImage: "trash", role: .destructive) { shareMenuAction() }
+    } else {
+      Button(node.section == .today ? "Close" : "Delete", systemImage: "trash", role: .destructive) {
+        app.userClose([(node, .remove)])
+      }
     }
   }
 }

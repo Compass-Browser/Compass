@@ -722,6 +722,11 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
       // tabs too; it goes to the Boosts all the same).
       BoostSharing.preview(fragment: fragment, incognito: !webView.configuration.websiteDataStore.isPersistent)
       return true
+    case .joinRoom(let url):
+      // An invite to a shared space, folder or easel: the join preview
+      // (docs/design/ios.md, "Rooms"). Without sync, the page explains.
+      if !RoomsModel.shared.open(url) { return false }
+      return true
     }
   }
 
