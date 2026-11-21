@@ -80,6 +80,10 @@ enum class CommandBarCommand {
   // (docs/design/reader-mode.md).
   kReaderMode,
   kLeaveReaderMode,
+  // Turns development mode on for the active tab's site, or off
+  // (docs/design/dev-mode.md): a web page.
+  kDevMode,
+  kLeaveDevMode,
   // Opens the chat with Claude, asking it the typed text if any
   // (docs/design/claude.md, "Chat panel"). Not in the commands' list: its
   // row comes last, for any text.

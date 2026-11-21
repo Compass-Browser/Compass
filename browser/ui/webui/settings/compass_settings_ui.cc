@@ -25,6 +25,7 @@
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "compass/browser/boosts/boost_share.h"
 #include "compass/browser/boosts/boost_store.h"
+#include "compass/browser/dev_mode/dev_mode.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
 #include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -479,6 +480,24 @@ void ShortcutsPageHandler::RemoveLinkRule(const std::string& domain,
   if (SpaceList* list = GetSpaceList()) {
     list->RemoveLinkRule(domain);
   }
+  std::move(callback).Run();
+}
+
+// Development mode ------------------------------------------------------------
+
+void ShortcutsPageHandler::GetDevModeHosts(GetDevModeHostsCallback callback) {
+  std::move(callback).Run(dev_mode::Hosts(profile_->GetPrefs()));
+}
+
+void ShortcutsPageHandler::AddDevModeHost(const std::string& host,
+                                          AddDevModeHostCallback callback) {
+  std::move(callback).Run(dev_mode::AddHost(profile_->GetPrefs(), host));
+}
+
+void ShortcutsPageHandler::RemoveDevModeHost(
+    const std::string& host,
+    RemoveDevModeHostCallback callback) {
+  dev_mode::RemoveHost(profile_->GetPrefs(), host);
   std::move(callback).Run();
 }
 

@@ -798,6 +798,14 @@ interface SettingsHandler {
       => (string? domain);
   RemoveLinkRule(string domain) => ();
 
+  // Development mode (compass://settings/devMode, docs/design/dev-mode.md):
+  // the sites, as host patterns, in the order they were added.
+  GetDevModeHosts() => (array<string> hosts);
+  // Adds |host| as typed (a host, "*.domain", or a URL; a port and a path
+  // are dropped). The pattern kept, or null if it isn't a web host.
+  AddDevModeHost(string host) => (string? host);
+  RemoveDevModeHost(string host) => ();
+
   GetShortcuts() => (array<Shortcut> shortcuts);
   // While the page records keys, the browser's shortcuts don't run, so the
   // keys reach it.

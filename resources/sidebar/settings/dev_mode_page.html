@@ -1,0 +1,114 @@
+<style>
+  .compass-page .dev-mode-lead {
+    margin: 0 0 12px;
+    opacity: 0.75;
+  }
+
+  .compass-page .dev-mode-list {
+    display: flex;
+    flex-direction: column;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .compass-page .dev-mode-row {
+    align-items: center;
+    border-top: 1px solid var(--color-sys-divider,
+        var(--cr-separator-color, rgba(0, 0, 0, 0.12)));
+    display: flex;
+    gap: 10px;
+    min-height: 44px;
+  }
+
+  .compass-page .dev-mode-row:first-child {
+    border-top: none;
+  }
+
+  .compass-page .dev-mode-host {
+    flex: 1;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .compass-page .dev-mode-empty {
+    margin: 4px 0;
+    opacity: 0.6;
+  }
+
+  .compass-page .dev-mode-form {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 14px 0 0;
+  }
+
+  .compass-page .dev-mode-form input {
+    background: var(--color-sys-base,
+        var(--cr-fallback-color-surface, #fff));
+    border: 1px solid var(--color-sys-outline,
+        var(--cr-fallback-color-outline, #747775));
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: inherit;
+    flex: 1;
+    font: inherit;
+    min-width: 200px;
+    padding: 8px 10px;
+  }
+
+  .compass-page .dev-mode-page button {
+    background: var(--color-sys-primary,
+        var(--cr-fallback-color-primary, #0b57d0));
+    border: none;
+    border-radius: 18px;
+    color: var(--color-sys-on-primary,
+        var(--cr-fallback-color-on-primary, #fff));
+    cursor: pointer;
+    font: inherit;
+    font-weight: 500;
+    padding: 8px 20px;
+  }
+
+  .compass-page .dev-mode-page button.secondary {
+    background: none;
+    border: 1px solid var(--color-sys-outline,
+        var(--cr-fallback-color-outline, #747775));
+    color: inherit;
+  }
+
+  .compass-page .dev-mode-page .dev-mode-row button {
+    padding: 4px 14px;
+  }
+
+  .compass-page .dev-mode-note {
+    color: var(--color-sys-error, var(--cr-fallback-color-error, #b3261e));
+    flex-basis: 100%;
+    font-size: 12px;
+    margin: 0;
+  }
+</style>
+<div class="dev-mode-page">
+  <p class="dev-mode-lead">
+    On these sites, reload always gets a fresh copy instead of using the
+    cache, and a bar above the page shows the full address with buttons for
+    the console, the network panel, inspecting an element and copying the
+    address. The network panel also lists the requests made before you
+    opened it. A site covers every port, so localhost covers
+    localhost:3000; *.example.com also covers its subdomains. You can also
+    turn development mode on or off from the site information popup, the
+    command bar, or with Cmd+Shift+D (Ctrl+Shift+D on Windows and Linux).
+  </p>
+  <ul id="devModeHosts" class="dev-mode-list"></ul>
+  <p id="noDevModeHosts" class="dev-mode-empty" hidden>No sites yet.</p>
+  <form id="devModeForm" class="dev-mode-form">
+    <input id="devModeHost" type="text" placeholder="localhost"
+        aria-label="Site" autocomplete="off" spellcheck="false">
+    <button id="addDevModeHost" type="submit">Add Site</button>
+    <p id="devModeNote" class="dev-mode-note" hidden></p>
+  </form>
+</div>

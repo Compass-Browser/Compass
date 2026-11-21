@@ -100,6 +100,11 @@ class ShortcutsPageHandler : public sidebar::mojom::SettingsHandler,
                    SetLinkRuleCallback callback) override;
   void RemoveLinkRule(const std::string& domain,
                       RemoveLinkRuleCallback callback) override;
+  void GetDevModeHosts(GetDevModeHostsCallback callback) override;
+  void AddDevModeHost(const std::string& host,
+                      AddDevModeHostCallback callback) override;
+  void RemoveDevModeHost(const std::string& host,
+                         RemoveDevModeHostCallback callback) override;
   void GetBoosts(GetBoostsCallback callback) override;
   void SaveBoost(sidebar::mojom::BoostPtr boost,
                  SaveBoostCallback callback) override;

@@ -450,6 +450,7 @@ source_set("browser_tests") {
     "//compass/browser/arc_import",
     "//compass/browser/browser_import",
     "//compass/browser/browser_import:test_support",
+    "//compass/browser/dev_mode",
     "//compass/browser/prefs",
     "//chrome/browser/history",
     "//components/history/core/browser",

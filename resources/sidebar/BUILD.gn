@@ -74,6 +74,7 @@ build_webui("build") {
     "settings/arc_import_page.ts",
     "settings/boosts_page.ts",
     "settings/claude_page.ts",
+    "settings/dev_mode_page.ts",
     "settings/links_page.ts",
     "settings/shortcuts_page.ts",
     "settings/sync_page.ts",

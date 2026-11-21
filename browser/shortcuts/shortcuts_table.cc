@@ -64,6 +64,8 @@ constexpr CustomizableCommand kCustomizableCommands[] = {
     {"console", IDC_DEV_TOOLS_CONSOLE, "Developer", "JavaScript console"},
     {"inspect", IDC_DEV_TOOLS_INSPECT, "Developer", "Inspect elements"},
     {"view-source", IDC_VIEW_SOURCE, "Developer", "View source"},
+    {"dev-mode", kToggleDevModeCommand, "Developer",
+     "Development mode for this site"},
 };
 
 // Compass's keys over upstream's, as on macOS (Ctrl for Cmd): whatever
@@ -87,6 +89,9 @@ constexpr CompassDefault kCompassDefaults[] = {
     // Was upstream's Reading mode, which Compass's Reader replaces.
     {ui::VKEY_R, ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN,
      kToggleReaderModeCommand},
+    // Was Bookmark All Tabs: Compass has no bookmarks.
+    {ui::VKEY_D, ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN,
+     kToggleDevModeCommand},
 };
 
 struct Tables {

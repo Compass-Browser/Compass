@@ -77,6 +77,8 @@ constexpr CustomizableCommand kCustomizableCommands[] = {
     {"console", IDC_DEV_TOOLS_CONSOLE, "Developer", "JavaScript console"},
     {"inspect", IDC_DEV_TOOLS_INSPECT, "Developer", "Inspect elements"},
     {"view-source", IDC_VIEW_SOURCE, "Developer", "View source"},
+    {"dev-mode", kToggleDevModeCommand, "Developer",
+     "Development mode for this site"},
 };
 
 // Compass's commands that run only on keys the page passed on
@@ -318,6 +320,11 @@ void AdjustShortcutsNotInMenu(std::vector<KeyboardShortcutData>& shortcuts) {
   shortcuts.push_back({/*command_key=*/true, /*shift_key=*/true,
                        /*cntrl_key=*/false, /*opt_key=*/false, kVK_ANSI_E,
                        kToggleClaudeCommand});
+  // Cmd+Shift+D: development mode for the site (upstream's Bookmark All
+  // Tabs, which Compass removes with the Bookmarks menu).
+  shortcuts.push_back({/*command_key=*/true, /*shift_key=*/true,
+                       /*cntrl_key=*/false, /*opt_key=*/false, kVK_ANSI_D,
+                       kToggleDevModeCommand});
 }
 
 base::span<const CustomizableCommand> GetCustomizableCommands() {

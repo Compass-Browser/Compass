@@ -31,6 +31,9 @@ inline constexpr char kLinksSettingsSubPage[] = "links";
 // Boosts (docs/design/boosts.md); "boosts?add=<host>" opens the editor on a
 // host, "boosts?edit=<id>" on a Boost.
 inline constexpr char kBoostsSettingsSubPage[] = "boosts";
+// Development Mode (docs/design/dev-mode.md), served by the shortcuts'
+// handler.
+inline constexpr char kDevModeSettingsSubPage[] = "devMode";
 
 // Compass's sections of chrome://settings: Sync (/sync), Keyboard shortcuts
 // (/shortcuts), Links from Other Apps (/links, served by the shortcuts'

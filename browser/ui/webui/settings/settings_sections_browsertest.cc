@@ -11,6 +11,8 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "base/uuid.h"
 #include "compass/browser/boosts/boost_store.h"
+#include "compass/browser/dev_mode/dev_mode.h"
+#include "components/prefs/pref_service.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -91,6 +93,8 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, MenuOpensEachSection) {
             "/claude");
   EXPECT_EQ(WaitFor("deepQuery('a#compassBoosts')?.getAttribute('href')"),
             "/boosts");
+  EXPECT_EQ(WaitFor("deepQuery('a#compassDevMode')?.getAttribute('href')"),
+            "/devMode");
 
   ASSERT_TRUE(content::ExecJs(contents(), std::string(kDeepQuery) +
                                               "deepQuery('a#compassShortcuts')"
@@ -179,6 +183,52 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, LinksSection) {
                       "\"gitlab.com\"] button:last-child').click();"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return !spaces.link_rules().Find("gitlab.com"); }));
+}
+
+// compass://settings/devMode (docs/design/dev-mode.md): adding a site keeps
+// its host (no port), one that isn't a site says so, and Remove removes one.
+IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, DevModeSection) {
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
+  ASSERT_TRUE(dev_mode::AddHost(prefs, "example.com"));
+
+  Open("chrome://settings/devMode");
+  EXPECT_EQ(WaitFor("deepQuery('compass-dev-mode-page .compass-title')"
+                    "?.textContent"),
+            "Development Mode");
+  EXPECT_EQ(WaitFor("!!deepQuery('compass-dev-mode-page li[data-host="
+                    "\"example.com\"]')"),
+            true);
+
+  ASSERT_TRUE(content::ExecJs(
+      contents(), std::string(kDeepQuery) +
+                      "deepQuery('compass-dev-mode-page #devModeHost').value ="
+                      " 'http://localhost:3000/app';"
+                      "deepQuery('compass-dev-mode-page #addDevModeHost')"
+                      ".click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return dev_mode::IsEnabledFor(prefs, GURL("http://localhost:5173/"));
+  }));
+  EXPECT_EQ(WaitFor("!!deepQuery('compass-dev-mode-page li[data-host="
+                    "\"localhost\"]')"),
+            true);
+
+  ASSERT_TRUE(content::ExecJs(
+      contents(), std::string(kDeepQuery) +
+                      "deepQuery('compass-dev-mode-page #devModeHost').value ="
+                      " 'chrome://settings';"
+                      "deepQuery('compass-dev-mode-page #addDevModeHost')"
+                      ".click();"));
+  EXPECT_EQ(WaitFor("deepQuery('compass-dev-mode-page #devModeNote')?.hidden "
+                    "=== false"),
+            true);
+
+  ASSERT_TRUE(content::ExecJs(
+      contents(), std::string(kDeepQuery) +
+                      "deepQuery('compass-dev-mode-page li[data-host="
+                      "\"example.com\"] button').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return !dev_mode::IsEnabledFor(prefs, GURL("https://example.com/"));
+  }));
 }
 
 // compass://settings/boosts (docs/design/boosts.md): "?add=" opens the

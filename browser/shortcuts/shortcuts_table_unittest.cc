@@ -81,6 +81,7 @@ TEST_F(ShortcutsTableTest, CompassKeysThenTheUsers) {
   EXPECT_EQ(CommandFor(list, ui::Accelerator(ui::VKEY_R, ui::EF_SHIFT_DOWN |
                                                              ui::EF_ALT_DOWN)),
             kToggleReaderModeCommand);
+  EXPECT_EQ(CommandFor(list, CtrlShift(ui::VKEY_D)), kToggleDevModeCommand);
   EXPECT_EQ(CommandFor(list, Ctrl(ui::VKEY_R)), IDC_RELOAD);
   EXPECT_EQ(GetDefaultAccelerators(IDC_COPY_URL),
             std::vector<ui::Accelerator>{CtrlShift(ui::VKEY_C)});
