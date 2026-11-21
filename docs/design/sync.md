@@ -2355,6 +2355,21 @@ of a remote batch), so every device of the account mounts its rooms;
 and plaintext, the members the owner sent keys to, the removed notices).
 Moving a shared folder updates its mount's placement.
 
+**Entity kinds an older version refused.** A version that doesn't know an
+entity kind refuses it (`IsEntityDataValid()`), and sync counts it as
+received, so the server never sends it again: a space joined on the phone
+while the Mac ran a build from before rooms never showed on the Mac, even
+after it updated (2026-11-21). The bridge's store keeps a note of the kinds
+the version that last downloaded the type took (`compass-entity-kinds`, not
+an entity: the key isn't a UUID; `kEntityKinds`, 1 = room mounts). A start
+that finds the initial sync done and an older note (or none) clears the
+progress marker, in the same write as the new note, so the next GetUpdates
+asks for everything: what the device has comes back at known versions and
+is skipped as reflections, and only what it refused applies, as ordinary
+remote changes (no merge, so nothing deleted elsewhere comes back). An
+initial merge writes the note. Bump `kEntityKinds` with each new kind.
+iOS's bridge skips unknown kinds the same way and has no such note yet.
+
 **What the chain leaves out** (`Delegate::GetRoomRoots()` → `RoomRoots`):
 shared spaces (their entity and Pinned; Today and the archive stay in the
 chain, keyed under the space's UUID, and wait in the mirror until a room

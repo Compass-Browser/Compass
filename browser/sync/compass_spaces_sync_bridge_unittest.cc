@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
@@ -28,7 +29,9 @@
 #include "components/sync/model/conflict_resolution.h"
 #include "components/sync/model/data_type_store.h"
 #include "components/sync/model/entity_change.h"
+#include "components/sync/model/metadata_batch.h"
 #include "components/sync/model/metadata_change_list.h"
+#include "components/sync/protocol/data_type_state.pb.h"
 #include "components/sync/protocol/entity_data.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/test/data_type_store_test_util.h"
@@ -370,9 +373,32 @@ class Device {
           puts_.erase(key);
           deletes_.insert(key);
         });
+    ON_CALL(processor_, ModelReadyToSync(_))
+        .WillByDefault([this](std::unique_ptr<syncer::MetadataBatch> batch) {
+          ready_state_ = batch->GetDataTypeState();
+        });
     store_ = syncer::DataTypeStoreTestUtil::CreateInMemoryStoreForTest(
         syncer::COMPASS_SPACES);
   }
+
+  // Writes the type's sync state as the processor keeps it: initial sync
+  // done, at |token|.
+  void WriteSyncedState(const std::string& token) {
+    sync_pb::DataTypeState state;
+    state.set_initial_sync_state(
+        sync_pb::DataTypeState_InitialSyncState_INITIAL_SYNC_DONE);
+    state.mutable_progress_marker()->set_data_type_id(
+        syncer::GetSpecificsFieldNumberFromDataType(syncer::COMPASS_SPACES));
+    state.mutable_progress_marker()->set_token(token);
+    std::unique_ptr<syncer::DataTypeStore::WriteBatch> batch =
+        store_->CreateWriteBatch();
+    batch->GetMetadataChangeList()->UpdateDataTypeState(state);
+    store_->CommitWriteBatch(std::move(batch), base::DoNothing());
+    task_environment_->RunUntilIdle();
+  }
+
+  // The state the bridge gave the processor at its last start.
+  const sync_pb::DataTypeState& ready_state() const { return ready_state_; }
 
   // Starts (or restarts) the bridge on the same store.
   void StartBridge() {
@@ -506,6 +532,7 @@ class Device {
   std::unique_ptr<syncer::DataTypeStore> store_;
   std::unique_ptr<CompassSpacesSyncBridge> bridge_;
   bool tracking_ = false;
+  sync_pb::DataTypeState ready_state_;
   std::map<std::string, sync_pb::CompassSpacesSpecifics> puts_;
   std::set<std::string> deletes_;
   size_t cursor_ = 0;
@@ -2391,6 +2418,32 @@ TEST_F(CompassSpacesSyncBridgeTest, RoomMountEntitiesAreValid) {
             RoomMountKey("n4bQgYhMfWWaL-qgxVrQFQ"));
   data.specifics.mutable_compass_spaces()->mutable_room_mount()->clear_room_id();
   EXPECT_FALSE(a->bridge().IsEntityDataValid(data));
+}
+
+// A device synced by a version that refused room mounts (no note of the
+// entity kinds) asks for the whole type again once, as ordinary updates: the
+// marker is cleared, the initial sync stays done (no merge).
+TEST_F(CompassSpacesSyncBridgeTest, OlderVersionsStateDownloadsTheTypeAgain) {
+  std::unique_ptr<Device> a = MakeDevice();
+  a->WriteSyncedState("old-token");
+  a->StartBridge();
+  EXPECT_TRUE(a->ready_state().progress_marker().token().empty());
+  EXPECT_EQ(a->ready_state().initial_sync_state(),
+            sync_pb::DataTypeState_InitialSyncState_INITIAL_SYNC_DONE);
+
+  // Once: the next start keeps the marker the processor saved since.
+  a->WriteSyncedState("new-token");
+  a->StartBridge();
+  EXPECT_EQ(a->ready_state().progress_marker().token(), "new-token");
+}
+
+// A device whose first sync was by this version has nothing to fetch again.
+TEST_F(CompassSpacesSyncBridgeTest, FullDownloadByThisVersionKeepsTheMarker) {
+  std::unique_ptr<Device> a = MakeDevice();
+  a->Join();
+  a->WriteSyncedState("token");
+  a->StartBridge();
+  EXPECT_EQ(a->ready_state().progress_marker().token(), "token");
 }
 
 }  // namespace compass::sync

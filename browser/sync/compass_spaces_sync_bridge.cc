@@ -42,6 +42,8 @@
 #include "components/sync/model/metadata_batch.h"
 #include "components/sync/model/metadata_change_list.h"
 #include "components/sync/model/mutable_data_batch.h"
+#include "components/sync/protocol/data_type_state.pb.h"
+#include "components/sync/protocol/data_type_state_helper.h"
 #include "components/sync/protocol/entity_data.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/unique_position.pb.h"
@@ -50,6 +52,18 @@
 namespace compass::sync {
 
 namespace {
+
+// The store's note of the entity kinds this version takes. Not an entity:
+// its key isn't a UUID, so no entity can have it.
+constexpr char kEntityKindsKey[] = "compass-entity-kinds";
+
+// Bumped with each entity kind of CompassSpacesSpecifics that an older
+// version refuses (IsEntityDataValid()). Sync counts a refused entity as
+// received, so a device that updates past such a version asks for the whole
+// type again once (OnReadAllDataAndMetadata()) to get what it dropped.
+//   1: room mounts (a space joined on another device before this one could
+//      take them never showed here).
+constexpr int kEntityKinds = 1;
 
 // The first 16 bytes of SHA-256(|text|), shaped as a version-5 UUID.
 std::string HashKey(const std::string& text) {
@@ -793,13 +807,42 @@ void CompassSpacesSyncBridge::OnReadAllDataAndMetadata(
     change_processor()->ReportError(*error);
     return;
   }
+  int entity_kinds = 0;
   for (const syncer::DataTypeStore::Record& record : *records) {
+    if (record.id == kEntityKindsKey) {
+      if (!base::StringToInt(record.value, &entity_kinds)) {
+        entity_kinds = 0;
+      }
+      continue;
+    }
     sync_pb::CompassSpacesSpecifics specifics;
     // A record that doesn't parse is dropped; the next pass puts it back if
     // the model has it.
     if (specifics.ParseFromString(record.value)) {
       mirror_[record.id] = std::move(specifics);
     }
+  }
+  if (metadata &&
+      syncer::IsInitialSyncDone(
+          metadata->GetDataTypeState().initial_sync_state()) &&
+      entity_kinds < kEntityKinds) {
+    // An older version synced this type and refused the entity kinds it
+    // didn't know, which the server won't send again: ask for everything
+    // from the start. What this device has comes back at the versions it
+    // has and is skipped as reflections; only what it dropped applies, as
+    // ordinary remote changes (no merge, so nothing deleted elsewhere comes
+    // back). The note goes with the cleared marker, in one write.
+    VLOG(1) << "[compass-sync] spaces: entity kinds " << entity_kinds
+            << " -> " << kEntityKinds << ", downloading the type again";
+    sync_pb::DataTypeState state = metadata->GetDataTypeState();
+    state.mutable_progress_marker()->clear_token();
+    state.mutable_progress_marker()->clear_gc_directive();
+    metadata->SetDataTypeState(state);
+    std::unique_ptr<syncer::DataTypeStore::WriteBatch> batch =
+        store_->CreateWriteBatch();
+    batch->GetMetadataChangeList()->UpdateDataTypeState(state);
+    batch->WriteData(kEntityKindsKey, base::NumberToString(kEntityKinds));
+    Commit(std::move(batch));
   }
   pending_metadata_ = std::move(metadata);
   store_loaded_ = true;
@@ -2191,6 +2234,8 @@ std::optional<syncer::ModelError> CompassSpacesSyncBridge::ApplyRemote(
   if (initial_merge) {
     // This device's own spaces and entries join the chain's.
     SendLocalChangesTo(*batch);
+    // A full download by this version: nothing it takes was refused.
+    batch->WriteData(kEntityKindsKey, base::NumberToString(kEntityKinds));
   }
   Commit(std::move(batch));
   if (initial_merge && delegate_) {
