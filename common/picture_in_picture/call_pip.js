@@ -260,8 +260,13 @@
     if (!element) {
       return null;
     }
-    const video = madeVideo(element, turnOf(element)) ||
-        (element instanceof HTMLVideoElement ? element : null);
+    const made = madeVideo(element, turnOf(element));
+    // A turned tile's video without a frame yet can't go in the window
+    // (the tab was left right after the turn): the tile goes as it comes,
+    // and update() swaps the turned one in once it has frames.
+    const asItComes = element instanceof HTMLVideoElement ? element : null;
+    const video =
+        made && (made.readyState >= 1 || !asItComes) ? made : asItComes;
     if (video && video.disablePictureInPicture) {
       video.disablePictureInPicture = false;
     }

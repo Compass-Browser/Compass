@@ -352,8 +352,12 @@ Zoom drops them while hidden), it:
   shows a phone's portrait camera that way) would show sideways, so its
   track goes through a `MediaStreamTrackProcessor` that tags each frame
   with the same turn (`new VideoFrame(frame, {rotation})`, nothing redrawn)
-  into a `MediaStreamTrackGenerator` played by a hidden `<video>`. WebKit
-  has neither, so on iOS a turned tile still shows sideways;
+  into a `MediaStreamTrackGenerator` played by a hidden `<video>`. That
+  video is made at the next pick, so when the tab is left right after a
+  tile turns it has no frame yet and can't go in the window: the tile then
+  goes as it comes, and the turned video takes its place once it has
+  frames (as the speaker does, below). WebKit has neither, so on iOS a
+  turned tile still shows sideways;
 - follows the speaker: while its video is in the window, another pick that
   stays the pick for 2 s takes its place (`requestPictureInPicture()` needs
   no token while the page has a video in picture-in-picture), in the same
