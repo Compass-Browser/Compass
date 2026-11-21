@@ -11,6 +11,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/ui/live_folders/live_folder_service.h"
+#include "compass/common/compass_url.h"
 #include "compass/browser/ui/views/sidebar/tab_preview_view.h"
 #include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -86,7 +87,7 @@ SidebarHoverCard::~SidebarHoverCard() {
   Hide();
 }
 
-void SidebarHoverCard::Show(const tabs::TabData& data,
+void SidebarHoverCard::Show(const tabs::TabData& tab_data,
                             int row_top,
                             int row_height,
                             bool show_preview,
@@ -100,12 +101,19 @@ void SidebarHoverCard::Show(const tabs::TabData& data,
   target_->SetBounds(0, row_top, sidebar_->width(), row_height);
   ++plugin_request_;
 
+  // The page's URL, for plugins; the card shows chrome:// pages as
+  // compass:// (docs/design/branding.md, "compass://"), as the pill does.
+  const GURL& url = tab_data.last_committed_url.is_valid()
+                        ? tab_data.last_committed_url
+                        : tab_data.visible_url;
+  tabs::TabData data = tab_data;
+  data.visible_url = ToCompassURL(tab_data.visible_url);
+  data.last_committed_url = ToCompassURL(tab_data.last_committed_url);
+
   // A plugin that previews the page shows it where the screenshot goes
   // (docs/design/live-folders.md, "Tab previews").
   LiveFolderService* service = LiveFolderService::Get(
       Profile::FromBrowserContext(GetWebContents().GetBrowserContext()));
-  const GURL& url = data.last_committed_url.is_valid() ? data.last_committed_url
-                                                       : data.visible_url;
   if (service && !is_active_tab && service->previews().FindPlugin(url)) {
     target_->SetData(data, /*show_preview=*/false);
     ShowThumbnail(data, /*show_preview=*/false);

@@ -2981,6 +2981,31 @@ std::vector<std::u16string> LabelTexts(views::View* view) {
   return texts;
 }
 
+// A browser page's card shows it as compass://, as the pill does
+// (docs/design/branding.md, "compass://").
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, HoverCardCompassScheme) {
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
+                                           GURL("chrome://version/")));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("data:text/html,<title>Two</title>"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  SidebarHoverCard* card = SidebarHoverCard::FromWebContents(contents);
+  ASSERT_TRUE(card);
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::ExecJs(contents, content::JsReplace(kHover, 0)) &&
+           card->IsShowing();
+  }));
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    std::vector<std::u16string> texts = LabelTexts(card->bubble_for_testing());
+    return std::ranges::find(texts, u"compass://version") != texts.end();
+  }));
+  for (const std::u16string& text : LabelTexts(card->bubble_for_testing())) {
+    EXPECT_EQ(text.find(u"chrome://"), std::u16string::npos) << text;
+  }
+}
+
 // Pages on real-looking hosts (preview.example.com), from the test server:
 // previews match registrable domains, not IP addresses.
 class CompassSidebarPreviewBrowserTest : public CompassSidebarBrowserTest {

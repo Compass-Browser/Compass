@@ -191,6 +191,9 @@ every WebUI config, `chrome://` check and content security policy upstream
 `compass/common/compass_url.h`: `ToCompassURL()` and `ToCompassText()`
 write a `chrome://` URL as `compass://` where the user sees or copies it:
 
+- the sidebar's hover cards (`SidebarHoverCard::Show()`, which hands
+  upstream's card the URLs as `compass://`; plugins still match the page's
+  own);
 - the pill (`SidebarHeader::GetPillText()`), the command bar's starting text
   (Cmd+L), its entry titles and subtitles and its omnibox matches;
 - Copy Link in the sidebar's context menu, and upstream's Copy URL
