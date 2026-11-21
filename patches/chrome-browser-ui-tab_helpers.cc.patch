@@ -1,13 +1,14 @@
 diff --git a/chrome/browser/ui/tab_helpers.cc b/chrome/browser/ui/tab_helpers.cc
-index 8dccf1cf05be2351e3d1bbdc66da44bc959e3482..0fae1b14cafbbd77012e47ef892dac3923a12e8b 100644
+index 8dccf1cf05be2351e3d1bbdc66da44bc959e3482..c12847b074b1f2e1a57bd918b6906afc3b73a83a 100644
 --- a/chrome/browser/ui/tab_helpers.cc
 +++ b/chrome/browser/ui/tab_helpers.cc
-@@ -40,6 +40,12 @@
+@@ -40,6 +40,13 @@
  #include "components/tabs/public/tab_interface.h"
  #include "components/tracing/common/tracing_switches.h"
  #include "components/zoom/zoom_controller.h"
 +#if !BUILDFLAG(IS_ANDROID)
 +#include "compass/browser/boosts/boost_link_interceptor.h"
++#include "compass/browser/dev_mode/network_log.h"
 +#include "compass/browser/picture_in_picture/call_pip.h"
 +#include "compass/browser/rooms/room_link_interceptor.h"
 +#include "compass/browser/web_store/web_store_branding.h"
@@ -15,13 +16,14 @@ index 8dccf1cf05be2351e3d1bbdc66da44bc959e3482..0fae1b14cafbbd77012e47ef892dac39
  #include "content/public/browser/web_contents.h"
  #include "content/public/common/buildflags.h"
  #include "extensions/buildflags/buildflags.h"
-@@ -99,6 +105,13 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents,
+@@ -99,6 +106,14 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents,
    Profile* profile =
        Profile::FromBrowserContext(web_contents->GetBrowserContext());
  
 +#if !BUILDFLAG(IS_ANDROID)
 +  compass::AttachCallPip(web_contents);
 +  compass::boosts::AttachBoostLinkInterceptor(web_contents);
++  compass::dev_mode::AttachDevModeTabHelper(web_contents);
 +  compass::rooms::AttachRoomLinkInterceptor(web_contents);
 +  compass::AttachWebStoreBranding(web_contents);
 +#endif

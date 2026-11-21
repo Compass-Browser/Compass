@@ -1,0 +1,60 @@
+diff --git a/chrome/browser/devtools/devtools_ui_bindings.cc b/chrome/browser/devtools/devtools_ui_bindings.cc
+index 11d60fabf3fc2af2c10d26bc2f17fcaf7b74e7e1..576e8f411cbc3fb7b5e26c06a79918203fb5b0da 100644
+--- a/chrome/browser/devtools/devtools_ui_bindings.cc
++++ b/chrome/browser/devtools/devtools_ui_bindings.cc
+@@ -46,6 +46,7 @@
+ #include "chrome/browser/devtools/devtools_select_file_dialog.h"
+ #include "chrome/browser/devtools/features.h"
+ #include "chrome/browser/devtools/url_constants.h"
++#include "compass/browser/dev_mode/devtools_frontend_hook.h"
+ #include "chrome/browser/infobars/browser_infobar_manager.h"
+ #include "chrome/browser/infobars/infobar_features.h"
+ #include "chrome/browser/infobars/infobar_spec.h"
+@@ -888,6 +889,8 @@ DevToolsUIBindings::DevToolsUIBindings(content::WebContents* web_contents)
+ }
+ 
+ DevToolsUIBindings::~DevToolsUIBindings() {
++  // Compass: its callbacks point here.
++  compass::dev_mode::DevToolsFrontendHook::RemoveFor(this);
+   if (!session_id_for_logging_.is_empty()) {
+     metrics::structured::StructuredMetricsClient::Record(
+         metrics::structured::events::v2::dev_tools::SessionEnd()
+@@ -962,6 +965,9 @@ void DevToolsUIBindings::DispatchProtocolMessage(
+                               message.size());
+   if (message_sp.length() < kMaxMessageChunkSize) {
+     CallClientMethod("DevToolsAPI", "dispatchMessage", base::Value(message_sp));
++    // Compass: may follow with development mode's recorded requests.
++    compass::dev_mode::DevToolsFrontendHook::HandleMessageFromAgent(
++        this, message_sp);
+     return;
+   }
+ 
+@@ -2372,6 +2378,28 @@ void DevToolsUIBindings::DispatchProtocolMessageFromDevToolsFrontend(
+   if (!agent_host_) {
+     return;
+   }
++  // Compass: development mode answers for the requests it recorded.
++  if (compass::dev_mode::DevToolsFrontendHook::HandleMessageFromFrontend(
++          this, agent_host_.get(), message, [this] {
++            compass::dev_mode::DevToolsFrontendHook::Frontend frontend;
++            frontend.dispatch = base::BindRepeating(
++                [](DevToolsUIBindings* bindings, const std::string& m) {
++                  if (bindings->agent_host_) {
++                    bindings->DispatchProtocolMessage(
++                        bindings->agent_host_.get(), base::as_byte_span(m));
++                  }
++                },
++                base::Unretained(this));
++            frontend.show_panel = base::BindRepeating(
++                [](DevToolsUIBindings* bindings, const std::string& panel) {
++                  bindings->CallClientMethod("DevToolsAPI", "showPanel",
++                                             base::Value(panel));
++                },
++                base::Unretained(this));
++            return frontend;
++          })) {
++    return;
++  }
+   agent_host_->DispatchProtocolMessage(this, base::as_byte_span(message));
+ }
+ 

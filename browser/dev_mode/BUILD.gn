@@ -22,11 +22,45 @@ source_set("dev_mode") {
   ]
 }
 
-source_set("unit_tests") {
-  testonly = true
-  sources = [ "dev_mode_unittest.cc" ]
+# The requests a page in development mode makes before DevTools opens, and
+# their replay into DevTools' Network panel. Upstream's tab helpers attach
+# the recorder, and upstream's DevTools bindings call the hook (see
+# patches/chrome-browser-ui-BUILD.gn.patch and
+# patches/chrome-browser-devtools-BUILD.gn.patch), so this depends on
+# nothing of theirs.
+source_set("devtools_hooks") {
+  sources = [
+    "devtools_frontend_hook.cc",
+    "devtools_frontend_hook.h",
+    "network_log.cc",
+    "network_log.h",
+    "network_log_buffer.cc",
+    "network_log_buffer.h",
+  ]
+  public_deps = [
+    "//base",
+    "//compass/browser/claude:devtools_session",
+    "//components/prefs",
+    "//content/public/browser",
+  ]
   deps = [
     ":dev_mode",
+    "//chrome/browser/profiles:profile",
+    "//compass/browser/prefs",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "dev_mode_unittest.cc",
+    "network_log_unittest.cc",
+  ]
+  deps = [
+    ":dev_mode",
+    ":devtools_hooks",
+    "//base",
     "//compass/browser/prefs",
     "//components/prefs",
     "//components/prefs:test_support",

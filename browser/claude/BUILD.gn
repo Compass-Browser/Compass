@@ -57,6 +57,21 @@ action("assets") {
   ]
 }
 
+# The internal DevTools client. Its own target with few deps: development
+# mode's network log uses it too, from upstream's DevTools bindings
+# (docs/design/dev-mode.md).
+source_set("devtools_session") {
+  sources = [
+    "devtools_session.cc",
+    "devtools_session.h",
+  ]
+  public_deps = [
+    "//base",
+    "//content/public/browser",
+  ]
+  deps = [ "//url" ]
+}
+
 # The Claude client, page tools and credentials; Android builds it too, without
 # Claude Code (docs/design/android.md, C8).
 source_set("claude") {
@@ -81,8 +96,6 @@ source_set("claude") {
     "claude_tools.h",
     "devtools_format.cc",
     "devtools_format.h",
-    "devtools_session.cc",
-    "devtools_session.h",
     "key_events.cc",
     "key_events.h",
     "openai_edge.cc",
@@ -94,6 +107,7 @@ source_set("claude") {
   ]
   public_deps = [
     ":assets",
+    ":devtools_session",
     ":memory",
     ":prefs",
     "//base",
