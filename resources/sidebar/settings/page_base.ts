@@ -2,27 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Compass's settings pages, each an element shown in two places: as a
-// section of chrome://settings (compass://settings/sync, /shortcuts,
-// /importArc), and alone on its own page (chrome://compass-sync,
-// chrome://compass-settings, chrome://compass-import), which the end-to-end
-// steps and browser tests drive. See docs/design/settings.md.
+// Compass's settings sections, each an element shown in the settings window
+// (docs/design/settings-window.md, which re-skins them), and alone on its own
+// page (chrome://compass-sync, chrome://compass-settings/shortcuts.html,
+// chrome://compass-import), which the end-to-end steps and browser tests
+// drive. See docs/design/settings.md.
 //
 // The page's markup goes in the element's light DOM, so on the standalone
-// pages `document.getElementById()` still finds it. Its styles are scoped
-// under `.compass-page`, since inside chrome://settings they apply to the
-// whole shadow tree of <settings-main>.
+// pages `document.getElementById()` still finds it, and the window's
+// stylesheet reaches it. Its styles are scoped under `.compass-page`.
 
-// What <settings-main> expects from a section's searchContents()
-// (chrome/browser/resources/settings/search_settings.ts).
-export interface SearchResult {
-  canceled: boolean;
-  matchCount: number;
-  wasClearSearch: boolean;
-}
-
-// The heading and card of chrome://settings' sections, from cr_shared_vars
-// when inside it, with fallbacks for the standalone pages.
+// A heading and a card, for the standalone pages (the window restyles them).
 const BASE_STYLE = `
 .compass-page {
   color: var(--cr-primary-text-color, var(--color-sys-on-surface, #1f1f1f));
@@ -86,21 +76,5 @@ export abstract class CompassSettingsPage extends HTMLElement {
 
   protected show(id: string, visible: boolean) {
     this.$(id).hidden = !visible;
-  }
-
-  // chrome://settings' search: the section stays when its text has the
-  // query. Unlike upstream's sections, nothing is highlighted.
-  searchContents(query: string): Promise<SearchResult> {
-    const text = (this.content_?.textContent || '').toLowerCase();
-    const needle = query.trim().toLowerCase();
-    let matchCount = 0;
-    if (needle) {
-      for (let at = text.indexOf(needle); at !== -1;
-           at = text.indexOf(needle, at + needle.length)) {
-        matchCount++;
-      }
-    }
-    return Promise.resolve(
-        {canceled: false, matchCount, wasClearSearch: !needle});
   }
 }

@@ -125,6 +125,9 @@ if (!is_android) {
       "//chrome/test:test_support_ui",
       "//compass/browser/claude",
       "//compass/browser/claude:prefs",
+
+      # The previews show in the settings window.
+      "//compass/browser/ui",
       "//components/prefs",
       "//content/public/browser",
       "//content/test:test_support",

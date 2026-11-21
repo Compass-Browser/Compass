@@ -5,7 +5,7 @@
 import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {CompassSettingsPrivacyPaneElement} from './privacy_pane.js';
-import {PREF_COOKIE_CONTROLS, PREF_DO_NOT_TRACK, PREF_HTTPS_ONLY, PREF_SECURE_DNS} from './privacy_pane.js';
+import {PREF_CLEAN_LINKS, PREF_COOKIE_CONTROLS, PREF_DO_NOT_TRACK, PREF_HTTPS_ONLY, PREF_SECURE_DNS} from './privacy_pane.js';
 
 export function getHtml(this: CompassSettingsPrivacyPaneElement) {
   // clang-format off
@@ -56,6 +56,19 @@ ${this.isView_('main') ? html`
       <input type="checkbox" class="switch" data-pref="${PREF_DO_NOT_TRACK}"
           .checked="${this.getBool_(PREF_DO_NOT_TRACK)}"
           ?disabled="${this.isEnforced_(PREF_DO_NOT_TRACK)}"
+          @change="${this.onSwitchChange_}">
+    </label>
+    <label class="row control-row" data-row="cleanLinks">
+      <span class="row-text">
+        <span class="row-label">Remove tracking from copied links</span>
+        <span class="row-detail">
+          Copy URL and Copy Link leave out parameters that only track where a
+          link was shared, using Firefox's list.
+        </span>
+      </span>
+      <input type="checkbox" class="switch" data-pref="${PREF_CLEAN_LINKS}"
+          .checked="${this.getBool_(PREF_CLEAN_LINKS)}"
+          ?disabled="${this.isEnforced_(PREF_CLEAN_LINKS)}"
           @change="${this.onSwitchChange_}">
     </label>
   </div>

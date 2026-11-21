@@ -34,8 +34,7 @@
 namespace compass {
 namespace {
 
-// Finds |selector| anywhere in the page, through every shadow root
-// (chrome://settings nests the sections in settings-ui and settings-main).
+// Finds |selector| anywhere in the page, through every shadow root.
 constexpr char kDeepQuery[] = R"(
   function deepQuery(selector, root = document) {
     const found = root.querySelector(selector);
@@ -57,13 +56,6 @@ constexpr char kDeepQuery[] = R"(
 class SettingsSectionsBrowserTest : public InProcessBrowserTest {
  protected:
   content::WebContents* contents() { return contents_; }
-
-  // Loads |url| in the tab: upstream's settings, for its own sections (the
-  // window opens for Compass's).
-  void Open(const std::string& url) {
-    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(url)));
-    contents_ = browser()->tab_strip_model()->GetActiveWebContents();
-  }
 
   // Opens settings at |sub_page| as the browser does
   // (chrome::ShowSettingsSubPage()): Compass's sections are in the settings
@@ -97,57 +89,6 @@ class SettingsSectionsBrowserTest : public InProcessBrowserTest {
  private:
   raw_ptr<content::WebContents, DanglingUntriaged> contents_ = nullptr;
 };
-
-// The menu of chrome://settings lists Compass's sections, and each one shows
-// its element.
-IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, MenuOpensEachSection) {
-  // Upstream's own section: its root opens the settings window instead.
-  Open("chrome://settings/people");
-  EXPECT_EQ(WaitFor("deepQuery('a#compassSync')?.getAttribute('href')"),
-            "/sync");
-  EXPECT_EQ(WaitFor("deepQuery('a#compassShortcuts')?.getAttribute('href')"),
-            "/shortcuts");
-  EXPECT_EQ(WaitFor("deepQuery('a#compassLinks')?.getAttribute('href')"),
-            "/links");
-  EXPECT_EQ(WaitFor("deepQuery('a#compassArcImport')?.getAttribute('href')"),
-            "/importArc");
-  EXPECT_EQ(WaitFor("deepQuery('a#compassClaude')?.getAttribute('href')"),
-            "/claude");
-  EXPECT_EQ(WaitFor("deepQuery('a#compassBoosts')?.getAttribute('href')"),
-            "/boosts");
-  EXPECT_EQ(WaitFor("deepQuery('a#compassDevMode')?.getAttribute('href')"),
-            "/devMode");
-  EXPECT_EQ(WaitFor("deepQuery('a#compassPlugins')?.getAttribute('href')"),
-            "/plugins");
-  // Every Compass item's icon names one that exists: an unknown name draws
-  // nothing.
-  EXPECT_EQ(WaitFor("[...deepQuery('a#compassPlugins').parentElement"
-                    ".querySelectorAll('a[id^=\"compass\"] cr-icon')]"
-                    ".filter(i => !i.shadowRoot?.querySelector('svg *'))"
-                    ".map(i => i.icon).join(',') || 'all drawn'"),
-            "all drawn");
-
-  ASSERT_TRUE(content::ExecJs(contents(), std::string(kDeepQuery) +
-                                              "deepQuery('a#compassShortcuts')"
-                                              ".click();"));
-  EXPECT_EQ(WaitFor("deepQuery('compass-shortcuts-page .compass-title')"
-                    "?.textContent"),
-            "Keyboard shortcuts");
-  EXPECT_EQ(content::EvalJs(contents(), "location.pathname"), "/shortcuts");
-}
-
-// Upstream's "On startup" section is gone: its menu item is hidden and
-// there's no view for it (docs/design/settings.md).
-IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, NoOnStartupSection) {
-  Open("chrome://settings/people");
-  EXPECT_EQ(WaitFor("deepQuery('a#compassSync')?.getAttribute('href')"),
-            "/sync");
-  EXPECT_EQ(content::EvalJs(contents(), std::string(kDeepQuery) + R"(
-              deepQuery('a#onStartup')?.hidden === true &&
-                  !deepQuery('div#onStartup') &&
-                  !deepQuery('settings-on-startup-page'))"),
-            true);
-}
 
 // compass://settings/shortcuts lists the shortcuts and records keys as the
 // standalone page does.
@@ -335,22 +276,6 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ClaudeSection) {
             true);
   EXPECT_EQ(WaitFor("deepQuery('compass-claude-page #model')?.value"),
             "claude-opus-5-5");
-}
-
-// Settings' search keeps a Compass section that has the words.
-IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, SearchFindsASection) {
-  Open("chrome://settings/people");
-  EXPECT_EQ(content::EvalJs(contents(), std::string(kDeepQuery) + R"(
-        (async () => {
-          await customElements.whenDefined('compass-sync-page');
-          const page = document.createElement('compass-sync-page');
-          document.body.append(page);
-          const found = await page.searchContents('recovery code');
-          const missing = await page.searchContents('zzzz no such words');
-          page.remove();
-          return found.matchCount > 0 && missing.matchCount === 0;
-        })())"),
-            true);
 }
 
 // compass://settings/plugins (docs/design/settings.md, "Plugins"): the

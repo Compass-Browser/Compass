@@ -38,10 +38,11 @@ class WidgetDelegate;
 namespace compass {
 
 // The settings window's path for upstream's settings |sub_page| ("sync",
-// "boosts?add=example.com", "" for the first pane), if the window shows it:
-// Compass's own sections, which it has under the same paths, and "claude",
-// now "ai". Null for upstream's sections, which still open chrome://settings
-// in a tab (docs/design/settings-window.md, "Phases").
+// "boosts?add=example.com", "content/siteDetails?site=..."): the window's
+// pane and view for it. Every sub-page has one (the closest pane, or "" for
+// the window as it was): upstream's settings page is never shown
+// (docs/design/settings-window.md, "Phases"). Optional for the callers that
+// check.
 std::optional<std::string> SettingsWindowPathFor(std::string_view sub_page);
 
 // The URL the window loads to show |path|.

@@ -6,8 +6,8 @@ import("//ui/webui/resources/tools/build_webui.gni")
 import("//ui/webui/resources/tools/generate_grd.gni")
 
 # chrome://compass-sidebar, and the other Compass pages (the placeholder, the
-# command bar, the settings sections, which chrome://settings also serves
-# under compass/). Produces :resources, whose pak is added to Chrome's resources
+# command bar, the settings window and its sections). Produces :resources,
+# whose pak is added to Chrome's resources
 # (see patches/chrome-chrome_paks.gni.patch).
 build_webui("build") {
   grd_prefix = "compass_sidebar"
@@ -117,7 +117,6 @@ build_webui("build") {
 
   webui_context_type = "trusted"
 
-  # chrome://settings imports the settings sections (/compass/settings/...).
   ts_composite = true
 
   ts_deps = [

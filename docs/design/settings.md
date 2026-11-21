@@ -1,85 +1,67 @@
 # Settings
 
-Settings now open in Compass's settings window ([settings-window.md](settings-window.md)),
-which shows these same sections, re-skinned, among its panes. Until every
-upstream section is rebuilt there, upstream's `chrome://settings` stays
-reachable for its own sections, and keeps Compass's as described below.
+Compass's settings are its settings window ([settings-window.md](settings-window.md)):
+chrome://compass-settings in a window of its own, with the panes as toolbar
+tabs. Upstream's chrome://settings page is never shown: every chrome://settings
+URL, and every way of opening settings, opens the window at the pane for it.
 
-Compass's own settings are sections of upstream's `chrome://settings`
-(compass://settings), listed in its menu right after "You and Google":
+Compass's own sections are elements the window shows in its panes:
 
-| Menu item | Path | Element | Standalone page |
+| Section | Pane (path) | Element | Standalone page |
 |---|---|---|---|
-| Sync | `/sync` | `<compass-sync-page>` | chrome://compass-sync |
-| Keyboard shortcuts | `/shortcuts` | `<compass-shortcuts-page>` | chrome://compass-settings/shortcuts.html |
-| Links from Other Apps | `/links` | `<compass-links-page>` | none |
-| Boosts | `/boosts` | `<compass-boosts-page>` | chrome://compass-settings/boosts.html |
-| Plugins | `/plugins` | `<compass-plugins-page>` | none |
-| Import from Another Browser | `/importArc` | `<compass-arc-import-page>` | chrome://compass-import |
+| Sync | Profiles (`sync`) | `<compass-sync-page>` | chrome://compass-sync |
+| Import from Another Browser | Profiles (`importArc`) | `<compass-arc-import-page>` | chrome://compass-import |
+| Links from Other Apps | Links (`links`) | `<compass-links-page>` | none |
+| Keyboard shortcuts | Shortcuts (`shortcuts`) | `<compass-shortcuts-page>` | chrome://compass-settings/shortcuts.html |
+| Boosts | Boosts (`boosts`) | `<compass-boosts-page>` | chrome://compass-settings/boosts.html |
+| Plugins | Plugins (`plugins`) | `<compass-plugins-page>` | none |
+| Claude | AI (`ai`; `claude` too) | `<compass-claude-page>` | none |
+| Development Mode | Advanced (`devMode`) | `<compass-dev-mode-page>` | none |
 
 The command bar ("Keyboard shortcuts", "Import from Another Browser",
-"Route this site to space…", which opens `/links?add=<domain>`; "Boost
-this site…", which opens `/boosts?add=<host>`) and the
-app menu's sync row open the sections (`chrome::ShowSettingsSubPage()`,
-which reuses an open settings tab). Sync is hidden where upstream hides the
-people page (guest). Import from Another Browser is listed everywhere: it
-lists the other browsers' profiles found (browser-import.md), and Arc's
-when Arc is there (arc-import.md). Its path is still `/importArc`, the
-Arc import's.
+"Route this site to space…", which opens `links?add=<domain>`; "Boost this
+site…", which opens `boosts?add=<host>`) and the app menu's sync row open
+them with `chrome::ShowSettingsSubPage()`, which opens or brings forward the
+window there. Import from Another Browser lists the other browsers'
+profiles found (browser-import.md), and Arc's when Arc is there
+(arc-import.md). Its path is still `importArc`, the Arc import's.
 
-Upstream's **On startup** section is gone (no menu item, view or route;
-upstream does the same for a guest): Compass's sidebar brings back its
-spaces and their tabs itself (docs/design/sidebar.md, "Today persistence"),
-so choosing what opens at launch has no place in Compass. The pref behind it (`RestoreOnStartup`) keeps whatever value it
-had and still decides whether the first window shows the switcher's first
-space (docs/design/spaces.md, "Startup with several profiles"); policy can
-still set it.
+There's no "On startup" setting: Compass's sidebar brings back its spaces
+and their tabs itself (docs/design/sidebar.md, "Today persistence"). The
+pref behind upstream's (`RestoreOnStartup`) keeps whatever value it had and
+still decides whether the first window shows the switcher's first space
+(docs/design/spaces.md, "Startup with several profiles"); policy can still
+set it.
 
 The standalone pages stay: they show the same element alone, and the
 end-to-end sync steps (`tools/sync_e2e/`) and browser tests drive them with
-`document.getElementById()`. Nothing in the browser links to them any more.
+`document.getElementById()`. Nothing in the browser links to them.
 
 ## How
 
 - **The elements** (`resources/sidebar/settings/`): plain custom elements
   (`CompassSettingsPage` in `page_base.ts`), not Polymer or Lit. Each
-  renders a heading and a card like upstream's `settings-section`, with its
-  markup (`*.html`, wrapped by `html_to_wrapper` as a native template) in
-  its light DOM, so ids stay reachable from the standalone page's document.
-  Inside chrome://settings the element sits in `<settings-main>`'s shadow
-  tree, so every style rule is scoped under `.compass-page`.
+  renders a heading and a card, with its markup (`*.html`, wrapped by
+  `html_to_wrapper` as a native template) in its light DOM, so ids stay
+  reachable from the standalone page's document and the window's stylesheet
+  reaches it. Styles are scoped under `.compass-page`; the window re-skins
+  them (settings-window.md, "Visual design").
 - **No cr_elements.** The same modules also make the standalone pages, so
   they stay plain HTML controls with the colors.css tokens.
-- **Search:** each element has `searchContents(query)`, which
-  `<settings-main>` calls for every section; a section whose text lacks the
-  query is hidden. Nothing is highlighted.
-- **Loading:** settings_main.ts imports `/compass/settings/*_page.js`, as
-  it imports `/shared/settings/...`: settings' BUILD.gn maps `/compass/` to
-  `//compass/resources/sidebar`'s TypeScript output (`ts_composite`), and
-  optimized builds bundle the sections into settings' bundle. (Upstream's
-  lint wants every custom tag in settings_main.html imported there.)
-  Unbundled builds load them from the settings data source, where
-  `compass::SettingsSections::Create()` (called from `settings::SettingsUI`'s
-  constructor) adds the whole Compass resource pak under `compass/`. The
-  route, menu item and view for each section are in route.ts / router.ts,
-  settings_menu.html and settings_main.html (patches).
-- **Mojo:** the same interfaces as the standalone pages
-  (`sidebar.mojom` `SettingsHandler`, `ArcImportHandler`, `compass_sync.mojom`
-  `PageHandlerFactory`). Links from Other Apps uses `SettingsHandler` too
+- **Mojo:** `sidebar.mojom` `SettingsHandler` (shortcuts, links, Boosts,
+  plugins, development mode), `ArcImportHandler`, `compass_sync.mojom`
+  `PageHandlerFactory` and `claude.mojom` `SettingsHandler`, whose
+  implementations (`ShortcutsPageHandler`, `ArcImportPageHandler`,
+  `SyncPageHandlerFactory`, `ClaudeSettingsHandler`) chrome://compass-settings
+  binds through `SettingsSections::CreateHandlers()`; the standalone
+  controllers bind their own. Each section binds its own `SettingsHandler`,
+  and they all stay. Links from Other Apps uses `SettingsHandler` too
   (`GetLinkRules()`, `SetLinkRule()`, `RemoveLinkRule()`, for the page's
-  profile; [link-routing.md](link-routing.md)), so it needs no broker entry
-  of its own. Their implementations are classes of their own
-  (`ShortcutsPageHandler`, `ArcImportPageHandler`, `SyncPageHandlerFactory`),
-  owned by the standalone controllers and by `SettingsSections`.
-  `settings::SettingsUI` gets a templated `BindInterface()` that hands them
-  to `SettingsSections`, and its broker registration lists them (patches).
-  `//compass/browser/ui/webui/settings:sections` holds only the header, so
-  `//chrome/browser/ui/webui/settings` can include it without depending on
-  `//compass/browser/ui`.
+  profile; [link-routing.md](link-routing.md)).
 
 ## Plugins
 
-`/plugins` (`plugins_page.{ts,html}`, `browser/ui/webui/settings/plugin_settings.cc`)
+`plugins` (`plugins_page.{ts,html}`, `browser/ui/webui/settings/plugin_settings.cc`)
 lists every live folder and tab preview plugin (docs/design/live-folders.md):
 built-in, installed, local or made by Claude, each with its kinds ("Live
 folder", "Tab preview", "Badge"). Expanding one shows, for a preview, the sites it
@@ -97,7 +79,3 @@ Claude. `plugins?id=<id>` opens one. Through `SettingsHandler`
 ## Not done
 
 - Strings are English only, as on the standalone pages.
-- The menu icons are upstream's closest (`cr:sync`, `settings20:keyboard-lock`,
-  `cr:open-in-new`, `settings20:archive`, `settings:chrome-extension`); adding Compass icons means patching settings'
-  icons.html.ts (a late `<cr-iconset>` would trip `cr-icon`'s assert).
-- Search doesn't highlight matches inside the sections.

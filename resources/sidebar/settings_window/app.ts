@@ -257,8 +257,6 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
   private openRow_(row: LinkRow) {
     if (row.url) {
       this.proxy_.handler.openUrl(row.url);
-    } else if (row.subPage) {
-      this.proxy_.handler.openChromeSettings(row.subPage);
     }
   }
 

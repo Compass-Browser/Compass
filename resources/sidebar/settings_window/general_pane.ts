@@ -26,6 +26,7 @@ export const PREF_ACCEPT_LANGUAGES = 'intl.accept_languages';
 export const PREF_OFFER_TRANSLATE = 'translate.enabled';
 export const PREF_SPELLCHECK = 'browser.enable_spellchecking';
 export const PREF_HARDWARE_ACCELERATION = 'hardware_acceleration_mode.enabled';
+export const PREF_PIP_ON_LEAVING_WINDOW = 'compass.pip.on_leaving_window';
 
 export type GeneralView = 'main'|'engines'|'languages';
 
@@ -50,6 +51,7 @@ const ALL_PREFS = [
   PREF_OFFER_TRANSLATE,
   PREF_SPELLCHECK,
   PREF_HARDWARE_ACCELERATION,
+  PREF_PIP_ON_LEAVING_WINDOW,
   ...FONT_PREFS.map(f => f.pref),
 ];
 

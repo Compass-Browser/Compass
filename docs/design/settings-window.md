@@ -1,8 +1,7 @@
 # Settings window
 
-Status: phases 1–4 and the first part of 5 (the window, its toolbar,
-Compass's own sections; General, Profiles, Privacy, Passwords and Advanced
-rebuilt).
+Status: done (phases 1–5). Every section is the window's, and upstream's
+settings page is never shown.
 Based on Chromium 157.0.8103.51.
 
 ## Goal
@@ -18,10 +17,9 @@ the window's, Chrome's included, and nothing shows upstream's settings page.
   settings commands open the profile's settings window, or bring it to the
   front. There's one per profile. It isn't a browser window, so it isn't in
   the sidebar, the space switcher, window sync or session restore.
-- Typing or following `chrome://settings/` (or `compass://settings/`),
-  `chrome://settings/<one of Compass's sections>` or
-  `chrome://compass-settings/...` in a tab opens the window instead. A tab
-  that was opened only for it closes.
+- Typing or following any `chrome://settings/…` (or `compass://settings/…`)
+  or `chrome://compass-settings/…` URL in a tab opens the window at the pane
+  for it instead. A tab that was opened only for it closes.
 - **Toolbar:** the panes as icon tabs under the title, which names the pane.
   ←/→ move between tabs, and the window opens at the pane shown last.
   - General
@@ -47,24 +45,30 @@ the window's, Chrome's included, and nothing shows upstream's settings page.
 ## Phases
 
 1. **Done:** the window, the routing of every way into it, the toolbar,
-   search, and Compass's sections re-skinned. Upstream's sections are rows
-   that open `chrome://settings/<section>` in a tab: General, Privacy,
-   Passwords and part of Advanced.
+   search, and Compass's sections re-skinned. Upstream's sections were rows
+   that opened `chrome://settings/<section>` in a tab, until the phases
+   below rebuilt them.
 2. **Done:** General and Profiles rebuilt (below, "General and Profiles").
    Managing search engines and languages are views of General (phase 5).
 3. **Done:** Privacy rebuilt (below, "Privacy").
 4. **Done:** Passwords (below, "Passwords"). Adding and editing passwords,
    cards and addresses, the checkup, passkeys' details and import/export
    open the password manager or upstream's sections.
-5. Advanced, managing search engines and languages, the card and address
-   editors, Safety check (**done**, below). Then no more fallback: every
-   `chrome://settings` URL opens the window, and the chrome://settings
-   patches that add Compass's sections (menu, routes, views, BUILD.gn) go.
-   The password manager (chrome://password-manager) is a page of its own
-   and stays.
+5. **Done:** Advanced, managing search engines and languages, the card and
+   address editors, Safety check (below). Then no more fallback (5f): every
+   `chrome://settings` URL opens the window (`SettingsWindowPathFor()` maps
+   each sub-page to its pane, or the closest one, or the window as it was),
+   and the patches that put Compass's sections and settings into
+   chrome://settings went (its menu, routes, views and BUILD.gn,
+   `settings_ui`, the About, appearance, cookies and automatic
+   picture-in-picture pages, `settings_localized_strings_provider` and
+   `prefs_util.cc`'s allowlist). Their two Compass settings moved into the
+   window: picture-in-picture when you leave the window (General) and
+   removing tracking from copied links (Privacy). The password manager
+   (chrome://password-manager) is a page of its own and stays.
 
-While upstream's settings page is still reachable, it keeps Compass's
-sections (docs/design/settings.md).
+Upstream's settings page is built as upstream ships it, without Compass's
+sections, and never shown.
 
 ## How
 
@@ -97,7 +101,7 @@ sections (docs/design/settings.md).
     knows: "" and Compass's sections at their chrome://settings paths (`sync`,
     `importArc`, `links`, `shortcuts`, `boosts`, `plugins`, `devMode`, and
     `claude`, which is the AI pane), with their queries (`boosts?add=`,
-    `links?add=`). Upstream's sub-pages go on to a tab as before.
+    `links?add=`), and every other upstream sub-page (phase 5f).
   - `SettingsWindowNavigationThrottle`, added by upstream's
     `CreateAndAddChromeThrottlesForNavigation()`
     (`patches/chrome-browser-chrome_content_browser_client_navigation_throttles.cc.patch`),
@@ -115,13 +119,14 @@ sections (docs/design/settings.md).
     (`SettingsWindowHandler`) plus the sections' (`SettingsHandler`,
     `ArcImportHandler`, `compass_sync.mojom` `PageHandlerFactory`,
     `claude.mojom` `SettingsHandler`), whose implementations are
-    `SettingsSections::CreateHandlers()`'s, as chrome://settings has them.
+    `SettingsSections::CreateHandlers()`'s.
     Each section binds its own `SettingsHandler` (shortcuts, links, Boosts,
     plugins, development mode), and they all stay bound.
   - `SettingsWindowHandler` (`browser/ui/webui/settings/`) gives the accent
     (the profile's active space's color, or null for grey) and pushes it as
-    the space changes. It sizes the window, opens upstream's sections
-    (`OpenChromeSettings()`) and chrome:// pages (`OpenUrl()`) in tabs, and
+    the space changes. It sizes the window, opens chrome:// pages
+    (`OpenUrl()`: the password manager, chrome://extensions, the
+    certificate manager, the licenses) in tabs, and
     closes the window. `ShowPath()` tells the page to show a path when the
     window is opened at one while it's open. Before the page has connected,
     the window loads the path's URL instead.

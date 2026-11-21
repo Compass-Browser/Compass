@@ -2,9 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# The hook chrome://settings includes (settings_sections.h); the
-# implementation is part of //compass/browser/ui, which can't be a dependency
-# of //chrome/browser/ui/webui/settings (it depends on //chrome/browser/ui).
+# The settings sections' handlers (settings_sections.h); the implementation
+# is part of //compass/browser/ui.
 source_set("sections") {
   sources = [ "settings_sections.h" ]
   public_deps = [

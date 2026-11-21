@@ -16,13 +16,13 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
-#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/search_engines/keyword_editor_controller.h"
 #include "chrome/browser/ui/zoom/chrome_zoom_level_prefs.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
+#include "compass/browser/prefs/compass_prefs.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/views/settings_window/settings_window.h"
 #include "compass/browser/updates/update_hooks.h"
@@ -94,6 +94,11 @@ constexpr AllowedPref kAllowedPrefs[] = {
     {::autofill::prefs::kAutofillCreditCardEnabled, base::Value::Type::BOOLEAN,
      false},
     {::autofill::prefs::kAutofillProfileEnabled, base::Value::Type::BOOLEAN,
+     false},
+    // Compass's own: picture-in-picture when the window is left (General),
+    // tracking left out of copied links (Privacy).
+    {compass::prefs::kPipOnLeavingWindow, base::Value::Type::BOOLEAN, false},
+    {compass::prefs::kRemoveTrackingFromCopiedLinks, base::Value::Type::BOOLEAN,
      false},
     // Advanced.
     {::performance_manager::user_tuning::prefs::kMemorySaverModeState,
@@ -250,12 +255,6 @@ void SettingsWindowHandler::SetContentHeight(int32_t height) {
   if (SettingsWindow* window = SettingsWindow::FromWebContents(web_contents_)) {
     window->SetContentHeight(height);
   }
-}
-
-void SettingsWindowHandler::OpenChromeSettings(const std::string& sub_page) {
-  // Upstream's sections aren't the window's (MaybeShowSettingsWindow()), so
-  // this opens chrome://settings in a tab.
-  chrome::ShowSettingsSubPageForProfile(profile_, sub_page);
 }
 
 void SettingsWindowHandler::OpenUrl(const GURL& url) {

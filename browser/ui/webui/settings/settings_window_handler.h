@@ -73,7 +73,6 @@ class SettingsWindowHandler
   // sidebar::mojom::SettingsWindowHandler:
   void GetAccent(GetAccentCallback callback) override;
   void SetContentHeight(int32_t height) override;
-  void OpenChromeSettings(const std::string& sub_page) override;
   void OpenUrl(const GURL& url) override;
   void Close() override;
   void GetPrefs(const std::vector<std::string>& names,

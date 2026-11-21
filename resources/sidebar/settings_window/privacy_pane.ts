@@ -19,6 +19,7 @@ export const PREF_COOKIE_CONTROLS = 'profile.cookie_controls_mode';
 export const PREF_DO_NOT_TRACK = 'enable_do_not_track';
 export const PREF_HTTPS_ONLY = 'https_only_mode_enabled';
 export const PREF_SECURE_DNS = 'dns_over_https.mode';
+export const PREF_CLEAN_LINKS = 'compass.copy.remove_tracking';
 const PREF_SAFE_BROWSING = 'safebrowsing.enabled';
 const PREF_SAFE_BROWSING_ENHANCED = 'safebrowsing.enhanced';
 const PREF_CLEAR_PERIOD = 'browser.clear_data.time_period';
@@ -245,6 +246,7 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
       PREF_DO_NOT_TRACK,
       PREF_HTTPS_ONLY,
       PREF_SECURE_DNS,
+      PREF_CLEAN_LINKS,
       PREF_SAFE_BROWSING,
       PREF_SAFE_BROWSING_ENHANCED,
       PREF_CLEAR_PERIOD,

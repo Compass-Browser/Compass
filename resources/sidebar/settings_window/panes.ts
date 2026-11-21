@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The settings window's panes, in the toolbar's order. A pane shows Compass's
-// own sections (settings/*_page.ts, the elements chrome://settings has too)
-// and groups of rows. Rows for upstream's sections the window doesn't have
-// yet open chrome://settings at them in a tab
-// (docs/design/settings-window.md, "Phases").
+// The settings window's panes, in the toolbar's order. A pane shows its
+// sections (the window's own elements, and Compass's settings/*_page.ts) and
+// groups of rows (docs/design/settings-window.md).
 
 // A row inside a section's element that search can take you to (the
 // element marks it with data-row).
@@ -29,13 +27,11 @@ export interface PaneSection {
   searchRows?: SearchRow[];
 }
 
-// A row that opens something elsewhere: upstream's settings at |subPage|, or
-// a browser page at |url| (the password manager).
+// A row that opens a browser page at |url| in a tab.
 export interface LinkRow {
   id: string;
   label: string;
   detail: string;
-  subPage?: string;
   url?: string;
   keywords?: string;
 }
@@ -83,6 +79,9 @@ export const PANES: Pane[] = [
          label: 'Use graphics acceleration when available',
          keywords: 'hardware gpu'},
         {id: 'proxy', label: 'Proxy settings', keywords: 'network'},
+        {id: 'pipOnLeavingWindow',
+         label: 'Picture-in-picture when you leave the window',
+         keywords: 'video call pip'},
       ],
     }],
     groups: [],
@@ -177,6 +176,8 @@ export const PANES: Pane[] = [
         {id: 'cookies', label: 'Third-party cookies', keywords: 'tracking'},
         {id: 'doNotTrack', label: 'Ask sites not to track you',
          keywords: 'do not track dnt'},
+        {id: 'cleanLinks', label: 'Remove tracking from copied links',
+         keywords: 'clean links utm copy url'},
         {id: 'safeBrowsing', label: 'Safe Browsing',
          keywords: 'security dangerous malware phishing'},
         {id: 'httpsOnly', label: 'Always use secure connections',

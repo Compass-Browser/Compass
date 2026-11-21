@@ -5,7 +5,7 @@
 import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {CompassSettingsGeneralPaneElement} from './general_pane.js';
-import {PREF_HARDWARE_ACCELERATION, PREF_MINIMUM_FONT_SIZE, PREF_OFFER_TRANSLATE, PREF_PROMPT_FOR_DOWNLOAD, PREF_SPELLCHECK, PREF_FONT_SIZE} from './general_pane.js';
+import {PREF_HARDWARE_ACCELERATION, PREF_PIP_ON_LEAVING_WINDOW, PREF_MINIMUM_FONT_SIZE, PREF_OFFER_TRANSLATE, PREF_PROMPT_FOR_DOWNLOAD, PREF_SPELLCHECK, PREF_FONT_SIZE} from './general_pane.js';
 
 export function getHtml(this: CompassSettingsGeneralPaneElement) {
   // clang-format off
@@ -53,6 +53,26 @@ ${this.isView_('languages') ? html`
       <compass-settings-icon class="row-trail" name="chevron">
       </compass-settings-icon>
     </button>
+  </div>
+</section>
+
+<section class="row-group">
+  <h2 class="group-title">Picture-in-picture</h2>
+  <div class="group">
+    <label class="row control-row" data-row="pipOnLeavingWindow">
+      <span class="row-text">
+        <span class="row-label">Also when you leave the window</span>
+        <span class="row-detail">
+          A playing video or a call goes into picture-in-picture when its
+          window is covered or minimized, or you switch to another app.
+        </span>
+      </span>
+      <input type="checkbox" class="switch"
+          data-pref="${PREF_PIP_ON_LEAVING_WINDOW}"
+          .checked="${this.getBool_(PREF_PIP_ON_LEAVING_WINDOW)}"
+          ?disabled="${this.isEnforced_(PREF_PIP_ON_LEAVING_WINDOW)}"
+          @change="${this.onSwitchChange_}">
+    </label>
   </div>
 </section>
 

@@ -296,12 +296,10 @@ covered (`OnOcclusionStateChanged()`, patch). Switching to another app
 whose windows don't cover Compass's doesn't count: the video is still in
 view.
 
-Settings → Privacy and security → Site settings → Automatic
-picture-in-picture → "Also when you leave the window" (the
+Settings → General → Picture-in-picture → "Also when you leave the window"
+(the settings window, docs/design/settings-window.md; the
 `compass.pip.on_leaving_window` profile pref, `compass::prefs::
-kPipOnLeavingWindow`, default on; allowlisted for the settings page in the
-`prefs_util.cc` patch, the toggle in the `auto_picture_in_picture_page`
-patches). Off, the window being covered or minimized starts nothing; coming
+kPipOnLeavingWindow`, default on, on the window's prefs allowlist). Off, the window being covered or minimized starts nothing; coming
 back still closes a window opened before.
 
 Tests: `CompassAutoPipBrowserTest.LeavingTheWindow`,

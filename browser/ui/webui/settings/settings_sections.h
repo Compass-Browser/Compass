@@ -14,13 +14,12 @@
 
 namespace content {
 class WebUI;
-class WebUIDataSource;
 }  // namespace content
 
 namespace compass {
 
 // The sections' paths: compass://settings/sync and so on, for
-// chrome::ShowSettingsSubPage().
+// chrome::ShowSettingsSubPage(), which opens the settings window there.
 inline constexpr char kSyncSettingsSubPage[] = "sync";
 inline constexpr char kShortcutsSettingsSubPage[] = "shortcuts";
 inline constexpr char kArcImportSettingsSubPage[] = "importArc";
@@ -35,27 +34,15 @@ inline constexpr char kBoostsSettingsSubPage[] = "boosts";
 // handler.
 inline constexpr char kDevModeSettingsSubPage[] = "devMode";
 
-// Compass's sections of chrome://settings: Sync (/sync), Keyboard shortcuts
-// (/shortcuts), Links from Other Apps (/links, served by the shortcuts'
-// handler), Import from Arc (/importArc) and Claude (/claude).
-// settings::SettingsUI owns
-// one (patches/chrome-browser-ui-webui-settings-settings_ui.{h,cc}.patch)
-// and hands it the sections' interfaces. See docs/design/settings.md.
-//
-// Only this header is visible to //chrome/browser/ui/webui/settings
-// (target :sections); the implementation is in //compass/browser/ui.
+// The handlers of Compass's settings sections (Sync, Keyboard shortcuts,
+// Links from Other Apps, Boosts, Plugins and Development Mode through the
+// shortcuts' handler, Import, Claude), which chrome://compass-settings binds
+// for the settings window (docs/design/settings-window.md). Each section
+// binds its own SettingsHandler, and they all stay.
 class SettingsSections {
  public:
-  // Serves the sections' scripts on chrome://settings' |source| under
-  // compass/ (its settings_main.ts imports /compass/settings/*_page.js;
-  // optimized builds bundle them instead).
-  static std::unique_ptr<SettingsSections> Create(
-      content::WebUI* web_ui,
-      content::WebUIDataSource* source);
-
-  // The sections' handlers alone, for chrome://compass-settings, which
-  // serves the sections itself (the settings window,
-  // docs/design/settings-window.md).
+  // The sections' handlers, for chrome://compass-settings (the settings
+  // window, docs/design/settings-window.md).
   static std::unique_ptr<SettingsSections> CreateHandlers(
       content::WebUI* web_ui);
 

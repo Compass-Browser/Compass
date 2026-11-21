@@ -8,15 +8,12 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "base/strings/strcat.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/ui/webui/arc_import/compass_arc_import_ui.h"
 #include "compass/browser/ui/webui/claude/claude_settings_handler.h"
 #include "compass/browser/ui/webui/settings/compass_settings_ui.h"
 #include "compass/browser/ui/webui/sync/compass_sync_ui.h"
-#include "compass/grit/compass_sidebar_resources_map.h"
 #include "content/public/browser/web_ui.h"
-#include "content/public/browser/web_ui_data_source.h"
 
 namespace compass {
 
@@ -67,19 +64,6 @@ class SettingsSectionsImpl : public SettingsSections {
 };
 
 }  // namespace
-
-// static
-std::unique_ptr<SettingsSections> SettingsSections::Create(
-    content::WebUI* web_ui,
-    content::WebUIDataSource* source) {
-  // The whole Compass pak: the sections import the mojo bindings next to
-  // them. The sidebar's own pages are there too, unused.
-  for (const webui::ResourcePath& resource : kCompassSidebarResources) {
-    source->AddResourcePath(base::StrCat({"compass/", resource.path}),
-                            resource.id);
-  }
-  return CreateHandlers(web_ui);
-}
 
 // static
 std::unique_ptr<SettingsSections> SettingsSections::CreateHandlers(

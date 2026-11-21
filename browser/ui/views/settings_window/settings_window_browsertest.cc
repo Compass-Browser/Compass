@@ -89,12 +89,14 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PathsTheWindowHas) {
   EXPECT_EQ(SettingsWindowPathFor("/sync"), "sync");
   EXPECT_EQ(SettingsWindowPathFor("claude"), "ai");
   EXPECT_EQ(SettingsWindowPathFor("devMode"), "devMode");
-  // Upstream's sections stay upstream's for now.
+  // Upstream's sections open their panes; any other opens the window.
   EXPECT_EQ(SettingsWindowPathFor("searchEngines"), "general?view=engines");
   EXPECT_EQ(SettingsWindowPathFor("languages"), "general?view=languages");
-  EXPECT_EQ(SettingsWindowPathFor("ai"), std::nullopt);
+  EXPECT_EQ(SettingsWindowPathFor("ai"), "");
   EXPECT_EQ(SettingsWindowPathFor("safetyCheck"), "privacy?view=safety");
-  EXPECT_EQ(SettingsWindowPathFor("people"), std::nullopt);
+  EXPECT_EQ(SettingsWindowPathFor("people"), "profiles");
+  EXPECT_EQ(SettingsWindowPathFor("syncSetup/advanced"), "sync");
+  EXPECT_EQ(SettingsWindowPathFor("noSuchSection"), "");
   EXPECT_EQ(SettingsWindowPathFor("payments"), "passwords?focus=saveCards");
   EXPECT_EQ(SettingsWindowPathFor("passwords"), "passwords");
   EXPECT_EQ(SettingsWindowPathFor("help"), "advanced?focus=about");
@@ -190,15 +192,17 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SettingsURLOpensTheWindow) {
             "example.com");
 }
 
-// Upstream's sections the window doesn't have yet still open
-// chrome://settings in a tab.
-IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, UpstreamSectionsStayInTabs) {
+// Every chrome://settings section opens the window: upstream's settings
+// page is never shown (phase 5f).
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, EverySectionOpensTheWindow) {
+  const int tabs = tab_count();
   chrome::ShowSettingsSubPage(browser(), "people");
-  EXPECT_FALSE(window());
-  content::WebContents* tab =
-      browser()->GetTabStripModel()->GetActiveWebContents();
-  ASSERT_TRUE(content::WaitForLoadStop(tab));
-  EXPECT_EQ(tab->GetLastCommittedURL(), GURL("chrome://settings/people"));
+  ASSERT_TRUE(window());
+  EXPECT_EQ(tab_count(), tabs);
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  EXPECT_EQ(WaitFor("document.querySelector('.tab[aria-selected=true]')"
+                    "?.dataset.pane"),
+            "profiles");
 }
 
 // Closing the window lets settings open a new one.

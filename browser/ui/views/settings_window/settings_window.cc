@@ -50,9 +50,7 @@ constexpr float kMaxScreenFraction = 0.85f;
 
 // Compass's sections, which the window has under upstream's paths
 // (settings_sections.h), and the window's panes whose names upstream doesn't
-// use. Upstream's sections the window has rebuilt (privacy's) are mapped in
-// SettingsWindowPathFor(); the others ("people", "ai") stay
-// upstream's until the window rebuilds them.
+// use. Upstream's sections are mapped in SettingsWindowPathFor().
 constexpr auto kWindowPaths = std::to_array<std::string_view>({
     "general",
     "profiles",
@@ -202,7 +200,38 @@ std::optional<std::string> SettingsWindowPathFor(std::string_view sub_page) {
   if (std::ranges::contains(kWindowPaths, path)) {
     return std::string(sub_page.substr(sub_page.starts_with('/') ? 1 : 0));
   }
-  return std::nullopt;
+  // Every other section of upstream's opens the pane closest to it, or the
+  // window as it was: upstream's settings page is never shown (phase 5f).
+  struct Closest {
+    std::string_view prefix;
+    std::string_view path;
+  };
+  static constexpr Closest kClosest[] = {
+      {"people", "profiles"},
+      {"syncSetup", "sync"},
+      {"manageProfile", "profiles"},
+      {"importData", "importArc"},
+      {"signOut", "profiles"},
+      {"system", "general?focus=hardwareAcceleration"},
+      {"onStartup", "general"},
+      {"privacy", "privacy"},
+      {"security", "privacy?focus=security"},
+      {"cookies", "privacy?focus=cookies"},
+      {"passkeys", "passwords"},
+      {"autofill", "passwords"},
+      {"accessibility", "advanced?focus=accessibility"},
+      {"reset", "advanced?focus=reset"},
+      {"help", "advanced?focus=about"},
+      {"performance", "advanced?focus=performance"},
+  };
+  for (const Closest& closest : kClosest) {
+    if (path == closest.prefix ||
+        (path.starts_with(closest.prefix) &&
+         path.substr(closest.prefix.size()).starts_with('/'))) {
+      return std::string(closest.path);
+    }
+  }
+  return std::string();
 }
 
 GURL SettingsWindowURL(std::string_view path) {

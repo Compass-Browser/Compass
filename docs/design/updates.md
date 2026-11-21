@@ -195,11 +195,13 @@ and `bin/` the tools.
   Sparkle installs it and opens the app again; Chromium sets `kWasRestarted`
   so the session comes back, but doesn't start its own relauncher. Quitting
   normally installs the update as well, without reopening the app.
-- **About page:** `version_updater_mac.mm` (patch) reports Sparkle's checks
-  (checking, downloading with progress, relaunch, up to date, failed). The
-  channel row shows Compass's version (`compassVersion`) and the channel
-  (`about_page.*` patches; `compass.update_channel` is allowlisted in
-  `prefs_util.cc`). Changing the channel checks at once.
+- **About Compass** (the settings window's Advanced pane,
+  docs/design/settings-window.md): Compass's version, Check for Updates or
+  Relaunch to Update through the `Updater`, and the channel
+  (`compass.update_channel`, on the window's prefs allowlist, which takes
+  only the three names). `version_updater_mac.mm` (patch) still maps
+  Sparkle's checks to upstream's `VersionUpdater`. Changing the channel
+  checks at once.
 - **Testing:** `--compass-check-for-updates` checks at launch. Add
   `--enable-logging=stderr --vmodule=sparkle_updater_mac=1` for the
   `Compass updates:` log lines. Test with a copy on the internal disk

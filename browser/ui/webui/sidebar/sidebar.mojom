@@ -1163,9 +1163,6 @@ interface SettingsWindowHandler {
   // The height the page needs (its toolbar and the shown pane, in CSS
   // pixels): the window takes it, within the screen.
   SetContentHeight(int32 height);
-  // Opens upstream's settings at |sub_page| ("searchEngines") in a tab of
-  // the last active window: the Chrome sections the window doesn't have yet.
-  OpenChromeSettings(string sub_page);
   // Opens |url| (a chrome:// page such as the password manager) in a tab of
   // the last active window.
   OpenUrl(url.mojom.Url url);
