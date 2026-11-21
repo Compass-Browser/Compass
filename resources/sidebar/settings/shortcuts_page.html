@@ -114,7 +114,28 @@
   .compass-page .message button.link {
     font-size: 12px;
   }
+
+  .compass-page .ctrl-tab {
+    align-items: center;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    margin: 0 0 16px;
+  }
+
+  .compass-page .ctrl-tab .hint {
+    font-size: 12px;
+    opacity: 0.7;
+  }
 </style>
+<div class="ctrl-tab">
+  <label for="ctrlTabRecent">
+    <div>Ctrl+Tab goes to recently used tabs</div>
+    <div class="hint">Hold Ctrl to see cards; press Tab again to go further
+      back. Off, Ctrl+Tab goes down the sidebar.</div>
+  </label>
+  <input type="checkbox" id="ctrlTabRecent">
+</div>
 <div class="shortcuts-heading">
   <p class="lead">
     Click a shortcut, then press the keys you want. Esc cancels, Delete

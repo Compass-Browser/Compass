@@ -72,6 +72,12 @@ export class CompassShortcutsPageElement extends CompassSettingsPage {
       await this.refresh_();
     });
 
+    const ctrlTab = this.$<HTMLInputElement>('ctrlTabRecent');
+    ctrlTab.addEventListener(
+        'change', () => this.handler_.setCtrlTabRecent(ctrlTab.checked));
+    this.handler_.getCtrlTabRecent().then(
+        ({enabled}) => ctrlTab.checked = enabled);
+
     this.refresh_();
   }
 

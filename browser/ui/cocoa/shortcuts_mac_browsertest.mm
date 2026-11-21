@@ -339,6 +339,16 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, SettingsPage) {
                             /*command=*/false);
   ASSERT_TRUE(base::test::RunUntil(
       [] { return !ShortcutSettings::Get().recording(); }));
+
+  // Ctrl+Tab in recently used order: on, until unchecked.
+  PrefService* pref_service = browser()->GetProfile()->GetPrefs();
+  EXPECT_EQ(wait_for("() => document.querySelector('#ctrlTabRecent')"
+                     "?.checked"),
+            true);
+  ASSERT_TRUE(content::ExecJs(
+      contents, "document.querySelector('#ctrlTabRecent').click()"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return !pref_service->GetBoolean(prefs::kCtrlTabRecent); }));
 }
 
 // Cmd+Z and Cmd+Shift+Z undo and redo closing tabs, once the page passed on

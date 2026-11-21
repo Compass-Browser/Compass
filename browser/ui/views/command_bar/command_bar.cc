@@ -12,6 +12,7 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "compass/browser/ui/app_menu_sync.h"
 #include "compass/browser/ui/compass_command_ids.h"
+#include "compass/browser/ui/views/tab_switcher/tab_switcher.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
@@ -198,6 +199,10 @@ bool IsBrowserCommandEnabled(BrowserWindowInterface* browser, int id) {
 }
 
 bool HandleBrowserCommand(BrowserWindowInterface* browser, int id) {
+  // Ctrl+Tab in recently used order (docs/design/sidebar.md, "Recent tabs").
+  if (HandleTabSwitcherCommand(browser, id)) {
+    return true;
+  }
   if (id == kUndoCloseTabCommand || id == kRedoCloseTabCommand) {
     // They come only after the page passed on the keys (shortcuts_mac.h).
     // In text being edited, they're the Edit menu's Undo and Redo.

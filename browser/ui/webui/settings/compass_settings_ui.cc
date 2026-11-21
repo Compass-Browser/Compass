@@ -26,6 +26,7 @@
 #include "compass/browser/boosts/boost_share.h"
 #include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/dev_mode/dev_mode.h"
+#include "compass/browser/prefs/compass_prefs.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
 #include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/space_list.h"
@@ -34,6 +35,7 @@
 #include "compass/browser/window_sync/tab_strip_bridge.h"
 #include "compass/grit/compass_sidebar_resources.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
@@ -390,6 +392,19 @@ void ShortcutsPageHandler::ResetShortcut(const std::string& id,
     }
     ShortcutSettings::Get().SetCustom(id, std::nullopt);
   }
+  std::move(callback).Run();
+}
+
+void ShortcutsPageHandler::GetCtrlTabRecent(
+    GetCtrlTabRecentCallback callback) {
+  std::move(callback).Run(
+      profile_->GetPrefs()->GetBoolean(prefs::kCtrlTabRecent));
+}
+
+void ShortcutsPageHandler::SetCtrlTabRecent(
+    bool enabled,
+    SetCtrlTabRecentCallback callback) {
+  profile_->GetPrefs()->SetBoolean(prefs::kCtrlTabRecent, enabled);
   std::move(callback).Run();
 }
 

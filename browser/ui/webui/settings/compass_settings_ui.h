@@ -81,6 +81,9 @@ class ShortcutsPageHandler : public sidebar::mojom::SettingsHandler,
 
   // sidebar::mojom::SettingsHandler:
   void GetShortcuts(GetShortcutsCallback callback) override;
+  void GetCtrlTabRecent(GetCtrlTabRecentCallback callback) override;
+  void SetCtrlTabRecent(bool enabled,
+                        SetCtrlTabRecentCallback callback) override;
   void SetRecording(bool recording) override;
   void CheckShortcut(const std::string& id,
                      sidebar::mojom::ShortcutKeysPtr keys,

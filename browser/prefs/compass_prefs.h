@@ -40,6 +40,11 @@ inline constexpr char kRemoveTrackingFromCopiedLinks[] =
 // to the machine they work on.
 inline constexpr char kDevModeHosts[] = "compass.dev_mode.hosts";
 
+// Whether Ctrl+Tab goes through the window's tabs in recently used order,
+// with a row of cards while Ctrl is held, as Arc does (docs/design/sidebar.md,
+// "Recent tabs"); off, it's Next tab in sidebar order. Default on.
+inline constexpr char kCtrlTabRecent[] = "compass.tabs.ctrl_tab_recent";
+
 // Whether sidebar hover cards show plugins' tab previews
 // (docs/design/live-folders.md, "Tab previews"). Default on.
 inline constexpr char kTabPreviewsEnabled[] = "compass.tab_previews.enabled";

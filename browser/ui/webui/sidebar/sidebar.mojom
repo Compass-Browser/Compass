@@ -882,6 +882,10 @@ interface SettingsHandler {
   MakePluginWithClaude();
 
   GetShortcuts() => (array<Shortcut> shortcuts);
+  // Whether Ctrl+Tab goes in recently used order, with cards
+  // (compass.tabs.ctrl_tab_recent; docs/design/sidebar.md "Recent tabs").
+  GetCtrlTabRecent() => (bool enabled);
+  SetCtrlTabRecent(bool enabled) => ();
   // While the page records keys, the browser's shortcuts don't run, so the
   // keys reach it.
   SetRecording(bool recording);

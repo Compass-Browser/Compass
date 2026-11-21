@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "chrome/browser/ui/zoom/chrome_zoom_level_prefs.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "third_party/blink/public/common/input/web_gesture_event.h"
@@ -21,6 +22,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/test/bind.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/run_until.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
@@ -29,7 +31,9 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
 #include "chrome/browser/infobars/simple_alert_infobar_creator.h"
+#include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/common/chrome_constants.h"
@@ -70,9 +74,12 @@
 #include "compass/browser/ui/views/frame/load_bar.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/prefs/compass_prefs.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
 #include "compass/browser/ui/views/frame/window_frame.h"
+#include "compass/browser/ui/views/tab_switcher/tab_switcher.h"
+#include "compass/browser/ui/views/tab_switcher/tab_switcher_view.h"
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "compass/browser/ui/views/sidebar/tab_preview_view.h"
@@ -2402,6 +2409,150 @@ void OpenThreeTabs(BrowserWindowInterface* browser, content::WebContents* sideba
                                                              .Append("One")
                                                              .Append("Two")
                                                              .Append("Three"))));
+}
+
+// Ctrl+Tab in recently used order (docs/design/sidebar.md "Recent tabs").
+// A quick tap (Ctrl already up) switches to the previous entry at once.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, RecentTabsSwitcherTap) {
+  ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), sidebar_contents()));
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  const base::Time now = base::Time::Now();
+  // One was seen 3 hours ago, Two an hour ago; Three is on screen.
+  model.SetLastActive(model.today_root()->children()[0].get(),
+                      now - base::Hours(3));
+  model.SetLastActive(model.today_root()->children()[1].get(),
+                      now - base::Hours(1));
+  TabStripModel* tabs = browser()->tab_strip_model();
+  auto active_title = [&] {
+    return base::UTF16ToUTF8(tabs->GetActiveWebContents()->GetTitle());
+  };
+  TabSwitcher* switcher = TabSwitcher::From(browser());
+  ASSERT_TRUE(switcher);
+  ASSERT_TRUE(switcher->IsEnabled());
+
+  // Ctrl+Tab's command (accelerator_table.cc), as the key runs it.
+  ASSERT_TRUE(chrome::ExecuteCommand(browser(), IDC_CYCLE_TO_NEXT_TAB));
+  EXPECT_EQ(active_title(), "Two");
+  EXPECT_FALSE(switcher->IsActive());
+  // Again: back to Three, the one just left.
+  ASSERT_TRUE(chrome::ExecuteCommand(browser(), IDC_CYCLE_TO_NEXT_TAB));
+  EXPECT_EQ(active_title(), "Three");
+  // Ctrl+Shift+Tab goes to the oldest.
+  ASSERT_TRUE(chrome::ExecuteCommand(browser(), IDC_CYCLE_TO_PREV_TAB));
+  EXPECT_EQ(active_title(), "One");
+
+  // Next tab (Cmd+Option+Right, ...) stays in sidebar order.
+  EXPECT_FALSE(HandleTabSwitcherCommand(browser(), IDC_SELECT_NEXT_TAB));
+  // With the setting off, Ctrl+Tab isn't the switcher's either.
+  browser()->GetProfile()->GetPrefs()->SetBoolean(prefs::kCtrlTabRecent,
+                                                  false);
+  EXPECT_FALSE(switcher->IsEnabled());
+  EXPECT_FALSE(HandleTabSwitcherCommand(browser(), IDC_CYCLE_TO_NEXT_TAB));
+}
+
+// Held, Ctrl+Tab shows cards; Tab moves along them, releasing Ctrl switches
+// to the picked one, Esc stays.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, RecentTabsSwitcherCards) {
+  ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), sidebar_contents()));
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  const base::Time now = base::Time::Now();
+  model.SetLastActive(model.today_root()->children()[0].get(),
+                      now - base::Hours(3));
+  model.SetLastActive(model.today_root()->children()[1].get(),
+                      now - base::Hours(1));
+  TabStripModel* tabs = browser()->tab_strip_model();
+  auto active_title = [&] {
+    return base::UTF16ToUTF8(tabs->GetActiveWebContents()->GetTitle());
+  };
+  TabSwitcher* switcher = TabSwitcher::From(browser());
+  TabSwitcher::SetControlHeldForTesting(true);
+
+  ASSERT_TRUE(chrome::ExecuteCommand(browser(), IDC_CYCLE_TO_NEXT_TAB));
+  ASSERT_TRUE(switcher->IsActive());
+  EXPECT_EQ(switcher->entry_count_for_testing(), 3u);
+  EXPECT_EQ(switcher->selected_for_testing(), 1u);
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return switcher->IsShowingForTesting();
+  }));
+  // Ctrl+Tab again.
+  ASSERT_TRUE(chrome::ExecuteCommand(browser(), IDC_CYCLE_TO_NEXT_TAB));
+  EXPECT_EQ(switcher->selected_for_testing(), 2u);
+  EXPECT_EQ(active_title(), "Three");
+  switcher->OnControlReleased();
+  EXPECT_EQ(active_title(), "One");
+  EXPECT_FALSE(switcher->IsActive());
+  EXPECT_FALSE(switcher->IsShowingForTesting());
+
+  // Esc goes back.
+  ASSERT_TRUE(switcher->Step(1));
+  switcher->OnCancel();
+  EXPECT_EQ(active_title(), "One");
+  EXPECT_FALSE(switcher->IsActive());
+  TabSwitcher::SetControlHeldForTesting(false);
+}
+
+// The cards fit the window: they shrink, then show a few at a time, the row
+// sliding to keep the picked one in view.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, RecentTabsSwitcherFits) {
+  ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), sidebar_contents()));
+  for (const char* title : {"Four", "Five", "Six"}) {
+    ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+        browser(),
+        GURL(std::string("data:text/html,<title>") + title + "</title>"),
+        WindowOpenDisposition::NEW_FOREGROUND_TAB,
+        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  }
+  // As narrow as the window goes (680 on macOS).
+  views::Widget* window =
+      BrowserView::GetBrowserViewForBrowser(browser())->GetWidget();
+  gfx::Rect narrow = window->GetWindowBoundsInScreen();
+  narrow.set_width(400);
+  window->SetBounds(narrow);
+
+  TabSwitcher* switcher = TabSwitcher::From(browser());
+  TabSwitcher::SetControlHeldForTesting(true);
+  ASSERT_TRUE(chrome::ExecuteCommand(browser(), IDC_CYCLE_TO_NEXT_TAB));
+  ASSERT_EQ(switcher->entry_count_for_testing(), 6u);
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return switcher->IsShowingForTesting();
+  }));
+  // The cards that show: side by side, each its own size, in the window.
+  auto showing = [&] {
+    views::View* view = switcher->view_for_testing();
+    view->GetWidget()->LayoutRootViewIfNecessary();
+    std::vector<size_t> shown;
+    int x = 0;
+    for (size_t i = 0; i < view->children().size(); ++i) {
+      views::View* card = view->children()[i];
+      if (!card->GetVisible()) {
+        continue;
+      }
+      shown.push_back(i);
+      EXPECT_EQ(card->width(), card->GetPreferredSize().width());
+      EXPECT_GE(card->x(), x);
+      x = card->bounds().right();
+    }
+    EXPECT_LE(x, view->width());
+    EXPECT_TRUE(window->GetWindowBoundsInScreen().Contains(
+        view->GetWidget()->GetWindowBoundsInScreen()));
+    return shown;
+  };
+  const std::vector<size_t> first = showing();
+  ASSERT_GE(first.size(), 2u);
+  ASSERT_LT(first.size(), 6u);
+  EXPECT_EQ(first.front(), 0u);
+  // Going past the last card slides the row by one.
+  const size_t count = first.size();
+  for (size_t i = 1; i < count; ++i) {
+    ASSERT_TRUE(chrome::ExecuteCommand(browser(), IDC_CYCLE_TO_NEXT_TAB));
+  }
+  EXPECT_EQ(switcher->selected_for_testing(), count);
+  const std::vector<size_t> slid = showing();
+  ASSERT_EQ(slid.size(), count);
+  EXPECT_EQ(slid.front(), 1u);
+  EXPECT_EQ(slid.back(), count);
+  switcher->Cancel();
+  TabSwitcher::SetControlHeldForTesting(false);
 }
 
 // Clear in Today's header closes every Today tab; the window stays.

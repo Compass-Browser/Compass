@@ -94,6 +94,13 @@ source_set("ui") {
     "views/sidebar/sidebar_tint.h",
     "views/sidebar/tab_preview_view.cc",
     "views/sidebar/tab_preview_view.h",
+    "views/tab_switcher/recent_entries.cc",
+    "views/tab_switcher/recent_entries.h",
+    "views/tab_switcher/switcher_keys.h",
+    "views/tab_switcher/tab_switcher.cc",
+    "views/tab_switcher/tab_switcher.h",
+    "views/tab_switcher/tab_switcher_view.cc",
+    "views/tab_switcher/tab_switcher_view.h",
     "webui/settings/plugin_settings.cc",
     "webui/sidebar/live_plugin_mojo.cc",
     "webui/sidebar/live_plugin_mojo.h",
@@ -336,6 +343,11 @@ source_set("ui") {
     deps += [ "//build/config/linux/dbus:buildflags" ]
   }
   if (is_mac) {
+    sources += [ "views/tab_switcher/switcher_keys_mac.mm" ]
+  } else {
+    sources += [ "views/tab_switcher/switcher_keys_aura.cc" ]
+  }
+  if (is_mac) {
     sources += [
       "views/frame/browser_view_exchange_mac.mm",
       "views/frame/window_frame_mac.mm",
@@ -379,6 +391,7 @@ source_set("unit_tests") {
   sources = [
     "claude/short_titler_unittest.cc",
     "views/sidebar/sidebar_header_unittest.cc",
+    "views/tab_switcher/recent_entries_unittest.cc",
     "webui/command_bar/command_bar_page_handler_unittest.cc",
     "webui/sidebar/sidebar_page_handler_unittest.cc",
     "webui/sync/compass_sync_page_handler_unittest.cc",

@@ -724,6 +724,55 @@ shortcut that moves the focus from the page to the sidebar yet.
 Favorites tiles come before these rows; see command-bar.md, "Slice 4",
 "Keyboard".
 
+## Recent tabs
+
+Goal: Ctrl+Tab goes through the window's entries in recently used order,
+as Arc's does, rather than down the sidebar.
+
+- **Keys.** Ctrl+Tab picks the entry shown before this one; pressed again
+  while Ctrl is held, it goes further back (Ctrl+Shift+Tab, the other way:
+  from the oldest). Releasing Ctrl switches. Held over 150 ms, a row of
+  cards shows, centered over the window: each entry's screenshot (a live
+  tab's `ThumbnailImage`; its favicon, large, until then or if unloaded),
+  favicon and title, the picked one outlined. The row fits the window: cards
+  shrink (screenshots 200 down to 140 DIP wide, 16:10), then show as many as
+  fit, the row sliding to keep the picked one in view. While it shows, ← → move,
+  Return or Space switch, Esc stays, and a click on a card switches. A quick
+  tap switches without the cards.
+- **Which entries.** The window's space (Pinned and Today) and the
+  favorites, by `SidebarNode::last_active()` (the time `TabStripBridge`
+  records as the window leaves and shows a tab), newest first, the shown one
+  first; entries never shown aren't listed. A split is one entry: it opens
+  its newest pane. At most 8 (`TabSwitcher::kMaxEntries`). An unloaded
+  entry opens, as a click in the sidebar does
+  (`GetRecentEntries()`, `browser/ui/views/tab_switcher/recent_entries.*`).
+- **How.** `compass::HandleBrowserCommand()` (command_bar.cc) first asks
+  `HandleTabSwitcherCommand()`, which takes Ctrl+Tab's and Ctrl+Shift+Tab's
+  own commands, `IDC_CYCLE_TO_NEXT_TAB` and `IDC_CYCLE_TO_PREV_TAB`
+  (upstream's `accelerator_table.cc`, every platform; they replace upstream's
+  own MRU, `kCtrlTabMru`, while the setting is on). Next tab and Previous tab
+  (Cmd+⌥→, Ctrl+Page Down, …) aren't the switcher's: they stay in sidebar
+  order. A first version took Next tab when its keys were Ctrl+Tab, but
+  Ctrl+Tab never runs Next tab, so it did nothing in the browser, while its
+  tests, which ran Next tab themselves, passed. `TabSwitcher`
+  (`tab_switcher.*`, owned by the window's sidebar view, as
+  `DevModeController`) keeps the picked entries by id; `SwitcherKeys` watches
+  Ctrl's release and the switch's keys while it runs (an `NSEvent` local
+  monitor; an `aura::Env` handler), taking Esc, Return, Space and the arrows
+  from the page. The cards are `TabSwitcherView` in a non-activatable
+  `BubbleDialogDelegate` (`BubbleBorder::FLOAT`, anchored to the window's
+  bounds), so the keys keep going to the window. A switch whose Ctrl went
+  up unseen (another app came forward) ends at the next Ctrl+Tab.
+- **Setting.** Settings › Keyboard shortcuts, "Ctrl+Tab goes to recently
+  used tabs" (`compass.tabs.ctrl_tab_recent`, on; doesn't sync). Off,
+  Ctrl+Tab is Next tab again.
+- **Tests:** `RecentEntriesTest.*`; `CompassSidebarBrowserTest.
+  RecentTabsSwitcherTap`, `RecentTabsSwitcherCards` and
+  `RecentTabsSwitcherFits` (the narrowest window, six tabs);
+  `CompassShortcutsBrowserTest.SettingsPage` (the setting).
+- **Not tried by hand on Windows or Linux** yet; the aura key handling is
+  built only there.
+
 ## Hover cards
 
 Goal: resting the pointer on a tab shows upstream's hover card next to the

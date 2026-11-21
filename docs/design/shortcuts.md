@@ -119,6 +119,12 @@ was given them since.
 A changed shortcut has one set of keys (or none): Next tab's four defaults
 become the one the user picked.
 
+Above the list, "Ctrl+Tab goes to recently used tabs"
+(`compass.tabs.ctrl_tab_recent`, on): Ctrl+Tab and Ctrl+Shift+Tab run the
+recent tabs switcher (sidebar.md, "Recent tabs"). They're upstream's own
+cycle commands, not Next and Previous tab, whose keys stay in sidebar
+order.
+
 ### Storage
 
 The Local State pref `compass.shortcuts` (ARCHITECTURE.md D19), browser-wide
