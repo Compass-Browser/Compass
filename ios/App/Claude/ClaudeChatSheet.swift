@@ -98,6 +98,15 @@ struct ClaudeChatSheet: View {
         .padding()
       }
       .scrollDismissesKeyboard(.interactively)
+      // Links in replies open in a new tab, under the sheet (the desktop's
+      // rule); mail goes to the system.
+      .environment(
+        \.openURL,
+        OpenURLAction { url in
+          guard url.scheme == "http" || url.scheme == "https" else { return .systemAction }
+          app.openLink(url)
+          return .handled
+        })
       .onChange(of: chat.conversation.turns.last?.content.count) { proxy.scrollTo("end", anchor: .bottom) }
       .onChange(of: chat.conversation.turns.count) { withAnimation { proxy.scrollTo("end", anchor: .bottom) } }
     }
@@ -277,7 +286,7 @@ private struct TurnView: View {
             }
           case "text":
             if let text = block["text"]?.string, !text.isEmpty {
-              Text(Self.markdown(text)).textSelection(.enabled)
+              ClaudeMarkdownView(text: text)
             }
           case "tool_use":
             if let id = block["id"]?.string {
@@ -315,12 +324,6 @@ private struct TurnView: View {
 
   private func notice(_ text: String) -> some View {
     Text(text).font(.callout).foregroundStyle(.secondary)
-  }
-
-  /// Inline markdown (bold, italics, code, links), line breaks kept.
-  static func markdown(_ text: String) -> AttributedString {
-    (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
-      ?? AttributedString(text)
   }
 }
 

@@ -144,6 +144,7 @@
 		D9D8815C4107DF4474DC2FD4 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = 15AEEA8D528A69A946C7E01B /* CompassSync */; };
 		DC7CC89BA34E3FCF8F18A976 /* KeyboardShortcutsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E5E4C521DD74CEBD175150 /* KeyboardShortcutsTests.swift */; };
 		DF5A2FEAA7314FD697E62C7A /* ClaudeChatSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 950B2D1C1AF0CBC338C181A6 /* ClaudeChatSheet.swift */; };
+		93B763119AF2A5F97DF4BA50 /* ClaudeMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69171AF9AD935FFB6E298B60 /* ClaudeMarkdownView.swift */; };
 		DFB02BF326D4B44B34C55AF8 /* ThemeEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65277AB39215D86443B8364F /* ThemeEditor.swift */; };
 		DFC3D119FC6F0613E9500099 /* Readability-readerable.js in Resources */ = {isa = PBXBuildFile; fileRef = 956236B2B30A91963A11AA21 /* Readability-readerable.js */; };
 		E7DA38301889CC7FB624865F /* SwipeUpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */; };
@@ -315,6 +316,7 @@
 		9368A0772C67BCC14AC29785 /* EaselLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EaselLibrary.swift; sourceTree = "<group>"; };
 		943E4453D17FD6C970BD7A46 /* SafariOpen.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = SafariOpen.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		950B2D1C1AF0CBC338C181A6 /* ClaudeChatSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeChatSheet.swift; sourceTree = "<group>"; };
+		69171AF9AD935FFB6E298B60 /* ClaudeMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeMarkdownView.swift; sourceTree = "<group>"; };
 		956236B2B30A91963A11AA21 /* Readability-readerable.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "Readability-readerable.js"; sourceTree = "<group>"; };
 		960D86CC6167C5350147FD0D /* reader.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = reader.js; sourceTree = "<group>"; };
 		961F85913D33C5CF85A475CE /* ClaudeDevTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeDevTools.swift; sourceTree = "<group>"; };
@@ -797,6 +799,7 @@
 			children = (
 				5D8BE98AA2B25948FFDAB6AC /* ClaudeChat.swift */,
 				950B2D1C1AF0CBC338C181A6 /* ClaudeChatSheet.swift */,
+				69171AF9AD935FFB6E298B60 /* ClaudeMarkdownView.swift */,
 				977A8F8485D4C21A1859E91F /* ClaudeClient.swift */,
 				961F85913D33C5CF85A475CE /* ClaudeDevTools.swift */,
 				02496055CC5CED2F7938BBFE /* ClaudeMemoryStore.swift */,
@@ -1141,6 +1144,7 @@
 				F3406C598B31BE9892367451 /* BrowserScreen.swift in Sources */,
 				A8C5CE015AFF427E149A3C30 /* ClaudeChat.swift in Sources */,
 				DF5A2FEAA7314FD697E62C7A /* ClaudeChatSheet.swift in Sources */,
+				93B763119AF2A5F97DF4BA50 /* ClaudeMarkdownView.swift in Sources */,
 				B580D148EA2C68D000F5C041 /* ClaudeClient.swift in Sources */,
 				F9071FAB2EA0B14F40BAF4F3 /* ClaudeDevTools.swift in Sources */,
 				0BA524C95ED44728317C8441 /* ClaudeMemoryStore.swift in Sources */,
