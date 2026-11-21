@@ -149,7 +149,7 @@ class PrepareAppIdentifierTest(unittest.TestCase):
         decode=lambda path: decoded or profile())
 
   def test_embeds_and_entitles(self):
-    self.assertEqual(self.prepare(self.profile), APP_ID)
+    self.assertEqual(self.prepare(self.profile), (APP_ID, []))
     self.assertEqual(self.embedded.read_bytes(), b'signed profile')
     self.assertEqual(self.read_entitlements(), {
         'com.apple.security.device.camera': True,
@@ -157,11 +157,32 @@ class PrepareAppIdentifierTest(unittest.TestCase):
     })
 
   def test_without_takes_both_out(self):
-    self.prepare(self.profile)
-    self.assertIsNone(self.prepare(None))
+    self.prepare(self.profile, decoded=self.passkeys_profile())
+    self.assertEqual(self.prepare(None), (None, []))
     self.assertFalse(self.embedded.exists())
     self.assertEqual(self.read_entitlements(),
                      {'com.apple.security.device.camera': True})
+
+  def passkeys_profile(self, value=True):
+    return profile(Entitlements={mac_sign.ENT_APP_ID: APP_ID,
+                                 mac_sign.ENT_PASSKEYS: value})
+
+  def test_passkeys_when_the_profile_grants_them(self):
+    self.assertEqual(self.prepare(self.profile,
+                                  decoded=self.passkeys_profile()),
+                     (APP_ID, [mac_sign.ENT_PASSKEYS]))
+    self.assertEqual(self.read_entitlements(), {
+        'com.apple.security.device.camera': True,
+        mac_sign.ENT_APP_ID: APP_ID,
+        mac_sign.ENT_PASSKEYS: True,
+    })
+
+  def test_no_passkeys_from_a_profile_without_them(self):
+    self.prepare(self.profile, decoded=self.passkeys_profile())
+    self.prepare(self.profile)
+    self.assertNotIn(mac_sign.ENT_PASSKEYS, self.read_entitlements())
+    self.prepare(self.profile, decoded=self.passkeys_profile(value=False))
+    self.assertNotIn(mac_sign.ENT_PASSKEYS, self.read_entitlements())
 
   def test_wrong_profile_changes_nothing(self):
     with self.assertRaises(mac_sign.ProfileError):

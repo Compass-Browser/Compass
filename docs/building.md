@@ -200,6 +200,16 @@ silences the warning). The profile is never in the repository. Development
 and test builds never get the entitlement, since macOS won't launch an app
 that has it without a matching profile.
 
+Passkeys work the same way. With
+`com.apple.developer.web-browser.public-key-credential`, Chromium offers
+websites the passkeys saved in iCloud Keychain (the Passwords app). Apple
+grants it per App ID as a managed capability ("Web Browser Public Key
+Credential Requests", requested from the App ID's Capability Requests tab).
+`compass sign` adds it only when the embedded profile grants it, and prints
+"granted by the provisioning profile". After Apple approves the request,
+enable the capability on the App ID, then download and install a new
+profile.
+
 ### Windows from a Mac
 
 A Mac can build Windows Compass (Chromium's `docs/win_cross.md`): `--cpu

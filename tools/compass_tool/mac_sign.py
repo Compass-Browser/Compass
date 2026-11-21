@@ -40,6 +40,13 @@ PROVISIONING_PROFILE = RELEASE_DIR / 'Compass.provisionprofile'
 APP_ENTITLEMENTS = 'app-entitlements.plist'
 EMBEDDED_PROFILE = 'embedded.provisionprofile'
 ENT_APP_ID = 'com.apple.application-identifier'
+# Managed capabilities Apple grants per app: signed into the app only when
+# the provisioning profile grants them, since macOS refuses to launch an app
+# whose signature claims one its profile doesn't. Passkeys: with it, Chromium
+# offers the passkeys saved in iCloud Keychain to websites
+# (device/fido/mac/icloud_keychain_sys.mm, ProcessHasEntitlement).
+ENT_PASSKEYS = 'com.apple.developer.web-browser.public-key-credential'
+PROFILE_GRANTED = (ENT_PASSKEYS,)
 
 _IDENTITY_LINE = re.compile(r'^\s*\d+\)\s+([0-9A-F]{40})\s+"(.+)"\s*$')
 
@@ -156,27 +163,38 @@ def bundle_id(app: Path) -> str:
 def prepare_app_identifier(
     app: Path, packaging: Path, team: Optional[str],
     profile_path: Optional[Path],
-    decode: Callable[[Path], dict] = decode_profile) -> Optional[str]:
+    decode: Callable[[Path], dict] = decode_profile
+) -> tuple[Optional[str], List[str]]:
   """Before the signing driver runs: with |profile_path|, embeds it in |app|
-  and adds the application identifier to the outer app's entitlements in
-  |packaging|; returns the identifier. Without, takes both out (a previous
-  run's may still be there) and returns None."""
+  and adds the application identifier, and each PROFILE_GRANTED entitlement
+  the profile grants, to the outer app's entitlements in |packaging|;
+  returns the identifier and those entitlements. Without, takes them all out
+  (a previous run's may still be there) and returns (None, [])."""
   embedded = app / 'Contents' / EMBEDDED_PROFILE
   entitlements_path = packaging / APP_ENTITLEMENTS
   with open(entitlements_path, 'rb') as f:
     entitlements = plistlib.load(f)
   app_id = None
+  granted = []
   if profile_path:
     if not team:
       raise ProfileError('no team ID in the signing identity\'s name')
     app_id = '%s.%s' % (team, bundle_id(app))
-    check_profile(decode(profile_path), app_id)
+    decoded = decode(profile_path)
+    check_profile(decoded, app_id)
     shutil.copyfile(profile_path, embedded)
     entitlements[ENT_APP_ID] = app_id
-  else:
-    if embedded.exists():
-      embedded.unlink()
+    in_profile = decoded.get('Entitlements', {})
+    granted = [e for e in PROFILE_GRANTED if in_profile.get(e) is True]
+  elif embedded.exists():
+    embedded.unlink()
+  if not app_id:
     entitlements.pop(ENT_APP_ID, None)
+  for entitlement in PROFILE_GRANTED:
+    if entitlement in granted:
+      entitlements[entitlement] = True
+    else:
+      entitlements.pop(entitlement, None)
   with open(entitlements_path, 'wb') as f:
     plistlib.dump(entitlements, f)
-  return app_id
+  return app_id, granted

@@ -524,13 +524,15 @@ def sign_build(layout: Layout, args) -> Path:
     raise CommandError(mac_sign.store_credentials_hint(
         profile, mac_sign.team_id(name)))
   try:
-    app_id = mac_sign.prepare_app_identifier(
+    app_id, granted = mac_sign.prepare_app_identifier(
         out_dir / (product + '.app'), mac_sign.packaging_dir(out_dir, product),
         mac_sign.team_id(name), provisioning_profile(args))
   except mac_sign.ProfileError as e:
     raise CommandError(str(e))
   if app_id:
     print('application identifier: %s' % app_id)
+  for entitlement in granted:
+    print('granted by the provisioning profile: %s' % entitlement)
   output = out_dir / 'signed'
   if output.exists():
     shutil.rmtree(output)
