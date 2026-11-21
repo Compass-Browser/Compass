@@ -67,6 +67,12 @@ final class ClaudeChat {
   /// What's written in the field but not sent: kept when the sheet closes,
   /// and across New Chat.
   var draft = ""
+  /// Messages written while Claude replied, oldest first: the next goes
+  /// when a reply ends without an error (docs/design/claude.md, "Chat
+  /// UI").
+  private(set) var queued: [String] = []
+  /// For the queue's next message, which goes when a reply ends.
+  @ObservationIgnored private weak var queueApp: AppModel?
   @ObservationIgnored private var attachedURL = ""
   @ObservationIgnored private var task: Task<Void, Never>?
   @ObservationIgnored private var tools: ClaudeTools?
@@ -89,9 +95,48 @@ final class ClaudeChat {
 
   var isEmpty: Bool { conversation.turns.isEmpty }
 
-  func send(_ text: String, app: AppModel) {
+  /// The field: sent; queued while Claude replies; or, empty between
+  /// replies, the next queued message.
+  func submit(app: AppModel) {
+    let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+    if streaming {
+      guard !text.isEmpty else { return }
+      queued.append(text)
+      draft = ""
+    } else if text.isEmpty {
+      sendQueued(app: app)
+    } else if send(text, app: app) {
+      draft = ""
+    }
+  }
+
+  /// A queued message back into the field, before what's there, to change.
+  func editQueued(at index: Int) {
+    guard queued.indices.contains(index) else { return }
+    draft = Self.joined([queued.remove(at: index), draft])
+  }
+
+  func removeQueued(at index: Int) {
+    guard queued.indices.contains(index) else { return }
+    queued.remove(at: index)
+  }
+
+  private func sendQueued(app: AppModel) {
+    guard !streaming, let next = queued.first, send(next, app: app) else { return }
+    queued.removeFirst()
+  }
+
+  /// Paragraphs, without the empty ones.
+  private static func joined(_ texts: [String]) -> String {
+    texts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }.joined(separator: "\n\n")
+  }
+
+  /// False when it isn't sent (nothing to send, a reply going, Incognito).
+  @discardableResult
+  func send(_ text: String, app: AppModel) -> Bool {
     let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !text.isEmpty, !streaming, app.shownTab.map({ app.tabs.isIncognito($0.id) }) != true else { return }
+    guard !text.isEmpty, !streaming, app.shownTab.map({ app.tabs.isIncognito($0.id) }) != true else { return false }
+    queueApp = app
     streaming = true
     conversation.closeOpenTools("Not run: the reply ended first.")
     let tools = self.tools ?? ClaudeTools(app: app)
@@ -111,11 +156,13 @@ final class ClaudeChat {
       self.conversation.addUser(text: text, page: page)
       await self.run(windowTabs: windowTabs)
     }
+    return true
   }
 
   /// The last message again, after a failed reply.
   func retry(app: AppModel) {
     guard !streaming, let last = conversation.turns.last, last.role == .assistant, last.error != nil else { return }
+    queueApp = app
     streaming = true
     // The failed reply goes: with it, messages() leaves out the message it
     // answered (as for a new message), and Retry sent none.
@@ -134,9 +181,15 @@ final class ClaudeChat {
     actingTab = nil
     ClaudeTools.releaseRendering()
     tools?.endEmulation()
+    // What was queued goes back into the field, before what's there.
+    if !queued.isEmpty {
+      draft = Self.joined(queued + [draft])
+      queued = []
+    }
   }
 
   func newChat() {
+    queued = []
     stop()
     conversation.clear()
     toolViews = [:]
@@ -241,6 +294,11 @@ final class ClaudeChat {
     if !Task.isCancelled { streaming = false }
     actingTab = nil
     ClaudeTools.releaseRendering()
+    // The queue goes on, unless the reply failed: then it waits for the
+    // user (Retry, or Send).
+    if !Task.isCancelled, conversation.turns.last?.error == nil, let app = queueApp {
+      sendQueued(app: app)
+    }
   }
 
   private func reply(windowTabs: String) async {

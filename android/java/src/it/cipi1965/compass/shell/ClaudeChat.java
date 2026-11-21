@@ -89,7 +89,7 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
     }
 
     private void refresh() {
-        mState.update(mBridge.snapshot());
+        boolean replyEnded = mState.update(mBridge.snapshot());
         // The tab Claude acts on gets an outline in the sidebar (iOS's), and the pill shows while
         // it works with the sheet closed.
         mSpaces.setClaudeTab(mState.getActingTab());
@@ -98,13 +98,45 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
             mPill.setVisibility(pill ? View.VISIBLE : View.GONE);
             if (pill) mPill.bringToFront();
         }
+        // The queue goes on; after an error it waits for the user (Retry, or Send).
+        if (replyEnded) sendQueued();
     }
 
+    /**
+     * While Claude replies, the text is queued; between replies it's sent, or (empty) the next
+     * queued message is.
+     */
     @Override
     public void onSend(String text) {
+        if (mState.getStreaming()) {
+            mState.queue(text);
+        } else if (text.trim().isEmpty()) {
+            sendQueued();
+        } else {
+            send(text);
+        }
+    }
+
+    private void sendQueued() {
+        if (mState.getStreaming()) return;
+        String next = mState.takeQueued();
+        if (next != null) send(next);
+    }
+
+    private void send(String text) {
         Tab tab = mActivity.getActivityTabProvider().get();
         // Incognito pages stay out of it.
         mBridge.send(text, tab != null && !tab.isIncognito() ? tab.getWebContents() : null);
+    }
+
+    @Override
+    public void onEditQueued(int index) {
+        mState.editQueued(index);
+    }
+
+    @Override
+    public void onRemoveQueued(int index) {
+        mState.removeQueued(index);
     }
 
     @Override
@@ -114,11 +146,13 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
 
     @Override
     public void onStop() {
+        mState.unqueueAll();
         mBridge.stop();
     }
 
     @Override
     public void onClear() {
+        mState.clearQueue();
         mBridge.clear();
     }
 

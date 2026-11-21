@@ -17,6 +17,13 @@ import type {AssistantTurn, ContentBlock, MemoryView, ToolView, UserTurn} from '
 import {Conversation, pageBlock} from './conversation.js';
 import './turn.js';
 
+// A message written while Claude was replying, sent when the reply ends.
+interface Queued {
+  text: string;
+  // From the command bar's "Ask Claude": it goes with the page.
+  attachPage: boolean;
+}
+
 interface Approval {
   id: number;
   title: string;
@@ -91,6 +98,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
       pageReadable_: {type: Boolean},
       pageTitle_: {type: String},
       pageUrl_: {type: String},
+      queued_: {type: Array},
       revision_: {type: Number},
       streaming_: {type: Boolean},
       taskTitle_: {type: String},
@@ -110,6 +118,9 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   protected accessor pageReadable_: boolean = false;
   protected accessor pageTitle_: string = '';
   protected accessor pageUrl_: string = '';
+  // Messages waiting for the reply to end, oldest first; the next goes when
+  // a task ends without an error (docs/design/claude.md, "Chat panel").
+  protected accessor queued_: Queued[] = [];
   // Bumped when the conversation changes, to render it again.
   protected accessor revision_: number = 0;
   // From a message being sent until Claude's last reply to it, tools and
@@ -202,6 +213,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   // question and Claude's answer there (docs/design/ai-sidebar.md, "Ask in
   // the command bar"). Nothing is sent until the user writes.
   private continue_(question: string, context: string, answer: string) {
+    this.queued_ = [];
     if (this.streaming_) {
       this.stop_();
     }
@@ -230,13 +242,11 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     this.input_.focus();
   }
 
-  // The command bar's "Ask Claude". While a reply streams, the question
-  // waits in the field.
+  // The command bar's "Ask Claude". While a reply streams, the question is
+  // queued.
   private ask_(text: string) {
     if (this.streaming_) {
-      this.input_.value = text;
-      this.onInputInput_();
-      this.input_.focus();
+      this.queue_(text, true);
       return;
     }
     this.attachPage_ = true;
@@ -287,7 +297,20 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   }
 
   protected canSend_(): boolean {
-    return this.hasKey_ && !this.streaming_ && this.text_.trim() !== '';
+    return this.hasKey_ && !this.streaming_ &&
+        (this.text_.trim() !== '' || this.queued_.length > 0);
+  }
+
+  // While Claude replies, Enter queues what's in the field.
+  protected canQueue_(): boolean {
+    return this.hasKey_ && this.streaming_ && this.text_.trim() !== '';
+  }
+
+  // The queue's label. It waits for the reply; with none, it waits for the
+  // user (the last task failed or there's no key).
+  protected getQueuedLabel_(): string {
+    return this.streaming_ ? 'Sends after this reply' :
+                             'Paused: send to go on';
   }
 
   // Tool results show in the rows of the reply that asked for them.
@@ -379,7 +402,62 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     this.conversation.finishReply('');
     this.conversation.closeOpenTools('Stopped by the user.');
     this.streaming_ = false;
+    this.unqueueAll_();
     this.changed_();
+  }
+
+  private queue_(text: string, attachPage = false) {
+    text = text.trim();
+    if (text) {
+      this.queued_ = [...this.queued_, {text, attachPage}];
+      this.scrollDown_();
+    }
+  }
+
+  // Stop: what was queued goes back into the field, before what's there.
+  private unqueueAll_() {
+    if (!this.queued_.length) {
+      return;
+    }
+    this.setInput_([...this.queued_.map(q => q.text), this.input_.value.trim()]
+                       .filter(text => text)
+                       .join('\n\n'));
+    this.queued_ = [];
+  }
+
+  private setInput_(text: string) {
+    this.input_.value = text;
+    this.onInputInput_();
+    this.input_.focus();
+  }
+
+  // The field's text, or (empty, between replies) the next queued message.
+  private submit_() {
+    const text = this.input_.value.trim();
+    if (this.streaming_) {
+      if (this.hasKey_ && text) {
+        this.queue_(text);
+        this.setInput_('');
+      }
+      return;
+    }
+    if (text) {
+      this.send_(text);
+    } else {
+      this.sendQueued_();
+    }
+  }
+
+  private sendQueued_() {
+    const next = this.queued_[0];
+    if (!next || this.streaming_ || !this.hasKey_) {
+      return;
+    }
+    this.queued_ = this.queued_.slice(1);
+    if (next.attachPage) {
+      this.attachPage_ = true;
+    }
+    this.send_(next.text);
   }
 
   private onStreamEvent_(name: string, data: string) {
@@ -465,6 +543,12 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     this.streaming_ = false;
     this.changed_();
     this.input_.focus();
+    // The queue goes on, unless the task failed: then it waits for the user
+    // (Retry, or Send).
+    const last = this.conversation.turns[this.conversation.turns.length - 1];
+    if (last?.role !== 'assistant' || !last.error) {
+      this.sendQueued_();
+    }
   }
 
   // Runs the reply's tool calls one after the other, then asks for the next
@@ -531,12 +615,35 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   protected onInputKeydown_(e: KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
-      this.send_(this.input_.value);
+      this.submit_();
     }
   }
 
   protected onSendClick_() {
-    this.send_(this.input_.value);
+    this.submit_();
+  }
+
+  protected onQueueClick_() {
+    this.submit_();
+  }
+
+  // A queued message's text: back into the field, to change it.
+  protected onQueuedEditClick_(e: Event) {
+    const index = Number((e.currentTarget as HTMLElement).dataset['index']);
+    const item = this.queued_[index];
+    if (!item) {
+      return;
+    }
+    this.queued_ = this.queued_.filter((_, i) => i !== index);
+    this.setInput_([item.text, this.input_.value.trim()]
+                       .filter(text => text)
+                       .join('\n\n'));
+  }
+
+  protected onQueuedRemoveClick_(e: Event) {
+    const index = Number((e.currentTarget as HTMLElement).dataset['index']);
+    this.queued_ = this.queued_.filter((_, i) => i !== index);
+    this.input_.focus();
   }
 
   protected onStopClick_() {
@@ -599,6 +706,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   }
 
   protected onNewChatClick_() {
+    this.queued_ = [];
     if (this.streaming_) {
       this.stop_();
     }

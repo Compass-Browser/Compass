@@ -580,7 +580,9 @@ It costs:
   model) gates the sheet. `ClaudeBridge` runs a chat about the page on screen: each
   question carries the page's text (read in an isolated world, as on the
   desktop; incognito pages stay out), and the reply streams into a
-  Compose sheet (`ClaudeChatUi.kt`, the bar's ✦). The key is the
+  Compose sheet (`ClaudeChatUi.kt`, the bar's ✦); what's sent while it
+  replies is queued (claude.md, "The queue": `ClaudeChatState.queued`,
+  `ClaudeChat.sendQueued()`). The key is the
   desktop's encrypted `ClaudeCredentials`. Claude acts with the desktop's
   tools (`ClaudeTools`): the page tools (read, find, click, type, scroll,
   navigate, screenshot) on the tab the question is about, and, with "Let

@@ -98,6 +98,15 @@ struct ClaudeChatSheet: View {
         .padding()
       }
       .scrollDismissesKeyboard(.interactively)
+      // Links in replies open in a new tab, under the sheet (the desktop's
+      // rule); mail goes to the system.
+      .environment(
+        \.openURL,
+        OpenURLAction { url in
+          guard url.scheme == "http" || url.scheme == "https" else { return .systemAction }
+          app.openLink(url)
+          return .handled
+        })
       .onChange(of: chat.conversation.turns.last?.content.count) { proxy.scrollTo("end", anchor: .bottom) }
       .onChange(of: chat.conversation.turns.count) { withAnimation { proxy.scrollTo("end", anchor: .bottom) } }
     }
@@ -127,6 +136,9 @@ struct ClaudeChatSheet: View {
         .accessibilityLabel(chat.attachPage ? "Page attached" : "Page not attached")
         .frame(maxWidth: .infinity, alignment: .leading)
       }
+      if !chat.queued.isEmpty {
+        QueuedList(chat: chat)
+      }
       HStack(alignment: .bottom, spacing: 8) {
         TextField(ClaudeSettings.shared.provider.askTitle, text: Bindable(chat).draft, axis: .vertical)
           .lineLimit(1...6)
@@ -138,11 +150,16 @@ struct ClaudeChatSheet: View {
           .background(.quaternary, in: RoundedRectangle(cornerRadius: 18))
           .accessibilityIdentifier("ClaudeInput")
         if chat.streaming {
+          if !draftIsEmpty {
+            Button(action: send) { Image(systemName: "arrow.up.circle").font(.title) }
+              .accessibilityLabel("Send After This Reply")
+              .accessibilityIdentifier("ClaudeQueue")
+          }
           Button { chat.stop() } label: { Image(systemName: "stop.circle.fill").font(.title) }
             .accessibilityLabel("Stop")
         } else {
           Button(action: send) { Image(systemName: "arrow.up.circle.fill").font(.title) }
-            .disabled(chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(draftIsEmpty && chat.queued.isEmpty)
             .accessibilityLabel("Send")
         }
       }
@@ -152,9 +169,42 @@ struct ClaudeChatSheet: View {
     .background(.bar)
   }
 
+  private var draftIsEmpty: Bool { chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
   private func send() {
-    chat.send(chat.draft, app: app)
-    chat.draft = ""
+    chat.submit(app: app)
+  }
+}
+
+/// Messages written while Claude replies, sent one by one after it: a tap
+/// puts one back in the field, × removes it.
+private struct QueuedList: View {
+  let chat: ClaudeChat
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      Text(chat.streaming ? "Sends after this reply" : "Paused: send to go on")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      ForEach(Array(chat.queued.enumerated()), id: \.offset) { index, text in
+        HStack(spacing: 4) {
+          Button { chat.editQueued(at: index) } label: {
+            Text(text).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+          }
+          .buttonStyle(.plain)
+          .accessibilityHint("Edit")
+          Button { chat.removeQueued(at: index) } label: { Image(systemName: "xmark.circle.fill") }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Remove")
+        }
+        .font(.subheadline)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(.quaternary, in: Capsule())
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
 }
 
@@ -236,7 +286,7 @@ private struct TurnView: View {
             }
           case "text":
             if let text = block["text"]?.string, !text.isEmpty {
-              Text(Self.markdown(text)).textSelection(.enabled)
+              ClaudeMarkdownView(text: text)
             }
           case "tool_use":
             if let id = block["id"]?.string {
@@ -274,12 +324,6 @@ private struct TurnView: View {
 
   private func notice(_ text: String) -> some View {
     Text(text).font(.callout).foregroundStyle(.secondary)
-  }
-
-  /// Inline markdown (bold, italics, code, links), line breaks kept.
-  static func markdown(_ text: String) -> AttributedString {
-    (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
-      ?? AttributedString(text)
   }
 }
 

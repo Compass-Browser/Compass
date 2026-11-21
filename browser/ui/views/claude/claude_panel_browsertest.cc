@@ -660,6 +660,106 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, AsksBeforeSaving) {
   EXPECT_FALSE(exists("fox (2).md"));
 }
 
+// Messages written while Claude replies wait in a queue and go one by one
+// after it; Stop puts them back in the field. A save's question holds the
+// reply.
+IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, QueuesWhileReplying) {
+  SetUpClaude();
+  base::ScopedTempDir dir;
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(dir.CreateUniqueTempDir());
+  }
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
+  prefs->SetInteger(prefs::kFilesAccess,
+                    static_cast<int>(prefs::FilesAccess::kSave));
+  prefs->SetString(prefs::kFilesFolder, dir.GetPath().AsUTF8Unsafe());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/page.html")));
+  content::WebContents* contents = Open();
+  ASSERT_TRUE(contents);
+  const std::string root = std::string("const root = ") + kRoot + ";";
+  auto type = [&](const std::string& text) {
+    ASSERT_TRUE(content::ExecJs(
+        contents, root + content::JsReplace(R"(
+        const input = root.querySelector('#input');
+        input.value = $1;
+        input.dispatchEvent(new InputEvent('input'));)",
+                                            text)));
+  };
+  auto enter = [&] {
+    ASSERT_TRUE(content::ExecJs(contents, root + R"(
+        root.querySelector('#input').dispatchEvent(
+            new KeyboardEvent('keydown', {key: 'Enter'}));)"));
+  };
+  auto click = [&](const std::string& id) {
+    ASSERT_TRUE(content::ExecJs(
+        contents, root + "root.querySelector('#" + id + "').click();"));
+  };
+  auto eval = [&](const std::string& expression) {
+    return content::EvalJs(contents, root + expression);
+  };
+  auto queued = [&] {
+    return eval("[...root.querySelectorAll('.queued-text')]"
+                ".map(b => b.textContent.trim()).join('|')")
+        .ExtractString();
+  };
+  auto waiting = [&] {
+    return eval("!!root.querySelector('#approvalTitle')").ExtractBool();
+  };
+  auto idle = [&] { return eval("!!root.querySelector('#send')").ExtractBool(); };
+  // The text of the last message of a request.
+  auto last_text = [&](const std::string& body) {
+    std::optional<base::DictValue> dict =
+        base::JSONReader::ReadDict(body, base::JSON_PARSE_RFC);
+    const base::ListValue& messages = *dict->FindList("messages");
+    const base::ListValue& content =
+        *messages.back().GetDict().FindList("content");
+    const std::string* text = content.back().GetDict().FindString("text");
+    return text ? *text : std::string();
+  };
+
+  type("Save a file.");
+  enter();
+  ASSERT_TRUE(base::test::RunUntil(waiting));
+  // Enter and the Queue button queue; the field empties.
+  type("First queued");
+  EXPECT_TRUE(eval("!!root.querySelector('#queue')").ExtractBool());
+  enter();
+  type("Second queued");
+  click("queue");
+  EXPECT_EQ(queued(), "First queued|Second queued");
+  EXPECT_EQ(eval("root.querySelector('#input').value").ExtractString(), "");
+  EXPECT_FALSE(eval("!!root.querySelector('#queue')").ExtractBool());
+  EXPECT_EQ(Bodies().size(), 1u);
+
+  // The reply ends; each goes after the one before it.
+  click("allow");
+  ASSERT_TRUE(base::test::RunUntil([&] { return Bodies().size() == 4u; }));
+  ASSERT_TRUE(base::test::RunUntil(idle));
+  std::vector<std::string> bodies = Bodies();
+  EXPECT_EQ(last_text(bodies[2]), "First queued");
+  EXPECT_EQ(last_text(bodies[3]), "Second queued");
+  EXPECT_NE(bodies[3].find("First queued"), std::string::npos);
+  EXPECT_EQ(queued(), "");
+
+  // Stop: the queue goes back into the field, before what's there.
+  click("newChat");
+  type("Save a file.");
+  enter();
+  ASSERT_TRUE(base::test::RunUntil(waiting));
+  type("One");
+  enter();
+  type("Two");
+  enter();
+  type("Three");
+  click("stop");
+  EXPECT_EQ(queued(), "");
+  EXPECT_EQ(eval("root.querySelector('#input').value").ExtractString(),
+            "One\n\nTwo\n\nThree");
+  EXPECT_EQ(Bodies().size(), 5u);
+}
+
 #if BUILDFLAG(IS_POSIX)
 // Claude Code mode: the message goes to `claude` (a fake one), which runs
 // Compass's tool through compass-mcp --chat on the chat's tab, with no
