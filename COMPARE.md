@@ -64,7 +64,7 @@ since October 2025).
 | Live folders | ✅ JavaScript plugins (RSS, GitHub, web list, calendar); plugins also show a tab's content in its hover card (Google Calendar's next events, GitHub's notifications) and unread counts on tabs; Claude can write them | ? | ✅ | ❌ | ❌ | ✅ GitHub, RSS | ~ feed reader | ❌ | ❌ | ❌ | ? |
 | Per-site CSS/JS (Boosts) | ✅ by hand or by Claude, synced; desktop and iOS | ❌ | ✅ | ❌ | ❌ | ✅ Boosts, Mods | ❌ | ❌ | ❌ | ❌ | ? |
 | Share spaces and folders with other people | ✅ spaces, folders and easels; invite links or email; end-to-end encrypted | ? | ✅ | ? | ? | ? | ? | ✅ Workspaces | ? | ? | ? |
-| Development mode for a site | ✅ no cache on reload, full address bar, DevTools buttons; desktop and iOS | ? | ✅ | ? | ? | ? | ? |? | ? | ? | ? |
+| Development mode for a site | ✅ no cache on reload, full address bar, DevTools buttons; desktop and iOS | ? | ✅ | ? | ? | ? | ? | ? | ? | ? | ? |
 | Notes / canvas (Easels) | ✅ text, shapes, drawing, images, links, page captures; synced; imported from Arc; desktop, Android and iOS | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ? |
 | Translucent sidebar | ❌ | ✅ Ultra Thin to Ultra Thick | ✅ | ? | ? | ✅ blur, transparency | ❌ | ❌ | ? | ? | ? |
 | **Web content** | | | | | | | | | | | |
