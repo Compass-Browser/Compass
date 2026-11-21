@@ -1,8 +1,8 @@
 # Compass compared with other browsers
 
 How Compass compares with Arc, its successor Dia, and the browsers people
-move to from Arc. Written on 10 November 2026; the Compass column updated
-and the other columns checked on 14 November 2026. Other browsers change
+move to from Arc. Written on 10 November 2026; the other columns checked on 14 November
+2026, and the Compass column updated on 21 November 2026. Other browsers change
 quickly, so check their sites before relying on a cell.
 
 - The Compass column comes from this repository's code (`main`).
@@ -27,7 +27,7 @@ since October 2025).
 
 | Browser | Engine | Platforms | License / price | Status |
 |---|---|---|---|---|
-| **Compass** | Chromium | macOS 13+ (stable), Windows 10/11 (beta), iPhone and iPad (TestFlight), Linux (canary, Flatpak with updates), Android (in progress) | BSD-3-Clause, free | Active |
+| **Compass** | Chromium | macOS 13+ (stable), Windows 10/11 (beta), Linux (beta, Flatpak with updates), iPhone and iPad (TestFlight), Android (Google Play testing) | BSD-3-Clause, free | Active |
 | **Crest** | Chromium by default on Mac, WebKit for any site; WebKit only on iPhone/iPad | macOS 26.1+ (Apple silicon), iPhone, iPad | MPL-2.0, free | Early access (0.9.x) |
 | **Arc** | Chromium | macOS, Windows; Arc Search on iOS/Android | Free, closed | Shuts down 22 Dec 2026 |
 | **Dia** | Chromium | macOS (Apple silicon), Windows | Free core features, paid Pro tier, closed | Active, adding Arc features |
@@ -54,14 +54,17 @@ since October 2025).
 | Split view | ✅ up to 4 panes, side by side or stacked | ✅ 2–4 panes | ✅ up to 4 | ✅ | ✅ up to 4, side by side or stacked | ✅ up to 4 | ✅ tiling | ✅ | ✅ | ✅ up to 4 | ? |
 | Tree-style tabs | ~ nested folders, made by hand | ~ | ~ | ~ nested groups, made by hand | ❌ | ~ | ~ | ❌ | ~ | ~ | ✅ vertical tree tabs |
 | Custom shortcuts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ? | ✅ | ? |
+| Ctrl+Tab in recently used order | ✅ with cards of each tab's preview; W closes one; can be turned off | ? | ✅ tab switcher | ? | ? | ✅ an option | ✅ with previews | ? | ? | ? | ? |
 | **Arc-style extras** | | | | | | | | | | | |
 | Command bar, no toolbar | ✅ | ✅ | ✅ | ~ | ? | ✅ | ✅ Quick Commands | ❌ | ✅ | ✅ | ? |
 | Peek (preview a link without a tab) | ✅ | ✅ | ✅ | ? | ✅ Peek View | ✅ Glance | ❌ | ❌ | ? | ✅ | ✅ link preview |
 | Small windows for links from other apps | ✅ macOS, Windows, Linux | ✅ Quick Window | ✅ Little Arc | ? | ✅ Kiosk | ❌ | ❌ | ❌ | ? | ✅ Little window | ✅ link preview from any app |
 | Link routing to spaces (Air Traffic Control) | ✅ links from other apps, by domain | ✅ | ✅ | ✅ Link Rules to profiles | ✅ URL Rules | ✅ Space Routing | ❌ | ❌ | ? | ✅ | ? |
 | Auto picture-in-picture | ✅ including Teams, Meet and Zoom calls; iPhone and iPad on leaving the app | ✅ | ✅ | ✅ Meet | ? | ~ | ? | ~ | ? | ~ picture-in-picture | ~ picture-in-picture |
-| Live folders | ✅ JavaScript plugins (RSS, GitHub, web list, calendar) | ? | ✅ | ❌ | ❌ | ✅ GitHub, RSS | ~ feed reader | ❌ | ❌ | ❌ | ? |
+| Live folders | ✅ JavaScript plugins (RSS, GitHub, web list, calendar); plugins also show a tab's content in its hover card (Google Calendar's next events, GitHub's notifications) and unread counts on tabs; Claude can write them | ? | ✅ | ❌ | ❌ | ✅ GitHub, RSS | ~ feed reader | ❌ | ❌ | ❌ | ? |
 | Per-site CSS/JS (Boosts) | ✅ by hand or by Claude, synced; desktop and iOS | ❌ | ✅ | ❌ | ❌ | ✅ Boosts, Mods | ❌ | ❌ | ❌ | ❌ | ? |
+| Share spaces and folders with other people | ✅ spaces, folders and easels; invite links or email; end-to-end encrypted | ? | ✅ | ? | ? | ? | ? | ✅ Workspaces | ? | ? | ? |
+| Development mode for a site | ✅ no cache on reload, full address bar, DevTools buttons; desktop and iOS | ? | ✅ | ? | ? | ? | ? |? | ? | ? | ? |
 | Notes / canvas (Easels) | ✅ text, shapes, drawing, images, links, page captures; synced; imported from Arc; desktop, Android and iOS | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ? |
 | Translucent sidebar | ❌ | ✅ Ultra Thin to Ultra Thick | ✅ | ? | ? | ✅ blur, transparency | ❌ | ❌ | ? | ? | ? |
 | **Web content** | | | | | | | | | | | |
@@ -77,9 +80,9 @@ since October 2025).
 | Own API key, Bedrock/Vertex, or Claude subscription via Claude Code | ✅ | — | ❌ | ❌ | ~ local models (Ollama, LM Studio) | — | — | ❌ | ❌ | — | ? |
 | AI memory across sessions | ✅ desktop, iPhone and iPad, synced end-to-end encrypted, each save shown with Undo | ❌ | ❌ | ✅ | ✅ kept on the Mac | ❌ | ❌ | ✅ | ? | ❌ | ? |
 | **Sync and devices** | | | | | | | | | | | |
-| Sync | ✅ no account, end-to-end encrypted, self-hostable; a space can stay on one device | ✅ iCloud; passwords through iCloud Keychain | Arc account | account | Phi account, experimental | Firefox account | Vivaldi account | Microsoft account | ? | ? | ✅ Mac and iPhone |
+| Sync | ✅ no account, end-to-end encrypted, self-hostable (with company sign-in, OIDC); a space can stay on one device | ✅ iCloud; passwords through iCloud Keychain | Arc account | account | Phi account, experimental | Firefox account | Vivaldi account | Microsoft account | ? | ? | ✅ Mac and iPhone |
 | Send tab to phone | ✅ | ? | ❌ | ? | ? | ✅ | ✅ | ✅ | ❌ | ? | ? |
-| Phone app with the same spaces | ✅ iPhone and iPad (beta), Android (in progress) | ✅ iPhone and iPad (App Store) | ~ Arc Search is separate | in progress | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ iPhone and iPad |
+| Phone app with the same spaces | ✅ iPhone and iPad (beta), Android (beta, Google Play testing) | ✅ iPhone and iPad (App Store) | ~ Arc Search is separate | in progress | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ iPhone and iPad |
 | **Moving in** | | | | | | | | | | | |
 | Import | Arc (macOS, Windows): profiles, cookies, sidebar, archive; Chrome, Edge, Brave, Vivaldi, Dia, Firefox, Zen, Safari (macOS): bookmarks, open tabs, history, passwords, Zen and Vivaldi spaces, Safari tab groups | Arc, Zen, Chrome, Safari, Firefox, Brave, Edge, Vivaldi, Opera, Dia, Comet and more | — | Arc, Chrome | Arc, Zen, Chrome | Arc and Dia spaces and profiles | ~ | ~ | ? | ~ bookmarks, history, sign-ins from many browsers | Arc, Safari, Firefox, Brave |
 | Open source | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ~ | ❌ | ❌ | ✅ | ❌ Linux and Windows code to be released |
@@ -92,7 +95,9 @@ As far as the sources show:
 - Claude built in, with the user's own key, a compatible gateway, or a
   Claude subscription through Claude Code; the same tools as an MCP server.
 - Live folders as JavaScript plugins meant to run on desktop, Android and
-  iPhone.
+  iPhone; the same plugins show a tab's content when you hover it (your
+  next Google Calendar events, your GitHub notifications) and unread counts
+  on tabs, reading the page apart from it, and Claude can write new ones.
 - Picture-in-picture for Teams, Meet and Zoom calls, with their controls.
 
 ## Compass and Crest
@@ -116,8 +121,10 @@ Compass has, Crest doesn't:
   iCloud).
 - A Claude chat panel in the browser (Crest has only the MCP server).
 - Chrome extensions on the phone.
-- Live folders, call picture-in-picture, send tab to phone, favorites
-  shared across all spaces.
+- Live folders and tab previews from plugins, call picture-in-picture, send
+  tab to phone, favorites shared across all spaces.
+- Ctrl+Tab in recently used order, sharing with other people, and a
+  development mode for sites you build.
 
 ## Gaps
 
@@ -128,11 +135,9 @@ Features other browsers have that Compass doesn't, checked against the code:
 | Built-in ad blocker | Vivaldi, SigmaOS, Orion, Crest, Phi, Lilo, Brave | Not started; extensions instead |
 | On-device translation | Crest, Orion, Zen, Vivaldi, Edge, Lilo | Not started. Reader mode is done, desktop and iOS (docs/design/reader-mode.md) |
 | Full-quality DRM video | Chrome, Edge, Arc, Dia, Crest | Blocked: no Widevine VMP signature (docs/design/widevine.md) |
-| Notes / canvas | Arc, Vivaldi | Not started |
 | Tree-style tabs | Orion, Vivaldi, Floorp | Partial: folders nest in Pinned and Today, but a new tab doesn't go under the tab that opened it |
 | Translucent sidebar | Arc, Crest, Zen | Arc's gradients import; translucency and vibrancy don't (docs/design/arc-import.md) |
-| Arc import on Windows and Linux | — | macOS only |
-| Android release | Vivaldi, Edge | The app is built; Google Play testing being set up |
+| Android release | Vivaldi, Edge | In closed testing on Google Play (beta); production needs 12 testers for 14 days first |
 
 ## Sources
 
