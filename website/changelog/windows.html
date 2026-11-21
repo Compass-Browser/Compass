@@ -17,6 +17,21 @@
 <p class="intro">Compass for Windows is in beta. Canary builds come first, for testing; a build that's on both canary and beta is marked Beta. Every release is on <a href="https://github.com/Compass-Browser/Compass/releases">GitHub</a>.</p>
 
 <article>
+<h2>20261121.1535 <span class="badge canary">Canary</span></h2>
+<p class="meta">21 November 2026 · Chromium 157.0.8103.51</p>
+<ul>
+  <li><strong>Tab previews in the sidebar</strong>: hover a tab and its card shows what&rsquo;s on the page instead of a screenshot. A Google Calendar tab shows your next events (calendars in English for now), a GitHub tab your latest notifications. Plugins can add previews for other sites; they read the page apart from it and can&rsquo;t send what they read anywhere.</li>
+  <li><strong>Notification counts on tabs</strong>: a GitHub tab shows how many notifications you haven&rsquo;t read, as a count at the end of its row (a dot on a favorite), kept current in the background. To see the count and the notifications from any GitHub page, turn on &ldquo;Advanced: use your session on github.com&rdquo; for GitHub in Settings &rsaquo; Plugins; without it, the tab shows a dot when something is unread.</li>
+  <li><strong>Settings &rsaquo; Plugins</strong>: every live folder and tab preview plugin in one place, with the sites each one reads, its own settings, its source, and Install and Remove.</li>
+  <li><strong>Claude can make plugins</strong>: with &ldquo;Let Claude make plugins&rdquo; on in Settings &rsaquo; Claude, right-click a tab and choose Make a Preview for&hellip;, or describe a live folder to Claude. It looks at the page, tests the plugin on your tab, and asks before saving it; you can undo it in the chat.</li>
+  <li><strong>Development mode, for web developers</strong>: press Ctrl+Shift+D on a site you&rsquo;re working on (or use its switch in the site information popup, the command bar, or Settings &rsaquo; Development Mode). On that site, reload always skips the cache, a bar above the page shows the full address (which you can edit) with buttons for the Console, the Network panel, picking an element and copying the address, and the Network panel lists the requests made before DevTools opened.</li>
+  <li>Fixed: saving a key for OpenAI or another provider no longer erases your Anthropic key, endpoint and model.</li>
+  <li>Fixed: a call could stay out of picture-in-picture when you left its tab right after a video tile turned.</li>
+  <li>Fixed: menus in the Share sheet closed as soon as they opened.</li>
+</ul>
+</article>
+
+<article>
 <h2>20261121.1035 <span class="badge canary">Canary</span></h2>
 <p class="meta">21 November 2026 · Chromium 157.0.8103.51</p>
 <ul>
