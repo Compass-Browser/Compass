@@ -1,7 +1,7 @@
 # Development mode
 
 Status: desktop (Mac, Windows, Linux) written, not yet built; iOS lite
-written ("iOS" below). Based on Chromium 157.0.8103.51.
+done and built ("iOS" below). Based on Chromium 157.0.8103.51.
 
 ## Goal
 
@@ -156,8 +156,9 @@ WKWebView has no DevTools of its own (Safari's Web Inspector on a Mac
 attaches to Compass's pages, as `isInspectable` allows), so iOS has a lite
 development mode:
 
-- the sites, as on the desktop, kept on the device (`DevModeHosts` in
-  `ios/App/Model/`);
+- the sites, as on the desktop, kept on the device: `DevModeSites` in
+  `CompassBoosts` (the desktop's rules, tested in `DevModeSitesTests`) and
+  `DevMode` in `ios/App/Model/` (UserDefaults `DevModeHosts`);
 - reload (the button and Cmd+R) uses `reloadFromOrigin()` on those sites;
 - a bar above the page with the full URL and a Copy button;
 - turned on and off from the page menu, Settings → Development Mode, and
