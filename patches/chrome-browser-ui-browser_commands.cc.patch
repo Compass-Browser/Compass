@@ -1,17 +1,34 @@
 diff --git a/chrome/browser/ui/browser_commands.cc b/chrome/browser/ui/browser_commands.cc
-index 365dcd789dff01df138a01a307a5f43695461ca8..d3fb85dbba80bc92988805ba8537bc26b49f3e55 100644
+index 365dcd789dff01df138a01a307a5f43695461ca8..2970c0fbd9319bdfb6b4d34e40260a20857b03ab 100644
 --- a/chrome/browser/ui/browser_commands.cc
 +++ b/chrome/browser/ui/browser_commands.cc
-@@ -143,6 +143,8 @@
+@@ -143,6 +143,9 @@
  #include "chrome/common/pref_names.h"
  #include "chrome/common/url_constants.h"
  #include "chrome/common/webui_url_constants.h"
 +#include "compass/browser/ui/views/find_bar/find_bar.h"
 +#include "compass/browser/prefs/copy_link.h"
++#include "compass/browser/dev_mode/dev_mode.h"
  #include "components/bookmarks/browser/bookmark_model.h"
  #include "components/bookmarks/browser/bookmark_node.h"
  #include "components/bookmarks/browser/bookmark_utils.h"
-@@ -2550,6 +2552,10 @@ void FindPrevious(BrowserWindowInterface* browser) {
+@@ -789,9 +792,12 @@ void ReloadInternal(BrowserWindowInterface* browser,
+     constexpr content::ReloadType kBypassingType =
+         content::ReloadType::BYPASSING_CACHE;
+     constexpr content::ReloadType kNormalType = content::ReloadType::NORMAL;
+-    if (!devtools || !devtools->ReloadInspectedWebContents(bypass_cache)) {
+-      new_tab->GetController().Reload(
+-          bypass_cache ? kBypassingType : kNormalType, true);
++    // Compass: a site in development mode always reloads from the network.
++    const bool bypass =
++        bypass_cache || compass::dev_mode::ShouldBypassCache(new_tab);
++    if (!devtools || !devtools->ReloadInspectedWebContents(bypass)) {
++      new_tab->GetController().Reload(bypass ? kBypassingType : kNormalType,
++                                      true);
+     }
+   }
+ }
+@@ -2550,6 +2556,10 @@ void FindPrevious(BrowserWindowInterface* browser) {
  void FindInPage(BrowserWindowInterface* browser,
                  bool find_next,
                  bool forward_direction) {
@@ -22,7 +39,7 @@ index 365dcd789dff01df138a01a307a5f43695461ca8..d3fb85dbba80bc92988805ba8537bc26
    FindBarController::From(browser)->Show(find_next, forward_direction);
  }
  
-@@ -2961,7 +2967,11 @@ bool IsDebuggerAttachedToCurrentTab(BrowserWindowInterface* browser) {
+@@ -2961,7 +2971,11 @@ bool IsDebuggerAttachedToCurrentTab(BrowserWindowInterface* browser) {
  void CopyURL(BrowserWindowInterface* browser,
               content::WebContents* web_contents) {
    ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste);

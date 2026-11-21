@@ -165,6 +165,7 @@ source_set("ui") {
     "//compass/browser/boosts:share",
     "//compass/browser/browser_import",
     "//compass/browser/claude",
+    "//compass/browser/dev_mode",
     "//compass/browser/easels:store",
     "//compass/browser/ui/easels:capture",
     "//compass/browser/ui/easels:refresh",

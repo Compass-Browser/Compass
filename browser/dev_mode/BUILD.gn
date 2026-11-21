@@ -1,0 +1,36 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Development mode: per-site tools for web developers
+# (docs/design/dev-mode.md). The sites and their matching. Few deps:
+# upstream's reload command reaches it (see
+# patches/chrome-browser-ui-BUILD.gn.patch).
+source_set("dev_mode") {
+  sources = [
+    "dev_mode.cc",
+    "dev_mode.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//compass/browser/boosts:store",
+    "//compass/browser/prefs",
+    "//components/prefs",
+    "//content/public/browser",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "dev_mode_unittest.cc" ]
+  deps = [
+    ":dev_mode",
+    "//compass/browser/prefs",
+    "//components/prefs",
+    "//components/prefs:test_support",
+    "//testing/gtest",
+    "//url",
+  ]
+}

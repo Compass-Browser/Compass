@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 1e352a02e9720c91917e329c22674fdd33451f4b..6b0d8a954d85e5f586693006591f1b272ac7bd9c 100644
+index 1e352a02e9720c91917e329c22674fdd33451f4b..62ad7ea9870fd4fec33afd59e0a78ed4ed8b5e54 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
 @@ -614,6 +614,8 @@ if (!is_android) {
@@ -20,17 +20,19 @@ index 1e352a02e9720c91917e329c22674fdd33451f4b..6b0d8a954d85e5f586693006591f1b27
        ":accelerator_table",
        ":browser_actions",
        ":browser_commands",
-@@ -827,6 +831,9 @@ if (!is_android) {
+@@ -827,6 +831,11 @@ if (!is_android) {
      sources = [ "browser_commands.cc" ]
      public_deps = [ ":browser_commands" ]
      deps = [
 +      "//compass/browser/prefs",
++      # Compass's development mode reloads without the cache.
++      "//compass/browser/dev_mode",
 +      # Compass's find bar takes chrome::FindInPage().
 +      "//compass/browser/ui",
        ":accelerator_utils_headers",
        ":browser_command_controller",
        ":browser_init_state",
-@@ -1118,6 +1125,14 @@ source_set("accelerator_table") {
+@@ -1118,6 +1127,14 @@ source_set("accelerator_table") {
      "//ui/events:event_constants",
      "//ui/events:events_base",
    ]
@@ -45,7 +47,7 @@ index 1e352a02e9720c91917e329c22674fdd33451f4b..6b0d8a954d85e5f586693006591f1b27
    if (is_mac) {
      deps += [ "//chrome/browser:global_keyboard_shortcuts_mac" ]
    }
-@@ -1437,6 +1452,14 @@ source_set("tab_helpers_impl") {
+@@ -1437,6 +1454,14 @@ source_set("tab_helpers_impl") {
      "//ui/accessibility:ax_base",
      "//ui/webui:buildflags",
    ]
@@ -60,7 +62,7 @@ index 1e352a02e9720c91917e329c22674fdd33451f4b..6b0d8a954d85e5f586693006591f1b27
  
    if (is_android) {
      deps += [
-@@ -1506,6 +1529,8 @@ if (!is_android) {
+@@ -1506,6 +1531,8 @@ if (!is_android) {
    source_set("core") {
      sources = [ "browser.cc" ]
      deps = [

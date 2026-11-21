@@ -33,6 +33,12 @@ inline constexpr char kPipOnLeavingWindow[] = "compass.pip.on_leaving_window";
 inline constexpr char kRemoveTrackingFromCopiedLinks[] =
     "compass.copy.remove_tracking";
 
+// The sites in development mode (docs/design/dev-mode.md): host patterns
+// as compass::dev_mode::NormalizeHost() writes them ("localhost",
+// "example.com", "*.example.com"). Not synced: a developer's sites belong
+// to the machine they work on.
+inline constexpr char kDevModeHosts[] = "compass.dev_mode.hosts";
+
 }  // namespace prefs
 
 // Compass's own profile prefs. Called by upstream's RegisterProfilePrefs()

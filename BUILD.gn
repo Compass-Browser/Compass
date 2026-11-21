@@ -15,6 +15,7 @@ test("compass_unittests") {
     "//compass/browser/boosts:unit_tests",
     "//compass/browser/browser_import:unit_tests",
     "//compass/browser/claude:unit_tests",
+    "//compass/browser/dev_mode:unit_tests",
     "//compass/browser/easels:unit_tests",
     "//compass/browser/extensions:unit_tests",
     "//compass/browser/live_folders:unit_tests",

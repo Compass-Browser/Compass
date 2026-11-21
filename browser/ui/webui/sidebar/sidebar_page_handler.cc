@@ -15,6 +15,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "compass/browser/prefs/copy_link.h"
+#include "compass/browser/dev_mode/dev_mode.h"
 #include "compass/browser/ui/easels/easel_capture.h"
 #include "compass/browser/ui/live_folders/live_plugin_registry.h"
 #include "base/check_op.h"
@@ -1245,8 +1246,14 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
       break;
     case kReload:
       if (tabs::TabInterface* tab = registry().GetTab(node)) {
-        tab->GetContents()->GetController().Reload(content::ReloadType::NORMAL,
-                                                   /*check_for_repost=*/true);
+        // A site in development mode reloads from the network
+        // (docs/design/dev-mode.md).
+        content::WebContents* contents = tab->GetContents();
+        contents->GetController().Reload(
+            dev_mode::ShouldBypassCache(contents)
+                ? content::ReloadType::BYPASSING_CACHE
+                : content::ReloadType::NORMAL,
+            /*check_for_repost=*/true);
       }
       break;
     case kPin:
