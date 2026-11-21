@@ -4,10 +4,20 @@
     opacity: 0.75;
   }
 
-  .compass-page label.field {
+  .compass-page .field {
     display: block;
     font-weight: 500;
     margin: 18px 0 6px;
+  }
+
+  /* A group of settings: its own heading, set off from what's above. */
+  .compass-page .claude-heading {
+    border-top: 1px solid var(--color-sys-divider,
+        var(--cr-separator-color, rgba(0, 0, 0, 0.12)));
+    font-size: 15px;
+    font-weight: 600;
+    margin: 28px 0 8px;
+    padding-top: 24px;
   }
 
   .compass-page .claude-key-row,
@@ -418,7 +428,7 @@
 </label>
 
 <section id="sidebarFeatures">
-  <div class="field">Claude in the sidebar</div>
+  <h3 class="claude-heading">Claude in the sidebar</h3>
   <p class="hint">Small tasks Claude does in the sidebar, each with its own
     switch and model. Only tabs' titles and sites are sent, to the endpoint
     above, never what pages contain; incognito windows never. At most 30
@@ -431,7 +441,7 @@
 </section>
 
 <section id="files">
-  <div class="field">Files</div>
+  <h3 class="claude-heading">Files</h3>
   <div class="claude-backend" role="radiogroup" aria-label="Files">
     <label>
       <input type="radio" name="files" id="filesOff">
