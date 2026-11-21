@@ -958,7 +958,7 @@ def _release(layout: Layout, args) -> None:
                                   notes=args.notes or '')
   feeds = release.write_feeds(manifest)
   if not args.no_upload:
-    release.publish_assets(added, release.release_files(added),
+    release.publish_assets(added, release.mac_release_files(added),
                            git_commit(layout.root, short=False))
     release.upload(feeds)
   print('released %s on %s: %s' % (added['version'], args.channel,

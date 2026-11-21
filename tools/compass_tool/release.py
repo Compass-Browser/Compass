@@ -324,8 +324,12 @@ def add_mac_release(manifest: Dict, dmg: Path, channel: str, commit: str,
                        'set (compass release does)' % dmg)
   if info.get('SUFeedURL') is None:
     raise ReleaseError('%s has no SUFeedURL: not a release build' % dmg)
-  if any(r['version'] == version for r in manifest['releases']):
-    raise ReleaseError('release %s exists already' % version)
+  existing = [r for r in manifest['releases'] if r['version'] == version]
+  if existing and existing[0].get('mac'):
+    raise ReleaseError('release %s has a Mac build already' % version)
+  if existing and existing[0]['chromium'] != info['CFBundleShortVersionString']:
+    raise ReleaseError('release %s is Chromium %s, not %s' % (
+        version, existing[0]['chromium'], info['CFBundleShortVersionString']))
 
   mac_dir = site / 'mac'
   mac_dir.mkdir(parents=True, exist_ok=True)
@@ -341,6 +345,14 @@ def add_mac_release(manifest: Dict, dmg: Path, channel: str, commit: str,
       'minimum_system_version': info.get('LSMinimumSystemVersion', ''),
       'deltas': make_deltas(manifest, archive, version, tools, site),
   }
+  if existing:
+    # Windows, Linux or Android published this version first: the Mac build
+    # joins that release, as add_win_release does.
+    release = existing[0]
+    if notes and not release.get('notes'):
+      release['notes'] = notes
+    release['mac'] = mac
+    return release
   release = {
       'version': version,
       'channel': channel,
@@ -533,10 +545,17 @@ def upload(paths: List[Path], site: Path = SITE_DIR) -> None:
 
 
 def release_files(release: Dict) -> List[Path]:
+  return mac_release_files(release) + win_release_files(release)
+
+
+def mac_release_files(release: Dict) -> List[Path]:
+  """|release|'s Mac files in the site mirror: the .dmg and its deltas. A Mac
+  build that joins a release Windows made first uploads only these (the
+  Windows files may be on another machine's mirror)."""
   mac = release.get('mac') or {}
   files = [mac['file']] if mac else []
   files += [d['file'] for d in mac.get('deltas', [])]
-  return [SITE_DIR / f for f in files] + win_release_files(release)
+  return [SITE_DIR / f for f in files]
 
 
 def win_release_files(release: Dict) -> List[Path]:

@@ -583,5 +583,51 @@ class UploadTargetTest(unittest.TestCase):
         self._target(text)
 
 
+class MacJoinsReleaseTest(unittest.TestCase):
+  """A Mac build published after Windows/Linux made the release joins it."""
+
+  def add(self, manifest, chromium='157.0.8103.51'):
+    from unittest import mock
+    info = {'CompassVersion': '20261121.1035', 'SUFeedURL': 'x',
+            'CFBundleShortVersionString': chromium,
+            'LSMinimumSystemVersion': '12.0'}
+    with tempfile.TemporaryDirectory() as d:
+      dmg = Path(d) / 'Compass.dmg'
+      dmg.write_bytes(b'dmg')
+      with mock.patch.object(release, 'MountedApp') as mounted, \
+          mock.patch.object(release, 'app_info', return_value=info), \
+          mock.patch.object(release, 'ed_sign', return_value='sig'), \
+          mock.patch.object(release, 'make_deltas', return_value=[]):
+        mounted.return_value.__enter__.return_value = Path(d)
+        return release.add_mac_release(manifest, dmg, 'canary', 'abc',
+                                       Path(d), site=Path(d) / 'site')
+
+  def windows_first(self):
+    return {'releases': [{'version': '20261121.1035', 'channel': 'canary',
+                          'commit': 'abc', 'chromium': '157.0.8103.51',
+                          'date': 'd', 'notes': '',
+                          'win': {'file': 'win/CompassSetup-20261121.1035.exe'}}]}
+
+  def test_joins_the_windows_release(self):
+    manifest = self.windows_first()
+    added = self.add(manifest)
+    self.assertEqual(len(manifest['releases']), 1)
+    self.assertIs(added, manifest['releases'][0])
+    self.assertIn('win', added)
+    self.assertEqual(added['mac']['file'], 'mac/Compass-20261121.1035.dmg')
+    self.assertEqual([p.name for p in release.mac_release_files(added)],
+                     ['Compass-20261121.1035.dmg'])
+
+  def test_refuses_a_second_mac_build(self):
+    manifest = self.windows_first()
+    self.add(manifest)
+    with self.assertRaisesRegex(release.ReleaseError, 'Mac build already'):
+      self.add(manifest)
+
+  def test_refuses_another_chromium(self):
+    with self.assertRaisesRegex(release.ReleaseError, 'is Chromium'):
+      self.add(self.windows_first(), chromium='158.0.1.0')
+
+
 if __name__ == '__main__':
   unittest.main()
