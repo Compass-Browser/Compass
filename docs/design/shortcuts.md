@@ -92,7 +92,9 @@ closing tabs have no keys there: Ctrl+Z would come before the page.
 ## Customizing
 
 compass://settings/shortcuts ("Keyboard shortcuts" in the settings menu or
-the command bar; also alone on chrome://compass-settings, see settings.md)
+the command bar; in the settings window's Shortcuts pane, see
+settings-window.md; also alone on chrome://compass-settings/shortcuts.html,
+see settings.md)
 lists the shortcuts the user can change, by
 section: Compass's (command bar, address, sidebar, copy link, little window,
 picture-in-picture click-through but on Linux, Claude, Reader), tabs, windows,

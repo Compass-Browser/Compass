@@ -53,6 +53,12 @@ class SettingsSections {
       content::WebUI* web_ui,
       content::WebUIDataSource* source);
 
+  // The sections' handlers alone, for chrome://compass-settings, which
+  // serves the sections itself (the settings window,
+  // docs/design/settings-window.md).
+  static std::unique_ptr<SettingsSections> CreateHandlers(
+      content::WebUI* web_ui);
+
   virtual ~SettingsSections() = default;
 
   virtual void Bind(

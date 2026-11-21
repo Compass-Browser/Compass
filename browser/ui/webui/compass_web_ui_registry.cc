@@ -11,6 +11,7 @@
 #include "content/public/browser/webui_config_map.h"
 #include "compass/browser/ui/webui/arc_import/compass_arc_import_ui.h"
 #include "compass/browser/ui/webui/claude/chat.mojom.h"
+#include "compass/browser/ui/webui/claude/claude.mojom.h"
 #include "compass/browser/ui/webui/claude/claude_chat_ui.h"
 #include "compass/browser/ui/webui/command_bar/command_bar.mojom.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_ui.h"
@@ -79,7 +80,11 @@ void PopulateWebUIInterfaceBrokers(
   registry.ForWebUI<CompassSyncUI>()
       .Add<sync::mojom::PageHandlerFactory>();
   registry.ForWebUI<CompassSettingsUI>()
-      .Add<sidebar::mojom::SettingsHandler>();
+      .Add<sidebar::mojom::SettingsWindowHandlerFactory>()
+      .Add<sidebar::mojom::SettingsHandler>()
+      .Add<sidebar::mojom::ArcImportHandler>()
+      .Add<sync::mojom::PageHandlerFactory>()
+      .Add<claude::mojom::SettingsHandler>();
   registry.ForWebUI<CompassShareUI>()
       .Add<share::mojom::PageHandlerFactory>();
   registry.ForWebUI<easel::EaselUI>()

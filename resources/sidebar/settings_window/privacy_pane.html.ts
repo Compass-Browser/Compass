@@ -1,0 +1,276 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
+
+import type {CompassSettingsPrivacyPaneElement} from './privacy_pane.js';
+import {PREF_COOKIE_CONTROLS, PREF_DO_NOT_TRACK, PREF_HTTPS_ONLY, PREF_SECURE_DNS} from './privacy_pane.js';
+
+export function getHtml(this: CompassSettingsPrivacyPaneElement) {
+  // clang-format off
+  return html`<!--_html_template_start_-->
+${this.isView_('main') ? html`
+<section class="row-group">
+  <h2 class="group-title">Browsing data</h2>
+  <div class="group">
+    <button class="row" data-row="clearBrowserData" data-view="clear"
+        @click="${this.onViewClick_}">
+      <span class="row-text">
+        <span class="row-label">Clear browsing data…</span>
+        <span class="row-detail">
+          History, cookies, cached images and files.
+        </span>
+      </span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
+  </div>
+</section>
+
+<section class="row-group" data-row="cookies">
+  <h2 class="group-title">Cookies and tracking</h2>
+  <div class="group">
+    <div class="row control-row">
+      <span class="row-text">
+        <span class="row-label">Third-party cookies</span>
+        <span class="row-detail">
+          Whether sites can follow you across the web.
+        </span>
+      </span>
+      <select class="popup" aria-label="Third-party cookies"
+          ?disabled="${this.isEnforced_(PREF_COOKIE_CONTROLS)}"
+          @change="${this.onCookieModeChange_}">
+        ${this.cookieModes.map(mode => html`
+          <option value="${mode.value}" ?selected="${
+              mode.value === this.getNumber_(PREF_COOKIE_CONTROLS)}">
+            ${mode.label}
+          </option>`)}
+      </select>
+    </div>
+    <label class="row control-row" data-row="doNotTrack">
+      <span class="row-text">
+        <span class="row-label">Ask sites not to track you</span>
+        <span class="row-detail">Sends Do Not Track; sites may ignore it.</span>
+      </span>
+      <input type="checkbox" class="switch" data-pref="${PREF_DO_NOT_TRACK}"
+          .checked="${this.getBool_(PREF_DO_NOT_TRACK)}"
+          ?disabled="${this.isEnforced_(PREF_DO_NOT_TRACK)}"
+          @change="${this.onSwitchChange_}">
+    </label>
+  </div>
+</section>
+
+<section class="row-group" data-row="security">
+  <h2 class="group-title">Security</h2>
+  <div class="group">
+    <div class="row control-row" data-row="safeBrowsing">
+      <span class="row-text">
+        <span class="row-label">Safe Browsing</span>
+        <span class="row-detail">
+          Warns about dangerous sites, downloads and extensions.
+        </span>
+      </span>
+      <select class="popup" aria-label="Safe Browsing"
+          ?disabled="${this.isSafeBrowsingEnforced_()}"
+          @change="${this.onSafeBrowsingChange_}">
+        ${this.safeBrowsingLevels.map(level => html`
+          <option value="${level.value}" ?selected="${
+              level.value === this.getSafeBrowsingLevel_()}">
+            ${level.label}
+          </option>`)}
+      </select>
+    </div>
+    <label class="row control-row" data-row="httpsOnly">
+      <span class="row-text">
+        <span class="row-label">Always use secure connections</span>
+        <span class="row-detail">
+          Asks before loading a site that doesn't support HTTPS.
+        </span>
+      </span>
+      <input type="checkbox" class="switch" data-pref="${PREF_HTTPS_ONLY}"
+          .checked="${this.getBool_(PREF_HTTPS_ONLY)}"
+          ?disabled="${this.isEnforced_(PREF_HTTPS_ONLY)}"
+          @change="${this.onSwitchChange_}">
+    </label>
+    <label class="row control-row" data-row="secureDns">
+      <span class="row-text">
+        <span class="row-label">Use secure DNS</span>
+        <span class="row-detail">${this.getSecureDnsDetail_()}</span>
+      </span>
+      <input type="checkbox" class="switch"
+          .checked="${this.getSecureDnsMode_() !== 'off'}"
+          ?disabled="${this.isEnforced_(PREF_SECURE_DNS)}"
+          @change="${this.onSecureDnsChange_}">
+    </label>
+    <button class="row" data-row="certificates"
+        @click="${this.onCertificatesClick_}">
+      <span class="row-text">
+        <span class="row-label">Manage certificates</span>
+      </span>
+      <compass-settings-icon class="row-trail" name="external"
+          title="Opens in a tab">
+      </compass-settings-icon>
+    </button>
+  </div>
+</section>
+
+<section class="row-group">
+  <h2 class="group-title">Site settings</h2>
+  <div class="group">
+    <button class="row" data-row="permissions" data-view="permissions"
+        @click="${this.onViewClick_}">
+      <span class="row-text">
+        <span class="row-label">Permissions</span>
+        <span class="row-detail">
+          What sites can use by default: location, camera, notifications…
+        </span>
+      </span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
+    <button class="row" data-row="sites" data-view="sites"
+        @click="${this.onViewClick_}">
+      <span class="row-text">
+        <span class="row-label">Sites with their own permissions</span>
+        <span class="row-detail">${this.getSitesDetail_()}</span>
+      </span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
+    <button class="row" data-row="safetyCheck" data-sub-page="safetyCheck"
+        @click="${this.onChromeSettingsClick_}">
+      <span class="row-text">
+        <span class="row-label">Safety check</span>
+        <span class="row-detail">
+          Passwords, extensions and permissions to review.
+        </span>
+      </span>
+      <compass-settings-icon class="row-trail" name="external"
+          title="Opens in a tab">
+      </compass-settings-icon>
+    </button>
+  </div>
+</section>` : nothing}
+
+${!this.isView_('main') ? html`
+<button class="back" @click="${this.onBackClick_}">
+  <compass-settings-icon name="back"></compass-settings-icon>
+  ${this.getBackLabel_()}
+</button>` : nothing}
+
+${this.isView_('clear') ? html`
+<section class="row-group">
+  <h2 class="group-title">Clear browsing data</h2>
+  <div class="group">
+    <div class="row control-row">
+      <span class="row-text">
+        <span class="row-label">Time range</span>
+      </span>
+      <select class="popup" aria-label="Time range"
+          @change="${this.onClearPeriodChange_}">
+        ${this.timePeriods.map(period => html`
+          <option value="${period.value}"
+              ?selected="${period.value === this.clearPeriod_}">
+            ${period.label}
+          </option>`)}
+      </select>
+    </div>
+    ${this.clearChoices.map(choice => html`
+      <label class="row control-row">
+        <input type="checkbox" class="check" data-key="${choice.key}"
+            .checked="${this.isClearChecked_(choice)}"
+            @change="${this.onClearChoiceChange_}">
+        <span class="row-text">
+          <span class="row-label">${choice.label}</span>
+          <span class="row-detail">${choice.detail}</span>
+        </span>
+      </label>`)}
+  </div>
+  <div class="actions">
+    <button class="pill accent" ?disabled="${!this.canClear_()}"
+        @click="${this.onClearClick_}">
+      ${this.getClearButtonText_()}
+    </button>
+  </div>
+</section>` : nothing}
+
+${this.isView_('permissions') ? html`
+<section class="row-group">
+  <h2 class="group-title">Permissions</h2>
+  <div class="group">
+    ${this.defaults_.map(permission => html`
+      <div class="row control-row" data-row="${permission.type}">
+        <span class="row-text">
+          <span class="row-label">
+            ${this.getPermissionLabel_(permission.type)}
+          </span>
+        </span>
+        <select class="popup"
+            aria-label="${this.getPermissionLabel_(permission.type)}"
+            data-type="${permission.type}" ?disabled="${permission.managed}"
+            @change="${this.onDefaultChange_}">
+          ${permission.choices.map(value => html`
+            <option value="${value}" ?selected="${value === permission.value}">
+              ${this.getValueLabel_(value)}
+            </option>`)}
+        </select>
+      </div>`)}
+  </div>
+</section>` : nothing}
+
+${this.isView_('sites') ? html`
+<section class="row-group">
+  <h2 class="group-title">Sites with their own permissions</h2>
+  <div class="group">
+    ${this.sites_.map(site => html`
+      <button class="row" data-origin="${site.origin}"
+          @click="${this.onSiteClick_}">
+        <span class="row-text">
+          <span class="row-label">${site.displayName}</span>
+          <span class="row-detail">${this.getPermissionCountText_(site)}</span>
+        </span>
+        <compass-settings-icon class="row-trail" name="chevron">
+        </compass-settings-icon>
+      </button>`)}
+    <p class="empty" ?hidden="${this.sites_.length > 0}">
+      No site has permissions of its own.
+    </p>
+  </div>
+</section>` : nothing}
+
+${this.isView_('site') ? html`
+<section class="row-group">
+  <h2 class="group-title">${this.siteName_}</h2>
+  <div class="group">
+    ${this.sitePermissions_.map(permission => html`
+      <div class="row control-row" data-row="${permission.type}">
+        <span class="row-text">
+          <span class="row-label">
+            ${this.getPermissionLabel_(permission.type)}
+          </span>
+        </span>
+        <select class="popup"
+            aria-label="${this.getPermissionLabel_(permission.type)}"
+            data-type="${permission.type}" ?disabled="${permission.managed}"
+            @change="${this.onSitePermissionChange_}">
+          ${this.getSiteChoices_(permission).map(value => html`
+            <option value="${value}" ?selected="${value === permission.value}">
+              ${this.getSiteValueLabel_(permission, value)}
+            </option>`)}
+        </select>
+      </div>`)}
+  </div>
+  <div class="actions">
+    <button class="pill" @click="${this.onResetSiteClick_}">
+      Reset Permissions
+    </button>
+    <button class="pill" ?disabled="${this.siteDataCleared_}"
+        @click="${this.onClearSiteDataClick_}">
+      ${this.getSiteDataButtonText_()}
+    </button>
+  </div>
+</section>` : nothing}
+<!--_html_template_end_-->`;
+  // clang-format on
+}

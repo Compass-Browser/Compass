@@ -31,6 +31,8 @@
 #include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/webui/settings/settings_sections.h"
+#include "compass/browser/ui/webui/settings/settings_window_handler.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/tab_strip_bridge.h"
 #include "compass/grit/compass_sidebar_resources.h"
@@ -41,6 +43,7 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
+#include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/events/event_constants.h"
@@ -182,13 +185,13 @@ Check CheckKeys(const std::vector<ListedShortcut>& listed,
   // Click-through is a global hot key, and those can't take the Windows key
   // here (PipWindows::UpdateListening()).
   if (id == kPipClickThroughShortcutId && accelerator.IsCmdDown()) {
-    check.error =
-        "Use the key with Ctrl, Alt or Shift, not the Windows key.";
+    check.error = "Use the key with Ctrl, Alt or Shift, not the Windows key.";
     return check;
   }
 #endif
   for (const ListedShortcut& shortcut : listed) {
-    if (shortcut.id != id && std::ranges::contains(shortcut.keys, accelerator)) {
+    if (shortcut.id != id &&
+        std::ranges::contains(shortcut.keys, accelerator)) {
       check.conflict = &shortcut;
       return check;
     }
@@ -254,24 +257,60 @@ CompassSettingsUIConfig::CompassSettingsUIConfig()
     : DefaultWebUIConfig(content::kChromeUIScheme, kSettingsHost) {}
 
 CompassSettingsUI::CompassSettingsUI(content::WebUI* web_ui)
-    : ui::MojoWebUIController(web_ui) {
+    : ui::MojoWebUIController(web_ui),
+      sections_(SettingsSections::CreateHandlers(web_ui)) {
   Profile* profile = Profile::FromWebUI(web_ui);
   content::WebUIDataSource* source =
       content::WebUIDataSource::CreateAndAdd(profile, kSettingsHost);
-  // Shares the sidebar's resource pak; only the default page differs.
+  // Shares the sidebar's resource pak. Every path that isn't a file
+  // (/boosts, /sync?...) is the settings window's page, which shows the pane
+  // it names.
   webui::SetupWebUIDataSource(source, kCompassSidebarResources,
-                              IDR_COMPASS_SIDEBAR_SETTINGS_HTML);
+                              IDR_COMPASS_SIDEBAR_SETTINGS_WINDOW_HTML);
+  // Profile pictures (chrome://theme) and account pictures (data:).
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ImgSrc,
+      "img-src 'self' chrome://theme chrome://resources data:;");
+
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 }
 
 CompassSettingsUI::~CompassSettingsUI() = default;
 
 void CompassSettingsUI::BindInterface(
+    mojo::PendingReceiver<sidebar::mojom::SettingsWindowHandlerFactory>
+        receiver) {
+  window_factory_receiver_.reset();
+  window_factory_receiver_.Bind(std::move(receiver));
+}
+
+void CompassSettingsUI::CreateHandler(
+    mojo::PendingRemote<sidebar::mojom::SettingsWindowPage> page,
+    mojo::PendingReceiver<sidebar::mojom::SettingsWindowHandler> handler) {
+  window_handler_.reset();
+  window_handler_ = std::make_unique<SettingsWindowHandler>(
+      Profile::FromWebUI(web_ui()), web_ui()->GetWebContents(), std::move(page),
+      std::move(handler));
+}
+
+void CompassSettingsUI::BindInterface(
     mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver) {
-  handler_.reset();
-  handler_ = std::make_unique<ShortcutsPageHandler>(
-      Profile::FromWebUI(web_ui()), web_ui()->GetWebContents(),
-      std::move(receiver));
+  sections_->Bind(std::move(receiver));
+}
+
+void CompassSettingsUI::BindInterface(
+    mojo::PendingReceiver<sidebar::mojom::ArcImportHandler> receiver) {
+  sections_->Bind(std::move(receiver));
+}
+
+void CompassSettingsUI::BindInterface(
+    mojo::PendingReceiver<sync::mojom::PageHandlerFactory> receiver) {
+  sections_->Bind(std::move(receiver));
+}
+
+void CompassSettingsUI::BindInterface(
+    mojo::PendingReceiver<claude::mojom::SettingsHandler> receiver) {
+  sections_->Bind(std::move(receiver));
 }
 
 ShortcutsPageHandler::ShortcutsPageHandler(
@@ -319,8 +358,8 @@ void ShortcutsPageHandler::SetRecording(bool recording) {
 }
 
 void ShortcutsPageHandler::CheckShortcut(const std::string& id,
-                                      sidebar::mojom::ShortcutKeysPtr keys,
-                                      CheckShortcutCallback callback) {
+                                         sidebar::mojom::ShortcutKeysPtr keys,
+                                         CheckShortcutCallback callback) {
   const ui::Accelerator accelerator = ToAccelerator(*keys);
   const std::vector<ListedShortcut> listed = ListShortcuts();
   const Check check = CheckKeys(listed, id, accelerator);
@@ -337,8 +376,8 @@ void ShortcutsPageHandler::CheckShortcut(const std::string& id,
 }
 
 void ShortcutsPageHandler::SetShortcut(const std::string& id,
-                                    sidebar::mojom::ShortcutKeysPtr keys,
-                                    SetShortcutCallback callback) {
+                                       sidebar::mojom::ShortcutKeysPtr keys,
+                                       SetShortcutCallback callback) {
   const ui::Accelerator accelerator = ToAccelerator(*keys);
   const std::vector<ListedShortcut> listed = ListShortcuts();
   const Check check = CheckKeys(listed, id, accelerator);
@@ -365,7 +404,7 @@ void ShortcutsPageHandler::SetShortcut(const std::string& id,
 }
 
 void ShortcutsPageHandler::RemoveShortcut(const std::string& id,
-                                       RemoveShortcutCallback callback) {
+                                          RemoveShortcutCallback callback) {
   const std::vector<ListedShortcut> listed = ListShortcuts();
   if (const ListedShortcut* shortcut = FindListed(listed, id)) {
     ShortcutSettings::Get().SetCustom(
@@ -377,7 +416,7 @@ void ShortcutsPageHandler::RemoveShortcut(const std::string& id,
 }
 
 void ShortcutsPageHandler::ResetShortcut(const std::string& id,
-                                      ResetShortcutCallback callback) {
+                                         ResetShortcutCallback callback) {
   const std::vector<ListedShortcut> listed = ListShortcuts();
   const ListedShortcut* shortcut = FindListed(listed, id);
   if (shortcut) {
@@ -395,15 +434,13 @@ void ShortcutsPageHandler::ResetShortcut(const std::string& id,
   std::move(callback).Run();
 }
 
-void ShortcutsPageHandler::GetCtrlTabRecent(
-    GetCtrlTabRecentCallback callback) {
+void ShortcutsPageHandler::GetCtrlTabRecent(GetCtrlTabRecentCallback callback) {
   std::move(callback).Run(
       profile_->GetPrefs()->GetBoolean(prefs::kCtrlTabRecent));
 }
 
-void ShortcutsPageHandler::SetCtrlTabRecent(
-    bool enabled,
-    SetCtrlTabRecentCallback callback) {
+void ShortcutsPageHandler::SetCtrlTabRecent(bool enabled,
+                                            SetCtrlTabRecentCallback callback) {
   profile_->GetPrefs()->SetBoolean(prefs::kCtrlTabRecent, enabled);
   std::move(callback).Run();
 }
@@ -462,9 +499,8 @@ void ShortcutsPageHandler::GetLinkRules(GetLinkRulesCallback callback) {
       const SpaceModel& space = *list->spaces()[i];
       spaces.push_back(sidebar::mojom::LinkRuleSpace::New(
           space.id().AsLowercaseString(),
-          space.name().empty()
-              ? "Space " + base::NumberToString(i + 1)
-              : base::UTF16ToUTF8(space.name()),
+          space.name().empty() ? "Space " + base::NumberToString(i + 1)
+                               : base::UTF16ToUTF8(space.name()),
           LinkRuleSpaceColor(space.color()), LinkRuleSpaceIcon(space.icon())));
     }
   }
@@ -476,8 +512,7 @@ void ShortcutsPageHandler::SetLinkRule(const std::string& domain,
                                        const std::string& replacing,
                                        SetLinkRuleCallback callback) {
   SpaceList* list = GetSpaceList();
-  const std::optional<std::string> normalized =
-      NormalizeLinkRuleDomain(domain);
+  const std::optional<std::string> normalized = NormalizeLinkRuleDomain(domain);
   const base::Uuid id = base::Uuid::ParseLowercase(space_id);
   if (!list || !normalized || !id.is_valid() || !list->FindSpace(id)) {
     std::move(callback).Run(std::nullopt);
@@ -531,8 +566,8 @@ sidebar::mojom::BoostPtr ToMojo(const boosts::Boost& boost) {
 boosts::BoostStore* ShortcutsPageHandler::GetBoostStore() {
   // Not off the record: the Boosts are the original profile's.
   Profile* profile = profile_ ? profile_->GetOriginalProfile() : nullptr;
-  boosts::BoostStore* store = profile ? boosts::BoostStore::Get(profile)
-                                      : nullptr;
+  boosts::BoostStore* store =
+      profile ? boosts::BoostStore::Get(profile) : nullptr;
   return store && store->loaded() ? store : nullptr;
 }
 
@@ -725,8 +760,8 @@ void ShortcutsPageHandler::OnBoostFileRead(std::string contents) {
     return;
   }
   // The same preview as a link's.
-  std::move(choose_callback_).Run(boosts::EncodeShareFragment(*boost),
-                                  std::string());
+  std::move(choose_callback_)
+      .Run(boosts::EncodeShareFragment(*boost), std::string());
 }
 
 void ShortcutsPageHandler::PreviewSharedBoost(

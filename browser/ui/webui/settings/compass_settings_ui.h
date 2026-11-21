@@ -13,9 +13,12 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "compass/browser/ui/webui/claude/claude.mojom.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
+#include "compass/browser/ui/webui/sync/compass_sync.mojom.h"
 #include "content/public/browser/webui_config.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
@@ -30,6 +33,8 @@ class WebContents;
 namespace compass {
 
 class CompassSettingsUI;
+class SettingsSections;
+class SettingsWindowHandler;
 class SpaceList;
 
 namespace boosts {
@@ -182,9 +187,12 @@ class ShortcutsPageHandler : public sidebar::mojom::SettingsHandler,
   base::WeakPtrFactory<ShortcutsPageHandler> weak_factory_{this};
 };
 
-// chrome://compass-settings (compass://compass-settings): the keyboard
-// shortcuts section alone, as compass://settings/shortcuts shows it.
-class CompassSettingsUI : public ui::MojoWebUIController {
+// chrome://compass-settings (compass://compass-settings): Compass's settings,
+// shown in the settings window (docs/design/settings-window.md) with the
+// panes as toolbar tabs. Also serves the standalone sections the end-to-end
+// steps and browser tests drive (shortcuts.html, boosts.html).
+class CompassSettingsUI : public ui::MojoWebUIController,
+                          public sidebar::mojom::SettingsWindowHandlerFactory {
  public:
   explicit CompassSettingsUI(content::WebUI* web_ui);
   CompassSettingsUI(const CompassSettingsUI&) = delete;
@@ -192,10 +200,29 @@ class CompassSettingsUI : public ui::MojoWebUIController {
   ~CompassSettingsUI() override;
 
   void BindInterface(
+      mojo::PendingReceiver<sidebar::mojom::SettingsWindowHandlerFactory>
+          receiver);
+  // The sections' (SettingsSections, as chrome://settings has them).
+  void BindInterface(
       mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver);
+  void BindInterface(
+      mojo::PendingReceiver<sidebar::mojom::ArcImportHandler> receiver);
+  void BindInterface(
+      mojo::PendingReceiver<sync::mojom::PageHandlerFactory> receiver);
+  void BindInterface(
+      mojo::PendingReceiver<claude::mojom::SettingsHandler> receiver);
+
+  // sidebar::mojom::SettingsWindowHandlerFactory:
+  void CreateHandler(
+      mojo::PendingRemote<sidebar::mojom::SettingsWindowPage> page,
+      mojo::PendingReceiver<sidebar::mojom::SettingsWindowHandler> handler)
+      override;
 
  private:
-  std::unique_ptr<ShortcutsPageHandler> handler_;
+  std::unique_ptr<SettingsSections> sections_;
+  std::unique_ptr<SettingsWindowHandler> window_handler_;
+  mojo::Receiver<sidebar::mojom::SettingsWindowHandlerFactory>
+      window_factory_receiver_{this};
 
   WEB_UI_CONTROLLER_TYPE_DECL();
 };

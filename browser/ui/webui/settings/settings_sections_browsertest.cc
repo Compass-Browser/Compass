@@ -4,21 +4,24 @@
 
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/test/run_until.h"
+#include "base/uuid.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "base/uuid.h"
 #include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/dev_mode/dev_mode.h"
 #include "compass/browser/prefs/compass_prefs.h"
-#include "components/prefs/pref_service.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/views/settings_window/settings_window.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -53,12 +56,25 @@ constexpr char kDeepQuery[] = R"(
 
 class SettingsSectionsBrowserTest : public InProcessBrowserTest {
  protected:
-  content::WebContents* contents() {
-    return browser()->tab_strip_model()->GetActiveWebContents();
-  }
+  content::WebContents* contents() { return contents_; }
 
+  // Loads |url| in the tab: upstream's settings, for its own sections (the
+  // window opens for Compass's).
   void Open(const std::string& url) {
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(url)));
+    contents_ = browser()->tab_strip_model()->GetActiveWebContents();
+  }
+
+  // Opens settings at |sub_page| as the browser does
+  // (chrome::ShowSettingsSubPage()): Compass's sections are in the settings
+  // window (docs/design/settings-window.md).
+  void OpenSection(const std::string& sub_page) {
+    chrome::ShowSettingsSubPage(browser(), sub_page);
+    SettingsWindow* window =
+        SettingsWindow::FromProfile(browser()->GetProfile());
+    ASSERT_TRUE(window);
+    contents_ = window->web_contents();
+    ASSERT_TRUE(content::WaitForLoadStop(contents_));
   }
 
   // Resolves with what |expression| (using deepQuery()) gives once it's
@@ -77,12 +93,16 @@ class SettingsSectionsBrowserTest : public InProcessBrowserTest {
         check();
       }))");
   }
+
+ private:
+  raw_ptr<content::WebContents, DanglingUntriaged> contents_ = nullptr;
 };
 
 // The menu of chrome://settings lists Compass's sections, and each one shows
 // its element.
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, MenuOpensEachSection) {
-  Open("chrome://settings/");
+  // Upstream's own section: its root opens the settings window instead.
+  Open("chrome://settings/search");
   EXPECT_EQ(WaitFor("deepQuery('a#compassSync')?.getAttribute('href')"),
             "/sync");
   EXPECT_EQ(WaitFor("deepQuery('a#compassShortcuts')?.getAttribute('href')"),
@@ -119,7 +139,7 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, MenuOpensEachSection) {
 // Upstream's "On startup" section is gone: its menu item is hidden and
 // there's no view for it (docs/design/settings.md).
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, NoOnStartupSection) {
-  Open("chrome://settings/");
+  Open("chrome://settings/search");
   EXPECT_EQ(WaitFor("deepQuery('a#compassSync')?.getAttribute('href')"),
             "/sync");
   EXPECT_EQ(content::EvalJs(contents(), std::string(kDeepQuery) + R"(
@@ -132,21 +152,21 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, NoOnStartupSection) {
 // compass://settings/shortcuts lists the shortcuts and records keys as the
 // standalone page does.
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ShortcutsSection) {
-  Open("chrome://settings/shortcuts");
+  OpenSection("shortcuts");
   // The space shortcuts are listed on every platform.
   EXPECT_EQ(WaitFor("deepQuery('compass-shortcuts-page li[data-id=\"space-1\"]"
                     " .label')?.textContent"),
             "Switch to space 1");
 
   // Clicking the keys records; Esc stops.
-  ASSERT_TRUE(content::ExecJs(
-      contents(), std::string(kDeepQuery) +
-                      "deepQuery('compass-shortcuts-page "
-                      "li[data-id=\"space-1\"] .keys').click();"));
-  ASSERT_TRUE(base::test::RunUntil(
-      [] { return ShortcutSettings::Get().recording(); }));
-  content::SimulateKeyPress(contents(), ui::DomKey::ESCAPE,
-                            ui::DomCode::ESCAPE, ui::VKEY_ESCAPE,
+  ASSERT_TRUE(content::ExecJs(contents(),
+                              std::string(kDeepQuery) +
+                                  "deepQuery('compass-shortcuts-page "
+                                  "li[data-id=\"space-1\"] .keys').click();"));
+  ASSERT_TRUE(
+      base::test::RunUntil([] { return ShortcutSettings::Get().recording(); }));
+  content::SimulateKeyPress(contents(), ui::DomKey::ESCAPE, ui::DomCode::ESCAPE,
+                            ui::VKEY_ESCAPE,
                             /*control=*/false, /*shift=*/false,
                             /*alt=*/false, /*command=*/false);
   ASSERT_TRUE(base::test::RunUntil(
@@ -157,13 +177,11 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ShortcutsSection) {
 // form for a domain, saving makes the rule, a rule whose space is gone is
 // listed as broken, and Delete removes one.
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, LinksSection) {
-  SpaceList& spaces =
-      SpaceService::Get(browser()->GetProfile())->space_list();
+  SpaceList& spaces = SpaceService::Get(browser()->GetProfile())->space_list();
   SpaceModel* work = spaces.AddSpace(spaces.spaces().size(), u"Work");
-  ASSERT_TRUE(
-      spaces.SetLinkRule("gitlab.com", base::Uuid::GenerateRandomV4()));
+  ASSERT_TRUE(spaces.SetLinkRule("gitlab.com", base::Uuid::GenerateRandomV4()));
 
-  Open("chrome://settings/links?add=www.GitHub.com");
+  OpenSection("links?add=www.GitHub.com");
   EXPECT_EQ(WaitFor("deepQuery('compass-links-page .compass-title')"
                     "?.textContent"),
             "Links from Other Apps");
@@ -202,7 +220,7 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, DevModeSection) {
   PrefService* prefs = browser()->GetProfile()->GetPrefs();
   ASSERT_TRUE(dev_mode::AddHost(prefs, "example.com"));
 
-  Open("chrome://settings/devMode");
+  OpenSection("devMode");
   EXPECT_EQ(WaitFor("deepQuery('compass-dev-mode-page .compass-title')"
                     "?.textContent"),
             "Development Mode");
@@ -254,7 +272,7 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, BoostsSection) {
   claudes.author = boosts::kAuthorClaude;
   ASSERT_TRUE(store->Save(claudes).has_value());
 
-  Open("chrome://settings/boosts?add=www.GitHub.com");
+  OpenSection("boosts?add=www.GitHub.com");
   EXPECT_EQ(WaitFor("deepQuery('compass-boosts-page .compass-title')"
                     "?.textContent"),
             "Boosts");
@@ -282,10 +300,9 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, BoostsSection) {
       "deepQuery('compass-boosts-page li[data-id=\"" + id + "\"]";
   EXPECT_EQ(WaitFor(row + "')?.textContent.includes('CSS')"), true);
 
-  ASSERT_TRUE(content::ExecJs(contents(), std::string(kDeepQuery) + row +
-                                              " input').click();"));
-  ASSERT_TRUE(
-      base::test::RunUntil([&] { return !store->Find(id)->enabled; }));
+  ASSERT_TRUE(content::ExecJs(
+      contents(), std::string(kDeepQuery) + row + " input').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return !store->Find(id)->enabled; }));
 
   ASSERT_TRUE(content::ExecJs(contents(), std::string(kDeepQuery) + row +
                                               " button:last-child').click();"));
@@ -294,7 +311,7 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, BoostsSection) {
 
 // compass://settings/sync shows sync's status (off in a new profile).
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, SyncSection) {
-  Open("chrome://settings/sync");
+  OpenSection("sync");
   EXPECT_EQ(WaitFor("deepQuery('compass-sync-page #status')"
                     "?.textContent.startsWith('Sync is off')"),
             true);
@@ -303,14 +320,14 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, SyncSection) {
 
 // compass://settings/importArc looks for Arc and says what it found.
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ArcImportSection) {
-  Open("chrome://settings/importArc");
+  OpenSection("importArc");
   EXPECT_EQ(WaitFor("deepQuery('compass-arc-import-page #loading')?.hidden"),
             true);
 }
 
 // compass://settings/claude asks for a key in a new profile.
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ClaudeSection) {
-  Open("chrome://settings/claude");
+  OpenSection("claude");
   EXPECT_EQ(WaitFor("deepQuery('compass-claude-page .compass-title')"
                     "?.textContent"),
             "Claude");
@@ -322,9 +339,8 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ClaudeSection) {
 
 // Settings' search keeps a Compass section that has the words.
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, SearchFindsASection) {
-  Open("chrome://settings/");
-  EXPECT_EQ(
-      content::EvalJs(contents(), std::string(kDeepQuery) + R"(
+  Open("chrome://settings/search");
+  EXPECT_EQ(content::EvalJs(contents(), std::string(kDeepQuery) + R"(
         (async () => {
           await customElements.whenDefined('compass-sync-page');
           const page = document.createElement('compass-sync-page');
@@ -334,14 +350,14 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, SearchFindsASection) {
           page.remove();
           return found.matchCount > 0 && missing.matchCount === 0;
         })())"),
-      true);
+            true);
 }
 
 // compass://settings/plugins (docs/design/settings.md, "Plugins"): the
 // built-ins with what they do, and a preview's switches write its settings.
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, PluginsSection) {
   PrefService* prefs = browser()->GetProfile()->GetPrefs();
-  Open("chrome://settings/plugins");
+  OpenSection("plugins");
   EXPECT_EQ(WaitFor("deepQuery('compass-plugins-page .compass-title')"
                     "?.textContent"),
             "Plugins");
@@ -358,10 +374,9 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, PluginsSection) {
 
   // Built-ins' previews are on; turning GitHub's off is kept.
   ASSERT_TRUE(content::ExecJs(
-      contents(),
-      std::string(kDeepQuery) +
-          "deepQuery('compass-plugins-page "
-          "#plugin-toggle-preview-compass\\\\.github').click();"));
+      contents(), std::string(kDeepQuery) +
+                      "deepQuery('compass-plugins-page "
+                      "#plugin-toggle-preview-compass\\\\.github').click();"));
   ASSERT_TRUE(base::test::RunUntil([&] {
     const base::DictValue* github =
         prefs->GetDict(prefs::kTabPreviewPlugins).FindDict("compass.github");
@@ -370,10 +385,9 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, PluginsSection) {
 
   // The session, off by default, is granted for the hosts it lists.
   ASSERT_TRUE(content::ExecJs(
-      contents(),
-      std::string(kDeepQuery) +
-          "deepQuery('compass-plugins-page "
-          "#plugin-toggle-session-compass\\\\.github').click();"));
+      contents(), std::string(kDeepQuery) +
+                      "deepQuery('compass-plugins-page "
+                      "#plugin-toggle-session-compass\\\\.github').click();"));
   ASSERT_TRUE(base::test::RunUntil([&] {
     const base::DictValue* github =
         prefs->GetDict(prefs::kTabPreviewPlugins).FindDict("compass.github");
@@ -385,10 +399,9 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, PluginsSection) {
   }));
 
   // Hover cards' previews, all at once.
-  ASSERT_TRUE(content::ExecJs(contents(),
-                              std::string(kDeepQuery) +
-                                  "deepQuery('compass-plugins-page "
-                                  "#tabPreviewsEnabled').click();"));
+  ASSERT_TRUE(content::ExecJs(
+      contents(), std::string(kDeepQuery) + "deepQuery('compass-plugins-page "
+                                            "#tabPreviewsEnabled').click();"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return !prefs->GetBoolean(prefs::kTabPreviewsEnabled); }));
 }

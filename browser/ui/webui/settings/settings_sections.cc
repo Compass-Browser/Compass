@@ -5,6 +5,7 @@
 #include "compass/browser/ui/webui/settings/settings_sections.h"
 
 #include <utility>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
@@ -28,10 +29,11 @@ class SettingsSectionsImpl : public SettingsSections {
 
   void Bind(mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver)
       override {
-    shortcuts_.reset();
-    shortcuts_ = std::make_unique<ShortcutsPageHandler>(
+    // Each section binds its own (keyboard shortcuts, links, Boosts,
+    // plugins, development mode): they all stay.
+    shortcuts_.push_back(std::make_unique<ShortcutsPageHandler>(
         Profile::FromWebUI(web_ui_), web_ui_->GetWebContents(),
-        std::move(receiver));
+        std::move(receiver)));
   }
 
   void Bind(mojo::PendingReceiver<sidebar::mojom::ArcImportHandler> receiver)
@@ -48,8 +50,8 @@ class SettingsSectionsImpl : public SettingsSections {
         std::make_unique<SyncPageHandlerFactory>(web_ui_, std::move(receiver));
   }
 
-  void Bind(mojo::PendingReceiver<claude::mojom::SettingsHandler> receiver)
-      override {
+  void Bind(
+      mojo::PendingReceiver<claude::mojom::SettingsHandler> receiver) override {
     claude_.reset();
     claude_ = std::make_unique<claude::ClaudeSettingsHandler>(
         Profile::FromWebUI(web_ui_), std::move(receiver));
@@ -58,7 +60,7 @@ class SettingsSectionsImpl : public SettingsSections {
 
  private:
   const raw_ptr<content::WebUI> web_ui_;
-  std::unique_ptr<ShortcutsPageHandler> shortcuts_;
+  std::vector<std::unique_ptr<ShortcutsPageHandler>> shortcuts_;
   std::unique_ptr<ArcImportPageHandler> arc_import_;
   std::unique_ptr<SyncPageHandlerFactory> sync_;
   std::unique_ptr<claude::ClaudeSettingsHandler> claude_;
@@ -76,6 +78,12 @@ std::unique_ptr<SettingsSections> SettingsSections::Create(
     source->AddResourcePath(base::StrCat({"compass/", resource.path}),
                             resource.id);
   }
+  return CreateHandlers(web_ui);
+}
+
+// static
+std::unique_ptr<SettingsSections> SettingsSections::CreateHandlers(
+    content::WebUI* web_ui) {
   return std::make_unique<SettingsSectionsImpl>(web_ui);
 }
 

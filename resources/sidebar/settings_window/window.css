@@ -1,0 +1,689 @@
+/* Copyright 2026 The Compass Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* The settings window's look (docs/design/settings-window.md, "Visual
+ * design"): a toolbar of tabs tinted with the space's color, and grouped
+ * lists on a quiet window background, as the system's own settings windows
+ * have them, rather than chrome://settings' Material cards. The whole page
+ * is in the light DOM (app.ts), so this sheet also re-skins Compass's
+ * sections (settings/*_page.html) where they're shown here. */
+
+/* Tokens ------------------------------------------------------------------ */
+
+:root {
+  --fg: var(--color-sys-on-surface, #1f1f1f);
+  --fg-dim: color-mix(in srgb, var(--fg) 58%, transparent);
+  --fg-faint: color-mix(in srgb, var(--fg) 38%, transparent);
+  --line: color-mix(in srgb, var(--fg) 10%, transparent);
+  --line-strong: color-mix(in srgb, var(--fg) 18%, transparent);
+  --tint: color-mix(in srgb, var(--fg) 5%, transparent);
+  --press: color-mix(in srgb, var(--fg) 9%, transparent);
+  /* The profile's active space's color (app.ts sets it); for a grey
+   * space, a saturated blue that takes white text in light and dark mode
+   * (the theme's primary is pale in dark mode). */
+  --accent: #0a6cdf;
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-ring: color-mix(in srgb, var(--accent) 40%, transparent);
+  --accent-text: color-mix(in srgb, var(--accent) 78%, var(--fg));
+  --danger: #d93025;
+  --window: #f2f2f4;
+  --group: #fff;
+  --field: #fff;
+  --raised: #fff;
+
+  --radius-group: 10px;
+  --radius-control: 6px;
+  --toolbar-height: 78px;
+  --title-row-height: 30px;
+
+  color: var(--fg);
+  color-scheme: light dark;
+  cursor: default;
+  font-size: 13px;
+  scrollbar-color: color-mix(in srgb, currentColor 35%, transparent)
+      transparent;
+  scrollbar-width: thin;
+  user-select: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --danger: #f28b82;
+    --window: #1e1e20;
+    --group: #2a2a2d;
+    --field: #1c1c1e;
+    --raised: #3a3a3d;
+  }
+}
+
+body {
+  background: var(--window);
+  margin: 0;
+}
+
+compass-settings-icon {
+  --icon-size: 20px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  outline: none;
+}
+
+/* Toolbar ------------------------------------------------------------------ */
+
+#toolbar {
+  -webkit-app-region: drag;
+  background: color-mix(in srgb, var(--accent) 7%, var(--window));
+  border-bottom: 1px solid var(--line);
+  box-sizing: border-box;
+  height: var(--toolbar-height);
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 1;
+}
+
+#titleRow {
+  align-items: center;
+  display: flex;
+  height: var(--title-row-height);
+  justify-content: center;
+  position: relative;
+}
+
+#title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+
+#search {
+  -webkit-app-region: no-drag;
+  align-items: center;
+  background: var(--tint);
+  border-radius: var(--radius-control);
+  box-sizing: border-box;
+  color: var(--fg-dim);
+  display: flex;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px;
+  position: absolute;
+  right: 10px;
+  top: 5px;
+  width: 168px;
+}
+
+#search:focus-within {
+  background: var(--field);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+#search compass-settings-icon {
+  --icon-size: 13px;
+  --icon-stroke: 2;
+}
+
+#searchInput {
+  background: none;
+  border: none;
+  color: var(--fg);
+  flex: 1;
+  font: inherit;
+  font-size: 12px;
+  min-width: 0;
+  outline: none;
+  padding: 0;
+}
+
+#searchInput::-webkit-search-cancel-button {
+  filter: grayscale(1);
+}
+
+#tabs {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+  height: calc(var(--toolbar-height) - var(--title-row-height) - 1px);
+  justify-content: center;
+  padding: 0 8px;
+}
+
+.tab {
+  -webkit-app-region: no-drag;
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--fg-dim);
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  font-size: 11px;
+  gap: 2px;
+  height: 42px;
+  justify-content: center;
+  min-width: 62px;
+  padding: 0 6px;
+  transition: background-color 120ms, color 120ms;
+}
+
+.tab:hover {
+  background: var(--tint);
+  color: var(--fg);
+}
+
+.tab:active {
+  background: var(--press);
+}
+
+.tab[aria-selected='true'] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.tab[aria-selected='true'] span {
+  font-weight: 600;
+}
+
+/* Panes -------------------------------------------------------------------- */
+
+#scroller {
+  bottom: 0;
+  left: 0;
+  overflow-y: auto;
+  /* A scrollbar coming or going doesn't change the content's width, so its
+   * height (which the window takes) doesn't change with it. */
+  scrollbar-gutter: stable;
+  position: fixed;
+  right: 0;
+  top: var(--toolbar-height);
+}
+
+#content {
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: 700px;
+  padding: 20px 28px 26px;
+}
+
+.row-group {
+  margin-bottom: 22px;
+}
+
+.row-group:last-child {
+  margin-bottom: 0;
+}
+
+/* A rebuilt section's last group, with another section after it. */
+#sections > :not(:last-child) .row-group:last-child {
+  margin-bottom: 22px;
+}
+
+.group-title {
+  color: var(--fg-dim);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  margin: 0 0 6px 12px;
+}
+
+.group {
+  background: var(--group);
+  border-radius: var(--radius-group);
+  box-shadow: 0 0 0 0.5px var(--line);
+  overflow: hidden;
+}
+
+.row {
+  align-items: center;
+  background: none;
+  border: none;
+  box-sizing: border-box;
+  color: inherit;
+  display: flex;
+  font: inherit;
+  gap: 10px;
+  min-height: 44px;
+  padding: 7px 12px;
+  position: relative;
+  text-align: start;
+  width: 100%;
+}
+
+/* A hairline between rows, inset from the start as the system's lists. */
+.row + .row::before {
+  border-top: 1px solid var(--line);
+  content: '';
+  inset-inline: 12px 0;
+  position: absolute;
+  top: 0;
+}
+
+.row:hover {
+  background: var(--tint);
+}
+
+.row:active {
+  background: var(--press);
+}
+
+.row:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent-ring);
+}
+
+.row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.row-detail {
+  color: var(--fg-dim);
+  font-size: 11.5px;
+}
+
+.row-icon {
+  color: var(--accent-text);
+}
+
+.row-trail {
+  --icon-size: 14px;
+  --icon-stroke: 1.8;
+  color: var(--fg-faint);
+}
+
+#results .empty {
+  color: var(--fg-dim);
+  margin: 0;
+  padding: 18px;
+  text-align: center;
+}
+
+/* A row or section search took you to. */
+.row.flash {
+  animation: flash 1.4s ease-out;
+}
+
+@keyframes flash {
+  0%,
+  30% {
+    background-color: var(--accent-soft);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* Compass's sections, re-skinned --------------------------------------------
+ * Their markup is chrome://settings' (settings/page_base.ts): a heading and a
+ * card, with plain controls styled in Material colors. Here the heading is a
+ * group caption, the card a group, and the controls the window's. Selectors
+ * start at #sections so they win over the sections' own (class-only) rules. */
+
+#sections .compass-page {
+  /* The sections' buttons and links take the space's color. */
+  --color-sys-primary: var(--accent);
+  --color-sys-on-primary: #fff;
+  --cr-primary-text-color: var(--fg);
+  --cr-fallback-color-primary: var(--accent);
+  color: var(--fg);
+  margin-bottom: 22px;
+  user-select: text;
+}
+
+#sections .compass-page > .compass-title {
+  color: var(--fg-dim);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  margin: 0;
+  padding: 0 0 6px 12px;
+}
+
+/* A pane of one section names it in the title row already. */
+#sections[data-single] .compass-page > .compass-title {
+  display: none;
+}
+
+#sections[data-single] .compass-page {
+  margin-bottom: 0;
+}
+
+#sections .compass-page > .compass-card {
+  background: var(--group);
+  border-radius: var(--radius-group);
+  box-shadow: 0 0 0 0.5px var(--line);
+  padding: 14px 16px 16px;
+}
+
+#sections > * {
+  display: block;
+}
+
+#sections > .flash .compass-card {
+  animation: flash 1.4s ease-out;
+}
+
+#sections .compass-page :is(h3, h4) {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#sections .compass-page button:not(.link, .keys) {
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-control);
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.18);
+  color: #fff;
+  cursor: default;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  min-height: 24px;
+  padding: 3px 12px;
+}
+
+#sections .compass-page button:not(.link, .keys):hover {
+  filter: brightness(1.06);
+}
+
+#sections .compass-page button:not(.link, .keys):active {
+  filter: brightness(0.92);
+}
+
+#sections .compass-page button.secondary {
+  background: var(--raised);
+  box-shadow: 0 0 0 0.5px var(--line-strong), 0 0.5px 1px rgba(0, 0, 0, 0.1);
+  color: var(--fg);
+}
+
+#sections .compass-page button.danger {
+  background: var(--raised);
+  box-shadow: 0 0 0 0.5px var(--line-strong), 0 0.5px 1px rgba(0, 0, 0, 0.1);
+  color: var(--danger);
+}
+
+#sections .compass-page button:disabled {
+  filter: none;
+  opacity: 0.45;
+}
+
+#sections .compass-page button.link {
+  color: var(--accent-text);
+  cursor: default;
+}
+
+#sections .compass-page button:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  outline: none;
+}
+
+#sections .compass-page :is(input[type='text'], input[type='url'],
+    input[type='password'], input[type='search'], input:not([type]),
+    textarea, select) {
+  background: var(--field);
+  border: none;
+  border-radius: var(--radius-control);
+  box-shadow: 0 0 0 0.5px var(--line-strong), inset 0 0.5px 1px
+      rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  min-height: 26px;
+  padding: 4px 8px;
+}
+
+#sections .compass-page :is(input, textarea, select):focus {
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  outline: none;
+}
+
+#sections .compass-page :is(input[type='checkbox'], input[type='radio']) {
+  accent-color: var(--accent);
+}
+
+#sections .compass-page a {
+  color: var(--accent-text);
+}
+
+#sections .compass-page :is(hr, li) {
+  border-color: var(--line);
+}
+
+/* A shortcut's keys, as key caps. */
+#sections .compass-page button.keys {
+  background: var(--raised);
+  border: none;
+  border-radius: var(--radius-control);
+  box-shadow: 0 0 0 0.5px var(--line-strong), 0 1px 0 var(--line-strong);
+  cursor: default;
+  font-size: 12px;
+  padding: 3px 10px;
+}
+
+#sections .compass-page button.keys:hover {
+  box-shadow: 0 0 0 1px var(--accent-ring), 0 1px 0 var(--line-strong);
+}
+
+#sections .compass-page button.keys.none {
+  color: var(--fg-faint);
+}
+
+/* Rows with a control: the row isn't a button, the control is. */
+.control-row:hover,
+.control-row:active {
+  background: none;
+}
+
+label.control-row {
+  cursor: default;
+}
+
+.row-detail.path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Controls ------------------------------------------------------------------ */
+
+/* A switch, as the system's: a pill track and a round knob. */
+input.switch {
+  appearance: none;
+  background: var(--line-strong);
+  border-radius: 999px;
+  flex: none;
+  height: 18px;
+  margin: 0;
+  position: relative;
+  transition: background-color 150ms;
+  width: 30px;
+}
+
+input.switch::before {
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  content: '';
+  height: 14px;
+  left: 2px;
+  position: absolute;
+  top: 2px;
+  transition: transform 150ms;
+  width: 14px;
+}
+
+input.switch:checked {
+  background: var(--accent);
+}
+
+input.switch:checked::before {
+  transform: translateX(12px);
+}
+
+input.switch:disabled {
+  opacity: 0.45;
+}
+
+/* A popup menu button. */
+select.popup {
+  appearance: none;
+  background: var(--raised) no-repeat right 7px center / 8px 8px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(-45deg, transparent 50%, currentColor 50%);
+  background-position: right 10px center, right 6px center;
+  background-size: 4px 4px, 4px 4px;
+  border: none;
+  border-radius: var(--radius-control);
+  box-shadow: 0 0 0 0.5px var(--line-strong), 0 0.5px 1px rgba(0, 0, 0, 0.1);
+  color: var(--fg);
+  flex: none;
+  font: inherit;
+  font-size: 13px;
+  max-width: 260px;
+  min-height: 24px;
+  padding: 3px 24px 3px 10px;
+}
+
+select.popup:disabled {
+  opacity: 0.45;
+}
+
+/* Pill buttons: neutral, or in the accent for the main action. */
+button.pill {
+  background: var(--raised);
+  border: none;
+  border-radius: var(--radius-control);
+  box-shadow: 0 0 0 0.5px var(--line-strong), 0 0.5px 1px rgba(0, 0, 0, 0.1);
+  color: var(--fg);
+  flex: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  min-height: 24px;
+  padding: 3px 12px;
+}
+
+button.pill.accent {
+  background: var(--accent);
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.18);
+  color: #fff;
+}
+
+button.pill:active {
+  filter: brightness(0.92);
+}
+
+input.field {
+  background: var(--field);
+  border: none;
+  border-radius: var(--radius-control);
+  box-shadow: 0 0 0 0.5px var(--line-strong), inset 0 0.5px 1px
+      rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  min-height: 26px;
+  padding: 4px 8px;
+  width: 260px;
+}
+
+:is(select.popup, button.pill, input.field):focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  outline: none;
+}
+
+/* Profile pictures. */
+.avatar-row {
+  align-items: flex-start;
+}
+
+.avatars {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(8, 36px);
+}
+
+.avatar {
+  background: none;
+  border: none;
+  border-radius: 50%;
+  height: 36px;
+  padding: 0;
+  width: 36px;
+}
+
+.avatar img {
+  border-radius: 50%;
+  height: 36px;
+  width: 36px;
+}
+
+.avatar[aria-checked='true'] {
+  box-shadow: 0 0 0 2px var(--window), 0 0 0 4px var(--accent);
+}
+
+/* A pane's view: the way back to the one it came from. */
+.back {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-control);
+  color: var(--accent-text);
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  gap: 2px;
+  margin: -6px 0 12px -6px;
+  padding: 3px 8px 3px 2px;
+}
+
+.back compass-settings-icon {
+  --icon-size: 16px;
+  --icon-stroke: 2;
+}
+
+.back:hover {
+  background: var(--tint);
+}
+
+/* Buttons under a group. */
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+button.pill:disabled {
+  filter: none;
+  opacity: 0.45;
+}
+
+input.check {
+  accent-color: var(--accent);
+  flex: none;
+  height: 14px;
+  margin: 0;
+  width: 14px;
+}
+
+.group .empty {
+  color: var(--fg-dim);
+  margin: 0;
+  padding: 18px;
+  text-align: center;
+}

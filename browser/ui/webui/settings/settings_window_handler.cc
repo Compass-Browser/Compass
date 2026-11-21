@@ -1,0 +1,320 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "compass/browser/ui/webui/settings/settings_window_handler.h"
+
+#include <utility>
+
+#include "base/functional/bind.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/lifetime/application_lifetime.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "chrome/browser/ui/chrome_pages.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
+#include "chrome/browser/ui/zoom/chrome_zoom_level_prefs.h"
+#include "chrome/common/pref_names.h"
+#include "chrome/common/webui_url_constants.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/views/settings_window/settings_window.h"
+#include "compass/browser/window_sync/space_service.h"
+#include "components/browsing_data/core/pref_names.h"
+#include "components/content_settings/core/common/pref_names.h"
+#include "components/language/core/browser/pref_names.h"
+#include "components/prefs/pref_service.h"
+#include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#include "components/spellcheck/browser/pref_names.h"
+#include "components/translate/core/browser/translate_pref_names.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/common/url_constants.h"
+#include "third_party/blink/public/common/page/page_zoom.h"
+#include "third_party/skia/include/core/SkColor.h"
+#include "ui/base/page_transition_types.h"
+#include "ui/base/window_open_disposition.h"
+#include "url/gurl.h"
+
+namespace compass {
+
+namespace {
+
+// The prefs the window's panes may read and write, with their types. Local
+// State's are browser-wide (docs/design/settings-window.md, "Prefs").
+struct AllowedPref {
+  const char* name;
+  base::Value::Type type;
+  bool local_state;
+};
+
+constexpr AllowedPref kAllowedPrefs[] = {
+    // General › Downloads.
+    {::prefs::kDownloadDefaultDirectory, base::Value::Type::STRING, false},
+    {::prefs::kPromptForDownload, base::Value::Type::BOOLEAN, false},
+    // General › Appearance and fonts.
+    {::prefs::kWebKitDefaultFontSize, base::Value::Type::INTEGER, false},
+    {::prefs::kWebKitDefaultFixedFontSize, base::Value::Type::INTEGER, false},
+    {::prefs::kWebKitMinimumFontSize, base::Value::Type::INTEGER, false},
+    {"webkit.webprefs.fonts.standard.Zyyy", base::Value::Type::STRING, false},
+    {"webkit.webprefs.fonts.serif.Zyyy", base::Value::Type::STRING, false},
+    {"webkit.webprefs.fonts.sansserif.Zyyy", base::Value::Type::STRING, false},
+    {"webkit.webprefs.fonts.fixed.Zyyy", base::Value::Type::STRING, false},
+    // General › Languages.
+    {::language::prefs::kAcceptLanguages, base::Value::Type::STRING, false},
+    {::translate::prefs::kOfferTranslateEnabled, base::Value::Type::BOOLEAN,
+     false},
+    {::spellcheck::prefs::kSpellCheckEnable, base::Value::Type::BOOLEAN, false},
+    // General › System.
+    {::prefs::kHardwareAccelerationModeEnabled, base::Value::Type::BOOLEAN,
+     true},
+    // Privacy.
+    {::prefs::kCookieControlsMode, base::Value::Type::INTEGER, false},
+    {::prefs::kEnableDoNotTrack, base::Value::Type::BOOLEAN, false},
+    {::prefs::kHttpsOnlyModeEnabled, base::Value::Type::BOOLEAN, false},
+    {::prefs::kDnsOverHttpsMode, base::Value::Type::STRING, true},
+    // Read here; set with SetSafeBrowsingLevel(), which keeps them coherent.
+    {::prefs::kSafeBrowsingEnabled, base::Value::Type::BOOLEAN, false},
+    {::prefs::kSafeBrowsingEnhanced, base::Value::Type::BOOLEAN, false},
+    // Privacy › Clear browsing data: the choices, kept for next time.
+    {::browsing_data::prefs::kDeleteTimePeriod, base::Value::Type::INTEGER,
+     false},
+    {::browsing_data::prefs::kDeleteBrowsingHistory, base::Value::Type::BOOLEAN,
+     false},
+    {::browsing_data::prefs::kDeleteDownloadHistory, base::Value::Type::BOOLEAN,
+     false},
+    {::browsing_data::prefs::kDeleteCookies, base::Value::Type::BOOLEAN, false},
+    {::browsing_data::prefs::kDeleteCache, base::Value::Type::BOOLEAN, false},
+    {::browsing_data::prefs::kDeletePasswords, base::Value::Type::BOOLEAN,
+     false},
+    {::browsing_data::prefs::kDeleteFormData, base::Value::Type::BOOLEAN,
+     false},
+    {::browsing_data::prefs::kDeleteSiteSettings, base::Value::Type::BOOLEAN,
+     false},
+};
+
+// Set only through their own methods.
+bool IsReadOnly(std::string_view name) {
+  return name == ::prefs::kSafeBrowsingEnabled ||
+         name == ::prefs::kSafeBrowsingEnhanced;
+}
+
+const AllowedPref* FindAllowed(std::string_view name) {
+  for (const AllowedPref& pref : kAllowedPrefs) {
+    if (name == pref.name) {
+      return &pref;
+    }
+  }
+  return nullptr;
+}
+
+}  // namespace
+
+SettingsWindowHandler::SettingsWindowHandler(
+    Profile* profile,
+    content::WebContents* web_contents,
+    mojo::PendingRemote<sidebar::mojom::SettingsWindowPage> page,
+    mojo::PendingReceiver<sidebar::mojom::SettingsWindowHandler> receiver)
+    : profile_(profile),
+      web_contents_(web_contents),
+      page_(std::move(page)),
+      receiver_(this, std::move(receiver)) {
+  if (SpaceList* list = GetSpaceList()) {
+    space_observation_.Observe(list);
+  }
+  if (HostContentSettingsMap* map =
+          HostContentSettingsMapFactory::GetForProfile(profile_)) {
+    content_settings_observation_.Observe(map);
+  }
+  if (TemplateURLService* service =
+          TemplateURLServiceFactory::GetForProfile(profile_)) {
+    template_url_observation_.Observe(service);
+  }
+  if (ProfileManager* manager = g_browser_process->profile_manager()) {
+    profile_attributes_observation_.Observe(
+        &manager->GetProfileAttributesStorage());
+  }
+  if (SettingsWindow* window = SettingsWindow::FromWebContents(web_contents_)) {
+    window->SetShowPathCallback(base::BindRepeating(
+        &SettingsWindowHandler::ShowPath, weak_factory_.GetWeakPtr()));
+  }
+}
+
+SettingsWindowHandler::~SettingsWindowHandler() {
+  if (folder_dialog_) {
+    folder_dialog_->ListenerDestroyed();
+  }
+  if (SettingsWindow* window = SettingsWindow::FromWebContents(web_contents_)) {
+    window->SetShowPathCallback({});
+  }
+}
+
+SpaceList* SettingsWindowHandler::GetSpaceList() {
+  // The spaces are the original profile's.
+  Profile* profile = profile_ ? profile_->GetOriginalProfile() : nullptr;
+  SpaceService* service = profile ? SpaceService::Get(profile) : nullptr;
+  return service ? &service->space_list() : nullptr;
+}
+
+sidebar::mojom::SpaceColorPtr SettingsWindowHandler::GetAccentColor() {
+  SpaceList* list = GetSpaceList();
+  if (!list) {
+    return nullptr;
+  }
+  const SpaceColor color = list->active_space().color();
+  if (color.is_grey()) {
+    return nullptr;
+  }
+  const SkColor tint = *color.tint();
+  return sidebar::mojom::SpaceColor::New(SkColorGetR(tint), SkColorGetG(tint),
+                                         SkColorGetB(tint));
+}
+
+void SettingsWindowHandler::GetAccent(GetAccentCallback callback) {
+  std::move(callback).Run(GetAccentColor());
+}
+
+void SettingsWindowHandler::SetContentHeight(int32_t height) {
+  if (SettingsWindow* window = SettingsWindow::FromWebContents(web_contents_)) {
+    window->SetContentHeight(height);
+  }
+}
+
+void SettingsWindowHandler::OpenChromeSettings(const std::string& sub_page) {
+  // Upstream's sections aren't the window's (MaybeShowSettingsWindow()), so
+  // this opens chrome://settings in a tab.
+  chrome::ShowSettingsSubPageForProfile(profile_, sub_page);
+}
+
+void SettingsWindowHandler::OpenUrl(const GURL& url) {
+  // Only browser pages: the page links to the password manager and such.
+  if (!url.SchemeIs(content::kChromeUIScheme)) {
+    return;
+  }
+  NavigateParams params(profile_.get(), url, ui::PAGE_TRANSITION_LINK);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
+  Navigate(&params);
+}
+
+void SettingsWindowHandler::Close() {
+  if (SettingsWindow* window = SettingsWindow::FromWebContents(web_contents_)) {
+    window->Close();
+  }
+}
+
+void SettingsWindowHandler::OnSpaceUpdated(const SpaceModel& space) {
+  SpaceList* list = GetSpaceList();
+  if (list && &list->active_space() == &space) {
+    page_->SetAccent(GetAccentColor());
+  }
+}
+
+void SettingsWindowHandler::OnActiveSpaceChanged() {
+  page_->SetAccent(GetAccentColor());
+}
+
+void SettingsWindowHandler::ShowPath(const std::string& path) {
+  page_->ShowPath(path);
+}
+
+// Prefs
+// ------------------------------------------------------------------------
+
+PrefService* SettingsWindowHandler::PrefServiceFor(const std::string& name) {
+  const AllowedPref* allowed = FindAllowed(name);
+  if (!allowed) {
+    return nullptr;
+  }
+  return allowed->local_state ? g_browser_process->local_state()
+                              : profile_->GetPrefs();
+}
+
+sidebar::mojom::SettingsPrefPtr SettingsWindowHandler::DescribePref(
+    const std::string& name) {
+  PrefService* service = PrefServiceFor(name);
+  const PrefService::Preference* pref =
+      service ? service->FindPreference(name) : nullptr;
+  if (!pref) {
+    return nullptr;
+  }
+  return sidebar::mojom::SettingsPref::New(
+      name, base::WriteJson(*pref->GetValue()).value_or("null"),
+      pref->IsManaged() || pref->IsExtensionControlled() ||
+          !pref->IsUserModifiable());
+}
+
+void SettingsWindowHandler::GetPrefs(const std::vector<std::string>& names,
+                                     GetPrefsCallback callback) {
+  if (!profile_prefs_.prefs()) {
+    profile_prefs_.Init(profile_->GetPrefs());
+    local_prefs_.Init(g_browser_process->local_state());
+  }
+  std::vector<sidebar::mojom::SettingsPrefPtr> result;
+  for (const std::string& name : names) {
+    sidebar::mojom::SettingsPrefPtr pref = DescribePref(name);
+    if (!pref) {
+      continue;
+    }
+    PrefChangeRegistrar& registrar =
+        FindAllowed(name)->local_state ? local_prefs_ : profile_prefs_;
+    if (!registrar.IsObserved(name)) {
+      registrar.Add(name,
+                    base::BindRepeating(&SettingsWindowHandler::OnPrefChanged,
+                                        base::Unretained(this), name));
+    }
+    result.push_back(std::move(pref));
+  }
+  std::move(callback).Run(std::move(result));
+}
+
+void SettingsWindowHandler::SetPref(const std::string& name,
+                                    const std::string& value_json,
+                                    SetPrefCallback callback) {
+  const AllowedPref* allowed = FindAllowed(name);
+  PrefService* service = PrefServiceFor(name);
+  const PrefService::Preference* pref =
+      service ? service->FindPreference(name) : nullptr;
+  std::optional<base::Value> value =
+      base::JSONReader::Read(value_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
+  if (!allowed || !pref || !value || value->type() != allowed->type ||
+      !pref->IsUserModifiable() || IsReadOnly(name)) {
+    std::move(callback).Run(false);
+    return;
+  }
+  service->Set(name, std::move(*value));
+  std::move(callback).Run(true);
+}
+
+void SettingsWindowHandler::OnPrefChanged(const std::string& name) {
+  if (sidebar::mojom::SettingsPrefPtr pref = DescribePref(name)) {
+    page_->PrefChanged(std::move(pref));
+  }
+}
+
+void SettingsWindowHandler::GetDefaultZoom(GetDefaultZoomCallback callback) {
+  // No zoom prefs off the record.
+  if (profile_->IsOffTheRecord()) {
+    std::move(callback).Run(1.0);
+    return;
+  }
+  std::move(callback).Run(blink::ZoomLevelToZoomFactor(
+      profile_->GetZoomLevelPrefs()->GetDefaultZoomLevelPref()));
+}
+
+void SettingsWindowHandler::SetDefaultZoom(double factor) {
+  if (profile_->IsOffTheRecord() || factor < 0.25 || factor > 5) {
+    return;
+  }
+  profile_->GetZoomLevelPrefs()->SetDefaultZoomLevelPref(
+      blink::ZoomFactorToZoomLevel(factor));
+}
+
+void SettingsWindowHandler::Relaunch() {
+  chrome::AttemptRestart();
+}
+
+}  // namespace compass

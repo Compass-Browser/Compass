@@ -271,7 +271,7 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, SpaceShortcuts) {
 // offers to take keys another shortcut has, and refuses a built-in one's.
 IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, SettingsPage) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), GURL("chrome://compass-settings/")));
+      browser(), GURL("chrome://compass-settings/shortcuts.html")));
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   // Resolves with what |script| returns once it's truthy.

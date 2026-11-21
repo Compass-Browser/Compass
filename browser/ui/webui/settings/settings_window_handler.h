@@ -1,0 +1,162 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef COMPASS_BROWSER_UI_WEBUI_SETTINGS_SETTINGS_WINDOW_HANDLER_H_
+#define COMPASS_BROWSER_UI_WEBUI_SETTINGS_SETTINGS_WINDOW_HANDLER_H_
+
+#include <string>
+#include <vector>
+
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
+#include "chrome/browser/profiles/profile_attributes_storage.h"
+#include "chrome/browser/profiles/profile_attributes_storage_observer.h"
+#include "chrome/browser/shell_integration.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
+#include "components/content_settings/core/browser/content_settings_observer.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/prefs/pref_change_registrar.h"
+#include "components/search_engines/template_url_service.h"
+#include "components/search_engines/template_url_service_observer.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "ui/shell_dialogs/select_file_dialog.h"
+
+class PrefService;
+class Profile;
+
+namespace content {
+class WebContents;
+}  // namespace content
+
+namespace compass {
+
+// The browser side of the settings window's page (chrome://compass-settings,
+// docs/design/settings-window.md): its accent (the profile's active space's
+// color), its height, links out of it, the paths the window is opened at
+// while open, and the prefs its rebuilt panes show (an allowlist, instead of
+// settingsPrivate).
+class SettingsWindowHandler : public sidebar::mojom::SettingsWindowHandler,
+                              public SpaceList::Observer,
+                              public TemplateURLServiceObserver,
+                              public ProfileAttributesStorageObserver,
+                              public content_settings::Observer,
+                              public ui::SelectFileDialog::Listener {
+ public:
+  SettingsWindowHandler(
+      Profile* profile,
+      content::WebContents* web_contents,
+      mojo::PendingRemote<sidebar::mojom::SettingsWindowPage> page,
+      mojo::PendingReceiver<sidebar::mojom::SettingsWindowHandler> receiver);
+  SettingsWindowHandler(const SettingsWindowHandler&) = delete;
+  SettingsWindowHandler& operator=(const SettingsWindowHandler&) = delete;
+  ~SettingsWindowHandler() override;
+
+  // sidebar::mojom::SettingsWindowHandler:
+  void GetAccent(GetAccentCallback callback) override;
+  void SetContentHeight(int32_t height) override;
+  void OpenChromeSettings(const std::string& sub_page) override;
+  void OpenUrl(const GURL& url) override;
+  void Close() override;
+  void GetPrefs(const std::vector<std::string>& names,
+                GetPrefsCallback callback) override;
+  void SetPref(const std::string& name,
+               const std::string& value_json,
+               SetPrefCallback callback) override;
+  void GetDefaultZoom(GetDefaultZoomCallback callback) override;
+  void SetDefaultZoom(double factor) override;
+  void Relaunch() override;
+  void GetDefaultBrowser(GetDefaultBrowserCallback callback) override;
+  void SetAsDefaultBrowser() override;
+  void GetSearchEngines(GetSearchEnginesCallback callback) override;
+  void SetDefaultSearchEngine(const std::string& id) override;
+  void GetDownloadLocation(GetDownloadLocationCallback callback) override;
+  void ChooseDownloadLocation() override;
+  void GetFonts(GetFontsCallback callback) override;
+  void ShowProxySettings() override;
+  void GetProfile(GetProfileCallback callback) override;
+  void SetProfileName(const std::string& name) override;
+  void SetProfileIcon(int32_t index) override;
+  void GetPermissionDefaults(GetPermissionDefaultsCallback callback) override;
+  void SetPermissionDefault(const std::string& type,
+                            sidebar::mojom::PermissionValue value) override;
+  void GetSites(GetSitesCallback callback) override;
+  void GetSitePermissions(const std::string& origin,
+                          GetSitePermissionsCallback callback) override;
+  void SetSitePermission(const std::string& origin,
+                         const std::string& type,
+                         sidebar::mojom::PermissionValue value) override;
+  void ResetSitePermissions(const std::string& origin) override;
+  void ClearSiteData(const std::string& origin,
+                     ClearSiteDataCallback callback) override;
+  void ClearBrowsingData(sidebar::mojom::ClearBrowsingDataOptionsPtr options,
+                         ClearBrowsingDataCallback callback) override;
+  void SetSafeBrowsingLevel(int32_t level) override;
+
+  // content_settings::Observer:
+  void OnContentSettingChanged(
+      const ContentSettingsPattern& primary_pattern,
+      const ContentSettingsPattern& secondary_pattern,
+      ContentSettingsTypeSet content_type_set) override;
+
+  // TemplateURLServiceObserver:
+  void OnTemplateURLServiceChanged() override;
+
+  // ProfileAttributesStorageObserver:
+  void OnProfileNameChanged(const base::FilePath& profile_path,
+                            const std::u16string& old_profile_name) override;
+  void OnProfileAvatarChanged(const base::FilePath& profile_path) override;
+
+  // ui::SelectFileDialog::Listener:
+  void FileSelected(const ui::SelectedFileInfo& file, int index) override;
+  void FileSelectionCanceled() override;
+
+  // SpaceList::Observer:
+  void OnSpaceUpdated(const SpaceModel& space) override;
+  void OnActiveSpaceChanged() override;
+
+ private:
+  SpaceList* GetSpaceList();
+  sidebar::mojom::SpaceColorPtr GetAccentColor();
+  void ShowPath(const std::string& path);
+  // The service holding |name| (the profile's, or Local State), if it's on
+  // the allowlist.
+  PrefService* PrefServiceFor(const std::string& name);
+  sidebar::mojom::SettingsPrefPtr DescribePref(const std::string& name);
+  void OnPrefChanged(const std::string& name);
+  // settings_window_handler_general.cc.
+  sidebar::mojom::SearchEnginesPtr DescribeSearchEngines();
+  sidebar::mojom::ProfileDetailsPtr DescribeProfile();
+  std::vector<sidebar::mojom::ProfileIconPtr> DescribeProfileIcons();
+  void OnDefaultBrowserState(
+      base::OnceCallback<void(sidebar::mojom::DefaultBrowserStatePtr)> callback,
+      shell_integration::DefaultWebClientState state);
+
+  const raw_ptr<Profile> profile_;
+  const raw_ptr<content::WebContents> web_contents_;
+  mojo::Remote<sidebar::mojom::SettingsWindowPage> page_;
+  mojo::Receiver<sidebar::mojom::SettingsWindowHandler> receiver_;
+  scoped_refptr<ui::SelectFileDialog> folder_dialog_;
+  base::ScopedObservation<HostContentSettingsMap, content_settings::Observer>
+      content_settings_observation_{this};
+  base::ScopedObservation<TemplateURLService, TemplateURLServiceObserver>
+      template_url_observation_{this};
+  base::ScopedObservation<ProfileAttributesStorage,
+                          ProfileAttributesStorageObserver>
+      profile_attributes_observation_{this};
+  PrefChangeRegistrar profile_prefs_;
+  PrefChangeRegistrar local_prefs_;
+  base::ScopedObservation<SpaceList, SpaceList::Observer> space_observation_{
+      this};
+  base::WeakPtrFactory<SettingsWindowHandler> weak_factory_{this};
+};
+
+}  // namespace compass
+
+#endif  // COMPASS_BROWSER_UI_WEBUI_SETTINGS_SETTINGS_WINDOW_HANDLER_H_

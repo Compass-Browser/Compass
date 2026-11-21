@@ -1,12 +1,17 @@
 # Settings
 
+Settings now open in Compass's settings window ([settings-window.md](settings-window.md)),
+which shows these same sections, re-skinned, among its panes. Until every
+upstream section is rebuilt there, upstream's `chrome://settings` stays
+reachable for its own sections, and keeps Compass's as described below.
+
 Compass's own settings are sections of upstream's `chrome://settings`
 (compass://settings), listed in its menu right after "You and Google":
 
 | Menu item | Path | Element | Standalone page |
 |---|---|---|---|
 | Sync | `/sync` | `<compass-sync-page>` | chrome://compass-sync |
-| Keyboard shortcuts | `/shortcuts` | `<compass-shortcuts-page>` | chrome://compass-settings |
+| Keyboard shortcuts | `/shortcuts` | `<compass-shortcuts-page>` | chrome://compass-settings/shortcuts.html |
 | Links from Other Apps | `/links` | `<compass-links-page>` | none |
 | Boosts | `/boosts` | `<compass-boosts-page>` | chrome://compass-settings/boosts.html |
 | Plugins | `/plugins` | `<compass-plugins-page>` | none |
