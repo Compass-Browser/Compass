@@ -106,7 +106,6 @@ class SettingsWindowHandler
   void ShowProxySettings() override;
   void GetProfile(GetProfileCallback callback) override;
   void SetProfileName(const std::string& name) override;
-  void SetProfileIcon(int32_t index) override;
   void GetPermissionDefaults(GetPermissionDefaultsCallback callback) override;
   void SetPermissionDefault(const std::string& type,
                             sidebar::mojom::PermissionValue value) override;
@@ -162,7 +161,6 @@ class SettingsWindowHandler
   // ProfileAttributesStorageObserver:
   void OnProfileNameChanged(const base::FilePath& profile_path,
                             const std::u16string& old_profile_name) override;
-  void OnProfileAvatarChanged(const base::FilePath& profile_path) override;
 
   // ui::SelectFileDialog::Listener:
   void FileSelected(const ui::SelectedFileInfo& file, int index) override;
@@ -186,7 +184,6 @@ class SettingsWindowHandler
   // The search engines' rules, once the service has loaded; null before.
   KeywordEditorController* GetKeywordEditor();
   sidebar::mojom::ProfileDetailsPtr DescribeProfile();
-  std::vector<sidebar::mojom::ProfileIconPtr> DescribeProfileIcons();
   // settings_window_handler_passwords.cc. The password manager's, made on
   // first use.
   extensions::PasswordsPrivateDelegate* GetPasswordsDelegate();

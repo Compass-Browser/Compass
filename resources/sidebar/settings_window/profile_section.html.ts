@@ -20,19 +20,6 @@ export function getHtml(this: CompassSettingsProfileSectionElement) {
           maxlength="${this.maxNameLength}" spellcheck="false"
           .value="${this.getName_()}" @change="${this.onNameChange_}">
     </div>
-    <div class="row control-row avatar-row" data-row="profilePicture">
-      <span class="row-text">
-        <span class="row-label">Picture</span>
-      </span>
-      <div class="avatars" role="radiogroup" aria-label="Profile picture">
-        ${this.icons_.map(icon => html`
-          <button class="avatar" role="radio" data-index="${icon.index}"
-              aria-checked="${icon.selected}" aria-label="${icon.label}"
-              title="${icon.label}" @click="${this.onIconClick_}">
-            <img src="${icon.url}" alt="">
-          </button>`)}
-      </div>
-    </div>
   </div>
 </section>
 <!--_html_template_end_-->`;

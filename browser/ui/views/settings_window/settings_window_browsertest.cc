@@ -293,7 +293,6 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, ProfileName) {
   ASSERT_TRUE(entry);
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return entry->GetLocalProfileName() == u"Work"; }));
-  EXPECT_EQ(WaitFor("document.querySelectorAll('.avatar').length > 0"), true);
 }
 
 // Privacy (phase 3): page info's "Site settings" lands on the site, whose

@@ -24,7 +24,6 @@
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
-#include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -44,9 +43,6 @@
 #include "components/translate/core/browser/translate_prefs.h"
 #include "content/public/browser/font_list_async.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/skia/include/core/SkBitmap.h"
-#include "ui/base/webui/web_ui_util.h"
-#include "ui/gfx/image/image.h"
 #include "ui/shell_dialogs/selected_file_info.h"
 
 namespace compass {
@@ -59,9 +55,6 @@ bool DefaultBrowserDisabledByPolicy() {
           ::prefs::kDefaultBrowserSettingEnabled);
   return pref && pref->IsManaged() && !pref->GetValue()->GetBool();
 }
-
-// The picture's size in the page, at 2x.
-constexpr int kProfileIconSize = 80;
 
 }  // namespace
 
@@ -467,43 +460,12 @@ sidebar::mojom::ProfileDetailsPtr SettingsWindowHandler::DescribeProfile() {
               profile_->GetOriginalProfile()->GetPath());
   if (entry) {
     details->name = base::UTF16ToUTF8(entry->GetLocalProfileName());
-    gfx::Image icon = profiles::GetSizedAvatarIcon(
-        entry->GetAvatarIcon(), kProfileIconSize, kProfileIconSize);
-    details->icon_url = webui::GetBitmapDataUrl(icon.AsBitmap());
   }
   return details;
 }
 
-std::vector<sidebar::mojom::ProfileIconPtr>
-SettingsWindowHandler::DescribeProfileIcons() {
-  ProfileAttributesEntry* entry =
-      g_browser_process->profile_manager()
-          ->GetProfileAttributesStorage()
-          .GetProfileAttributesWithPath(
-              profile_->GetOriginalProfile()->GetPath());
-  const size_t selected = entry && !entry->IsUsingDefaultAvatar()
-                              ? entry->GetAvatarIconIndex()
-                              : SIZE_MAX;
-  std::vector<sidebar::mojom::ProfileIconPtr> icons;
-  for (const base::Value& value :
-       profiles::GetCustomProfileAvatarIconsAndLabels(selected)) {
-    const base::DictValue* icon = value.GetIfDict();
-    if (!icon) {
-      continue;
-    }
-    const std::string* url = icon->FindString("url");
-    const std::string* label = icon->FindString("label");
-    std::optional<int> index = icon->FindInt("index");
-    if (url && label && index) {
-      icons.push_back(sidebar::mojom::ProfileIcon::New(
-          *index, *url, *label, icon->FindBool("selected").value_or(false)));
-    }
-  }
-  return icons;
-}
-
 void SettingsWindowHandler::GetProfile(GetProfileCallback callback) {
-  std::move(callback).Run(DescribeProfile(), DescribeProfileIcons());
+  std::move(callback).Run(DescribeProfile());
 }
 
 void SettingsWindowHandler::SetProfileName(const std::string& name) {
@@ -515,26 +477,11 @@ void SettingsWindowHandler::SetProfileName(const std::string& name) {
   profiles::UpdateProfileName(profile_->GetOriginalProfile(), trimmed);
 }
 
-void SettingsWindowHandler::SetProfileIcon(int32_t index) {
-  if (index < 0) {
-    return;
-  }
-  profiles::SetDefaultProfileAvatarIndex(
-      profile_->GetOriginalProfile(), profiles::GetSanitizedAvatarIndex(index));
-}
-
 void SettingsWindowHandler::OnProfileNameChanged(
     const base::FilePath& profile_path,
     const std::u16string& old_profile_name) {
   if (profile_path == profile_->GetOriginalProfile()->GetPath()) {
-    page_->ProfileChanged(DescribeProfile(), DescribeProfileIcons());
-  }
-}
-
-void SettingsWindowHandler::OnProfileAvatarChanged(
-    const base::FilePath& profile_path) {
-  if (profile_path == profile_->GetOriginalProfile()->GetPath()) {
-    page_->ProfileChanged(DescribeProfile(), DescribeProfileIcons());
+    page_->ProfileChanged(DescribeProfile());
   }
 }
 

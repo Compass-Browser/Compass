@@ -193,7 +193,7 @@ sections, and never shown.
   `fonts` sub-pages open General at their rows.
 - **Profiles** adds `<compass-settings-profile-section>`
   (`profile_section.ts`) before Sync and Import: the profile's name, saved
-  when the field is left, and its picture (upstream's avatars).
+  when the field is left. There's no picture: Compass doesn't show one.
 - **No chrome.send.** Upstream bans new users of `chrome.send()` and `cr.js`
   in trusted WebUI (the `legacy_chrome_send_users` list in
   `build_webui.gni`, enforced by ESLint). So upstream's handlers
@@ -208,8 +208,8 @@ sections, and never shown.
     As folders;
   - `content::GetFontListAsync()`;
   - `settings_utils::ShowNetworkProxySettings()`;
-  - `ProfileAttributesStorage` (observed), `profiles::UpdateProfileName()`
-    and `profiles::SetDefaultProfileAvatarIndex()`.
+  - `ProfileAttributesStorage` (observed) and
+    `profiles::UpdateProfileName()`.
 - **Prefs** (`prefs.ts`, `SettingsWindowHandler::GetPrefs()`, `SetPref()`,
   `Page.PrefChanged()`), instead of `settingsPrivate`:
   - An allowlist (`kAllowedPrefs`) with each pref's type and whether it's

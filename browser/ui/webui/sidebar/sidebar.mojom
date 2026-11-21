@@ -971,20 +971,9 @@ struct PreferredLanguage {
   bool translate_offered;
 };
 
-// The profile's name and picture (ProfileAttributesStorage).
+// The profile's name (ProfileAttributesStorage).
 struct ProfileDetails {
   string name;
-  // chrome://theme or data: URL.
-  string icon_url;
-};
-
-// A picture the profile can take (profiles::
-// GetCustomProfileAvatarIconsAndLabels()).
-struct ProfileIcon {
-  int32 index;
-  string url;
-  string label;
-  bool selected;
 };
 
 // A site permission's setting (ContentSetting): kDefault for a site that
@@ -1144,8 +1133,8 @@ interface SettingsWindowPage {
   SearchEnginesChanged(SearchEngines engines);
   // The preferred languages or their translation changed.
   LanguagesChanged();
-  // The profile's name or picture changed (the icons' selection with it).
-  ProfileChanged(ProfileDetails profile, array<ProfileIcon> icons);
+  // The profile's name changed.
+  ProfileChanged(ProfileDetails profile);
   // One of the prefs the page asked for changed (by the page or elsewhere).
   PrefChanged(SettingsPref pref);
   // Shows |path| ("boosts?add=example.com", "sync"), as opening the window
@@ -1215,9 +1204,8 @@ interface SettingsWindowHandler {
   ShowProxySettings();
 
   // Profiles › This profile.
-  GetProfile() => (ProfileDetails profile, array<ProfileIcon> icons);
+  GetProfile() => (ProfileDetails profile);
   SetProfileName(string name);
-  SetProfileIcon(int32 index);
 
   // Privacy (phase 3). Site settings: the defaults, the sites with
   // permissions of their own, and one site's.

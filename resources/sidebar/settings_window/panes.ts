@@ -96,8 +96,6 @@ export const PANES: Pane[] = [
         keywords: '',
         searchRows: [
           {id: 'profileName', label: 'Profile name', keywords: 'people'},
-          {id: 'profilePicture', label: 'Profile picture',
-           keywords: 'avatar icon'},
         ],
       },
       {

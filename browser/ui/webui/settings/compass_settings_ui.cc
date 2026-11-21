@@ -43,7 +43,6 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
-#include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/events/event_constants.h"
@@ -267,10 +266,6 @@ CompassSettingsUI::CompassSettingsUI(content::WebUI* web_ui)
   // it names.
   webui::SetupWebUIDataSource(source, kCompassSidebarResources,
                               IDR_COMPASS_SIDEBAR_SETTINGS_WINDOW_HTML);
-  // Profile pictures (chrome://theme) and account pictures (data:).
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ImgSrc,
-      "img-src 'self' chrome://theme chrome://resources data:;");
 
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 }

@@ -4,7 +4,7 @@
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {ProfileDetails, ProfileIcon} from '../sidebar.mojom-webui.js';
+import type {ProfileDetails} from '../sidebar.mojom-webui.js';
 
 import {SettingsWindowBrowserProxy} from './browser_proxy.js';
 import {getHtml} from './profile_section.html.js';
@@ -12,9 +12,9 @@ import {getHtml} from './profile_section.html.js';
 // The longest name upstream's profile settings allow.
 const MAX_NAME_LENGTH = 500;
 
-// Profiles › This profile (docs/design/settings-window.md, phase 2): its name
-// and picture, on the window's handler (as upstream's ProfileInfoHandler and
-// ManageProfileHandler do them).
+// Profiles › This profile (docs/design/settings-window.md, phase 2): its
+// name, on the window's handler (as upstream's ProfileInfoHandler and
+// ManageProfileHandler do it).
 export class CompassSettingsProfileSectionElement extends CrLitElement {
   static get is() {
     return 'compass-settings-profile-section';
@@ -27,13 +27,11 @@ export class CompassSettingsProfileSectionElement extends CrLitElement {
   static override get properties() {
     return {
       info_: {type: Object},
-      icons_: {type: Array},
       maxNameLength: {type: Number},
     };
   }
 
   protected accessor info_: ProfileDetails|null = null;
-  protected accessor icons_: ProfileIcon[] = [];
   protected accessor maxNameLength: number = MAX_NAME_LENGTH;
 
   private handler_ = SettingsWindowBrowserProxy.getInstance().handler;
@@ -45,12 +43,10 @@ export class CompassSettingsProfileSectionElement extends CrLitElement {
   override connectedCallback() {
     super.connectedCallback();
     this.handler_.getProfile().then(
-        ({profile, icons}: {profile: ProfileDetails, icons: ProfileIcon[]}) =>
-            this.setProfile_(profile, icons));
+        ({profile}: {profile: ProfileDetails}) => this.info_ = profile);
     SettingsWindowBrowserProxy.getInstance()
         .callbackRouter.profileChanged.addListener(
-            (profile: ProfileDetails, icons: ProfileIcon[]) =>
-                this.setProfile_(profile, icons));
+            (profile: ProfileDetails) => this.info_ = profile);
   }
 
   protected getName_(): string {
@@ -69,16 +65,6 @@ export class CompassSettingsProfileSectionElement extends CrLitElement {
     if (name !== this.getName_()) {
       this.handler_.setProfileName(name);
     }
-  }
-
-  protected onIconClick_(e: Event) {
-    const index = Number((e.currentTarget as HTMLElement).dataset['index']);
-    this.handler_.setProfileIcon(index);
-  }
-
-  private setProfile_(profile: ProfileDetails, icons: ProfileIcon[]) {
-    this.info_ = profile;
-    this.icons_ = icons;
   }
 }
 

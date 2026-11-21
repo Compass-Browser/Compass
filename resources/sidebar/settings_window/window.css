@@ -606,36 +606,6 @@ input.field {
   outline: none;
 }
 
-/* Profile pictures. */
-.avatar-row {
-  align-items: flex-start;
-}
-
-.avatars {
-  display: grid;
-  gap: 6px;
-  grid-template-columns: repeat(8, 36px);
-}
-
-.avatar {
-  background: none;
-  border: none;
-  border-radius: 50%;
-  height: 36px;
-  padding: 0;
-  width: 36px;
-}
-
-.avatar img {
-  border-radius: 50%;
-  height: 36px;
-  width: 36px;
-}
-
-.avatar[aria-checked='true'] {
-  box-shadow: 0 0 0 2px var(--window), 0 0 0 4px var(--accent);
-}
-
 /* A pane's view: the way back to the one it came from. */
 .back {
   align-items: center;
