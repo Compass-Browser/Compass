@@ -13,6 +13,9 @@ export function getHtml(this: CompassSettingsGeneralPaneElement) {
 ${this.isView_('engines') ? html`
   <compass-settings-search-engines @close="${this.onEnginesClose_}">
   </compass-settings-search-engines>` : nothing}
+${this.isView_('languages') ? html`
+  <compass-settings-languages @close="${this.onLanguagesClose_}">
+  </compass-settings-languages>` : nothing}
 <div ?hidden="${!this.isView_('main')}">
 <section class="row-group">
   <h2 class="group-title">Browser</h2>
@@ -152,14 +155,13 @@ ${this.isView_('engines') ? html`
 <section class="row-group">
   <h2 class="group-title">Languages</h2>
   <div class="group">
-    <button class="row" data-row="languages" data-sub-page="languages"
-        @click="${this.onChromeSettingsClick_}">
+    <button class="row" data-row="languages"
+        @click="${this.onManageLanguagesClick_}">
       <span class="row-text">
         <span class="row-label">Preferred languages</span>
         <span class="row-detail">${this.getLanguagesText_()}</span>
       </span>
-      <compass-settings-icon class="row-trail" name="external"
-          title="Opens in a tab">
+      <compass-settings-icon class="row-trail" name="chevron">
       </compass-settings-icon>
     </button>
     <label class="row control-row" data-row="translate">

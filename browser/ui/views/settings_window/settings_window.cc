@@ -139,6 +139,9 @@ std::optional<std::string> SettingsWindowPathFor(std::string_view sub_page) {
   if (path == "searchEngines") {
     return std::string("general?view=engines");
   }
+  if (path == "languages" || path.starts_with("languages/")) {
+    return std::string("general?view=languages");
+  }
   if (path == "search" || path == "defaultBrowser" || path == "downloads" ||
       path == "appearance" || path == "fonts") {
     return base::StrCat(

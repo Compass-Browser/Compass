@@ -45,8 +45,7 @@ autofill::PersonalDataManager* SettingsWindowHandler::GetPersonalDataManager() {
   return autofill::PersonalDataManagerFactory::GetForBrowserContext(profile_);
 }
 
-// Passwords
-// --------------------------------------------------------------------
+// Passwords -------------------------------------------------------------------
 
 void SettingsWindowHandler::GetPasswords(GetPasswordsCallback callback) {
   extensions::PasswordsPrivateDelegate* delegate = GetPasswordsDelegate();
@@ -132,8 +131,7 @@ void SettingsWindowHandler::OnSavedPasswordsChanged(
   page_->PasswordsChanged();
 }
 
-// Payment cards and addresses
-// ------------------------------------------------------
+// Payment cards and addresses -------------------------------------------------
 
 void SettingsWindowHandler::GetCards(GetCardsCallback callback) {
   std::vector<sidebar::mojom::SavedCardPtr> cards;

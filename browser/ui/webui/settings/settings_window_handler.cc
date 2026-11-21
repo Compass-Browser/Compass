@@ -179,6 +179,18 @@ SettingsWindowHandler::SettingsWindowHandler(
   if (SpaceList* list = GetSpaceList()) {
     space_observation_.Observe(list);
   }
+  profile_prefs_.Init(profile_->GetPrefs());
+  local_prefs_.Init(g_browser_process->local_state());
+  language_prefs_.Init(profile_->GetPrefs());
+  // The languages' prefs, for General › Languages.
+  for (const char* name : {::language::prefs::kAcceptLanguages,
+                           ::translate::prefs::kBlockedLanguages}) {
+    language_prefs_.Add(name, base::BindRepeating(
+                                  [](SettingsWindowHandler* handler) {
+                                    handler->page_->LanguagesChanged();
+                                  },
+                                  base::Unretained(this)));
+  }
   if (HostContentSettingsMap* map =
           HostContentSettingsMapFactory::GetForProfile(profile_)) {
     content_settings_observation_.Observe(map);
@@ -278,8 +290,7 @@ void SettingsWindowHandler::ShowPath(const std::string& path) {
   page_->ShowPath(path);
 }
 
-// Prefs
-// ------------------------------------------------------------------------
+// Prefs -----------------------------------------------------------------------
 
 PrefService* SettingsWindowHandler::PrefServiceFor(const std::string& name) {
   const AllowedPref* allowed = FindAllowed(name);
@@ -306,10 +317,6 @@ sidebar::mojom::SettingsPrefPtr SettingsWindowHandler::DescribePref(
 
 void SettingsWindowHandler::GetPrefs(const std::vector<std::string>& names,
                                      GetPrefsCallback callback) {
-  if (!profile_prefs_.prefs()) {
-    profile_prefs_.Init(profile_->GetPrefs());
-    local_prefs_.Init(g_browser_process->local_state());
-  }
   std::vector<sidebar::mojom::SettingsPrefPtr> result;
   for (const std::string& name : names) {
     sidebar::mojom::SettingsPrefPtr pref = DescribePref(name);

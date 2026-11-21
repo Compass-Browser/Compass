@@ -96,6 +96,11 @@ class SettingsWindowHandler
                         SaveSearchEngineCallback callback) override;
   void RemoveSearchEngine(const std::string& id) override;
   void SetSearchEngineActive(const std::string& id, bool active) override;
+  void GetLanguages(GetLanguagesCallback callback) override;
+  void AddLanguage(const std::string& code) override;
+  void RemoveLanguage(const std::string& code) override;
+  void MoveLanguage(const std::string& code, bool up) override;
+  void SetTranslateOffered(const std::string& code, bool offered) override;
   void GetDownloadLocation(GetDownloadLocationCallback callback) override;
   void ChooseDownloadLocation() override;
   void GetFonts(GetFontsCallback callback) override;
@@ -209,6 +214,7 @@ class SettingsWindowHandler
                           ProfileAttributesStorageObserver>
       profile_attributes_observation_{this};
   PrefChangeRegistrar profile_prefs_;
+  PrefChangeRegistrar language_prefs_;
   PrefChangeRegistrar local_prefs_;
   base::ScopedObservation<SpaceList, SpaceList::Observer> space_observation_{
       this};

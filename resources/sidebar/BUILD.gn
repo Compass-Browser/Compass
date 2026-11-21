@@ -71,6 +71,8 @@ build_webui("build") {
     "settings_window/icon.ts",
     "settings_window/general_pane.html.ts",
     "settings_window/general_pane.ts",
+    "settings_window/languages.html.ts",
+    "settings_window/languages.ts",
     "settings_window/panes.ts",
     "settings_window/passwords_pane.html.ts",
     "settings_window/passwords_pane.ts",

@@ -18,6 +18,7 @@
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -34,6 +35,7 @@
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/keyed_service/core/service_access_type.h"
+#include "components/language/core/browser/pref_names.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/browser/password_store/stored_credential.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
@@ -41,6 +43,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/search_engines/template_url_service.h"
+#include "components/translate/core/browser/translate_prefs.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -86,7 +89,7 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PathsTheWindowHas) {
   EXPECT_EQ(SettingsWindowPathFor("devMode"), "devMode");
   // Upstream's sections stay upstream's for now.
   EXPECT_EQ(SettingsWindowPathFor("searchEngines"), "general?view=engines");
-  EXPECT_EQ(SettingsWindowPathFor("languages"), std::nullopt);
+  EXPECT_EQ(SettingsWindowPathFor("languages"), "general?view=languages");
   EXPECT_EQ(SettingsWindowPathFor("ai"), std::nullopt);
   EXPECT_EQ(SettingsWindowPathFor("safetyCheck"), std::nullopt);
   EXPECT_EQ(SettingsWindowPathFor("payments"), std::nullopt);
@@ -187,12 +190,12 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SettingsURLOpensTheWindow) {
 // Upstream's sections the window doesn't have yet still open
 // chrome://settings in a tab.
 IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, UpstreamSectionsStayInTabs) {
-  chrome::ShowSettingsSubPage(browser(), "languages");
+  chrome::ShowSettingsSubPage(browser(), "payments");
   EXPECT_FALSE(window());
   content::WebContents* tab =
       browser()->GetTabStripModel()->GetActiveWebContents();
   ASSERT_TRUE(content::WaitForLoadStop(tab));
-  EXPECT_EQ(tab->GetLastCommittedURL(), GURL("chrome://settings/languages"));
+  EXPECT_EQ(tab->GetLastCommittedURL(), GURL("chrome://settings/payments"));
 }
 
 // Closing the window lets settings open a new one.
@@ -567,6 +570,75 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SearchEngineManager) {
           ".click();"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return !service->GetTemplateURLForKeyword(u"docs"); }));
+}
+
+// General › Languages (phase 5c): a language is added, moved first, and
+// translation for it turned off; then removed.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, LanguagesEditor) {
+  PrefService* prefs = profile()->GetPrefs();
+  chrome::ShowSettingsSubPage(browser(), "languages");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  ASSERT_TRUE(WaitFor("!!document.querySelector('[aria-label=\"Add "
+                      "Italian\"]')")
+                  .ExtractBool());
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "document.querySelector('[aria-label=\"Add Italian\"]').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return prefs->GetString(language::prefs::kAcceptLanguages).find("it") !=
+           std::string::npos;
+  }));
+
+  // Up until it's first.
+  for (int i = 0; i < 5; ++i) {
+    if (prefs->GetString(language::prefs::kAcceptLanguages).starts_with("it")) {
+      break;
+    }
+    ASSERT_TRUE(WaitFor("(() => { const b = document.querySelector("
+                        "'[aria-label=\"Move Italian up\"]'); "
+                        "return b && !b.disabled; })()")
+                    .ExtractBool());
+    const std::string before =
+        prefs->GetString(language::prefs::kAcceptLanguages);
+    ASSERT_TRUE(content::ExecJs(window()->web_contents(),
+                                "document.querySelector('[aria-label=\"Move "
+                                "Italian up\"]').click();"));
+    ASSERT_TRUE(base::test::RunUntil([&] {
+      return prefs->GetString(language::prefs::kAcceptLanguages) != before;
+    }));
+  }
+  EXPECT_TRUE(
+      prefs->GetString(language::prefs::kAcceptLanguages).starts_with("it"));
+
+  // Added languages start blocked (the user reads them), as upstream's;
+  // the switch flips that.
+  const bool blocked =
+      ChromeTranslateClient::CreateTranslatePrefs(prefs)->IsBlockedLanguage(
+          "it");
+  EXPECT_EQ(WaitFor("document.querySelector('[aria-label=\"Offer to "
+                    "translate Italian\"]').checked === " +
+                    std::string(blocked ? "false" : "true")),
+            true);
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "document.querySelector('[aria-label=\"Offer to translate "
+      "Italian\"]').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return ChromeTranslateClient::CreateTranslatePrefs(prefs)
+               ->IsBlockedLanguage("it") != blocked;
+  }));
+
+  ASSERT_TRUE(WaitFor("!!document.querySelector('[aria-label=\"Remove "
+                      "Italian\"]')")
+                  .ExtractBool());
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "document.querySelector('[aria-label=\"Remove Italian\"]').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return prefs->GetString(language::prefs::kAcceptLanguages).find("it") ==
+           std::string::npos;
+  }));
 }
 
 }  // namespace

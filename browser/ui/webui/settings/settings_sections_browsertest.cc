@@ -102,7 +102,7 @@ class SettingsSectionsBrowserTest : public InProcessBrowserTest {
 // its element.
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, MenuOpensEachSection) {
   // Upstream's own section: its root opens the settings window instead.
-  Open("chrome://settings/languages");
+  Open("chrome://settings/payments");
   EXPECT_EQ(WaitFor("deepQuery('a#compassSync')?.getAttribute('href')"),
             "/sync");
   EXPECT_EQ(WaitFor("deepQuery('a#compassShortcuts')?.getAttribute('href')"),
@@ -139,7 +139,7 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, MenuOpensEachSection) {
 // Upstream's "On startup" section is gone: its menu item is hidden and
 // there's no view for it (docs/design/settings.md).
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, NoOnStartupSection) {
-  Open("chrome://settings/languages");
+  Open("chrome://settings/payments");
   EXPECT_EQ(WaitFor("deepQuery('a#compassSync')?.getAttribute('href')"),
             "/sync");
   EXPECT_EQ(content::EvalJs(contents(), std::string(kDeepQuery) + R"(
@@ -339,7 +339,7 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ClaudeSection) {
 
 // Settings' search keeps a Compass section that has the words.
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, SearchFindsASection) {
-  Open("chrome://settings/languages");
+  Open("chrome://settings/payments");
   EXPECT_EQ(content::EvalJs(contents(), std::string(kDeepQuery) + R"(
         (async () => {
           await customElements.whenDefined('compass-sync-page');

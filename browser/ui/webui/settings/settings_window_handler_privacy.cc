@@ -340,8 +340,7 @@ void SettingsWindowHandler::ClearBrowsingData(
       content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB, waiter);
 }
 
-// Security
-// ---------------------------------------------------------------------
+// Security --------------------------------------------------------------------
 
 void SettingsWindowHandler::SetSafeBrowsingLevel(int32_t level) {
   if (level < 0 ||

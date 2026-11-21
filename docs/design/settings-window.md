@@ -51,14 +51,14 @@ the window's, Chrome's included, and nothing shows upstream's settings page.
    that open `chrome://settings/<section>` in a tab: General, Privacy,
    Passwords and part of Advanced.
 2. **Done:** General and Profiles rebuilt (below, "General and Profiles").
-   Still upstream's, as a row that opens it: editing the languages list.
+   Managing search engines and languages are views of General (phase 5).
 3. **Done:** Privacy rebuilt (below, "Privacy"). Safety check still opens
    upstream's section.
 4. **Done:** Passwords (below, "Passwords"). Adding and editing passwords,
    cards and addresses, the checkup, passkeys' details and import/export
    open the password manager or upstream's sections.
-5. Advanced (**done**, below), managing search engines (**done**), then the
-   rows that still open upstream's sections: editing languages, the card and
+5. Advanced (**done**, below), managing search engines and languages
+   (**done**), then the rows that still open upstream's sections: the card and
    address editors, Safety check. Then no more fallback: every
    `chrome://settings` URL opens the window, and the chrome://settings
    patches that add Compass's sections (menu, routes, views, BUILD.gn) go.
@@ -156,9 +156,8 @@ sections (docs/design/settings.md).
     levels).
   - Fonts: standard, serif, sans-serif and fixed-width (the system's font
     list), and the minimum size.
-  - Languages: the preferred languages by name (editing them still opens
-    upstream's section); "Offer to translate pages"; "Check spelling as you
-    type".
+  - Languages: the preferred languages by name, which open a view of their
+    own (below); "Offer to translate pages"; "Check spelling as you type".
   - System: "Use graphics acceleration when available", with Relaunch once
     changed; the system's proxy settings.
 - **Manage search engines and site search** (phase 5b,
@@ -176,6 +175,17 @@ sections (docs/design/settings.md).
     `EditSearchEngineController` validates and fixes up the address, with a
     delegate that saves through the keyword editor, as upstream's
     `SearchEnginesHandler` does.
+- **Languages** (phase 5c, `<compass-settings-languages>`, `languages.ts`,
+  General's `?view=languages`; upstream's `languages` sub-pages open it):
+  the preferred languages in order, each moved up or down, removed (never the
+  last), and with a switch for whether Compass offers to translate pages in
+  it; then the languages to add, with a filter. Browser side: upstream's
+  `TranslatePrefs` (`GetLanguageInfoList()`, `GetUserSelectedLanguageList()`,
+  `AddToLanguageList()`, `RemoveFromLanguageList()`, `RearrangeLanguage()`,
+  `BlockLanguage()`/`UnblockLanguage()`; a language added starts blocked, as
+  upstream's), with `intl.accept_languages` and
+  `translate_blocked_languages` observed (`Page.LanguagesChanged()`).
+  Spell check's own languages (Windows and Linux) aren't listed yet.
 - Upstream's `search`, `defaultBrowser`, `downloads`, `appearance` and
   `fonts` sub-pages open General at their rows.
 - **Profiles** adds `<compass-settings-profile-section>`

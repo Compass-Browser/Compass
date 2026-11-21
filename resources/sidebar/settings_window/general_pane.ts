@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import './icon.js';
+import './languages.js';
 import './search_engines.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
@@ -26,7 +27,7 @@ export const PREF_OFFER_TRANSLATE = 'translate.enabled';
 export const PREF_SPELLCHECK = 'browser.enable_spellchecking';
 export const PREF_HARDWARE_ACCELERATION = 'hardware_acceleration_mode.enabled';
 
-export type GeneralView = 'main'|'engines';
+export type GeneralView = 'main'|'engines'|'languages';
 
 export interface FontPref {
   pref: string;
@@ -135,8 +136,9 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
     // ?view=engines (chrome://settings/searchEngines), ?focus=<row>.
     const params = new URLSearchParams(window.location.search);
     this.focus_ = params.get('focus') || '';
-    if (params.get('view') === 'engines') {
-      this.setView_('engines');
+    const view = params.get('view');
+    if (view === 'engines' || view === 'languages') {
+      this.setView_(view);
     }
     prefs.addListener(this.prefListener_);
     prefs.load(ALL_PREFS).then(() => {
@@ -337,16 +339,18 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
     this.setView_('main');
   }
 
-  // Upstream's sections the pane doesn't rebuild yet (data-sub-page).
-  protected onChromeSettingsClick_(e: Event) {
-    this.handler_.openChromeSettings(
-        (e.currentTarget as HTMLElement).dataset['subPage']!);
+  protected onManageLanguagesClick_() {
+    this.setView_('languages');
+  }
+
+  protected onLanguagesClose_() {
+    this.setView_('main');
   }
 
   private setView_(view: GeneralView) {
     this.view_ = view;
     window.history.replaceState(
-        null, '', view === 'main' ? '/general' : '/general?view=engines');
+        null, '', view === 'main' ? '/general' : `/general?view=${view}`);
     this.closest('#scroller')?.scrollTo(0, 0);
   }
 

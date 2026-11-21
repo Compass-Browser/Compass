@@ -13,6 +13,8 @@
 
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/i18n/language_tag.h"
+#include "base/i18n/tag_converters.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
@@ -27,6 +29,7 @@
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/search_engines/ui_thread_search_terms_data.h"
+#include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/search_engines/edit_search_engine_controller.h"
 #include "chrome/browser/ui/search_engines/keyword_editor_controller.h"
 #include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
@@ -37,6 +40,8 @@
 #include "components/search_engines/choice_made_location.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_starter_pack_data.h"
+#include "components/translate/core/browser/translate_pref_names.h"
+#include "components/translate/core/browser/translate_prefs.h"
 #include "content/public/browser/font_list_async.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -99,8 +104,7 @@ void SettingsWindowHandler::SetAsDefaultBrowser() {
               weak_factory_.GetWeakPtr())));
 }
 
-// Search engines
-// ---------------------------------------------------------------
+// Search engines --------------------------------------------------------------
 
 sidebar::mojom::SearchEnginesPtr
 SettingsWindowHandler::DescribeSearchEngines() {
@@ -154,7 +158,7 @@ void SettingsWindowHandler::SetDefaultSearchEngine(const std::string& id) {
       engine, search_engines::ChoiceMadeLocation::kSearchSettings);
 }
 
-// Manage search engines ------------------------------------------------------
+// Manage search engines -------------------------------------------------------
 
 namespace {
 
@@ -312,8 +316,79 @@ void SettingsWindowHandler::OnTemplateURLServiceChanged() {
   page_->SearchEnginesChanged(DescribeSearchEngines());
 }
 
-// Downloads
-// --------------------------------------------------------------------
+// Languages -------------------------------------------------------------------
+
+void SettingsWindowHandler::GetLanguages(GetLanguagesCallback callback) {
+  std::vector<translate::TranslateLanguageInfo> infos;
+  translate::TranslatePrefs::GetLanguageInfoList(
+      g_browser_process->GetApplicationLocale(),
+      profile_->GetPrefs()->GetBoolean(
+          ::translate::prefs::kOfferTranslateEnabled),
+      &infos);
+  std::vector<sidebar::mojom::LanguageInfoPtr> catalog;
+  for (const translate::TranslateLanguageInfo& info : infos) {
+    catalog.push_back(sidebar::mojom::LanguageInfo::New(
+        info.code, info.display_name, info.native_display_name,
+        info.supports_translate));
+  }
+  std::unique_ptr<translate::TranslatePrefs> translate_prefs =
+      ChromeTranslateClient::CreateTranslatePrefs(profile_->GetPrefs());
+  std::vector<sidebar::mojom::PreferredLanguagePtr> preferred;
+  for (const base::i18n::LanguageTag& tag :
+       translate_prefs->GetUserSelectedLanguageList()) {
+    const std::string code(tag.tag_string());
+    preferred.push_back(sidebar::mojom::PreferredLanguage::New(
+        code, !translate_prefs->IsBlockedLanguage(code)));
+  }
+  std::move(callback).Run(std::move(catalog), std::move(preferred));
+}
+
+void SettingsWindowHandler::AddLanguage(const std::string& code) {
+  std::optional<base::i18n::LanguageTag> tag =
+      base::i18n::GetLanguageTagFromString(code);
+  if (tag) {
+    ChromeTranslateClient::CreateTranslatePrefs(profile_->GetPrefs())
+        ->AddToLanguageList(*tag, /*force_blocked=*/false);
+  }
+}
+
+void SettingsWindowHandler::RemoveLanguage(const std::string& code) {
+  std::unique_ptr<translate::TranslatePrefs> translate_prefs =
+      ChromeTranslateClient::CreateTranslatePrefs(profile_->GetPrefs());
+  std::optional<base::i18n::LanguageTag> tag =
+      base::i18n::GetLanguageTagFromString(code);
+  // Never the last one.
+  if (tag && translate_prefs->GetUserSelectedLanguageList().size() > 1) {
+    translate_prefs->RemoveFromLanguageList(*tag);
+  }
+}
+
+void SettingsWindowHandler::MoveLanguage(const std::string& code, bool up) {
+  std::unique_ptr<translate::TranslatePrefs> translate_prefs =
+      ChromeTranslateClient::CreateTranslatePrefs(profile_->GetPrefs());
+  std::vector<std::string> enabled;
+  for (const base::i18n::LanguageTag& tag :
+       translate_prefs->GetUserSelectedLanguageList()) {
+    enabled.emplace_back(tag.tag_string());
+  }
+  translate_prefs->RearrangeLanguage(
+      code,
+      up ? translate::TranslatePrefs::kUp : translate::TranslatePrefs::kDown,
+      /*offset=*/1, enabled);
+}
+
+void SettingsWindowHandler::SetTranslateOffered(const std::string& code,
+                                                bool offered) {
+  std::unique_ptr<translate::TranslatePrefs> translate_prefs =
+      ChromeTranslateClient::CreateTranslatePrefs(profile_->GetPrefs());
+  if (offered) {
+    translate_prefs->UnblockLanguage(code);
+  } else {
+    translate_prefs->BlockLanguage(code);
+  }
+}
+
+// Downloads -------------------------------------------------------------------
 
 void SettingsWindowHandler::GetDownloadLocation(
     GetDownloadLocationCallback callback) {
@@ -357,8 +432,7 @@ void SettingsWindowHandler::FileSelectionCanceled() {
   folder_dialog_.reset();
 }
 
-// Fonts and system
-// --------------------------------------------------------------
+// Fonts and system ------------------------------------------------------------
 
 void SettingsWindowHandler::GetFonts(GetFontsCallback callback) {
   content::GetFontListAsync(base::BindOnce(
@@ -382,8 +456,7 @@ void SettingsWindowHandler::ShowProxySettings() {
   }
 }
 
-// This profile
-// -------------------------------------------------------------------
+// This profile ----------------------------------------------------------------
 
 sidebar::mojom::ProfileDetailsPtr SettingsWindowHandler::DescribeProfile() {
   auto details = sidebar::mojom::ProfileDetails::New();
