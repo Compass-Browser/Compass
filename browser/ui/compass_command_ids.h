@@ -40,11 +40,15 @@ inline constexpr int kRedoCloseTabCommand = 39955;
 // in the active tab (docs/design/reader-mode.md).
 inline constexpr int kToggleReaderModeCommand = 39956;
 
+// Cmd+Option+D (Shift+Alt+D on Windows and Linux): turns development mode on
+// for the active tab's site, or off (docs/design/dev-mode.md).
+inline constexpr int kToggleDevModeCommand = 39957;
+
 inline bool IsCompassCommand(int id) {
   return id == kNewLittleWindowCommand || id == kOpenSyncPageCommand ||
          id == kToggleTabMuteCommand || id == kToggleClaudeCommand ||
          id == kUndoCloseTabCommand || id == kRedoCloseTabCommand ||
-         id == kToggleReaderModeCommand;
+         id == kToggleReaderModeCommand || id == kToggleDevModeCommand;
 }
 
 // Upstream commands of features Compass removes: bookmarks and the reading

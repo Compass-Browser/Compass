@@ -55,6 +55,10 @@ source_set("ui") {
     "views/claude/claude_panel.h",
     "views/command_bar/command_bar.cc",
     "views/command_bar/command_bar.h",
+    "views/dev_mode/dev_mode_bar.cc",
+    "views/dev_mode/dev_mode_bar.h",
+    "views/dev_mode/dev_mode_controller.cc",
+    "views/dev_mode/dev_mode_controller.h",
     "views/find_bar/find_bar.cc",
     "views/find_bar/find_bar.h",
     "views/frame/browser_view_exchange.cc",
@@ -166,6 +170,11 @@ source_set("ui") {
     "//compass/browser/browser_import",
     "//compass/browser/claude",
     "//compass/browser/dev_mode",
+    "//compass/browser/dev_mode:devtools_hooks",
+
+    # Development mode's bar opens DevTools (views/dev_mode/dev_mode_bar.cc).
+    "//chrome/browser/devtools",
+    "//chrome/browser/devtools:devtools_toggle_action",
     "//compass/browser/easels:store",
     "//compass/browser/ui/easels:capture",
     "//compass/browser/ui/easels:refresh",

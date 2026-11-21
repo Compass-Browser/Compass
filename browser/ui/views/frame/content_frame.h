@@ -46,6 +46,12 @@ inline constexpr gfx::Insets GetContentFrameInsets(
 // little windows, in //compass/browser/ui.
 gfx::Insets GetPopupContentFrameInsets(const views::View* browser_view);
 
+// The height a bar at the top of a pane takes from the page and its docked
+// DevTools: development mode's bar (docs/design/dev-mode.md), 0 without
+// one. |container| is a ContentsContainerView; upstream's layout of it asks
+// (see patches/). Defined with the bar, in //compass/browser/ui.
+int GetContentsTopBarHeight(const views::View* container);
+
 }  // namespace compass
 
 #endif  // COMPASS_BROWSER_UI_VIEWS_FRAME_CONTENT_FRAME_H_

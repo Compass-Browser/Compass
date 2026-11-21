@@ -1,0 +1,34 @@
+diff --git a/chrome/browser/ui/views/frame/contents_container_view.cc b/chrome/browser/ui/views/frame/contents_container_view.cc
+index 5407bd717cc8c493bfa79a08bd2d984aaccce146..c482db5e90e69f872a220b8a68d8652843f5642a 100644
+--- a/chrome/browser/ui/views/frame/contents_container_view.cc
++++ b/chrome/browser/ui/views/frame/contents_container_view.cc
+@@ -32,6 +32,7 @@
+ #include "chrome/browser/ui/views/indigo/indigo_toolbar.h"
+ #include "chrome/browser/ui/views/new_tab_footer/footer_web_view.h"
+ #include "chrome/common/chrome_features.h"
++#include "compass/browser/ui/views/frame/content_frame.h"
+ #include "components/search/ntp_features.h"
+ #include "content/public/browser/web_contents.h"
+ #include "ui/accessibility/accessibility_features.h"
+@@ -368,7 +369,10 @@ void ContentsContainerView::ApplyWatermarkSettings(
+ void ContentsContainerView::UpdateDevToolsDockedPlacement() {
+   DevToolsDockedPlacement placement = DevToolsDockedPlacement::kUnknown;
+   gfx::Rect contents_view_bounds = GetContentsViewBounds();
+-  const gfx::Rect& container_bounds = GetContentsBounds();
++  gfx::Rect container_bounds = GetContentsBounds();
++  // Compass: below development mode's bar, as in CalculateProposedLayout().
++  container_bounds.Inset(
++      gfx::Insets::TLBR(compass::GetContentsTopBarHeight(this), 0, 0, 0));
+ 
+   // If contents_webview has the same bounds as webview_container, it either
+   // means that devtools are not open or devtools are open in a separate
+@@ -480,6 +484,9 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
+   }
+ 
+   gfx::Rect full_contents_bounds = GetContentsBounds();
++  // Compass: development mode's bar, which places itself, takes the top.
++  full_contents_bounds.Inset(
++      gfx::Insets::TLBR(compass::GetContentsTopBarHeight(this), 0, 0, 0));
+   gfx::Rect devtools_bounds;
+   // The area contents excluding devtools is drawn (ie |contents_view_|,
+   // |new_tab_footer_view_|, etc).

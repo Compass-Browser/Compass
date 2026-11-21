@@ -146,6 +146,7 @@ CompassSidebarView::CompassSidebarView(BrowserWindowInterface* browser)
       command_bar_(browser),
       peek_(browser),
       reader_mode_(browser),
+      dev_mode_(browser),
       claude_panel_(browser) {
   InstallSwapPresenter();
   InstallPipTint();

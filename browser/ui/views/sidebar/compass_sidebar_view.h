@@ -18,6 +18,7 @@
 #include "compass/browser/shortcuts/shortcut_settings.h"
 #include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/dev_mode/dev_mode_controller.h"
 #include "compass/browser/ui/views/peek/peek.h"
 #include "compass/browser/ui/views/reader/reader_mode.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -140,6 +141,7 @@ class CompassSidebarView : public views::WebView, public ProfileObserver {
   CommandBar command_bar_;
   Peek peek_;
   ReaderMode reader_mode_;
+  DevModeController dev_mode_;
   claude::ClaudePanel claude_panel_;
   // Between a swipe's scroll begin and end.
   bool swiping_ = false;

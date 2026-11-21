@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/BUILD.gn b/chrome/browser/ui/views/frame/BUILD.gn
-index 07ff3566c110c9a29950070f9f773d00d70fbeea..d35cbb93e909b06571975aceee5cb8b164d52cf8 100644
+index 07ff3566c110c9a29950070f9f773d00d70fbeea..f34829f7349a4114360d4243027b2bc4d368c754 100644
 --- a/chrome/browser/ui/views/frame/BUILD.gn
 +++ b/chrome/browser/ui/views/frame/BUILD.gn
 @@ -78,6 +78,11 @@ source_set("picture_in_picture_browser_frame_view") {
@@ -32,3 +32,13 @@ index 07ff3566c110c9a29950070f9f773d00d70fbeea..d35cbb93e909b06571975aceee5cb8b1
      "//ui/base:features",
      "//ui/compositor",
    ]
+@@ -3271,6 +3280,9 @@ source_set("contents_container_view_impl") {
+     "//chrome/browser/ui/views/indigo",
+     "//chrome/browser/ui/views/new_tab_footer",
+     "//chrome/common:chrome_features",
++
++    # Compass's development mode bar takes the top of the pane.
++    "//compass/browser/ui/views/frame:content_frame",
+     "//components/search",
+     "//content/public/browser",
+     "//ui/accessibility:ax_base",
