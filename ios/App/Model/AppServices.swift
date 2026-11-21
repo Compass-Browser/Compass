@@ -87,18 +87,63 @@ final class AppServices {
     return services
   }
 
+  /// The demo sidebar (-CompassDemo): three spaces with favorites, pinned
+  /// tabs, a folder and Today tabs, on sites without cookie banners.
+  private static func addDemoSpaces(to store: SpaceStore) {
+    for (url, title) in [
+      ("https://en.wikipedia.org/wiki/Main_Page", "Wikipedia"),
+      ("https://github.com", "GitHub"),
+      ("https://developer.apple.com", "Apple Developer"),
+      ("https://news.ycombinator.com", "Hacker News"),
+    ] {
+      store.addTab(url: url, title: title, to: store.favorites)
+    }
+    let personal = store.addSpace(name: "Personal", theme: SpaceTheme(.blue))
+    if let trip = store.addFolder(name: "Trip to Lisbon", to: personal.pinned) {
+      store.addTab(url: "https://en.wikipedia.org/wiki/Lisbon", title: "Lisbon", to: trip)
+      store.addTab(url: "https://en.wikipedia.org/wiki/Bel%C3%A9m_Tower", title: "Belém Tower", to: trip)
+      store.addTab(url: "https://en.wikipedia.org/wiki/Sintra", title: "Sintra", to: trip)
+    }
+    store.addTab(url: "https://www.apple.com/iphone/", title: "iPhone", to: personal.pinned)
+    store.addTab(url: "https://compassbrowser.org", title: "Compass Browser", to: personal.pinned)
+    for (url, title) in [
+      ("https://en.wikipedia.org/wiki/Pastel_de_nata", "Pastel de nata"),
+      ("https://en.wikipedia.org/wiki/Fado", "Fado"),
+      ("https://en.wikipedia.org/wiki/Tram_28", "Tram 28"),
+    ] {
+      store.addTab(url: url, title: title, to: personal.today)
+    }
+    let work = store.addSpace(name: "Work", theme: SpaceTheme(.purple))
+    if let project = store.addFolder(name: "Compass", to: work.pinned) {
+      store.addTab(url: "https://github.com/Compass-Browser/Compass", title: "Compass-Browser/Compass", to: project)
+      store.addTab(url: "https://compassbrowser.org/compare.html", title: "Compare browsers", to: project)
+    }
+    store.addTab(url: "https://developer.apple.com/documentation/webkit", title: "WebKit", to: work.pinned)
+    store.addTab(url: "https://www.swift.org", title: "Swift.org", to: work.pinned)
+    store.addTab(url: "https://webkit.org/blog/", title: "WebKit Blog", to: work.today)
+    store.addTab(url: "https://developer.mozilla.org/en-US/docs/Web/CSS", title: "CSS | MDN", to: work.today)
+    let reading = store.addSpace(name: "Reading", theme: SpaceTheme(.green))
+    store.addTab(url: "https://en.wikipedia.org/wiki/Compass", title: "Compass", to: reading.pinned)
+    store.addTab(url: "https://en.wikipedia.org/wiki/Age_of_Discovery", title: "Age of Discovery", to: reading.today)
+  }
+
   private init() {
     directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("Compass", isDirectory: true)
     try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     let store = self.store
     // Debug: -CompassFreshStore YES starts from an empty sidebar (UI tests).
+    // Debug: -CompassDemo YES starts from the demo sidebar instead, for the
+    // App Store's screenshots (ios/AppStore/listing-en-US.md).
     #if DEBUG
-      let fresh = UserDefaults.standard.bool(forKey: "CompassFreshStore")
+      let demo = UserDefaults.standard.bool(forKey: "CompassDemo")
+      let fresh = demo || UserDefaults.standard.bool(forKey: "CompassFreshStore")
     #else
+      let demo = false
       let fresh = false
     #endif
     if !fresh { try? store.load(from: directory.appendingPathComponent("Sidebar.json")) }
+    if demo { store.applyingRemote { Self.addDemoSpaces(to: store) } }
     if store.spaces.isEmpty {
       store.applyingRemote { _ = store.addSpace(name: "Home") }
     }
