@@ -1,5 +1,4 @@
-- Easels: boards of notes, shapes, drawings, images and links, in the sidebar like a tab. New Easel is in a space's ⋯ menu.
-- Capture to Easel (page menu) adds the page you're on to a board.
-- Boards sync with your other devices, including easels imported from Arc.
-- Sync: starting a chain shows your recovery code; Show recovery code shows it again after your screen lock.
-- Remove a device from your sync devices; it stops syncing.
+- Share spaces, folders and easels with other people: touch and hold a pinned folder (or a space's ⋯, or an easel's tab) and tap Share. Invite editors or viewers with a link; everything stays end-to-end encrypted.
+- Open an invite link to join and pick the space it goes in.
+- Sync servers with company sign-in (OIDC): Compass asks you to sign in.
+- Fixed: a new profile could stay at "Starting…" while syncing.
