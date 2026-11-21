@@ -52,14 +52,12 @@ the window's, Chrome's included, and nothing shows upstream's settings page.
    Passwords and part of Advanced.
 2. **Done:** General and Profiles rebuilt (below, "General and Profiles").
    Managing search engines and languages are views of General (phase 5).
-3. **Done:** Privacy rebuilt (below, "Privacy"). Safety check still opens
-   upstream's section.
+3. **Done:** Privacy rebuilt (below, "Privacy").
 4. **Done:** Passwords (below, "Passwords"). Adding and editing passwords,
    cards and addresses, the checkup, passkeys' details and import/export
    open the password manager or upstream's sections.
 5. Advanced, managing search engines and languages, the card and address
-   editors (**done**, below), then Safety check, the last row that opens
-   upstream's settings. Then no more fallback: every
+   editors, Safety check (**done**, below). Then no more fallback: every
    `chrome://settings` URL opens the window, and the chrome://settings
    patches that add Compass's sections (menu, routes, views, BUILD.gn) go.
    The password manager (chrome://password-manager) is a page of its own
@@ -234,7 +232,7 @@ sections (docs/design/settings.md).
     (HTTPS-Only), secure DNS (automatic or off; a custom provider set
     upstream is kept and said), Manage certificates
     (chrome://certificate-manager in a tab); Permissions, Sites with their
-    own permissions, and Safety check (upstream's, in a tab).
+    own permissions, and Safety check (below).
   - **Clear:** the time range (upstream's `TimePeriod`s) and the data
     types: history, download history, cookies and site data, cache,
     passwords, autofill, site settings. The choices are kept in upstream's
@@ -245,10 +243,18 @@ sections (docs/design/settings.md).
   - **Site:** a site's permissions ("Default (Ask)" for one that follows the
     default), Reset Permissions and Delete Site Data (its cookies, storage
     and cache).
-- **The path picks the view:** `privacy?view=clear|permissions|sites`,
+  - **Safety check** (phase 5e): updates (Check Now, through the updater),
+    passwords (compromised, weak and reused ones the password manager knows
+    of, `PasswordsPrivateDelegate::GetInsecureCredentials()`, not muted;
+    Review opens the password manager's checkup; whether they leaked can't
+    be checked online without a Google account, which Compass doesn't have,
+    and the pane says so), Safe Browsing (Turn On when it's off), extensions
+    (those the blocklist turned off; Manage opens chrome://extensions), and
+    site permissions. A dot says whether each needs something.
+- **The path picks the view:** `privacy?view=clear|permissions|sites|safety`,
   `privacy?site=<origin>`, `privacy?focus=security|cookies`. Upstream's
   sub-pages map to them (`SettingsWindowPathFor()`): `privacy`, `security`,
-  `cookies`, `clearBrowserData`, `content`, `content/<permission>`,
+  `cookies`, `clearBrowserData`, `safetyCheck`, `content`, `content/<permission>`,
   `content/all` and `content/siteDetails?site=`. Page info's "Site settings",
   which opens a tab at the last, lands on the site (the throttle).
 - **Browser side** (`settings_window_handler_privacy.cc`), as upstream's

@@ -123,6 +123,7 @@ class SettingsWindowHandler
   void ClearBrowsingData(sidebar::mojom::ClearBrowsingDataOptionsPtr options,
                          ClearBrowsingDataCallback callback) override;
   void SetSafeBrowsingLevel(int32_t level) override;
+  void GetSafetyCheck(GetSafetyCheckCallback callback) override;
   void GetPasswords(GetPasswordsCallback callback) override;
   void RevealPassword(int32_t id, RevealPasswordCallback callback) override;
   void CopyPassword(int32_t id, CopyPasswordCallback callback) override;

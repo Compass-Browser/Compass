@@ -767,3 +767,16 @@ textarea.field {
   font-size: 13px;
   resize: vertical;
 }
+
+/* Safety check's dots: green when there's nothing to do, amber else. */
+.status {
+  background: #e8a33a;
+  border-radius: 50%;
+  flex: none;
+  height: 8px;
+  width: 8px;
+}
+
+.status[ok] {
+  background: #34a853;
+}

@@ -7,8 +7,8 @@ import './icon.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {PermissionDefault, SitePermission, SiteSummary} from '../sidebar.mojom-webui.js';
-import {PermissionValue} from '../sidebar.mojom-webui.js';
+import type {PermissionDefault, SafetyCheckResult, SitePermission, SiteSummary} from '../sidebar.mojom-webui.js';
+import {PermissionValue, UpdateState} from '../sidebar.mojom-webui.js';
 
 import {SettingsWindowBrowserProxy} from './browser_proxy.js';
 import type {PrefValue} from './prefs.js';
@@ -153,12 +153,12 @@ function byPermissionOrder(a: {type: string}, b: {type: string}): number {
   return rank(a.type) - rank(b.type);
 }
 
-export type View = 'main'|'clear'|'permissions'|'sites'|'site';
+export type View = 'main'|'clear'|'permissions'|'sites'|'site'|'safety';
 
 // Privacy (docs/design/settings-window.md, phase 3): clearing browsing data,
 // cookies, security, and site settings (the permissions' defaults, the sites
-// with permissions of their own, one site's), each a view of the pane with a
-// way back. Safety check still opens upstream's section.
+// with permissions of their own, one site's) and Safety check, each a view of
+// the pane with a way back.
 export class CompassSettingsPrivacyPaneElement extends CrLitElement {
   static get is() {
     return 'compass-settings-privacy-pane';
@@ -182,6 +182,10 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
       clearing_: {type: Boolean},
       cleared_: {type: Boolean},
       siteDataCleared_: {type: Boolean},
+      safety_: {type: Object},
+      canUpdate_: {type: Boolean},
+      updateState_: {type: Number},
+      updateMessage_: {type: String},
     };
   }
 
@@ -197,6 +201,10 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
   protected accessor clearing_: boolean = false;
   protected accessor cleared_: boolean = false;
   protected accessor siteDataCleared_: boolean = false;
+  protected accessor safety_: SafetyCheckResult|null = null;
+  protected accessor canUpdate_: boolean = false;
+  protected accessor updateState_: UpdateState|null = null;
+  protected accessor updateMessage_: string = '';
 
   protected readonly clearChoices = CLEAR_CHOICES;
   protected readonly timePeriods = TIME_PERIODS;
@@ -207,6 +215,7 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
   private prefListener_ = (_name: string, _pref: PrefValue) =>
       this.prefsVersion_++;
   private contentListenerId_: number|null = null;
+  private updateListenerId_: number|null = null;
   // What the path asked to scroll to ("security", "cookies").
   private focus_ = '';
 
@@ -225,7 +234,7 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
     if (site) {
       this.openSite_(site);
     } else if (view === 'clear' || view === 'permissions' ||
-               view === 'sites') {
+               view === 'sites' || view === 'safety') {
       this.setView_(view);
     } else {
       this.loadView_();
@@ -247,16 +256,24 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
     const router = SettingsWindowBrowserProxy.getInstance().callbackRouter;
     this.contentListenerId_ = router.contentSettingsChanged.addListener(
         () => this.onContentSettingsChanged_());
+    this.updateListenerId_ = router.updateStatusChanged.addListener(
+        (state: UpdateState, _progress: number, message: string) => {
+          this.updateState_ = state;
+          this.updateMessage_ = message;
+        });
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     prefs.removeListener(this.prefListener_);
-    if (this.contentListenerId_ !== null) {
-      SettingsWindowBrowserProxy.getInstance().callbackRouter.removeListener(
-          this.contentListenerId_);
-      this.contentListenerId_ = null;
+    const router = SettingsWindowBrowserProxy.getInstance().callbackRouter;
+    for (const id of [this.contentListenerId_, this.updateListenerId_]) {
+      if (id !== null) {
+        router.removeListener(id);
+      }
     }
+    this.contentListenerId_ = null;
+    this.updateListenerId_ = null;
   }
 
   override updated(changedProperties: PropertyValues<this>) {
@@ -272,6 +289,83 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
 
   protected isView_(view: View): boolean {
     return this.view_ === view;
+  }
+
+  // Safety check.
+
+  protected getUpdatesText_(): string {
+    if (!this.canUpdate_) {
+      return 'This build doesn\'t update itself.';
+    }
+    switch (this.updateState_) {
+      case UpdateState.kChecking:
+      case UpdateState.kUpdating:
+        return 'Checking for updates…';
+      case UpdateState.kReady:
+        return 'An update is ready: relaunch Compass to install it.';
+      case UpdateState.kUpToDate:
+        return 'Compass is up to date.';
+      case UpdateState.kFailed:
+        return this.updateMessage_ || 'Couldn\'t check for updates.';
+      default:
+        return 'Compass checks for updates by itself.';
+    }
+  }
+
+  protected isUpdatesOk_(): boolean {
+    return this.updateState_ === UpdateState.kUpToDate;
+  }
+
+  protected getPasswordsText_(): string {
+    const safety = this.safety_;
+    if (!safety) {
+      return 'Checking…';
+    }
+    const problems: string[] = [];
+    if (safety.compromisedPasswords) {
+      problems.push(`${safety.compromisedPasswords} compromised`);
+    }
+    if (safety.weakPasswords) {
+      problems.push(`${safety.weakPasswords} weak`);
+    }
+    if (safety.reusedPasswords) {
+      problems.push(`${safety.reusedPasswords} reused`);
+    }
+    if (problems.length) {
+      return problems.join(', ') + '.';
+    }
+    return safety.savedPasswords ?
+        `No problems known among ${safety.savedPasswords} saved passwords.` :
+        'No saved passwords.';
+  }
+
+  protected isPasswordsOk_(): boolean {
+    const safety = this.safety_;
+    return !!safety && !safety.compromisedPasswords && !safety.weakPasswords &&
+        !safety.reusedPasswords;
+  }
+
+  protected getSafeBrowsingText_(): string {
+    return this.getSafeBrowsingLevel_() ?
+        'Dangerous sites, downloads and extensions are checked.' :
+        'Off: nothing warns you about dangerous sites and downloads.';
+  }
+
+  protected getExtensionsText_(): string {
+    const safety = this.safety_;
+    if (!safety) {
+      return 'Checking…';
+    }
+    if (safety.blocklistedExtensions) {
+      return `${safety.blocklistedExtensions} turned off as harmful.`;
+    }
+    return safety.enabledExtensions ?
+        `No harmful extensions among ${safety.enabledExtensions}.` :
+        'No extensions.';
+  }
+
+  protected isExtensionsOk_(): boolean {
+    return !!this.safety_ && !this.safety_.blocklistedExtensions;
   }
 
   protected getBackLabel_(): string {
@@ -416,14 +510,25 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
         (e.target as HTMLInputElement).checked ? 'automatic' : 'off');
   }
 
-  protected onCertificatesClick_() {
-    this.handler_.openUrl('chrome://certificate-manager/');
+  protected onCheckUpdatesClick_() {
+    this.updateState_ = UpdateState.kChecking;
+    this.handler_.checkForUpdates();
   }
 
-  // Upstream's sections the pane doesn't rebuild yet (data-sub-page).
-  protected onChromeSettingsClick_(e: Event) {
-    this.handler_.openChromeSettings(
-        (e.currentTarget as HTMLElement).dataset['subPage']!);
+  protected onReviewPasswordsClick_() {
+    this.handler_.openUrl('chrome://password-manager/checkup');
+  }
+
+  protected onTurnOnSafeBrowsingClick_() {
+    this.handler_.setSafeBrowsingLevel(1);
+  }
+
+  protected onManageExtensionsClick_() {
+    this.handler_.openUrl('chrome://extensions/');
+  }
+
+  protected onCertificatesClick_() {
+    this.handler_.openUrl('chrome://certificate-manager/');
   }
 
   protected onDefaultChange_(e: Event) {
@@ -516,6 +621,12 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
     if (this.view_ === 'main' || this.view_ === 'sites') {
       const {sites} = await this.handler_.getSites();
       this.sites_ = sites;
+    }
+    if (this.view_ === 'safety') {
+      const [{result}, {about}] = await Promise.all(
+          [this.handler_.getSafetyCheck(), this.handler_.getAbout()]);
+      this.safety_ = result;
+      this.canUpdate_ = about.canUpdate;
     }
     if (this.view_ === 'site') {
       const {displayName, permissions} =

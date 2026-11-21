@@ -1095,6 +1095,19 @@ struct SavedAddress {
   string summary;
 };
 
+// Privacy › Safety check (phase 5e): what the password manager knows about
+// the saved passwords, and the extensions.
+struct SafetyCheckResult {
+  // Not muted: leaked or phished, weak, reused.
+  int32 compromised_passwords;
+  int32 weak_passwords;
+  int32 reused_passwords;
+  int32 saved_passwords;
+  // Turned off by Compass as harmful (Safe Browsing's blocklist).
+  int32 blocklisted_extensions;
+  int32 enabled_extensions;
+};
+
 // Advanced › About Compass.
 struct AboutInfo {
   // Compass's own ("20261121.1830"), and the Chromium it's built on.
@@ -1224,6 +1237,7 @@ interface SettingsWindowHandler {
   ClearBrowsingData(ClearBrowsingDataOptions options) => ();
   // Safe Browsing: 0 off, 1 standard, 2 enhanced (SafeBrowsingState).
   SetSafeBrowsingLevel(int32 level);
+  GetSafetyCheck() => (SafetyCheckResult result);
 
   // Passwords (phase 4), through upstream's PasswordsPrivateDelegate.
   GetPasswords() => (array<SavedPassword> passwords);

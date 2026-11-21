@@ -51,7 +51,7 @@ constexpr float kMaxScreenFraction = 0.85f;
 // Compass's sections, which the window has under upstream's paths
 // (settings_sections.h), and the window's panes whose names upstream doesn't
 // use. Upstream's sections the window has rebuilt (privacy's) are mapped in
-// SettingsWindowPathFor(); the others ("safetyCheck", "ai") stay
+// SettingsWindowPathFor(); the others ("people", "ai") stay
 // upstream's until the window rebuilds them.
 constexpr auto kWindowPaths = std::to_array<std::string_view>({
     "general",
@@ -175,6 +175,9 @@ std::optional<std::string> SettingsWindowPathFor(std::string_view sub_page) {
   }
   if (path == "clearBrowserData") {
     return std::string("privacy?view=clear");
+  }
+  if (path == "safetyCheck") {
+    return std::string("privacy?view=safety");
   }
   if (path == "content/siteDetails") {
     const size_t query = sub_page.find('?');

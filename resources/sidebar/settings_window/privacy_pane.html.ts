@@ -138,16 +138,15 @@ ${this.isView_('main') ? html`
       <compass-settings-icon class="row-trail" name="chevron">
       </compass-settings-icon>
     </button>
-    <button class="row" data-row="safetyCheck" data-sub-page="safetyCheck"
-        @click="${this.onChromeSettingsClick_}">
+    <button class="row" data-row="safetyCheck" data-view="safety"
+        @click="${this.onViewClick_}">
       <span class="row-text">
         <span class="row-label">Safety check</span>
         <span class="row-detail">
-          Passwords, extensions and permissions to review.
+          Updates, passwords, Safe Browsing and extensions.
         </span>
       </span>
-      <compass-settings-icon class="row-trail" name="external"
-          title="Opens in a tab">
+      <compass-settings-icon class="row-trail" name="chevron">
       </compass-settings-icon>
     </button>
   </div>
@@ -158,6 +157,70 @@ ${!this.isView_('main') ? html`
   <compass-settings-icon name="back"></compass-settings-icon>
   ${this.getBackLabel_()}
 </button>` : nothing}
+
+${this.isView_('safety') ? html`
+<section class="row-group">
+  <h2 class="group-title">Safety check</h2>
+  <div class="group">
+    <div class="row control-row" data-check="updates">
+      <span class="status" ?ok="${this.isUpdatesOk_()}"></span>
+      <span class="row-text">
+        <span class="row-label">Updates</span>
+        <span class="row-detail">${this.getUpdatesText_()}</span>
+      </span>
+      <button class="pill small" ?hidden="${!this.canUpdate_}"
+          @click="${this.onCheckUpdatesClick_}">
+        Check Now
+      </button>
+    </div>
+    <div class="row control-row" data-check="passwords">
+      <span class="status" ?ok="${this.isPasswordsOk_()}"></span>
+      <span class="row-text">
+        <span class="row-label">Passwords</span>
+        <span class="row-detail">${this.getPasswordsText_()}</span>
+        <span class="row-detail">
+          Whether they appeared in a data breach can't be checked online
+          without a Google account.
+        </span>
+      </span>
+      <button class="pill small" @click="${this.onReviewPasswordsClick_}">
+        Review
+      </button>
+    </div>
+    <div class="row control-row" data-check="safeBrowsing">
+      <span class="status" ?ok="${this.getSafeBrowsingLevel_() > 0}"></span>
+      <span class="row-text">
+        <span class="row-label">Safe Browsing</span>
+        <span class="row-detail">${this.getSafeBrowsingText_()}</span>
+      </span>
+      <button class="pill small accent"
+          ?hidden="${this.getSafeBrowsingLevel_() > 0}"
+          ?disabled="${this.isSafeBrowsingEnforced_()}"
+          @click="${this.onTurnOnSafeBrowsingClick_}">
+        Turn On
+      </button>
+    </div>
+    <div class="row control-row" data-check="extensions">
+      <span class="status" ?ok="${this.isExtensionsOk_()}"></span>
+      <span class="row-text">
+        <span class="row-label">Extensions</span>
+        <span class="row-detail">${this.getExtensionsText_()}</span>
+      </span>
+      <button class="pill small" @click="${this.onManageExtensionsClick_}">
+        Manage
+      </button>
+    </div>
+    <button class="row" data-view="sites" @click="${this.onViewClick_}">
+      <span class="status" ok></span>
+      <span class="row-text">
+        <span class="row-label">Site permissions</span>
+        <span class="row-detail">${this.getSitesDetail_()} with their own.</span>
+      </span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
+  </div>
+</section>` : nothing}
 
 ${this.isView_('clear') ? html`
 <section class="row-group">

@@ -26,6 +26,7 @@
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/data_quality/validation.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "extensions/browser/extension_registry.h"
 
 namespace compass {
 
@@ -133,6 +134,63 @@ void SettingsWindowHandler::RemovePassword(int32_t id) {
 void SettingsWindowHandler::OnSavedPasswordsChanged(
     const password_manager::PasswordStoreChangeList& changes) {
   page_->PasswordsChanged();
+}
+
+// Safety check ------------------------------------------------------------
+
+void SettingsWindowHandler::GetSafetyCheck(GetSafetyCheckCallback callback) {
+  auto result = sidebar::mojom::SafetyCheckResult::New();
+  if (extensions::ExtensionRegistry* registry =
+          extensions::ExtensionRegistry::Get(profile_)) {
+    result->blocklisted_extensions =
+        static_cast<int>(registry->blocklisted_extensions().size());
+    result->enabled_extensions =
+        static_cast<int>(registry->enabled_extensions().size());
+  }
+  extensions::PasswordsPrivateDelegate* delegate = GetPasswordsDelegate();
+  if (!delegate) {
+    std::move(callback).Run(std::move(result));
+    return;
+  }
+  // Once the passwords are loaded, what the password manager knows of them.
+  delegate->GetSavedPasswordsList(base::BindOnce(
+      [](base::WeakPtr<SettingsWindowHandler> handler,
+         sidebar::mojom::SafetyCheckResultPtr result,
+         GetSafetyCheckCallback callback,
+         const extensions::PasswordsPrivateDelegate::UiEntries& entries) {
+        result->saved_passwords = static_cast<int>(entries.size());
+        if (handler && handler->passwords_delegate_) {
+          for (const passwords_private::PasswordUiEntry& entry :
+               handler->passwords_delegate_->GetInsecureCredentials()) {
+            if (!entry.compromised_info || entry.compromised_info->is_muted) {
+              continue;
+            }
+            bool compromised = false;
+            for (passwords_private::CompromiseType type :
+                 entry.compromised_info->compromise_types) {
+              switch (type) {
+                case passwords_private::CompromiseType::kLeaked:
+                case passwords_private::CompromiseType::kPhished:
+                  compromised = true;
+                  break;
+                case passwords_private::CompromiseType::kWeak:
+                  result->weak_passwords++;
+                  break;
+                case passwords_private::CompromiseType::kReused:
+                  result->reused_passwords++;
+                  break;
+                default:
+                  break;
+              }
+            }
+            if (compromised) {
+              result->compromised_passwords++;
+            }
+          }
+        }
+        std::move(callback).Run(std::move(result));
+      },
+      weak_factory_.GetWeakPtr(), std::move(result), std::move(callback)));
 }
 
 // Payment cards and addresses -------------------------------------------------

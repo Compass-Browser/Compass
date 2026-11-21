@@ -93,7 +93,8 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PathsTheWindowHas) {
   EXPECT_EQ(SettingsWindowPathFor("searchEngines"), "general?view=engines");
   EXPECT_EQ(SettingsWindowPathFor("languages"), "general?view=languages");
   EXPECT_EQ(SettingsWindowPathFor("ai"), std::nullopt);
-  EXPECT_EQ(SettingsWindowPathFor("safetyCheck"), std::nullopt);
+  EXPECT_EQ(SettingsWindowPathFor("safetyCheck"), "privacy?view=safety");
+  EXPECT_EQ(SettingsWindowPathFor("people"), std::nullopt);
   EXPECT_EQ(SettingsWindowPathFor("payments"), "passwords?focus=saveCards");
   EXPECT_EQ(SettingsWindowPathFor("passwords"), "passwords");
   EXPECT_EQ(SettingsWindowPathFor("help"), "advanced?focus=about");
@@ -192,12 +193,12 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SettingsURLOpensTheWindow) {
 // Upstream's sections the window doesn't have yet still open
 // chrome://settings in a tab.
 IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, UpstreamSectionsStayInTabs) {
-  chrome::ShowSettingsSubPage(browser(), "safetyCheck");
+  chrome::ShowSettingsSubPage(browser(), "people");
   EXPECT_FALSE(window());
   content::WebContents* tab =
       browser()->GetTabStripModel()->GetActiveWebContents();
   ASSERT_TRUE(content::WaitForLoadStop(tab));
-  EXPECT_EQ(tab->GetLastCommittedURL(), GURL("chrome://settings/safetyCheck"));
+  EXPECT_EQ(tab->GetLastCommittedURL(), GURL("chrome://settings/people"));
 }
 
 // Closing the window lets settings open a new one.
@@ -720,6 +721,32 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, CardAndAddressEditors) {
     return address &&
            address->GetRawInfo(autofill::ADDRESS_HOME_CITY) == u"Cambridge";
   }));
+}
+
+// Privacy › Safety check (phase 5e): Safe Browsing off is flagged and
+// turned on there; with no extensions, there are none to flag.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SafetyCheck) {
+  PrefService* prefs = profile()->GetPrefs();
+  safe_browsing::SetSafeBrowsingState(
+      prefs, safe_browsing::SafeBrowsingState::NO_SAFE_BROWSING);
+  chrome::ShowSettingsSubPage(browser(), "safetyCheck");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  EXPECT_EQ(WaitFor("document.querySelector('[data-check=\"extensions\"] "
+                    ".row-detail')?.textContent.startsWith('No ')"),
+            true);
+  EXPECT_EQ(WaitFor("document.querySelector('[data-check=\"safeBrowsing\"] "
+                    ".status')?.hasAttribute('ok') === false"),
+            true);
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "document.querySelector('[data-check=\"safeBrowsing\"] button')"
+      ".click();"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return prefs->GetBoolean(::prefs::kSafeBrowsingEnabled); }));
+  EXPECT_EQ(WaitFor("document.querySelector('[data-check=\"safeBrowsing\"] "
+                    ".status')?.hasAttribute('ok')"),
+            true);
 }
 
 }  // namespace
