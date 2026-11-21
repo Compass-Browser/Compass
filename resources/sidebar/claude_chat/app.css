@@ -309,6 +309,51 @@ footer {
   color: var(--color-sys-on-primary, #fff);
 }
 
+/* Messages written while Claude replies, sent one by one after it. */
+.queued {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.queued-label {
+  color: var(--fg-dim);
+  font-size: 11px;
+  padding: 0 4px;
+}
+
+.queued-item {
+  align-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  display: flex;
+  gap: 2px;
+  padding: 0 2px 0 0;
+}
+
+.queued-text {
+  background: none;
+  border: none;
+  color: inherit;
+  flex: 1;
+  font: inherit;
+  min-width: 0;
+  overflow: hidden;
+  padding: 4px 10px;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queued-text:hover {
+  text-decoration: underline;
+}
+
+.queued-remove {
+  height: 22px;
+  width: 22px;
+}
+
 .composer {
   align-items: flex-end;
   background: var(--tint);

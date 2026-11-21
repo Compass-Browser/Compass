@@ -111,9 +111,15 @@ import it.cipi1965.compass.R
  */
 object ClaudeChatUi {
     interface Listener {
+        /** While Claude replies, queues the text; empty between replies, sends the next queued. */
         fun onSend(text: String)
 
         fun onStop()
+
+        /** A queued message back into the field. */
+        fun onEditQueued(index: Int)
+
+        fun onRemoveQueued(index: Int)
 
         /** "Let Claude use the whole browser": the tabs, not only the page. */
         fun onBrowserScope(allowed: Boolean)
@@ -1077,6 +1083,43 @@ private fun ApprovalCard(approval: ClaudeChatState.Approval, listener: ClaudeCha
     }
 }
 
+/**
+ * Messages written while Claude replies, sent one by one after it: a tap puts one back in the
+ * field, × removes it.
+ */
+@Composable
+private fun QueuedList(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            if (state.streaming) "Sends after this reply" else "Paused: send to go on",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        state.queued.forEachIndexed { index, text ->
+            Row(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier =
+                        Modifier.weight(1f)
+                            .clickable(onClickLabel = "Edit") { listener.onEditQueued(index) }
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+                IconButton(onClick = { listener.onRemoveQueued(index) }, modifier = Modifier.size(36.dp)) {
+                    SymIcon(R.drawable.compass_sym_close, "Remove", Modifier.size(18.dp))
+                }
+            }
+        }
+    }
+}
+
 /** A rounded, filled text field, as Material's search and compose fields. */
 @Composable
 private fun PillField(state: TextFieldState, placeholder: String, modifier: Modifier = Modifier) {
@@ -1152,7 +1195,7 @@ private val SUGGESTIONS = listOf("Summarize this page", "What are the key points
 
 @Composable
 private fun ColumnScope.Chat(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
-    val input = rememberTextFieldState()
+    val input = state.input
     val list = rememberLazyListState()
     LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.text?.length, state.error) {
         val count = list.layoutInfo.totalItemsCount
@@ -1206,6 +1249,7 @@ private fun ColumnScope.Chat(state: ClaudeChatState, listener: ClaudeChatUi.List
         }
     }
     state.approval?.let { ApprovalCard(it, listener) }
+    if (state.queued.isNotEmpty()) QueuedList(state, listener)
     // What goes with a question: the page, and the whole browser.
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(
@@ -1223,6 +1267,22 @@ private fun ColumnScope.Chat(state: ClaudeChatState, listener: ClaudeChatUi.List
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         PillField(input, "Ask about this page", Modifier.weight(1f))
+        if (state.streaming && input.text.isNotBlank()) {
+            FilledIconButton(
+                onClick = {
+                    listener.onSend(input.text.toString().trim())
+                    input.clearText()
+                },
+                colors =
+                    IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ),
+                modifier = Modifier.size(48.dp),
+            ) {
+                SymIcon(R.drawable.compass_sym_arrow_upward, "Send after this reply")
+            }
+        }
         if (state.streaming) {
             FilledIconButton(
                 onClick = { listener.onStop() },
@@ -1241,7 +1301,7 @@ private fun ColumnScope.Chat(state: ClaudeChatState, listener: ClaudeChatUi.List
                     listener.onSend(input.text.toString().trim())
                     input.clearText()
                 },
-                enabled = input.text.isNotBlank(),
+                enabled = input.text.isNotBlank() || state.queued.isNotEmpty(),
                 modifier = Modifier.size(48.dp),
             ) {
                 SymIcon(R.drawable.compass_sym_arrow_upward, "Ask")

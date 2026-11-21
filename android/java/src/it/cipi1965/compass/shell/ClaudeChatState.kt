@@ -4,6 +4,8 @@
 
 package it.cipi1965.compass.shell
 
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -66,6 +68,14 @@ class ClaudeChatState {
     )
 
     var open by mutableStateOf(false)
+    /** The sheet's field: kept here, as Stop puts the queue back into it. */
+    val input = TextFieldState()
+    /**
+     * Messages written while Claude replied, oldest first: the next goes when a reply ends without
+     * an error (docs/design/claude.md, "Android").
+     */
+    var queued by mutableStateOf<List<String>>(emptyList())
+        private set
     var messages by mutableStateOf<List<Message>>(emptyList())
     var streaming by mutableStateOf(false)
     var error by mutableStateOf("")
@@ -133,7 +143,41 @@ class ClaudeChatState {
         }
     }
 
-    fun update(json: String) {
+    fun queue(text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isNotEmpty()) queued = queued + trimmed
+    }
+
+    /** The next queued message, taken off the queue; null if there's none. */
+    fun takeQueued(): String? = queued.firstOrNull()?.also { queued = queued.drop(1) }
+
+    fun removeQueued(index: Int) {
+        if (index in queued.indices) queued = queued.filterIndexed { i, _ -> i != index }
+    }
+
+    /** A queued message back into the field, before what's there, to change it. */
+    fun editQueued(index: Int) {
+        val text = queued.getOrNull(index) ?: return
+        removeQueued(index)
+        input.setTextAndPlaceCursorAtEnd(paragraphs(listOf(text, input.text.toString())))
+    }
+
+    /** Stop: what was queued goes back into the field, before what's there. */
+    fun unqueueAll() {
+        if (queued.isEmpty()) return
+        input.setTextAndPlaceCursorAtEnd(paragraphs(queued + input.text.toString()))
+        queued = emptyList()
+    }
+
+    fun clearQueue() {
+        queued = emptyList()
+    }
+
+    private fun paragraphs(texts: List<String>) = texts.map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n\n")
+
+    /** Reads ClaudeBridge's snapshot; true when a reply ended without an error (the queue goes on). */
+    fun update(json: String): Boolean {
+        val wasStreaming = streaming
         val data = JSONObject(json)
         val array = data.optJSONArray("messages")
         messages =
@@ -220,5 +264,6 @@ class ClaudeChatState {
                     Feature(it.optString("key"), it.optBoolean("on"), it.optString("model"))
                 }
             }
+        return wasStreaming && !streaming && error.isEmpty() && !canRetry
     }
 }

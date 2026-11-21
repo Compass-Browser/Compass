@@ -93,11 +93,36 @@ export function getHtml(this: CompassClaudeChatAppElement) {
             @click="${this.onAllowClick_}">Allow</button>
       </div>
     </div>` : nothing}
+  ${this.queued_.length ? html`
+    <div class="queued" id="queued" aria-label="Queued messages">
+      <div class="queued-label">${this.getQueuedLabel_()}</div>
+      ${this.queued_.map((item, index) => html`
+        <div class="queued-item">
+          <button class="queued-text" data-index="${index}"
+              title="Edit" @click="${this.onQueuedEditClick_}">
+            ${item.text}
+          </button>
+          <button class="icon queued-remove" data-index="${index}"
+              title="Remove" aria-label="Remove"
+              @click="${this.onQueuedRemoveClick_}">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M5 5l6 6M11 5l-6 6"></path>
+            </svg>
+          </button>
+        </div>`)}
+    </div>` : nothing}
   <div class="composer">
     <textarea id="input" rows="1" placeholder="Ask Claude…"
         aria-label="Message to Claude" ?disabled="${!this.hasKey_}"
         @input="${this.onInputInput_}"
         @keydown="${this.onInputKeydown_}"></textarea>
+    ${this.canQueue_() ? html`
+      <button class="send" id="queue" title="Send after this reply (Enter)"
+          aria-label="Send after this reply" @click="${this.onQueueClick_}">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M8 12.5v-9M4 7.5l4-4 4 4"></path>
+        </svg>
+      </button>` : nothing}
     ${this.streaming_ ? html`
       <button class="send" id="stop" title="Stop (Esc)" aria-label="Stop"
           @click="${this.onStopClick_}">
