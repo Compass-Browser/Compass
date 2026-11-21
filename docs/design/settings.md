@@ -93,6 +93,6 @@ Claude. `plugins?id=<id>` opens one. Through `SettingsHandler`
 
 - Strings are English only, as on the standalone pages.
 - The menu icons are upstream's closest (`cr:sync`, `settings20:keyboard-lock`,
-  `cr:open-in-new`, `settings20:archive`, `cr:extension`); adding Compass icons means patching settings'
+  `cr:open-in-new`, `settings20:archive`, `settings:chrome-extension`); adding Compass icons means patching settings'
   icons.html.ts (a late `<cr-iconset>` would trip `cr-icon`'s assert).
 - Search doesn't highlight matches inside the sections.

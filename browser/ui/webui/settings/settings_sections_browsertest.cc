@@ -99,6 +99,13 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, MenuOpensEachSection) {
             "/devMode");
   EXPECT_EQ(WaitFor("deepQuery('a#compassPlugins')?.getAttribute('href')"),
             "/plugins");
+  // Every Compass item's icon names one that exists: an unknown name draws
+  // nothing.
+  EXPECT_EQ(WaitFor("[...deepQuery('a#compassPlugins').parentElement"
+                    ".querySelectorAll('a[id^=\"compass\"] cr-icon')]"
+                    ".filter(i => !i.shadowRoot?.querySelector('svg *'))"
+                    ".map(i => i.icon).join(',') || 'all drawn'"),
+            "all drawn");
 
   ASSERT_TRUE(content::ExecJs(contents(), std::string(kDeepQuery) +
                                               "deepQuery('a#compassShortcuts')"

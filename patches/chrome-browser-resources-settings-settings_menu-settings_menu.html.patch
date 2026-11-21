@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html b/chrome/browser/resources/settings/settings_menu/settings_menu.html
-index c35c985ddf3447612e803fc595cdae2b514953a7..018e6f33aa2dfda3e0f28efc4a8f184ff3ce9e40 100644
+index c35c985ddf3447612e803fc595cdae2b514953a7..51c5eb522b93e784fec0521f1cbcd84e8b06c5ca 100644
 --- a/chrome/browser/resources/settings/settings_menu/settings_menu.html
 +++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html
 @@ -2,9 +2,10 @@
@@ -47,7 +47,7 @@ index c35c985ddf3447612e803fc595cdae2b514953a7..018e6f33aa2dfda3e0f28efc4a8f184f
 +        </a>
 +        <a role="menuitem" id="compassPlugins" href="/plugins"
 +            class="cr-nav-menu-item">
-+          <cr-icon icon="cr:extension"></cr-icon>
++          <cr-icon icon="settings:chrome-extension"></cr-icon>
 +          <span class="menu-label">Plugins</span>
 +          <cr-ripple></cr-ripple>
 +        </a>
