@@ -280,6 +280,12 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, AnEmptyTodayTakesNoRoom) {
         await new Promise(resolve => setTimeout(resolve, 20));
       }
       await app.updateComplete;
+      // The entries slide into place (data-flip), from the next frame:
+      // measure where they end.
+      await new Promise(
+          resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await Promise.all(
+          r.getAnimations().map(a => a.finished.catch(() => {})));
       const today = r.querySelector('#today').getBoundingClientRect();
       const header = r.querySelectorAll('#sections > .section-header')[1]
           .getBoundingClientRect();
