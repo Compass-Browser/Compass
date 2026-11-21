@@ -1,4 +1,5 @@
 - Share spaces, folders and easels with other people: touch and hold a pinned folder (or a space's ⋯, or an easel's tab) and tap Share. Invite editors or viewers with a link; everything stays end-to-end encrypted.
-- Open an invite link to join and pick the space it goes in.
 - Sync servers with company sign-in (OIDC): Compass asks you to sign in.
+- Fixed: saving an OpenAI key could erase your Claude settings.
+- Fixed: the Share sheet could keep redrawing and close its menus.
 - Fixed: a new profile could stay at "Starting…" while syncing.
