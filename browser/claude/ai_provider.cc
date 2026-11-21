@@ -197,6 +197,18 @@ std::string ProviderPref(std::string_view base, AIProvider provider) {
   if (provider == AIProvider::kAnthropic) {
     return std::string(base);
   }
+  // The setting's own name, after "compass.claude.".
+  const size_t dot = base.rfind('.');
+  const std::string_view name =
+      dot == std::string_view::npos ? base : base.substr(dot + 1);
+  return base::StrCat(
+      {"compass.ai_providers.", ProviderId(provider), ".", name});
+}
+
+std::string LegacyProviderPref(std::string_view base, AIProvider provider) {
+  if (provider == AIProvider::kAnthropic) {
+    return std::string();
+  }
   return base::StrCat({base, ".", ProviderId(provider)});
 }
 

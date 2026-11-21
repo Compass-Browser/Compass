@@ -258,6 +258,46 @@ TEST(ClaudeApiTest, OtherProviders) {
   EXPECT_EQ((*models)[0].id, "gemini-2.5-flash");
 }
 
+// Settings saved under the names ProviderPref() gave before move to the
+// new ones, and what they left in Anthropic's settings goes.
+TEST(ClaudeApiTest, MigratesProviderPrefs) {
+  TestingPrefServiceSimple prefs;
+  prefs::RegisterProfilePrefs(prefs.registry());
+  // As the old names left them: OpenAI's values, and Anthropic's key a
+  // dictionary holding them.
+  prefs.SetString("compass.claude.api_key.openai", "encrypted-openai");
+  prefs.SetString("compass.claude.model.openai", "gpt-6.2-sol");
+  prefs.SetUserPref(prefs::kApiKey,
+                    base::Value(base::DictValue().Set("openai", "x")));
+  // A setting the user set under both: the new one stays.
+  prefs.SetString("compass.claude.base_url.gemini", "https://old.example/");
+  prefs.SetString(prefs::ProviderPref(prefs::kBaseUrl, AIProvider::kGemini),
+                  "https://new.example/");
+  // Anthropic's own value, untouched.
+  prefs.SetString(prefs::kModel, "claude-sonnet-5-5");
+
+  prefs::MigrateProviderPrefs(&prefs);
+
+  EXPECT_EQ(prefs.GetString(
+                prefs::ProviderPref(prefs::kApiKey, AIProvider::kOpenAI)),
+            "encrypted-openai");
+  EXPECT_EQ(prefs.GetString(
+                prefs::ProviderPref(prefs::kModel, AIProvider::kOpenAI)),
+            "gpt-6.2-sol");
+  EXPECT_EQ(prefs.GetString(
+                prefs::ProviderPref(prefs::kBaseUrl, AIProvider::kGemini)),
+            "https://new.example/");
+  EXPECT_FALSE(prefs.HasPrefPath("compass.claude.api_key.openai"));
+  EXPECT_FALSE(prefs.HasPrefPath("compass.claude.base_url.gemini"));
+  EXPECT_FALSE(prefs.FindPreference(prefs::kApiKey)->HasUserSetting());
+  EXPECT_EQ(prefs.GetString(prefs::kApiKey), "");
+  EXPECT_EQ(prefs.GetString(prefs::kModel), "claude-sonnet-5-5");
+
+  // Again: nothing more to do.
+  prefs::MigrateProviderPrefs(&prefs);
+  EXPECT_EQ(prefs.GetString(prefs::kModel), "claude-sonnet-5-5");
+}
+
 // Each provider keeps its own key, base URL and models; Anthropic's names
 // don't change.
 TEST(ClaudeApiTest, ProviderPrefs) {
@@ -266,7 +306,11 @@ TEST(ClaudeApiTest, ProviderPrefs) {
   EXPECT_EQ(prefs::CurrentProvider(prefs), AIProvider::kAnthropic);
   EXPECT_EQ(prefs::CurrentPref(prefs, prefs::kModel), prefs::kModel);
   EXPECT_EQ(prefs::ProviderPref(prefs::kTidyTodayModel, AIProvider::kOpenAI),
-            "compass.claude.tidy_today_model.openai");
+            "compass.ai_providers.openai.tidy_today_model");
+  // Never under Anthropic's own name, which prefs' dotted paths would turn
+  // into a dictionary.
+  EXPECT_EQ(prefs::ProviderPref(prefs::kApiKey, AIProvider::kGemini),
+            "compass.ai_providers.gemini.api_key");
 
   prefs.SetString(prefs::kBaseUrl, "https://gw.example.com/a");
   prefs.SetString(prefs::kProvider, "gemini");

@@ -6,6 +6,7 @@
 #define COMPASS_BROWSER_CLAUDE_CLAUDE_PREFS_H_
 
 class PrefRegistrySimple;
+class PrefService;
 
 // The Claude settings of a profile (docs/design/claude.md, "Settings"). None
 // of them sync: a key belongs to the device it was typed on. (The memories
@@ -118,6 +119,11 @@ enum class FilesAccess {
 
 // Called by compass::RegisterCompassProfilePrefs().
 void RegisterProfilePrefs(PrefRegistrySimple* registry);
+
+// Moves other providers' settings from the names they had before to
+// ProviderPref()'s, and drops what that left in Anthropic's (see
+// ProviderPref()). Called by compass::MigrateCompassProfilePrefs().
+void MigrateProviderPrefs(PrefService* prefs);
 
 }  // namespace compass::claude::prefs
 

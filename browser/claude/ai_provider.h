@@ -81,11 +81,21 @@ namespace compass::claude::prefs {
 // Who answers (ProviderId()); "anthropic" by default.
 inline constexpr char kProvider[] = "compass.claude.provider";
 
-// A per-provider setting's name: Anthropic's as it always was (|base|),
-// another's with ".<ProviderId()>" after it
-// ("compass.claude.tidy_today_model.openai"). The key, its hint, the base
-// URL, the chat's model and each sidebar feature's model are per provider.
+// A per-provider setting's name: Anthropic's as it always was (|base|, a
+// "compass.claude." name), another's under its own
+// "compass.ai_providers.<ProviderId()>." with |base|'s last part
+// ("compass.ai_providers.openai.tidy_today_model"). The key, its hint, the
+// base URL, the chat's model and each sidebar feature's model are per
+// provider.
+//
+// Not "<base>.<id>": prefs are stored by dotted path, so that made
+// Anthropic's string pref a dictionary of the other providers' values,
+// losing Anthropic's (see MigrateProviderPrefs()).
 std::string ProviderPref(std::string_view base, AIProvider provider);
+
+// The name ProviderPref() gave before ("<base>.<id>"), kept registered only
+// for MigrateProviderPrefs(). Empty for Anthropic.
+std::string LegacyProviderPref(std::string_view base, AIProvider provider);
 
 // The provider prefs::kProvider names.
 AIProvider CurrentProvider(const PrefService& prefs);

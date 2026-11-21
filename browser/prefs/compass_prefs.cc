@@ -22,4 +22,9 @@ void RegisterCompassProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref("compass.rooms.display_name", std::string());
 }
 
+void MigrateCompassProfilePrefs(PrefService* prefs) {
+  // Other AI providers' settings (docs/design/ai-providers.md, "Settings").
+  claude::prefs::MigrateProviderPrefs(prefs);
+}
+
 }  // namespace compass

@@ -298,7 +298,7 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest,
   EXPECT_TRUE(state->has_key);
   EXPECT_TRUE(state->set_up);
   EXPECT_TRUE(base::EndsWith(state->key_hint, "5678"));
-  EXPECT_FALSE(prefs()->GetString("compass.claude.api_key.openai").empty());
+  EXPECT_FALSE(prefs()->GetString("compass.ai_providers.openai.api_key").empty());
   EXPECT_EQ(prefs()->GetString(prefs::kApiKey), anthropic_key);
   base::test::TestFuture<std::optional<std::string>> key;
   ClaudeCredentials::GetApiKey(browser()->GetProfile(), key.GetCallback());
@@ -312,14 +312,14 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest,
   remote_->SetCommandBarAskModel("gpt-6.2-astra");
   state = State();
   EXPECT_EQ(state->model, "gpt-6.2-sol");
-  EXPECT_EQ(prefs()->GetString("compass.claude.model.openai"), "gpt-6.2-sol");
-  EXPECT_EQ(prefs()->GetString("compass.claude.name_link_folders_model.openai"),
+  EXPECT_EQ(prefs()->GetString("compass.ai_providers.openai.model"), "gpt-6.2-sol");
+  EXPECT_EQ(prefs()->GetString("compass.ai_providers.openai.name_link_folders_model"),
             "gpt-6.2-astra");
-  EXPECT_EQ(prefs()->GetString("compass.claude.tidy_today_model.openai"),
+  EXPECT_EQ(prefs()->GetString("compass.ai_providers.openai.tidy_today_model"),
             "gpt-6.2-sol");
-  EXPECT_EQ(prefs()->GetString("compass.claude.short_tab_titles_model.openai"),
+  EXPECT_EQ(prefs()->GetString("compass.ai_providers.openai.short_tab_titles_model"),
             "gpt-6.1-terra");
-  EXPECT_EQ(prefs()->GetString("compass.claude.command_bar_ask_model.openai"),
+  EXPECT_EQ(prefs()->GetString("compass.ai_providers.openai.command_bar_ask_model"),
             "gpt-6.2-astra");
   EXPECT_EQ(prefs()->GetString(prefs::kModel), kDefaultModel);
   EXPECT_EQ(prefs()->GetString(prefs::kNameLinkFoldersModel),
@@ -341,7 +341,7 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest,
             static_cast<int>(AuthStyle::kApiKey));
   EXPECT_TRUE(SetEndpoint("https://proxy.example.com/openai/v1"));
   EXPECT_EQ(State()->base_url, "https://proxy.example.com/openai/v1");
-  EXPECT_EQ(prefs()->GetString("compass.claude.base_url.openai"),
+  EXPECT_EQ(prefs()->GetString("compass.ai_providers.openai.base_url"),
             "https://proxy.example.com/openai/v1");
   EXPECT_EQ(prefs()->GetString(prefs::kBaseUrl), "");
 
@@ -386,7 +386,7 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, CompatibleServer) {
   state = State();
   EXPECT_TRUE(state->set_up);
   EXPECT_FALSE(state->has_key);
-  EXPECT_EQ(prefs()->GetString("compass.claude.base_url.compatible"),
+  EXPECT_EQ(prefs()->GetString("compass.ai_providers.compatible.base_url"),
             state->base_url);
   EXPECT_EQ(prefs()->GetString(prefs::kBaseUrl), "");
   result = Test();
@@ -395,7 +395,10 @@ IN_PROC_BROWSER_TEST_F(ClaudeSettingsHandlerBrowserTest, CompatibleServer) {
   EXPECT_EQ(result->models[0]->id, "llama-4");
 
   remote_->SetModel("llama-4");
-  EXPECT_EQ(prefs()->GetString("compass.claude.model.compatible"), "llama-4");
+  // The setter has no reply: wait for it to arrive.
+  remote_.FlushForTesting();
+  EXPECT_EQ(prefs()->GetString("compass.ai_providers.compatible.model"),
+            "llama-4");
   EXPECT_EQ(prefs()->GetString(prefs::kModel), kDefaultModel);
 
   // Empty is no server, not a bad URL.

@@ -169,8 +169,13 @@ Google Gemini, Other (OpenAI-compatible).
   its auth style; OpenAI and Gemini use theirs; Other needs one (the same
   rules: https, or http to this device).
 - **Models per provider:** the chat's and each sidebar feature's. The
-  Anthropic keys stay as they are; another provider's add `.<provider>`
-  (`compass.claude.tidy_today_model.openai`). Defaults until Test
+  Anthropic keys stay as they are; another provider's live under
+  `compass.ai_providers.<provider>.`
+  (`compass.ai_providers.openai.tidy_today_model`). They were
+  `<Anthropic's name>.<provider>` until 2026-11-21, which prefs' dotted
+  paths stored inside Anthropic's own setting, replacing it; upstream's
+  `MigrateObsoleteProfilePrefs()` calls `MigrateProviderPrefs()`, which
+  moves them and clears what they left there. Defaults until Test
   connection lists the key's models:
 
   | | chat | sidebar | command bar |
@@ -228,8 +233,9 @@ at once (the loop already runs them one after the other).
     names, base URL, default and known models, key placeholder and privacy
     note, as iOS's; `prefs::kProvider` (`compass.claude.provider`, a
     provider id, "anthropic" by default) and the per-provider pref names:
-    `ProviderPref()` (Anthropic's as they were, another's with
-    `.<provider>`), `CurrentPref()`, and `ObserveProviderPrefs()` for
+    `ProviderPref()` (Anthropic's as they were, another's under
+    `compass.ai_providers.<provider>.`), `CurrentPref()`, and
+    `ObserveProviderPrefs()` for
     whoever follows the key or the models. `claude_prefs.cc` registers
     every provider's key, hint, base URL, chat model and the four sidebar
     features' models, with the defaults above.

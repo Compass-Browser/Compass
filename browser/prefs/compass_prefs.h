@@ -6,6 +6,7 @@
 #define COMPASS_BROWSER_PREFS_COMPASS_PREFS_H_
 
 class PrefRegistrySimple;
+class PrefService;
 
 namespace compass {
 
@@ -44,6 +45,11 @@ inline constexpr char kDevModeHosts[] = "compass.dev_mode.hosts";
 // Compass's own profile prefs. Called by upstream's RegisterProfilePrefs()
 // (patches/chrome-browser-prefs-browser_prefs.cc.patch).
 void RegisterCompassProfilePrefs(PrefRegistrySimple* registry);
+
+// Moves Compass's profile prefs whose names changed. Called by upstream's
+// MigrateObsoleteProfilePrefs() (see
+// patches/chrome-browser-prefs-browser_prefs.cc.patch) as a profile loads.
+void MigrateCompassProfilePrefs(PrefService* prefs);
 
 }  // namespace compass
 
