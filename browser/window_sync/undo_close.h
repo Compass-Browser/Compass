@@ -12,6 +12,7 @@ namespace compass {
 class ClosedEntries;
 class LiveTabRegistry;
 class SidebarNode;
+class WindowFeatures;
 
 // Cmd+Z and Cmd+Shift+Z for the sidebar entries the user closed, from a
 // profile's ClosedEntries. See docs/design/sidebar.md, "Undo closing".
@@ -35,6 +36,12 @@ bool RedoClose(BrowserWindowInterface* browser);
 // Returns false if no window with a bridge has it (it's unloaded, or
 // parked).
 bool CloseLiveTab(LiveTabRegistry& registry, const SidebarNode& tab_node);
+
+// Closes the sidebar entry |node| (a tab or a split) of |features|' space
+// or the favorites, as its × does, as one step for Cmd+Z: a live tab closes
+// in its window (a pinned one or a favorite stays, unloaded), an unloaded
+// Today entry goes. The sidebar's × and the recent tabs switcher's W.
+void CloseSidebarEntry(WindowFeatures& features, SidebarNode* node);
 
 // Tells |closed| that the live tabs under |node| are about to close for the
 // step just recorded.

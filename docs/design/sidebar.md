@@ -737,7 +737,11 @@ as Arc's does, rather than down the sidebar.
   favicon and title, the picked one outlined. The row fits the window: cards
   shrink (screenshots 200 down to 140 DIP wide, 16:10), then show as many as
   fit, the row sliding to keep the picked one in view. While it shows, ← → move,
-  Return or Space switch, Esc stays, and a click on a card switches. A quick
+  Return or Space switch, Esc stays, and a click on a card switches. W
+  (Ctrl+W, Ctrl being held) closes the picked card's entry as its × in the
+  sidebar does (`CloseSidebarEntry()`, `undo_close.h`, which the × uses
+  too: a pinned entry or favorite stays, unloaded; one step for Cmd+Z), and
+  the cards show again without it, the next one picked. A quick
   tap switches without the cards.
 - **Which entries.** The window's space (Pinned and Today) and the
   favorites, by `SidebarNode::last_active()` (the time `TabStripBridge`
@@ -768,7 +772,8 @@ as Arc's does, rather than down the sidebar.
   Ctrl+Tab is Next tab again.
 - **Tests:** `RecentEntriesTest.*`; `CompassSidebarBrowserTest.
   RecentTabsSwitcherTap`, `RecentTabsSwitcherCards` and
-  `RecentTabsSwitcherFits` (the narrowest window, six tabs);
+  `RecentTabsSwitcherFits` (the narrowest window, six tabs) and
+  `RecentTabsSwitcherClose`;
   `CompassShortcutsBrowserTest.SettingsPage` (the setting).
 - **Not tried by hand on Windows or Linux** yet; the aura key handling is
   built only there.

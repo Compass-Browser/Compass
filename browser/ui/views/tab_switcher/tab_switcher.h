@@ -56,6 +56,9 @@ class TabSwitcher : public SwitcherKeys::Delegate {
   // Switches to the picked entry, or goes back, and ends.
   void Commit();
   void Cancel();
+  // Closes the picked entry, as its × in the sidebar does (Cmd+Z brings it
+  // back), and goes on with the rest; the next one is picked.
+  void CloseSelected();
 
   bool IsActive() const { return !entries_.empty(); }
   // Tests can't hold Ctrl: Step() acts as if it were held.
@@ -70,6 +73,7 @@ class TabSwitcher : public SwitcherKeys::Delegate {
   void OnCancel() override;
   void OnCommit() override;
   void OnMove(int step) override;
+  void OnClose() override;
 
  private:
   struct Entry {
@@ -89,6 +93,9 @@ class TabSwitcher : public SwitcherKeys::Delegate {
   std::unique_ptr<TabSwitcherBubble> bubble_;
   ui::ScopedUnownedUserData<TabSwitcher> scoped_data_holder_;
   base::WeakPtrFactory<TabSwitcher> weak_factory_{this};
+  // For the cards' closed callback: invalidated before the switcher closes
+  // them itself to show them again.
+  base::WeakPtrFactory<TabSwitcher> bubble_weak_factory_{this};
 };
 
 // Runs Ctrl+Tab and Ctrl+Shift+Tab (IDC_CYCLE_TO_NEXT_TAB and _PREV_TAB) as

@@ -80,6 +80,7 @@
 #include "compass/browser/ui/views/frame/window_frame.h"
 #include "compass/browser/ui/views/tab_switcher/tab_switcher.h"
 #include "compass/browser/ui/views/tab_switcher/tab_switcher_view.h"
+#include "compass/browser/window_sync/undo_close.h"
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "compass/browser/ui/views/sidebar/tab_preview_view.h"
@@ -2489,6 +2490,47 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, RecentTabsSwitcherCards) {
   EXPECT_EQ(active_title(), "One");
   EXPECT_FALSE(switcher->IsActive());
   TabSwitcher::SetControlHeldForTesting(false);
+}
+
+// W closes the picked card's entry, as its × does; the switch goes on with
+// the rest, and Cmd+Z brings it back.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, RecentTabsSwitcherClose) {
+  ASSERT_NO_FATAL_FAILURE(OpenThreeTabs(browser(), sidebar_contents()));
+  SpaceModel& model = WindowFeatures::From(browser())->space_model();
+  const base::Time now = base::Time::Now();
+  model.SetLastActive(model.today_root()->children()[0].get(),
+                      now - base::Hours(3));
+  model.SetLastActive(model.today_root()->children()[1].get(),
+                      now - base::Hours(1));
+  TabStripModel* tabs = browser()->tab_strip_model();
+  auto active_title = [&] {
+    return base::UTF16ToUTF8(tabs->GetActiveWebContents()->GetTitle());
+  };
+  TabSwitcher* switcher = TabSwitcher::From(browser());
+  TabSwitcher::SetControlHeldForTesting(true);
+
+  // Three, Two, One: Two is picked.
+  ASSERT_TRUE(chrome::ExecuteCommand(browser(), IDC_CYCLE_TO_NEXT_TAB));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return switcher->IsShowingForTesting();
+  }));
+  switcher->OnClose();
+  EXPECT_EQ(tabs->count(), 2);
+  EXPECT_EQ(model.today_root()->children().size(), 2u);
+  // Still switching, the cards shown again without it; One is picked.
+  ASSERT_TRUE(switcher->IsActive());
+  EXPECT_TRUE(switcher->IsShowingForTesting());
+  EXPECT_EQ(switcher->entry_count_for_testing(), 2u);
+  EXPECT_EQ(switcher->view_for_testing()->children().size(), 2u);
+  EXPECT_EQ(switcher->selected_for_testing(), 1u);
+  EXPECT_EQ(active_title(), "Three");
+  switcher->OnControlReleased();
+  EXPECT_EQ(active_title(), "One");
+  TabSwitcher::SetControlHeldForTesting(false);
+
+  // As the sidebar's ×: one step for Cmd+Z.
+  EXPECT_TRUE(UndoClose(browser()));
+  EXPECT_EQ(model.today_root()->children().size(), 3u);
 }
 
 // The cards fit the window: they shrink, then show a few at a time, the row

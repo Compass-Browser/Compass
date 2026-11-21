@@ -195,4 +195,70 @@ void ExpectLiveTabsToClose(LiveTabRegistry& registry,
   }
 }
 
+namespace {
+
+// One tab of an entry. |recorded|: its removal is already in the step (a
+// Today split's), so only what happens to its live tab is.
+void CloseTabEntry(WindowFeatures& features,
+                   SpaceModel& model,
+                   SidebarNode* tab_node,
+                   bool recorded) {
+  ClosedEntries& closed = features.service().closed_entries();
+  // Open in a window, this one or another: it closes there, as Cmd+W would,
+  // and that window's bridge records it (a pinned tab stays, unloaded).
+  if (features.registry().GetTab(tab_node)) {
+    if (recorded) {
+      closed.ExpectClose(tab_node->id());
+    }
+    if (CloseLiveTab(features.registry(), *tab_node)) {
+      return;
+    }
+    if (recorded) {
+      closed.TakeExpectedClose(tab_node->id());
+    }
+  }
+  if (!recorded) {
+    closed.RecordRemoval(model, *tab_node);
+  }
+  model.Remove(tab_node);
+}
+
+}  // namespace
+
+void CloseSidebarEntry(WindowFeatures& features, SidebarNode* node) {
+  SpaceModel& favorites = features.service().space_list().favorites();
+  SpaceModel& model =
+      favorites.Contains(node) ? favorites : features.space_model();
+  ClosedEntries& closed = features.service().closed_entries();
+  // Whatever closes is one step for Cmd+Z.
+  ClosedEntries::ScopedStep step(closed);
+  switch (node->type()) {
+    case SidebarNode::Type::kTab:
+      CloseTabEntry(features, model, node, /*recorded=*/false);
+      break;
+    case SidebarNode::Type::kSplit: {
+      // A Today split comes back whole. A pinned one stays, and each pane
+      // records what happens to it.
+      const bool recorded = !model.pinned_root()->Contains(node);
+      if (recorded) {
+        closed.RecordRemoval(model, *node);
+      }
+      // Closing a pane can dissolve the split, so go by ID.
+      std::vector<base::Uuid> panes;
+      for (const auto& pane : node->children()) {
+        panes.push_back(pane->id());
+      }
+      for (const base::Uuid& pane_id : panes) {
+        if (SidebarNode* pane = model.FindById(pane_id)) {
+          CloseTabEntry(features, model, pane, recorded);
+        }
+      }
+      break;
+    }
+    case SidebarNode::Type::kRoot:
+    case SidebarNode::Type::kFolder:
+      break;
+  }
+}
+
 }  // namespace compass

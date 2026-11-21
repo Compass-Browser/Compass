@@ -4,6 +4,7 @@
 
 #include "compass/browser/ui/views/tab_switcher/tab_switcher.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -22,6 +23,7 @@
 #include "compass/browser/window_sync/live_tab_registry.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/tab_strip_bridge.h"
+#include "compass/browser/window_sync/undo_close.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
@@ -149,7 +151,7 @@ void TabSwitcher::Show() {
       widget, std::move(cards), selected_,
       base::BindRepeating(&TabSwitcher::Pick, weak_factory_.GetWeakPtr()),
       // The cards went with their window: the switch ends there.
-      base::BindOnce(&TabSwitcher::End, weak_factory_.GetWeakPtr()));
+      base::BindOnce(&TabSwitcher::End, bubble_weak_factory_.GetWeakPtr()));
 }
 
 TabSwitcherView* TabSwitcher::view_for_testing() {
@@ -211,6 +213,46 @@ void TabSwitcher::OnCancel() {
 
 void TabSwitcher::OnCommit() {
   Commit();
+}
+
+void TabSwitcher::OnClose() {
+  CloseSelected();
+}
+
+void TabSwitcher::CloseSelected() {
+  if (!IsActive()) {
+    return;
+  }
+  WindowFeatures* features = WindowFeatures::From(browser_);
+  if (!features) {
+    return;
+  }
+  const Entry picked = entries_[selected_];
+  entries_.erase(entries_.begin() + selected_);
+  SpaceModel& model =
+      picked.favorite ? Favorites(*features) : features->space_model();
+  if (SidebarNode* node = model.FindById(picked.tab)) {
+    CloseSidebarEntry(*features, node);
+  }
+  // Closing may have closed others too (the last tab of the window's
+  // space closing it, say): keep only what's still there.
+  std::erase_if(entries_, [&](const Entry& entry) {
+    SpaceModel& m =
+        entry.favorite ? Favorites(*features) : features->space_model();
+    return !m.FindById(entry.tab);
+  });
+  if (entries_.empty()) {
+    End();
+    return;
+  }
+  selected_ = std::min(selected_, entries_.size() - 1);
+  if (bubble_) {
+    // The cards again, without the closed one.
+    bubble_weak_factory_.InvalidateWeakPtrs();
+    std::unique_ptr<TabSwitcherBubble> bubble = std::move(bubble_);
+    bubble.reset();
+    Show();
+  }
 }
 
 void TabSwitcher::End() {

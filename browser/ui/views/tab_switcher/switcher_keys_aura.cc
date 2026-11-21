@@ -82,6 +82,11 @@ class SwitcherKeysAura : public SwitcherKeys, public ui::EventHandler {
         event->StopPropagation();
         delegate_->OnMove(1);
         return;
+      case ui::VKEY_W:
+        // Before Ctrl+W's Close tab, which this replaces while switching.
+        event->StopPropagation();
+        delegate_->OnClose();
+        return;
       default:
         // Ctrl+Tab again goes on to its command, which moves the switcher.
         return;

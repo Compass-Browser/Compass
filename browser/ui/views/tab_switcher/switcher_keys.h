@@ -25,6 +25,8 @@ class SwitcherKeys {
     virtual void OnCommit() = 0;
     // The arrow keys: -1 for left, 1 for right.
     virtual void OnMove(int step) = 0;
+    // W (Ctrl+W, Ctrl being held): closes the picked entry.
+    virtual void OnClose() = 0;
 
    protected:
     virtual ~Delegate() = default;

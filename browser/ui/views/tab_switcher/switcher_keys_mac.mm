@@ -39,6 +39,12 @@ class SwitcherKeysMac : public SwitcherKeys {
       }
       return event;
     }
+    // W by the character it types, whatever the keyboard's layout.
+    if ([event.charactersIgnoringModifiers.lowercaseString
+            isEqualToString:@"w"]) {
+      delegate->OnClose();
+      return nil;
+    }
     switch (event.keyCode) {
       case kVK_Escape:
         delegate->OnCancel();

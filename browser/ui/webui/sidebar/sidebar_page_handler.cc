@@ -416,39 +416,8 @@ void SidebarPageHandler::ActivateNode(const std::string& id) {
 }
 
 void SidebarPageHandler::CloseNode(const std::string& id) {
-  SidebarNode* node = FindNode(id);
-  if (!node) {
-    return;
-  }
-  // Whatever closes is one step for Cmd+Z.
-  ClosedEntries::ScopedStep step(closed_entries());
-  switch (node->type()) {
-    case SidebarNode::Type::kTab:
-      CloseTabNode(node);
-      break;
-    case SidebarNode::Type::kSplit: {
-      // A Today split comes back whole. A pinned one stays, and each pane
-      // records what happens to it.
-      const bool recorded = !space_model().pinned_root()->Contains(node);
-      if (recorded) {
-        closed_entries().RecordRemoval(space_model(), *node);
-      }
-      // Closing a pane can dissolve the split, so go by ID.
-      std::vector<base::Uuid> panes;
-      for (const auto& pane : node->children()) {
-        panes.push_back(pane->id());
-      }
-      for (const base::Uuid& pane_id : panes) {
-        if (SidebarNode* pane = space_model().FindById(pane_id)) {
-          CloseTabNode(pane, recorded);
-        }
-      }
-      break;
-    }
-    case SidebarNode::Type::kRoot:
-    case SidebarNode::Type::kFolder:
-      // Folders come with slice c.
-      break;
+  if (SidebarNode* node = FindNode(id)) {
+    CloseSidebarEntry(*features_, node);
   }
 }
 
