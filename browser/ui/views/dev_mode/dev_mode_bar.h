@@ -5,11 +5,16 @@
 #ifndef COMPASS_BROWSER_UI_VIEWS_DEV_MODE_DEV_MODE_BAR_H_
 #define COMPASS_BROWSER_UI_VIEWS_DEV_MODE_DEV_MODE_BAR_H_
 
+#include <string>
+#include <string_view>
+
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/views/controls/textfield/textfield_controller.h"
 #include "ui/views/view.h"
 #include "ui/views/view_observer.h"
 
@@ -30,7 +35,8 @@ namespace compass {
 // (GetContentsTopBarHeight()); DevModeController adds and removes it.
 class DevModeBar : public views::View,
                    public content::WebContentsObserver,
-                   public views::ViewObserver {
+                   public views::ViewObserver,
+                   public views::TextfieldController {
   METADATA_HEADER(DevModeBar, views::View)
 
  public:
@@ -67,12 +73,20 @@ class DevModeBar : public views::View,
   // views::ViewObserver:
   void OnViewBoundsChanged(views::View* observed_view) override;
   void OnViewIsDeleting(views::View* observed_view) override;
+  void OnViewFocused(views::View* observed_view) override;
+  void OnViewBlurred(views::View* observed_view) override;
+
+  // views::TextfieldController:
+  bool HandleKeyEvent(views::Textfield* sender,
+                      const ui::KeyEvent& key_event) override;
 
  private:
   void UpdateUrl();
   void UpdateIcons();
   void PlaceInContainer();
   void ShowCopied(bool copied);
+  // Loads what was typed in the URL field, fixed up as the omnibox does.
+  void Navigate(std::u16string_view text);
 
   raw_ptr<ContentsContainerView> container_;
   raw_ptr<views::Textfield> url_ = nullptr;
@@ -85,6 +99,9 @@ class DevModeBar : public views::View,
   base::OneShotTimer copied_timer_;
   base::ScopedObservation<views::View, views::ViewObserver>
       container_observation_{this};
+  base::ScopedObservation<views::View, views::ViewObserver> url_observation_{
+      this};
+  base::WeakPtrFactory<DevModeBar> weak_factory_{this};
 };
 
 }  // namespace compass

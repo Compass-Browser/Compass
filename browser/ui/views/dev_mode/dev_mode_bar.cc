@@ -11,6 +11,7 @@
 
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -21,6 +22,8 @@
 #include "compass/browser/ui/views/frame/content_frame.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/devtools_manager_delegate.h"
+#include "components/url_formatter/url_fixer.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkPath.h"
@@ -39,7 +42,12 @@
 #include "ui/views/border.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
+#include "ui/base/page_transition_types.h"
+#include "ui/events/event.h"
+#include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/textfield/textfield.h"
+#include "url/url_constants.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/view_utils.h"
 
@@ -85,16 +93,22 @@ DevModeBar::DevModeBar(ContentsContainerView* container)
   layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kCenter);
 
-  // A read-only field rather than a label: the whole URL can be selected
-  // and scrolled through, however long.
+  // The full URL, which can be edited: Enter goes there in this pane, Esc
+  // or leaving the field puts the page's back.
   auto url = std::make_unique<views::Textfield>();
-  url->SetReadOnly(true);
   url->SetBorder(views::NullBorder());
   url->SetBackgroundEnabled(false);
   url->SetTextColorId(ui::kColorSysOnSurface);
+  url->SetTextInputType(ui::TEXT_INPUT_TYPE_URL);
   url->GetViewAccessibility().SetName(u"Page address");
+  url->set_controller(this);
+  // Plain text on the bar: no hover wash or focus ring, which would draw a
+  // box around most of it.
+  url->RemoveHoverEffect();
   url_ = AddChildView(std::move(url));
+  views::FocusRing::Remove(url_);
   layout->SetFlexForView(url_, 1);
+  url_observation_.Observe(url_);
 
   const auto add_button = [this](void (DevModeBar::*action)(),
                                  std::u16string tooltip) {
@@ -210,12 +224,74 @@ void DevModeBar::WebContentsDestroyed() {
 }
 
 void DevModeBar::OnViewBoundsChanged(views::View* observed_view) {
-  PlaceInContainer();
+  if (observed_view == container_) {
+    PlaceInContainer();
+  }
 }
 
 void DevModeBar::OnViewIsDeleting(views::View* observed_view) {
+  if (observed_view == url_) {
+    url_observation_.Reset();
+    return;
+  }
   container_observation_.Reset();
   container_ = nullptr;
+}
+
+void DevModeBar::OnViewFocused(views::View* observed_view) {
+  // As the address bar: the whole URL, ready to replace. After the click
+  // that focused it, which would put the caret where it landed.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](base::WeakPtr<DevModeBar> bar) {
+                       if (bar && bar->url_->HasFocus()) {
+                         bar->url_->SelectAll(/*reversed=*/false);
+                       }
+                     },
+                     weak_factory_.GetWeakPtr()));
+}
+
+void DevModeBar::OnViewBlurred(views::View* observed_view) {
+  // What was typed and not sent goes.
+  UpdateUrl();
+}
+
+bool DevModeBar::HandleKeyEvent(views::Textfield* sender,
+                                const ui::KeyEvent& key_event) {
+  if (key_event.type() != ui::EventType::kKeyPressed) {
+    return false;
+  }
+  if (key_event.key_code() == ui::VKEY_RETURN) {
+    Navigate(url_->GetText());
+    return true;
+  }
+  if (key_event.key_code() == ui::VKEY_ESCAPE) {
+    if (content::WebContents* contents = web_contents()) {
+      contents->Focus();
+    }
+    UpdateUrl();
+    return true;
+  }
+  return false;
+}
+
+void DevModeBar::Navigate(std::u16string_view text) {
+  content::WebContents* contents = web_contents();
+  if (!contents) {
+    return;
+  }
+  // As the omnibox fixes up what's typed: "localhost:3000" is a URL.
+  const GURL url = url_formatter::FixupURL(base::UTF16ToUTF8(text),
+                                           std::string());
+  if (!url.is_valid() || url.SchemeIs(url::kJavaScriptScheme)) {
+    UpdateUrl();
+    return;
+  }
+  content::NavigationController::LoadURLParams params(url);
+  params.transition_type = ui::PageTransitionFromInt(
+      ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
+  contents->GetController().LoadURLWithParams(params);
+  contents->Focus();
 }
 
 void DevModeBar::UpdateUrl() {
@@ -223,6 +299,10 @@ void DevModeBar::UpdateUrl() {
   const std::u16string url =
       contents ? base::UTF8ToUTF16(contents->GetVisibleURL().spec())
                : std::u16string();
+  // Not under the user's typing.
+  if (url_->HasFocus()) {
+    return;
+  }
   if (url_->GetText() != url) {
     url_->SetText(url);
     // The start of the URL, not wherever the caret was.

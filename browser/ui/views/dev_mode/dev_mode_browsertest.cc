@@ -30,9 +30,12 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/test_navigation_observer.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/events/event.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/views/controls/textfield/textfield.h"
 
 namespace compass {
@@ -119,6 +122,36 @@ IN_PROC_BROWSER_TEST_F(DevModeBrowserTest, BarTakesTheTopOfThePane) {
   ASSERT_TRUE(base::test::RunUntil([&] { return bar() == nullptr; }));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return pane()->contents_view()->y() == page_top; }));
+}
+
+// The URL can be edited: Enter goes there, a javascript: URL doesn't run,
+// Esc puts the page's URL back.
+IN_PROC_BROWSER_TEST_F(DevModeBrowserTest, EditingTheUrlNavigates) {
+  ASSERT_TRUE(dev_mode::AddHost(prefs(), "127.0.0.1"));
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  ASSERT_TRUE(base::test::RunUntil([&] { return bar() != nullptr; }));
+  views::Textfield* field = bar()->url_field_for_testing();
+  const ui::KeyEvent enter(ui::EventType::kKeyPressed, ui::VKEY_RETURN,
+                           ui::EF_NONE);
+  const ui::KeyEvent escape(ui::EventType::kKeyPressed, ui::VKEY_ESCAPE,
+                            ui::EF_NONE);
+
+  field->SetText(u"javascript:document.title='ran'");
+  EXPECT_TRUE(bar()->HandleKeyEvent(field, enter));
+  EXPECT_NE(contents()->GetTitle(), u"ran");
+  EXPECT_EQ(field->GetText(), base::UTF8ToUTF16(url.spec()));
+
+  field->SetText(u"somewhere typed");
+  EXPECT_TRUE(bar()->HandleKeyEvent(field, escape));
+  EXPECT_EQ(field->GetText(), base::UTF8ToUTF16(url.spec()));
+
+  const GURL other = embedded_test_server()->GetURL("/title2.html");
+  field->SetText(base::UTF8ToUTF16(other.spec()));
+  content::TestNavigationObserver observer(contents());
+  EXPECT_TRUE(bar()->HandleKeyEvent(field, enter));
+  observer.Wait();
+  EXPECT_EQ(contents()->GetLastCommittedURL(), other);
 }
 
 // The shortcut's command turns it on and off for the page's site.
