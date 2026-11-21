@@ -37,6 +37,7 @@
 
 class PrefService;
 class Profile;
+class KeywordEditorController;
 class ProfileResetter;
 
 namespace content {
@@ -87,6 +88,14 @@ class SettingsWindowHandler
   void SetAsDefaultBrowser() override;
   void GetSearchEngines(GetSearchEnginesCallback callback) override;
   void SetDefaultSearchEngine(const std::string& id) override;
+  void GetSearchEngineDetails(GetSearchEngineDetailsCallback callback) override;
+  void SaveSearchEngine(const std::string& id,
+                        const std::string& name,
+                        const std::string& keyword,
+                        const std::string& url,
+                        SaveSearchEngineCallback callback) override;
+  void RemoveSearchEngine(const std::string& id) override;
+  void SetSearchEngineActive(const std::string& id, bool active) override;
   void GetDownloadLocation(GetDownloadLocationCallback callback) override;
   void ChooseDownloadLocation() override;
   void GetFonts(GetFontsCallback callback) override;
@@ -162,6 +171,8 @@ class SettingsWindowHandler
   void OnPrefChanged(const std::string& name);
   // settings_window_handler_general.cc.
   sidebar::mojom::SearchEnginesPtr DescribeSearchEngines();
+  // The search engines' rules, once the service has loaded; null before.
+  KeywordEditorController* GetKeywordEditor();
   sidebar::mojom::ProfileDetailsPtr DescribeProfile();
   std::vector<sidebar::mojom::ProfileIconPtr> DescribeProfileIcons();
   // settings_window_handler_passwords.cc. The password manager's, made on
@@ -179,6 +190,8 @@ class SettingsWindowHandler
   scoped_refptr<ui::SelectFileDialog> folder_dialog_;
   scoped_refptr<extensions::PasswordsPrivateDelegate> passwords_delegate_;
   std::unique_ptr<ProfileResetter> resetter_;
+  // Manage search engines' rules (made once the service has loaded).
+  std::unique_ptr<KeywordEditorController> keyword_editor_;
   // Where each listed password is stored, by id, to remove it from there.
   std::map<int, extensions::api::passwords_private::PasswordStoreSet>
       password_stores_;

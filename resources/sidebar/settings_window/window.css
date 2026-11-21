@@ -735,3 +735,10 @@ button.pill.danger {
 .confirm-row {
   background: color-mix(in srgb, var(--danger) 6%, transparent);
 }
+
+.actions .error {
+  align-self: center;
+  color: var(--danger);
+  flex: 1;
+  font-size: 12px;
+}

@@ -932,6 +932,29 @@ struct SearchEngines {
   bool managed;
 };
 
+// A search engine or site search, as General › Manage search engines lists
+// them (KeywordEditorController's rules).
+struct SearchEngineDetails {
+  string id;
+  string name;
+  // The command bar shortcut.
+  string keyword;
+  // The search URL, with %s for the query.
+  string url;
+  bool is_default;
+  // Site search: one the user or a site added (not prepopulated).
+  bool is_site_search;
+  // A site search that's on (offered by the command bar).
+  bool is_active;
+  bool can_edit;
+  bool can_remove;
+  bool can_make_default;
+  bool can_activate;
+  bool can_deactivate;
+  // Set by policy or an extension.
+  bool managed;
+};
+
 // The profile's name and picture (ProfileAttributesStorage).
 struct ProfileDetails {
   string name;
@@ -1107,6 +1130,14 @@ interface SettingsWindowHandler {
   SetAsDefaultBrowser();
   GetSearchEngines() => (SearchEngines engines);
   SetDefaultSearchEngine(string id);
+  // Manage search engines (phase 5b): every engine and site search.
+  GetSearchEngineDetails() => (array<SearchEngineDetails> engines);
+  // Adds one (an empty |id|) or edits one; |url| has %s for the query. Why
+  // not, if it wasn't saved: empty when saved.
+  SaveSearchEngine(string id, string name, string keyword, string url) =>
+      (string error);
+  RemoveSearchEngine(string id);
+  SetSearchEngineActive(string id, bool active);
   // The download folder as shown ("~/Downloads").
   GetDownloadLocation() => (string location);
   // A folder picker for the download folder; the pref changes if one is

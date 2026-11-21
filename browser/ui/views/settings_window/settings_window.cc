@@ -135,6 +135,15 @@ std::optional<std::string> SettingsWindowPathFor(std::string_view sub_page) {
   if (path == "claude") {
     return base::StrCat({"ai", sub_page.substr(sub_page.find("claude") + 6)});
   }
+  // Upstream's search sections are General's (phase 5b).
+  if (path == "searchEngines") {
+    return std::string("general?view=engines");
+  }
+  if (path == "search" || path == "defaultBrowser" || path == "downloads" ||
+      path == "appearance" || path == "fonts") {
+    return base::StrCat(
+        {"general?focus=", path == "fonts" ? "fontSize" : path});
+  }
   // Upstream's privacy sections are the Privacy pane's (phase 3): its views
   // and parts, by query (privacy_pane.ts).
   if (path == "privacy") {

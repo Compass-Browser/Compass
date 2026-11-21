@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {html} from '//resources/lit/v3_0/lit.rollup.js';
+import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {CompassSettingsGeneralPaneElement} from './general_pane.js';
 import {PREF_HARDWARE_ACCELERATION, PREF_MINIMUM_FONT_SIZE, PREF_OFFER_TRANSLATE, PREF_PROMPT_FOR_DOWNLOAD, PREF_SPELLCHECK, PREF_FONT_SIZE} from './general_pane.js';
@@ -10,6 +10,10 @@ import {PREF_HARDWARE_ACCELERATION, PREF_MINIMUM_FONT_SIZE, PREF_OFFER_TRANSLATE
 export function getHtml(this: CompassSettingsGeneralPaneElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
+${this.isView_('engines') ? html`
+  <compass-settings-search-engines @close="${this.onEnginesClose_}">
+  </compass-settings-search-engines>` : nothing}
+<div ?hidden="${!this.isView_('main')}">
 <section class="row-group">
   <h2 class="group-title">Browser</h2>
   <div class="group">
@@ -38,13 +42,12 @@ export function getHtml(this: CompassSettingsGeneralPaneElement) {
           </option>`)}
       </select>
     </div>
-    <button class="row" data-row="searchEngines" data-sub-page="searchEngines"
-        @click="${this.onChromeSettingsClick_}">
+    <button class="row" data-row="searchEngines"
+        @click="${this.onManageEnginesClick_}">
       <span class="row-text">
         <span class="row-label">Manage search engines and site search</span>
       </span>
-      <compass-settings-icon class="row-trail" name="external"
-          title="Opens in a tab">
+      <compass-settings-icon class="row-trail" name="chevron">
       </compass-settings-icon>
     </button>
   </div>
@@ -216,6 +219,8 @@ export function getHtml(this: CompassSettingsGeneralPaneElement) {
     </button>
   </div>
 </section>
+</div>
 <!--_html_template_end_-->`;
   // clang-format on
 }
+

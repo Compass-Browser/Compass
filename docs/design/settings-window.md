@@ -51,15 +51,14 @@ the window's, Chrome's included, and nothing shows upstream's settings page.
    that open `chrome://settings/<section>` in a tab: General, Privacy,
    Passwords and part of Advanced.
 2. **Done:** General and Profiles rebuilt (below, "General and Profiles").
-   Still upstream's, as rows that open it: managing search engines and site
-   search, and editing the languages list.
+   Still upstream's, as a row that opens it: editing the languages list.
 3. **Done:** Privacy rebuilt (below, "Privacy"). Safety check still opens
    upstream's section.
 4. **Done:** Passwords (below, "Passwords"). Adding and editing passwords,
    cards and addresses, the checkup, passkeys' details and import/export
    open the password manager or upstream's sections.
-5. Advanced (**done**, below), then the rows that still open upstream's
-   sections: managing search engines, editing languages, the card and
+5. Advanced (**done**, below), managing search engines (**done**), then the
+   rows that still open upstream's sections: editing languages, the card and
    address editors, Safety check. Then no more fallback: every
    `chrome://settings` URL opens the window, and the chrome://settings
    patches that add Compass's sections (menu, routes, views, BUILD.gn) go.
@@ -149,8 +148,8 @@ sections (docs/design/settings.md).
 
 - **General** (`<compass-settings-general-pane>`, `general_pane.ts`):
   - Browser: the default browser, with Make Default; the search engine,
-    a menu. "Manage search engines and site search" still opens upstream's
-    section.
+    a menu; "Manage search engines and site search", a view of its own
+    (below).
   - Downloads: the location, with Change… (a folder picker); "Ask where to
     save each file".
   - Appearance: font size (upstream's five sizes) and page zoom (upstream's
@@ -162,6 +161,23 @@ sections (docs/design/settings.md).
     type".
   - System: "Use graphics acceleration when available", with Relaunch once
     changed; the system's proxy settings.
+- **Manage search engines and site search** (phase 5b,
+  `<compass-settings-search-engines>`, `search_engines.ts`, General's
+  `?view=engines`; upstream's `searchEngines` sub-page opens it):
+  - Search engines (prepopulated, and the default): Make Default, Edit,
+    Remove, as allowed.
+  - Site search (engines the user or sites added): a switch for whether the
+    command bar offers it, Make Default, Edit, Remove; Add… opens a form
+    (name, shortcut, address with %s).
+  - The command bar's built-in shortcuts (@tabs…) and extensions' keywords
+    aren't listed.
+  - Browser side: upstream's `KeywordEditorController` decides what can be
+    edited, removed, made the default or turned on or off, and saves;
+    `EditSearchEngineController` validates and fixes up the address, with a
+    delegate that saves through the keyword editor, as upstream's
+    `SearchEnginesHandler` does.
+- Upstream's `search`, `defaultBrowser`, `downloads`, `appearance` and
+  `fonts` sub-pages open General at their rows.
 - **Profiles** adds `<compass-settings-profile-section>`
   (`profile_section.ts`) before Sync and Import: the profile's name, saved
   when the field is left, and its picture (upstream's avatars).

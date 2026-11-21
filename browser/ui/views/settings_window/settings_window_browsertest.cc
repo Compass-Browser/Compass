@@ -85,7 +85,8 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PathsTheWindowHas) {
   EXPECT_EQ(SettingsWindowPathFor("claude"), "ai");
   EXPECT_EQ(SettingsWindowPathFor("devMode"), "devMode");
   // Upstream's sections stay upstream's for now.
-  EXPECT_EQ(SettingsWindowPathFor("searchEngines"), std::nullopt);
+  EXPECT_EQ(SettingsWindowPathFor("searchEngines"), "general?view=engines");
+  EXPECT_EQ(SettingsWindowPathFor("languages"), std::nullopt);
   EXPECT_EQ(SettingsWindowPathFor("ai"), std::nullopt);
   EXPECT_EQ(SettingsWindowPathFor("safetyCheck"), std::nullopt);
   EXPECT_EQ(SettingsWindowPathFor("payments"), std::nullopt);
@@ -186,13 +187,12 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SettingsURLOpensTheWindow) {
 // Upstream's sections the window doesn't have yet still open
 // chrome://settings in a tab.
 IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, UpstreamSectionsStayInTabs) {
-  chrome::ShowSettingsSubPage(browser(), "searchEngines");
+  chrome::ShowSettingsSubPage(browser(), "languages");
   EXPECT_FALSE(window());
   content::WebContents* tab =
       browser()->GetTabStripModel()->GetActiveWebContents();
   ASSERT_TRUE(content::WaitForLoadStop(tab));
-  EXPECT_EQ(tab->GetLastCommittedURL(),
-            GURL("chrome://settings/searchEngines"));
+  EXPECT_EQ(tab->GetLastCommittedURL(), GURL("chrome://settings/languages"));
 }
 
 // Closing the window lets settings open a new one.
@@ -510,6 +510,63 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, AdvancedPane) {
             true);
   EXPECT_EQ(map->GetDefaultContentSetting(ContentSettingsType::POPUPS),
             CONTENT_SETTING_BLOCK);
+}
+
+// General › Manage search engines (phase 5b): a site search is refused with
+// a shortcut that has a space, added once it hasn't, then removed.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SearchEngineManager) {
+  TemplateURLService* service =
+      TemplateURLServiceFactory::GetForProfile(profile());
+  search_test_utils::WaitForTemplateURLServiceToLoad(service);
+  chrome::ShowSettingsSubPage(browser(), "searchEngines");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  ASSERT_TRUE(
+      WaitFor("!!document.querySelector('[data-engine]')").ExtractBool());
+
+  const std::string fill = R"(
+      (keyword) => {
+        document.querySelector('.group-header .pill').click();
+        return new Promise(resolve => setTimeout(() => {
+          for (const [field, value] of [
+                   ['name', 'Docs'], ['keyword', keyword],
+                   ['url', 'https://docs.example.com/search?q=%s']]) {
+            const input = document.querySelector(`[data-field="${field}"]`);
+            input.value = value;
+            input.dispatchEvent(new Event('input'));
+          }
+          setTimeout(() => {
+            document.querySelector('.actions .accent').click();
+            resolve(true);
+          }, 50);
+        }, 50));
+      })";
+  ASSERT_TRUE(
+      content::ExecJs(window()->web_contents(), "(" + fill + ")('my docs');"));
+  EXPECT_EQ(WaitFor("document.querySelector('.actions .error')?.textContent"
+                    ".includes('shortcut')"),
+            true);
+  EXPECT_FALSE(service->GetTemplateURLForKeyword(u"my docs"));
+
+  ASSERT_TRUE(content::ExecJs(window()->web_contents(), R"(
+      const keyword = document.querySelector('[data-field="keyword"]');
+      keyword.value = 'docs';
+      keyword.dispatchEvent(new Event('input'));
+      setTimeout(() => document.querySelector('.actions .accent').click(), 50);)"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return !!service->GetTemplateURLForKeyword(u"docs"); }));
+  const std::string id = base::NumberToString(
+      service->GetTemplateURLForKeyword(u"docs")->id().value());
+  EXPECT_EQ(WaitFor("!!document.querySelector('[data-engine=\"" + id + "\"]')"),
+            true);
+
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "[...document.querySelectorAll('[data-engine=\"" + id +
+          "\"] .pill')].find(b => b.textContent.trim() === 'Remove')"
+          ".click();"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return !service->GetTemplateURLForKeyword(u"docs"); }));
 }
 
 }  // namespace

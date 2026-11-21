@@ -79,6 +79,8 @@ build_webui("build") {
     "settings_window/privacy_pane.ts",
     "settings_window/profile_section.html.ts",
     "settings_window/profile_section.ts",
+    "settings_window/search_engines.html.ts",
+    "settings_window/search_engines.ts",
     "share/app.ts",
     "share/browser_proxy.ts",
     "space_icons.ts",

@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 import './icon.js';
+import './search_engines.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {SettingsWindowBrowserProxy} from './browser_proxy.js';
 
@@ -23,6 +25,8 @@ export const PREF_ACCEPT_LANGUAGES = 'intl.accept_languages';
 export const PREF_OFFER_TRANSLATE = 'translate.enabled';
 export const PREF_SPELLCHECK = 'browser.enable_spellchecking';
 export const PREF_HARDWARE_ACCELERATION = 'hardware_acceleration_mode.enabled';
+
+export type GeneralView = 'main'|'engines';
 
 export interface FontPref {
   pref: string;
@@ -73,7 +77,8 @@ export const ZOOM_FACTORS: number[] =
 
 // General (docs/design/settings-window.md, phase 2): the default browser,
 // the search engine, downloads, appearance and fonts, languages and the
-// system, on the window's handler (SettingsWindowHandler, which does what
+// system, with a view of its own for managing search engines and site
+// search, on the window's handler (SettingsWindowHandler, which does what
 // upstream's settings handlers do) and its prefs (prefs.ts). Managing search engines and editing the languages list
 // still open upstream's sections.
 export class CompassSettingsGeneralPaneElement extends CrLitElement {
@@ -95,6 +100,7 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
       zoom_: {type: Number},
       prefsVersion_: {type: Number},
       hardwareAccelerationAtStart_: {type: Boolean},
+      view_: {type: String},
     };
   }
 
@@ -107,6 +113,9 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
   // Bumped as prefs change, to render again.
   protected accessor prefsVersion_: number = 0;
   protected accessor hardwareAccelerationAtStart_: boolean|null = null;
+  protected accessor view_: GeneralView = 'main';
+  // What the path asked to scroll to.
+  private focus_ = '';
 
   protected readonly fontPrefs = FONT_PREFS;
   protected readonly fontSizes = FONT_SIZES;
@@ -123,6 +132,12 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    // ?view=engines (chrome://settings/searchEngines), ?focus=<row>.
+    const params = new URLSearchParams(window.location.search);
+    this.focus_ = params.get('focus') || '';
+    if (params.get('view') === 'engines') {
+      this.setView_('engines');
+    }
     prefs.addListener(this.prefListener_);
     prefs.load(ALL_PREFS).then(() => {
       if (this.hardwareAccelerationAtStart_ === null) {
@@ -152,7 +167,20 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
     prefs.removeListener(this.prefListener_);
   }
 
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+    if (this.focus_ && this.view_ === 'main') {
+      this.querySelector(`[data-row="${CSS.escape(this.focus_)}"]`)
+          ?.scrollIntoView({block: 'start'});
+      this.focus_ = '';
+    }
+  }
+
   // Template helpers.
+
+  protected isView_(view: GeneralView): boolean {
+    return this.view_ === view;
+  }
 
   protected getBool_(name: string): boolean {
     return prefs.get(name)?.value === true;
@@ -299,10 +327,27 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
     this.handler_.showProxySettings();
   }
 
+  // Manage search engines.
+
+  protected onManageEnginesClick_() {
+    this.setView_('engines');
+  }
+
+  protected onEnginesClose_() {
+    this.setView_('main');
+  }
+
   // Upstream's sections the pane doesn't rebuild yet (data-sub-page).
   protected onChromeSettingsClick_(e: Event) {
     this.handler_.openChromeSettings(
         (e.currentTarget as HTMLElement).dataset['subPage']!);
+  }
+
+  private setView_(view: GeneralView) {
+    this.view_ = view;
+    window.history.replaceState(
+        null, '', view === 'main' ? '/general' : '/general?view=engines');
+    this.closest('#scroller')?.scrollTo(0, 0);
   }
 
   private onPrefChanged_(name: string) {
