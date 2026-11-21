@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-index a281709c54cd71589a57e0360ec757c0c38efb08..7f3a4562abaece2b80006cbee143c2f121116e49 100644
+index a281709c54cd71589a57e0360ec757c0c38efb08..acbb83d301395ced08ceb65e9ddc8110e7a44041 100644
 --- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
 +++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-@@ -259,6 +259,18 @@
+@@ -259,6 +259,19 @@
  #include "chrome/browser/sync/local_or_syncable_bookmark_sync_service_factory.h"
  #include "chrome/browser/sync/prefs/cross_device_pref_tracker/cross_device_pref_tracker_factory.h"
  #include "chrome/browser/sync/sync_service_factory.h"
@@ -10,6 +10,7 @@ index a281709c54cd71589a57e0360ec757c0c38efb08..7f3a4562abaece2b80006cbee143c2f1
 +#include "compass/browser/claude/claude_memory.h"
 +#include "compass/browser/boosts/boost_injector.h"
 +#include "compass/browser/easels/easel_store.h"
++#include "compass/browser/rooms/room_service.h"
 +#if !BUILDFLAG(IS_ANDROID) && (BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN))
 +#include "compass/browser/claude/claude_quick.h"
 +#include "compass/browser/ui/claude/link_folder_namer.h"
@@ -21,7 +22,7 @@ index a281709c54cd71589a57e0360ec757c0c38efb08..7f3a4562abaece2b80006cbee143c2f1
  #include "chrome/browser/sync/user_event_service_factory.h"
  #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
  #include "chrome/browser/themes/theme_service_factory.h"
-@@ -1517,6 +1529,25 @@ void ChromeBrowserMainExtraPartsProfiles::
+@@ -1517,6 +1530,28 @@ void ChromeBrowserMainExtraPartsProfiles::
    sync_file_system::SyncFileSystemServiceFactory::GetInstance();
  #endif
    SyncServiceFactory::GetInstance();
@@ -34,6 +35,9 @@ index a281709c54cd71589a57e0360ec757c0c38efb08..7f3a4562abaece2b80006cbee143c2f1
 +  compass::boosts::BoostInjectorFactory::GetInstance();
 +  // Easels (docs/design/easels.md); Android too.
 +  compass::easels::EaselStoreFactory::GetInstance();
++  // Rooms, which sync makes as it starts (docs/design/sync.md, "Rooms:
++  // clients").
++  compass::rooms::RoomService::EnsureFactoryBuilt();
 +#if !BUILDFLAG(IS_ANDROID) && (BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN))
 +  compass::claude::McpServiceFactory::GetInstance();
 +  compass::LiveFolderServiceFactory::GetInstance();

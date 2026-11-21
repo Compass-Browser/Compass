@@ -318,7 +318,7 @@ class RoomService : public KeyedService,
   std::unique_ptr<RoomModel> MakeModel(const sync_pb::CompassRoomMount& mount);
 
   const raw_ptr<Profile> profile_;
-  SpaceList* list_ = nullptr;
+  raw_ptr<SpaceList> list_ = nullptr;
   std::unique_ptr<EaselSourceImpl> easels_;
   PrefChangeRegistrar pref_change_registrar_;
   scoped_refptr<base::SequencedTaskRunner> file_task_runner_;

@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/profiles/BUILD.gn b/chrome/browser/profiles/BUILD.gn
-index f569264cf0e530634f9e064054511b25ca2273d2..c76d479be7b05920c51fe900e9117ec7394f0f7c 100644
+index f569264cf0e530634f9e064054511b25ca2273d2..626fbdf9626c9fb98bc9b85f128158a84fcde24c 100644
 --- a/chrome/browser/profiles/BUILD.gn
 +++ b/chrome/browser/profiles/BUILD.gn
 @@ -567,6 +567,7 @@ source_set("profile_io_data") {
@@ -10,7 +10,7 @@ index f569264cf0e530634f9e064054511b25ca2273d2..c76d479be7b05920c51fe900e9117ec7
      "//base",
      "//chrome/common",
      "//chrome/common:buildflags",
-@@ -910,6 +911,20 @@ source_set("profiles_extra_parts_impl") {
+@@ -910,6 +911,22 @@ source_set("profiles_extra_parts_impl") {
      "//services/network/public/cpp",
      "//ui/webui:buildflags",
    ]
@@ -20,6 +20,8 @@ index f569264cf0e530634f9e064054511b25ca2273d2..c76d479be7b05920c51fe900e9117ec7
 +  deps += [ "//compass/browser/boosts" ]
 +  # Easels (docs/design/easels.md), Android too.
 +  deps += [ "//compass/browser/easels:store" ]
++  # Rooms (docs/design/sync.md, "Rooms: clients"), Android too.
++  deps += [ "//compass/browser/rooms" ]
 +  if (!is_android) {
 +    # The MCP bridge's (docs/design/claude.md, D6).
 +    deps += [ "//compass/browser/ui" ]
