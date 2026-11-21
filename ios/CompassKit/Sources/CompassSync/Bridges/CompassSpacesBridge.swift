@@ -34,6 +34,10 @@ import SyncProto
 public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
   public nonisolated let dataType = DataType.compassSpaces
   public static let throttleInterval: TimeInterval = 10
+  /// The entity kinds of CompassSpacesSpecifics this version takes
+  /// (`SyncEngine.ensureEntityKinds`); bumped with each new kind, as the
+  /// desktop's `kEntityKinds`. 1: room mounts and everything before.
+  public static let entityKinds = 1
   static let lastActiveGranularity: Int64 = 60 * 1_000_000  // µs
   static let archiveCap: TimeInterval = 30 * 24 * 60 * 60
 

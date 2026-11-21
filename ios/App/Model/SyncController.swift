@@ -526,6 +526,9 @@ final class SyncController {
       // again, before the bridge is registered (so no cycle is under way
       // for the type).
       if deviceInfo.needsRefetch { await engine.refetch(.deviceInfo) }
+      // Spaces again once if an older app skipped kinds this one takes
+      // (room mounts).
+      await engine.ensureEntityKinds(.compassSpaces, CompassSpacesBridge.entityKinds)
       for bridge: any DataTypeBridge in [
         spaces, deviceInfo, account.visits, account.directives, sessions, account.passwords, account.extensions,
         account.sentTabs,

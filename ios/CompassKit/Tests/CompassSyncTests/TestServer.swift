@@ -73,6 +73,8 @@ final class SpacesMemoryBridge: DataTypeBridge, @unchecked Sendable {
   private let lock = NSLock()
   private var spaces: [String: String] = [:]
   var local: [String: String] = [:]
+  /// Spaces this bridge skips, as an app that doesn't know their kind.
+  var refused: Set<String> = []
 
   func clientTag(for specifics: SyncPb_EntitySpecifics) -> String {
     specifics.compassSpaces.space.uuid
@@ -82,6 +84,7 @@ final class SpacesMemoryBridge: DataTypeBridge, @unchecked Sendable {
     lock.withLock {
       for change in changes {
         if let s = change.specifics {
+          if refused.contains(s.compassSpaces.space.uuid) { continue }
           spaces[s.compassSpaces.space.uuid] = s.compassSpaces.space.name
         } else {
           spaces = spaces.filter {

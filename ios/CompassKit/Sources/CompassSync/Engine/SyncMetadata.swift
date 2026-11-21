@@ -27,6 +27,9 @@ public struct PendingChange: Codable, Sendable, Equatable {
 public struct TypeState: Codable, Sendable, Equatable {
   public var progressToken: Data?
   public var initialSyncDone = false
+  /// The entity kinds of the version that last downloaded the type
+  /// (`SyncEngine.ensureEntityKinds`); nil before it was kept.
+  public var entityKinds: Int?
   /// Keyed by client tag hash.
   public var entities: [String: EntityMetadata] = [:]
 }

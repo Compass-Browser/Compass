@@ -2368,7 +2368,14 @@ asks for everything: what the device has comes back at known versions and
 is skipped as reflections, and only what it refused applies, as ordinary
 remote changes (no merge, so nothing deleted elsewhere comes back). An
 initial merge writes the note. Bump `kEntityKinds` with each new kind.
-iOS's bridge skips unknown kinds the same way and has no such note yet.
+iOS's bridge skips unknown kinds too, after its engine has taken their
+versions, so clearing the token alone wouldn't bring them back there:
+`SyncEngine.ensureEntityKinds(.compassSpaces, CompassSpacesBridge.entityKinds)`
+(at each account's start, before the bridge is registered) uses `refetch`,
+which also forgets the entities' versions (local changes not yet committed
+stay), with the note in `TypeState.entityKinds`, saved in the same write.
+The initial sync stays done, so it isn't a merge either. Bump both numbers
+together.
 
 **What the chain leaves out** (`Delegate::GetRoomRoots()` → `RoomRoots`):
 shared spaces (their entity and Pinned; Today and the archive stay in the

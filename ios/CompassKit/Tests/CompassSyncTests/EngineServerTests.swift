@@ -42,6 +42,51 @@ struct EngineServerTests {
     #expect(a.devices.allDevices.filter(\.isThisDevice).map(\.name) == ["Mac"])
   }
 
+  /// An app that skipped an entity kind gets it once it updates: the type
+  /// downloads again, once, and what it had stays.
+  @Test func newEntityKindsDownloadTheTypeAgain() async throws {
+    let server = try await TestServer()
+    let a = await TestDevice(server: server.url, chain: chain, name: "Mac", first: true)
+    let b = await TestDevice(server: server.url, chain: chain, name: "iPhone", first: false)
+    await a.spaces.set("space-1", "Work", engine: a.engine)
+    await a.spaces.set("mount-1", "Joined", engine: a.engine)
+    try await a.sync()
+
+    // The old app: no note of the kinds, and it skips "mount-1".
+    b.spaces.refused = ["mount-1"]
+    try await b.sync()
+    #expect(b.spaces.names == ["space-1": "Work"])
+    try await b.sync()
+    #expect(b.spaces.names == ["space-1": "Work"], "never sent again")
+
+    // Updated.
+    b.spaces.refused = []
+    await b.engine.ensureEntityKinds(.compassSpaces, 1)
+    try await b.sync()
+    #expect(b.spaces.names == ["space-1": "Work", "mount-1": "Joined"])
+
+    // Once.
+    await b.engine.ensureEntityKinds(.compassSpaces, 1)
+    let again = try await b.sync()
+    #expect(again.downloaded[.compassSpaces, default: 0] == 0)
+  }
+
+  /// A first download takes everything: the note only.
+  @Test func firstDownloadKeepsOnlyTheNote() async throws {
+    let server = try await TestServer()
+    let a = await TestDevice(server: server.url, chain: chain, name: "Mac", first: true)
+    await a.spaces.set("space-1", "Work", engine: a.engine)
+    try await a.sync()
+
+    let b = await TestDevice(server: server.url, chain: chain, name: "iPhone", first: false)
+    await b.engine.ensureEntityKinds(.compassSpaces, 1)
+    try await b.sync()
+    #expect(b.spaces.names == ["space-1": "Work"])
+    await b.engine.ensureEntityKinds(.compassSpaces, 1)
+    let again = try await b.sync()
+    #expect(again.downloaded[.compassSpaces, default: 0] == 0)
+  }
+
   @Test func joinerNeedsAStartedChain() async throws {
     let server = try await TestServer()
     let b = await TestDevice(server: server.url, chain: chain, name: "iPhone", first: false)

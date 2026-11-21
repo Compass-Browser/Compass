@@ -108,6 +108,22 @@ public actor SyncEngine {
     save()
   }
 
+  /// Downloads a type from the start once when this version takes entity
+  /// kinds (`kinds`, bumped with each kind) the version that downloaded it
+  /// didn't. A bridge skips kinds it doesn't know, but the engine had
+  /// already taken their versions, so the server never sent them again: a
+  /// space joined on the Mac while this phone ran an app from before rooms
+  /// never showed here (docs/design/sync.md). A first download (initial
+  /// sync not done) takes everything anyway and only keeps the note. Call
+  /// before the type's bridge is registered.
+  public func ensureEntityKinds(_ type: DataType, _ kinds: Int) {
+    let state = metadata.types[type.rawValue, default: TypeState()]
+    guard (state.entityKinds ?? 0) < kinds else { return }
+    if state.initialSyncDone { refetch(type) }
+    metadata.types[type.rawValue, default: TypeState()].entityKinds = kinds
+    save()
+  }
+
   /// The client tags this engine knows for a type (tests, debugging).
   public func knownTags(_ type: DataType) -> Set<String> {
     Set(metadata.types[type.rawValue]?.entities.values.map(\.clientTag) ?? [])
