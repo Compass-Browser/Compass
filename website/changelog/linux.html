@@ -17,6 +17,27 @@
 <p class="intro">Compass for Linux is a canary for now: new builds come often, for testing. Installed with Flatpak from the homepage, it updates with <code>flatpak update</code> or your software center; a tarball doesn't update itself. Every release is on <a href="https://github.com/Compass-Browser/Compass/releases">GitHub</a>.</p>
 
 <article>
+<h2>20261121.1830 <span class="badge">Beta</span></h2>
+<p class="meta">21 November 2026 · Chromium 157.0.8103.51</p>
+<p class="lead">Ctrl+Tab in recently used order, tab previews and notification counts, plugins, sharing, and development mode.</p>
+<ul>
+  <li><strong>Switch tabs in recently used order</strong>: Ctrl+Tab goes back to the tab you used before this one, as in Arc; press Tab again while holding Ctrl to go further back (Ctrl+Shift+Tab goes the other way), and let go to switch. Hold Ctrl a moment and cards with each tab&rsquo;s preview show over the window; press W to close the picked tab (Ctrl+Z brings it back). It covers the space you&rsquo;re in and your favorites. Prefer going down the sidebar? Turn off &ldquo;Ctrl+Tab goes to recently used tabs&rdquo; in Settings &rsaquo; Keyboard shortcuts.</li>
+  <li><strong>Tab previews in the sidebar</strong>: hover a tab and its card shows what&rsquo;s on the page instead of a screenshot. A Google Calendar tab shows your next events (calendars in English for now), a GitHub tab your latest notifications. Plugins can add previews for other sites; they read the page apart from it and can&rsquo;t send what they read anywhere.</li>
+  <li><strong>Notification counts on tabs</strong>: a GitHub tab shows how many notifications you haven&rsquo;t read, as a count at the end of its row (a dot on a favorite), kept current in the background. To see the count and the notifications from any GitHub page, turn on &ldquo;Advanced: use your session on github.com&rdquo; for GitHub in Settings &rsaquo; Plugins; without it, the tab shows a dot when something is unread.</li>
+  <li><strong>Settings &rsaquo; Plugins</strong>: every live folder and tab preview plugin in one place, with the sites each one reads, its own settings, its source, and Install and Remove.</li>
+  <li><strong>Claude can make plugins</strong>: with &ldquo;Let Claude make plugins&rdquo; on in Settings &rsaquo; Claude, right-click a tab and choose Make a Preview for&hellip;, or describe a live folder to Claude. It looks at the page, tests the plugin on your tab, and asks before saving it; you can undo it in the chat.</li>
+  <li><strong>Development mode, for web developers</strong>: press Ctrl+Shift+D on a site you&rsquo;re working on (or use its switch in the site information popup, the command bar, or Settings &rsaquo; Development Mode). On that site, reload always skips the cache, a bar above the page shows the full address (which you can edit) with buttons for the Console, the Network panel, picking an element and copying the address, and the Network panel lists the requests made before DevTools opened.</li>
+  <li><strong>Share spaces, folders and easels with other people</strong>: right-click a pinned folder and choose Share&hellip;, choose Share space&hellip; in a space&rsquo;s menu, or Share Easel&hellip; on an easel&rsquo;s tab. Invite people as editors or viewers with a link (it can expire or be limited to a number of people), or by email on a server with company sign-in. Everyone sees the same tabs and boards, end-to-end encrypted: the sync server can&rsquo;t read them. Opening an invite link in Compass shows what it is and lets you pick the space to put it in.</li>
+  <li><strong>Company sign-in for sync servers</strong>: a self-hosted sync server can ask for a sign-in with your company&rsquo;s identity provider (OIDC). Compass shows &ldquo;Sign in to &hellip; to sync&rdquo; and a code to check, and remembers the sign-in for the chain. Servers without it work as before.</li>
+  <li><strong>Install a .crx from its developer</strong>: with Developer mode on in chrome://extensions, a .crx opened from a link installs like one dropped on that page (uBlock Origin&rsquo;s GitHub builds, for example). With Developer mode off, the message now says to turn it on.</li>
+  <li>Fixed: saving a key for OpenAI or another provider no longer erases your Anthropic key, endpoint and model.</li>
+  <li>Fixed: a call could stay out of picture-in-picture when you left its tab right after a video tile turned.</li>
+  <li>Fixed: menus in the Share sheet closed as soon as they opened.</li>
+  <li>Fixed: a new profile could stay at &ldquo;Starting&hellip;&rdquo; forever when syncing with a server that lists its allowed chains.</li>
+</ul>
+</article>
+
+<article>
 <h2>20261121.1535 <span class="badge canary">Canary</span></h2>
 <p class="meta">21 November 2026 · Chromium 157.0.8103.51</p>
 <ul>
