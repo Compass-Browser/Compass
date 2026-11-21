@@ -403,6 +403,9 @@ void WindowFeatures::SwitchToSpace(SpaceModel& target) {
   if (is_parking_window_ || &target == space_) {
     return;
   }
+  for (Observer& observer : observers_) {
+    observer.OnSpaceWillSwitch();
+  }
   base::AutoReset<bool> switching(&switching_, true);
   TabStripModel* strip = browser_->GetTabStripModel();
   SpaceModel& leaving_space = *space_;

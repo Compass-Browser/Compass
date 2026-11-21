@@ -52,6 +52,9 @@ class WindowFeatures : public SpaceList::Observer {
 
   class Observer : public base::CheckedObserver {
    public:
+    // The window is about to show another space (SwitchToSpace()): its tabs
+    // still show the space it leaves.
+    virtual void OnSpaceWillSwitch() {}
     // The window now shows another space, with a new bridge.
     virtual void OnSpaceSwitched() {}
     // A swipe in the sidebar started, moved or stopped pulling in another

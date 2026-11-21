@@ -112,6 +112,7 @@
 #include "ui/events/event_constants.h"
 #include "ui/events/event_utils.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/compositor/layer.h"
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/animation/animation_container.h"
 #include "ui/gfx/animation/animation_test_api.h"
@@ -1765,6 +1766,27 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SwipesAreTheBrowsers) {
   EXPECT_FALSE(gesture(Type::kGestureScrollEnd, 0, 0, Phase::kMomentum));
   EXPECT_FALSE(gesture(Type::kGestureScrollBegin, 0, -4));
   EXPECT_FALSE(gesture(Type::kGestureScrollUpdate, 0, -20));
+  EXPECT_FALSE(gesture(Type::kGestureScrollEnd, 0, 0));
+
+  // On macOS the momentum goes on in the same scroll, whose end comes only
+  // once it dies down: its first update is the fingers lifting, which ends
+  // the swipe then; the rest of it is swallowed.
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    (async () => {
+      const app = document.querySelector('compass-sidebar-app');
+      while (app.slide_ || app.swipe_) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+    })())"));
+  EXPECT_FALSE(gesture(Type::kGestureScrollBegin, 6, -1));
+  for (int i = 0; i < 4; ++i) {
+    EXPECT_TRUE(gesture(Type::kGestureScrollUpdate, 80, 0));
+  }
+  EXPECT_TRUE(gesture(Type::kGestureScrollUpdate, 60, 0, Phase::kMomentum));
+  EXPECT_TRUE(
+      base::test::RunUntil([&] { return &features->space_model() == home; }));
+  EXPECT_TRUE(gesture(Type::kGestureScrollUpdate, 50, 0, Phase::kMomentum));
+  EXPECT_FALSE(gesture(Type::kGestureScrollEnd, 0, 0, Phase::kMomentum));
 }
 
 // A swipe as the trackpad sends it: wheel events with phases, which the
@@ -3387,4 +3409,49 @@ IN_PROC_BROWSER_TEST_F(SpaceDirectoryStaleOrderBrowserTest,
 }
 
 }  // namespace
+// The pages fade from one space to the next: just before the switch, a copy
+// of the shown page goes over the window, and goes once it has faded.
+IN_PROC_BROWSER_TEST_F(CompassSidebarMotionBrowserTest,
+                       PagesFadeBetweenSpaces) {
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  ui::Layer* root = BrowserView::GetBrowserViewForBrowser(browser())
+                        ->GetWidget()
+                        ->GetLayer();
+  auto copy = [&]() -> ui::Layer* {
+    for (ui::Layer* layer : root->children()) {
+      if (layer->name() == "SpaceFade") {
+        return layer;
+      }
+    }
+    return nullptr;
+  };
+  ui::Layer* pane = BrowserView::GetBrowserViewForBrowser(browser())
+                       ->multi_contents_view()
+                       ->contents_container_views()[0]
+                       ->contents_view()
+                       ->layer();
+  ASSERT_FALSE(copy());
+
+  // The page fades with a swipe's fingers, and back as it lets go.
+  features->SetSpacePreview(work, 0.5);
+  EXPECT_FLOAT_EQ(pane->GetTargetOpacity(), 0.5f);
+  features->SetSpacePreview(nullptr, 0);
+  EXPECT_FLOAT_EQ(pane->GetTargetOpacity(), 1.f);
+
+  // Switching: the copy goes on top as faded as the swipe left the page,
+  // and fades out while the new page fades in.
+  features->SetSpacePreview(work, 0.5);
+  features->SwitchToSpace(*work);
+  ui::Layer* fade = copy();
+  ASSERT_TRUE(fade);
+  ASSERT_EQ(fade->children().size(), 1u);
+  EXPECT_FLOAT_EQ(fade->children()[0]->GetTargetOpacity(), 0.5f);
+  EXPECT_EQ(root->children().back(), fade);
+  EXPECT_EQ(fade->GetTargetOpacity(), 0.f);
+  EXPECT_FLOAT_EQ(pane->GetTargetOpacity(), 1.f);
+  EXPECT_TRUE(base::test::RunUntil([&] { return !copy(); }));
+  EXPECT_FLOAT_EQ(pane->opacity(), 1.f);
+}
+
 }  // namespace compass

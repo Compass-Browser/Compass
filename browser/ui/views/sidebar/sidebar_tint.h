@@ -174,6 +174,10 @@ class SidebarTint : public views::View,
   struct Look {
     Stops stops{};
     float grain = 0;
+    // The frame color under the tint, while it blends from one space's to
+    // another's (a swipe, and the fade after a switch). Otherwise the
+    // window's theme paints it.
+    std::optional<SkColor> base;
     friend bool operator==(const Look&, const Look&) = default;
   };
   static Look ToLook(const SpaceModel& space);
@@ -181,6 +185,10 @@ class SidebarTint : public views::View,
 
   // The window's space's look, blended toward the swiped-in space's.
   Look GetTargetLook() const;
+  // The frame color the window's theme gives |space| (UpdateWindowTheme()),
+  // or nullopt where the window keeps its own theme (off the record, an
+  // extension theme).
+  std::optional<SkColor> GetFrameColor(const SpaceModel& space) const;
   // Grain over the tint (docs/design/spaces.md, "Intensity and grain").
   void PaintGrain(gfx::Canvas* canvas, const SkPath* clip);
   // Fades from the color painted now to the target, or jumps there.

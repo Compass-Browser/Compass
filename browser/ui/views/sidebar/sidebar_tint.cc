@@ -110,6 +110,22 @@ float Luma(SkColor color) {
 // The fade between two spaces' colors; the page's slide takes as long.
 constexpr base::TimeDelta kFadeDuration = base::Milliseconds(280);
 
+// The mode a space gives its windows' colors (SpaceAppearance), nullopt for
+// the system's. Off the record stays dark: callers don't ask then.
+std::optional<ui::ColorProviderKey::ColorMode> GetSpaceColorMode(
+    const SpaceModel& space) {
+  using ColorMode = ui::ColorProviderKey::ColorMode;
+  switch (space.appearance()) {
+    case SpaceAppearance::kAuto:
+      // A strong tint decides how light the frame is.
+      return GetTintColorMode(space);
+    case SpaceAppearance::kLight:
+      return ColorMode::kLight;
+    case SpaceAppearance::kDark:
+      return ColorMode::kDark;
+  }
+}
+
 }  // namespace
 
 SkColor GetSpaceFrameTint(SpaceColor color) {
@@ -274,6 +290,9 @@ SidebarTint::Look SidebarTint::Blend(double progress,
         gfx::Tween::ColorValueBetween(progress, from.stops[i], to.stops[i]);
   }
   look.grain = gfx::Tween::FloatValueBetween(progress, from.grain, to.grain);
+  if (from.base && to.base) {
+    look.base = gfx::Tween::ColorValueBetween(progress, *from.base, *to.base);
+  }
   return look;
 }
 
@@ -311,6 +330,19 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
     PaintBackdrop(canvas, &path, opacity);
   } else {
     PaintBackdrop(canvas, nullptr, opacity);
+  }
+  if (look_.base) {
+    // Between two spaces' frame colors (GetTargetLook()).
+    cc::PaintFlags base;
+    base.setAntiAlias(true);
+    SkColor4f color = SkColor4f::FromColor(*look_.base);
+    color.fA *= opacity;
+    base.setColor(color);
+    if (corners) {
+      canvas->DrawPath(corners->GetBackgroundPath(), base);
+    } else {
+      canvas->DrawRect(gfx::RectF(GetLocalBounds()), base);
+    }
   }
   const Stops& stops = look_.stops;
   if (std::ranges::all_of(stops,
@@ -421,9 +453,21 @@ void SidebarTint::RemovedFromWidget() {
 }
 
 void SidebarTint::AnimationProgressed(const gfx::Animation* animation) {
-  const Look look = Blend(gfx::Tween::CalculateValue(
-                              gfx::Tween::EASE_OUT, animation->GetCurrentValue()),
-                          from_, GetTargetLook());
+  Look target = GetTargetLook();
+  Look look;
+  if (animation->GetCurrentValue() >= 1) {
+    // There: the window's theme paints the frame color again.
+    look = target;
+  } else {
+    // From a swipe's blended frame color to the space's own, which the
+    // theme now paints (after a switch) or still paints (a swipe let go).
+    if (from_.base && !target.base && features_) {
+      target.base = GetFrameColor(features_->space_model());
+    }
+    look = Blend(gfx::Tween::CalculateValue(gfx::Tween::EASE_OUT,
+                                            animation->GetCurrentValue()),
+                 from_, target);
+  }
   // The tint covers the window: a repaint that changes nothing still costs
   // a whole window's raster.
   if (look == look_) {
@@ -485,10 +529,46 @@ SidebarTint::Look SidebarTint::GetTargetLook() const {
   if (swap_look_) {
     return *swap_look_;
   }
-  const Look look = ToLook(features_->space_model());
+  Look look = ToLook(features_->space_model());
   SpaceModel* preview = features_->preview_space();
-  return preview ? Blend(features_->preview_progress(), look, ToLook(*preview))
-                 : look;
+  if (!preview) {
+    return look;
+  }
+  // The frame color blends too: the theme changes only once the switch
+  // lands, too slow to rebuild for each wheel event (docs/design/spaces.md,
+  // "Window theme").
+  Look to = ToLook(*preview);
+  look.base = GetFrameColor(features_->space_model());
+  to.base = GetFrameColor(*preview);
+  return Blend(features_->preview_progress(), look, to);
+}
+
+std::optional<SkColor> SidebarTint::GetFrameColor(
+    const SpaceModel& space) const {
+  const views::Widget* widget = GetWidget();
+  if (!widget) {
+    return std::nullopt;
+  }
+  Profile* profile = browser_->GetProfile();
+  const ThemeService* theme_service =
+      ThemeServiceFactory::GetForProfile(profile);
+  if (profile->IsOffTheRecord() ||
+      (theme_service && theme_service->UsingExtensionTheme())) {
+    return std::nullopt;
+  }
+  // The key UpdateWindowTheme() gives the window for |space|, in the
+  // space's mode, whose frame color lies under the tint (the backdrop where
+  // the window's mode differs). The manager keeps each key's provider, so
+  // after a swipe's first frame this is a lookup.
+  ui::ColorProviderKey key =
+      widget->GetNativeTheme()->GetColorProviderKey(widget->GetCustomTheme());
+  key.user_color = GetSpaceTint(space.color());
+  if (std::optional<ui::ColorProviderKey::ColorMode> mode =
+          GetSpaceColorMode(space)) {
+    key.color_mode = *mode;
+  }
+  return ui::ColorProviderManager::Get().GetColorProviderFor(key)->GetColor(
+      ui::kColorFrameActive);
 }
 
 void SidebarTint::UpdateColor(bool animate) {
@@ -537,21 +617,8 @@ void SidebarTint::UpdateWindowTheme() {
   backdrop_key_.reset();
   // Off the record stays dark.
   using ColorMode = ui::ColorProviderKey::ColorMode;
-  std::optional<ColorMode> mode;
-  if (!profile->IsOffTheRecord()) {
-    switch (space.appearance()) {
-      case SpaceAppearance::kAuto:
-        // A strong tint decides how light the frame is.
-        mode = GetTintColorMode(space);
-        break;
-      case SpaceAppearance::kLight:
-        mode = ColorMode::kLight;
-        break;
-      case SpaceAppearance::kDark:
-        mode = ColorMode::kDark;
-        break;
-    }
-  }
+  const std::optional<ColorMode> mode =
+      profile->IsOffTheRecord() ? std::nullopt : GetSpaceColorMode(space);
   // The text takes whichever mode reads best over the tint on the frame
   // color of that mode (the system's where it follows the system), not
   // the mode itself, so a dark tint in light mode gets light text. Not off

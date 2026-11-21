@@ -310,6 +310,18 @@ bool CompassSidebarView::PreHandleGestureEvent(
       return false;
     }
     case Type::kGestureScrollUpdate:
+      if (swiping_ &&
+          event.data.scroll_update.inertial_phase == Phase::kMomentum) {
+        // The fingers lifted. On macOS the momentum comes as more updates of
+        // the same scroll, whose end only comes once it dies down, up to a
+        // second or more later: the swipe ended there, with the entries
+        // waiting at the edge all that time, and swipes made meanwhile were
+        // lost to the slide still pending.
+        swiping_ = false;
+        swallowing_momentum_ = true;
+        send(sidebar::mojom::SwipePhase::kEnd, 0);
+        return true;
+      }
       if (swiping_) {
         send(sidebar::mojom::SwipePhase::kUpdate,
              event.data.scroll_update.delta_x);

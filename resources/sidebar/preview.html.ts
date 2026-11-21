@@ -17,6 +17,19 @@ ${this.tree ? html`
     ${this.hasPinned_() ? html`
       <div class="section-header">
         <span>Pinned</span>
+        <span id="newLiveFolder" class="new-folder">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M2 4.2a.7.7 0 0 1 .7-.7h3.1l1.4 1.5h6.1a.7.7 0 0 1 .7.7
+                     v6.6a.7.7 0 0 1-.7.7H2.7a.7.7 0 0 1-.7-.7z
+                     M8.7 6.6 7.2 9h1.8l-1.5 2.4"></path>
+          </svg>
+        </span>
+        <span id="newEasel" class="new-folder">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <rect x="2.5" y="2.5" width="11" height="7.5" rx="1"></rect>
+            <path d="M5.5 10 3.8 14M10.5 10l1.7 4M8 10v3.5M8 1v1.5"></path>
+          </svg>
+        </span>
         <span id="newFolder" class="new-folder">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M8 3v10M3 8h10"></path>

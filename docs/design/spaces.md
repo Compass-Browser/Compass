@@ -90,6 +90,23 @@ their entries.
 The strip never empties, so the window never closes on its own during a
 switch.
 
+The pages fade from one space to the next rather than cut, as in Arc
+(`SpaceFade`, `browser/ui/views/frame/space_fade.cc`, owned by the
+`WindowFrame`). Before step 1 (`Observer::OnSpaceWillSwitch()`), it clones
+each shown pane's layers onto the window's root layer, on top: a surface
+layer's clone shows the same surface, so the copy is the page's last frame,
+which viz keeps while the copy refers to it, without the page doing
+anything. While a swipe (or a click's slide) pulls in another space, the
+panes fade with it (`OnSpacePreviewChanged()`: opacity 1 − progress) into
+the frame color, which blends toward the other space's (Window theme,
+below), and come back if it lets go. Once the switch is done the copy fades
+out from where the swipe left it over 220 ms, slowly at first, while the new
+pages fade in, quickly at first, so the new pages draw their first frame
+before much of them shows. A switch
+during a fade drops the old copy and copies what shows now. Reduced motion
+cuts (not tested: the test fixtures force motion on or off). Another profile's space swaps the window instead (below), without it.
+Test: `CompassSidebarMotionBrowserTest.PagesFadeBetweenSpaces`.
+
 ## Model and persistence
 
 - `SpaceModel` gains an ID and a name.
@@ -432,7 +449,14 @@ windows and profiles with an extension theme keep their own colors.
 It's set when the tint is added to the window, when the window switches
 spaces and when its space's color changes. Not during a swipe: a new seed
 rebuilds every color in the window, too slow for each wheel event, so the
-swipe blends only the tint, and the theme changes when the switch lands.
+swipe doesn't change the theme, which changes when the switch lands. The
+swipe blends the frame color instead: the tint's look carries a base color
+while it blends (`SidebarTint::Look::base`), the frame color each space's
+theme would give (`GetFrameColor()`, from the color provider the manager
+caches for that key), painted under the tint; after the switch it blends on
+to the new theme's color with the tint's fade, then the theme paints it
+again. Before, only the tint blended and the frame color jumped as the
+switch landed.
 The tint stays on top, 14% of the color over the themed region.
 
 The sidebar, command bar and placeholder pages read the theme through
@@ -466,7 +490,16 @@ scrolls never wait for the page's script:
   begin before every update, which restarted the swipe, and never an end,
   which left the page mid-swipe and its entries unable to scroll
   (`SwipesEndThroughTheWheelQueue`). The momentum after the fingers lift
-  is swallowed the same way. A swipe the page hears nothing more about for
+  is swallowed the same way. On macOS the momentum goes on in the same
+  scroll (Chromium's `MouseWheelEventQueue` marks its updates
+  `kMomentum`), and the scroll's end comes only once it dies down, up to a
+  second or more later: the first momentum update is the fingers lifting,
+  and ends the swipe there. Ending it at the scroll's end left the entries
+  waiting at the sidebar's edge for that second before the switch, and the
+  swipes made meanwhile were lost to the slide still pending (a third of a
+  user's quick swipes, 2026-11-21). A swipe that starts while a slide only
+  finishes its animation (the browser has switched and the new tree is
+  there) ends that slide at once and goes on from there. A swipe the page hears nothing more about for
   3 s goes back (`SWIPE_IDLE_MS`).
 - Each space's entries keep their scroll position: the page remembers it
   when the window leaves a space, the space's preview shows its entries

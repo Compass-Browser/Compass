@@ -1623,6 +1623,12 @@ export class CompassSidebarAppElement extends CrLitElement {
     }
     switch (phase) {
       case SwipePhase.kBegin:
+        // A slide whose switch is done is only finishing its animation: a
+        // quick second swipe goes on from where it leads, rather than being
+        // lost (about a third of quick swipes were).
+        if (this.slide_?.switched && this.slide_.hasTree) {
+          this.endSlide_();
+        }
         if (this.slide_ || this.menuSpaceId_ || this.archiveOpen_ ||
             this.draggingId_) {
           this.wheelAxis_ = 'done';

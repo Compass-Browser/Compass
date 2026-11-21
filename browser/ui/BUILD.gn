@@ -72,6 +72,8 @@ source_set("ui") {
     "views/frame/browser_view_exchange.h",
     "views/frame/load_bar.cc",
     "views/frame/load_bar.h",
+    "views/frame/space_fade.cc",
+    "views/frame/space_fade.h",
     "views/frame/window_frame.cc",
     "views/frame/window_frame.h",
     "views/little_window/little_window.cc",

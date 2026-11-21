@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_UI_VIEWS_FRAME_WINDOW_FRAME_H_
 #define COMPASS_BROWSER_UI_VIEWS_FRAME_WINDOW_FRAME_H_
 
+#include <memory>
 #include <optional>
 
 #include "base/memory/raw_ptr.h"
@@ -24,6 +25,8 @@ class Widget;
 }  // namespace views
 
 namespace compass {
+
+class SpaceFade;
 
 // The frame of the space's color around the page's card, as in Arc
 // (content_frame.h sets its measurements; upstream's browser view layout
@@ -64,6 +67,8 @@ class WindowFrame : public views::ViewObserver {
 
   raw_ptr<views::View> region_;
   const raw_ptr<BrowserWindowInterface> browser_;
+  // The pages' fade between spaces.
+  std::unique_ptr<SpaceFade> space_fade_;
   bool caption_buttons_hidden_ = false;
   float caption_buttons_opacity_ = 1.f;
   // Windows: the widget whose caption buttons were made to ask for their

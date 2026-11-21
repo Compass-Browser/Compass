@@ -15,6 +15,7 @@
 #include "compass/browser/ui/views/find_bar/find_bar.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
 #include "compass/browser/ui/views/frame/load_bar.h"
+#include "compass/browser/ui/views/frame/space_fade.h"
 #include "compass/browser/ui/views/sidebar/sidebar_tint.h"
 #include "ui/base/class_property.h"
 #include "ui/gfx/geometry/point.h"
@@ -75,6 +76,8 @@ WindowFrame::WindowFrame(views::View* region, BrowserWindowInterface* browser)
   LoadBar::Install(region->parent(), browser);
   // Cmd+F, over the page's top trailing corner.
   FindBar::Install(region->parent(), browser);
+  // The pages fade from one space to the next.
+  space_fade_ = std::make_unique<SpaceFade>(region->parent(), browser);
   region_observation_.Observe(region);
 }
 
