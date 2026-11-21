@@ -55,6 +55,12 @@ struct BrowserCommands: Commands {
       .keyboardShortcut("c", modifiers: [.command, .shift])
       Button("Find…") { app?.findOnPage() }
         .keyboardShortcut("f")
+      // The desktop's development mode shortcut (dev-mode.md).
+      Button(DevMode.shared.isOn(webView?.url) ? "Leave Development Mode" : "Development Mode for This Site") {
+        DevMode.shared.toggle(webView?.url)
+      }
+      .keyboardShortcut("d", modifiers: [.command, .shift])
+      .disabled(!DevMode.shared.canToggle(webView?.url))
       // The desktop's default for the Claude panel.
       Button(ClaudeSettings.shared.provider.askTitle) { if app?.isIncognito != true { app?.showingClaude.toggle() } }
         .keyboardShortcut("e", modifiers: [.command, .shift])
@@ -62,7 +68,8 @@ struct BrowserCommands: Commands {
     CommandGroup(before: .sidebar) {
       Button(app.map { $0.isWide && $0.showingSidebarColumn } == true ? "Hide Sidebar" : "Show Sidebar") { toggleSidebar() }
         .keyboardShortcut("s")
-      Button("Reload Page") { webView?.reload() }
+      // From the network on a site in development mode (DevMode.swift).
+      Button("Reload Page") { DevMode.shared.reload(webView) }
         .keyboardShortcut("r")
       Button("Reload Without Cache") { webView?.reloadFromOrigin() }
         .keyboardShortcut("r", modifiers: [.command, .shift])

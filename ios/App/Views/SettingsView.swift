@@ -74,6 +74,16 @@ struct SettingsView: View {
             }
           }
           .accessibilityIdentifier("SettingsBoosts")
+          NavigationLink { DevModeSettingsView() } label: {
+            HStack {
+              SettingsLabel("Development Mode", "chevron.left.forwardslash.chevron.right", .gray)
+              Spacer()
+              if !DevMode.shared.patterns.isEmpty {
+                Text("\(DevMode.shared.patterns.count)").foregroundStyle(.secondary)
+              }
+            }
+          }
+          .accessibilityIdentifier("SettingsDevMode")
           if #available(iOS 18.4, *) {
             NavigationLink { ExtensionsView() } label: {
               HStack {

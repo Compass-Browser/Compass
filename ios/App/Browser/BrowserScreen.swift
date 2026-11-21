@@ -172,6 +172,10 @@ struct BrowserScreen: View {
         let underBar = !stacked || pane === shown.last?.element
         VStack(spacing: 0) {
           PaneStrip(pane: pane, front: front) { app.selectedPane = index }
+          // Development mode (docs/design/dev-mode.md, "iOS").
+          if DevMode.shared.isOn(URL(string: pane.url)) {
+            DevModeBar(url: pane.url)
+          }
           Group {
             if EaselURL.isEasel(pane.url) {
               EaselScreen(tab: pane, bottomInset: underBar ? barInset : 0)
@@ -227,11 +231,15 @@ struct BrowserScreen: View {
         ElsewherePage(tab: tab).ignoresSafeArea(edges: .top)
       } else if let tab = app.shownTab {
         let view = app.tabs.webView(for: tab)
+        // Development mode's bar (docs/design/dev-mode.md, "iOS") sits under
+        // the status bar, and the page's top is inset below both.
+        let devBar = DevMode.shared.isOn(URL(string: tab.url))
+        let topEdge = node?.isSplit == true ? 0 : statusInset
         WebView(
           webView: view,
           bottomInset: app.barCollapsed ? Self.collapsedHeight : Self.barHeight,
           // Fixed headers (YouTube's) go under the status bar otherwise.
-          topInset: node?.isSplit == true ? 0 : statusInset,
+          topInset: topEdge + (devBar ? DevModeBar.height : 0),
           obscuredBottom: barInset)
           // A new web view for the same tab (an extension page that went to
           // a website) replaces the old one.
@@ -254,6 +262,13 @@ struct BrowserScreen: View {
           // Capture to Easel: the region picker over the page.
           .overlay {
             if app.easelCaptureTab == tab.id { EaselCaptureOverlay(tabID: tab.id) }
+          }
+          .overlay(alignment: .top) {
+            if devBar {
+              DevModeBar(url: tab.url)
+                .padding(.top, topEdge)
+                .ignoresSafeArea(edges: .top)
+            }
           }
       } else {
         emptyPage
@@ -606,7 +621,7 @@ struct BrowserScreen: View {
     let url = view?.url ?? app.shownTab.flatMap { URL(string: $0.url) }
     let site = SiteSettings.site(url)
     let desktop = app.siteSettings.value(.desktopSite, site: site)
-    Button("Reload", systemImage: "arrow.clockwise") { view?.reload() }
+    Button("Reload", systemImage: "arrow.clockwise") { DevMode.shared.reload(view) }
       .disabled(view == nil)
     Button("Copy URL", systemImage: "doc.on.doc") {
       CopyLink.copy(url)

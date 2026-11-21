@@ -70,6 +70,19 @@ struct PageMenu: View {
             action: { app.showingSiteSettings = true }) {
           Image(systemName: "slider.horizontal.3").menuIcon(.blue)
         }
+        // Development mode (DevMode.swift): a tap turns it on or off.
+        let devPage = view?.url ?? tab.flatMap { URL(string: $0.url) }
+        if DevMode.shared.canToggle(devPage) {
+          let on = DevMode.shared.isOn(devPage)
+          Row(
+            title: "Development Mode",
+            subtitle: on ? "On: reload skips the cache, the address shows" : "Off",
+            action: { DevMode.shared.toggle(devPage) }
+          ) {
+            Image(systemName: "chevron.left.forwardslash.chevron.right").menuIcon(.gray)
+          }
+          .accessibilityIdentifier("MenuDevMode")
+        }
         if let page = boostablePage(tab, view) {
           let active = BoostStore.shared.matching(page).count
           Row(
@@ -190,7 +203,7 @@ struct PageMenu: View {
       }
       .accessibilityLabel("Copy Link")
       .accessibilityValue(copied ? "Copied" : "")
-      MenuIcon(symbol: "arrow.clockwise", enabled: view != nil) { view?.reload() }
+      MenuIcon(symbol: "arrow.clockwise", enabled: view != nil) { DevMode.shared.reload(view) }
         .accessibilityLabel("Reload")
     }
     .padding(.horizontal, 6)
