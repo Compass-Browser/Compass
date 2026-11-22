@@ -61,10 +61,11 @@ constexpr char kOpenTabSpaceDescription[] =
     "that space if none does. Default: the space of the user's front "
     "window, in the current profile.";
 
-// The active tab of the last active window among |profiles|': what "this
-// page" means to the user.
+// The active tab of the last active window among |profiles|' that has one:
+// what "this page" means to the user.
 content::WebContents* ActiveTab(const std::vector<Profile*>& profiles) {
-  BrowserWindowInterface* window = McpTabs::FrontWindow(profiles);
+  BrowserWindowInterface* window =
+      McpTabs::FrontWindow(profiles, /*with_active_tab=*/true);
   tabs::TabInterface* tab = window ? window->GetActiveTabInterface() : nullptr;
   return tab ? tab->GetContents() : nullptr;
 }
@@ -273,7 +274,7 @@ void McpSession::ListTools(const base::Value& id) {
 }
 
 void McpSession::RunNext() {
-  if (running_ || asking_ || calls_.empty()) {
+  if (running_ || asking_ || removing_ || calls_.empty()) {
     return;
   }
   if (chat_) {
@@ -295,7 +296,7 @@ void McpSession::RunNext() {
   const base::DictValue no_arguments;
   const base::DictValue& routing = on_target ? no_arguments : next.arguments;
   base::expected<Profile*, std::string> resolved =
-      mcp_tabs_->ResolveCall(routing, target);
+      mcp_tabs_->ResolveCall(routing, target, AllowedSomewhere());
   if (!resolved.has_value()) {
     Refuse(resolved.error());
     return;
@@ -370,8 +371,8 @@ void McpSession::OnApproval(int generation,
   if (approval == McpApproval::kNoWindow) {
     // Not an answer: the next call in this profile asks again.
     Refuse(base::StrCat(
-        {"Profile \"", McpTabs::NameOf(profile),
-         "\" has no window to ask the user in. Ask them to open one, or to "
+        {ProfileLabel(profile),
+         " has no window to ask the user in. Ask them to open one, or to "
          "always allow ",
          client_name_, " there."}));
     return;
@@ -391,14 +392,21 @@ void McpSession::RemoveProfile(Profile* profile) {
   if (chat_) {
     return;
   }
+  // Calls answered here don't start the next one until the session has let
+  // go of the profile: ClaudeTools::Stop() still tears down after its
+  // callback runs.
+  removing_ = true;
+  // Said before approvals_ forgets whether the client may know the name.
+  const std::string gone =
+      base::StrCat({ProfileLabel(profile), " stopped allowing MCP clients."});
   approvals_.erase(profile);
-  const bool was_asking = asking_ && asking_profile_.get() == profile;
-  if (was_asking) {
-    // The question goes (the bridge closes its dialog); the call it held
-    // runs again below, in the profiles left.
+  if (asking_ && asking_profile_.get() == profile) {
+    // The question goes (the bridge closes its dialog), and the call it held
+    // with it; a late answer is ignored.
     asking_ = false;
     asking_profile_ = nullptr;
     ++ask_generation_;
+    Refuse(gone);
   }
   content::WebContents* target = tools_.web_contents();
   const bool target_here =
@@ -410,8 +418,10 @@ void McpSession::RemoveProfile(Profile* profile) {
   }
   if (running_ && mcp_tabs_->current() == profile) {
     // Its ClaudeTabs goes, and with it a call still running there (a history
-    // search, say): answer it now.
+    // search, say): answer it now, with the reason.
+    stop_reason_ = gone;
     tools_.Stop();
+    stop_reason_.clear();
   }
   if (target_here && !running_) {
     tools_.SetTarget(nullptr);
@@ -419,9 +429,8 @@ void McpSession::RemoveProfile(Profile* profile) {
   // Else a call runs in another profile: setting the target would stop it,
   // so OnToolDone() lets go of the tab when it ends.
   mcp_tabs_->RemoveProfile(profile);
-  if (was_asking) {
-    RunNext();
-  }
+  removing_ = false;
+  RunNext();
 }
 
 bool McpSession::AlwaysAllowed(Profile* profile) {
@@ -447,9 +456,27 @@ std::optional<std::string> McpSession::HiddenReason(Profile* profile) {
                        McpTabs::NameOf(profile), "\") asks the user"});
 }
 
+bool McpSession::AllowedSomewhere() {
+  for (Profile* profile : profiles_.Run()) {
+    auto it = approvals_.find(profile);
+    if (it != approvals_.end() ? it->second == Approval::kAllowed
+                               : AlwaysAllowed(profile)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::string McpSession::ProfileLabel(Profile* profile) {
+  if (!AllowedSomewhere()) {
+    return "A profile";
+  }
+  return base::StrCat({"Profile \"", McpTabs::NameOf(profile), "\""});
+}
+
 std::string McpSession::ControlIn(Profile* profile) {
   std::string text = client_name_ + " to control Compass";
-  if (profiles_.Run().size() > 1) {
+  if (profiles_.Run().size() > 1 && AllowedSomewhere()) {
     base::StrAppend(&text, {" in profile \"", McpTabs::NameOf(profile), "\""});
   }
   return text;
@@ -462,7 +489,7 @@ void McpSession::OnToolDone(base::Value id,
   if (!result.is_error && (name == "select_tab" || name == "open_tab")) {
     picked_tab_ = true;
   }
-  if (!chat_) {
+  if (!chat_ && !removing_) {
     // A tab of a profile that stopped allowing MCP clients while this call
     // ran (RemoveProfile()).
     content::WebContents* target = tools_.web_contents();
@@ -474,6 +501,11 @@ void McpSession::OnToolDone(base::Value id,
       picked_tab_ = false;
       tools_.SetTarget(nullptr);
     }
+  }
+  if (!stop_reason_.empty()) {
+    // RemoveProfile() stopped it: say why, not "Stopped by the user".
+    result = ToolResult::Error(std::move(stop_reason_));
+    stop_reason_.clear();
   }
   const bool is_error = result.is_error;
   Reply(id, base::Value(base::DictValue()

@@ -44,19 +44,23 @@ class McpTabs : public TabsDelegate {
   ~McpTabs() override;
 
   // The last active normal window among |profiles|' (not a popup, a parking
-  // window or one swapping away), or null.
+  // window or one swapping away), or null. |with_active_tab|: one that has
+  // an active tab.
   static BrowserWindowInterface* FrontWindow(
-      const std::vector<Profile*>& profiles);
+      const std::vector<Profile*>& profiles,
+      bool with_active_tab = false);
   // |profile|'s name, as the profile menu shows it.
   static std::string NameOf(Profile* profile);
 
   // The profile a call acts in: the one its `profile`, ids or `space` name,
   // else |target|'s (the tab the page tools act on, if any), else the front
   // window's. An error if they name different profiles, or a name or id
-  // matches in more than one.
+  // matches in more than one. Without |name_profiles| (a client allowed in
+  // no profile yet), errors don't name profiles.
   base::expected<Profile*, std::string> ResolveCall(
       const base::DictValue& input,
-      content::WebContents* target);
+      content::WebContents* target,
+      bool name_profiles);
   // The next call acts in |profile|; |input| is its arguments (list_tabs's
   // `profile`, open_tab's `space`).
   void SetCall(Profile* profile, const base::DictValue& input);

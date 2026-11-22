@@ -89,8 +89,13 @@ class McpSession {
   // Why list_tabs leaves |profile|'s tabs out, or nullopt.
   std::optional<std::string> HiddenReason(Profile* profile);
   bool AlwaysAllowed(Profile* profile);
+  // Whether the client is allowed in at least one profile: until then,
+  // messages don't name profiles.
+  bool AllowedSomewhere();
+  // "Profile "<name>"", or "A profile" while the client is allowed nowhere.
+  std::string ProfileLabel(Profile* profile);
   // "<client> to control Compass", and " in "<profile>"" when more than one
-  // profile allows MCP clients.
+  // profile allows MCP clients and the client may know their names.
   std::string ControlIn(Profile* profile);
 
   // A chat's session: its profile. Null for an MCP client's.
@@ -108,6 +113,11 @@ class McpSession {
   // Counts questions, so that the answer to one RemoveProfile() dropped is
   // ignored.
   int ask_generation_ = 0;
+  // Within RemoveProfile(): calls answered there don't start the next one.
+  bool removing_ = false;
+  // The answer for a call RemoveProfile() stops, in place of ClaudeTools'
+  // "Stopped by the user".
+  std::string stop_reason_;
   // tools/call requests waiting their turn: id, name, arguments.
   struct Call {
     base::Value id;

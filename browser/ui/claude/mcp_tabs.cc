@@ -56,7 +56,8 @@ McpTabs::~McpTabs() = default;
 
 // static
 BrowserWindowInterface* McpTabs::FrontWindow(
-    const std::vector<Profile*>& profiles) {
+    const std::vector<Profile*>& profiles,
+    bool with_active_tab) {
   BrowserWindowInterface* found = nullptr;
   ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
       [&](BrowserWindowInterface* browser) {
@@ -67,6 +68,9 @@ BrowserWindowInterface* McpTabs::FrontWindow(
         WindowFeatures* features = WindowFeatures::From(browser);
         if (features &&
             (features->is_parking_window() || features->swapped_away())) {
+          return true;
+        }
+        if (with_active_tab && !browser->GetActiveTabInterface()) {
           return true;
         }
         found = browser;
@@ -112,7 +116,8 @@ std::vector<Profile*> McpTabs::OrderedProfiles() {
 
 base::expected<Profile*, std::string> McpTabs::ResolveCall(
     const base::DictValue& input,
-    content::WebContents* target) {
+    content::WebContents* target,
+    bool name_profiles) {
   const std::vector<Profile*> profiles = profiles_.Run();
   Profile* found = nullptr;
   std::string found_by;
@@ -121,6 +126,11 @@ base::expected<Profile*, std::string> McpTabs::ResolveCall(
   auto take = [&](Profile* profile,
                   const std::string& by) -> std::optional<std::string> {
     if (found && found != profile) {
+      if (!name_profiles) {
+        return std::string(
+            "Those arguments are in different profiles: tools don't act "
+            "across profiles.");
+      }
       return base::StrCat({found_by, " is in profile ", Quoted(found), " and ",
                            by, " in profile ", Quoted(profile),
                            ": tools don't act across profiles."});
@@ -144,9 +154,14 @@ base::expected<Profile*, std::string> McpTabs::ResolveCall(
       base::StrAppend(&names, {names.empty() ? "" : ", ", Quoted(profile)});
     }
     if (matches.empty()) {
+      // A client allowed nowhere yet doesn't learn the profiles' names.
       return base::unexpected(
-          base::StrCat({"No profile \"", *wanted,
-                        "\" allows MCP clients. Those that do: ", names, "."}));
+          name_profiles
+              ? base::StrCat({"No profile \"", *wanted,
+                              "\" allows MCP clients. Those that do: ", names,
+                              "."})
+              : base::StrCat(
+                    {"No profile \"", *wanted, "\" allows MCP clients."}));
     }
     if (matches.size() > 1) {
       return base::unexpected(base::StrCat(
@@ -198,7 +213,18 @@ base::expected<Profile*, std::string> McpTabs::ResolveCall(
       return base::unexpected(
           base::StrCat({"No space \"", *space, "\". list_tabs lists them."}));
     }
-    if (found && std::ranges::contains(owners, found)) {
+    if (found && !std::ranges::contains(owners, found)) {
+      // Another argument named a profile without that space.
+      return base::unexpected(
+          name_profiles
+              ? base::StrCat({found_by, " is in profile ", Quoted(found),
+                              ", which has no space \"", *space,
+                              "\": tools don't act across profiles."})
+              : base::StrCat({"The other arguments name a profile with no "
+                              "space \"",
+                              *space, "\"."}));
+    }
+    if (found) {
       // Another argument already named the profile: the name isn't a guess
       // there.
       owners = {found};
@@ -223,7 +249,14 @@ base::expected<Profile*, std::string> McpTabs::ResolveCall(
       return profile;
     }
   }
-  if (BrowserWindowInterface* front = FrontWindow(profiles)) {
+  // The window whose active tab the page tools follow (McpSession), else
+  // any.
+  BrowserWindowInterface* front =
+      FrontWindow(profiles, /*with_active_tab=*/true);
+  if (!front) {
+    front = FrontWindow(profiles);
+  }
+  if (front) {
     return front->GetProfile();
   }
   if (profiles.size() == 1) {
@@ -326,8 +359,10 @@ void McpTabs::RunTool(const std::string& name,
     std::move(done).Run(Error("No profile allows MCP clients."));
     return;
   }
-  if (name == "send_tab_to_device" && input.contains("device") &&
-      !input.contains("tab_id") && context.target &&
+  // As ClaudeTabs reads them: a tab_id that isn't a string falls back to
+  // the target too.
+  if (name == "send_tab_to_device" && input.FindString("device") &&
+      !input.FindString("tab_id") && context.target &&
       Profile::FromBrowserContext(context.target->GetBrowserContext()) !=
           current_) {
     // It would send that tab through another profile's devices.
