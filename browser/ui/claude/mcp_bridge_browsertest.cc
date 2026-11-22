@@ -23,17 +23,24 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
 #include "base/process/process.h"
 #include "base/test/run_until.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_attributes_entry.h"
+#include "chrome/browser/profiles/profile_attributes_storage.h"
+#include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/window_sync/space_directory.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -46,6 +53,38 @@ namespace compass::claude {
 namespace {
 
 using ::testing::HasSubstr;
+using ::testing::Not;
+
+// The first text block of a tools/call reply.
+std::string TextOf(const std::optional<base::DictValue>& reply) {
+  if (!reply) {
+    return std::string();
+  }
+  const base::ListValue* content =
+      reply->FindListByDottedPath("result.content");
+  if (!content || content->empty()) {
+    return std::string();
+  }
+  const std::string* text = (*content)[0].GetDict().FindString("text");
+  return text ? *text : std::string();
+}
+
+// The id list_tabs gives the entry whose URL contains |url_part|: the line
+// reads "- <id>: <title> — <url>".
+std::string IdIn(const std::string& list, const std::string& url_part) {
+  const size_t at = list.find(url_part);
+  if (at == std::string::npos) {
+    return std::string();
+  }
+  const size_t line_start = list.rfind('\n', at);
+  const size_t dash =
+      list.find("- ", line_start == std::string::npos ? 0 : line_start);
+  const size_t colon = list.find(':', dash);
+  if (dash == std::string::npos || colon == std::string::npos || colon > at) {
+    return std::string();
+  }
+  return list.substr(dash + 2, colon - dash - 2);
+}
 
 // A JSON-RPC client on a pair of file descriptors (a socket, or a
 // process's pipes). Reads never block: they wait with RunUntil, so the
@@ -155,7 +194,10 @@ class McpBridgeBrowserTest : public InProcessBrowserTest {
               std::make_unique<net::test_server::BasicHttpResponse>();
           response->set_content_type("text/html");
           response->set_content(
-              "<title>MCP page</title><p>Hello from the MCP page.");
+              request.relative_url == "/other.html"
+                  ? "<title>Other page</title><p>Hello from the other "
+                    "profile."
+                  : "<title>MCP page</title><p>Hello from the MCP page.");
           return response;
         }));
     ASSERT_TRUE(embedded_test_server()->Start());
@@ -174,6 +216,7 @@ class McpBridgeBrowserTest : public InProcessBrowserTest {
            const std::string& client,
            base::OnceCallback<void(McpApproval)> done) {
           self->asked_.push_back(client);
+          self->asked_profiles_.push_back(profile);
           std::move(done).Run(self->answer_);
         },
         this));
@@ -212,19 +255,22 @@ class McpBridgeBrowserTest : public InProcessBrowserTest {
     client.Send(base::DictValue().Set("method", "notifications/initialized"));
   }
 
-  std::optional<base::DictValue> Call(Client& client,
-                                      int id,
-                                      const std::string& tool) {
+  std::optional<base::DictValue> Call(
+      Client& client,
+      int id,
+      const std::string& tool,
+      base::DictValue arguments = base::DictValue()) {
     client.Request(id, "tools/call",
                    base::DictValue()
                        .Set("name", tool)
-                       .Set("arguments", base::DictValue()));
+                       .Set("arguments", std::move(arguments)));
     return client.Read();
   }
 
   base::ScopedTempDir dir_;
   base::FilePath socket_path_;
   std::vector<std::string> asked_;
+  std::vector<raw_ptr<Profile>> asked_profiles_;
   McpApproval answer_ = McpApproval::kAllowOnce;
 };
 
@@ -407,6 +453,123 @@ IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, ThroughCompassMcp) {
   int exit_code = -1;
   EXPECT_TRUE(process.WaitForExitWithTimeout(base::Seconds(10), &exit_code));
   EXPECT_EQ(exit_code, 0);
+}
+
+// One connection serves every profile that allows MCP clients: list_tabs
+// lists each, ids route a call to their profile, each profile asks for
+// itself, nothing acts across profiles, and turning one off leaves the
+// connection to the others.
+IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, ServesEveryEnabledProfile) {
+  ProfileManager* manager = g_browser_process->profile_manager();
+  Profile* other = &profiles::testing::CreateProfileSync(
+      manager, manager->GenerateNextProfileDirectoryPath());
+  SpaceDirectory::Get()->List(other);
+  ProfileAttributesStorage& storage = manager->GetProfileAttributesStorage();
+  storage.GetProfileAttributesWithPath(profile()->GetPath())
+      ->SetLocalProfileName(u"Home", /*is_default_name=*/false);
+  storage.GetProfileAttributesWithPath(other->GetPath())
+      ->SetLocalProfileName(u"Work", /*is_default_name=*/false);
+  Browser* other_browser = CreateBrowser(other);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      other_browser, embedded_test_server()->GetURL("/other.html")));
+
+  for (Profile* each : {profile(), other}) {
+    each->GetPrefs()->SetBoolean(prefs::kBrowserScope, true);
+    each->GetPrefs()->SetList(prefs::kMcpAllowedClients,
+                              base::ListValue().Append("trusted"));
+  }
+  Enable();
+  bridge()->SetProfileEnabled(other, true);
+
+  // Allowed in both: list_tabs lists both, under their names.
+  std::unique_ptr<Client> trusted = Client::Connect(socket_path_);
+  ASSERT_TRUE(trusted);
+  Initialize(*trusted, "trusted");
+  trusted->Request(2, "tools/list");
+  std::optional<base::DictValue> listed = trusted->Read();
+  ASSERT_TRUE(listed);
+  bool has_profile_argument = false;
+  for (const base::Value& tool :
+       *listed->FindListByDottedPath("result.tools")) {
+    if (*tool.GetDict().FindString("name") == "list_tabs") {
+      has_profile_argument = !!tool.GetDict().FindDictByDottedPath(
+          "inputSchema.properties.profile");
+    }
+  }
+  EXPECT_TRUE(has_profile_argument);
+
+  const std::string list = TextOf(Call(*trusted, 3, "list_tabs"));
+  EXPECT_THAT(list, HasSubstr("Profile \"Home\""));
+  EXPECT_THAT(list, HasSubstr("Profile \"Work\""));
+  const std::string home_id = IdIn(list, "/page.html");
+  const std::string work_id = IdIn(list, "/other.html");
+  ASSERT_FALSE(home_id.empty()) << list;
+  ASSERT_FALSE(work_id.empty()) << list;
+  EXPECT_TRUE(asked_.empty());
+
+  // An id picks its profile, whichever window is in front.
+  ASSERT_EQ(
+      Call(*trusted, 4, "select_tab", base::DictValue().Set("tab_id", work_id))
+          ->FindBoolByDottedPath("result.isError"),
+      false);
+  EXPECT_THAT(TextOf(Call(*trusted, 5, "get_page_text")),
+              HasSubstr("Hello from the other profile."));
+  ASSERT_EQ(
+      Call(*trusted, 6, "select_tab", base::DictValue().Set("tab_id", home_id))
+          ->FindBoolByDottedPath("result.isError"),
+      false);
+  EXPECT_THAT(TextOf(Call(*trusted, 7, "get_page_text")),
+              HasSubstr("Hello from the MCP page."));
+
+  // Nothing across profiles.
+  std::optional<base::DictValue> split = Call(
+      *trusted, 8, "split_tabs",
+      base::DictValue().Set("tab_id", home_id).Set("with_tab_id", work_id));
+  EXPECT_EQ(split->FindBoolByDottedPath("result.isError"), true);
+  EXPECT_THAT(TextOf(split), HasSubstr("across profiles"));
+
+  // profile narrows list_tabs to one.
+  const std::string work_only = TextOf(
+      Call(*trusted, 9, "list_tabs", base::DictValue().Set("profile", "work")));
+  EXPECT_THAT(work_only, HasSubstr("/other.html"));
+  EXPECT_THAT(work_only, Not(HasSubstr("/page.html")));
+  EXPECT_THAT(TextOf(Call(*trusted, 10, "list_tabs",
+                          base::DictValue().Set("profile", "Nobody"))),
+              HasSubstr("No profile \"Nobody\""));
+
+  // Another client: each profile asks for itself, and a no in one isn't a
+  // no in the other.
+  std::unique_ptr<Client> asking = Client::Connect(socket_path_);
+  ASSERT_TRUE(asking);
+  Initialize(*asking, "asking");
+  answer_ = McpApproval::kDeny;
+  std::optional<base::DictValue> denied =
+      Call(*asking, 2, "select_tab", base::DictValue().Set("tab_id", work_id));
+  EXPECT_EQ(denied->FindBoolByDottedPath("result.isError"), true);
+  EXPECT_THAT(TextOf(denied), HasSubstr("in profile \"Work\""));
+  ASSERT_EQ(asked_profiles_.size(), 1u);
+  EXPECT_EQ(asked_profiles_[0], other);
+  answer_ = McpApproval::kAllowOnce;
+  std::optional<base::DictValue> allowed =
+      Call(*asking, 3, "select_tab", base::DictValue().Set("tab_id", home_id));
+  EXPECT_EQ(allowed->FindBoolByDottedPath("result.isError"), false);
+  ASSERT_EQ(asked_profiles_.size(), 2u);
+  EXPECT_EQ(asked_profiles_[1], profile());
+  // Not asked again in either.
+  Call(*asking, 4, "select_tab", base::DictValue().Set("tab_id", work_id));
+  EXPECT_EQ(asked_profiles_.size(), 2u);
+  const std::string asking_list = TextOf(Call(*asking, 5, "list_tabs"));
+  EXPECT_THAT(asking_list, HasSubstr("didn't allow asking"));
+
+  // Turning one profile off keeps the connection, without it.
+  bridge()->SetProfileEnabled(other, false);
+  EXPECT_EQ(bridge()->session_count_for_testing(), 2u);
+  const std::string after = TextOf(Call(*trusted, 11, "list_tabs"));
+  EXPECT_THAT(after, HasSubstr("/page.html"));
+  EXPECT_THAT(after, Not(HasSubstr("/other.html")));
+  EXPECT_THAT(TextOf(Call(*trusted, 12, "select_tab",
+                          base::DictValue().Set("tab_id", work_id))),
+              HasSubstr("No tab"));
 }
 
 }  // namespace
