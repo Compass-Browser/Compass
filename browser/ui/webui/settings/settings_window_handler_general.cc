@@ -23,9 +23,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_attributes_entry.h"
-#include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/search_engines/ui_thread_search_terms_data.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
@@ -446,42 +443,6 @@ void SettingsWindowHandler::GetFonts(GetFontsCallback callback) {
 void SettingsWindowHandler::ShowProxySettings() {
   if (web_contents_) {
     settings_utils::ShowNetworkProxySettings(web_contents_);
-  }
-}
-
-// This profile ----------------------------------------------------------------
-
-sidebar::mojom::ProfileDetailsPtr SettingsWindowHandler::DescribeProfile() {
-  auto details = sidebar::mojom::ProfileDetails::New();
-  ProfileAttributesEntry* entry =
-      g_browser_process->profile_manager()
-          ->GetProfileAttributesStorage()
-          .GetProfileAttributesWithPath(
-              profile_->GetOriginalProfile()->GetPath());
-  if (entry) {
-    details->name = base::UTF16ToUTF8(entry->GetLocalProfileName());
-  }
-  return details;
-}
-
-void SettingsWindowHandler::GetProfile(GetProfileCallback callback) {
-  std::move(callback).Run(DescribeProfile());
-}
-
-void SettingsWindowHandler::SetProfileName(const std::string& name) {
-  std::u16string trimmed;
-  base::TrimWhitespace(base::UTF8ToUTF16(name), base::TRIM_ALL, &trimmed);
-  if (trimmed.empty()) {
-    return;
-  }
-  profiles::UpdateProfileName(profile_->GetOriginalProfile(), trimmed);
-}
-
-void SettingsWindowHandler::OnProfileNameChanged(
-    const base::FilePath& profile_path,
-    const std::u16string& old_profile_name) {
-  if (profile_path == profile_->GetOriginalProfile()->GetPath()) {
-    page_->ProfileChanged(DescribeProfile());
   }
 }
 

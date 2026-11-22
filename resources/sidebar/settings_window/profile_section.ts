@@ -12,9 +12,8 @@ import {getHtml} from './profile_section.html.js';
 // The longest name upstream's profile settings allow.
 const MAX_NAME_LENGTH = 500;
 
-// Profiles › This profile (docs/design/settings-window.md, phase 2): its
-// name, on the window's handler (as upstream's ProfileInfoHandler and
-// ManageProfileHandler do it).
+// Profiles (docs/design/settings-window.md): every profile, whichever one
+// the window is, to rename, add or delete. The window's own goes first.
 export class CompassSettingsProfileSectionElement extends CrLitElement {
   static get is() {
     return 'compass-settings-profile-section';
@@ -26,15 +25,19 @@ export class CompassSettingsProfileSectionElement extends CrLitElement {
 
   static override get properties() {
     return {
-      info_: {type: Object},
+      profiles_: {type: Array},
+      confirmingDeleteId_: {type: String},
       maxNameLength: {type: Number},
     };
   }
 
-  protected accessor info_: ProfileDetails|null = null;
+  protected accessor profiles_: ProfileDetails[] = [];
+  // The profile whose deletion is asked to be confirmed.
+  protected accessor confirmingDeleteId_: string|null = null;
   protected accessor maxNameLength: number = MAX_NAME_LENGTH;
 
   private handler_ = SettingsWindowBrowserProxy.getInstance().handler;
+  private listenerId_: number|null = null;
 
   override createRenderRoot() {
     return this;
@@ -42,29 +45,101 @@ export class CompassSettingsProfileSectionElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    this.handler_.getProfile().then(
-        ({profile}: {profile: ProfileDetails}) => this.info_ = profile);
-    SettingsWindowBrowserProxy.getInstance()
-        .callbackRouter.profileChanged.addListener(
-            (profile: ProfileDetails) => this.info_ = profile);
+    this.handler_.getProfiles().then(
+        ({profiles}: {profiles: ProfileDetails[]}) =>
+            this.setProfiles_(profiles));
+    this.listenerId_ =
+        SettingsWindowBrowserProxy.getInstance()
+            .callbackRouter.profilesChanged.addListener(
+                (profiles: ProfileDetails[]) => this.setProfiles_(profiles));
   }
 
-  protected getName_(): string {
-    return this.info_?.name || '';
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.listenerId_ !== null) {
+      SettingsWindowBrowserProxy.getInstance().callbackRouter.removeListener(
+          this.listenerId_);
+      this.listenerId_ = null;
+    }
+  }
+
+  private setProfiles_(profiles: ProfileDetails[]) {
+    // The window's own first, then the others as the profile menu lists them.
+    this.profiles_ = [
+      ...profiles.filter(profile => profile.current),
+      ...profiles.filter(profile => !profile.current),
+    ];
+    if (!profiles.some(profile => profile.id === this.confirmingDeleteId_)) {
+      this.confirmingDeleteId_ = null;
+    }
+  }
+
+  protected getSpaceCountText_(profile: ProfileDetails): string {
+    const count = profile.spaceCount;
+    const spaces = count === 1 ? '1 space' : `${count} spaces`;
+    return profile.current ? `This window's profile · ${spaces}` : spaces;
+  }
+
+  protected canDelete_(): boolean {
+    return this.profiles_.length > 1;
+  }
+
+  protected isConfirmingDelete_(profile: ProfileDetails): boolean {
+    return this.confirmingDeleteId_ === profile.id;
+  }
+
+  protected getDeleteText_(profile: ProfileDetails): string {
+    const count = profile.spaceCount;
+    const spaces = count === 0 ? '' :
+        count === 1           ? 'its space, ' :
+                                `its ${count} spaces, `;
+    const windows = profile.current ? ' This window closes too.' : '';
+    return `Deletes “${profile.name}” with ${spaces}its tabs, history, ` +
+        `passwords and other data on this device. Move spaces you want to ` +
+        `keep to another profile first.${windows}`;
+  }
+
+  private getProfileId_(e: Event): string {
+    return (e.currentTarget as HTMLElement).dataset['profileId']!;
   }
 
   // The name is saved when the field is left or Enter is pressed; an empty
   // one goes back to the saved name.
   protected onNameChange_(e: Event) {
     const input = e.target as HTMLInputElement;
+    const id = input.dataset['profileId']!;
+    const saved = this.profiles_.find(profile => profile.id === id)?.name ?? '';
     const name = input.value.trim();
     if (!name) {
-      input.value = this.getName_();
+      input.value = saved;
       return;
     }
-    if (name !== this.getName_()) {
-      this.handler_.setProfileName(name);
+    if (name !== saved) {
+      this.handler_.setProfileName(id, name);
     }
+  }
+
+  protected onNameKeydown_(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      (e.target as HTMLInputElement).blur();
+    }
+  }
+
+  protected onAddClick_() {
+    this.handler_.createProfile();
+  }
+
+  protected onDeleteClick_(e: Event) {
+    this.confirmingDeleteId_ = this.getProfileId_(e);
+  }
+
+  protected onDeleteCancelClick_() {
+    this.confirmingDeleteId_ = null;
+  }
+
+  protected onDeleteConfirmClick_(e: Event) {
+    this.handler_.deleteProfile(this.getProfileId_(e));
+    this.confirmingDeleteId_ = null;
   }
 }
 

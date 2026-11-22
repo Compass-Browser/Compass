@@ -19,6 +19,7 @@ import './theme_editor.js';
 import './live_folders/editor.js';
 import type {LiveNode} from './node.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from './space_icons.js';
+import {ARCHIVE_DELAYS, firstGrapheme} from './space_options.js';
 import type {ArchivedEntry, ArchivedTab, LiveFolder, LiveFolderState, Node, NowPlaying, ProfileOption, RoomNotice, Space, Tree} from './sidebar.mojom-webui.js';
 import {AudioState, NodeType, SwipePhase} from './sidebar.mojom-webui.js';
 
@@ -32,28 +33,6 @@ interface DropTarget {
   target: HTMLElement;
   position: 'before'|'after'|'into'|'end'|'split-left'|'split-right';
 }
-
-function firstGrapheme(text: string): string {
-  const segments = new Intl.Segmenter(undefined, {granularity: 'grapheme'});
-  for (const {segment} of segments.segment(text)) {
-    return segment;
-  }
-  return '';
-}
-
-export interface ArchiveDelay {
-  hours: number;
-  label: string;
-}
-
-// The auto-archive delays the space menu offers, in hours; 0 is never.
-const ARCHIVE_DELAYS: ArchiveDelay[] = [
-  {hours: 12, label: '12 hours'},
-  {hours: 24, label: '24 hours'},
-  {hours: 7 * 24, label: '7 days'},
-  {hours: 30 * 24, label: '30 days'},
-  {hours: 0, label: 'Never'},
-];
 
 // How long the pointer rests on a tab before its hover card shows. Once one
 // shows, moving to another tab moves it there at once. Upstream's delay.

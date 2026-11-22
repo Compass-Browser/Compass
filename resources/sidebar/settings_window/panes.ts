@@ -96,6 +96,11 @@ export const PANES: Pane[] = [
         keywords: '',
         searchRows: [
           {id: 'profileName', label: 'Profile name', keywords: 'people'},
+          {
+            id: 'addProfile',
+            label: 'New profile',
+            keywords: 'add create people',
+          },
         ],
       },
       {
@@ -109,6 +114,20 @@ export const PANES: Pane[] = [
         keywords: 'import arc chrome safari firefox bookmarks history',
       },
     ],
+    groups: [],
+  },
+  {
+    id: 'spaces',
+    label: 'Spaces',
+    sections: [{
+      tag: 'compass-settings-spaces-pane',
+      path: 'spaces',
+      keywords: 'space spaces workspace switcher icon emoji color theme ' +
+          'gradient profile archive sync rename reorder delete',
+      searchRows: [
+        {id: 'spaces', label: 'Edit spaces', keywords: 'rename icon theme'},
+      ],
+    }],
     groups: [],
   },
   {

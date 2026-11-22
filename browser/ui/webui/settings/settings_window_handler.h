@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -22,6 +23,7 @@
 #include "compass/browser/adblock/adblock_service.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
+#include "compass/browser/window_sync/space_directory.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager_observer.h"
 #include "components/content_settings/core/browser/content_settings_observer.h"
@@ -55,6 +57,7 @@ namespace compass {
 class SettingsWindowHandler
     : public sidebar::mojom::SettingsWindowHandler,
       public SpaceList::Observer,
+      public SpaceDirectory::Observer,
       public TemplateURLServiceObserver,
       public ProfileAttributesStorageObserver,
       public content_settings::Observer,
@@ -106,8 +109,31 @@ class SettingsWindowHandler
   void ChooseDownloadLocation() override;
   void GetFonts(GetFontsCallback callback) override;
   void ShowProxySettings() override;
-  void GetProfile(GetProfileCallback callback) override;
-  void SetProfileName(const std::string& name) override;
+  void GetProfiles(GetProfilesCallback callback) override;
+  void SetProfileName(const std::string& profile_id,
+                      const std::string& name) override;
+  void CreateProfile() override;
+  void DeleteProfile(const std::string& profile_id) override;
+  void GetSpaces(GetSpacesCallback callback) override;
+  void AddSpace(const std::string& profile_id) override;
+  void RenameSpace(const std::string& id, const std::string& name) override;
+  void SetSpaceColor(const std::string& id,
+                     sidebar::mojom::SpaceColorPtr color) override;
+  void SetSpaceGradient(
+      const std::string& id,
+      std::vector<sidebar::mojom::SpaceColorPtr> gradient) override;
+  void SetSpaceIntensity(const std::string& id, double intensity) override;
+  void SetSpaceGrain(const std::string& id, double grain) override;
+  void SetSpaceAppearance(const std::string& id,
+                          sidebar::mojom::SpaceAppearance appearance) override;
+  void SetSpaceIcon(const std::string& id,
+                    sidebar::mojom::SpaceIconPtr icon) override;
+  void SetSpaceProfile(const std::string& id,
+                       const std::optional<std::string>& profile_id) override;
+  void SetArchiveAfter(const std::string& space_id, uint32_t hours) override;
+  void SetSpaceSynced(const std::string& space_id, bool synced) override;
+  void DeleteSpace(const std::string& id) override;
+  void MoveSpace(const std::string& id, uint32_t index) override;
   void GetPermissionDefaults(GetPermissionDefaultsCallback callback) override;
   void SetPermissionDefault(const std::string& type,
                             sidebar::mojom::PermissionValue value) override;
@@ -167,15 +193,26 @@ class SettingsWindowHandler
   void OnTemplateURLServiceChanged() override;
 
   // ProfileAttributesStorageObserver:
+  void OnProfileAdded(const base::FilePath& profile_path) override;
+  void OnProfileWasRemoved(const base::FilePath& profile_path,
+                           const std::u16string& profile_name) override;
   void OnProfileNameChanged(const base::FilePath& profile_path,
                             const std::u16string& old_profile_name) override;
+  void OnProfileIsOmittedChanged(const base::FilePath& profile_path) override;
+
+  // SpaceDirectory::Observer:
+  void OnDirectoryChanged() override;
 
   // ui::SelectFileDialog::Listener:
   void FileSelected(const ui::SelectedFileInfo& file, int index) override;
   void FileSelectionCanceled() override;
 
-  // SpaceList::Observer:
+  // SpaceList::Observer (the window's own profile's spaces: its accent, and
+  // the Spaces pane without the directory):
+  void OnSpaceAdded(SpaceModel& space) override;
   void OnSpaceUpdated(const SpaceModel& space) override;
+  void OnSpaceRemoved() override;
+  void OnSpaceMoved(const SpaceModel& space) override;
   void OnActiveSpaceChanged() override;
 
   // adblock::AdBlockService::Observer:
@@ -194,7 +231,18 @@ class SettingsWindowHandler
   sidebar::mojom::SearchEnginesPtr DescribeSearchEngines();
   // The search engines' rules, once the service has loaded; null before.
   KeywordEditorController* GetKeywordEditor();
-  sidebar::mojom::ProfileDetailsPtr DescribeProfile();
+  // settings_window_handler_profiles.cc. Every profile, and every space:
+  // the directory's, or the profile's own without one (a profile that can't
+  // be listed).
+  std::vector<sidebar::mojom::ProfileDetailsPtr> DescribeProfiles();
+  std::vector<SpaceDirectory::Entry> GetAllSpaces();
+  void SendProfilesAndSpaces();
+  SpaceDirectory::Entry FindAnySpace(const std::string& id);
+  // The space with |id|, of any profile, unless it's a viewer's.
+  SpaceModel* FindEditableSpace(const std::string& id);
+  SpaceDirectory* directory();
+  // The profiles a space can be assigned to: none without the directory.
+  std::vector<sidebar::mojom::ProfileOptionPtr> GetSpaceProfileOptions();
   // settings_window_handler_passwords.cc. The password manager's, made on
   // first use.
   extensions::PasswordsPrivateDelegate* GetPasswordsDelegate();
@@ -233,6 +281,9 @@ class SettingsWindowHandler
   PrefChangeRegistrar local_prefs_;
   base::ScopedObservation<SpaceList, SpaceList::Observer> space_observation_{
       this};
+  // Whether it observes the directory, which can go first (with the profile
+  // manager, at shutdown).
+  bool uses_directory_ = false;
   base::ScopedObservation<adblock::AdBlockService,
                           adblock::AdBlockService::Observer>
       adblock_observation_{this};

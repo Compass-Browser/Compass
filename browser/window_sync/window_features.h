@@ -246,6 +246,15 @@ void AssignSpaceToProfile(const base::Uuid& space_id,
 using NewProfileMaker = bool (*)(base::OnceCallback<void(Profile*)> loaded);
 void SetNewProfileMaker(NewProfileMaker maker);
 
+// Makes a new profile, as AssignSpaceToProfile() does (in the sync chain when
+// it runs), and runs |loaded| with it, or with null if that failed.
+void CreateProfileForSpaces(base::OnceCallback<void(Profile*)> loaded);
+
+// Adds a space at the end of |profile|'s, once its sidebar file has loaded.
+// A profile that isn't in the switcher joins it with the spaces it has
+// instead (a new profile's starting space).
+void AddSpaceToProfile(Profile* profile);
+
 // Shows |space|, one of |profile|'s spaces, in |browser|'s window. A space of
 // the window's profile rebinds the window (SwitchToSpace()). One of another
 // profile swaps it: a window of that profile opens on |space| at the same

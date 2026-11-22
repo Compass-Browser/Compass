@@ -56,6 +56,7 @@ constexpr auto kWindowPaths = std::to_array<std::string_view>({
     "profiles",
     "sync",
     "importArc",
+    "spaces",
     "links",
     "shortcuts",
     "boosts",

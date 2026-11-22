@@ -20,6 +20,7 @@
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -29,6 +30,10 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/space_service.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
@@ -125,7 +130,13 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, ShowSettingsOpensTheWindow) {
   ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
   EXPECT_EQ(WaitFor("document.querySelector('#tabs .tab') && "
                     "document.querySelectorAll('#tabs .tab').length"),
-            10);
+            11);
+  // They fit in the toolbar.
+  EXPECT_EQ(content::EvalJs(window()->web_contents(),
+                            "(() => { const tabs = document.querySelector("
+                            "'#tabs'); return tabs.scrollWidth <= "
+                            "tabs.clientWidth; })()"),
+            true);
 
   SettingsWindow* first = window();
   chrome::ShowSettingsSubPage(browser(), "boosts");
@@ -284,7 +295,7 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, ProfileName) {
   ASSERT_TRUE(window());
   ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
   const std::string field =
-      "document.querySelector('input[aria-label=\"Profile name\"]')";
+      "document.querySelector('[data-row=\"profileName\"] input')";
   ASSERT_TRUE(WaitFor(field + " && " + field + ".value").ExtractString() != "");
   ASSERT_TRUE(content::ExecJs(window()->web_contents(),
                               field + ".value = 'Work';" + field +
@@ -296,6 +307,168 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, ProfileName) {
   ASSERT_TRUE(entry);
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return entry->GetLocalProfileName() == u"Work"; }));
+}
+
+// Profiles lists every profile: another one's name is saved too.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, RenamesAnotherProfile) {
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  Profile& other = profiles::testing::CreateProfileSync(
+      profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+  chrome::ShowSettingsSubPage(browser(), "profiles");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  const std::string field = content::JsReplace(
+      "document.querySelector('input[data-profile-id=\"' + $1 + '\"]')",
+      other.GetBaseName().AsUTF8Unsafe());
+  ASSERT_TRUE(WaitFor(field).is_ok());
+  ASSERT_TRUE(content::ExecJs(window()->web_contents(),
+                              field + ".value = 'Side project';" + field +
+                                  ".dispatchEvent(new Event('change'));"));
+  ProfileAttributesEntry* entry =
+      profile_manager->GetProfileAttributesStorage()
+          .GetProfileAttributesWithPath(other.GetPath());
+  ASSERT_TRUE(entry);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return entry->GetLocalProfileName() == u"Side project"; }));
+  // The window's own profile keeps its name.
+  EXPECT_NE(profile_manager->GetProfileAttributesStorage()
+                .GetProfileAttributesWithPath(profile()->GetPath())
+                ->GetLocalProfileName(),
+            u"Side project");
+}
+
+// Profiles: "New profile" makes one, which joins the switcher; the list shows
+// it.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, CreatesProfile) {
+  ProfileAttributesStorage& storage =
+      g_browser_process->profile_manager()->GetProfileAttributesStorage();
+  const size_t before = storage.GetNumberOfProfiles();
+  chrome::ShowSettingsSubPage(browser(), "profiles");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  ASSERT_TRUE(
+      WaitFor("document.querySelector('[data-row=\"addProfile\"]')").is_ok());
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "document.querySelector('[data-row=\"addProfile\"]').click()"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return storage.GetNumberOfProfiles() == before + 1; }));
+  EXPECT_EQ(WaitFor("document.querySelectorAll('.profile-row').length === " +
+                    base::NumberToString(before + 1))
+                .ExtractBool(),
+            true);
+}
+
+// Profiles: another profile is deleted once confirmed.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, DeletesProfile) {
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  Profile& other = profiles::testing::CreateProfileSync(
+      profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+  const base::FilePath path = other.GetPath();
+  chrome::ShowSettingsSubPage(browser(), "profiles");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  const std::string id = other.GetBaseName().AsUTF8Unsafe();
+  const std::string ask = content::JsReplace(
+      "document.querySelector('.profile-row button[data-profile-id=\"' + $1 + "
+      "'\"]')",
+      id);
+  ASSERT_TRUE(WaitFor(ask).is_ok());
+  ASSERT_TRUE(content::ExecJs(window()->web_contents(), ask + ".click()"));
+  const std::string confirm = content::JsReplace(
+      "document.querySelector('.confirm-row:not([hidden]) "
+      "button[data-profile-id=\"' + $1 + '\"]')",
+      id);
+  ASSERT_TRUE(WaitFor(confirm).is_ok());
+  ASSERT_TRUE(content::ExecJs(window()->web_contents(), confirm + ".click()"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    ProfileAttributesEntry* entry =
+        profile_manager->GetProfileAttributesStorage()
+            .GetProfileAttributesWithPath(path);
+    return !entry || entry->IsOmitted();
+  }));
+}
+
+// Spaces lists every profile's spaces, and edits, adds, moves and deletes
+// another profile's.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SpacesPaneEditsAnyProfile) {
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  Profile& other = profiles::testing::CreateProfileSync(
+      profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+  SpaceService* service = SpaceService::Get(&other);
+  {
+    base::RunLoop loaded;
+    service->RunWhenLoaded(loaded.QuitClosure());
+    loaded.Run();
+  }
+  SpaceDirectory::Get()->List(&other);
+  SpaceList& list = service->space_list();
+  ASSERT_EQ(list.spaces().size(), 1u);
+  SpaceModel& home = *list.spaces()[0];
+  const std::string home_id = home.id().AsLowercaseString();
+
+  chrome::ShowSettingsSubPage(browser(), "spaces");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  content::WebContents* page = window()->web_contents();
+
+  // Rename it.
+  const std::string name = content::JsReplace(
+      "document.querySelector('input.space-name[data-space-id=\"' + $1 + "
+      "'\"]')",
+      home_id);
+  ASSERT_TRUE(WaitFor(name).is_ok());
+  ASSERT_TRUE(
+      content::ExecJs(page, name + ".value = 'Errands';" + name +
+                                ".dispatchEvent(new Event('change'));"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return home.name() == u"Errands"; }));
+
+  // Add one to that profile.
+  const std::string add = content::JsReplace(
+      "document.querySelector('.group-header button[data-profile-id=\"' + $1 "
+      "+ '\"]')",
+      other.GetBaseName().AsUTF8Unsafe());
+  ASSERT_TRUE(content::ExecJs(page, add + ".click()"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return list.spaces().size() == 2u; }));
+  SpaceModel& added = *list.spaces()[1];
+  const std::string added_id = added.id().AsLowercaseString();
+
+  // Move the new one above Errands.
+  const std::string up = content::JsReplace(
+      "document.querySelector('button.move[data-step=\"up\"][data-space-id="
+      "\"' + $1 + '\"]')",
+      added_id);
+  ASSERT_TRUE(WaitFor(up + " && !" + up + ".disabled").is_ok());
+  ASSERT_TRUE(content::ExecJs(page, up + ".click()"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    std::vector<SpaceDirectory::Entry> spaces =
+        SpaceDirectory::Get()->GetSpaces();
+    auto at = [&](const SpaceModel* space) {
+      return std::ranges::find(spaces, space, &SpaceDirectory::Entry::space);
+    };
+    return at(&added) < at(&home);
+  }));
+
+  // Delete Errands, once confirmed.
+  const std::string edit = content::JsReplace(
+      "document.querySelector('.space-row button[aria-expanded]"
+      "[data-space-id=\"' + $1 + '\"]')",
+      home_id);
+  ASSERT_TRUE(content::ExecJs(page, edit + ".click()"));
+  const std::string ask = content::JsReplace(
+      "document.querySelector('.space-details .space-detail-row "
+      "button.danger[data-space-id=\"' + $1 + '\"]')",
+      home_id);
+  ASSERT_TRUE(WaitFor(ask).is_ok());
+  ASSERT_TRUE(content::ExecJs(page, ask + ".click()"));
+  const std::string confirm = content::JsReplace(
+      "document.querySelector('.confirm-row:not([hidden]) "
+      "button[data-space-id=\"' + $1 + '\"]')",
+      home_id);
+  ASSERT_TRUE(WaitFor(confirm).is_ok());
+  ASSERT_TRUE(content::ExecJs(page, confirm + ".click()"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return list.spaces().size() == 1u; }));
+  EXPECT_EQ(list.spaces()[0].get(), &added);
 }
 
 // Privacy (phase 3): page info's "Site settings" lands on the site, whose

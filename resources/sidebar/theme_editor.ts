@@ -44,6 +44,16 @@ export interface DialTick {
   lit: boolean;
 }
 
+// The edits the editor makes, which the sidebar's and the settings window's
+// handlers both take.
+export interface ThemeEditorHandler {
+  setSpaceColor(id: string, color: SpaceColor|null): void;
+  setSpaceGradient(id: string, gradient: SpaceColor[]): void;
+  setSpaceIntensity(id: string, intensity: number): void;
+  setSpaceGrain(id: string, grain: number): void;
+  setSpaceAppearance(id: string, appearance: SpaceAppearance): void;
+}
+
 // Edits a space's theme (docs/design/spaces.md, "Theme editor"): light or
 // dark mode, its colors as dots on a hue and saturation pad (the big one is
 // its color, the small ones its gradient), a palette of colors and
@@ -74,6 +84,9 @@ export class CompassThemeEditorElement extends CrLitElement {
   }
 
   accessor space: Space|null = null;
+  // Where the edits go: the sidebar's handler unless a page sets its own (the
+  // settings window's Spaces pane).
+  handler: ThemeEditorHandler|null = null;
   // The palette's page: colors, then gradients.
   protected accessor page_: number = 0;
   // While dragging and just after: what's shown instead of the space's.
@@ -86,7 +99,6 @@ export class CompassThemeEditorElement extends CrLitElement {
   protected readonly paletteGradients_: PaletteGradient[] =
       GRADIENT_PRESETS.slice(0, 8);
 
-  private proxy_ = SidebarBrowserProxy.getInstance();
   // The dot being dragged, and the colors when the drag began.
   private dragIndex_: number|null = null;
   private dragStart_: SpaceColor[] = [];
@@ -94,6 +106,10 @@ export class CompassThemeEditorElement extends CrLitElement {
   private pendingSend_: (() => void)|null = null;
   private sendTimer_: number|null = null;
   private settleTimer_: number|null = null;
+
+  private getHandler_(): ThemeEditorHandler {
+    return this.handler ?? SidebarBrowserProxy.getInstance().handler;
+  }
 
   override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
@@ -130,7 +146,7 @@ export class CompassThemeEditorElement extends CrLitElement {
     const appearance = Number((e.currentTarget as HTMLElement)
                                   .dataset['appearance']) as SpaceAppearance;
     if (this.space) {
-      this.proxy_.handler.setSpaceAppearance(this.space.id, appearance);
+      this.getHandler_().setSpaceAppearance(this.space.id, appearance);
     }
   }
 
@@ -431,7 +447,7 @@ export class CompassThemeEditorElement extends CrLitElement {
     const id = this.space?.id;
     if (id) {
       this.sendSoon_(
-          () => this.proxy_.handler.setSpaceIntensity(id, intensity));
+          () => this.getHandler_().setSpaceIntensity(id, intensity));
     }
   }
 
@@ -491,7 +507,7 @@ export class CompassThemeEditorElement extends CrLitElement {
     this.dragGrain_ = grain;
     const id = this.space?.id;
     if (id) {
-      this.sendSoon_(() => this.proxy_.handler.setSpaceGrain(id, grain));
+      this.sendSoon_(() => this.getHandler_().setSpaceGrain(id, grain));
     }
   }
 
@@ -522,8 +538,8 @@ export class CompassThemeEditorElement extends CrLitElement {
     if (!id) {
       return;
     }
-    this.proxy_.handler.setSpaceColor(id, colors[0] ?? null);
-    this.proxy_.handler.setSpaceGradient(id, colors.slice(1));
+    this.getHandler_().setSpaceColor(id, colors[0] ?? null);
+    this.getHandler_().setSpaceGradient(id, colors.slice(1));
   }
 
   private sendSoon_(send: () => void) {

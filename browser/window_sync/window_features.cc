@@ -935,6 +935,41 @@ void SetNewProfileMaker(NewProfileMaker maker) {
   g_new_profile_maker = maker;
 }
 
+void CreateProfileForSpaces(base::OnceCallback<void(Profile*)> loaded) {
+  // In the sync chain at once, when it runs here.
+  if (g_new_profile_maker && g_new_profile_maker(std::move(loaded))) {
+    return;
+  }
+  ProfileAttributesStorage& storage =
+      g_browser_process->profile_manager()->GetProfileAttributesStorage();
+  ProfileManager::CreateMultiProfileAsync(
+      storage.ChooseNameForNewProfile(),
+      storage.ChooseAvatarIconIndexForNewProfile(), /*is_hidden=*/false,
+      std::move(loaded));
+}
+
+void AddSpaceToProfile(Profile* profile) {
+  if (!profile || !SpaceDirectory::IsListable(profile)) {
+    return;
+  }
+  SpaceService::Get(profile)->RunWhenLoaded(base::BindOnce(
+      [](base::WeakPtr<Profile> profile) {
+        if (!profile) {
+          return;
+        }
+        SpaceDirectory* directory = SpaceDirectory::GetIfExists();
+        if (directory && !directory->IsListed(profile.get())) {
+          directory->List(profile.get());
+          return;
+        }
+        SpaceList& list = SpaceService::Get(profile.get())->space_list();
+        list.AddSpace(
+            list.spaces().size(),
+            u"Space " + base::NumberToString16(list.spaces().size() + 1));
+      },
+      profile->GetWeakPtr()));
+}
+
 void AssignSpaceToProfile(const base::Uuid& space_id,
                           std::optional<base::FilePath> profile_path) {
   // Then once its sidebar file is in, so its spaces are known.
@@ -963,17 +998,7 @@ void AssignSpaceToProfile(const base::Uuid& space_id,
   };
   ProfileManager* profile_manager = g_browser_process->profile_manager();
   if (!profile_path) {
-    // In the sync chain at once, when it runs here.
-    if (g_new_profile_maker &&
-        g_new_profile_maker(make_assign(space_id, /*new_profile=*/true))) {
-      return;
-    }
-    ProfileAttributesStorage& storage =
-        profile_manager->GetProfileAttributesStorage();
-    ProfileManager::CreateMultiProfileAsync(
-        storage.ChooseNameForNewProfile(),
-        storage.ChooseAvatarIconIndexForNewProfile(), /*is_hidden=*/false,
-        make_assign(space_id, /*new_profile=*/true));
+    CreateProfileForSpaces(make_assign(space_id, /*new_profile=*/true));
     return;
   }
   // Runs |assign| with null if it fails.
