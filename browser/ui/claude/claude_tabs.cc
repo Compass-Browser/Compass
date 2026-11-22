@@ -227,6 +227,11 @@ SpaceModel* ClaudeTabs::FindSpace(const std::string& name_or_id) {
 }
 
 std::string ClaudeTabs::ListTabs(const Context& context) {
+  return ListTabs(context, "[shown in the user's window]");
+}
+
+std::string ClaudeTabs::ListTabs(const Context& context,
+                                 const std::string& home_mark) {
   SpaceService* service = SpaceService::Get(profile_);
   if (!service) {
     return "No tabs.";
@@ -313,7 +318,7 @@ std::string ClaudeTabs::ListTabs(const Context& context) {
     text += base::StrCat({"\nSpace \"", Utf8(space->name()), "\" (",
                           SpaceId(*space), ")"});
     if (home_features && &home_features->space_model() == space.get()) {
-      text += " [shown in the user's window]";
+      text += " " + home_mark;
     } else if (WindowShowing(*space)) {
       text += " [shown in another window]";
     }

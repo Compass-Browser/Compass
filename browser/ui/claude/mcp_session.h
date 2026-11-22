@@ -18,6 +18,7 @@
 #include "base/values.h"
 #include "compass/browser/claude/claude_tools.h"
 
+class BrowserWindowInterface;
 class Profile;
 
 namespace compass::claude {
@@ -80,6 +81,12 @@ class McpSession {
   void ListTools(const base::Value& id);
   void RunNext();
   void RunChatCall();
+  // The tab the page tools follow while none is picked: the active tab of
+  // the front window, or the one the user was on before a question in
+  // another profile came to the front.
+  content::WebContents* UserTab(const std::vector<Profile*>& profiles);
+  // Asks the user whether the client may act in |profile|.
+  void AskIn(Profile* profile, const std::vector<Profile*>& profiles);
   void OnApproval(int generation,
                   base::WeakPtr<Profile> profile,
                   McpApproval approval);
@@ -113,6 +120,12 @@ class McpSession {
   // Counts questions, so that the answer to one RemoveProfile() dropped is
   // ignored.
   int ask_generation_ = 0;
+  // While a question in another profile is in front (UserTab()): the tab
+  // the user was on, and the window the question came on. Compared, never
+  // used, once that window is gone.
+  base::WeakPtr<content::WebContents> kept_tab_;
+  raw_ptr<BrowserWindowInterface, DisableDanglingPtrDetection> asked_window_ =
+      nullptr;
   // Within RemoveProfile(): calls answered there don't start the next one.
   bool removing_ = false;
   // The answer for a call RemoveProfile() stops, in place of ClaudeTools'

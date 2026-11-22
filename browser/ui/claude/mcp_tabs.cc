@@ -27,6 +27,12 @@ namespace {
 
 using Result = TabsDelegate::Result;
 
+// The tools MCP clients get a `profile` argument for (McpSession::
+// ListTools()).
+constexpr const char* kProfileTools[] = {"list_tabs", "create_space",
+                                         "search_history", "list_downloads",
+                                         "send_tab_to_device"};
+
 // The arguments that name a sidebar entry or a tab. create_folder's `in` is
 // a folder id, or pinned or today.
 constexpr const char* kIdKeys[] = {"tab_id", "with_tab_id", "folder_id", "in"};
@@ -80,6 +86,11 @@ BrowserWindowInterface* McpTabs::FrontWindow(
 }
 
 // static
+bool McpTabs::TakesProfile(const std::string& name) {
+  return std::ranges::contains(kProfileTools, name);
+}
+
+// static
 std::string McpTabs::NameOf(Profile* profile) {
   return base::UTF16ToUTF8(SpaceDirectory::GetProfileName(profile));
 }
@@ -115,6 +126,7 @@ std::vector<Profile*> McpTabs::OrderedProfiles() {
 }
 
 base::expected<Profile*, std::string> McpTabs::ResolveCall(
+    const std::string& name,
     const base::DictValue& input,
     content::WebContents* target,
     bool name_profiles) {
@@ -188,10 +200,13 @@ base::expected<Profile*, std::string> McpTabs::ResolveCall(
       }
     }
     if (owners.size() > 1) {
+      // Both profiles list it with the same id: nothing a tool takes tells
+      // them apart.
       return base::unexpected(base::StrCat(
           {*id,
-           " names an entry in more than one profile. Run list_tabs "
-           "and use the tab instead, or give profile."}));
+           " names an entry in more than one profile, a rare clash of ids "
+           "that tools can't tell apart: ask the user to do this one in "
+           "Compass."}));
     }
     if (owners.empty()) {
       // No such id: the profile's own tool says so.
@@ -263,9 +278,14 @@ base::expected<Profile*, std::string> McpTabs::ResolveCall(
     // A profile kept loaded by the space list, with no window.
     return profiles.front();
   }
-  return base::unexpected(std::string(
-      "Open a Compass window of a profile that allows MCP clients, or give "
-      "profile."));
+  return base::unexpected(
+      TakesProfile(name)
+          ? std::string("No window of a profile that allows MCP clients is "
+                        "open: give profile, or ask the user to open one.")
+          : std::string("No window of a profile that allows MCP clients is "
+                        "open: ask the user to open one, or pick a tab "
+                        "(list_tabs with its profile argument gives the ids, "
+                        "select_tab picks one)."));
 }
 
 void McpTabs::SetCall(Profile* profile, const base::DictValue& input) {
@@ -293,9 +313,18 @@ std::string McpTabs::ListTabs(const Context& context) {
   }
   const std::vector<Profile*> profiles =
       only_current_ ? std::vector<Profile*>{current_.get()} : OrderedProfiles();
+  // Each profile's own window shows a space, but only the front one is the
+  // user's window.
+  BrowserWindowInterface* front = FrontWindow(profiles_.Run());
+  auto tabs_of = [&](Profile* profile) {
+    return TabsOf(profile).ListTabs(context,
+                                    front && front->GetProfile() == profile
+                                        ? "[shown in the user's window]"
+                                        : "[shown in this profile's window]");
+  };
   if (profiles.size() == 1) {
     // One profile reads as it always did.
-    return TabsOf(profiles.front()).ListTabs(context);
+    return tabs_of(profiles.front());
   }
   std::string text;
   for (Profile* profile : profiles) {
@@ -314,7 +343,7 @@ std::string McpTabs::ListTabs(const Context& context) {
       base::StrAppend(&text, {": ", *hidden, ".\n"});
       continue;
     }
-    base::StrAppend(&text, {":\n", TabsOf(profile).ListTabs(context)});
+    base::StrAppend(&text, {":\n", tabs_of(profile)});
   }
   return text;
 }
@@ -374,8 +403,12 @@ void McpTabs::RunTool(const std::string& name,
   if (name == "switch_space") {
     // A space of another profile than the front window's: that window
     // swaps in place, as the switcher does.
+    // Only if the client may act in the front window's profile too
+    // (McpSession asked there): that window empties and closes. Else the
+    // profile's own window switches, through ClaudeTabs.
     BrowserWindowInterface* front = FrontWindow(profiles_.Run());
-    if (front && front->GetProfile() != current_) {
+    if (front && front->GetProfile() != current_ &&
+        !hidden_.Run(front->GetProfile())) {
       std::move(done).Run(SwapFrontWindow(front, input));
       return;
     }

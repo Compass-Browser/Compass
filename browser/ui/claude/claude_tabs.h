@@ -49,6 +49,11 @@ class ClaudeTabs : public TabsDelegate {
                const Context& context,
                base::OnceCallback<void(Result)> done) override;
 
+  // ListTabs() with |home_mark| on the space the profile's own window
+  // shows, in place of "[shown in the user's window]": with several
+  // profiles listed, only the front one's window is the user's.
+  std::string ListTabs(const Context& context, const std::string& home_mark);
+
   // Whether |id|, a tab, split or folder id from list_tabs, is this
   // profile's. McpTabs routes a call by it.
   bool Owns(const std::string& id);

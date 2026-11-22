@@ -49,6 +49,8 @@ class McpTabs : public TabsDelegate {
   static BrowserWindowInterface* FrontWindow(
       const std::vector<Profile*>& profiles,
       bool with_active_tab = false);
+  // Whether MCP clients get a `profile` argument for tool |name|.
+  static bool TakesProfile(const std::string& name);
   // |profile|'s name, as the profile menu shows it.
   static std::string NameOf(Profile* profile);
 
@@ -58,6 +60,7 @@ class McpTabs : public TabsDelegate {
   // matches in more than one. Without |name_profiles| (a client allowed in
   // no profile yet), errors don't name profiles.
   base::expected<Profile*, std::string> ResolveCall(
+      const std::string& name,
       const base::DictValue& input,
       content::WebContents* target,
       bool name_profiles);

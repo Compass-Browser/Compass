@@ -49,9 +49,6 @@ constexpr char kInstructions[] =
 
 // The MCP-only arguments, added to tools.json's definitions for MCP
 // clients: the chat's tools, on every platform, act in the chat's profile.
-constexpr const char* kProfileTools[] = {"list_tabs", "create_space",
-                                         "search_history", "list_downloads",
-                                         "send_tab_to_device"};
 constexpr char kProfileDescription[] =
     "The profile to act in, by name, when more than one allows MCP clients "
     "(list_tabs shows them). Default: the profile of the tab you act on, "
@@ -262,7 +259,7 @@ void McpSession::ListTools(const base::Value& id) {
     tool.Set("inputSchema", std::move(*dict.Find("input_schema")));
     if (!chat) {
       const std::string& name = *tool.FindString("name");
-      if (std::ranges::contains(kProfileTools, name)) {
+      if (McpTabs::TakesProfile(name)) {
         AddArgument(tool, "profile", kProfileDescription);
       } else if (name == "open_tab") {
         AddArgument(tool, "space", kOpenTabSpaceDescription);
@@ -287,35 +284,45 @@ void McpSession::RunNext() {
   // Until a tab is picked, the page tools follow the tab the user looks at.
   const bool follows_user = !picked_tab_ && next.name != "list_tabs" &&
                             !picks_tab && next.name != "close_tab";
+  content::WebContents* user_tab = UserTab(profiles);
   content::WebContents* target =
-      follows_user ? ActiveTab(profiles)
-                   : (picked_tab_ ? tools_.web_contents() : nullptr);
+      follows_user ? user_tab
+                   : (picked_tab_ ? tools_.web_contents() : user_tab);
   // The page and developer tools act on the target: its profile is the one
   // asked and checked, whatever profile, id or space they're given.
   const bool on_target = ClaudeTools::ActsOnTarget(next.name);
   const base::DictValue no_arguments;
   const base::DictValue& routing = on_target ? no_arguments : next.arguments;
   base::expected<Profile*, std::string> resolved =
-      mcp_tabs_->ResolveCall(routing, target, AllowedSomewhere());
+      mcp_tabs_->ResolveCall(next.name, routing, target, AllowedSomewhere());
   if (!resolved.has_value()) {
     Refuse(resolved.error());
     return;
   }
   Profile* profile = *resolved;
-  Approval& approval = approvals_[profile];
-  if (approval == Approval::kUnknown) {
-    if (AlwaysAllowed(profile)) {
-      approval = Approval::kAllowed;
-    } else {
-      asking_ = true;
-      asking_profile_ = profile->GetWeakPtr();
-      ask_.Run(
-          profile, client_name_,
-          base::BindOnce(&McpSession::OnApproval, weak_factory_.GetWeakPtr(),
-                         ++ask_generation_, profile->GetWeakPtr()));
-      return;
+  // The profiles to ask in: the call's, and for switch_space to another
+  // profile's space, the front window's, which would swap away
+  // (McpTabs::RunTool() swaps it only if allowed there).
+  std::vector<Profile*> asked = {profile};
+  if (next.name == "switch_space") {
+    BrowserWindowInterface* front = McpTabs::FrontWindow(profiles);
+    if (front && front->GetProfile() != profile) {
+      asked.push_back(front->GetProfile());
     }
   }
+  for (Profile* each : asked) {
+    Approval& approval = approvals_[each];
+    if (approval != Approval::kUnknown) {
+      continue;
+    }
+    if (AlwaysAllowed(each)) {
+      approval = Approval::kAllowed;
+      continue;
+    }
+    AskIn(each, profiles);
+    return;
+  }
+  Approval& approval = approvals_[profile];
   if (approval == Approval::kDenied) {
     Refuse(base::StrCat({"The user didn't allow ", ControlIn(profile), "."}));
     return;
@@ -331,6 +338,40 @@ void McpSession::RunNext() {
   tools_.Run(call.name, std::move(call.arguments),
              base::BindOnce(&McpSession::OnToolDone, weak_factory_.GetWeakPtr(),
                             std::move(call.id), std::move(name)));
+}
+
+content::WebContents* McpSession::UserTab(
+    const std::vector<Profile*>& profiles) {
+  BrowserWindowInterface* front =
+      McpTabs::FrontWindow(profiles, /*with_active_tab=*/true);
+  if (kept_tab_ && front && front == asked_window_ &&
+      std::ranges::contains(profiles, Profile::FromBrowserContext(
+                                          kept_tab_->GetBrowserContext()))) {
+    // A question brought its window to the front, and the user hasn't
+    // moved since: the tab they were on.
+    return kept_tab_.get();
+  }
+  kept_tab_ = nullptr;
+  asked_window_ = nullptr;
+  return ActiveTab(profiles);
+}
+
+void McpSession::AskIn(Profile* profile,
+                       const std::vector<Profile*>& profiles) {
+  BrowserWindowInterface* front =
+      McpTabs::FrontWindow(profiles, /*with_active_tab=*/true);
+  if (front && front->GetProfile() != profile) {
+    // McpBridge::Ask() brings a window of |profile| to the front: the page
+    // tools keep following the tab the user was on.
+    content::WebContents* tab = UserTab(profiles);
+    kept_tab_ = tab ? tab->GetWeakPtr() : nullptr;
+    asked_window_ = McpTabs::FrontWindow({profile});
+  }
+  asking_ = true;
+  asking_profile_ = profile->GetWeakPtr();
+  ask_.Run(profile, client_name_,
+           base::BindOnce(&McpSession::OnApproval, weak_factory_.GetWeakPtr(),
+                          ++ask_generation_, profile->GetWeakPtr()));
 }
 
 void McpSession::RunChatCall() {
@@ -372,9 +413,7 @@ void McpSession::OnApproval(int generation,
     // Not an answer: the next call in this profile asks again.
     Refuse(base::StrCat(
         {ProfileLabel(profile),
-         " has no window to ask the user in. Ask them to open one, or to "
-         "always allow ",
-         client_name_, " there."}));
+         " has no window to ask the user in: ask them to open one."}));
     return;
   }
   if (approval == McpApproval::kAlwaysAllow) {
@@ -459,8 +498,9 @@ std::optional<std::string> McpSession::HiddenReason(Profile* profile) {
 bool McpSession::AllowedSomewhere() {
   for (Profile* profile : profiles_.Run()) {
     auto it = approvals_.find(profile);
-    if (it != approvals_.end() ? it->second == Approval::kAllowed
-                               : AlwaysAllowed(profile)) {
+    const bool unknown =
+        it == approvals_.end() || it->second == Approval::kUnknown;
+    if (unknown ? AlwaysAllowed(profile) : it->second == Approval::kAllowed) {
       return true;
     }
   }

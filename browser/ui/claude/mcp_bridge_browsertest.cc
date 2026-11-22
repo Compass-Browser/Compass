@@ -547,6 +547,9 @@ IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, ServesEveryEnabledProfile) {
   ASSERT_NO_FATAL_FAILURE(ReadIds(*trusted, 3));
   EXPECT_THAT(list_, HasSubstr("Profile \"Home\""));
   EXPECT_THAT(list_, HasSubstr("Profile \"Work\""));
+  // Each profile's window shows a space; only the front one is the user's.
+  EXPECT_THAT(list_, HasSubstr("[shown in the user's window]"));
+  EXPECT_THAT(list_, HasSubstr("[shown in this profile's window]"));
   EXPECT_TRUE(asked_.empty());
 
   // An id picks its profile, whichever window is in front.
