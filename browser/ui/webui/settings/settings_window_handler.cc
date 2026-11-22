@@ -217,6 +217,12 @@ SettingsWindowHandler::SettingsWindowHandler(
     profile_attributes_observation_.Observe(
         &manager->GetProfileAttributesStorage());
   }
+  if (SpaceDirectory::IsListable(profile_->GetOriginalProfile())) {
+    if (SpaceDirectory* directory = SpaceDirectory::Get()) {
+      uses_directory_ = true;
+      directory->AddObserver(this);
+    }
+  }
   if (SettingsWindow* window = SettingsWindow::FromWebContents(web_contents_)) {
     window->SetShowPathCallback(base::BindRepeating(
         &SettingsWindowHandler::ShowPath, weak_factory_.GetWeakPtr()));
@@ -224,6 +230,9 @@ SettingsWindowHandler::SettingsWindowHandler(
 }
 
 SettingsWindowHandler::~SettingsWindowHandler() {
+  if (SpaceDirectory* directory = this->directory()) {
+    directory->RemoveObserver(this);
+  }
   if (folder_dialog_) {
     folder_dialog_->ListenerDestroyed();
   }
@@ -280,10 +289,32 @@ void SettingsWindowHandler::Close() {
   }
 }
 
+void SettingsWindowHandler::OnSpaceAdded(SpaceModel& space) {
+  // The directory tells of every profile's.
+  if (!directory()) {
+    SendProfilesAndSpaces();
+  }
+}
+
 void SettingsWindowHandler::OnSpaceUpdated(const SpaceModel& space) {
   SpaceList* list = GetSpaceList();
   if (list && &list->active_space() == &space) {
     page_->SetAccent(GetAccentColor());
+  }
+  if (!directory()) {
+    SendProfilesAndSpaces();
+  }
+}
+
+void SettingsWindowHandler::OnSpaceRemoved() {
+  if (!directory()) {
+    SendProfilesAndSpaces();
+  }
+}
+
+void SettingsWindowHandler::OnSpaceMoved(const SpaceModel& space) {
+  if (!directory()) {
+    SendProfilesAndSpaces();
   }
 }
 

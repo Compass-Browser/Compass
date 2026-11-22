@@ -936,3 +936,124 @@ textarea.field {
 .status[ok] {
   background: #34a853;
 }
+
+/* Profiles: each profile's name is edited in its row. */
+.profile-row input.profile-name {
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 100%;
+}
+
+/* Spaces ------------------------------------------------------------------- */
+
+.space-row .row-text input.space-name {
+  max-width: 100%;
+}
+
+/* A space's icon on its colors, as the switcher shows it. */
+.space-swatch {
+  align-items: center;
+  background: linear-gradient(135deg, var(--space-color),
+                              var(--space-color-2), var(--space-color-3));
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12);
+  color: #fff;
+  display: flex;
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  height: 30px;
+  justify-content: center;
+  text-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.25);
+  width: 30px;
+}
+
+.space-swatch svg {
+  fill: currentColor;
+  height: 17px;
+  width: 17px;
+}
+
+button.pill.move {
+  min-width: 28px;
+  padding-inline: 0;
+}
+
+/* The open space's details, set off from the list. */
+.space-details {
+  background: var(--tint);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.space-details:last-child {
+  border-bottom: none;
+}
+
+.space-detail-row {
+  min-height: 44px;
+}
+
+.space-icons {
+  align-items: center;
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(9, 26px);
+}
+
+.space-icons .icon-choice {
+  align-items: center;
+  aspect-ratio: 1;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--fg);
+  display: flex;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  justify-content: center;
+  padding: 0;
+}
+
+.space-icons .icon-choice:hover:not(:disabled) {
+  background: var(--press);
+}
+
+.space-icons .icon-choice[selected],
+.space-icons input.emoji-input[selected] {
+  background: var(--accent-soft);
+  outline: 1.5px solid var(--accent);
+  outline-offset: -1.5px;
+}
+
+.space-icons .icon-choice svg {
+  fill: currentColor;
+  height: 16px;
+  width: 16px;
+}
+
+.space-icons input.emoji-input {
+  grid-column: span 3;
+  min-height: 26px;
+  padding: 2px 6px;
+  width: 100%;
+}
+
+.theme-chip {
+  background: linear-gradient(135deg, var(--space-color),
+                              var(--space-color-2), var(--space-color-3));
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  flex: none;
+  height: 18px;
+  width: 36px;
+}
+
+.space-theme-row {
+  justify-content: center;
+}
+
+.space-theme-row compass-theme-editor {
+  width: 260px;
+}

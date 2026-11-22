@@ -16,6 +16,7 @@ import './icon.js';
 import './passwords_pane.js';
 import './privacy_pane.js';
 import './profile_section.js';
+import './spaces_pane.js';
 
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';

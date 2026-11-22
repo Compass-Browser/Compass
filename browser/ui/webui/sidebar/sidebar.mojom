@@ -985,9 +985,16 @@ struct PreferredLanguage {
   bool translate_offered;
 };
 
-// The profile's name (ProfileAttributesStorage).
+// A profile, as the settings window's Profiles pane lists it
+// (ProfileAttributesStorage).
 struct ProfileDetails {
+  // Its directory's name (as ProfileOption's).
+  string id;
   string name;
+  // Whether it's the settings window's own profile.
+  bool current;
+  // How many spaces it has in the switcher.
+  uint32 space_count;
 };
 
 // A site permission's setting (ContentSetting): kDefault for a site that
@@ -1172,8 +1179,10 @@ interface SettingsWindowPage {
   SearchEnginesChanged(SearchEngines engines);
   // The preferred languages or their translation changed.
   LanguagesChanged();
-  // The profile's name changed.
-  ProfileChanged(ProfileDetails profile);
+  // A profile was added, removed or renamed, or its spaces changed.
+  ProfilesChanged(array<ProfileDetails> profiles);
+  // A space of any profile was added, removed, moved or changed.
+  SpacesChanged(array<Space> spaces, array<ProfileOption> profiles);
   // One of the prefs the page asked for changed (by the page or elsewhere).
   PrefChanged(SettingsPref pref);
   // Shows |path| ("boosts?add=example.com", "sync"), as opening the window
@@ -1244,9 +1253,35 @@ interface SettingsWindowHandler {
   // The system's proxy settings.
   ShowProxySettings();
 
-  // Profiles › This profile.
-  GetProfile() => (ProfileDetails profile);
-  SetProfileName(string name);
+  // Profiles: every profile, the window's own or not. Profiles are named by
+  // their directory's name (ProfileDetails::id).
+  GetProfiles() => (array<ProfileDetails> profiles);
+  SetProfileName(string profile_id, string name);
+  // A new profile, with a space of its own in the switcher.
+  CreateProfile();
+  // Deletes a profile, its spaces and data. Not the last one.
+  DeleteProfile(string profile_id);
+
+  // Spaces: every profile's, in the switcher's order. The edits are those of
+  // the sidebar's space menu (PageHandler's), on any profile's space.
+  GetSpaces() => (array<Space> spaces, array<ProfileOption> profiles);
+  // A new space at the end of the profile's.
+  AddSpace(string profile_id);
+  RenameSpace(string id, string name);
+  SetSpaceColor(string id, SpaceColor? color);
+  SetSpaceGradient(string id, array<SpaceColor> gradient);
+  SetSpaceIntensity(string id, double intensity);
+  SetSpaceGrain(string id, double grain);
+  SetSpaceAppearance(string id, SpaceAppearance appearance);
+  SetSpaceIcon(string id, SpaceIcon? icon);
+  // To another profile, or a new one (null).
+  SetSpaceProfile(string id, string? profile_id);
+  SetArchiveAfter(string space_id, uint32 hours);
+  SetSpaceSynced(string space_id, bool synced);
+  // Not the last space of all.
+  DeleteSpace(string id);
+  // To |index| in the switcher's order (SpaceDirectory::MoveSpace()).
+  MoveSpace(string id, uint32 index);
 
   // Privacy (phase 3). Site settings: the defaults, the sites with
   // permissions of their own, and one site's.

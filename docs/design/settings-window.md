@@ -192,8 +192,28 @@ sections, and never shown.
 - Upstream's `search`, `defaultBrowser`, `downloads`, `appearance` and
   `fonts` sub-pages open General at their rows.
 - **Profiles** adds `<compass-settings-profile-section>`
-  (`profile_section.ts`) before Sync and Import: the profile's name, saved
-  when the field is left. There's no picture: Compass doesn't show one.
+  (`profile_section.ts`) before Sync and Import: every profile (the
+  window's own first, marked, then as the profile menu lists them), each
+  with its name, saved when the field is left, and how many spaces it has
+  in the switcher. "New profile" makes one (`CreateProfileForSpaces()`, in
+  the sync chain when it runs), which joins the switcher with its starting
+  space. Delete… asks, then schedules the profile's deletion
+  (`DeleteProfileHelper`); the last profile can't go. A profile that isn't
+  loaded is renamed in `ProfileAttributesStorage` only. There's no
+  picture: Compass doesn't show one.
+- **Spaces** (`<compass-settings-spaces-pane>`, `spaces_pane.ts`, a pane of
+  its own): every profile's spaces (`SpaceDirectory`), grouped by profile,
+  each group with "New space" (`AddSpaceToProfile()`, which loads the
+  profile and brings it into the switcher if it wasn't). A space's row
+  edits its name and moves it up or down among its profile's spaces (in
+  the switcher's order); Edit… opens what the sidebar's space menu has:
+  the icon, the theme (`<compass-theme-editor>`, given the window's handler),
+  the profile (or a new one), the archive delay, sync (turning it off
+  asks), and Delete (asks). A viewer's shared space can't be changed.
+  `SettingsWindowHandler` (`settings_window_handler_profiles.cc`) does the
+  edits with the sidebar's own code (`space_mojo.{h,cc}`), on any profile's
+  space, and sends `ProfilesChanged()` and `SpacesChanged()` whenever the
+  directory or a profile's attributes change.
 - **No chrome.send.** Upstream bans new users of `chrome.send()` and `cr.js`
   in trusted WebUI (the `legacy_chrome_send_users` list in
   `build_webui.gni`, enforced by ESLint). So upstream's handlers
@@ -208,8 +228,9 @@ sections, and never shown.
     As folders;
   - `content::GetFontListAsync()`;
   - `settings_utils::ShowNetworkProxySettings()`;
-  - `ProfileAttributesStorage` (observed) and
-    `profiles::UpdateProfileName()`.
+  - `ProfileAttributesStorage` (observed),
+    `profiles::UpdateProfileName()` and `DeleteProfileHelper`
+    (`settings_window_handler_profiles.cc`).
 - **Prefs** (`prefs.ts`, `SettingsWindowHandler::GetPrefs()`, `SetPref()`,
   `Page.PrefChanged()`), instead of `settingsPrivate`:
   - An allowlist (`kAllowedPrefs`) with each pref's type and whether it's

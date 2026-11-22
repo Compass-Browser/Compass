@@ -4,7 +4,8 @@
 
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {ArchiveDelay, CompassSidebarAppElement, Preview} from './app.js';
+import type {CompassSidebarAppElement, Preview} from './app.js';
+import type {ArchiveDelay} from './space_options.js';
 import type {SpaceSymbol} from './space_icons.js';
 import {speakerIcon} from './speaker_icon.js';
 import type {ArchivedEntry, Node, ProfileOption, RoomNotice, Space} from './sidebar.mojom-webui.js';

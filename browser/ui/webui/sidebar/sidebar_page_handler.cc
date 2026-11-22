@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "compass/browser/rooms/room_model.h"
-#include "compass/browser/rooms/room_service.h"
-#include "compass/browser/ui/webui/share/compass_share_ui.h"
 #include "compass/browser/ui/webui/sidebar/sidebar_page_handler.h"
 
 #include <memory>
@@ -12,17 +9,12 @@
 #include <vector>
 
 #include "base/check.h"
-#include "base/json/json_reader.h"
-#include "base/json/json_writer.h"
-#include "compass/browser/prefs/copy_link.h"
-#include "compass/browser/dev_mode/dev_mode.h"
-#include "compass/browser/ui/easels/easel_capture.h"
-#include "compass/browser/ui/live_folders/live_plugin_registry.h"
-#include "compass/browser/ui/webui/sidebar/live_plugin_mojo.h"
 #include "base/check_op.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -30,48 +22,57 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/uuid.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_attributes_entry.h"
+#include "chrome/browser/profiles/profile_attributes_storage.h"
+#include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_muted_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "components/tabs/public/tab_interface.h"
-#include "content/public/browser/navigation_controller.h"
-#include "content/public/browser/reload_type.h"
-#include "content/public/browser/web_contents.h"
-#include "content/public/common/referrer.h"
+#include "compass/browser/claude/ai_provider.h"
+#include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/claude/claude_quick.h"
+#include "compass/browser/dev_mode/dev_mode.h"
+#include "compass/browser/prefs/copy_link.h"
+#include "compass/browser/rooms/room_model.h"
+#include "compass/browser/rooms/room_service.h"
+#include "compass/browser/sidebar/closed_entries.h"
+#include "compass/browser/sync/compass_sync_service.h"
+#include "compass/browser/sync/compass_sync_service_factory.h"
+#include "compass/browser/ui/easels/easel_capture.h"
+#include "compass/browser/ui/live_folders/live_plugin_registry.h"
+#include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/little_window/little_window.h"
-#include "compass/browser/ui/webui/sidebar/now_playing_tracker.h"
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
-#include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_util.h"
+#include "compass/browser/ui/webui/share/compass_share_ui.h"
+#include "compass/browser/ui/webui/sidebar/live_plugin_mojo.h"
+#include "compass/browser/ui/webui/sidebar/now_playing_tracker.h"
+#include "compass/browser/ui/webui/sidebar/space_mojo.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/space_service.h"
+#include "compass/browser/window_sync/undo_close.h"
+#include "compass/browser/window_sync/window_features.h"
+#include "components/prefs/pref_service.h"
 #include "components/send_tab_to_self/entry_point_display_reason.h"
 #include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
-#include "chrome/browser/profiles/profile_attributes_entry.h"
-#include "chrome/browser/profiles/profile_attributes_storage.h"
-#include "chrome/browser/profiles/profile_manager.h"
-#include "compass/browser/claude/ai_provider.h"
-#include "compass/browser/claude/claude_prefs.h"
-#include "compass/browser/ui/views/claude/claude_panel.h"
-#include "components/prefs/pref_service.h"
-#include "compass/browser/claude/claude_quick.h"
-#include "compass/browser/sidebar/closed_entries.h"
-#include "compass/browser/sync/compass_sync_service.h"
-#include "compass/browser/sync/compass_sync_service_factory.h"
-#include "compass/browser/window_sync/space_directory.h"
-#include "compass/browser/window_sync/space_service.h"
-#include "compass/browser/window_sync/undo_close.h"
-#include "compass/browser/window_sync/window_features.h"
+#include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/reload_type.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/common/referrer.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/models/menu_separator_types.h"
@@ -164,36 +165,7 @@ sidebar::mojom::NodeType ToMojoType(SidebarNode::Type type) {
   }
 }
 
-constexpr uint32_t kMaxArchiveAfterHours = 365 * 24;
-
 send_tab_to_self::SendTabToSelfModel* g_send_tab_model_for_testing = nullptr;
-
-// Null for grey.
-sidebar::mojom::SpaceColorPtr ToMojoColor(SpaceColor color) {
-  if (color.is_grey()) {
-    return nullptr;
-  }
-  const SkColor tint = *color.tint();
-  return sidebar::mojom::SpaceColor::New(
-      SkColorGetR(tint), SkColorGetG(tint), SkColorGetB(tint));
-}
-
-// The handler casts between the two.
-static_assert(static_cast<int>(sidebar::mojom::SpaceAppearance::kMaxValue) ==
-              static_cast<int>(SpaceAppearance::kDark));
-
-// Null for none.
-sidebar::mojom::SpaceIconPtr ToMojoIcon(const SpaceIcon& icon) {
-  switch (icon.kind()) {
-    case SpaceIcon::Kind::kNone:
-      return nullptr;
-    case SpaceIcon::Kind::kEmoji:
-      return sidebar::mojom::SpaceIcon::NewEmoji(icon.value());
-    case SpaceIcon::Kind::kSymbol:
-      return sidebar::mojom::SpaceIcon::NewSymbol(icon.value());
-  }
-  NOTREACHED();
-}
 
 // A node's context menu. Commands go to the handler by the node's ID, so a
 // node that's gone by then is left alone.
@@ -748,97 +720,52 @@ void SidebarPageHandler::AddSpace() {
 
 void SidebarPageHandler::RenameSpace(const std::string& id,
                                      const std::string& name) {
-  if (IsViewOnlySpace(id)) {
-    return;
-  }
-  SpaceModel* space = FindAnySpace(id).space;
-  std::u16string name16;
-  base::TrimWhitespace(base::UTF8ToUTF16(name), base::TRIM_ALL, &name16);
-  if (space && !name16.empty()) {
-    space->SetName(std::move(name16));
+  if (SpaceModel* space = FindEditableSpace(id)) {
+    compass::RenameSpace(*space, name);
   }
 }
 
 void SidebarPageHandler::SetSpaceColor(
     const std::string& id,
     sidebar::mojom::SpaceColorPtr color) {
-  if (IsViewOnlySpace(id)) {
-    return;
-  }
-  if (SpaceModel* space = FindAnySpace(id).space) {
-    space->SetColor(color ? SpaceColor::FromRGB(color->red, color->green,
-                                                color->blue)
-                          : SpaceColor::kGrey);
+  if (SpaceModel* space = FindEditableSpace(id)) {
+    compass::SetSpaceColor(*space, color);
   }
 }
 
 void SidebarPageHandler::SetSpaceGradient(
     const std::string& id,
     std::vector<sidebar::mojom::SpaceColorPtr> gradient) {
-  if (IsViewOnlySpace(id)) {
-    return;
+  if (SpaceModel* space = FindEditableSpace(id)) {
+    compass::SetSpaceGradient(*space, gradient);
   }
-  SpaceModel* space = FindAnySpace(id).space;
-  if (!space) {
-    return;
-  }
-  std::vector<SpaceColor> colors;
-  for (const sidebar::mojom::SpaceColorPtr& color : gradient) {
-    colors.push_back(
-        SpaceColor::FromRGB(color->red, color->green, color->blue));
-  }
-  space->SetGradient(std::move(colors));
 }
 
 void SidebarPageHandler::SetSpaceIntensity(const std::string& id,
                                            double intensity) {
-  if (IsViewOnlySpace(id)) {
-    return;
-  }
-  if (SpaceModel* space = FindAnySpace(id).space) {
-    space->SetIntensity(intensity);
+  if (SpaceModel* space = FindEditableSpace(id)) {
+    compass::SetSpaceIntensity(*space, intensity);
   }
 }
 
 void SidebarPageHandler::SetSpaceGrain(const std::string& id, double grain) {
-  if (IsViewOnlySpace(id)) {
-    return;
-  }
-  if (SpaceModel* space = FindAnySpace(id).space) {
-    space->SetGrain(grain);
+  if (SpaceModel* space = FindEditableSpace(id)) {
+    compass::SetSpaceGrain(*space, grain);
   }
 }
 
 void SidebarPageHandler::SetSpaceAppearance(
     const std::string& id,
     sidebar::mojom::SpaceAppearance appearance) {
-  if (IsViewOnlySpace(id)) {
-    return;
-  }
-  // Mojo has validated |appearance|.
-  if (SpaceModel* space = FindAnySpace(id).space) {
-    space->SetAppearance(static_cast<SpaceAppearance>(appearance));
+  if (SpaceModel* space = FindEditableSpace(id)) {
+    compass::SetSpaceAppearance(*space, appearance);
   }
 }
 
 void SidebarPageHandler::SetSpaceIcon(const std::string& id,
                                       sidebar::mojom::SpaceIconPtr icon) {
-  if (IsViewOnlySpace(id)) {
-    return;
-  }
-  SpaceModel* space = FindAnySpace(id).space;
-  if (!space) {
-    return;
-  }
-  if (!icon) {
-    space->SetIcon(SpaceIcon());
-    return;
-  }
-  std::optional<SpaceIcon> valid =
-      icon->is_emoji() ? SpaceIcon::Emoji(icon->get_emoji())
-                       : SpaceIcon::Symbol(icon->get_symbol());
-  if (valid) {
-    space->SetIcon(std::move(*valid));
+  if (SpaceModel* space = FindEditableSpace(id)) {
+    compass::SetSpaceIcon(*space, icon);
   }
 }
 
@@ -846,19 +773,15 @@ void SidebarPageHandler::SetSpaceProfile(
     const std::string& id,
     const std::optional<std::string>& profile_id) {
   SpaceDirectory::Entry entry = FindAnySpace(id);
-  ProfileManager* profile_manager = g_browser_process->profile_manager();
-  if (!entry.space || !directory() || !profile_manager) {
+  if (!entry.space || !directory() || !g_browser_process->profile_manager()) {
     return;
   }
   std::optional<base::FilePath> path;
   if (profile_id) {
-    const base::FilePath name = base::FilePath::FromUTF8Unsafe(*profile_id);
-    // A directory name, nothing more.
-    if (name.empty() || name.BaseName() != name ||
-        name.ReferencesParent()) {
+    path = ProfilePathFromId(*profile_id);
+    if (!path) {
       return;
     }
-    path = profile_manager->user_data_dir().Append(name);
   }
   AssignSpaceToProfile(entry.space->id(), std::move(path));
 }
@@ -896,9 +819,8 @@ void SidebarPageHandler::MoveNodeToSpace(const std::string& id,
 
 void SidebarPageHandler::SetArchiveAfter(const std::string& space_id,
                                          uint32_t hours) {
-  SpaceModel* space = FindAnySpace(space_id).space;
-  if (space && hours <= kMaxArchiveAfterHours) {
-    space->SetArchiveAfter(GetArchiveHour() * static_cast<int64_t>(hours));
+  if (SpaceModel* space = FindAnySpace(space_id).space) {
+    SetSpaceArchiveAfter(*space, hours);
   }
 }
 
@@ -1769,56 +1691,12 @@ void SidebarPageHandler::SendSpaces() {
   }
   std::vector<sidebar::mojom::SpacePtr> spaces;
   for (const SpaceDirectory::Entry& entry : entries) {
-    const SpaceModel* space = entry.space;
-    auto mojo_space = sidebar::mojom::Space::New();
-    mojo_space->profile_id =
-        entry.profile->GetOriginalProfile()->GetBaseName().AsUTF8Unsafe();
-    mojo_space->profile_name =
-        base::UTF16ToUTF8(SpaceDirectory::GetProfileName(entry.profile));
-    mojo_space->own_profile = entry.profile == own_profile;
-    mojo_space->id = space->id().AsLowercaseString();
-    mojo_space->name = base::UTF16ToUTF8(space->name());
-    mojo_space->color = ToMojoColor(space->color());
-    for (SpaceColor color : space->gradient()) {
-      mojo_space->gradient.push_back(ToMojoColor(color));
-    }
-    mojo_space->intensity = space->intensity();
-    mojo_space->grain = space->grain();
-    mojo_space->appearance =
-        static_cast<sidebar::mojom::SpaceAppearance>(space->appearance());
-    mojo_space->icon = ToMojoIcon(space->icon());
-    mojo_space->archive_after_hours =
-        static_cast<uint32_t>(space->archive_after().IntDiv(GetArchiveHour()));
-    mojo_space->synced = space->synced();
-    sync::CompassSyncService* sync_service =
-        sync::CompassSyncServiceFactory::GetForProfileIfExists(
-            entry.profile->GetOriginalProfile());
-    mojo_space->sync_on = sync_service && sync_service->AreDataTypesReleased();
-    if (rooms::RoomService* rooms =
-            entry.profile->IsOffTheRecord()
-                ? nullptr
-                : rooms::RoomService::GetIfExists(entry.profile)) {
-      const rooms::SharedState state =
-          rooms->GetSpaceState(mojo_space->id);
-      mojo_space->can_share = rooms->IsAvailable();
-      mojo_space->shared = state.shared;
-      mojo_space->view_only = state.read_only;
-    }
-    spaces.push_back(std::move(mojo_space));
+    spaces.push_back(ToMojoSpace(entry, own_profile));
   }
   // The profiles a space can be assigned to, as the profile menu lists them.
   std::vector<sidebar::mojom::ProfileOptionPtr> profiles;
-  ProfileManager* profile_manager = g_browser_process->profile_manager();
-  if (directory() && profile_manager) {
-    for (ProfileAttributesEntry* profile :
-         profile_manager->GetProfileAttributesStorage()
-             .GetAllProfilesAttributesSortedForDisplay()) {
-      if (!profile->IsOmitted()) {
-        profiles.push_back(sidebar::mojom::ProfileOption::New(
-            profile->GetPath().BaseName().AsUTF8Unsafe(),
-            base::UTF16ToUTF8(profile->GetName())));
-      }
-    }
+  if (directory()) {
+    profiles = GetProfileOptions();
   }
   page_->SetSpaces(std::move(spaces), space_model().id().AsLowercaseString(),
                    std::move(profiles));
@@ -2204,10 +2082,11 @@ bool SidebarPageHandler::IsViewOnly(const SidebarNode* node) {
   return node && rooms && rooms->GetNodeState(*node).read_only;
 }
 
-bool SidebarPageHandler::IsViewOnlySpace(const std::string& id) {
-  rooms::RoomService* rooms =
-      rooms::RoomService::GetIfExists(browser_->GetProfile());
-  return rooms && rooms->GetSpaceState(id).read_only;
+SpaceModel* SidebarPageHandler::FindEditableSpace(const std::string& id) {
+  SpaceDirectory::Entry entry = FindAnySpace(id);
+  return entry.space && !IsViewOnlySpace(entry.profile, *entry.space)
+             ? entry.space.get()
+             : nullptr;
 }
 
 }  // namespace compass

@@ -331,7 +331,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   bool CanShare();
   bool IsShared(const SidebarNode* node);
   bool IsViewOnly(const SidebarNode* node);
-  bool IsViewOnlySpace(const std::string& id);
+  // The space with |id|, of any profile, unless it's a viewer's.
+  SpaceModel* FindEditableSpace(const std::string& id);
   TabStripModel* tab_strip_model();
   SpaceModel& space_model();
   // The profile's, shown in every window.
