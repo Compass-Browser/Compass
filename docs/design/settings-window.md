@@ -385,7 +385,8 @@ look read as a plain copy of System Settings).
   - `--group`, `--selected`, `--hover`: translucent white at 72 %, 86 % and
     45 % (6 %, 13 % and 6 % in dark mode), so the tint shows through.
   - 12 px group radius, 7 px control radius, 13 px system font, 12 px group
-    captions, medium-weight row labels.
+    captions, 14 px medium-weight option titles (in the re-skinned sections
+    too) over 12.5 px details.
 - **Toolbar:** a 32 px title row with the pane's name and search, and a row
   of icon-over-label tabs, on the window's tint with no band of its own. The
   selected tab is a white pill with a soft shadow and its icon in the accent,

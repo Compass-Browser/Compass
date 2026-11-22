@@ -350,12 +350,14 @@ compass-settings-icon {
 }
 
 .row-label {
+  font-size: 14px;
   font-weight: 500;
+  line-height: 18px;
 }
 
 .row-detail {
   color: var(--fg-dim);
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 16px;
 }
 
@@ -412,6 +414,9 @@ compass-settings-icon {
   --cr-separator-line: 1px solid var(--line);
   --color-sys-divider: var(--line);
   color: var(--fg);
+  /* Their option titles at the window's row-label size (their hints set
+   * their own, smaller one). */
+  font-size: 14px;
   margin-bottom: 22px;
   user-select: text;
 }
@@ -564,6 +569,13 @@ compass-settings-icon {
 #sections .compass-page button.link {
   color: var(--accent-text);
   cursor: default;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Explanations at the details' size, under the bigger option titles. */
+#sections .compass-page :is(p, .lead) {
+  font-size: 12.5px;
 }
 
 #sections .compass-page button:focus-visible {
