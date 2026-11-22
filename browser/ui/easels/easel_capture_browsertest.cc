@@ -50,10 +50,10 @@ using ObjectResult = base::expected<sync_pb::CompassEaselObject, std::string>;
 
 // Close enough to |expected| for a JPEG.
 bool IsColor(SkColor actual, SkColor expected) {
-  auto near = [](int a, int b) { return std::abs(a - b) < 24; };
-  return near(SkColorGetR(actual), SkColorGetR(expected)) &&
-         near(SkColorGetG(actual), SkColorGetG(expected)) &&
-         near(SkColorGetB(actual), SkColorGetB(expected));
+  auto close = [](int a, int b) { return std::abs(a - b) < 24; };
+  return close(SkColorGetR(actual), SkColorGetR(expected)) &&
+         close(SkColorGetG(actual), SkColorGetG(expected)) &&
+         close(SkColorGetB(actual), SkColorGetB(expected));
 }
 
 class EaselCaptureBrowserTest : public InProcessBrowserTest {
