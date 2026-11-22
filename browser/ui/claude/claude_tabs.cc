@@ -416,16 +416,36 @@ base::expected<content::WebContents*, std::string> ClaudeTabs::LoadTab(
 }
 
 content::WebContents* ClaudeTabs::OpenTab(const GURL& url, bool active) {
-  BrowserWindowInterface* home = Home();
-  if (!home) {
+  return OpenTabIn(Home(), url, active);
+}
+
+content::WebContents* ClaudeTabs::OpenTabInSpace(SpaceModel& space,
+                                                 const GURL& url,
+                                                 bool active) {
+  BrowserWindowInterface* window = WindowShowing(space);
+  if (!window) {
+    BrowserWindowInterface* home = Home();
+    window = home ? SwitchWindowToSpace(home, profile_, space) : nullptr;
+  }
+  return OpenTabIn(window, url, active);
+}
+
+content::WebContents* ClaudeTabs::OpenTabIn(BrowserWindowInterface* window,
+                                            const GURL& url,
+                                            bool active) {
+  if (!window) {
     return nullptr;
   }
   // A new tab is a new Today entry of the window's space (TabStripBridge).
-  NavigateParams params(home, url, ui::PAGE_TRANSITION_LINK);
+  NavigateParams params(window, url, ui::PAGE_TRANSITION_LINK);
   params.disposition = active ? WindowOpenDisposition::NEW_FOREGROUND_TAB
                               : WindowOpenDisposition::NEW_BACKGROUND_TAB;
   Navigate(&params);
   return params.navigated_or_inserted_contents;
+}
+
+bool ClaudeTabs::Owns(const std::string& id) {
+  return FindLiveTab(id) || FindNode(id);
 }
 
 std::string ClaudeTabs::IdOf(content::WebContents* contents) {
