@@ -32,8 +32,8 @@ import java.util.List;
  * The Site sheet (SiteSheetUi.kt; docs/design/android.md, "The Site sheet"), Compass's in place of
  * Chrome's page info, which drops from the top toolbar Compass doesn't have: the shown page's
  * site, its connection, the permissions it was given or denied (each a switch, and a reset), its
- * own settings (desktop site, sound, pop-ups, automatic picture-in-picture, JavaScript), and
- * Chrome's page for the rest.
+ * own settings (the ad blocker, desktop site, sound, pop-ups, automatic picture-in-picture,
+ * JavaScript), and Chrome's page for the rest.
  */
 public class SiteSheet implements SiteSheetUi.Listener {
     /** A permission the sheet lists when the site has its own setting for it. */
@@ -73,6 +73,14 @@ public class SiteSheet implements SiteSheetUi.Listener {
         new Permission(ContentSettingsType.MIDI_SYSEX, "MIDI Devices", R.drawable.compass_sym_piano),
         new Permission(ContentSettingsType.NFC, "NFC Devices", R.drawable.compass_sym_nfc),
     };
+
+    /**
+     * The ad blocker's switch for the site (docs/design/ad-blocker.md): on blocks, which is the
+     * Ads site setting's block (its default); off allows ads there. Listed while the ad blocker is
+     * on.
+     */
+    private static final Permission AD_BLOCKER =
+            new Permission(ContentSettingsType.ADS, "Ad Blocker", R.drawable.compass_sym_shield);
 
     /** The site's own settings: always listed. */
     private static final Permission[] OPTIONS = {
@@ -144,6 +152,15 @@ public class SiteSheet implements SiteSheetUi.Listener {
             permissions.add(setting(permission, setting == ContentSetting.ALLOW, true));
         }
         List<SiteSheetState.Setting> options = new ArrayList<>();
+        if (AdBlockBridge.isEnabled()) {
+            int ads = WebsitePreferenceBridge.getContentSetting(profile, AD_BLOCKER.type(), mUrl, mUrl);
+            options.add(
+                    setting(
+                            AD_BLOCKER,
+                            ads != ContentSetting.ALLOW,
+                            WebsitePreferenceBridge.isContentSettingUserModifiable(
+                                    profile, AD_BLOCKER.type())));
+        }
         for (Permission option : OPTIONS) {
             int setting =
                     WebsitePreferenceBridge.getContentSetting(profile, option.type(), mUrl, mUrl);
@@ -157,7 +174,9 @@ public class SiteSheet implements SiteSheetUi.Listener {
 
     private SiteSheetState.Setting setting(Permission permission, boolean on, boolean enabled) {
         mKeys.add(permission);
-        boolean onOff = permission.type() == ContentSettingsType.REQUEST_DESKTOP_SITE;
+        boolean onOff =
+                permission.type() == ContentSettingsType.REQUEST_DESKTOP_SITE
+                        || permission == AD_BLOCKER;
         return new SiteSheetState.Setting(
                 mKeys.size() - 1,
                 permission.title(),
@@ -199,6 +218,19 @@ public class SiteSheet implements SiteSheetUi.Listener {
         Profile profile = mProfile;
         if (profile == null || key < 0 || key >= mKeys.size()) return;
         Permission permission = mKeys.get(key);
+        if (permission == AD_BLOCKER) {
+            // On is the default (blocked); off allows ads on the site. The page's requests went
+            // out with the old choice, so it reloads.
+            WebsitePreferenceBridge.setContentSettingDefaultScope(
+                    profile,
+                    ContentSettingsType.ADS,
+                    mUrl,
+                    mUrl,
+                    on ? ContentSetting.DEFAULT : ContentSetting.ALLOW);
+            if (mTab != null) mTab.reload();
+            refresh();
+            return;
+        }
         int value = on ? ContentSetting.ALLOW : ContentSetting.BLOCK;
         boolean isOption = false;
         for (Permission option : OPTIONS) isOption |= option == permission;

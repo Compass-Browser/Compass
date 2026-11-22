@@ -1,20 +1,23 @@
 diff --git a/chrome/browser/ui/views/page_info/page_info_main_view.cc b/chrome/browser/ui/views/page_info/page_info_main_view.cc
-index 877b22f59603125dcdfa66cce26737522a91f6e9..0eaee8fbffd8420d5dbcdc1d695c511c10516c82 100644
+index 877b22f59603125dcdfa66cce26737522a91f6e9..a23d6461080bf2c6efb0404a870890325496f224 100644
 --- a/chrome/browser/ui/views/page_info/page_info_main_view.cc
 +++ b/chrome/browser/ui/views/page_info/page_info_main_view.cc
-@@ -28,6 +28,7 @@
+@@ -28,6 +28,8 @@
  #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
  #include "chrome/browser/ui/views/page_info/permission_toggle_row_view.h"
  #include "chrome/browser/ui/views/page_info/star_rating_view.h"
++#include "compass/browser/ui/views/adblock/adblock_page_info.h"
 +#include "compass/browser/ui/views/dev_mode/dev_mode_page_info.h"
  #include "chrome/browser/ui/views/sub_apps_permission_explanation.h"
  #include "chrome/browser/vr/vr_tab_helper.h"
  #include "chrome/common/url_constants.h"
-@@ -179,6 +180,9 @@ PageInfoMainView::PageInfoMainView(
+@@ -179,6 +181,11 @@ PageInfoMainView::PageInfoMainView(
    SetProperty(views::kElementIdentifierKey, kMainLayoutElementId);
  
    site_settings_view_ = AddChildView(CreateContainerView());
-+  // Compass: development mode's switch for the site.
++  // Compass: the ad blocker's and development mode's switches for the site.
++  compass::AddAdBlockPageInfoRow(site_settings_view_,
++                                 ui_delegate_->GetWebContents());
 +  compass::AddDevModePageInfoRow(site_settings_view_,
 +                                 ui_delegate_->GetWebContents());
  

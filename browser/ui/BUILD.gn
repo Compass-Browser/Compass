@@ -65,6 +65,7 @@ source_set("ui") {
     "views/dev_mode/dev_mode_bar.h",
     "views/dev_mode/dev_mode_controller.cc",
     "views/dev_mode/dev_mode_controller.h",
+    "views/adblock/adblock_page_info.cc",
     "views/dev_mode/dev_mode_page_info.cc",
     "views/find_bar/find_bar.cc",
     "views/find_bar/find_bar.h",
@@ -139,6 +140,7 @@ source_set("ui") {
     "webui/settings/settings_sections.cc",
     "webui/settings/settings_window_handler.cc",
     "webui/settings/settings_window_handler.h",
+    "webui/settings/settings_window_handler_adblock.cc",
     "webui/settings/settings_window_handler_advanced.cc",
     "webui/settings/settings_window_handler_general.cc",
     "webui/settings/settings_window_handler_passwords.cc",
@@ -221,6 +223,7 @@ source_set("ui") {
     # The settings window's About Compass: the version and the updater.
     "//compass/browser/updates:hooks",
     "//third_party/icu",
+    "//compass/browser/adblock",
     "//compass/browser/prefs",
     "//compass/browser/rooms",
     "//compass/browser/shortcuts",
@@ -404,7 +407,10 @@ source_set("app_menu_hooks") {
 # patches/chrome-browser-ui-views-page_info-page_info_main_view.cc.patch);
 # defined in :ui.
 source_set("page_info_hooks") {
-  public = [ "views/dev_mode/dev_mode_page_info.h" ]
+  public = [
+    "views/adblock/adblock_page_info.h",
+    "views/dev_mode/dev_mode_page_info.h",
+  ]
 }
 
 source_set("unit_tests") {

@@ -1,16 +1,17 @@
 diff --git a/chrome/browser/prefs/BUILD.gn b/chrome/browser/prefs/BUILD.gn
-index 66f9c0d285f331355dd808c821307c0467933a4f..a0d265f527166d7d76fd37f0371d9b97a54190c2 100644
+index 66f9c0d285f331355dd808c821307c0467933a4f..074eb99866e59992092e0d8cf0f18a6acfe2ec83 100644
 --- a/chrome/browser/prefs/BUILD.gn
 +++ b/chrome/browser/prefs/BUILD.gn
-@@ -60,6 +60,7 @@ source_set("impl") {
+@@ -60,6 +60,8 @@ source_set("impl") {
      ":prefs",
      ":util",
      "//chrome/browser:browser_process",
 +    "//compass/browser/prefs",
++    "//compass/browser/adblock:prefs",
      "//chrome/browser:browser_process_impl",
      "//chrome/browser:chrome_content_browser_client",
      "//chrome/browser:defaults",
-@@ -213,6 +214,10 @@ source_set("impl") {
+@@ -213,6 +215,10 @@ source_set("impl") {
      "//services/preferences/tracked:features",
      "//ui/webui:buildflags",
    ]

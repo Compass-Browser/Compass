@@ -1,0 +1,23 @@
+diff --git a/chrome/browser/subresource_filter/chrome_content_subresource_filter_web_contents_helper_factory.cc b/chrome/browser/subresource_filter/chrome_content_subresource_filter_web_contents_helper_factory.cc
+index 97b73f58c2ae85f8c61cdd460123a97881010e75..7e1163b084d78d64bc6f99040e4853248bc065ce 100644
+--- a/chrome/browser/subresource_filter/chrome_content_subresource_filter_web_contents_helper_factory.cc
++++ b/chrome/browser/subresource_filter/chrome_content_subresource_filter_web_contents_helper_factory.cc
+@@ -19,7 +19,8 @@ namespace {
+ 
+ // Returns a scoped refptr to the SafeBrowsingService's database manager, if
+ // available. Otherwise returns nullptr.
+-const scoped_refptr<safe_browsing::SafeBrowsingDatabaseManager>
++[[maybe_unused]] const scoped_refptr<
++    safe_browsing::SafeBrowsingDatabaseManager>
+ GetDatabaseManagerFromSafeBrowsingService() {
+ #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+   safe_browsing::SafeBrowsingService* safe_browsing_service =
+@@ -44,5 +45,7 @@ void CreateSubresourceFilterWebContentsHelper(
+           web_contents,
+           SubresourceFilterProfileContextFactory::GetForProfile(
+               Profile::FromBrowserContext(web_contents->GetBrowserContext())),
+-          GetDatabaseManagerFromSafeBrowsingService(), dealer);
++          // Compass: the ad blocker decides where the filter blocks
++          // (docs/design/ad-blocker.md), not Safe Browsing.
++          /*database_manager=*/nullptr, dealer);
+ }

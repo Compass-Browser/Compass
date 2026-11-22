@@ -11,6 +11,7 @@ assert(is_android)
 
 group("android") {
   deps = [
+    ":adblock_bridge",
     ":claude_bridge",
     ":claude_sidebar",
     ":copy_link_bridge",
@@ -200,6 +201,20 @@ source_set("split_bridge") {
     "//compass/android:jni_headers",
     "//content/public/browser",
     "//ui/android",
+  ]
+}
+
+# The ad blocker's switch and lists for the settings' Ad Blocker page
+# (docs/design/ad-blocker.md).
+source_set("adblock_bridge") {
+  sources = [ "adblock_bridge.cc" ]
+  deps = [
+    "//base",
+    "//chrome/browser:browser_process",
+    "//compass/android:jni_headers",
+    "//compass/browser/adblock:prefs",
+    "//compass/browser/adblock:service",
+    "//components/prefs",
   ]
 }
 

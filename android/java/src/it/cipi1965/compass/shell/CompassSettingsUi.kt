@@ -82,6 +82,8 @@ object CompassSettingsUi {
         DOWNLOADS,
         SITE_SETTINGS,
         PRIVACY,
+        /** The ad blocker: its switch and filter lists (docs/design/ad-blocker.md). */
+        AD_BLOCKER,
         /** Chrome's Privacy and Security page, for what Compass's doesn't show. */
         MORE_PRIVACY,
         /** Chrome's site settings: every site, and each permission's exceptions. */
@@ -101,10 +103,24 @@ object CompassSettingsUi {
         MAIN,
         SEARCH_ENGINE,
         PRIVACY,
+        AD_BLOCKER,
         SITE_SETTINGS,
         SITES_IN_SPACES,
         LICENSES,
     }
+
+    /** A filter list on the Ad Blocker page (AdBlockBridge.listsJson()). */
+    class FilterListRow(
+        @JvmField val id: String,
+        @JvmField val title: String,
+        /** EasyList, EasyPrivacy and the cookie list: turned off, not removed. */
+        @JvmField val builtin: Boolean,
+        @JvmField val enabled: Boolean,
+        /** "12,345 rules · updated 2 hours ago", "Not downloaded yet", "Updating…". */
+        @JvmField val detail: String,
+        /** The last download's error, empty if it worked. */
+        @JvmField val error: String,
+    )
 
     /** A third-party file's license, on the Third-Party Licenses page. */
     class License(
@@ -172,6 +188,20 @@ object CompassSettingsUi {
         /** Site Settings: picture-in-picture also when Compass is left for another app. */
         fun onSetPipOnLeaving(on: Boolean)
 
+        /** Ad Blocker: its switch, for every site and profile. */
+        fun onSetAdBlock(on: Boolean)
+
+        /** Ad Blocker: a filter list on or off. */
+        fun onSetFilterList(id: String, on: Boolean)
+
+        /** Ad Blocker: adds the list at |url|; why not, empty when added. */
+        fun onAddFilterList(url: String): String
+
+        fun onRemoveFilterList(id: String)
+
+        /** Ad Blocker: asks every enabled list's server for a newer copy. */
+        fun onUpdateFilterLists()
+
         /** Back from a page to the list. */
         fun onBack()
 
@@ -232,6 +262,10 @@ object CompassSettingsUi {
         /** Automatic picture-in-picture also when Compass is left for another app. */
         var pipOnLeaving by mutableStateOf(true)
         var licenses by mutableStateOf<List<License>>(emptyList())
+        /** The ad blocker's switch, its lists, and whether one is downloading. */
+        var adBlock by mutableStateOf(true)
+        var filterLists by mutableStateOf<List<FilterListRow>>(emptyList())
+        var filterListsUpdating by mutableStateOf(false)
     }
 
     @JvmStatic
@@ -253,6 +287,7 @@ object CompassSettingsUi {
                     when (state.page) {
                         Page.SEARCH_ENGINE -> SearchEnginePage(state, listener)
                         Page.PRIVACY -> PrivacyPage(state, listener)
+                        Page.AD_BLOCKER -> AdBlockerPage(state, listener)
                         Page.SITE_SETTINGS -> SiteSettingsPage(state, listener)
                         Page.SITES_IN_SPACES -> SitesInSpacesPage(state, listener)
                         Page.LICENSES -> LicensesPage(state, listener)
@@ -396,10 +431,17 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                     SettingsRow("Site Settings", R.drawable.compass_sym_public, first = true) {
                         open(CompassSettingsUi.Row.SITE_SETTINGS)
                     }
-                    SettingsRow("Privacy and Security", R.drawable.compass_sym_shield) {
+                    SettingsRow(
+                        "Ad Blocker",
+                        R.drawable.compass_sym_shield,
+                        subtitle = if (state.adBlock) "Blocking ads and trackers" else "Off",
+                    ) {
+                        open(CompassSettingsUi.Row.AD_BLOCKER)
+                    }
+                    SettingsRow("Privacy and Security", R.drawable.compass_sym_lock) {
                         open(CompassSettingsUi.Row.PRIVACY)
                     }
-                    SettingsRow("Privacy Policy", R.drawable.compass_sym_lock) {
+                    SettingsRow("Privacy Policy", R.drawable.compass_sym_description) {
                         open(CompassSettingsUi.Row.PRIVACY_POLICY)
                     }
                 }
@@ -528,6 +570,124 @@ private fun PrivacyPage(state: CompassSettingsUi.State, listener: CompassSetting
             )
         }
     }
+}
+
+/**
+ * Settings → Ad Blocker (docs/design/ad-blocker.md), as the desktop's Privacy › Ad blocker: the
+ * switch, the filter lists (each on or off; the user's own can be removed), adding a list by its
+ * address, and Update Now. A site's own switch is in the Site sheet.
+ */
+@Composable
+private fun AdBlockerPage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
+    var adding by remember { mutableStateOf(false) }
+    SubPage("Ad Blocker", listener) {
+        CardSection("") {
+            SwitchRow(
+                "Block Ads and Trackers",
+                "On every site, unless you turn it off for one in its Site sheet",
+                checked = state.adBlock,
+                enabled = true,
+            ) {
+                listener.onSetAdBlock(it)
+            }
+        }
+        CardSection("Filter lists") {
+            for (list in state.filterLists) {
+                Row(
+                    Modifier.fillMaxWidth()
+                        .heightIn(min = 72.dp)
+                        .clickable { listener.onSetFilterList(list.id, !list.enabled) }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(list.title, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            list.detail,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (list.error.isNotEmpty()) {
+                            Text(
+                                list.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                    if (!list.builtin) {
+                        TextButton(onClick = { listener.onRemoveFilterList(list.id) }) {
+                            Text("Remove", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    Switch(
+                        checked = list.enabled,
+                        onCheckedChange = { listener.onSetFilterList(list.id, it) },
+                    )
+                }
+            }
+        }
+        CardSection("") {
+            SettingsRow("Add a List", R.drawable.compass_sym_add, first = true) { adding = true }
+            SettingsRow(
+                if (state.filterListsUpdating) "Updating…" else "Update Now",
+                R.drawable.compass_sym_refresh,
+                subtitle = "Lists are checked for updates once a day",
+            ) {
+                if (!state.filterListsUpdating) listener.onUpdateFilterLists()
+            }
+        }
+        Text(
+            "Lists come from their publishers. Scriptlets and some uBlock Origin rules aren't " +
+                "supported.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 24.dp),
+        )
+    }
+    if (adding) {
+        AddFilterListDialog(listener) { adding = false }
+    }
+}
+
+/** Add a List: an Adblock Plus or uBlock Origin list's https address. */
+@Composable
+private fun AddFilterListDialog(listener: CompassSettingsUi.Listener, onDone: () -> Unit) {
+    val urlField = rememberTextFieldState("")
+    var error by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDone,
+        title = { Text("Add a List") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    state = urlField,
+                    label = { Text("Address") },
+                    placeholder = { Text("https://") },
+                    lineLimits = TextFieldLineLimits.SingleLine,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    error.ifEmpty { "The address of an Adblock Plus or uBlock Origin list." },
+                    style = MaterialTheme.typography.bodySmall,
+                    color =
+                        if (error.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = urlField.text.isNotBlank(),
+                onClick = {
+                    error = listener.onAddFilterList(urlField.text.toString())
+                    if (error.isEmpty()) onDone()
+                },
+            ) { Text("Add") }
+        },
+        dismissButton = { TextButton(onClick = onDone) { Text("Cancel") } },
+    )
 }
 
 /**

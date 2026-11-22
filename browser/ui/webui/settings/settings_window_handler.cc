@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/zoom/chrome_zoom_level_prefs.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
+#include "compass/browser/adblock/adblock_prefs.h"
 #include "compass/browser/prefs/compass_prefs.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/views/settings_window/settings_window.h"
@@ -100,6 +101,8 @@ constexpr AllowedPref kAllowedPrefs[] = {
     {compass::prefs::kPipOnLeavingWindow, base::Value::Type::BOOLEAN, false},
     {compass::prefs::kRemoveTrackingFromCopiedLinks, base::Value::Type::BOOLEAN,
      false},
+    // The ad blocker's switch (Privacy), for every profile.
+    {compass::adblock::prefs::kEnabled, base::Value::Type::BOOLEAN, true},
     // Advanced.
     {::performance_manager::user_tuning::prefs::kMemorySaverModeState,
      base::Value::Type::INTEGER, true},
@@ -183,6 +186,9 @@ SettingsWindowHandler::SettingsWindowHandler(
       receiver_(this, std::move(receiver)) {
   if (SpaceList* list = GetSpaceList()) {
     space_observation_.Observe(list);
+  }
+  if (adblock::AdBlockService* adblock = adblock::AdBlockService::Get()) {
+    adblock_observation_.Observe(adblock);
   }
   profile_prefs_.Init(profile_->GetPrefs());
   local_prefs_.Init(g_browser_process->local_state());

@@ -69,7 +69,7 @@ since October 2025).
 | Translucent sidebar | ❌ | ✅ Ultra Thin to Ultra Thick | ✅ | ? | ? | ✅ blur, transparency | ❌ | ❌ | ? | ? | ? |
 | **Web content** | | | | | | | | | | | |
 | Chrome extensions, desktop / phone | ✅ / ✅ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ❌ Firefox add-ons | ✅ / ❌ | ✅ / ❌ | ~ / ❌ | ✅ / ❌ | ✅ / ✅ also Firefox add-ons |
-| Built-in ad blocker | ❌ (uBlock Origin as an extension: Manifest V2 extensions still run) | ✅ both engines, Mac, iPhone, iPad | ❌ | ❌ | ✅ per profile | ❌ | ✅ | ~ | ✅ | ✅ | ✅ |
+| Built-in ad blocker | ✅ EasyList, EasyPrivacy and cookie banners on desktop, Android and iPhone; your own lists on desktop and Android (docs/design/ad-blocker.md) | ✅ both engines, Mac, iPhone, iPad | ❌ | ❌ | ✅ per profile | ❌ | ✅ | ~ | ✅ | ✅ | ✅ |
 | Reader mode, on-device translation | ~ Reader mode; translation not yet | ✅ Reader on WebKit pages, translation in both engines | ❌ | ? | ~ Reader View | ✅ | ✅ | ✅ | ? | ✅ | ✅ on-device on macOS 26+ |
 | Full-quality DRM video | ❌ no Widevine VMP | ✅ FairPlay through WebKit | ✅ | ✅ | ~ Widevine since 2.13 | ~ | ✅ | ✅ | ✅ | ~ FairPlay, no Widevine | ? |
 | Mail, calendar, web panels | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ~ | ❌ | ❌ | ? |
@@ -132,7 +132,6 @@ Features other browsers have that Compass doesn't, checked against the code:
 
 | Missing | Who has it | State in Compass |
 |---|---|---|
-| Built-in ad blocker | Vivaldi, SigmaOS, Orion, Crest, Phi, Lilo, Brave | Not started; extensions instead |
 | On-device translation | Crest, Orion, Zen, Vivaldi, Edge, Lilo | Not started. Reader mode is done, desktop and iOS (docs/design/reader-mode.md) |
 | Full-quality DRM video | Chrome, Edge, Arc, Dia, Crest | Blocked: no Widevine VMP signature (docs/design/widevine.md) |
 | Tree-style tabs | Orion, Vivaldi, Floorp | Partial: folders nest in Pinned and Today, but a new tab doesn't go under the tab that opened it |

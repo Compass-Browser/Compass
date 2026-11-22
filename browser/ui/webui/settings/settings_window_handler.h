@@ -19,6 +19,7 @@
 #include "chrome/browser/profiles/profile_attributes_storage_observer.h"
 #include "chrome/browser/shell_integration.h"
 #include "chrome/common/extensions/api/passwords_private.h"
+#include "compass/browser/adblock/adblock_service.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/ui/webui/sidebar/sidebar.mojom.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
@@ -59,7 +60,8 @@ class SettingsWindowHandler
       public content_settings::Observer,
       public password_manager::SavedPasswordsPresenter::Observer,
       public autofill::PersonalDataManagerObserver,
-      public ui::SelectFileDialog::Listener {
+      public ui::SelectFileDialog::Listener,
+      public adblock::AdBlockService::Observer {
  public:
   SettingsWindowHandler(
       Profile* profile,
@@ -122,6 +124,12 @@ class SettingsWindowHandler
                          ClearBrowsingDataCallback callback) override;
   void SetSafeBrowsingLevel(int32_t level) override;
   void GetSafetyCheck(GetSafetyCheckCallback callback) override;
+  void GetFilterLists(GetFilterListsCallback callback) override;
+  void SetFilterListEnabled(const std::string& id, bool enabled) override;
+  void AddFilterList(const std::string& url,
+                     AddFilterListCallback callback) override;
+  void RemoveFilterList(const std::string& id) override;
+  void UpdateFilterListsNow() override;
   void GetPasswords(GetPasswordsCallback callback) override;
   void RevealPassword(int32_t id, RevealPasswordCallback callback) override;
   void CopyPassword(int32_t id, CopyPasswordCallback callback) override;
@@ -169,6 +177,9 @@ class SettingsWindowHandler
   // SpaceList::Observer:
   void OnSpaceUpdated(const SpaceModel& space) override;
   void OnActiveSpaceChanged() override;
+
+  // adblock::AdBlockService::Observer:
+  void OnFilterListsChanged() override;
 
  private:
   SpaceList* GetSpaceList();
@@ -222,6 +233,9 @@ class SettingsWindowHandler
   PrefChangeRegistrar local_prefs_;
   base::ScopedObservation<SpaceList, SpaceList::Observer> space_observation_{
       this};
+  base::ScopedObservation<adblock::AdBlockService,
+                          adblock::AdBlockService::Observer>
+      adblock_observation_{this};
   base::WeakPtrFactory<SettingsWindowHandler> weak_factory_{this};
 };
 

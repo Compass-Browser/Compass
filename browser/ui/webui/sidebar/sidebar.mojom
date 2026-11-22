@@ -1014,6 +1014,31 @@ struct SitePermission {
   bool managed;
 };
 
+// A filter list of the ad blocker (Privacy › Ad blocker,
+// docs/design/ad-blocker.md).
+struct FilterList {
+  string id;
+  string title;
+  string url;
+  // EasyList, EasyPrivacy and the cookie list: they can be turned off, not
+  // removed.
+  bool builtin;
+  bool enabled;
+  // From the last build of the rules: network rules, element hiding rules,
+  // and rules Compass can't apply (scriptlets, regular expressions, ...).
+  int32 url_rules;
+  int32 css_rules;
+  int32 skipped;
+  // When the text last changed, and when its server was last asked
+  // (milliseconds since the epoch; 0: never).
+  double updated_ms;
+  double checked_ms;
+  // The last download's error; empty if it worked.
+  string error;
+  // Being downloaded now.
+  bool updating;
+};
+
 // What Privacy › Clear browsing data clears, over the time range (upstream's
 // browsing_data::TimePeriod).
 struct ClearBrowsingDataOptions {
@@ -1142,6 +1167,8 @@ interface SettingsWindowPage {
   ShowPath(string path);
   // The profile's active space changed color; null for grey.
   SetAccent(SpaceColor? color);
+  // The ad blocker's lists, their downloads or its switch changed.
+  FilterListsChanged();
 };
 
 // The settings window's browser side.
@@ -1223,6 +1250,16 @@ interface SettingsWindowHandler {
   // Safe Browsing: 0 off, 1 standard, 2 enhanced (SafeBrowsingState).
   SetSafeBrowsingLevel(int32 level);
   GetSafetyCheck() => (SafetyCheckResult result);
+  // The ad blocker's lists (its switch is the Local State pref
+  // compass.adblock.enabled). FilterListsChanged() follows changes.
+  GetFilterLists() => (array<FilterList> lists);
+  SetFilterListEnabled(string id, bool enabled);
+  // Adds the list at |url| (https): why not, empty when added.
+  AddFilterList(string url) => (string error);
+  // Removes a list the user added.
+  RemoveFilterList(string id);
+  // Asks every enabled list's server for a newer copy now.
+  UpdateFilterListsNow();
 
   // Passwords (phase 4), through upstream's PasswordsPrivateDelegate.
   GetPasswords() => (array<SavedPassword> passwords);

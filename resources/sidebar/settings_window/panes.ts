@@ -176,6 +176,11 @@ export const PANES: Pane[] = [
          keywords: 'do not track dnt'},
         {id: 'cleanLinks', label: 'Remove tracking from copied links',
          keywords: 'clean links utm copy url'},
+        {id: 'adblockEnabled', label: 'Block ads and trackers',
+         keywords: 'ad blocker adblock content blocking trackers'},
+        {id: 'filterLists', label: 'Filter lists',
+         keywords: 'ad blocker adblock easylist easyprivacy cookie banners ' +
+             'ublock custom list'},
         {id: 'safeBrowsing', label: 'Safe Browsing',
          keywords: 'security dangerous malware phishing'},
         {id: 'httpsOnly', label: 'Always use secure connections',

@@ -236,8 +236,12 @@ sections, and never shown.
     Safe Browsing (Enhanced, Standard, Off), "Always use secure connections"
     (HTTPS-Only), secure DNS (automatic or off; a custom provider set
     upstream is kept and said), Manage certificates
-    (chrome://certificate-manager in a tab); Permissions, Sites with their
-    own permissions, and Safety check (below).
+    (chrome://certificate-manager in a tab); the ad blocker's switch and
+    Filter lists; Permissions, Sites with their own permissions, and Safety
+    check (below).
+  - **Ad blocker** (docs/design/ad-blocker.md): each filter list with its
+    switch, rule count, last update and error; Remove for the user's lists;
+    a field to add a list by address; Update Now.
   - **Clear:** the time range (upstream's `TimePeriod`s) and the data
     types: history, download history, cookies and site data, cache,
     passwords, autofill, site settings. The choices are kept in upstream's
@@ -256,7 +260,7 @@ sections, and never shown.
     and the pane says so), Safe Browsing (Turn On when it's off), extensions
     (those the blocklist turned off; Manage opens chrome://extensions), and
     site permissions. A dot says whether each needs something.
-- **The path picks the view:** `privacy?view=clear|permissions|sites|safety`,
+- **The path picks the view:** `privacy?view=clear|permissions|sites|safety|adblock`,
   `privacy?site=<origin>`, `privacy?focus=security|cookies`. Upstream's
   sub-pages map to them (`SettingsWindowPathFor()`): `privacy`, `security`,
   `cookies`, `clearBrowserData`, `safetyCheck`, `content`, `content/<permission>`,

@@ -1,0 +1,17 @@
+diff --git a/components/subresource_filter/content/renderer/subresource_filter_agent.h b/components/subresource_filter/content/renderer/subresource_filter_agent.h
+index 22ab7037f8fd9ffae665c3dc8a6d2502e33cbebd..19adacb616dfcc2febd6887e0004f865c65b0ce7 100644
+--- a/components/subresource_filter/content/renderer/subresource_filter_agent.h
++++ b/components/subresource_filter/content/renderer/subresource_filter_agent.h
+@@ -51,6 +51,12 @@ class SubresourceFilterAgent
+   // in the constructor, so we need an Initialize() method.
+   void Initialize();
+ 
++  // Compass: the ad blocker's element hiding reads the current document's
++  // filter (//compass/renderer/adblock).
++  const WebDocumentSubresourceFilterImpl* filter_for_current_document() const {
++    return filter_for_last_created_document_.get();
++  }
++
+  protected:
+   // Below methods are protected virtual so they can be mocked out in tests.
+ 

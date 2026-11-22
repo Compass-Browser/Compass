@@ -5,7 +5,7 @@
 import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {CompassSettingsPrivacyPaneElement} from './privacy_pane.js';
-import {PREF_CLEAN_LINKS, PREF_COOKIE_CONTROLS, PREF_DO_NOT_TRACK, PREF_HTTPS_ONLY, PREF_SECURE_DNS} from './privacy_pane.js';
+import {PREF_ADBLOCK, PREF_CLEAN_LINKS, PREF_COOKIE_CONTROLS, PREF_DO_NOT_TRACK, PREF_HTTPS_ONLY, PREF_SECURE_DNS} from './privacy_pane.js';
 
 export function getHtml(this: CompassSettingsPrivacyPaneElement) {
   // clang-format off
@@ -71,6 +71,34 @@ ${this.isView_('main') ? html`
           ?disabled="${this.isEnforced_(PREF_CLEAN_LINKS)}"
           @change="${this.onSwitchChange_}">
     </label>
+  </div>
+</section>
+
+<section class="row-group" data-row="adblock">
+  <h2 class="group-title">Ad blocker</h2>
+  <div class="group">
+    <label class="row control-row" data-row="adblockEnabled">
+      <span class="row-text">
+        <span class="row-label">Block ads and trackers</span>
+        <span class="row-detail">
+          On every site unless you turn it off for one, from the site's
+          information or its permissions (Ads).
+        </span>
+      </span>
+      <input type="checkbox" class="switch" data-pref="${PREF_ADBLOCK}"
+          .checked="${this.getBool_(PREF_ADBLOCK)}"
+          ?disabled="${this.isEnforced_(PREF_ADBLOCK)}"
+          @change="${this.onSwitchChange_}">
+    </label>
+    <button class="row" data-row="filterLists" data-view="adblock"
+        @click="${this.onViewClick_}">
+      <span class="row-text">
+        <span class="row-label">Filter lists</span>
+        <span class="row-detail">${this.getFilterListsDetail_()}</span>
+      </span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
   </div>
 </section>
 
@@ -233,6 +261,60 @@ ${this.isView_('safety') ? html`
       </compass-settings-icon>
     </button>
   </div>
+</section>` : nothing}
+
+${this.isView_('adblock') ? html`
+<section class="row-group">
+  <div class="group-header">
+    <h2 class="group-title">Filter lists</h2>
+    <button class="pill small" ?disabled="${this.isUpdatingLists_()}"
+        @click="${this.onUpdateFilterListsClick_}">
+      ${this.isUpdatingLists_() ? 'Updating…' : 'Update Now'}
+    </button>
+  </div>
+  <div class="group">
+    ${this.filterLists_.map(list => html`
+      <div class="row control-row" data-list="${list.id}">
+        <input type="checkbox" class="switch" data-id="${list.id}"
+            aria-label="Use ${list.title}" .checked="${list.enabled}"
+            @change="${this.onFilterListChange_}">
+        <span class="row-text">
+          <span class="row-label">${list.title}</span>
+          <span class="row-detail">${this.getFilterListDetail_(list)}</span>
+          <span class="row-detail error"
+              ?hidden="${!list.error || !list.updatedMs}">
+            ${list.error}
+          </span>
+        </span>
+        <button class="pill small" data-id="${list.id}"
+            ?hidden="${list.builtin}" @click="${this.onRemoveFilterListClick_}">
+          Remove
+        </button>
+      </div>`)}
+    <div class="row control-row">
+      <span class="row-text">
+        <span class="row-label">Add a list</span>
+        <span class="row-detail">
+          The address of an Adblock Plus or uBlock Origin list.
+        </span>
+      </span>
+      <input class="field" type="url" aria-label="List address"
+          spellcheck="false" placeholder="https://"
+          .value="${this.listUrl_}" @input="${this.onListUrlInput_}"
+          @keydown="${this.onListUrlKeydown_}">
+      <button class="pill small" ?disabled="${!this.listUrl_.trim()}"
+          @click="${this.onAddFilterListClick_}">
+        Add
+      </button>
+    </div>
+  </div>
+  <div class="actions" ?hidden="${!this.listError_}">
+    <span class="error">${this.listError_}</span>
+  </div>
+  <p class="group-footer">
+    Lists are downloaded from their publishers and checked for updates once
+    a day. Scriptlets and some uBlock Origin rules aren't supported.
+  </p>
 </section>` : nothing}
 
 ${this.isView_('clear') ? html`

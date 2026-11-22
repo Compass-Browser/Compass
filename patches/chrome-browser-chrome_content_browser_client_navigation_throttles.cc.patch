@@ -1,18 +1,19 @@
 diff --git a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
-index ce3cc119e6c3cd99cc797039ac14d3a4d39b827c..ee6eb01fb12540a308f6273c47b5da2f36fc1633 100644
+index ce3cc119e6c3cd99cc797039ac14d3a4d39b827c..e6f196eca3fab075f9bb5e82b77485dd866e5b1d 100644
 --- a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
 +++ b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
-@@ -48,6 +48,9 @@
+@@ -48,6 +48,10 @@
  #include "chrome/common/chrome_features.h"
  #include "chrome/common/chrome_switches.h"
  #include "chrome/common/pref_names.h"
++#include "compass/browser/adblock/adblock_hooks.h"
 +#if !BUILDFLAG(IS_ANDROID)
 +#include "compass/browser/ui/settings_window_hooks.h"
 +#endif
  #include "components/captive_portal/content/captive_portal_service.h"
  #include "components/captive_portal/core/buildflags.h"
  #include "components/contextual_tasks/public/features.h"
-@@ -310,6 +313,11 @@ void CreateAndAddChromeThrottlesForNavigation(
+@@ -310,6 +314,11 @@ void CreateAndAddChromeThrottlesForNavigation(
  #endif  // BUILDFLAG(IS_ANDROID)
    }
  
@@ -24,3 +25,12 @@ index ce3cc119e6c3cd99cc797039ac14d3a4d39b827c..ee6eb01fb12540a308f6273c47b5da2f
    DSEPrewarmNavigationThrottle::MaybeCreateAndAdd(registry);
    if (!features::IsDsePreload2Enabled()) {
      SearchPrefetchNavigationThrottle::MaybeCreateAndAdd(registry);
+@@ -404,6 +413,8 @@ void CreateAndAddChromeThrottlesForNavigation(
+   SupervisedUserGoogleAuthNavigationThrottle::MaybeCreateAndAdd(registry);
+   supervised_user::ClassifyUrlNavigationThrottle::MaybeCreateAndAdd(registry);
+ 
++  // Compass: the ad blocker turns the subresource filter on for the page.
++  compass::adblock::MaybeAddPageActivationThrottle(registry);
+   if (auto* throttle_manager =
+           subresource_filter::ContentSubresourceFilterThrottleManager::
+               FromNavigationHandle(handle)) {

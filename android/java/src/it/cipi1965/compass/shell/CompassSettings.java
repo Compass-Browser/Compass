@@ -16,6 +16,7 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesSettingsBridge;
@@ -55,6 +56,8 @@ public class CompassSettings implements CompassSettingsUi.Listener {
     private final CompassBar mBar;
     private final CompassSettingsUi.State mState = new CompassSettingsUi.State();
     private final View mView;
+    // Follows the ad blocker's lists while its page shows.
+    private @Nullable AdBlockBridge mAdBlock;
 
     public CompassSettings(ChromeTabbedActivity activity, ViewGroup parent, CompassBar bar) {
         mActivity = activity;
@@ -88,6 +91,7 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         mState.setProfiles(mBar.profileRows());
         mState.setOnLaunch(OnLaunch.get());
         mState.setLittleWindow(LittleWindow.isOn());
+        mState.setAdBlock(AdBlockBridge.isEnabled());
         loadDefaultBrowser();
         mView.setVisibility(View.VISIBLE);
         mView.bringToFront();
@@ -138,6 +142,11 @@ public class CompassSettings implements CompassSettingsUi.Listener {
             case PRIVACY -> {
                 loadPrivacy();
                 mState.setPage(CompassSettingsUi.Page.PRIVACY);
+            }
+            case AD_BLOCKER -> {
+                if (mAdBlock == null) mAdBlock = new AdBlockBridge(this::loadAdBlock);
+                loadAdBlock();
+                mState.setPage(CompassSettingsUi.Page.AD_BLOCKER);
             }
             case MORE_PRIVACY -> chromeSettings(SettingsFragment.PRIVACY);
             case ACCESSIBILITY -> chromeSettings(SettingsFragment.ACCESSIBILITY);
@@ -362,6 +371,9 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         // A playing video goes into picture-in-picture when its tab is left (docs/design/
         // android.md, "Auto picture-in-picture"); Compass allows it by default.
         {ContentSettingsType.AUTO_PICTURE_IN_PICTURE, "Automatic Picture in Picture", "Allowed"},
+        // Blocked: the ad blocker is on for sites (docs/design/ad-blocker.md); allowed turns it
+        // off for every site of the profile.
+        {ContentSettingsType.ADS, "Ads", "Allowed"},
     };
 
     // The desktop's "Remove tracking from copied links"
@@ -402,8 +414,89 @@ public class CompassSettings implements CompassSettingsUi.Listener {
         loadSitePermissions();
     }
 
+    // Ad Blocker: the switch and the lists (AdBlockBridge).
+    private void loadAdBlock() {
+        mState.setAdBlock(AdBlockBridge.isEnabled());
+        List<CompassSettingsUi.FilterListRow> rows = new ArrayList<>();
+        boolean updating = false;
+        try {
+            org.json.JSONArray lists = new org.json.JSONArray(AdBlockBridge.listsJson());
+            for (int i = 0; i < lists.length(); i++) {
+                org.json.JSONObject list = lists.getJSONObject(i);
+                updating |= list.optBoolean("updating");
+                rows.add(
+                        new CompassSettingsUi.FilterListRow(
+                                list.optString("id"),
+                                list.optString("title"),
+                                list.optBoolean("builtin"),
+                                list.optBoolean("enabled"),
+                                filterListDetail(list),
+                                list.optDouble("updatedMs") > 0 ? list.optString("error") : ""));
+            }
+        } catch (org.json.JSONException e) {
+            // None, then.
+        }
+        mState.setFilterLists(rows);
+        mState.setFilterListsUpdating(updating);
+    }
+
+    // "12,345 rules · updated 2 hours ago", or why there are none yet.
+    private static String filterListDetail(org.json.JSONObject list) {
+        if (list.optBoolean("updating")) return "Updating…";
+        double updated = list.optDouble("updatedMs");
+        if (!(updated > 0)) {
+            String error = list.optString("error");
+            return error.isEmpty() ? "Not downloaded yet" : error;
+        }
+        int rules = list.optInt("urlRules") + list.optInt("cssRules");
+        CharSequence ago =
+                android.text.format.DateUtils.getRelativeTimeSpanString(
+                        (long) updated,
+                        System.currentTimeMillis(),
+                        android.text.format.DateUtils.MINUTE_IN_MILLIS);
+        return String.format(java.util.Locale.getDefault(), "%,d rules · updated %s", rules, ago);
+    }
+
+    @Override
+    public void onSetAdBlock(boolean on) {
+        AdBlockBridge.setEnabled(on);
+        loadAdBlock();
+    }
+
+    @Override
+    public void onSetFilterList(String id, boolean on) {
+        AdBlockBridge.setListEnabled(id, on);
+        loadAdBlock();
+    }
+
+    @Override
+    public String onAddFilterList(String url) {
+        String error = AdBlockBridge.addList(url);
+        loadAdBlock();
+        return error;
+    }
+
+    @Override
+    public void onRemoveFilterList(String id) {
+        AdBlockBridge.removeList(id);
+        loadAdBlock();
+    }
+
+    @Override
+    public void onUpdateFilterLists() {
+        AdBlockBridge.updateNow();
+        loadAdBlock();
+    }
+
+    private void stopFollowingAdBlock() {
+        if (mAdBlock == null) return;
+        mAdBlock.destroy();
+        mAdBlock = null;
+    }
+
     @Override
     public void onBack() {
+        if (mState.getPage() == CompassSettingsUi.Page.AD_BLOCKER) stopFollowingAdBlock();
         mState.setPage(CompassSettingsUi.Page.MAIN);
     }
 
@@ -504,6 +597,7 @@ public class CompassSettings implements CompassSettingsUi.Listener {
 
     @Override
     public void onDismiss() {
+        stopFollowingAdBlock();
         mState.setOpen(false);
         mView.setVisibility(View.GONE);
     }

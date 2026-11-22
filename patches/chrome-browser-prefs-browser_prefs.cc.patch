@@ -1,11 +1,12 @@
 diff --git a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browser_prefs.cc
-index 334da9ad62b59013c44ba6335072e433157f40d6..0316fa7dbe7f703271c61a8851a77151565e7928 100644
+index 334da9ad62b59013c44ba6335072e433157f40d6..2bc4d35cc5789afa627b272fded631cb464efa6c 100644
 --- a/chrome/browser/prefs/browser_prefs.cc
 +++ b/chrome/browser/prefs/browser_prefs.cc
-@@ -108,6 +108,12 @@
+@@ -108,6 +108,13 @@
  #include "chrome/common/pref_names.h"
  #include "chrome/common/secure_origin_allowlist.h"
  #include "components/autofill/core/common/autofill_prefs.h"
++#include "compass/browser/adblock/adblock_prefs.h"
 +#include "compass/browser/prefs/compass_prefs.h"
 +#include "compass/browser/prefs/pref_defaults.h"
 +#if !BUILDFLAG(IS_ANDROID)
@@ -15,10 +16,11 @@ index 334da9ad62b59013c44ba6335072e433157f40d6..0316fa7dbe7f703271c61a8851a77151
  #include "components/blocked_content/safe_browsing_triggered_popup_blocker.h"
  #include "components/breadcrumbs/core/breadcrumbs_status.h"
  #include "components/browsing_data/core/pref_names.h"
-@@ -1674,6 +1680,10 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
+@@ -1674,6 +1681,11 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
    chrome_labs_prefs::RegisterLocalStatePrefs(registry);
    chrome_urls::RegisterPrefs(registry);
    ChromeMetricsServiceClient::RegisterPrefs(registry);
++  compass::adblock::RegisterAdBlockLocalStatePrefs(registry);
 +#if !BUILDFLAG(IS_ANDROID)
 +  compass::RegisterShortcutPrefs(registry);
 +  compass::updates::RegisterUpdatePrefs(registry);
@@ -26,7 +28,7 @@ index 334da9ad62b59013c44ba6335072e433157f40d6..0316fa7dbe7f703271c61a8851a77151
    enterprise_connectors::RegisterLocalStatePrefs(registry);
    enterprise_groups::RegisterLocalStatePrefs(registry);
    enterprise_util::RegisterLocalStatePrefs(registry);
-@@ -1987,6 +1997,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
+@@ -1987,6 +1999,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
  
    // This is intentionally last.
    RegisterLocalStatePrefsForMigration(registry);
@@ -34,7 +36,7 @@ index 334da9ad62b59013c44ba6335072e433157f40d6..0316fa7dbe7f703271c61a8851a77151
  }
  
  // Register prefs applicable to all profiles.
-@@ -2525,6 +2536,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
+@@ -2525,6 +2538,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
  #endif  // BUILDFLAG(IS_ANDROID)
  
    registry->RegisterBooleanPref(prefs::kStaticStorageQuotaEnabled, false);
@@ -43,7 +45,7 @@ index 334da9ad62b59013c44ba6335072e433157f40d6..0316fa7dbe7f703271c61a8851a77151
  }
  
  void RegisterUserProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
-@@ -2709,6 +2722,9 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
+@@ -2709,6 +2724,9 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
    // BEGIN_MIGRATE_OBSOLETE_PROFILE_PREFS
    // Please don't delete the preceding line. It is used by PRESUBMIT.py.
  

@@ -1,0 +1,19 @@
+diff --git a/components/subresource_filter/content/browser/profile_interaction_manager.cc b/components/subresource_filter/content/browser/profile_interaction_manager.cc
+index 63e1b6c386490a418d39c8bbe92ebac9de250820..b8a286955e6c21123f2a52ad8dde34f8fc96d7f1 100644
+--- a/components/subresource_filter/content/browser/profile_interaction_manager.cc
++++ b/components/subresource_filter/content/browser/profile_interaction_manager.cc
+@@ -134,6 +134,14 @@ void ProfileInteractionManager::MaybeShowNotification() {
+   CHECK(page_);
+   CHECK(page_->IsPrimary());
+ 
++  // Compass: the ad blocker blocks on every page, so no "ads blocked"
++  // message, icon or site data for each (docs/design/ad-blocker.md).
++  ContentSubresourceFilterThrottleManager::LogAction(
++      SubresourceFilterAction::kUISuppressed);
++  if ((true)) {
++    return;
++  }
++
+   const GURL& top_level_url = page_->GetMainDocument().GetLastCommittedURL();
+   if (profile_context_->settings_manager()->ShouldShowUIForSite(
+           top_level_url)) {

@@ -1,0 +1,23 @@
+diff --git a/chrome/browser/browser_process_impl.cc b/chrome/browser/browser_process_impl.cc
+index 187e99b29bf92761419c93f64ce6c81c44cf943a..f9a998ba789b391c28af05440bc346d6903fdcec 100644
+--- a/chrome/browser/browser_process_impl.cc
++++ b/chrome/browser/browser_process_impl.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/browser_process_impl.h"
+ 
++#include "compass/browser/adblock/adblock_prefs.h"
++
+ #include <stddef.h>
+ #include <stdio.h>
+ 
+@@ -1847,7 +1849,8 @@ void BrowserProcessImpl::CreateSubresourceFilterRulesetService() {
+ 
+   subresource_filter_ruleset_service_ =
+       subresource_filter::RulesetService::Create(
+-          subresource_filter::kSafeBrowsingRulesetConfig, local_state(),
++          // Compass: the ad blocker's ruleset (docs/design/ad-blocker.md).
++          compass::adblock::kRulesetConfig, local_state(),
+           user_data_dir,
+           subresource_filter::SafeBrowsingRulesetPublisher::Factory());
+ }

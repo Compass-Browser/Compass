@@ -1,17 +1,19 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..a6a0f2db1b117e2b11084e8d42793e6eca92b2a1 100644
+index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..286ebda849d81c938de475edda8a199f443164c6 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -1046,6 +1046,8 @@ source_set("core") {
+@@ -1046,6 +1046,10 @@ source_set("core") {
    }
  
    deps = [
 +    "//compass/browser:url_handler",
 +    "//compass/browser:feature_overrides",
++    "//compass/browser/adblock:hooks",
++    "//compass/browser/adblock:prefs",
      ":active_use_util",
      ":after_startup_task_utils",
      ":bad_message",
-@@ -1435,6 +1437,11 @@ source_set("core") {
+@@ -1435,6 +1439,11 @@ source_set("core") {
      "//ui/webui/resources/cr_components/color_change_listener:mojom",
      "//ui/webui/tracked_element",
    ]
@@ -23,10 +25,11 @@ index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..a6a0f2db1b117e2b11084e8d42793e6e
  
    if (enable_webui_ntp) {
      deps += [
-@@ -2827,6 +2834,12 @@ source_set("browser") {
+@@ -2827,6 +2836,13 @@ source_set("browser") {
      "//ui/webui",
      "//ui/webui:buildflags",
    ]
++  deps += [ "//compass/browser/adblock" ]
 +  if (!is_android) {
 +    deps += [ "//compass/browser" ]
 +  } else {

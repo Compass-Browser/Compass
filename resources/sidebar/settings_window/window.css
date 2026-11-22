@@ -842,6 +842,19 @@ input.check {
   margin-bottom: 0;
 }
 
+/* A note under a group (Privacy › Ad blocker › Filter lists). */
+.group-footer {
+  color: var(--fg-dim);
+  font-size: 12px;
+  line-height: 16px;
+  margin: 6px 14px 0;
+}
+
+/* What went wrong with a row's item (a filter list that didn't download). */
+.row-detail.error {
+  color: var(--danger);
+}
+
 input.field.filter {
   min-height: 22px;
   padding: 2px 8px;

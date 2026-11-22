@@ -74,7 +74,8 @@ persistence"). Not a privacy matter, listed here with the other startup bar.
 | Chrome Web Store and extension updates (`clients2.google.com/service/update2/crx`) | Extensions, and their security fixes |
 | Web push (GCM/FCM, `mtalk.google.com`) | Sites' notifications while closed. Starts only once a site or extension registers |
 | Safe Browsing (`safebrowsing.googleapis.com`) | Phishing and malware protection. Without an API key it sends `key=dummytoken`, so Google likely rejects the list updates: it needs a key or a proxy to work (open item) |
-| Component updater (`update.googleapis.com`, `edgedl.me.gvt1.com`) | CRLSet revocations, Certificate Transparency logs, file type policies, origin trials |
+| Component updater (`update.googleapis.com`, `edgedl.me.gvt1.com`) | CRLSet revocations, Certificate Transparency logs, file type policies, origin trials. Not Google's subresource filter ruleset: the ad blocker's lists take its place (docs/design/ad-blocker.md) |
+| Filter list downloads (`easylist.to`, `secure.fanboy.co.nz`, lists the user adds) | The ad blocker, at most once a day for each list, without cookies; none while it's off (docs/design/ad-blocker.md) |
 | Google as the default search engine, with suggestions | The user's choice; any engine can be set in Settings |
 
 ## Checking it

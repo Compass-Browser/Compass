@@ -1,0 +1,159 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# The ad blocker (docs/design/ad-blocker.md): filter lists, their ruleset
+# for upstream's subresource filter, and turning it on for a page.
+
+# What //chrome/browser:core includes: the hooks, declared only, and the
+# Local State prefs and ruleset config, with few deps (see
+# patches/chrome-browser-BUILD.gn.patch and
+# patches/chrome-browser-prefs-BUILD.gn.patch).
+source_set("hooks") {
+  public = [ "adblock_hooks.h" ]
+}
+
+source_set("prefs") {
+  sources = [
+    "adblock_prefs.cc",
+    "adblock_prefs.h",
+  ]
+  public_deps = [ "//components/subresource_filter/core/common" ]
+  deps = [
+    "//base",
+    "//components/prefs",
+    "//components/subresource_filter/core/browser",
+  ]
+}
+
+# The lists and their rules, with no browser around them (unit tested).
+source_set("lists") {
+  sources = [
+    "abp_preprocessor.cc",
+    "abp_preprocessor.h",
+    "filter_list_updater.cc",
+    "filter_list_updater.h",
+    "filter_lists.cc",
+    "filter_lists.h",
+    "ruleset_builder.cc",
+    "ruleset_builder.h",
+  ]
+  deps = [
+    ":prefs",
+    "//base",
+    "//components/prefs",
+    "//components/subresource_filter/core/common",
+    "//components/subresource_filter/tools/rule_parser",
+    "//components/url_pattern_index/proto:url_pattern_index",
+    "//crypto",
+    "//net",
+    "//services/network/public/cpp",
+    "//third_party/protobuf:protobuf_lite",
+    "//url",
+  ]
+}
+
+source_set("service") {
+  sources = [
+    "adblock_service.cc",
+    "adblock_service.h",
+  ]
+  public_deps = [
+    ":lists",
+    "//base",
+    "//components/prefs",
+  ]
+  deps = [
+    ":prefs",
+    "//components/subresource_filter/content/browser",
+    "//components/subresource_filter/core/browser",
+    "//services/network/public/cpp",
+    "//url",
+  ]
+}
+
+# Linked into //chrome/browser (desktop and Android).
+source_set("adblock") {
+  sources = [
+    "page_activation_throttle.cc",
+    "page_activation_throttle.h",
+    "start_adblock.cc",
+  ]
+  public_deps = [
+    ":hooks",
+    ":service",
+  ]
+  deps = [
+    ":prefs",
+    "//base",
+    "//chrome/browser:browser_process",
+    "//chrome/browser/content_settings:content_settings_factory",
+    "//chrome/browser/profiles:profile",
+    "//chrome/common:constants",
+    "//components/content_settings/core/browser",
+    "//components/content_settings/core/common",
+    "//components/prefs",
+    "//components/subresource_filter/content/browser",
+    "//components/subresource_filter/core/mojom",
+    "//content/public/browser",
+    "//services/network/public/cpp",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "abp_preprocessor_unittest.cc",
+    "adblock_service_unittest.cc",
+    "filter_list_updater_unittest.cc",
+    "ruleset_builder_unittest.cc",
+  ]
+  deps = [
+    ":lists",
+    ":prefs",
+    ":service",
+    "//base",
+    "//base/test:test_support",
+    "//components/prefs:test_support",
+    "//components/subresource_filter/core/common",
+    "//components/subresource_filter/core/common:test_support",
+    "//components/url_pattern_index",
+    "//components/url_pattern_index/proto:url_pattern_index",
+    "//net",
+    "//services/network:test_support",
+    "//services/network/public/cpp",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "adblock_browsertest.cc" ]
+  deps = [
+    ":adblock",
+    ":prefs",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser",
+    "//chrome/browser:browser_process",
+    "//chrome/browser/content_settings:content_settings_factory",
+    "//chrome/browser/profiles:profile",
+    "//chrome/test:test_support",
+    "//components/content_settings/core/browser",
+    "//components/content_settings/core/common",
+    "//components/prefs",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//net:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
+  ]
+  if (!is_android) {
+    deps += [ "//chrome/test:test_support_ui" ]
+  }
+}

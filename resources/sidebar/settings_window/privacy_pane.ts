@@ -7,7 +7,7 @@ import './icon.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {PermissionDefault, SafetyCheckResult, SitePermission, SiteSummary} from '../sidebar.mojom-webui.js';
+import type {FilterList, PermissionDefault, SafetyCheckResult, SitePermission, SiteSummary} from '../sidebar.mojom-webui.js';
 import {PermissionValue, UpdateState} from '../sidebar.mojom-webui.js';
 
 import {SettingsWindowBrowserProxy} from './browser_proxy.js';
@@ -20,6 +20,7 @@ export const PREF_DO_NOT_TRACK = 'enable_do_not_track';
 export const PREF_HTTPS_ONLY = 'https_only_mode_enabled';
 export const PREF_SECURE_DNS = 'dns_over_https.mode';
 export const PREF_CLEAN_LINKS = 'compass.copy.remove_tracking';
+export const PREF_ADBLOCK = 'compass.adblock.enabled';
 const PREF_SAFE_BROWSING = 'safebrowsing.enabled';
 const PREF_SAFE_BROWSING_ENHANCED = 'safebrowsing.enhanced';
 const PREF_CLEAR_PERIOD = 'browser.clear_data.time_period';
@@ -137,6 +138,8 @@ const PERMISSION_LABELS: Record<string, string> = {
   'storage-access': 'Embedded content',
   'federated-identity-api': 'Third-party sign-in',
   'auto-picture-in-picture': 'Automatic picture-in-picture',
+  // Blocked: the ad blocker is on for the site (docs/design/ad-blocker.md).
+  'ads': 'Ads',
   'vr': 'Virtual reality',
   'ar': 'Augmented reality',
   'smart-card-readers': 'Smart card readers',
@@ -154,12 +157,31 @@ function byPermissionOrder(a: {type: string}, b: {type: string}): number {
   return rank(a.type) - rank(b.type);
 }
 
-export type View = 'main'|'clear'|'permissions'|'sites'|'site'|'safety';
+export type View =
+    'main'|'clear'|'permissions'|'sites'|'site'|'safety'|'adblock';
+
+// "3 hours ago", for a list's last update.
+function timeAgo(ms: number): string {
+  const minutes = Math.round((Date.now() - ms) / 60000);
+  if (minutes < 1) {
+    return 'just now';
+  }
+  if (minutes < 60) {
+    return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+  }
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) {
+    return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  }
+  const days = Math.round(hours / 24);
+  return days === 1 ? 'yesterday' : `${days} days ago`;
+}
 
 // Privacy (docs/design/settings-window.md, phase 3): clearing browsing data,
-// cookies, security, and site settings (the permissions' defaults, the sites
-// with permissions of their own, one site's) and Safety check, each a view of
-// the pane with a way back.
+// cookies, security, the ad blocker and its filter lists
+// (docs/design/ad-blocker.md), and site settings (the permissions' defaults,
+// the sites with permissions of their own, one site's) and Safety check,
+// each a view of the pane with a way back.
 export class CompassSettingsPrivacyPaneElement extends CrLitElement {
   static get is() {
     return 'compass-settings-privacy-pane';
@@ -187,6 +209,9 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
       canUpdate_: {type: Boolean},
       updateState_: {type: Number},
       updateMessage_: {type: String},
+      filterLists_: {type: Array},
+      listUrl_: {type: String},
+      listError_: {type: String},
     };
   }
 
@@ -206,6 +231,9 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
   protected accessor canUpdate_: boolean = false;
   protected accessor updateState_: UpdateState|null = null;
   protected accessor updateMessage_: string = '';
+  protected accessor filterLists_: FilterList[] = [];
+  protected accessor listUrl_: string = '';
+  protected accessor listError_: string = '';
 
   protected readonly clearChoices = CLEAR_CHOICES;
   protected readonly timePeriods = TIME_PERIODS;
@@ -217,6 +245,7 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
       this.prefsVersion_++;
   private contentListenerId_: number|null = null;
   private updateListenerId_: number|null = null;
+  private filterListsListenerId_: number|null = null;
   // What the path asked to scroll to ("security", "cookies").
   private focus_ = '';
 
@@ -235,7 +264,7 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
     if (site) {
       this.openSite_(site);
     } else if (view === 'clear' || view === 'permissions' ||
-               view === 'sites' || view === 'safety') {
+               view === 'sites' || view === 'safety' || view === 'adblock') {
       this.setView_(view);
     } else {
       this.loadView_();
@@ -247,6 +276,7 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
       PREF_HTTPS_ONLY,
       PREF_SECURE_DNS,
       PREF_CLEAN_LINKS,
+      PREF_ADBLOCK,
       PREF_SAFE_BROWSING,
       PREF_SAFE_BROWSING_ENHANCED,
       PREF_CLEAR_PERIOD,
@@ -263,19 +293,24 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
           this.updateState_ = state;
           this.updateMessage_ = message;
         });
+    this.filterListsListenerId_ = router.filterListsChanged.addListener(
+        () => this.loadFilterLists_());
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     prefs.removeListener(this.prefListener_);
     const router = SettingsWindowBrowserProxy.getInstance().callbackRouter;
-    for (const id of [this.contentListenerId_, this.updateListenerId_]) {
+    for (const id of
+             [this.contentListenerId_, this.updateListenerId_,
+              this.filterListsListenerId_]) {
       if (id !== null) {
         router.removeListener(id);
       }
     }
     this.contentListenerId_ = null;
     this.updateListenerId_ = null;
+    this.filterListsListenerId_ = null;
   }
 
   override updated(changedProperties: PropertyValues<this>) {
@@ -368,6 +403,73 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
 
   protected isExtensionsOk_(): boolean {
     return !!this.safety_ && !this.safety_.blocklistedExtensions;
+  }
+
+  // Ad blocker.
+
+  protected getFilterListsDetail_(): string {
+    const enabled = this.filterLists_.filter(list => list.enabled);
+    const count = enabled.length === 1 ? '1 list' : `${enabled.length} lists`;
+    const updated = Math.max(0, ...enabled.map(list => list.updatedMs));
+    return updated ? `${count}, updated ${timeAgo(updated)}` : count;
+  }
+
+  protected getFilterListDetail_(list: FilterList): string {
+    if (list.updating) {
+      return 'Updating…';
+    }
+    if (!list.updatedMs) {
+      return list.error || 'Not downloaded yet';
+    }
+    const rules = list.urlRules + list.cssRules;
+    const parts = [
+      `${rules.toLocaleString()} rules`,
+      `updated ${timeAgo(list.updatedMs)}`,
+    ];
+    if (list.skipped) {
+      parts.push(`${list.skipped.toLocaleString()} not supported`);
+    }
+    return parts.join(' · ');
+  }
+
+  protected isUpdatingLists_(): boolean {
+    return this.filterLists_.some(list => list.updating);
+  }
+
+  protected onFilterListChange_(e: Event) {
+    const input = e.target as HTMLInputElement;
+    this.handler_.setFilterListEnabled(input.dataset['id']!, input.checked);
+  }
+
+  protected onRemoveFilterListClick_(e: Event) {
+    this.handler_.removeFilterList(
+        (e.currentTarget as HTMLElement).dataset['id']!);
+  }
+
+  protected onListUrlInput_(e: Event) {
+    this.listUrl_ = (e.target as HTMLInputElement).value;
+    this.listError_ = '';
+  }
+
+  protected onListUrlKeydown_(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      this.onAddFilterListClick_();
+    }
+  }
+
+  protected async onAddFilterListClick_() {
+    if (!this.listUrl_.trim()) {
+      return;
+    }
+    const {error} = await this.handler_.addFilterList(this.listUrl_);
+    this.listError_ = error;
+    if (!error) {
+      this.listUrl_ = '';
+    }
+  }
+
+  protected onUpdateFilterListsClick_() {
+    this.handler_.updateFilterListsNow();
   }
 
   protected getBackLabel_(): string {
@@ -600,6 +702,7 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
     if (view === 'clear') {
       this.resetClearChoices_();
     }
+    this.listError_ = '';
     this.loadView_();
     const query = view === 'main' ? '' :
         view === 'site'           ? `?site=${encodeURIComponent(this.site_)}` :
@@ -624,6 +727,9 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
       const {sites} = await this.handler_.getSites();
       this.sites_ = sites;
     }
+    if (this.view_ === 'main' || this.view_ === 'adblock') {
+      this.loadFilterLists_();
+    }
     if (this.view_ === 'safety') {
       const [{result}, {about}] = await Promise.all(
           [this.handler_.getSafetyCheck(), this.handler_.getAbout()]);
@@ -636,6 +742,11 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
       this.siteName_ = displayName || this.site_;
       this.sitePermissions_ = [...permissions].sort(byPermissionOrder);
     }
+  }
+
+  private async loadFilterLists_() {
+    const {lists} = await this.handler_.getFilterLists();
+    this.filterLists_ = lists;
   }
 
   private onContentSettingsChanged_() {

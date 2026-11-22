@@ -988,7 +988,7 @@ It costs:
 | Passwords and the AutoFill extension | Chromium's password manager on the PASSWORDS sync type, plus its Android Autofill and Credential Manager integration for other apps |
 | History, sessions, devices, sent tabs | Chromium's own sync types against `server/`; sent tabs arrive by FCM |
 | Web extensions | Chromium's desktop-Android extensions, with installs from the Chrome Web Store |
-| Content blocking | The desktop's |
+| Content blocking | The desktop's ad blocker (docs/design/ad-blocker.md): Settings › Ad Blocker and the Site sheet's switch; extensions too |
 | Downloads, PiP, find, desktop site, multiple windows | Chromium's own |
 | Widgets, Control Center control, quick actions, share sheet | App widgets, a Quick Settings tile, dynamic shortcuts per space, and a share target that pins to a space |
 | Claude | A Compose bottom sheet over the shared C++ agent; tools from `common/claude/tools.json`, whose `platforms` gains `"android"` |
