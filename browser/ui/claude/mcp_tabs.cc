@@ -288,8 +288,11 @@ base::expected<Profile*, std::string> McpTabs::ResolveCall(
                         "select_tab picks one)."));
 }
 
-void McpTabs::SetCall(Profile* profile, const base::DictValue& input) {
+void McpTabs::SetCall(Profile* profile,
+                      const base::DictValue& input,
+                      Profile* front_profile) {
   current_ = profile;
+  front_profile_ = front_profile;
   // As ResolveCall() reads it: a profile that isn't a string names none.
   only_current_ = input.FindString("profile") != nullptr;
   const std::string* space = input.FindString("space");
@@ -298,6 +301,9 @@ void McpTabs::SetCall(Profile* profile, const base::DictValue& input) {
 
 void McpTabs::RemoveProfile(Profile* profile) {
   tabs_.erase(profile);
+  if (front_profile_ == profile) {
+    front_profile_ = nullptr;
+  }
   if (current_ == profile) {
     current_ = nullptr;
   }
@@ -401,14 +407,21 @@ void McpTabs::RunTool(const std::string& name,
     return;
   }
   if (name == "switch_space") {
-    // A space of another profile than the front window's: that window
-    // swaps in place, as the switcher does.
-    // Only if the client may act in the front window's profile too
-    // (McpSession asked there): that window empties and closes. Else the
-    // profile's own window switches, through ClaudeTabs.
-    BrowserWindowInterface* front = FrontWindow(profiles_.Run());
-    if (front && front->GetProfile() != current_ &&
-        !hidden_.Run(front->GetProfile())) {
+    // A space of another profile than the one in front when the call came
+    // (before any question moved the windows): that profile's window swaps
+    // in place, as the switcher does. Only if the client may act there too
+    // (McpSession asked) and may use the whole browser there: that window
+    // empties and closes. Else the space's profile's own window switches,
+    // through ClaudeTabs.
+    Profile* from = front_profile_;
+    BrowserWindowInterface* front =
+        from && from != current_ &&
+                std::ranges::contains(profiles_.Run(), from) &&
+                !hidden_.Run(from) &&
+                from->GetPrefs()->GetBoolean(prefs::kBrowserScope)
+            ? FrontWindow({from})
+            : nullptr;
+    if (front) {
       std::move(done).Run(SwapFrontWindow(front, input));
       return;
     }

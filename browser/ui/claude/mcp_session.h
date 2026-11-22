@@ -80,6 +80,9 @@ class McpSession {
   void Initialize(const base::Value& id, const base::DictValue& params);
   void ListTools(const base::Value& id);
   void RunNext();
+  // Runs, or asks about, the first call; false if it was refused instead,
+  // so that RunNext() goes on to the next.
+  bool TryRunFront();
   void RunChatCall();
   // The tab the page tools follow while none is picked: the active tab of
   // the front window, or the one the user was on before a question in
@@ -91,7 +94,9 @@ class McpSession {
                   base::WeakPtr<Profile> profile,
                   McpApproval approval);
   void OnToolDone(base::Value id, std::string name, ToolResult result);
-  // A call refused before it runs.
+  // OnToolDone() without running the next call.
+  void Finish(base::Value id, std::string name, ToolResult result);
+  // Refuses the first call before it runs; the caller runs the next one.
   void Refuse(std::string message);
   // Why list_tabs leaves |profile|'s tabs out, or nullopt.
   std::optional<std::string> HiddenReason(Profile* profile);
@@ -120,6 +125,12 @@ class McpSession {
   // Counts questions, so that the answer to one RemoveProfile() dropped is
   // ignored.
   int ask_generation_ = 0;
+  // The question is only about switch_space's swap, in the front profile.
+  bool asking_for_swap_ = false;
+  // The profile of the window in front when the first call came, before
+  // any question about it moved the windows.
+  base::WeakPtr<Profile> call_front_profile_;
+  bool front_captured_ = false;
   // While a question in another profile is in front (UserTab()): the tab
   // the user was on, and the window the question came on. Compared, never
   // used, once that window is gone.
@@ -138,6 +149,8 @@ class McpSession {
     base::DictValue arguments;
   };
   std::deque<Call> calls_;
+  // Takes the first call off the queue.
+  Call PopCall();
   bool running_ = false;
   // select_tab or open_tab picked the tab; until then, the user's active
   // tab, at each call.

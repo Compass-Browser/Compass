@@ -271,15 +271,33 @@ void McpSession::ListTools(const base::Value& id) {
 }
 
 void McpSession::RunNext() {
-  if (running_ || asking_ || removing_ || calls_.empty()) {
-    return;
+  // A loop, not recursion, over calls refused before they run.
+  while (!running_ && !asking_ && !removing_ && !calls_.empty()) {
+    if (chat_) {
+      RunChatCall();
+      return;
+    }
+    if (TryRunFront()) {
+      return;
+    }
   }
-  if (chat_) {
-    RunChatCall();
-    return;
-  }
+}
+
+bool McpSession::TryRunFront() {
   const Call& next = calls_.front();
   const std::vector<Profile*> profiles = profiles_.Run();
+  if (!front_captured_) {
+    // The window in front when the call came: a question may bring another
+    // forward (McpBridge::Ask()) before it runs.
+    BrowserWindowInterface* front = McpTabs::FrontWindow(profiles);
+    call_front_profile_ =
+        front ? front->GetProfile()->GetWeakPtr() : base::WeakPtr<Profile>();
+    front_captured_ = true;
+  }
+  Profile* front_profile = call_front_profile_.get();
+  if (front_profile && !std::ranges::contains(profiles, front_profile)) {
+    front_profile = nullptr;
+  }
   const bool picks_tab = next.name == "select_tab" || next.name == "open_tab";
   // Until a tab is picked, the page tools follow the tab the user looks at.
   const bool follows_user = !picked_tab_ && next.name != "list_tabs" &&
@@ -297,18 +315,16 @@ void McpSession::RunNext() {
       mcp_tabs_->ResolveCall(next.name, routing, target, AllowedSomewhere());
   if (!resolved.has_value()) {
     Refuse(resolved.error());
-    return;
+    return false;
   }
   Profile* profile = *resolved;
   // The profiles to ask in: the call's, and for switch_space to another
-  // profile's space, the front window's, which would swap away
+  // profile's space, the front one's, whose window would swap away
   // (McpTabs::RunTool() swaps it only if allowed there).
   std::vector<Profile*> asked = {profile};
-  if (next.name == "switch_space") {
-    BrowserWindowInterface* front = McpTabs::FrontWindow(profiles);
-    if (front && front->GetProfile() != profile) {
-      asked.push_back(front->GetProfile());
-    }
+  if (next.name == "switch_space" && front_profile &&
+      front_profile != profile) {
+    asked.push_back(front_profile);
   }
   for (Profile* each : asked) {
     Approval& approval = approvals_[each];
@@ -319,25 +335,35 @@ void McpSession::RunNext() {
       approval = Approval::kAllowed;
       continue;
     }
+    asking_for_swap_ = each != profile;
     AskIn(each, profiles);
-    return;
+    return true;
   }
-  Approval& approval = approvals_[profile];
-  if (approval == Approval::kDenied) {
+  if (approvals_[profile] == Approval::kDenied) {
     Refuse(base::StrCat({"The user didn't allow ", ControlIn(profile), "."}));
-    return;
+    return false;
   }
-  Call call = std::move(calls_.front());
-  calls_.pop_front();
+  Call call = PopCall();
   running_ = true;
   if (follows_user) {
     tools_.SetTarget(target);
   }
-  mcp_tabs_->SetCall(profile, on_target ? no_arguments : call.arguments);
+  mcp_tabs_->SetCall(profile, on_target ? no_arguments : call.arguments,
+                     front_profile);
   std::string name = call.name;
   tools_.Run(call.name, std::move(call.arguments),
              base::BindOnce(&McpSession::OnToolDone, weak_factory_.GetWeakPtr(),
                             std::move(call.id), std::move(name)));
+  return true;
+}
+
+McpSession::Call McpSession::PopCall() {
+  Call call = std::move(calls_.front());
+  calls_.pop_front();
+  // The next call captures its own front window.
+  front_captured_ = false;
+  call_front_profile_ = nullptr;
+  return call;
 }
 
 content::WebContents* McpSession::UserTab(
@@ -377,8 +403,7 @@ void McpSession::AskIn(Profile* profile,
 void McpSession::RunChatCall() {
   // The chat's tools keep its target, permission and Stop; the user started
   // it from the panel, so nothing is asked.
-  Call call = std::move(calls_.front());
-  calls_.pop_front();
+  Call call = PopCall();
   running_ = true;
   std::string name = call.name;
   chat_.Run(call.name, std::move(call.arguments),
@@ -387,11 +412,8 @@ void McpSession::RunChatCall() {
 }
 
 void McpSession::Refuse(std::string message) {
-  Call call = std::move(calls_.front());
-  calls_.pop_front();
-  running_ = true;
-  OnToolDone(std::move(call.id), call.name,
-             ToolResult::Error(std::move(message)));
+  Call call = PopCall();
+  Finish(std::move(call.id), call.name, ToolResult::Error(std::move(message)));
 }
 
 void McpSession::OnApproval(int generation,
@@ -414,6 +436,7 @@ void McpSession::OnApproval(int generation,
     Refuse(base::StrCat(
         {ProfileLabel(profile),
          " has no window to ask the user in: ask them to open one."}));
+    RunNext();
     return;
   }
   if (approval == McpApproval::kAlwaysAllow) {
@@ -435,17 +458,31 @@ void McpSession::RemoveProfile(Profile* profile) {
   // go of the profile: ClaudeTools::Stop() still tears down after its
   // callback runs.
   removing_ = true;
-  // Said before approvals_ forgets whether the client may know the name.
-  const std::string gone =
-      base::StrCat({ProfileLabel(profile), " stopped allowing MCP clients."});
+  // The bridge already took the profile out of profiles_, so whether the
+  // client may know its name counts its approval here too.
+  auto it = approvals_.find(profile);
+  const bool allowed_here =
+      it == approvals_.end() || it->second == Approval::kUnknown
+          ? AlwaysAllowed(profile)
+          : it->second == Approval::kAllowed;
+  const std::string gone = base::StrCat(
+      {allowed_here || AllowedSomewhere()
+           ? base::StrCat({"Profile \"", McpTabs::NameOf(profile), "\""})
+           : std::string("A profile"),
+       " stopped allowing MCP clients."});
   approvals_.erase(profile);
   if (asking_ && asking_profile_.get() == profile) {
-    // The question goes (the bridge closes its dialog), and the call it held
-    // with it; a late answer is ignored.
+    // The question goes (the bridge closes its dialog); a late answer is
+    // ignored.
     asking_ = false;
     asking_profile_ = nullptr;
     ++ask_generation_;
-    Refuse(gone);
+    if (!asking_for_swap_) {
+      // The call it held acted there: refused.
+      Refuse(gone);
+    }
+    // Else it was only switch_space's swap: the call runs again below,
+    // without the swap.
   }
   content::WebContents* target = tools_.web_contents();
   const bool target_here =
@@ -525,6 +562,11 @@ std::string McpSession::ControlIn(Profile* profile) {
 void McpSession::OnToolDone(base::Value id,
                             std::string name,
                             ToolResult result) {
+  Finish(std::move(id), std::move(name), std::move(result));
+  RunNext();
+}
+
+void McpSession::Finish(base::Value id, std::string name, ToolResult result) {
   running_ = false;
   if (!result.is_error && (name == "select_tab" || name == "open_tab")) {
     picked_tab_ = true;
@@ -552,7 +594,6 @@ void McpSession::OnToolDone(base::Value id,
                             .Set("content", ToMcpContent(std::move(
                                                 result.content)))
                             .Set("isError", is_error)));
-  RunNext();
 }
 
 void McpSession::Reply(const base::Value& id, base::Value result) {

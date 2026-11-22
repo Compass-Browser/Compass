@@ -65,8 +65,12 @@ class McpTabs : public TabsDelegate {
       content::WebContents* target,
       bool name_profiles);
   // The next call acts in |profile|; |input| is its arguments (list_tabs's
-  // `profile`, open_tab's `space`).
-  void SetCall(Profile* profile, const base::DictValue& input);
+  // `profile`, open_tab's `space`); |front_profile| is the profile of the
+  // front window when the call came, before any question (switch_space's
+  // swap).
+  void SetCall(Profile* profile,
+               const base::DictValue& input,
+               Profile* front_profile);
   Profile* current() { return current_; }
   // |profile| stopped allowing MCP clients, or is going.
   void RemoveProfile(Profile* profile);
@@ -101,6 +105,7 @@ class McpTabs : public TabsDelegate {
   raw_ptr<Profile> current_ = nullptr;
   bool only_current_ = false;
   std::string space_;
+  raw_ptr<Profile> front_profile_ = nullptr;
 };
 
 }  // namespace compass::claude
