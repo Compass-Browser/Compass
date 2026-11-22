@@ -595,18 +595,20 @@ bool HasAcceptLanguage(PrefService* prefs, std::string_view code) {
 }
 
 // Icelandic: a language no test machine should have already (win1's Windows
-// is in Italian, which the test first used).
+// is in Italian, which the test first used). Buttons are found by language
+// code and verb, as their names are in the UI's language (Italian on win1).
 IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, LanguagesEditor) {
   PrefService* prefs = profile()->GetPrefs();
   chrome::ShowSettingsSubPage(browser(), "languages");
   ASSERT_TRUE(window());
   ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
-  ASSERT_TRUE(WaitFor("!!document.querySelector('[aria-label=\"Add "
-                      "Icelandic\"]')")
+  ASSERT_TRUE(WaitFor("!!document.querySelector('[data-code=\"is\"]"
+                      "[aria-label^=\"Add \"]')")
                   .ExtractBool());
   ASSERT_TRUE(content::ExecJs(
       window()->web_contents(),
-      "document.querySelector('[aria-label=\"Add Icelandic\"]').click();"));
+      "document.querySelector('[data-code=\"is\"][aria-label^=\"Add \"]')"
+      ".click();"));
   ASSERT_TRUE(base::test::RunUntil([&] {
     return HasAcceptLanguage(prefs, "is");
   }));
@@ -617,14 +619,16 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, LanguagesEditor) {
       break;
     }
     ASSERT_TRUE(WaitFor("(() => { const b = document.querySelector("
-                        "'[aria-label=\"Move Icelandic up\"]'); "
+                        "'[data-code=\"is\"][aria-label^=\"Move \"]"
+                        "[aria-label$=\" up\"]'); "
                         "return b && !b.disabled; })()")
                     .ExtractBool());
     const std::string before =
         prefs->GetString(language::prefs::kAcceptLanguages);
     ASSERT_TRUE(content::ExecJs(window()->web_contents(),
-                                "document.querySelector('[aria-label=\"Move "
-                                "Icelandic up\"]').click();"));
+                                "document.querySelector('[data-code=\"is\"]"
+                                "[aria-label^=\"Move "
+                                "\"][aria-label$=\" up\"]').click();"));
     ASSERT_TRUE(base::test::RunUntil([&] {
       return prefs->GetString(language::prefs::kAcceptLanguages) != before;
     }));
@@ -637,25 +641,27 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, LanguagesEditor) {
   const bool blocked =
       ChromeTranslateClient::CreateTranslatePrefs(prefs)->IsBlockedLanguage(
           "is");
-  EXPECT_EQ(WaitFor("document.querySelector('[aria-label=\"Offer to "
-                    "translate Icelandic\"]').checked === " +
+  EXPECT_EQ(WaitFor("document.querySelector('[data-code=\"is\"]"
+                    "[aria-label^=\"Offer "
+                    "to translate \"]').checked === " +
                     std::string(blocked ? "false" : "true")),
             true);
   ASSERT_TRUE(content::ExecJs(
       window()->web_contents(),
-      "document.querySelector('[aria-label=\"Offer to translate "
-      "Icelandic\"]').click();"));
+      "document.querySelector('[data-code=\"is\"][aria-label^=\"Offer to "
+      "translate \"]').click();"));
   ASSERT_TRUE(base::test::RunUntil([&] {
     return ChromeTranslateClient::CreateTranslatePrefs(prefs)
                ->IsBlockedLanguage("is") != blocked;
   }));
 
-  ASSERT_TRUE(WaitFor("!!document.querySelector('[aria-label=\"Remove "
-                      "Icelandic\"]')")
+  ASSERT_TRUE(WaitFor("!!document.querySelector('[data-code=\"is\"]"
+                      "[aria-label^=\"Remove \"]')")
                   .ExtractBool());
   ASSERT_TRUE(content::ExecJs(
       window()->web_contents(),
-      "document.querySelector('[aria-label=\"Remove Icelandic\"]').click();"));
+      "document.querySelector('[data-code=\"is\"][aria-label^=\"Remove "
+      "\"]').click();"));
   ASSERT_TRUE(base::test::RunUntil([&] {
     return !HasAcceptLanguage(prefs, "is");
   }));
