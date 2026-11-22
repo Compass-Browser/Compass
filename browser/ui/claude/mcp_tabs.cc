@@ -111,7 +111,6 @@ std::vector<Profile*> McpTabs::OrderedProfiles() {
 }
 
 base::expected<Profile*, std::string> McpTabs::ResolveCall(
-    const std::string& name,
     const base::DictValue& input,
     content::WebContents* target) {
   const std::vector<Profile*> profiles = profiles_.Run();
@@ -193,16 +192,23 @@ base::expected<Profile*, std::string> McpTabs::ResolveCall(
         owners.push_back(profile);
       }
     }
+    if (owners.empty()) {
+      return base::unexpected(
+          base::StrCat({"No space \"", *space, "\". list_tabs lists them."}));
+    }
+    if (found && std::ranges::contains(owners, found)) {
+      // Another argument already named the profile: the name isn't a guess
+      // there.
+      owners = {found};
+    }
     if (owners.size() > 1) {
       return base::unexpected(
           base::StrCat({"More than one profile has a space \"", *space,
                         "\": give its id (s…) from list_tabs."}));
     }
-    if (!owners.empty()) {
-      if (std::optional<std::string> error =
-              take(owners.front(), "space \"" + *space + "\"")) {
-        return base::unexpected(*error);
-      }
+    if (std::optional<std::string> error =
+            take(owners.front(), "space \"" + *space + "\"")) {
+      return base::unexpected(*error);
     }
   }
 

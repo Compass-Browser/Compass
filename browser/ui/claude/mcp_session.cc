@@ -4,10 +4,10 @@
 
 #include "compass/browser/ui/claude/mcp_session.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
-#include <algorithm>
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -290,7 +290,7 @@ void McpSession::RunNext() {
       follows_user ? ActiveTab(profiles)
                    : (picked_tab_ ? tools_.web_contents() : nullptr);
   base::expected<Profile*, std::string> resolved =
-      mcp_tabs_->ResolveCall(next.name, next.arguments, target);
+      mcp_tabs_->ResolveCall(next.arguments, target);
   if (!resolved.has_value()) {
     Refuse(resolved.error());
     return;
@@ -305,7 +305,7 @@ void McpSession::RunNext() {
       ask_.Run(
           profile, client_name_,
           base::BindOnce(&McpSession::OnApproval, weak_factory_.GetWeakPtr(),
-                         base::Unretained(profile)));
+                         profile->GetWeakPtr()));
       return;
     }
   }
@@ -346,11 +346,12 @@ void McpSession::Refuse(std::string message) {
              ToolResult::Error(std::move(message)));
 }
 
-void McpSession::OnApproval(Profile* profile, McpApproval approval) {
+void McpSession::OnApproval(base::WeakPtr<Profile> weak_profile,
+                            McpApproval approval) {
   asking_ = false;
-  // The profile may have stopped allowing MCP clients meanwhile: compared,
-  // never used, until it's known to be there.
-  if (!std::ranges::contains(profiles_.Run(), profile)) {
+  // The profile may have gone, or stopped allowing MCP clients, meanwhile.
+  Profile* profile = weak_profile.get();
+  if (!profile || !std::ranges::contains(profiles_.Run(), profile)) {
     RunNext();
     return;
   }
@@ -382,9 +383,15 @@ void McpSession::RemoveProfile(Profile* profile) {
   content::WebContents* target = tools_.web_contents();
   if (target &&
       Profile::FromBrowserContext(target->GetBrowserContext()) == profile) {
-    // Back to following the user, in the profiles left.
+    // Back to following the user, in the profiles left. This stops a call
+    // running on the tab.
     picked_tab_ = false;
     tools_.SetTarget(nullptr);
+  }
+  if (running_ && mcp_tabs_->current() == profile) {
+    // Its ClaudeTabs goes, and with it a call still running there (a history
+    // search, say): answer it now.
+    tools_.Stop();
   }
   mcp_tabs_->RemoveProfile(profile);
 }

@@ -37,12 +37,15 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "components/prefs/pref_service.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
@@ -223,6 +226,7 @@ class McpBridgeBrowserTest : public InProcessBrowserTest {
   }
 
   void TearDownOnMainThread() override {
+    asked_profiles_.clear();
     bridge()->SetProfileEnabled(profile(), false);
     bridge()->SetAskForTesting(McpSession::AskCallback());
     bridge()->SetSocketPathForTesting(base::FilePath());
@@ -469,9 +473,10 @@ IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, ServesEveryEnabledProfile) {
       ->SetLocalProfileName(u"Home", /*is_default_name=*/false);
   storage.GetProfileAttributesWithPath(other->GetPath())
       ->SetLocalProfileName(u"Work", /*is_default_name=*/false);
-  Browser* other_browser = CreateBrowser(other);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      other_browser, embedded_test_server()->GetURL("/other.html")));
+  BrowserWindowInterface* other_window = CreateBrowser(other);
+  ASSERT_TRUE(content::NavigateToURL(
+      other_window->GetActiveTabInterface()->GetContents(),
+      embedded_test_server()->GetURL("/other.html")));
 
   for (Profile* each : {profile(), other}) {
     each->GetPrefs()->SetBoolean(prefs::kBrowserScope, true);

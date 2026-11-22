@@ -55,7 +55,6 @@ class McpTabs : public TabsDelegate {
   // window's. An error if they name different profiles, or a name or id
   // matches in more than one.
   base::expected<Profile*, std::string> ResolveCall(
-      const std::string& name,
       const base::DictValue& input,
       content::WebContents* target);
   // The next call acts in |profile|; |input| is its arguments (list_tabs's

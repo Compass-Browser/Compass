@@ -80,7 +80,7 @@ class McpSession {
   void ListTools(const base::Value& id);
   void RunNext();
   void RunChatCall();
-  void OnApproval(Profile* profile, McpApproval approval);
+  void OnApproval(base::WeakPtr<Profile> profile, McpApproval approval);
   void OnToolDone(base::Value id, std::string name, ToolResult result);
   // A call refused before it runs.
   void Refuse(std::string message);
