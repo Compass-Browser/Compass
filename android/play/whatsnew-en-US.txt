@@ -1,5 +1,3 @@
-- Share spaces, folders and easels with other people: touch and hold a pinned folder (or a space's ⋯, or an easel's tab) and tap Share. Invite editors or viewers with a link; everything stays end-to-end encrypted.
-- Sync servers with company sign-in (OIDC): Compass asks you to sign in.
-- Fixed: saving an OpenAI key could erase your Claude settings.
-- Fixed: the Share sheet could keep redrawing and close its menus.
-- Fixed: a new profile could stay at "Starting…" while syncing.
+- A built-in ad blocker: ads, trackers and cookie banners blocked on every site with EasyList, EasyPrivacy and the EasyList Cookie List.
+- Turn it off for a site in its Site sheet, or for every site in Settings > Ad Blocker.
+- Add your own Adblock Plus or uBlock Origin lists by address; lists update once a day.
