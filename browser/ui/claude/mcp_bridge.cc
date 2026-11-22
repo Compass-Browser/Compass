@@ -20,10 +20,9 @@
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/common/chrome_paths.h"
 #include "compass/browser/ui/claude/mcp_listener.h"
-#include "compass/browser/window_sync/window_features.h"
+#include "compass/browser/ui/claude/mcp_tabs.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -38,25 +37,6 @@ namespace {
 McpBridge* g_bridge = nullptr;
 
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kAlwaysAllowCheckbox);
-
-BrowserWindowInterface* LastActiveWindow(Profile* profile) {
-  BrowserWindowInterface* found = nullptr;
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser) {
-        if (browser->GetProfile() != profile ||
-            browser->GetType() != BrowserWindowInterface::TYPE_NORMAL) {
-          return true;
-        }
-        WindowFeatures* features = WindowFeatures::From(browser);
-        if (features &&
-            (features->is_parking_window() || features->swapped_away())) {
-          return true;
-        }
-        found = browser;
-        return false;
-      });
-  return found;
-}
 
 }  // namespace
 
@@ -114,14 +94,17 @@ void McpBridge::SetProfileEnabled(Profile* profile, bool enabled) {
     profiles_.insert(profile);
   } else {
     profiles_.erase(profile);
-    // Its connections end: the user turned it off, or the profile goes.
-    // A chat's connections are the chat's to end.
+    // The user turned it off, or the profile goes: connections stop acting
+    // in it, and end once no profile allows MCP clients. A chat's
+    // connections are the chat's to end.
     for (auto it = sessions_.begin(); it != sessions_.end();) {
-      if (it->second.session && it->second.chat.empty() &&
-          it->second.session->profile() == profile) {
+      if (!it->second.session || !it->second.chat.empty()) {
+        ++it;
+      } else if (profiles_.empty()) {
         listener_.AsyncCall(&McpListener::Close).WithArgs(it->first);
         it = sessions_.erase(it);
       } else {
+        it->second.session->RemoveProfile(profile);
         ++it;
       }
     }
@@ -222,8 +205,7 @@ void McpBridge::StartSession(int id, const std::string& first_line) {
         chat->second.runner);
     return;
   }
-  Profile* profile = PickProfile();
-  if (!profile) {
+  if (!McpTabs::FrontWindow(EnabledProfiles())) {
     // No window of a profile that allows MCP: nothing to serve. The error
     // goes out before the close (the listener runs them in order).
     Send(id,
@@ -233,8 +215,9 @@ void McpBridge::StartSession(int id, const std::string& first_line) {
     sessions_.erase(id);
     return;
   }
+  // The bridge owns its sessions, so it outlives them.
   connection.session = std::make_unique<McpSession>(
-      profile,
+      base::BindRepeating(&McpBridge::EnabledProfiles, base::Unretained(this)),
       base::BindRepeating(&McpBridge::Send, weak_factory_.GetWeakPtr(), id),
       base::BindRepeating(&McpBridge::Ask, weak_factory_.GetWeakPtr()));
   connection.session->OnMessage(first_line);
@@ -248,17 +231,8 @@ void McpBridge::Send(int id, std::string line) {
   listener_.AsyncCall(&McpListener::Send).WithArgs(id, std::move(line));
 }
 
-Profile* McpBridge::PickProfile() {
-  Profile* found = nullptr;
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser) {
-        if (profiles_.contains(browser->GetProfile())) {
-          found = browser->GetProfile();
-          return false;
-        }
-        return true;
-      });
-  return found;
+std::vector<Profile*> McpBridge::EnabledProfiles() {
+  return std::vector<Profile*>(profiles_.begin(), profiles_.end());
 }
 
 void McpBridge::Ask(Profile* profile,
@@ -268,9 +242,10 @@ void McpBridge::Ask(Profile* profile,
     ask_for_testing_.Run(profile, client, std::move(done));
     return;
   }
-  BrowserWindowInterface* window = LastActiveWindow(profile);
+  BrowserWindowInterface* window = McpTabs::FrontWindow({profile});
   if (!window) {
-    std::move(done).Run(McpApproval::kDeny);
+    // A profile kept loaded by the space list: nowhere to ask.
+    std::move(done).Run(McpApproval::kNoWindow);
     return;
   }
   // Whichever button, or closing the dialog, answers once. The model is
@@ -298,9 +273,14 @@ void McpBridge::Ask(Profile* profile,
   auto pending = base::MakeRefCounted<Pending>();
   pending->done = std::move(done);
   const std::u16string name = base::UTF8ToUTF16(client);
+  // With more than one profile, the one it asks about.
+  std::u16string title = name + u" wants to control Compass";
+  if (profiles_.size() > 1) {
+    title += u" in " + base::UTF8ToUTF16(McpTabs::NameOf(profile));
+  }
   std::unique_ptr<ui::DialogModel> model =
       ui::DialogModel::Builder()
-          .SetTitle(name + u" wants to control Compass")
+          .SetTitle(title)
           .AddParagraph(ui::DialogModelLabel(
               name +
               u" is an app on this computer that uses Claude's tools in "
@@ -308,7 +288,10 @@ void McpBridge::Ask(Profile* profile,
               u"read their consoles, run JavaScript, and click and type in "
               u"them, signed in as you. Allow only apps you trust."))
           .AddCheckbox(kAlwaysAllowCheckbox,
-                       ui::DialogModelLabel(u"Always allow " + name))
+                       ui::DialogModelLabel(profiles_.size() > 1
+                                                ? u"Always allow " + name +
+                                                      u" in this profile"
+                                                : u"Always allow " + name))
           .AddOkButton(base::BindOnce(&Pending::Allow, pending),
                        ui::DialogModel::Button::Params().SetLabel(u"Allow"))
           .AddCancelButton(
