@@ -21,6 +21,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/leveldatabase/env_chromium.h"
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
@@ -577,12 +578,17 @@ TEST(ArcEaselsRealTest, DISABLED_RealArcEasels) {
           base::Environment::Create()->GetVar("ARC_FIRESTORE")) {
     dir = base::FilePath::FromUTF8Unsafe(*path);
   } else {
+#if BUILDFLAG(IS_WIN)
+    // Where Arc for Windows keeps the cache isn't known: give ARC_FIRESTORE.
+    GTEST_SKIP() << "set ARC_FIRESTORE to Arc's firestore cache folder";
+#else
     base::FilePath app_support;
     ASSERT_TRUE(base::PathService::Get(base::DIR_APP_DATA, &app_support));
     dir = app_support.AppendASCII("firestore")
               .AppendASCII("Arc")
               .AppendASCII("bcny-arc-server")
               .AppendASCII("main");
+#endif
   }
   ASSERT_TRUE(base::DirectoryExists(dir));
   ArcEasels easels = ReadArcEasels(dir);
