@@ -471,8 +471,9 @@ compass-settings-icon {
 }
 
 /* Their on/off checkboxes as the window's switches (the ones choosing items
- * in a list, as the importer's, stay checkboxes). */
-#sections .compass-page :is(#ctrlTabRecent, #tabPreviewsEnabled,
+ * in a list, as the importer's, stay checkboxes). Only inputs: the Boosts
+ * page's list is #boosts too, and as a switch it was 20px tall. */
+#sections .compass-page input:is(#ctrlTabRecent, #tabPreviewsEnabled,
     #browserScope, #devtools, #boosts, #plugins, #claudeCodeOwnTools,
     #memoryEnabled, #memorySave, #mcpEnabled) {
   appearance: none;
@@ -486,7 +487,7 @@ compass-settings-icon {
   width: 34px;
 }
 
-#sections .compass-page :is(#ctrlTabRecent, #tabPreviewsEnabled,
+#sections .compass-page input:is(#ctrlTabRecent, #tabPreviewsEnabled,
     #browserScope, #devtools, #boosts, #plugins, #claudeCodeOwnTools,
     #memoryEnabled, #memorySave, #mcpEnabled)::before {
   background: #fff;
@@ -501,13 +502,13 @@ compass-settings-icon {
   width: 16px;
 }
 
-#sections .compass-page :is(#ctrlTabRecent, #tabPreviewsEnabled,
+#sections .compass-page input:is(#ctrlTabRecent, #tabPreviewsEnabled,
     #browserScope, #devtools, #boosts, #plugins, #claudeCodeOwnTools,
     #memoryEnabled, #memorySave, #mcpEnabled):checked {
   background: var(--accent);
 }
 
-#sections .compass-page :is(#ctrlTabRecent, #tabPreviewsEnabled,
+#sections .compass-page input:is(#ctrlTabRecent, #tabPreviewsEnabled,
     #browserScope, #devtools, #boosts, #plugins, #claudeCodeOwnTools,
     #memoryEnabled, #memorySave, #mcpEnabled):checked::before {
   transform: translateX(14px);
