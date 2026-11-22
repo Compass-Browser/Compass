@@ -567,6 +567,19 @@ IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, ServesEveryEnabledProfile) {
       base::DictValue().Set("tab_id", home_id_).Set("with_tab_id", work_id_));
   EXPECT_EQ(IsError(split), true);
   EXPECT_THAT(TextOf(split), HasSubstr("across profiles"));
+  EXPECT_EQ(IsError(Call(*trusted, 30, "create_space",
+                         base::DictValue()
+                             .Set("profile", "Work")
+                             .Set("name", "Only at work"))),
+            false);
+  std::optional<base::DictValue> moved =
+      Call(*trusted, 31, "move_tab",
+           base::DictValue()
+               .Set("tab_id", home_id_)
+               .Set("to", "today")
+               .Set("space", "Only at work"));
+  EXPECT_EQ(IsError(moved), true);
+  EXPECT_THAT(TextOf(moved), HasSubstr("which has no space"));
 
   // profile narrows list_tabs to one.
   const std::string work_only = TextOf(
@@ -578,15 +591,22 @@ IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, ServesEveryEnabledProfile) {
               HasSubstr("No profile \"Nobody\""));
 
   // Another client: each profile asks for itself, and a no in one isn't a
-  // no in the other.
+  // no in the other. Allowed nowhere yet, it isn't told profile names.
   std::unique_ptr<Client> asking = Client::Connect(socket_path_);
   ASSERT_TRUE(asking);
   Initialize(*asking, "asking");
+  std::optional<base::DictValue> nobody = Call(
+      *asking, 20, "list_tabs", base::DictValue().Set("profile", "Nobody"));
+  EXPECT_EQ(IsError(nobody), true);
+  EXPECT_THAT(TextOf(nobody), Not(HasSubstr("Home")));
+  EXPECT_TRUE(asked_profiles_.empty());
   answer_ = McpApproval::kDeny;
   std::optional<base::DictValue> denied =
       Call(*asking, 2, "select_tab", base::DictValue().Set("tab_id", work_id_));
   EXPECT_EQ(IsError(denied), true);
-  EXPECT_THAT(TextOf(denied), HasSubstr("in profile \"Work\""));
+  EXPECT_THAT(TextOf(denied),
+              HasSubstr("didn't allow asking to control Compass."));
+  EXPECT_THAT(TextOf(denied), Not(HasSubstr("Work")));
   ASSERT_EQ(asked_profiles_.size(), 1u);
   EXPECT_EQ(asked_profiles_[0], work_);
   answer_ = McpApproval::kAllowOnce;
@@ -595,10 +615,11 @@ IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, ServesEveryEnabledProfile) {
             false);
   ASSERT_EQ(asked_profiles_.size(), 2u);
   EXPECT_EQ(asked_profiles_[1], profile());
-  // Not asked again in either.
-  EXPECT_EQ(IsError(Call(*asking, 4, "select_tab",
-                         base::DictValue().Set("tab_id", work_id_))),
-            true);
+  // Not asked again in either; allowed in Home, it may know the names now.
+  std::optional<base::DictValue> denied_again =
+      Call(*asking, 4, "select_tab", base::DictValue().Set("tab_id", work_id_));
+  EXPECT_EQ(IsError(denied_again), true);
+  EXPECT_THAT(TextOf(denied_again), HasSubstr("in profile \"Work\""));
   EXPECT_EQ(asked_profiles_.size(), 2u);
   EXPECT_THAT(TextOf(Call(*asking, 5, "list_tabs")),
               HasSubstr("didn't allow asking"));
@@ -647,7 +668,8 @@ IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, TargetsProfileWins) {
 }
 
 // Turning MCP off in a profile while its question is open drops the
-// question: the calls waiting behind it go on in the profiles left.
+// question and refuses the call it held; later calls go on in the profiles
+// left.
 IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, TurningOffDropsTheQuestion) {
   ASSERT_NO_FATAL_FAILURE(AddWorkProfile());
   std::unique_ptr<Client> trusted = Client::Connect(socket_path_);
@@ -672,17 +694,19 @@ IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, TurningOffDropsTheQuestion) {
   answer_ = McpApproval::kAllowOnce;
   bridge()->SetProfileEnabled(work_, false);
   work_ = nullptr;
-  // The call runs again, in Home, which asks for itself; Work's id is gone.
+  // Refused, without asking elsewhere, and without the profile's name: the
+  // client was allowed nowhere.
   std::optional<base::DictValue> reply = newcomer->Read();
   EXPECT_EQ(IsError(reply), true);
-  EXPECT_THAT(TextOf(reply), HasSubstr("No tab"));
-  ASSERT_EQ(asked_profiles_.size(), 2u);
-  EXPECT_EQ(asked_profiles_[1], profile());
+  EXPECT_EQ(TextOf(reply), "A profile stopped allowing MCP clients.");
+  EXPECT_EQ(asked_profiles_.size(), 1u);
 
-  // The dropped question's late answer changes nothing.
+  // The dropped question's late answer changes nothing; Home asks for
+  // itself.
   std::move(held_).Run(McpApproval::kAlwaysAllow);
   EXPECT_EQ(IsError(Call(*newcomer, 3, "get_page_text")), false);
-  EXPECT_EQ(asked_profiles_.size(), 2u);
+  ASSERT_EQ(asked_profiles_.size(), 2u);
+  EXPECT_EQ(asked_profiles_[1], profile());
 }
 
 }  // namespace
