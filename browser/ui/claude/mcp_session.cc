@@ -289,8 +289,13 @@ void McpSession::RunNext() {
   content::WebContents* target =
       follows_user ? ActiveTab(profiles)
                    : (picked_tab_ ? tools_.web_contents() : nullptr);
+  // The page and developer tools act on the target: its profile is the one
+  // asked and checked, whatever profile, id or space they're given.
+  const bool on_target = ClaudeTools::ActsOnTarget(next.name);
+  const base::DictValue no_arguments;
+  const base::DictValue& routing = on_target ? no_arguments : next.arguments;
   base::expected<Profile*, std::string> resolved =
-      mcp_tabs_->ResolveCall(next.arguments, target);
+      mcp_tabs_->ResolveCall(routing, target);
   if (!resolved.has_value()) {
     Refuse(resolved.error());
     return;
@@ -302,10 +307,11 @@ void McpSession::RunNext() {
       approval = Approval::kAllowed;
     } else {
       asking_ = true;
+      asking_profile_ = profile->GetWeakPtr();
       ask_.Run(
           profile, client_name_,
           base::BindOnce(&McpSession::OnApproval, weak_factory_.GetWeakPtr(),
-                         profile->GetWeakPtr()));
+                         ++ask_generation_, profile->GetWeakPtr()));
       return;
     }
   }
@@ -319,7 +325,7 @@ void McpSession::RunNext() {
   if (follows_user) {
     tools_.SetTarget(target);
   }
-  mcp_tabs_->SetCall(profile, call.arguments);
+  mcp_tabs_->SetCall(profile, on_target ? no_arguments : call.arguments);
   std::string name = call.name;
   tools_.Run(call.name, std::move(call.arguments),
              base::BindOnce(&McpSession::OnToolDone, weak_factory_.GetWeakPtr(),
@@ -346,9 +352,15 @@ void McpSession::Refuse(std::string message) {
              ToolResult::Error(std::move(message)));
 }
 
-void McpSession::OnApproval(base::WeakPtr<Profile> weak_profile,
+void McpSession::OnApproval(int generation,
+                            base::WeakPtr<Profile> weak_profile,
                             McpApproval approval) {
+  if (generation != ask_generation_ || !asking_) {
+    // A question RemoveProfile() dropped.
+    return;
+  }
   asking_ = false;
+  asking_profile_ = nullptr;
   // The profile may have gone, or stopped allowing MCP clients, meanwhile.
   Profile* profile = weak_profile.get();
   if (!profile || !std::ranges::contains(profiles_.Run(), profile)) {
@@ -380,20 +392,36 @@ void McpSession::RemoveProfile(Profile* profile) {
     return;
   }
   approvals_.erase(profile);
+  const bool was_asking = asking_ && asking_profile_.get() == profile;
+  if (was_asking) {
+    // The question goes (the bridge closes its dialog); the call it held
+    // runs again below, in the profiles left.
+    asking_ = false;
+    asking_profile_ = nullptr;
+    ++ask_generation_;
+  }
   content::WebContents* target = tools_.web_contents();
-  if (target &&
-      Profile::FromBrowserContext(target->GetBrowserContext()) == profile) {
-    // Back to following the user, in the profiles left. This stops a call
-    // running on the tab.
+  const bool target_here =
+      target &&
+      Profile::FromBrowserContext(target->GetBrowserContext()) == profile;
+  if (target_here) {
+    // Back to following the user, in the profiles left.
     picked_tab_ = false;
-    tools_.SetTarget(nullptr);
   }
   if (running_ && mcp_tabs_->current() == profile) {
     // Its ClaudeTabs goes, and with it a call still running there (a history
     // search, say): answer it now.
     tools_.Stop();
   }
+  if (target_here && !running_) {
+    tools_.SetTarget(nullptr);
+  }
+  // Else a call runs in another profile: setting the target would stop it,
+  // so OnToolDone() lets go of the tab when it ends.
   mcp_tabs_->RemoveProfile(profile);
+  if (was_asking) {
+    RunNext();
+  }
 }
 
 bool McpSession::AlwaysAllowed(Profile* profile) {
@@ -433,6 +461,19 @@ void McpSession::OnToolDone(base::Value id,
   running_ = false;
   if (!result.is_error && (name == "select_tab" || name == "open_tab")) {
     picked_tab_ = true;
+  }
+  if (!chat_) {
+    // A tab of a profile that stopped allowing MCP clients while this call
+    // ran (RemoveProfile()).
+    content::WebContents* target = tools_.web_contents();
+    Profile* target_profile =
+        target ? Profile::FromBrowserContext(target->GetBrowserContext())
+               : nullptr;
+    if (target_profile &&
+        !std::ranges::contains(profiles_.Run(), target_profile)) {
+      picked_tab_ = false;
+      tools_.SetTarget(nullptr);
+    }
   }
   const bool is_error = result.is_error;
   Reply(id, base::Value(base::DictValue()

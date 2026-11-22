@@ -19,6 +19,10 @@
 
 class Profile;
 
+namespace views {
+class Widget;
+}  // namespace views
+
 namespace compass::claude {
 
 class McpListener;
@@ -104,6 +108,13 @@ class McpBridge {
   };
 
   std::set<raw_ptr<Profile>> profiles_;
+  // The "wants to control Compass" dialogs showing, so that turning MCP off
+  // in their profile closes them.
+  struct Dialog {
+    raw_ptr<Profile> profile;
+    base::WeakPtr<views::Widget> widget;
+  };
+  std::vector<Dialog> dialogs_;
   std::map<std::string, Chat> chats_;
   base::SequenceBound<McpListener> listener_;
   bool listening_ = false;

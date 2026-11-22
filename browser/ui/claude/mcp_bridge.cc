@@ -29,6 +29,7 @@
 #include "ui/base/base_window.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/models/dialog_model.h"
+#include "ui/views/widget/widget.h"
 
 namespace compass::claude {
 
@@ -108,6 +109,17 @@ void McpBridge::SetProfileEnabled(Profile* profile, bool enabled) {
         ++it;
       }
     }
+    // Its questions go too: their sessions dropped them, and their answers
+    // are ignored.
+    std::erase_if(dialogs_, [&](Dialog& dialog) {
+      if (dialog.profile != profile) {
+        return false;
+      }
+      if (dialog.widget) {
+        dialog.widget->Close();
+      }
+      return true;
+    });
   }
   UpdateListener();
 }
@@ -205,12 +217,13 @@ void McpBridge::StartSession(int id, const std::string& first_line) {
         chat->second.runner);
     return;
   }
-  if (!McpTabs::FrontWindow(EnabledProfiles())) {
-    // No window of a profile that allows MCP: nothing to serve. The error
-    // goes out before the close (the listener runs them in order).
-    Send(id,
-         R"({"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":)"
-         R"("Open a Compass window of a profile that allows MCP clients."}})");
+  if (profiles_.empty()) {
+    // Listening for a chat only: nothing to serve. A profile with no window
+    // is served: its calls say what to do. The error goes out before the
+    // close (the listener runs them in order).
+    Send(id, R"({"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":)"
+             R"("No Compass profile allows MCP clients: turn on \"Allow MCP )"
+             R"(clients\" in Compass's Claude settings."}})");
     listener_.AsyncCall(&McpListener::Close).WithArgs(id);
     sessions_.erase(id);
     return;
@@ -301,8 +314,12 @@ void McpBridge::Ask(Profile* profile,
               base::BindOnce(&Pending::Answer, pending, McpApproval::kDeny))
           .Build();
   pending->model = model.get();
-  constrained_window::ShowBrowserModal(
+  views::Widget* widget = constrained_window::ShowBrowserModal(
       std::move(model), window->GetWindow()->GetNativeWindow());
+  std::erase_if(dialogs_, [](const Dialog& dialog) { return !dialog.widget; });
+  if (widget) {
+    dialogs_.push_back({profile, widget->GetWeakPtr()});
+  }
   // The user is working in the client: show them the question.
   window->GetWindow()->Activate();
 }

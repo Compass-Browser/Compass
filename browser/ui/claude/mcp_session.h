@@ -80,7 +80,9 @@ class McpSession {
   void ListTools(const base::Value& id);
   void RunNext();
   void RunChatCall();
-  void OnApproval(base::WeakPtr<Profile> profile, McpApproval approval);
+  void OnApproval(int generation,
+                  base::WeakPtr<Profile> profile,
+                  McpApproval approval);
   void OnToolDone(base::Value id, std::string name, ToolResult result);
   // A call refused before it runs.
   void Refuse(std::string message);
@@ -102,6 +104,10 @@ class McpSession {
   std::map<raw_ptr<Profile>, Approval> approvals_;
   // The user is being asked, about the first call's profile.
   bool asking_ = false;
+  base::WeakPtr<Profile> asking_profile_;
+  // Counts questions, so that the answer to one RemoveProfile() dropped is
+  // ignored.
+  int ask_generation_ = 0;
   // tools/call requests waiting their turn: id, name, arguments.
   struct Call {
     base::Value id;

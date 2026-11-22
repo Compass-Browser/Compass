@@ -151,7 +151,9 @@ base::expected<Profile*, std::string> McpTabs::ResolveCall(
     if (matches.size() > 1) {
       return base::unexpected(base::StrCat(
           {"Several profiles are called \"", *wanted,
-           "\": name the profile by one of its tab or space ids instead."}));
+           "\". Leave out profile and ask the user to bring a window of the "
+           "one they mean to the front; tools that take a tab or space id "
+           "also find its profile from the id."}));
     }
     if (std::optional<std::string> error =
             take(matches.front(), "profile \"" + *wanted + "\"")) {
@@ -235,7 +237,8 @@ base::expected<Profile*, std::string> McpTabs::ResolveCall(
 
 void McpTabs::SetCall(Profile* profile, const base::DictValue& input) {
   current_ = profile;
-  only_current_ = input.contains("profile");
+  // As ResolveCall() reads it: a profile that isn't a string names none.
+  only_current_ = input.FindString("profile") != nullptr;
   const std::string* space = input.FindString("space");
   space_ = space ? *space : std::string();
 }
@@ -321,6 +324,16 @@ void McpTabs::RunTool(const std::string& name,
                       base::OnceCallback<void(Result)> done) {
   if (!current_) {
     std::move(done).Run(Error("No profile allows MCP clients."));
+    return;
+  }
+  if (name == "send_tab_to_device" && input.contains("device") &&
+      !input.contains("tab_id") && context.target &&
+      Profile::FromBrowserContext(context.target->GetBrowserContext()) !=
+          current_) {
+    // It would send that tab through another profile's devices.
+    std::move(done).Run(Error(base::StrCat(
+        {"The tab you act on isn't in profile ", Quoted(current_),
+         ": give a tab_id of that profile, or leave out profile."})));
     return;
   }
   if (name == "switch_space") {
