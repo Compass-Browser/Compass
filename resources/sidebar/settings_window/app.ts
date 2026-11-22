@@ -140,6 +140,12 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
     const content = this.querySelector<HTMLElement>('#content')!;
     this.resizeObserver_ = new ResizeObserver(() => this.reportHeight_());
     this.resizeObserver_.observe(content);
+    // The toolbar's hairline, once the pane scrolls under it.
+    const scroller = this.querySelector<HTMLElement>('#scroller')!;
+    const toolbar = this.querySelector<HTMLElement>('#toolbar')!;
+    scroller.addEventListener('scroll', () => {
+      toolbar.toggleAttribute('scrolled', scroller.scrollTop > 0);
+    }, {passive: true});
   }
 
   // The window takes the height the pane needs, within the screen.
@@ -155,16 +161,16 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
     }
   }
 
-  // The accent is the profile's active space's color (a fixed blue for a
-  // grey space): switches, the selected tab, focus rings, the sections'
-  // buttons.
+  // The profile's active space's color tints the window and is the accent
+  // (switches, focus rings, the sections' buttons); a grey space leaves the
+  // window grey and the accent a fixed blue (window.css).
   private setAccent_(color: SpaceColor|null) {
     const root = document.documentElement.style;
     if (color) {
       root.setProperty(
-          '--accent', `rgb(${color.red}, ${color.green}, ${color.blue})`);
+          '--space', `rgb(${color.red}, ${color.green}, ${color.blue})`);
     } else {
-      root.removeProperty('--accent');
+      root.removeProperty('--space');
     }
   }
 

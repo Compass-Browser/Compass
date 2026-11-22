@@ -365,31 +365,54 @@ sections, and never shown.
 
 ## Visual design
 
+The window takes the sidebar's look rather than the system settings' one: it
+is tinted with the space's color, and what sits on it is translucent white,
+as the sidebar's tabs are over its tint (restyled 2026-11-22, after the first
+look read as a plain copy of System Settings).
+
 - **Tokens** (`window.css`, `:root`):
-  - `--fg`, `--fg-dim`, `--line`, `--tint` and `--press` are mixed from the
-    theme's on-surface color.
-  - `--window` is a quiet grey background, with `--group` lists on it (white,
-    or lighter in dark mode).
-  - `--accent` is the space's color (a fixed saturated blue for a grey space: the theme's primary is pale in dark mode), with `--accent-soft`, `--accent-ring`
-    and `--accent-text` derived from it.
-  - 10 px group radius, 6 px control radius, 13 px system font, 11 px group
-    captions.
-- **Toolbar:** a 30 px title row with the pane's name and search, and a row
-  of icon-over-label tabs. The selected tab is a soft pill in the accent. The
-  toolbar is faintly tinted with the accent too.
+  - `--fg` is the window's own near-black (near-white in dark mode), with
+    `--fg-dim`, `--fg-faint`, `--line`, `--tint` and `--press` mixed from it.
+    Not the theme's on-surface color: that follows the browser theme while the
+    backgrounds follow the system, and with the two disagreeing the text came
+    out pale on light.
+  - `--space` is the space's color, which app.ts sets (unset for a grey
+    space). The window is a gradient of it over `--base`, 20 % to 9 % (16 % to
+    6 % in dark mode); grey spaces get a neutral grey.
+  - `--accent` is `--space`, or a fixed saturated blue for a grey space,
+    with `--accent-soft`, `--accent-ring` and `--accent-text` (lighter in dark
+    mode, so a deep color stays readable) derived from it.
+  - `--group`, `--selected`, `--hover`: translucent white at 72 %, 86 % and
+    45 % (6 %, 13 % and 6 % in dark mode), so the tint shows through.
+  - 12 px group radius, 7 px control radius, 13 px system font, 12 px group
+    captions, medium-weight row labels.
+- **Toolbar:** a 32 px title row with the pane's name and search, and a row
+  of icon-over-label tabs, on the window's tint with no band of its own. The
+  selected tab is a white pill with a soft shadow and its icon in the accent,
+  as the sidebar's selected tab. A hairline appears under the toolbar once the
+  pane scrolls under it.
 - **Groups:** captioned inset lists with hairline separators inset from the
   start. A row has a label and secondary text, and a trailing glyph: ↗ for a
-  row that opens a tab.
+  row that opens a tab, › (nudging on hover) for a view in the pane.
+- **Controls:** 34 × 20 switches in the accent; popup buttons with the
+  system's up and down chevrons; raised pill buttons (the main action in the
+  accent).
 - **Compass's sections, re-skinned** (window.css, under `#sections`, so its
   rules beat the sections' own class-only ones without touching their
   markup):
   - The heading becomes a group caption, hidden when the pane has only that
     section, since the title row names it.
   - The card becomes a group.
+  - Their own `.row`s (the shortcuts' list) are reset from the window's rows,
+    which share the class name.
   - Buttons become small accent buttons. `.secondary` and `.danger` become
     raised neutral ones.
-  - Fields and selects get the window's field style and accent focus ring.
-  - Checkboxes and radios take the accent (`accent-color`).
+  - Fields and selects get the window's field and popup styles and accent
+    focus ring.
+  - Their on/off checkboxes (Ctrl+Tab, tab previews, the AI pane's
+    permissions) become switches, named by id. Checkboxes that pick items in
+    a list, as the importer's, and consent checkboxes stay checkboxes. Radios
+    take the accent (`accent-color`).
   - `--color-sys-primary` is the accent inside them, so their own
     primary-colored bits follow.
 - **Icons:** line glyphs on a 24-unit grid at a 1.6 stroke, in the manner of
@@ -399,8 +422,8 @@ sections, and never shown.
 
 - The window doesn't remember its position. It opens centered toward the top
   of the last active window's display.
-- No vibrancy (`NSVisualEffectView`) behind the toolbar: the page paints an
-  opaque, accent-tinted background.
+- No vibrancy (`NSVisualEffectView`) behind the window: the page paints an
+  opaque gradient of the space's color.
 - On Windows and Linux the page sits under the system's title bar, with
   its own title row too. A frameless window with minimize and close in the
   page's title row would suit them better.

@@ -12,36 +12,54 @@
 /* Tokens ------------------------------------------------------------------ */
 
 :root {
-  --fg: var(--color-sys-on-surface, #1f1f1f);
-  --fg-dim: color-mix(in srgb, var(--fg) 58%, transparent);
-  --fg-faint: color-mix(in srgb, var(--fg) 38%, transparent);
-  --line: color-mix(in srgb, var(--fg) 10%, transparent);
-  --line-strong: color-mix(in srgb, var(--fg) 18%, transparent);
+  /* The window's own colors, light and dark from the system (not the
+   * browser theme's on-surface color, which could disagree with the
+   * backgrounds below). */
+  --fg: #1d1d1f;
+  --fg-dim: color-mix(in srgb, var(--fg) 60%, transparent);
+  --fg-faint: color-mix(in srgb, var(--fg) 36%, transparent);
+  --line: color-mix(in srgb, var(--fg) 8%, transparent);
+  --line-strong: color-mix(in srgb, var(--fg) 15%, transparent);
   --tint: color-mix(in srgb, var(--fg) 5%, transparent);
   --press: color-mix(in srgb, var(--fg) 9%, transparent);
-  /* The profile's active space's color (app.ts sets it); for a grey
-   * space, a saturated blue that takes white text in light and dark mode
-   * (the theme's primary is pale in dark mode). */
-  --accent: #0a6cdf;
+  /* The profile's active space's color (app.ts sets --space; unset for a
+   * grey space). The accent is that color, or a saturated blue that takes
+   * white text in light and dark mode. */
+  --accent: var(--space, #0a6cdf);
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
-  --accent-ring: color-mix(in srgb, var(--accent) 40%, transparent);
-  --accent-text: color-mix(in srgb, var(--accent) 78%, var(--fg));
+  --accent-ring: color-mix(in srgb, var(--accent) 45%, transparent);
+  --accent-text: color-mix(in srgb, var(--accent) 80%, var(--fg));
   --danger: #d93025;
-  --window: #f2f2f4;
-  --group: #fff;
-  --field: #fff;
+  /* As the sidebar: the window is tinted with the space's color, and what's
+   * on it is translucent white over the tint. */
+  --base: #f4f4f6;
+  --window-tint: color-mix(in srgb, var(--space, #8e8e93) 20%, var(--base));
+  --window-tint-end: color-mix(in srgb, var(--space, #8e8e93) 9%, var(--base));
+  --group: rgba(255, 255, 255, 0.72);
+  --group-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.05),
+      0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.03);
+  --selected: rgba(255, 255, 255, 0.86);
+  --selected-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04),
+      0 1px 3px rgba(0, 0, 0, 0.1);
+  --hover: rgba(255, 255, 255, 0.45);
+  --field: rgba(255, 255, 255, 0.9);
   --raised: #fff;
+  --control-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12),
+      0 1px 2px rgba(0, 0, 0, 0.07);
+  --chevrons: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="12" fill="none" stroke="%23888" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 4.5 4 2l2.5 2.5M1.5 7.5 4 10l2.5-2.5"/></svg>');
 
-  --radius-group: 10px;
-  --radius-control: 6px;
-  --toolbar-height: 78px;
-  --title-row-height: 30px;
+  --radius-group: 12px;
+  --radius-control: 7px;
+  --toolbar-height: 84px;
+  --title-row-height: 32px;
 
   color: var(--fg);
   color-scheme: light dark;
   cursor: default;
+  font-family: system-ui, sans-serif;
   font-size: 13px;
-  scrollbar-color: color-mix(in srgb, currentColor 35%, transparent)
+  -webkit-font-smoothing: antialiased;
+  scrollbar-color: color-mix(in srgb, currentColor 30%, transparent)
       transparent;
   scrollbar-width: thin;
   user-select: none;
@@ -49,17 +67,32 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --danger: #f28b82;
-    --window: #1e1e20;
-    --group: #2a2a2d;
-    --field: #1c1c1e;
-    --raised: #3a3a3d;
+    --fg: #f2f2f4;
+    --danger: #ff8a80;
+    --base: #19191c;
+    --window-tint: color-mix(in srgb, var(--space, #8e8e93) 16%, var(--base));
+    --window-tint-end: color-mix(in srgb, var(--space, #8e8e93) 6%,
+        var(--base));
+    --group: rgba(255, 255, 255, 0.06);
+    --group-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+    --selected: rgba(255, 255, 255, 0.13);
+    --selected-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.08),
+        0 1px 3px rgba(0, 0, 0, 0.3);
+    --hover: rgba(255, 255, 255, 0.06);
+    --field: rgba(0, 0, 0, 0.22);
+    --raised: rgba(255, 255, 255, 0.12);
+    --control-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.1),
+        0 1px 2px rgba(0, 0, 0, 0.25);
+    /* A dark space color (a deep purple) stays readable as text. */
+    --accent-text: color-mix(in srgb, var(--accent) 60%, var(--fg));
   }
 }
 
 body {
-  background: var(--window);
+  background: linear-gradient(165deg, var(--window-tint),
+      var(--window-tint-end)) fixed;
   margin: 0;
+  min-height: 100vh;
 }
 
 compass-settings-icon {
@@ -77,17 +110,25 @@ compass-settings-icon {
 
 /* Toolbar ------------------------------------------------------------------ */
 
+/* No band of its own: the tabs sit on the window's tint, as the sidebar's
+ * tabs do, and the selected one is a white pill, as the sidebar's selected
+ * tab. A hairline shows only once the pane scrolls under it. */
 #toolbar {
   -webkit-app-region: drag;
-  background: color-mix(in srgb, var(--accent) 7%, var(--window));
-  border-bottom: 1px solid var(--line);
+  background: linear-gradient(165deg, var(--window-tint),
+      var(--window-tint-end)) fixed;
   box-sizing: border-box;
   height: var(--toolbar-height);
   left: 0;
   position: fixed;
   right: 0;
   top: 0;
+  transition: box-shadow 150ms;
   z-index: 1;
+}
+
+#toolbar[scrolled] {
+  box-shadow: 0 0.5px 0 var(--line-strong);
 }
 
 #titleRow {
@@ -107,23 +148,26 @@ compass-settings-icon {
 #search {
   -webkit-app-region: no-drag;
   align-items: center;
-  background: var(--tint);
+  background: var(--hover);
   border-radius: var(--radius-control);
+  box-shadow: 0 0 0 0.5px var(--line);
   box-sizing: border-box;
   color: var(--fg-dim);
   display: flex;
-  gap: 4px;
-  height: 22px;
-  padding: 0 6px;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
   position: absolute;
-  right: 10px;
+  right: 12px;
   top: 5px;
-  width: 168px;
+  transition: width 150ms;
+  width: 160px;
 }
 
 #search:focus-within {
   background: var(--field);
   box-shadow: 0 0 0 3px var(--accent-ring);
+  width: 200px;
 }
 
 #search compass-settings-icon {
@@ -143,6 +187,10 @@ compass-settings-icon {
   padding: 0;
 }
 
+#searchInput::placeholder {
+  color: var(--fg-faint);
+}
+
 #searchInput::-webkit-search-cancel-button {
   filter: grayscale(1);
 }
@@ -151,9 +199,10 @@ compass-settings-icon {
   align-items: center;
   display: flex;
   gap: 2px;
-  height: calc(var(--toolbar-height) - var(--title-row-height) - 1px);
+  height: calc(var(--toolbar-height) - var(--title-row-height));
   justify-content: center;
-  padding: 0 8px;
+  padding: 0 10px 6px;
+  box-sizing: border-box;
 }
 
 .tab {
@@ -161,36 +210,47 @@ compass-settings-icon {
   align-items: center;
   background: none;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--fg-dim);
   display: flex;
   flex-direction: column;
   font: inherit;
   font-size: 11px;
-  gap: 2px;
-  height: 42px;
+  font-weight: 500;
+  gap: 3px;
+  height: 46px;
   justify-content: center;
-  min-width: 62px;
-  padding: 0 6px;
-  transition: background-color 120ms, color 120ms;
+  min-width: 60px;
+  padding: 0 7px;
+  transition: background-color 120ms, color 120ms, box-shadow 120ms;
+}
+
+.tab compass-settings-icon {
+  --icon-size: 19px;
+  transition: transform 120ms;
 }
 
 .tab:hover {
-  background: var(--tint);
+  background: var(--hover);
   color: var(--fg);
 }
 
-.tab:active {
-  background: var(--press);
+.tab:active compass-settings-icon {
+  transform: scale(0.92);
 }
 
 .tab[aria-selected='true'] {
-  background: var(--accent-soft);
+  background: var(--selected);
+  box-shadow: var(--selected-shadow);
+  color: var(--fg);
+}
+
+.tab[aria-selected='true'] compass-settings-icon {
   color: var(--accent-text);
 }
 
-.tab[aria-selected='true'] span {
-  font-weight: 600;
+.tab:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent-ring);
 }
 
 /* Panes -------------------------------------------------------------------- */
@@ -210,12 +270,12 @@ compass-settings-icon {
 #content {
   box-sizing: border-box;
   margin: 0 auto;
-  max-width: 700px;
-  padding: 20px 28px 26px;
+  max-width: 680px;
+  padding: 14px 28px 28px;
 }
 
 .row-group {
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .row-group:last-child {
@@ -224,21 +284,22 @@ compass-settings-icon {
 
 /* A rebuilt section's last group, with another section after it. */
 #sections > :not(:last-child) .row-group:last-child {
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .group-title {
   color: var(--fg-dim);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 14px;
-  margin: 0 0 6px 12px;
+  letter-spacing: 0.01em;
+  line-height: 15px;
+  margin: 0 0 7px 14px;
 }
 
 .group {
   background: var(--group);
   border-radius: var(--radius-group);
-  box-shadow: 0 0 0 0.5px var(--line);
+  box-shadow: var(--group-shadow);
   overflow: hidden;
 }
 
@@ -250,11 +311,12 @@ compass-settings-icon {
   color: inherit;
   display: flex;
   font: inherit;
-  gap: 10px;
-  min-height: 44px;
-  padding: 7px 12px;
+  gap: 12px;
+  min-height: 48px;
+  padding: 9px 14px;
   position: relative;
   text-align: start;
+  transition: background-color 100ms;
   width: 100%;
 }
 
@@ -262,7 +324,7 @@ compass-settings-icon {
 .row + .row::before {
   border-top: 1px solid var(--line);
   content: '';
-  inset-inline: 12px 0;
+  inset-inline: 14px 0;
   position: absolute;
   top: 0;
 }
@@ -283,13 +345,18 @@ compass-settings-icon {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
+}
+
+.row-label {
+  font-weight: 500;
 }
 
 .row-detail {
   color: var(--fg-dim);
-  font-size: 11.5px;
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .row-icon {
@@ -300,6 +367,12 @@ compass-settings-icon {
   --icon-size: 14px;
   --icon-stroke: 1.8;
   color: var(--fg-faint);
+  transition: transform 120ms, color 120ms;
+}
+
+.row:hover .row-trail {
+  color: var(--fg-dim);
+  transform: translateX(2px);
 }
 
 #results .empty {
@@ -336,6 +409,8 @@ compass-settings-icon {
   --color-sys-on-primary: #fff;
   --cr-primary-text-color: var(--fg);
   --cr-fallback-color-primary: var(--accent);
+  --cr-separator-line: 1px solid var(--line);
+  --color-sys-divider: var(--line);
   color: var(--fg);
   margin-bottom: 22px;
   user-select: text;
@@ -362,8 +437,75 @@ compass-settings-icon {
 #sections .compass-page > .compass-card {
   background: var(--group);
   border-radius: var(--radius-group);
-  box-shadow: 0 0 0 0.5px var(--line);
+  box-shadow: var(--group-shadow);
   padding: 14px 16px 16px;
+}
+
+/* The sections have rows of their own (.row, as the shortcuts' list): not
+ * the window's rows, which are buttons with a hover. */
+#sections .compass-page .row {
+  min-height: 34px;
+  padding: 0;
+  width: auto;
+}
+
+#sections .compass-page .row::before {
+  content: none;
+}
+
+#sections .compass-page .row:is(:hover, :active) {
+  background: none;
+}
+
+#sections .compass-page li {
+  padding: 5px 0;
+}
+
+#sections .compass-page li + li {
+  border-top: 1px solid var(--line);
+}
+
+/* Their on/off checkboxes as the window's switches (the ones choosing items
+ * in a list, as the importer's, stay checkboxes). */
+#sections .compass-page :is(#ctrlTabRecent, #tabPreviewsEnabled,
+    #browserScope, #devtools, #boosts, #plugins, #claudeCodeOwnTools,
+    #memoryEnabled, #memorySave, #mcpEnabled) {
+  appearance: none;
+  background: var(--line-strong);
+  border-radius: 999px;
+  flex: none;
+  height: 20px;
+  margin: 0;
+  position: relative;
+  transition: background-color 150ms;
+  width: 34px;
+}
+
+#sections .compass-page :is(#ctrlTabRecent, #tabPreviewsEnabled,
+    #browserScope, #devtools, #boosts, #plugins, #claudeCodeOwnTools,
+    #memoryEnabled, #memorySave, #mcpEnabled)::before {
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  content: '';
+  height: 16px;
+  left: 2px;
+  position: absolute;
+  top: 2px;
+  transition: transform 180ms cubic-bezier(0.3, 0.7, 0.4, 1.2);
+  width: 16px;
+}
+
+#sections .compass-page :is(#ctrlTabRecent, #tabPreviewsEnabled,
+    #browserScope, #devtools, #boosts, #plugins, #claudeCodeOwnTools,
+    #memoryEnabled, #memorySave, #mcpEnabled):checked {
+  background: var(--accent);
+}
+
+#sections .compass-page :is(#ctrlTabRecent, #tabPreviewsEnabled,
+    #browserScope, #devtools, #boosts, #plugins, #claudeCodeOwnTools,
+    #memoryEnabled, #memorySave, #mcpEnabled):checked::before {
+  transform: translateX(14px);
 }
 
 #sections > * {
@@ -404,13 +546,13 @@ compass-settings-icon {
 
 #sections .compass-page button.secondary {
   background: var(--raised);
-  box-shadow: 0 0 0 0.5px var(--line-strong), 0 0.5px 1px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--control-shadow);
   color: var(--fg);
 }
 
 #sections .compass-page button.danger {
   background: var(--raised);
-  box-shadow: 0 0 0 0.5px var(--line-strong), 0 0.5px 1px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--control-shadow);
   color: var(--danger);
 }
 
@@ -445,6 +587,14 @@ compass-settings-icon {
   padding: 4px 8px;
 }
 
+/* (After the fields' rule, which this outweighs only by coming later.) */
+#sections .compass-page select:not([multiple]) {
+  appearance: none;
+  background: var(--raised) var(--chevrons) no-repeat right 9px center;
+  box-shadow: var(--control-shadow);
+  padding-inline-end: 26px;
+}
+
 #sections .compass-page :is(input, textarea, select):focus {
   box-shadow: 0 0 0 3px var(--accent-ring);
   outline: none;
@@ -458,8 +608,9 @@ compass-settings-icon {
   color: var(--accent-text);
 }
 
-#sections .compass-page :is(hr, li) {
-  border-color: var(--line);
+#sections .compass-page hr {
+  border: none;
+  border-top: 1px solid var(--line);
 }
 
 /* A shortcut's keys, as key caps. */
@@ -505,24 +656,24 @@ input.switch {
   background: var(--line-strong);
   border-radius: 999px;
   flex: none;
-  height: 18px;
+  height: 20px;
   margin: 0;
   position: relative;
   transition: background-color 150ms;
-  width: 30px;
+  width: 34px;
 }
 
 input.switch::before {
   background: #fff;
   border-radius: 50%;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
   content: '';
-  height: 14px;
+  height: 16px;
   left: 2px;
   position: absolute;
   top: 2px;
-  transition: transform 150ms;
-  width: 14px;
+  transition: transform 180ms cubic-bezier(0.3, 0.7, 0.4, 1.2);
+  width: 16px;
 }
 
 input.switch:checked {
@@ -530,31 +681,31 @@ input.switch:checked {
 }
 
 input.switch:checked::before {
-  transform: translateX(12px);
+  transform: translateX(14px);
 }
 
 input.switch:disabled {
   opacity: 0.45;
 }
 
-/* A popup menu button. */
+/* A popup menu button, with the system's up and down chevrons. */
 select.popup {
   appearance: none;
-  background: var(--raised) no-repeat right 7px center / 8px 8px;
-  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
-      linear-gradient(-45deg, transparent 50%, currentColor 50%);
-  background-position: right 10px center, right 6px center;
-  background-size: 4px 4px, 4px 4px;
+  background: var(--raised) var(--chevrons) no-repeat right 9px center;
   border: none;
   border-radius: var(--radius-control);
-  box-shadow: 0 0 0 0.5px var(--line-strong), 0 0.5px 1px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--control-shadow);
   color: var(--fg);
   flex: none;
   font: inherit;
   font-size: 13px;
   max-width: 260px;
-  min-height: 24px;
-  padding: 3px 24px 3px 10px;
+  min-height: 26px;
+  padding: 3px 26px 3px 10px;
+}
+
+select.popup:hover {
+  filter: brightness(0.98);
 }
 
 select.popup:disabled {
@@ -566,20 +717,25 @@ button.pill {
   background: var(--raised);
   border: none;
   border-radius: var(--radius-control);
-  box-shadow: 0 0 0 0.5px var(--line-strong), 0 0.5px 1px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--control-shadow);
   color: var(--fg);
   flex: none;
   font: inherit;
   font-size: 13px;
   font-weight: 500;
-  min-height: 24px;
-  padding: 3px 12px;
+  min-height: 26px;
+  padding: 3px 13px;
 }
 
 button.pill.accent {
   background: var(--accent);
-  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--accent) 40%, transparent),
+      inset 0 0.5px 0 rgba(255, 255, 255, 0.2);
   color: #fff;
+}
+
+button.pill:hover {
+  filter: brightness(1.04);
 }
 
 button.pill:active {
@@ -590,15 +746,19 @@ input.field {
   background: var(--field);
   border: none;
   border-radius: var(--radius-control);
-  box-shadow: 0 0 0 0.5px var(--line-strong), inset 0 0.5px 1px
-      rgba(0, 0, 0, 0.06);
+  box-shadow: 0 0 0 0.5px var(--line-strong), inset 0 1px 1px
+      rgba(0, 0, 0, 0.04);
   box-sizing: border-box;
   color: var(--fg);
   font: inherit;
   font-size: 13px;
-  min-height: 26px;
-  padding: 4px 8px;
+  min-height: 28px;
+  padding: 4px 9px;
   width: 260px;
+}
+
+input.field::placeholder {
+  color: var(--fg-faint);
 }
 
 :is(select.popup, button.pill, input.field):focus-visible {
