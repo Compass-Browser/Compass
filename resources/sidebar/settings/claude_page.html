@@ -310,6 +310,21 @@
 </section>
 
 <section id="apiKeySection">
+<div id="chatgptSection" hidden>
+  <label class="field" for="chatgptSignIn">ChatGPT plan</label>
+  <div class="claude-key-row" id="chatgptSignedOut">
+    <button id="chatgptSignIn">Continue with ChatGPT</button>
+  </div>
+  <div class="claude-key-row" id="chatgptSignedIn" hidden>
+    <span class="saved-key" id="chatgptAccount"></span>
+    <button id="chatgptSignOut" class="secondary">Sign Out</button>
+  </div>
+  <p class="hint">Sign in with your ChatGPT account to use your ChatGPT plan
+    instead of an API key: its usage limits apply, shared with your other
+    apps, and you can see or cap what Compass uses in ChatGPT's settings.
+    While you're signed in, the key below isn't used.</p>
+  <p class="note" id="chatgptNote" hidden></p>
+</div>
 <label class="field" for="apiKey">API key</label>
 <div class="claude-key-row" id="keyEntry">
   <input id="apiKey" type="password" autocomplete="off" spellcheck="false"

@@ -60,6 +60,8 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler,
   void GetState(GetStateCallback callback) override;
   void SetProvider(const std::string& provider) override;
   void SetApiKey(const std::string& key, SetApiKeyCallback callback) override;
+  void SignInWithChatGPT(SignInWithChatGPTCallback callback) override;
+  void SignOutOfChatGPT(SignOutOfChatGPTCallback callback) override;
   void SetEndpoint(const std::string& base_url,
                    mojom::AuthStyle auth_style,
                    SetEndpointCallback callback) override;

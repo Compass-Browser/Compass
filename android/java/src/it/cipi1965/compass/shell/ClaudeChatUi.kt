@@ -145,6 +145,11 @@ object ClaudeChatUi {
          */
         fun onSetProvider(provider: String)
 
+        /** Sign in with ChatGPT (OpenAI): opens OpenAI's sign-in in a tab. */
+        fun onSignInWithChatGpt()
+
+        fun onSignOutOfChatGpt()
+
         /** The provider's endpoint: base URL ("" for its own server) and how the key is sent. */
         fun onSetEndpoint(baseUrl: String, authStyle: Int)
 
@@ -778,6 +783,46 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                 }
             }
         }
+        if (state.provider == "openai") {
+            // Sign in with ChatGPT: the plan instead of a key (docs/design/ai-providers.md).
+            item { SectionTitle("ChatGPT Plan") }
+            item {
+                Group {
+                    if (state.chatgptSignedIn) {
+                        ListItem(
+                            supportingContent = { if (state.chatgptEmail.isNotEmpty()) Text(state.chatgptEmail) },
+                            trailingContent = {
+                                TextButton(onClick = { listener.onSignOutOfChatGpt() }) { Text("Sign Out") }
+                            },
+                            colors = rowColors(),
+                        ) { Text("Signed in with ChatGPT") }
+                    } else {
+                        Row(
+                            Modifier.padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            FilledTonalButton(
+                                onClick = { listener.onSignInWithChatGpt() },
+                                enabled = !state.chatgptSigningIn,
+                            ) { Text("Continue with ChatGPT") }
+                            if (state.chatgptSigningIn) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                        }
+                    }
+                }
+            }
+            item {
+                Text(
+                    if (state.chatgptNote.isNotEmpty()) state.chatgptNote
+                    else "Use your ChatGPT plan instead of an API key: its usage limits apply, shared with your " +
+                        "other apps. While you're signed in, the key below isn't used.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (state.chatgptNote.isNotEmpty()) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+        }
         item { SectionTitle("API Key") }
         item {
             Group {
@@ -872,7 +917,8 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                         OutlinedButton(
                             onClick = { listener.onTestConnection() },
                             // A compatible server may need no key.
-                            enabled = !state.testing && (state.hasKey || (compatible && state.baseUrl.isNotEmpty())),
+                            enabled = !state.testing && (state.hasKey || (state.provider == "openai" && state.chatgptSignedIn) ||
+                                (compatible && state.baseUrl.isNotEmpty())),
                         ) {
                             Text("Test Connection")
                         }

@@ -196,6 +196,51 @@ TEST(ClaudeApiTest, DescribeError) {
 
 // docs/design/ai-providers.md: another provider's paths, headers, errors and
 // model lists; Anthropic's don't change.
+TEST(ClaudeApiTest, ChatGPTPlan) {
+  TestingPrefServiceSimple prefs;
+  prefs::RegisterProfilePrefs(prefs.registry());
+  prefs.SetString(prefs::kProvider, "openai");
+  prefs.SetString(prefs::ProviderPref(prefs::kBaseUrl, AIProvider::kOpenAI),
+                  "https://gw.example.com/v1");
+  EXPECT_FALSE(UsesChatGPT(prefs));
+  EXPECT_FALSE(EndpointFromPrefs(prefs).chatgpt);
+  // Signed in: OpenAI's own API, whatever gateway was set.
+  prefs.SetString(prefs::kChatGPTSession, "c2Vzc2lvbg==");
+  EXPECT_TRUE(UsesChatGPT(prefs));
+  Endpoint endpoint = EndpointFromPrefs(prefs);
+  EXPECT_TRUE(endpoint.chatgpt);
+  EXPECT_EQ(EndpointUrl(endpoint.base_url, ChatPath(endpoint.provider)).spec(),
+            "https://api.openai.com/v1/responses");
+  // Another provider doesn't use it.
+  prefs.SetString(prefs::kProvider, "anthropic");
+  EXPECT_FALSE(UsesChatGPT(prefs));
+
+  // The plan's model list: listed ones, in its order.
+  std::optional<std::vector<ModelInfo>> models = ParseModelList(
+      R"({"models":[{"slug":"gpt-6.2-sol","display_name":"GPT-6.2 Sol",)"
+      R"("visibility":"list"},{"slug":"hidden","visibility":"hide"},)"
+      R"({"slug":"gpt-6-luna","display_name":"GPT-6 Luna",)"
+      R"("visibility":"list"}]})",
+      AIProvider::kOpenAI);
+  ASSERT_TRUE(models);
+  ASSERT_EQ(models->size(), 2u);
+  EXPECT_EQ((*models)[0].id, "gpt-6.2-sol");
+  EXPECT_EQ((*models)[0].display_name, "GPT-6.2 Sol");
+  EXPECT_EQ((*models)[1].id, "gpt-6-luna");
+
+  // The plan's errors, by their code.
+  EXPECT_NE(DescribeError(
+                429,
+                R"({"error":{"code":"subscription_sharing_usage_limit_exceeded",)"
+                R"("message":"limit"}})",
+                AIProvider::kOpenAI)
+                .find("usage limit"),
+            std::string::npos);
+  EXPECT_EQ(DescribeError(401, R"({"detail":"Unauthorized"})",
+                          AIProvider::kOpenAI),
+            "Unauthorized");
+}
+
 TEST(ClaudeApiTest, OtherProviders) {
   Endpoint openai;
   openai.provider = AIProvider::kOpenAI;

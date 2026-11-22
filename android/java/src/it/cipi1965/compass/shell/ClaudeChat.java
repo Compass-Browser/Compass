@@ -57,6 +57,11 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
                             public void switchSpace(String spaceId) {
                                 spaces.switchToSpace(spaceId);
                             }
+
+                            @Override
+                            public void openTab(String url) {
+                                onOpenLink(url);
+                            }
                         },
                         this::refresh);
         mView = ClaudeChatUi.createView(activity, activity, activity, activity, mState, this);
@@ -159,6 +164,16 @@ public class ClaudeChat implements ClaudeChatUi.Listener {
     @Override
     public void onSetKey(String key) {
         mBridge.setApiKey(key);
+    }
+
+    @Override
+    public void onSignInWithChatGpt() {
+        mBridge.signInWithChatGpt();
+    }
+
+    @Override
+    public void onSignOutOfChatGpt() {
+        mBridge.signOutOfChatGpt();
     }
 
     @Override

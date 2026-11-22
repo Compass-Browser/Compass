@@ -11,6 +11,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/values.h"
+#include "compass/browser/claude/chatgpt_oauth.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "components/prefs/pref_service.h"
 #include "net/base/url_util.h"
@@ -135,9 +136,20 @@ void AddBetas(const Endpoint& endpoint,
   }
 }
 
+bool UsesChatGPT(const PrefService& prefs) {
+  return prefs::CurrentProvider(prefs) == AIProvider::kOpenAI &&
+         !prefs.GetString(prefs::kChatGPTSession).empty();
+}
+
 Endpoint EndpointFromPrefs(const PrefService& prefs) {
   Endpoint endpoint;
   endpoint.provider = prefs::CurrentProvider(prefs);
+  if (UsesChatGPT(prefs)) {
+    // The plan's tokens are for OpenAI's own API only.
+    endpoint.base_url = GURL(chatgpt::kResource);
+    endpoint.chatgpt = true;
+    return endpoint;
+  }
   const std::optional<GURL> base_url =
       ParseBaseUrl(prefs.GetString(prefs::CurrentPref(prefs, prefs::kBaseUrl)),
                    endpoint.provider);
@@ -218,7 +230,28 @@ std::optional<std::vector<ModelInfo>> ParseModelList(std::string_view json,
   }
   const base::ListValue* data = dict->FindList("data");
   if (!data) {
-    return std::nullopt;
+    // The ChatGPT plan's list: the listed ones, in the server's order.
+    const base::ListValue* plan = provider == AIProvider::kOpenAI
+                                      ? dict->FindList("models")
+                                      : nullptr;
+    if (!plan) {
+      return std::nullopt;
+    }
+    std::vector<ModelInfo> models;
+    for (const base::Value& item : *plan) {
+      const base::DictValue* model = item.GetIfDict();
+      const std::string* slug = model ? model->FindString("slug") : nullptr;
+      if (!slug || slug->empty()) {
+        continue;
+      }
+      const std::string* visibility = model->FindString("visibility");
+      if (visibility && *visibility != "list") {
+        continue;
+      }
+      const std::string* name = model->FindString("display_name");
+      models.push_back({*slug, name && !name->empty() ? *name : *slug});
+    }
+    return models;
   }
   std::vector<ModelInfo> models;
   for (const base::Value& item : *data) {
@@ -280,6 +313,13 @@ std::string DescribeError(int http_status,
   if (std::optional<base::DictValue> dict =
           base::JSONReader::ReadDict(body, base::JSON_PARSE_RFC)) {
     if (const base::DictValue* error = dict->FindDict("error")) {
+      // The ChatGPT plan's own errors say more by their code.
+      if (const std::string* code = error->FindString("code")) {
+        if (std::optional<std::string> plan =
+                chatgpt::PlanErrorMessage(*code)) {
+          return *plan;
+        }
+      }
       const std::string* message = error->FindString("message");
       if (message && !message->empty()) {
         return *message;

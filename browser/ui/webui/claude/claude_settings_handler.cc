@@ -15,10 +15,14 @@
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_paths_internal.h"
 #include "compass/browser/claude/ai_provider.h"
+#include "compass/browser/claude/chatgpt_account.h"
+#include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_client.h"
 #include "compass/browser/claude/claude_credentials.h"
 #include "compass/browser/claude/claude_memory.h"
@@ -159,6 +163,14 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->has_key = ClaudeCredentials::HasApiKey(profile_);
   state->key_hint = ClaudeCredentials::GetApiKeyHint(profile_);
   state->set_up = ClaudeCredentials::IsSetUp(*prefs);
+  state->chatgpt_signed_in = ChatGPTAccount::IsSignedIn(*prefs);
+  state->chatgpt_email = ChatGPTAccount::AccountEmail(*prefs);
+  if (provider == AIProvider::kOpenAI) {
+    ChatGPTAccount* account = ChatGPTAccount::ForProfile(profile_);
+    state->chatgpt_note = state->chatgpt_signed_in
+                              ? account->last_token_error()
+                              : account->ended_reason();
+  }
   state->base_url = current(prefs::kBaseUrl);
   state->auth_style = ToMojo(EndpointFromPrefs(*prefs).auth_style);
   state->model = current(prefs::kModel);
@@ -216,6 +228,35 @@ void ClaudeSettingsHandler::SetProvider(const std::string& provider) {
 void ClaudeSettingsHandler::SetApiKey(const std::string& key,
                                       SetApiKeyCallback callback) {
   ClaudeCredentials::SetApiKey(profile_, key, std::move(callback));
+}
+
+void ClaudeSettingsHandler::SignInWithChatGPT(
+    SignInWithChatGPTCallback callback) {
+  ChatGPTAccount::ForProfile(profile_)->SignIn(
+      base::BindOnce(
+          [](base::WeakPtr<Profile> profile, const GURL& url) {
+            if (!profile) {
+              return;
+            }
+            // A tab of the browser: it's the system browser here.
+            NavigateParams params(profile.get(), url,
+                                  ui::PAGE_TRANSITION_LINK);
+            params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+            params.window_action = NavigateParams::WindowAction::kShowWindow;
+            Navigate(&params);
+          },
+          profile_->GetWeakPtr()),
+      base::BindOnce(
+          [](SignInWithChatGPTCallback callback,
+             std::optional<std::string> error) {
+            std::move(callback).Run(error.value_or(std::string()));
+          },
+          std::move(callback)));
+}
+
+void ClaudeSettingsHandler::SignOutOfChatGPT(
+    SignOutOfChatGPTCallback callback) {
+  ChatGPTAccount::ForProfile(profile_)->SignOut(std::move(callback));
 }
 
 void ClaudeSettingsHandler::SetEndpoint(const std::string& base_url,
@@ -497,7 +538,9 @@ void ClaudeSettingsHandler::OnKeyForTest(TestConnectionCallback callback,
                                          std::optional<std::string> key) {
   auto result = mojom::ConnectionResult::New();
   if (!key) {
-    if (ClaudeCredentials::HasApiKey(profile_)) {
+    if (UsesChatGPT(*profile_->GetPrefs())) {
+      result->error = ClaudeCredentials::MissingKeyMessage(profile_);
+    } else if (ClaudeCredentials::HasApiKey(profile_)) {
       result->error =
           "The saved key can't be read any more. Enter it again.";
     } else if (prefs::CurrentProvider(*profile_->GetPrefs()) ==

@@ -64,7 +64,14 @@ struct Endpoint {
   // The user accepted the risks of subscription tokens
   // (prefs::kAcceptTokenRisks).
   bool allow_oauth_token = false;
+  // OpenAI on the user's ChatGPT plan (Sign in with ChatGPT): api_key is the
+  // access token, and base_url OpenAI's own.
+  bool chatgpt = false;
 };
+
+// Whether the profile's OpenAI requests go on the user's ChatGPT plan: OpenAI
+// is the provider, and signed in with ChatGPT (ChatGPTAccount).
+bool UsesChatGPT(const PrefService& prefs);
 
 // Whether requests send |endpoint|'s key as a subscription token: it is one,
 // and the user accepted the risks.
@@ -151,7 +158,8 @@ struct ModelInfo {
 };
 
 // The models in a GET /v1/models reply, as the API lists them (newest
-// first). Another provider's list is sorted by id; OpenAI's is cut to chat
+// first). On the ChatGPT plan the reply is {"models": [{"slug",
+// "display_name", "visibility"}]}: the listed ones, in its order. Another provider's list is sorted by id; OpenAI's is cut to chat
 // models (no embeddings, audio, images, moderation, realtime...), Gemini's
 // ids lose "models/". Null if |json| isn't one.
 std::optional<std::vector<ModelInfo>> ParseModelList(

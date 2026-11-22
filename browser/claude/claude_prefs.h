@@ -115,6 +115,26 @@ inline constexpr char kCommandBarAskModel[] =
 // kCommandBarAskModel's default.
 inline constexpr char kDefaultAskModel[] = "claude-sonnet-5-5";
 
+// Sign in with ChatGPT (docs/design/ai-providers.md, "Sign in with
+// ChatGPT"): the OpenAI provider on the user's ChatGPT plan instead of a key.
+// Signed in, it's used instead of the OpenAI key. The tokens (chatgpt::Session
+// as JSON), encrypted with the OS's safe storage like the key, in base64;
+// empty when signed out. Read and written by ChatGPTAccount only.
+inline constexpr char kChatGPTSession[] =
+    "compass.ai_providers.openai.chatgpt_session";
+// The account's email, for the settings and the next sign-in's login_hint;
+// empty when signed out.
+inline constexpr char kChatGPTEmail[] =
+    "compass.ai_providers.openai.chatgpt_email";
+// This install's ext_agent_host_id, made once, before the first sign-in, and
+// kept.
+inline constexpr char kChatGPTHostId[] =
+    "compass.ai_providers.openai.chatgpt_host_id";
+// The client Compass was registered as (oaiapp_…), bound to the account and
+// this install: kept after signing out, for the next sign-in.
+inline constexpr char kChatGPTClientId[] =
+    "compass.ai_providers.openai.chatgpt_client_id";
+
 enum class FilesAccess {
   kOff = 0,
   kSave = 1,

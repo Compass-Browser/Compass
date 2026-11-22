@@ -30,18 +30,23 @@ class ClaudeCredentials {
 
   // The saved key, or null if none is saved or it can't be decrypted (the
   // OS's storage was reset). An empty key for an OpenAI-compatible server set
-  // up without one.
+  // up without one. Signed in with ChatGPT (UsesChatGPT()), OpenAI's is a
+  // fresh access token from ChatGPTAccount instead, or null if it couldn't
+  // get one (MissingKeyMessage() says why).
   static void GetApiKey(
       Profile* profile,
       base::OnceCallback<void(std::optional<std::string>)> callback);
 
   static bool HasApiKey(Profile* profile);
-  // Whether requests can go: a key saved, or an OpenAI-compatible server's
-  // URL (which may need no key).
+  // Whether requests can go: a key saved, signed in with ChatGPT (OpenAI),
+  // or an OpenAI-compatible server's URL (which may need no key).
   static bool IsSetUp(Profile* profile);
   static bool IsSetUp(const PrefService& prefs);
   // KeyHint() of the saved key; empty if none.
   static std::string GetApiKeyHint(Profile* profile);
+  // What to tell the user when GetApiKey() gave nothing: why the ChatGPT
+  // sign-in couldn't give a token, or to add a key.
+  static std::string MissingKeyMessage(Profile* profile);
 };
 
 }  // namespace compass::claude

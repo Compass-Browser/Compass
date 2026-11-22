@@ -24,6 +24,7 @@
 #include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_client.h"
+#include "compass/browser/claude/chatgpt_account.h"
 #include "compass/browser/claude/claude_credentials.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/claude/claude_quick.h"
@@ -303,6 +304,20 @@ std::string ClaudeBridge::Snapshot(JNIEnv* env) {
   const std::string model = ChatModel(*profile_->GetPrefs());
   snapshot.Set("has_key", claude::ClaudeCredentials::HasApiKey(profile_));
   snapshot.Set("key_hint", claude::ClaudeCredentials::GetApiKeyHint(profile_));
+  {
+    const PrefService& prefs = *profile_->GetPrefs();
+    claude::ChatGPTAccount* account =
+        claude::ChatGPTAccount::ForProfile(profile_);
+    const bool signed_in = claude::ChatGPTAccount::IsSignedIn(prefs);
+    snapshot.Set("chatgpt_signed_in", signed_in);
+    snapshot.Set("chatgpt_email", claude::ChatGPTAccount::AccountEmail(prefs));
+    snapshot.Set("chatgpt_signing_in", chatgpt_signing_in_);
+    std::string note = chatgpt_note_;
+    if (note.empty()) {
+      note = signed_in ? account->last_token_error() : account->ended_reason();
+    }
+    snapshot.Set("chatgpt_note", note);
+  }
   // Whether the chat can ask: a key (or a compatible server's URL) and, for
   // a compatible server, the model typed.
   snapshot.Set("set_up",
@@ -436,6 +451,50 @@ void ClaudeBridge::SetApiKey(JNIEnv* env, const std::string& key) {
           weak_factory_.GetWeakPtr()));
 }
 
+void ClaudeBridge::SignInWithChatGPT(JNIEnv* env) {
+  chatgpt_signing_in_ = true;
+  chatgpt_note_.clear();
+  Changed();
+  claude::ChatGPTAccount::ForProfile(profile_)->SignIn(
+      base::BindOnce(
+          [](base::WeakPtr<ClaudeBridge> self, const GURL& url) {
+            if (self) {
+              Java_ClaudeBridge_openSignInPage(jni_zero::AttachCurrentThread(),
+                                               self->java_object_, url.spec());
+            }
+          },
+          weak_factory_.GetWeakPtr()),
+      base::BindOnce(
+          [](base::WeakPtr<ClaudeBridge> self,
+             std::optional<std::string> error) {
+            if (!self) {
+              return;
+            }
+            self->chatgpt_signing_in_ = false;
+            self->chatgpt_note_ = error.value_or(std::string());
+            self->Changed();
+          },
+          weak_factory_.GetWeakPtr()));
+}
+
+void ClaudeBridge::SignOutOfChatGPT(JNIEnv* env) {
+  chatgpt_note_.clear();
+  claude::ChatGPTAccount::ForProfile(profile_)->SignOut(base::BindOnce(
+      [](base::WeakPtr<ClaudeBridge> self, bool revoked) {
+        if (!self) {
+          return;
+        }
+        self->chatgpt_note_ =
+            revoked ? std::string()
+                    : "Signed out of Compass. OpenAI didn't confirm revoking "
+                      "the sign-in: you can disconnect Compass in ChatGPT's "
+                      "settings.";
+        self->Changed();
+      },
+      weak_factory_.GetWeakPtr()));
+  Changed();
+}
+
 void ClaudeBridge::SetBrowserScope(JNIEnv* env, bool allowed) {
   profile_->GetPrefs()->SetBoolean(claude::prefs::kBrowserScope, allowed);
   Changed();
@@ -501,9 +560,11 @@ void ClaudeBridge::OnKey(std::string content, std::optional<std::string> key) {
   // A compatible server set up without a key has an empty one.
   if (!key || (key->empty() && endpoint.provider !=
                                    claude::AIProvider::kCompatible)) {
-    Finish(base::StrCat({"Add your ",
-                         claude::ProviderDisplayName(endpoint.provider),
-                         " API key first."}));
+    Finish(endpoint.chatgpt || !key
+               ? claude::ClaudeCredentials::MissingKeyMessage(profile_)
+               : base::StrCat({"Add your ",
+                               claude::ProviderDisplayName(endpoint.provider),
+                               " API key first."}));
     return;
   }
   if (!endpoint.base_url.is_valid()) {
@@ -1230,7 +1291,10 @@ void ClaudeBridge::TestConnection(JNIEnv* env) {
             // A compatible server may need no key (GetApiKey() gives "").
             if (!key || (key->empty() && endpoint.provider !=
                                              claude::AIProvider::kCompatible)) {
-              fail("Enter an API key first.");
+              fail(endpoint.chatgpt
+                       ? claude::ClaudeCredentials::MissingKeyMessage(
+                             self->profile_)
+                       : std::string("Enter an API key first."));
               return;
             }
             if (!endpoint.base_url.is_valid()) {

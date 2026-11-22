@@ -82,6 +82,14 @@ class ClaudeChatState {
     var hasKey by mutableStateOf(false)
     /** What the settings show of the saved key ("sk-…a1b2"), or "". */
     var keyHint by mutableStateOf("")
+    /**
+     * Sign in with ChatGPT (OpenAI only): signed in (the plan is used, not the key), the account's
+     * email, a sign-in underway, and what the last one said (or why it ended).
+     */
+    var chatgptSignedIn by mutableStateOf(false)
+    var chatgptEmail by mutableStateOf("")
+    var chatgptSigningIn by mutableStateOf(false)
+    var chatgptNote by mutableStateOf("")
     /** Whether the chat can ask: a key (or a compatible server's URL) and a model. */
     var setUp by mutableStateOf(false)
     /**
@@ -203,6 +211,10 @@ class ClaudeChatState {
         error = data.optString("error")
         hasKey = data.optBoolean("has_key")
         keyHint = data.optString("key_hint")
+        chatgptSignedIn = data.optBoolean("chatgpt_signed_in")
+        chatgptEmail = data.optString("chatgpt_email")
+        chatgptSigningIn = data.optBoolean("chatgpt_signing_in")
+        chatgptNote = data.optString("chatgpt_note")
         setUp = data.optBoolean("set_up")
         provider = data.optString("provider", "anthropic")
         providers = pairs(data, "providers")

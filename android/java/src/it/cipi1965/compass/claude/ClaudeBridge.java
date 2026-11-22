@@ -35,6 +35,9 @@ public class ClaudeBridge {
 
         /** The window shows |spaceId|. */
         void switchSpace(String spaceId);
+
+        /** Opens |url| in a new tab in front (Sign in with ChatGPT's page). */
+        void openTab(String url);
     }
 
     private long mNativeClaudeBridge;
@@ -93,12 +96,29 @@ public class ClaudeBridge {
         mWindow.switchSpace(spaceId);
     }
 
+    @CalledByNative
+    private void openSignInPage(@JniType("std::string") String url) {
+        mWindow.openTab(url);
+    }
+
     public String snapshot() {
         return ClaudeBridgeJni.get().snapshot(mNativeClaudeBridge);
     }
 
     public void setApiKey(String key) {
         ClaudeBridgeJni.get().setApiKey(mNativeClaudeBridge, key);
+    }
+
+    /**
+     * Sign in with ChatGPT (docs/design/ai-providers.md): OpenAI's requests then use the user's
+     * ChatGPT plan. Opens the sign-in in a tab; the snapshot says how it went.
+     */
+    public void signInWithChatGpt() {
+        ClaudeBridgeJni.get().signInWithChatGPT(mNativeClaudeBridge);
+    }
+
+    public void signOutOfChatGpt() {
+        ClaudeBridgeJni.get().signOutOfChatGPT(mNativeClaudeBridge);
     }
 
     /** Asks |text| about the page |contents| shows. */
@@ -261,6 +281,10 @@ public class ClaudeBridge {
         String snapshot(long nativeClaudeBridge);
 
         void setApiKey(long nativeClaudeBridge, @JniType("std::string") String key);
+
+        void signInWithChatGPT(long nativeClaudeBridge);
+
+        void signOutOfChatGPT(long nativeClaudeBridge);
 
         void send(
                 long nativeClaudeBridge,
