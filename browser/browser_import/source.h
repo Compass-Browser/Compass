@@ -49,6 +49,10 @@ std::optional<Browser> BrowserFromKey(std::string_view key);
 
 // Chromium-based: profiles in a "User Data" folder (chromium_reader.h).
 bool IsChromiumBased(Browser browser);
+// Whether a profile of |browser| can become a Compass profile of its own,
+// copied with its cookies, history, passwords, extensions and settings
+// (docs/design/browser-import.md, "As a profile"): Chromium-based ones.
+bool CanImportAsProfile(Browser browser);
 // Firefox-based: profiles listed in profiles.ini (firefox_reader.h).
 bool IsFirefoxBased(Browser browser);
 

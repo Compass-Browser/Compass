@@ -69,8 +69,20 @@ struct SessionTab {
 std::optional<std::vector<SessionTab>> ParseChromiumSessionFile(
     base::span<const uint8_t> file);
 
-// The newest readable session file of |profile_dir| (its Sessions folder,
-// "Session_<time>"), parsed. Empty if there's none. Blocking.
+// The session files of |profile_dir| (its Sessions folder,
+// "Session_<time>"), newest first, as read. Blocking.
+std::vector<std::vector<uint8_t>> ReadChromiumSessionFiles(
+    const base::FilePath& profile_dir);
+
+// The tabs of the first of |files| (newest first) that parses and has any.
+// Upstream's session restore draws session IDs (SessionID::NewUnique()),
+// which belong to the UI thread in the browser: call it there.
+std::vector<SessionTab> ParseChromiumSessionFiles(
+    const std::vector<std::vector<uint8_t>>& files);
+
+// Both: the newest readable session file of |profile_dir|, parsed. Empty if
+// there's none. Blocking, and on the UI thread in the browser (above): for
+// tests.
 std::vector<SessionTab> ReadChromiumSession(const base::FilePath& profile_dir);
 
 // Today's entries for |tabs|: each tab, and tab groups with a title as

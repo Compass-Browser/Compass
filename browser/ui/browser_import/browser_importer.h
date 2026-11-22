@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/weak_ptr.h"
 #include "base/uuid.h"
 #include "compass/browser/browser_import/source.h"
 
@@ -36,6 +37,13 @@ struct ProfileOverview {
   bool running = false;
   // Its spaces were all imported into this Compass profile before.
   bool imported = false;
+  // It can become a Compass profile of its own (CanImportAsProfile()).
+  bool as_profile = false;
+  // The Compass profile it became before, if so (its name).
+  std::u16string imported_as_profile;
+  // The Chromium version that last opened it, when newer than Compass's: a
+  // copy may have databases Compass can't open. 0 otherwise.
+  int newer_version = 0;
   // What can come along on this platform.
   bool history = false;
   bool passwords = false;
@@ -56,6 +64,12 @@ struct BrowserImportChoice {
   bool tabs = true;
   bool history = true;
   bool passwords = true;
+  // As a Compass profile of its own (docs/design/browser-import.md, "As a
+  // profile"): the browser's profile copied with its cookies, history,
+  // passwords, extensions and settings, then its spaces added to it as
+  // |bookmarks| and |tabs| say. |history| and |passwords| don't apply: they
+  // come with the copy.
+  bool new_profile = false;
 };
 
 // What one profile's import did, for the page's summary.
@@ -67,6 +81,8 @@ struct BrowserImportSummary {
 
   // The profile, as its space is named ("Chrome – Work").
   std::u16string name;
+  // The Compass profile made from it, or empty if it went into this one.
+  std::u16string profile;
   // The spaces it made.
   std::vector<std::u16string> spaces;
   int pinned = 0;
@@ -78,6 +94,9 @@ struct BrowserImportSummary {
   int passwords = 0;
   // Passwords that couldn't be decrypted.
   int passwords_skipped = 0;
+  // As a profile: cookies the browser's key couldn't decrypt, or that only
+  // the browser itself can read (app-bound), left out.
+  int cookies_dropped = 0;
   // Things that didn't work, in words for the page.
   std::vector<std::string> problems;
 };
@@ -89,12 +108,14 @@ struct BrowserImportResult {
   ~BrowserImportResult();
 
   std::vector<BrowserImportSummary> summaries;
-  // The first space made, to show it.
+  // The first space made, to show it, and the profile it's in.
   base::Uuid first_space;
+  base::WeakPtr<Profile> first_space_profile;
 };
 
 // Imports |choices| into |target|, one profile after another: their spaces
-// (AddImportedSidebar()), history and passwords. On the UI thread.
+// (AddImportedSidebar()), history and passwords; or, for a choice with
+// |new_profile|, as a new Compass profile. On the UI thread.
 void ImportFromBrowsers(
     Profile* target,
     std::vector<BrowserImportChoice> choices,

@@ -90,7 +90,7 @@ class ProfileCopyTest : public testing::Test {
     ASSERT_TRUE(insert.Run());
   }
 
-  CopyResult Copy() {
+  CopyResult Copy(bool skip_caches = false) {
     return CopyProfile(
         arc_, compass_, arc_cache_, compass_cache_,
         base::BindRepeating(
@@ -99,7 +99,8 @@ class ProfileCopyTest : public testing::Test {
               std::optional<std::string> plain = from->Decrypt(value);
               return plain ? std::optional(to->Encrypt(*plain)) : std::nullopt;
             },
-            &arc_cipher_, &compass_cipher_));
+            &arc_cipher_, &compass_cipher_),
+        skip_caches);
   }
 
   base::ScopedTempDir dir_;
@@ -121,6 +122,25 @@ TEST_F(ProfileCopyTest, CopiesFilesButNotLocksOrWindows) {
       base::PathExists(compass_cache_.AppendASCII("Cache/Cache_Data/index")));
   // Arc's own files are left as they were.
   EXPECT_TRUE(base::PathExists(arc_.AppendASCII("Sessions/Session_1")));
+}
+
+// Another browser's profile (docs/design/browser-import.md, "As a
+// profile"): the caches inside its folder stay behind, at any level.
+TEST_F(ProfileCopyTest, CanLeaveTheProfilesCachesBehind) {
+  ASSERT_TRUE(base::CreateDirectory(arc_.AppendASCII("Code Cache/js")));
+  ASSERT_TRUE(base::WriteFile(arc_.AppendASCII("Code Cache/js/index"), "x"));
+  ASSERT_TRUE(base::CreateDirectory(arc_.AppendASCII("Extension/GPUCache")));
+  ASSERT_TRUE(
+      base::WriteFile(arc_.AppendASCII("Extension/GPUCache/data_0"), "x"));
+  ASSERT_TRUE(Copy(/*skip_caches=*/true).ok);
+  EXPECT_FALSE(base::PathExists(compass_.AppendASCII("Code Cache")));
+  EXPECT_FALSE(base::PathExists(compass_.AppendASCII("Extension/GPUCache")));
+  EXPECT_TRUE(base::PathExists(compass_.AppendASCII("Extension")));
+  EXPECT_TRUE(base::PathExists(
+      compass_.AppendASCII("Local Storage/leveldb/000003.log")));
+  // The separate disk cache isn't inside the profile: it still comes along.
+  EXPECT_TRUE(
+      base::PathExists(compass_cache_.AppendASCII("Cache/Cache_Data/index")));
 }
 
 TEST_F(ProfileCopyTest, ReencryptsCookiesAndPasswords) {

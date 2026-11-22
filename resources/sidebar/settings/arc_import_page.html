@@ -141,6 +141,28 @@
     margin: 0;
   }
 
+  /* Space here or a profile of its own (Chromium-based browsers). */
+  .compass-page ul.modes {
+    margin: -4px 0 8px 28px;
+  }
+
+  .compass-page ul.modes li + li {
+    border-top: none;
+  }
+
+  .compass-page ul.modes label {
+    align-items: flex-start;
+    padding: 2px 0;
+  }
+
+  .compass-page ul.modes input[type=radio] {
+    margin: 2px 0 0;
+  }
+
+  .compass-page ul.modes input:disabled + div {
+    opacity: 0.6;
+  }
+
   .compass-page li.unavailable > label {
     cursor: default;
   }
@@ -167,7 +189,9 @@
   Bring what you have in another browser to Compass. Each browser profile
   becomes a space: its bookmarks go to Pinned, with the bookmarks bar
   first, and its open tabs to Today. History and passwords can come along
-  too.
+  too. A Chrome, Edge, Brave, Vivaldi or Dia profile can also become a
+  Compass profile of its own, with its cookies, extensions and settings,
+  so you stay signed in to sites.
 </p>
 
 <h3>Browsers on this computer</h3>
@@ -182,8 +206,9 @@
   </div>
   <ul id="browsers"></ul>
   <p id="keychainNotice" class="notice" hidden>
-    For passwords, macOS asks whether Compass may use each browser's
-    "Safe Storage" key. Choose <b>Allow</b> so Compass can read them.
+    For passwords, and for a profile of its own, macOS asks whether Compass
+    may use each browser's "Safe Storage" key. Choose <b>Allow</b> so
+    Compass can read them.
   </p>
   <button id="importBrowsers" disabled>Import</button>
 </div>

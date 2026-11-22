@@ -4,6 +4,7 @@
 
 #include "compass/browser/browser_import/space_import.h"
 
+#include "compass/browser/arc_import/sidebar_import.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -96,6 +97,48 @@ TEST(SpaceImportTest, FavoritesAlreadyThereAreLeftOut) {
   const auto& favorites = list.favorites().pinned_root()->children();
   ASSERT_EQ(favorites.size(), 2u);
   EXPECT_EQ(favorites[1]->url(), GURL("https://chat.test/"));
+}
+
+// A profile copied from the browser's: its lone empty space becomes the
+// first imported space.
+TEST(SpaceImportTest, IntoANewProfileTheEmptySpaceIsReused) {
+  SpaceList list;
+  const base::Uuid home = list.spaces()[0]->id();
+  AddedSidebar added = AddImportedSidebar(
+      list, ForNewProfile(Sidebar("chrome:Default", u"Chrome")), kNow,
+      /*into_new_profile=*/true);
+  ASSERT_EQ(added.spaces.size(), 1u);
+  ASSERT_EQ(list.spaces().size(), 1u);
+  EXPECT_EQ(list.spaces()[0]->id(), home);
+  EXPECT_EQ(list.spaces()[0]->name(), u"Chrome");
+  EXPECT_EQ(list.spaces()[0]->pinned_root()->children().size(), 2u);
+  EXPECT_EQ(list.spaces()[0]->today_root()->children().size(), 1u);
+}
+
+// A space the user already filled stays, and the imported one goes after.
+TEST(SpaceImportTest, IntoANewProfileAUsedSpaceStays) {
+  SpaceList list;
+  AddImportedSidebar(list, Sidebar("safari:", u"Safari"), kNow);
+  list.RemoveSpace(*list.spaces()[0]);
+  ASSERT_EQ(list.spaces().size(), 1u);
+  AddedSidebar added = AddImportedSidebar(
+      list, ForNewProfile(Sidebar("chrome:Default", u"Chrome")), kNow,
+      /*into_new_profile=*/true);
+  ASSERT_EQ(added.spaces.size(), 1u);
+  ASSERT_EQ(list.spaces().size(), 2u);
+  EXPECT_EQ(list.spaces()[0]->name(), u"Safari");
+  EXPECT_EQ(list.spaces()[1]->name(), u"Chrome");
+}
+
+// The same browser profile imported as spaces and as a profile gets other
+// space IDs in each.
+TEST(SpaceImportTest, ANewProfilesIdsAreItsOwn) {
+  const ImportedSidebar sidebar = Sidebar("chrome:Default", u"Chrome");
+  const ImportedSidebar own = ForNewProfile(sidebar);
+  EXPECT_NE(arc::ArcDerivedId(own.spaces[0].id),
+            arc::ArcDerivedId(sidebar.spaces[0].id));
+  EXPECT_EQ(own.spaces[0].pinned[1].children[0].id,
+            "profile/chrome:Default:guide");
 }
 
 }  // namespace

@@ -62,6 +62,10 @@ std::optional<Browser> BrowserFromKey(std::string_view key) {
   return std::nullopt;
 }
 
+bool CanImportAsProfile(Browser browser) {
+  return IsChromiumBased(browser);
+}
+
 bool IsChromiumBased(Browser browser) {
   switch (browser) {
     case Browser::kChrome:

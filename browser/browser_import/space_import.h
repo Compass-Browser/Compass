@@ -38,9 +38,20 @@ struct AddedSidebar {
 // already left out). A space imported before (its derived ID is in |list|)
 // is left as it is. Spaces without a color of their own get one no space
 // has yet, so imported spaces tell apart. Entries come in unloaded.
+//
+// With |into_new_profile| (a profile just copied from the browser's, "As a
+// profile"), the profile's lone empty space takes the first imported
+// space's place instead of staying first.
 AddedSidebar AddImportedSidebar(SpaceList& list,
                                 const ImportedSidebar& sidebar,
-                                base::Time now);
+                                base::Time now,
+                                bool into_new_profile = false);
+
+// |sidebar| with every space and item ID namespaced for a profile of its
+// own, so its spaces derive other Compass IDs than the same browser
+// profile's spaces imported into another Compass profile (space IDs are
+// unique across profiles: SpaceDirectory).
+ImportedSidebar ForNewProfile(ImportedSidebar sidebar);
 
 // Whether |space| was imported into |list| before.
 bool IsImported(const SpaceList& list, const arc::Space& space);

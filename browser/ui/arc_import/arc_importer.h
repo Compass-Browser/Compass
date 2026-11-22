@@ -171,6 +171,13 @@ void SetArcRunningForTesting(std::optional<bool> running);
 bool SignImportedPreferences(const base::FilePath& profile_dir,
                              const std::string& arc_dir);
 
+// The same for any copied Chromium profile: records |source| in the string
+// preference |source_pref| instead (prefs::kBrowserImportProfile for other
+// browsers' profiles, docs/design/browser-import.md). Blocking.
+bool SignCopiedPreferences(const base::FilePath& profile_dir,
+                           std::string_view source_pref,
+                           const std::string& source);
+
 }  // namespace compass::arc
 
 #endif  // COMPASS_BROWSER_UI_ARC_IMPORT_ARC_IMPORTER_H_

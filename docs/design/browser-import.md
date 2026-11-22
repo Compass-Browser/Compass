@@ -15,11 +15,14 @@ Safari's tab groups), those spaces.
 
 Decisions:
 
-- **Into the profile the page is open in.** Unlike Arc (whose profiles
-  become Compass profiles, cookies and all), another browser's profile
-  becomes a **space**: its bookmarks go to Pinned, its open tabs to Today.
-  One space per browser profile, named "Chrome", or "Chrome – Work" when
-  the browser has several profiles.
+- **Into the profile the page is open in.** By default another browser's
+  profile becomes a **space**: its bookmarks go to Pinned, its open tabs
+  to Today. One space per browser profile, named "Chrome", or "Chrome –
+  Work" when the browser has several profiles.
+- **Or a profile of its own.** A Chromium-based browser's profile (Chrome,
+  Edge, Brave, Vivaldi, Dia) can instead become a new Compass profile,
+  cookies and all, as Arc's do, with its space in it (below, "As a
+  profile"). Firefox, Zen and Safari can't: their files aren't Chromium's.
 - **Bookmarks as Pinned folders.** The bookmark tree becomes Pinned's tree;
   the bookmarks bar's entries come first, at the top level, then the
   browser's other roots ("Other bookmarks", "Bookmarks Menu"...) as folders.
@@ -220,15 +223,57 @@ Dia install lays them out (structure only).
 | History | Compass's history (`HistoryService::AddPagesWithDetails()` through `ProfileWriter`), visits marked imported |
 | Passwords | Compass's password store (`ProfileWriter::AddPasswordForm()`, type "imported") |
 
-Not imported: cookies (other browsers' cookies would have to be written
-into Compass's live cookie store, and Chrome's are app-bound on Windows;
-Arc's come along only because an Arc profile becomes a new Compass
-profile before it loads), extensions, settings, autofill, open windows'
+Not imported into an existing profile: cookies (other browsers' cookies
+would have to be written into Compass's live cookie store, and Chrome's
+are app-bound on Windows; they come along only "As a profile", copied
+before the profile loads), extensions, settings, autofill, open windows'
 layout, Firefox containers, Zen's Boosts and Mods, Safari profiles other
 than the default (their tab groups aside: bookmarks, history, open
 windows), Safari profiles' symbols and colors, Safari's passwords
 (in the Keychain), Firefox's and Zen's passwords on macOS (upstream's
 Firefox importer doesn't decrypt them there).
+
+## As a profile
+
+For a Chromium-based browser the page offers "Add as a new profile"
+beside "Add as a space here". The browser's profile folder is copied into
+a new Compass profile folder before that profile loads, the way the Arc
+import copies Arc's (arc-import.md, "Encryption"), so everything Chromium
+keeps there comes along: cookies (you stay signed in), history, passwords,
+autofill, extensions, site settings and preferences.
+
+1. On a blocking sequence: the browser's key (`ChromiumPasswordDecryptor()`:
+   macOS asks for "<Browser> Safe Storage"; Windows unwraps Local State's
+   key with DPAPI; Linux, "v10" only). No key, no copy.
+2. The sidebar is read from the original (bookmarks and open tabs, as
+   chosen); the copy leaves the open windows out.
+3. `arc::CopyProfile()` copies the folder without locks, logs, sessions
+   and, unlike Arc's, the caches inside it (HTTP, code, GPU shaders:
+   gigabytes after years, rebuilt as pages load). Every "v10" value of its
+   databases is re-encrypted with Compass's key; cookies that don't
+   decrypt are dropped, and "v20" (app-bound, Chrome on Windows) cookies
+   can't come along at all. The page counts both.
+4. `arc::SignCopiedPreferences()` merges Preferences and Secure
+   Preferences without the browser's signatures, records the source
+   profile ID in `compass.browser_import.profile`, and signs them for
+   Compass (otherwise Compass would reset them, extensions included).
+5. On the UI thread the profile loads (`CreateProfileAsync()`), is named
+   as its space would be ("Chrome – Work"), and gets its spaces with
+   `AddImportedSidebar(..., into_new_profile)`: the new profile's lone empty
+   space becomes the first one. Space and item IDs are namespaced first
+   (`ForNewProfile()`), since space IDs are unique across profiles and the
+   same browser profile may also be imported as a space elsewhere.
+
+**Again is harmless:** a profile whose Preferences name the source profile
+marks it as imported as a profile (with the Compass profile's name), and
+the copy refuses it.
+
+**Versions:** a profile last opened by a newer Chromium than Compass's
+(`Last Version` in User Data; Chrome, Edge, Brave, Vivaldi and Dia write
+Chromium's version there) may have databases whose schema Compass doesn't
+know: upstream razes or doesn't open those, so their data can be missing
+from the copy (never from the original). The page says so; the copy still
+goes ahead.
 
 ## How
 
@@ -236,7 +281,12 @@ Firefox importer doesn't decrypt them there).
   `chromium_reader`, `firefox_reader`, `safari_reader` give an
   `ImportedSidebar` (spaces and favorites, in the Arc import's `arc::Space`
   and `arc::Item`), plus history entries and logins. `profile_reader`'s
-  `ReadProfile()` picks the reader and reads what was chosen.
+  `ReadProfile()` picks the reader and reads what was chosen, on a
+  blocking sequence. A Chromium-based profile's open tabs are only read
+  there: `FinishReadingProfile()` parses them and builds its sidebar on
+  the UI thread, because upstream's `RestoreSessionFromCommands()` draws
+  session IDs from `SessionIdGenerator`, which belongs to the UI thread
+  (and writes Local State).
 - **Spaces** (`space_import.{h,cc}`): `AddImportedSidebar()` adds the
   spaces after the user's, with `arc::AddItems()` (the Arc import's
   builder, so folders, splits, titles and derived IDs work the same), and
@@ -249,6 +299,7 @@ Firefox importer doesn't decrypt them there).
   passwords through a `ProfileWriter`, or, for Firefox and Zen, runs
   upstream's `ExternalProcessImporterHost` (headless, HISTORY and
   PASSWORDS) and waits for it, then lists the profile in `SpaceDirectory`.
+  A choice with `new_profile` goes "As a profile" (above) instead.
 - **Running browsers.** Chromium-based: the User Data's singleton lock
   (`lockfile` held open on Windows, the `SingletonLock` link's process
   elsewhere). Firefox-based: `parent.lock` (Windows) or the fcntl lock on
@@ -262,12 +313,16 @@ the Arc import used; chrome://compass-import alone), opened from the
 command bar, Settings, and on the first run (below). It lists the browser
 profiles found, each with a checkbox and what to bring: "Bookmarks to
 Pinned", "Open tabs to Today", "History", "Passwords" (the last two where
-they work on this platform). A running browser's profile is greyed out
+they work on this platform). Chromium-based profiles also choose between
+"Add as a space here" and "Add as a new profile"; the latter hides
+History and Passwords (they come with the copy) and warns when the
+browser is a newer Chromium. A running browser's profile is greyed out
 with "Quit it to import", and "Check again" looks again; one imported
 before shows as imported. After the import a summary says, per profile,
-the spaces made and how many tabs went to Pinned and Today, history pages,
-passwords, and what didn't work (passwords that couldn't be decrypted,
-Safari without Full Disk Access). "Open my spaces" shows the first new
+the new profile if one was made, the spaces made and how many tabs went
+to Pinned and Today, history pages, passwords, and what didn't work
+(passwords that couldn't be decrypted, cookies left behind, Safari
+without Full Disk Access). "Open my spaces" shows the first new
 space. Arc's section follows when Arc is there (macOS,
 Windows).
 
@@ -290,7 +345,9 @@ Browser (`compass_browsertests`): `BrowserImporterBrowserTest.*` imports a
 fixture Chrome profile (its Login Data encrypted as Chrome does on each
 platform, with a DPAPI-wrapped key on Windows) and checks the space, its
 Pinned and Today, the history, the passwords' count, importing again, and
-the page.
+the page; and imports it as a profile (a new profile named after it, its
+space in place of the empty one, its source recorded, listed as imported
+and refused a second time).
 
 ## Open questions
 

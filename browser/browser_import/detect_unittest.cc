@@ -64,5 +64,15 @@ TEST_F(DetectTest, FindsChromiumProfilesNamedAsInTheBrowser) {
   EXPECT_FALSE(IsRunning(profiles[0]));
 }
 
+TEST_F(DetectTest, ChromiumMajorVersion) {
+  const base::FilePath chrome = Make("chrome");
+  EXPECT_EQ(ChromiumMajorVersion(chrome), std::nullopt);
+  ASSERT_TRUE(
+      base::WriteFile(chrome.AppendASCII("Last Version"), "157.0.8103.51\n"));
+  EXPECT_EQ(ChromiumMajorVersion(chrome), 157);
+  ASSERT_TRUE(base::WriteFile(chrome.AppendASCII("Last Version"), "garbage"));
+  EXPECT_EQ(ChromiumMajorVersion(chrome), std::nullopt);
+}
+
 }  // namespace
 }  // namespace compass::browser_import

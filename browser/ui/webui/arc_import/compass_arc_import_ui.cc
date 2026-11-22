@@ -258,6 +258,9 @@ void ArcImportPageHandler::OnBrowsers(
     entry->history = profile.history;
     entry->passwords = profile.passwords;
     entry->note = profile.note;
+    entry->as_profile = profile.as_profile;
+    entry->imported_as_profile = base::UTF16ToUTF8(profile.imported_as_profile);
+    entry->newer_version = profile.newer_version;
     entries.push_back(std::move(entry));
   }
   std::move(callback).Run(std::move(entries));
@@ -269,7 +272,7 @@ void ArcImportPageHandler::ImportBrowsers(
   std::vector<browser_import::BrowserImportChoice> chosen;
   for (const auto& choice : choices) {
     chosen.push_back({choice->id, choice->bookmarks, choice->tabs,
-                      choice->history, choice->passwords});
+                      choice->history, choice->passwords, choice->new_profile});
   }
   browser_import::ImportFromBrowsers(
       Profile::FromWebUI(web_ui_), std::move(chosen),
@@ -280,8 +283,8 @@ void ArcImportPageHandler::ImportBrowsers(
 void ArcImportPageHandler::OnBrowsersImported(
     ImportBrowsersCallback callback,
     browser_import::BrowserImportResult result) {
-  if (result.first_space.is_valid()) {
-    imported_profile_ = Profile::FromWebUI(web_ui_)->GetWeakPtr();
+  if (result.first_space.is_valid() && result.first_space_profile) {
+    imported_profile_ = result.first_space_profile;
     imported_space_ = result.first_space;
   }
   std::vector<sidebar::mojom::BrowserImportSummaryPtr> summaries;
@@ -298,6 +301,8 @@ void ArcImportPageHandler::OnBrowsersImported(
     entry->history = summary.history;
     entry->passwords = summary.passwords;
     entry->passwords_skipped = summary.passwords_skipped;
+    entry->profile = base::UTF16ToUTF8(summary.profile);
+    entry->cookies_dropped = summary.cookies_dropped;
     entry->problems = summary.problems;
     summaries.push_back(std::move(entry));
   }

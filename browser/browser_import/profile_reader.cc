@@ -41,16 +41,20 @@ void ReadChromiumProfile(const SourceProfile& profile,
     bookmarks = ReadJsonDict(profile.path.AppendASCII("Bookmarks"));
   }
   std::optional<base::DictValue> preferences;
-  std::vector<SessionTab> tabs;
+  std::vector<std::vector<uint8_t>> session_files;
   if (options.tabs) {
-    tabs = ReadChromiumSession(profile.path);
+    session_files = ReadChromiumSessionFiles(profile.path);
     if (profile.browser == Browser::kVivaldi) {
       preferences = ReadJsonDict(profile.path.AppendASCII("Preferences"));
     }
   }
-  data.sidebar = ChromiumSidebar(profile, bookmarks ? &*bookmarks : nullptr,
-                                 preferences ? &*preferences : nullptr, tabs,
-                                 options.bookmarks, options.tabs);
+  // Built by FinishReadingProfile(), on the UI thread.
+  UnbuiltChromiumSidebar& unbuilt = data.unbuilt.emplace();
+  unbuilt.profile = profile;
+  unbuilt.options = options;
+  unbuilt.bookmarks = std::move(bookmarks);
+  unbuilt.preferences = std::move(preferences);
+  unbuilt.session_files = std::move(session_files);
   if (options.history) {
     data.history = ReadChromiumHistory(profile.path.AppendASCII("History"),
                                        kMaxHistoryEntries);
@@ -157,6 +161,27 @@ ProfileData::ProfileData() = default;
 ProfileData::ProfileData(ProfileData&&) = default;
 ProfileData& ProfileData::operator=(ProfileData&&) = default;
 ProfileData::~ProfileData() = default;
+
+UnbuiltChromiumSidebar::UnbuiltChromiumSidebar() = default;
+UnbuiltChromiumSidebar::UnbuiltChromiumSidebar(UnbuiltChromiumSidebar&&) =
+    default;
+UnbuiltChromiumSidebar& UnbuiltChromiumSidebar::operator=(
+    UnbuiltChromiumSidebar&&) = default;
+UnbuiltChromiumSidebar::~UnbuiltChromiumSidebar() = default;
+
+void FinishReadingProfile(ProfileData& data) {
+  if (!data.unbuilt) {
+    return;
+  }
+  const UnbuiltChromiumSidebar& unbuilt = *data.unbuilt;
+  const std::vector<SessionTab> tabs =
+      ParseChromiumSessionFiles(unbuilt.session_files);
+  data.sidebar = ChromiumSidebar(
+      unbuilt.profile, unbuilt.bookmarks ? &*unbuilt.bookmarks : nullptr,
+      unbuilt.preferences ? &*unbuilt.preferences : nullptr, tabs,
+      unbuilt.options.bookmarks, unbuilt.options.tabs);
+  data.unbuilt.reset();
+}
 
 ProfileData ReadProfile(const SourceProfile& profile,
                         const ReadOptions& options) {

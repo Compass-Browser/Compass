@@ -10,7 +10,8 @@ import {CompassSettingsPage} from './page_base.js';
 
 // Importing from another browser: compass://settings/importArc, and alone
 // on chrome://compass-import. Other browsers' profiles first (each becomes
-// a space), then Arc's (each becomes a profile), when Arc is there. See
+// a space, or a Compass profile of its own for Chromium-based ones), then
+// Arc's (each becomes a profile), when Arc is there. See
 // docs/design/browser-import.md and docs/design/arc-import.md.
 
 // macOS asks before Compass reads another browser's Keychain key.
@@ -96,15 +97,20 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
       const option = (kind: string) =>
           !!row.querySelector<HTMLInputElement>(
                    `.option-check[data-kind="${kind}"]:checked`);
+      const newProfile = !!row.querySelector<HTMLInputElement>(
+          '.mode-radio[value="profile"]:checked');
       const choice = {
         id: check.value,
         bookmarks: option('bookmarks'),
         tabs: option('tabs'),
-        history: option('history'),
-        passwords: option('passwords'),
+        // A new profile brings them with its copy.
+        history: !newProfile && option('history'),
+        passwords: !newProfile && option('passwords'),
+        newProfile,
       };
-      if (choice.bookmarks || choice.tabs || choice.history ||
-          choice.passwords) {
+      // A new profile is worth making even without its tabs.
+      if (choice.newProfile || choice.bookmarks || choice.tabs ||
+          choice.history || choice.passwords) {
         choices.push(choice);
       }
     }
@@ -132,10 +138,37 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     return item;
   }
 
+  // Space here, or a Compass profile of its own: a radio and what it means.
+  private renderMode_(
+      profile: BrowserImportProfile, value: string, title: string,
+      description: string, enabled: boolean, checked: boolean): HTMLLIElement {
+    const item = document.createElement('li');
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.className = 'mode-radio';
+    input.name = `mode-${profile.id}`;
+    input.value = value;
+    input.checked = checked;
+    input.disabled = !enabled;
+    const text = document.createElement('div');
+    const name = document.createElement('div');
+    name.textContent = title;
+    const details = document.createElement('div');
+    details.className = 'details';
+    details.textContent = description;
+    text.append(name, details);
+    label.append(input, text);
+    item.append(label);
+    return item;
+  }
+
   private renderBrowser_(profile: BrowserImportProfile): HTMLLIElement {
     const item = document.createElement('li');
     item.className = 'browser';
-    const available = !profile.running && !profile.imported;
+    const asSpace = !profile.imported;
+    const asProfile = profile.asProfile && !profile.importedAsProfile;
+    const available = !profile.running && (asSpace || asProfile);
     item.classList.toggle('unavailable', !available);
     const label = document.createElement('label');
     const input = checkbox('browser-check', profile.id);
@@ -158,12 +191,37 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     }
     details.textContent = profile.running ?
         `${profile.browser} is open. Quit it to import from it.` :
-        profile.imported ? 'Imported already.' :
+        !available ? 'Imported already.' :
         profile.note     ? profile.note :
                            counts.join(' \u00b7 ');
     text.append(name, details);
     label.append(input, text);
     item.append(label);
+
+    let modes: HTMLUListElement|null = null;
+    if (profile.asProfile) {
+      modes = document.createElement('ul');
+      modes.className = 'modes';
+      let profileDescription = profile.importedAsProfile ?
+          `Imported already, as the profile ${profile.importedAsProfile}.` :
+          'A profile of its own, with its cookies, history, passwords, ' +
+              'extensions and settings: you stay signed in to sites.';
+      if (asProfile && profile.newerVersion) {
+        profileDescription += ` ${profile.browser} ${
+            profile.newerVersion} is newer than Compass, so some of it ` +
+            'may not come along.';
+      }
+      modes.append(
+          this.renderMode_(
+              profile, 'space', 'Add as a space here',
+              profile.imported ? 'Imported already.' :
+                                 'Its bookmarks and tabs, in this profile.',
+              available && asSpace, asSpace),
+          this.renderMode_(
+              profile, 'profile', 'Add as a new profile', profileDescription,
+              available && asProfile, !asSpace && asProfile));
+      item.append(modes);
+    }
 
     const options = document.createElement('ul');
     options.className = 'options';
@@ -178,10 +236,35 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
           this.renderOption_('passwords', 'Passwords', available));
     }
     item.append(options);
+
+    // A new profile copies history and passwords: no choice to make.
+    const updateMode = () => {
+      const newProfile = !!modes?.querySelector<HTMLInputElement>(
+          '.mode-radio[value="profile"]:checked');
+      for (const kind of ['history', 'passwords']) {
+        const option = options.querySelector<HTMLInputElement>(
+            `.option-check[data-kind="${kind}"]`);
+        if (option) {
+          option.closest('li')!.hidden = newProfile;
+        }
+      }
+      this.updateBrowsersButton_();
+    };
+    for (const radio of modes?.querySelectorAll<HTMLInputElement>(
+             '.mode-radio') ?? []) {
+      radio.addEventListener('change', updateMode);
+    }
+    updateMode();
+
     input.addEventListener('change', () => {
       for (const option of options.querySelectorAll<HTMLInputElement>(
                '.option-check')) {
         option.disabled = !input.checked;
+      }
+      for (const radio of modes?.querySelectorAll<HTMLInputElement>(
+               '.mode-radio') ?? []) {
+        radio.disabled = !input.checked ||
+            (radio.value === 'space' ? !asSpace : !asProfile);
       }
       this.updateBrowsersButton_();
     });
@@ -196,7 +279,9 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
         'browsersRunning', this.browsers_.some(profile => profile.running));
     this.show(
         'keychainNotice',
-        isMac() && this.browsers_.some(profile => profile.passwords));
+        isMac() &&
+            this.browsers_.some(
+                profile => profile.passwords || profile.asProfile));
     this.$('browsers').replaceChildren(
         ...this.browsers_.map(profile => this.renderBrowser_(profile)));
     this.updateBrowsersButton_();
@@ -208,6 +293,9 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     name.className = 'name';
     name.textContent = summary.name;
     const parts = [];
+    if (summary.profile) {
+      parts.push(`New profile ${summary.profile}`);
+    }
     if (summary.spaces.length) {
       parts.push(`${summary.spaces.length === 1 ? 'Space' : 'Spaces'} ${
           summary.spaces.join(', ')}`);
@@ -221,15 +309,19 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     if (summary.favorites) {
       parts.push(plural(summary.favorites, 'favorite', 'favorites'));
     }
-    if (summary.history > 0) {
-      parts.push(plural(summary.history, 'history page', 'history pages'));
-    } else if (summary.history < 0) {
-      parts.push('history');
-    }
-    if (summary.passwords > 0) {
-      parts.push(plural(summary.passwords, 'password', 'passwords'));
-    } else if (summary.passwords < 0) {
-      parts.push('passwords');
+    if (summary.profile) {
+      parts.push('cookies, history, passwords, extensions and settings');
+    } else {
+      if (summary.history > 0) {
+        parts.push(plural(summary.history, 'history page', 'history pages'));
+      } else if (summary.history < 0) {
+        parts.push('history');
+      }
+      if (summary.passwords > 0) {
+        parts.push(plural(summary.passwords, 'password', 'passwords'));
+      } else if (summary.passwords < 0) {
+        parts.push('passwords');
+      }
     }
     const details = document.createElement('div');
     details.className = 'details';
@@ -241,6 +333,11 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
       problems.push(`${
           plural(summary.passwordsSkipped, 'password', 'passwords')} ` +
           'couldn\'t be decrypted and stayed behind.');
+    }
+    if (summary.cookiesDropped) {
+      problems.push(`${
+          plural(summary.cookiesDropped, 'cookie', 'cookies')} couldn't ` +
+          'come along: you may have to sign in again on some sites.');
     }
     for (const problem of problems) {
       const line = document.createElement('div');

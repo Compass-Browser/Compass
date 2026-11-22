@@ -319,7 +319,7 @@ std::optional<std::vector<SessionTab>> ParseChromiumSessionFile(
   return tabs;
 }
 
-std::vector<SessionTab> ReadChromiumSession(
+std::vector<std::vector<uint8_t>> ReadChromiumSessionFiles(
     const base::FilePath& profile_dir) {
   // Newest first, by the time in the name.
   std::vector<std::pair<int64_t, base::FilePath>> files;
@@ -336,18 +336,30 @@ std::vector<SessionTab> ReadChromiumSession(
     }
   }
   std::sort(files.rbegin(), files.rend());
+  std::vector<std::vector<uint8_t>> contents;
   for (const auto& [time, path] : files) {
-    std::optional<std::vector<uint8_t>> contents = base::ReadFileToBytes(path);
-    if (!contents) {
-      continue;
+    if (std::optional<std::vector<uint8_t>> file =
+            base::ReadFileToBytes(path)) {
+      contents.push_back(std::move(*file));
     }
+  }
+  return contents;
+}
+
+std::vector<SessionTab> ParseChromiumSessionFiles(
+    const std::vector<std::vector<uint8_t>>& files) {
+  for (const std::vector<uint8_t>& file : files) {
     std::optional<std::vector<SessionTab>> tabs =
-        ParseChromiumSessionFile(*contents);
+        ParseChromiumSessionFile(file);
     if (tabs && !tabs->empty()) {
       return std::move(*tabs);
     }
   }
   return {};
+}
+
+std::vector<SessionTab> ReadChromiumSession(const base::FilePath& profile_dir) {
+  return ParseChromiumSessionFiles(ReadChromiumSessionFiles(profile_dir));
 }
 
 std::vector<arc::Item> TodayFromTabs(const std::vector<SessionTab>& tabs,

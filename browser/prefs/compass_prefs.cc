@@ -12,6 +12,7 @@ namespace compass {
 void RegisterCompassProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(prefs::kArcImportProfileDir, std::string());
   registry->RegisterListPref(prefs::kArcImportSpaces);
+  registry->RegisterStringPref(prefs::kBrowserImportProfile, std::string());
   registry->RegisterBooleanPref(prefs::kPipOnLeavingWindow, true);
   registry->RegisterBooleanPref(prefs::kRemoveTrackingFromCopiedLinks, true);
   registry->RegisterListPref(prefs::kDevModeHosts);

@@ -22,6 +22,13 @@ inline constexpr char kArcImportProfileDir[] =
 // offers Arc's newer spaces (docs/design/arc-import.md, "Importing again").
 inline constexpr char kArcImportSpaces[] = "compass.arc_import.spaces";
 
+// A profile copied from another Chromium-based browser's profile: its ID
+// ("chrome:Default", browser_import::SourceProfile::id). Written with the
+// copied preferences, before the profile first loads
+// (docs/design/browser-import.md, "As a profile").
+inline constexpr char kBrowserImportProfile[] =
+    "compass.browser_import.profile";
+
 // Whether a playing video (or a call) goes into picture-in-picture when its
 // window is covered or minimized, or Compass is left for another app, as it
 // does when its tab is left (docs/design/picture-in-picture.md). Default on.

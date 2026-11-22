@@ -28,6 +28,13 @@ constexpr const char* kSkippedNames[] = {
     "SingletonSocket", "RunningChromeVersion",
 };
 
+// Caches inside a profile folder, left out with |skip_caches|: a browser
+// used for years can have gigabytes there, and pages rebuild them.
+constexpr const char* kCacheNames[] = {
+    "Cache",           "Code Cache",    "GPUCache",    "DawnGraphiteCache",
+    "DawnWebGPUCache", "GrShaderCache", "ShaderCache", "component_crx_cache",
+};
+
 // The profile's databases with encrypted values. Chromium on Windows keeps
 // its cookies in the network service's folder ("Network").
 constexpr const char* kEncryptedDatabases[] = {
@@ -39,11 +46,18 @@ constexpr const char* kEncryptedDatabases[] = {
 // rather than a garbled one sent to a site).
 constexpr char kCookiesTable[] = "cookies";
 
-bool IsSkipped(const base::FilePath& path) {
+bool IsSkipped(const base::FilePath& path, bool skip_caches) {
   const std::string name = path.BaseName().AsUTF8Unsafe();
   for (const char* skipped : kSkippedNames) {
     if (name == skipped) {
       return true;
+    }
+  }
+  if (skip_caches) {
+    for (const char* cache : kCacheNames) {
+      if (name == cache) {
+        return true;
+      }
     }
   }
   return false;
@@ -51,7 +65,9 @@ bool IsSkipped(const base::FilePath& path) {
 
 // Copies |from| into |to| (created), recursively, without the skipped names
 // at any level.
-bool CopyTree(const base::FilePath& from, const base::FilePath& to) {
+bool CopyTree(const base::FilePath& from,
+              const base::FilePath& to,
+              bool skip_caches) {
   if (!base::CreateDirectory(to)) {
     return false;
   }
@@ -60,16 +76,16 @@ bool CopyTree(const base::FilePath& from, const base::FilePath& to) {
       base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES);
   for (base::FilePath entry = entries.Next(); !entry.empty();
        entry = entries.Next()) {
-    if (IsSkipped(entry)) {
+    if (IsSkipped(entry, skip_caches)) {
       continue;
     }
     const base::FilePath target = to.Append(entry.BaseName());
     if (entries.GetInfo().IsDirectory()) {
-      if (!CopyTree(entry, target)) {
+      if (!CopyTree(entry, target, skip_caches)) {
         return false;
       }
     } else if (!base::CopyFile(entry, target)) {
-      LOG(ERROR) << "Arc import: can't copy " << entry;
+      LOG(ERROR) << "Profile copy: can't copy " << entry;
       return false;
     }
   }
@@ -108,7 +124,7 @@ bool ReencryptDatabase(const base::FilePath& path,
   // Upstream's tag for importing another browser's databases.
   sql::Database db(sql::DatabaseOptions(), "FirefoxImporter");
   if (!db.Open(path)) {
-    LOG(ERROR) << "Arc import: can't open " << path;
+    LOG(ERROR) << "Profile copy: can't open " << path;
     return false;
   }
   sql::Transaction transaction(&db);
@@ -183,12 +199,13 @@ CopyResult CopyProfile(const base::FilePath& from,
                        const base::FilePath& to,
                        const base::FilePath& from_cache,
                        const base::FilePath& to_cache,
-                       const Reencrypt& reencrypt) {
+                       const Reencrypt& reencrypt,
+                       bool skip_caches) {
   CopyResult result;
   if (!base::DirectoryExists(from) || base::PathExists(to)) {
     return result;
   }
-  bool ok = CopyTree(from, to);
+  bool ok = CopyTree(from, to, skip_caches);
   for (const char* name : kEncryptedDatabases) {
     const base::FilePath database = to.AppendASCII(name);
     if (ok && base::PathExists(database)) {
@@ -198,7 +215,7 @@ CopyResult CopyProfile(const base::FilePath& from,
   // The cache is a cache: a failure to copy it doesn't fail the import.
   if (ok && base::DirectoryExists(from_cache) &&
       !base::PathExists(to_cache)) {
-    if (!CopyTree(from_cache, to_cache)) {
+    if (!CopyTree(from_cache, to_cache, /*skip_caches=*/false)) {
       base::DeletePathRecursively(to_cache);
     }
   }

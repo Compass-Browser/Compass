@@ -57,6 +57,24 @@ void CollectUrls(const SidebarNode* node, std::set<GURL>& urls) {
   }
 }
 
+// A profile just made: one space, nothing in it.
+bool IsUnused(const SpaceList& list) {
+  return list.spaces().size() == 1 &&
+         list.spaces()[0]->pinned_root()->children().empty() &&
+         list.spaces()[0]->today_root()->children().empty();
+}
+
+constexpr char kNewProfilePrefix[] = "profile/";
+
+void NamespaceItems(std::vector<arc::Item>& items) {
+  for (arc::Item& item : items) {
+    if (!item.id.empty()) {
+      item.id = kNewProfilePrefix + item.id;
+    }
+    NamespaceItems(item.children);
+  }
+}
+
 }  // namespace
 
 AddedSidebar::AddedSidebar() = default;
@@ -71,18 +89,27 @@ bool IsImported(const SpaceList& list, const arc::Space& space) {
 
 AddedSidebar AddImportedSidebar(SpaceList& list,
                                 const ImportedSidebar& sidebar,
-                                base::Time now) {
+                                base::Time now,
+                                bool into_new_profile) {
   AddedSidebar added;
+  bool reuse_first = into_new_profile && IsUnused(list);
   ColorPicker colors(list);
   for (const arc::Space& space : sidebar.spaces) {
     if (IsImported(list, space)) {
       continue;
     }
-    const base::Uuid derived = arc::ArcDerivedId(space.id);
-    SpaceModel* model = list.AddSpace(
-        list.spaces().size(), space.name,
-        derived.is_valid() ? std::optional<base::Uuid>(derived)
-                           : std::nullopt);
+    SpaceModel* model = nullptr;
+    if (reuse_first) {
+      model = list.spaces()[0].get();
+      model->SetName(space.name);
+      reuse_first = false;
+    } else {
+      const base::Uuid derived = arc::ArcDerivedId(space.id);
+      model =
+          list.AddSpace(list.spaces().size(), space.name,
+                        derived.is_valid() ? std::optional<base::Uuid>(derived)
+                                           : std::nullopt);
+    }
     if (!model) {
       continue;
     }
@@ -115,6 +142,16 @@ AddedSidebar AddImportedSidebar(SpaceList& list,
                 std::nullopt);
   added.favorites = static_cast<int>(missing.size());
   return added;
+}
+
+ImportedSidebar ForNewProfile(ImportedSidebar sidebar) {
+  for (arc::Space& space : sidebar.spaces) {
+    space.id = kNewProfilePrefix + space.id;
+    NamespaceItems(space.pinned);
+    NamespaceItems(space.today);
+  }
+  NamespaceItems(sidebar.favorites);
+  return sidebar;
 }
 
 }  // namespace compass::browser_import

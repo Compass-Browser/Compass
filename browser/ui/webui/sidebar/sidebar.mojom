@@ -673,6 +673,13 @@ struct BrowserImportProfile {
   bool passwords;
   // Why some of it can't be read, if so; empty otherwise.
   string note;
+  // It can become a Compass profile of its own (Chromium-based browsers).
+  bool as_profile;
+  // The Compass profile it became before; empty if none.
+  string imported_as_profile;
+  // The Chromium version that last opened it, when newer than Compass's
+  // (a copy may lose data); 0 otherwise.
+  int32 newer_version;
 };
 
 // What to bring from one profile.
@@ -682,6 +689,9 @@ struct BrowserImportChoice {
   bool tabs;
   bool history;
   bool passwords;
+  // As a new Compass profile: copied with its cookies, history, passwords,
+  // extensions and settings (|history| and |passwords| don't apply).
+  bool new_profile;
 };
 
 // What one profile's import did.
@@ -698,6 +708,10 @@ struct BrowserImportSummary {
   int32 passwords;
   // Passwords that couldn't be decrypted.
   int32 passwords_skipped;
+  // The new Compass profile it became; empty if it went into this one.
+  string profile;
+  // Cookies that couldn't come along into the new profile.
+  int32 cookies_dropped;
   array<string> problems;
 };
 
@@ -728,8 +742,8 @@ interface ArcImportHandler {
 
   // Other browsers' profiles on this computer.
   GetBrowsers() => (array<BrowserImportProfile> profiles);
-  // Imports |choices| into this page's profile, one after another, and
-  // answers with what each did.
+  // Imports |choices| into this page's profile, or as new profiles, one
+  // after another, and answers with what each did.
   ImportBrowsers(array<BrowserImportChoice> choices)
       => (array<BrowserImportSummary> summaries);
 };

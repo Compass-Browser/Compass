@@ -33,6 +33,14 @@ void SetRootsForTesting(std::optional<std::vector<BrowserRoot>> roots);
 // order, each browser's in its own order. Blocking.
 std::vector<SourceProfile> DetectProfiles();
 
+// The major Chromium version that last opened the Chromium-based browser's
+// |user_data| (its "Last Version" file, "157.0.8103.51" → 157), or nullopt
+// if there's none. Chrome, Edge, Brave, Vivaldi and Dia write Chromium's
+// version there, not their own. A profile copied from a newer version may
+// have databases Compass can't open (docs/design/browser-import.md, "As a
+// profile"). Blocking.
+std::optional<int> ChromiumMajorVersion(const base::FilePath& user_data);
+
 // Whether |profile|'s browser is running (it then has its files open: the
 // page asks to quit it first). Blocking.
 bool IsRunning(const SourceProfile& profile);

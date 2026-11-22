@@ -631,6 +631,13 @@ void SetArcPathsForTesting(std::optional<ArcPaths> paths) {
 
 bool SignImportedPreferences(const base::FilePath& profile_dir,
                              const std::string& arc_dir) {
+  return SignCopiedPreferences(profile_dir, prefs::kArcImportProfileDir,
+                               arc_dir);
+}
+
+bool SignCopiedPreferences(const base::FilePath& profile_dir,
+                           std::string_view source_pref,
+                           const std::string& source) {
   const base::FilePath preferences =
       profile_dir.Append(chrome::kPreferencesFilename);
   const base::FilePath secure_preferences =
@@ -642,7 +649,7 @@ bool SignImportedPreferences(const base::FilePath& profile_dir,
     secure->Remove(kProtectionKey);
     merged.Merge(std::move(*secure));
   }
-  merged.SetByDottedPath(prefs::kArcImportProfileDir, arc_dir);
+  merged.SetByDottedPath(source_pref, source);
   base::DeleteFile(secure_preferences);
   base::DeleteFile(preferences);
   // Signed without Compass's encryption service, as first run seeds initial

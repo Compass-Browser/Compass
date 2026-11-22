@@ -32,18 +32,24 @@ struct CopyResult {
   int app_bound = 0;
 };
 
+// Also used for other Chromium-based browsers' profiles
+// (docs/design/browser-import.md, "As a profile").
+//
 // Copies the Arc profile folder |from| to |to|, a new folder (it must not
 // exist), and the disk cache |from_cache| (may not exist) to |to_cache|,
 // leaving out lock files and Arc's open windows (Compass restores from its
-// sidebar). Then re-encrypts every encrypted value of the profile's databases
-// (cookies, passwords, cards, tokens) with |reencrypt|. Blocking; Arc must not
-// be running (its databases would be in use). On failure, |to| is removed.
-// See docs/design/arc-import.md, "Encryption".
+// sidebar), and with |skip_caches| the caches inside the profile folder
+// (HTTP, code and GPU shader caches, rebuilt as pages load). Then re-encrypts
+// every encrypted value of the profile's databases (cookies, passwords, cards,
+// tokens) with |reencrypt|. Blocking; Arc must not be running (its databases
+// would be in use). On failure, |to| is removed. See docs/design/arc-import.md,
+// "Encryption".
 CopyResult CopyProfile(const base::FilePath& from,
                        const base::FilePath& to,
                        const base::FilePath& from_cache,
                        const base::FilePath& to_cache,
-                       const Reencrypt& reencrypt);
+                       const Reencrypt& reencrypt,
+                       bool skip_caches = false);
 
 }  // namespace compass::arc
 

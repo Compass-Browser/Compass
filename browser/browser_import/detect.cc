@@ -15,6 +15,8 @@
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "compass/browser/browser_import/chromium_reader.h"
 #include "compass/browser/browser_import/firefox_reader.h"
@@ -213,6 +215,23 @@ std::vector<SourceProfile> DetectProfiles() {
     }
   }
   return profiles;
+}
+
+std::optional<int> ChromiumMajorVersion(const base::FilePath& user_data) {
+  std::string contents;
+  // A version string; anything longer isn't one.
+  if (!base::ReadFileToStringWithMaxSize(user_data.AppendASCII("Last Version"),
+                                         &contents, 64)) {
+    return std::nullopt;
+  }
+  const std::string_view version =
+      base::TrimWhitespaceASCII(contents, base::TRIM_ALL);
+  int major = 0;
+  if (!base::StringToInt(version.substr(0, version.find('.')), &major) ||
+      major <= 0) {
+    return std::nullopt;
+  }
+  return major;
 }
 
 bool IsRunning(const SourceProfile& profile) {

@@ -6,13 +6,16 @@
 
 #include <algorithm>
 
+#include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -21,10 +24,12 @@
 #include "compass/browser/browser_import/chromium_crypto.h"
 #include "compass/browser/browser_import/detect.h"
 #include "compass/browser/browser_import/test_fixtures.h"
+#include "compass/browser/prefs/compass_prefs.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -171,6 +176,84 @@ IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, OnlyWhatIsChosen) {
   EXPECT_TRUE(space->pinned_root()->children().empty());
 }
 
+// A Chrome profile becomes a Compass profile of its own: copied, named
+// after it, its space in place of the new profile's empty one, its source
+// recorded; then listed as imported that way, and not copied again.
+IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, ImportsAsAProfile) {
+  {
+    // The fixture's History and Login Data have only the columns the
+    // readers use, and no meta table: loaded in a real profile, upstream
+    // would take them for its current schema. Real ones have it; copying and
+    // re-encrypting them is ProfileCopyTest's.
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    const base::FilePath profile = user_data_.AppendASCII("Default");
+    ASSERT_TRUE(base::DeleteFile(profile.AppendASCII("History")));
+    ASSERT_TRUE(base::DeleteFile(profile.AppendASCII("Login Data")));
+  }
+  ProfileManager* manager = g_browser_process->profile_manager();
+  const size_t profiles_before = manager->GetNumberOfProfiles();
+  const size_t spaces_before = spaces().spaces().size();
+  BrowserImportChoice choice;
+  choice.id = "chrome:Default";
+  choice.new_profile = true;
+  base::test::TestFuture<BrowserImportResult> future;
+  ImportFromBrowsers(browser()->GetProfile(), {choice}, future.GetCallback());
+  BrowserImportResult result = future.Take();
+  ASSERT_EQ(result.summaries.size(), 1u);
+  const BrowserImportSummary& summary = result.summaries[0];
+  EXPECT_TRUE(summary.problems.empty());
+  EXPECT_EQ(summary.profile, u"Chrome");
+  ASSERT_EQ(summary.spaces.size(), 1u);
+  EXPECT_EQ(summary.pinned, 3);
+  EXPECT_EQ(summary.today, 3);
+  EXPECT_EQ(summary.history, -1);
+  EXPECT_EQ(summary.passwords, -1);
+
+  EXPECT_EQ(manager->GetNumberOfProfiles(), profiles_before + 1);
+  ASSERT_TRUE(result.first_space_profile);
+  Profile* imported = result.first_space_profile.get();
+  EXPECT_NE(imported, browser()->GetProfile());
+  EXPECT_EQ(imported->GetPrefs()->GetString(prefs::kBrowserImportProfile),
+            "chrome:Default");
+  SpaceList& list = SpaceService::Get(imported)->space_list();
+  ASSERT_EQ(list.spaces().size(), 1u);
+  EXPECT_EQ(list.spaces()[0]->id(), result.first_space);
+  EXPECT_EQ(list.spaces()[0]->name(), u"Chrome");
+  EXPECT_EQ(list.spaces()[0]->pinned_root()->children().size(), 3u);
+  // This profile is left alone.
+  EXPECT_EQ(spaces().spaces().size(), spaces_before);
+
+  base::test::TestFuture<std::vector<ProfileOverview>> overview;
+  GetBrowserImportOverview(browser()->GetProfile(), overview.GetCallback());
+  const std::vector<ProfileOverview> profiles = overview.Take();
+  ASSERT_EQ(profiles.size(), 1u);
+  EXPECT_TRUE(profiles[0].as_profile);
+  EXPECT_EQ(profiles[0].imported_as_profile, u"Chrome");
+  EXPECT_FALSE(profiles[0].imported);
+
+  base::test::TestFuture<BrowserImportResult> again;
+  ImportFromBrowsers(browser()->GetProfile(), {choice}, again.GetCallback());
+  const BrowserImportResult again_result = again.Take();
+  ASSERT_EQ(again_result.summaries.size(), 1u);
+  EXPECT_EQ(again_result.summaries[0].problems,
+            std::vector<std::string>{"It was imported as a profile before."});
+  EXPECT_EQ(manager->GetNumberOfProfiles(), profiles_before + 1);
+}
+
+// A profile a newer Chromium last opened is flagged: a copy may lose data.
+IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, FlagsANewerChromium) {
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(
+        base::WriteFile(user_data_.AppendASCII("Last Version"), "999.0.0.0"));
+  }
+  base::test::TestFuture<std::vector<ProfileOverview>> overview;
+  GetBrowserImportOverview(browser()->GetProfile(), overview.GetCallback());
+  const std::vector<ProfileOverview> profiles = overview.Take();
+  ASSERT_EQ(profiles.size(), 1u);
+  EXPECT_EQ(profiles[0].newer_version, 999);
+}
+
 // The page lists the profile, imports it and sums up.
 IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, ImportPage) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
@@ -196,6 +279,11 @@ IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, ImportPage) {
                             "document.querySelectorAll('#browsers "
                             ".option-check').length"),
             4);
+  // Chrome can also become a profile; a space here is the default.
+  EXPECT_EQ(content::EvalJs(page,
+                            "document.querySelector('.mode-radio:checked')"
+                            ".value"),
+            "space");
   // No passwords this time.
   ASSERT_TRUE(content::ExecJs(
       page,

@@ -5,9 +5,12 @@
 #ifndef COMPASS_BROWSER_BROWSER_IMPORT_PROFILE_READER_H_
 #define COMPASS_BROWSER_BROWSER_IMPORT_PROFILE_READER_H_
 
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "base/values.h"
 #include "compass/browser/browser_import/source.h"
 
 // Reading what's chosen from one profile of another browser, whichever it
@@ -26,13 +29,32 @@ struct ReadOptions {
   bool passwords = false;
 };
 
+// A Chromium-based profile's sidebar, read but not built yet: its open tabs
+// need upstream's session restore, which draws session IDs, and only the UI
+// thread may (SessionIdGenerator). FinishReadingProfile() builds it.
+struct UnbuiltChromiumSidebar {
+  UnbuiltChromiumSidebar();
+  UnbuiltChromiumSidebar(UnbuiltChromiumSidebar&&);
+  UnbuiltChromiumSidebar& operator=(UnbuiltChromiumSidebar&&);
+  ~UnbuiltChromiumSidebar();
+
+  SourceProfile profile;
+  ReadOptions options;
+  std::optional<base::DictValue> bookmarks;
+  std::optional<base::DictValue> preferences;
+  // Newest first.
+  std::vector<std::vector<uint8_t>> session_files;
+};
+
 struct ProfileData {
   ProfileData();
   ProfileData(ProfileData&&);
   ProfileData& operator=(ProfileData&&);
   ~ProfileData();
 
+  // Empty until FinishReadingProfile() for a Chromium-based profile.
   ImportedSidebar sidebar;
+  std::optional<UnbuiltChromiumSidebar> unbuilt;
   std::vector<HistoryEntry> history;
   std::vector<LoginEntry> logins;
   // Saved passwords that couldn't be decrypted.
@@ -47,6 +69,11 @@ struct ProfileData {
 // may ask the user for Keychain access).
 ProfileData ReadProfile(const SourceProfile& profile,
                         const ReadOptions& options);
+
+// Builds |data|'s sidebar where ReadProfile() couldn't (Chromium-based
+// profiles' open tabs, UnbuiltChromiumSidebar). Not blocking; on the UI
+// thread in the browser. Does nothing for other profiles.
+void FinishReadingProfile(ProfileData& data);
 
 // What Compass can import from |browser| on this platform.
 bool CanImportHistory(Browser browser);
