@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "compass/browser/boosts/boost_share.h"
+
 #include <memory>
 #include <optional>
 #include <string>
@@ -12,11 +14,12 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "compass/browser/boosts/boost_share.h"
 #include "compass/browser/boosts/boost_store.h"
+#include "compass/browser/ui/views/settings_window/settings_window.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -30,8 +33,7 @@
 namespace compass::boosts {
 namespace {
 
-// Finds |selector| anywhere in the page, through every shadow root
-// (chrome://settings nests the sections in settings-ui and settings-main).
+// Finds |selector| anywhere in the page, through every shadow root.
 constexpr char kDeepQuery[] = R"(
   function deepQuery(selector, root = document) {
     const found = root.querySelector(selector);
@@ -50,7 +52,10 @@ constexpr char kDeepQuery[] = R"(
   }
 )";
 
-constexpr char kPreview[] = "chrome://settings/boosts?import=";
+// Where the preview shows: the settings window's Boosts pane
+// (docs/design/settings-window.md), which chrome://settings/boosts?import=
+// opens.
+constexpr char kPreview[] = "chrome://compass-settings/boosts?import=";
 
 class BoostShareBrowserTest : public InProcessBrowserTest {
  protected:
@@ -81,7 +86,8 @@ class BoostShareBrowserTest : public InProcessBrowserTest {
     return content::EvalJs(contents, std::string(kDeepQuery) + R"(
       new Promise(resolve => {
         const check = () => {
-          const value = ()" + expression + R"();
+          const value = ()" + expression +
+                                         R"();
           if (value) {
             resolve(value);
           } else {
@@ -92,17 +98,17 @@ class BoostShareBrowserTest : public InProcessBrowserTest {
       }))");
   }
 
-  // The tab showing the import preview, once there is one in |in|.
-  static content::WebContents* WaitForPreview(BrowserWindowInterface* in) {
+  // The settings window showing the import preview, once |profile|'s shows
+  // one.
+  static content::WebContents* WaitForPreview(Profile* profile) {
     content::WebContents* found = nullptr;
     EXPECT_TRUE(base::test::RunUntil([&] {
-      for (int i = 0; i < in->tab_strip_model()->count(); ++i) {
-        content::WebContents* contents =
-            in->tab_strip_model()->GetWebContentsAt(i);
-        if (contents->GetVisibleURL().spec().starts_with(kPreview)) {
-          found = contents;
-          return true;
-        }
+      SettingsWindow* window = SettingsWindow::FromProfile(profile);
+      content::WebContents* contents =
+          window ? window->web_contents() : nullptr;
+      if (contents && contents->GetVisibleURL().spec().starts_with(kPreview)) {
+        found = contents;
+        return true;
       }
       return false;
     }));
@@ -113,8 +119,8 @@ class BoostShareBrowserTest : public InProcessBrowserTest {
   }
 };
 
-// A link in a page opens the preview in a new tab and leaves the page
-// alone; confirming adds the Boost as a new, shared one, every time.
+// A link in a page opens the preview in the settings window and leaves the
+// page alone; confirming adds the Boost as a new, shared one, every time.
 IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, LinkInAPageOpensThePreview) {
   const GURL page = embedded_test_server()->GetURL("a.test", "/empty.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), page));
@@ -122,13 +128,16 @@ IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, LinkInAPageOpensThePreview) {
   const std::string link = ShareLink(MakeBoost());
   ASSERT_TRUE(content::ExecJs(original, "location.href = '" + link + "';"));
 
-  content::WebContents* preview = WaitForPreview(browser());
+  const int tab_count = tabs()->count();
+  content::WebContents* preview = WaitForPreview(browser()->GetProfile());
   ASSERT_TRUE(preview);
   EXPECT_NE(preview, original);
   EXPECT_EQ(preview->GetVisibleURL().spec(),
             kPreview + EncodeShareFragment(MakeBoost()));
   EXPECT_EQ(original->GetLastCommittedURL(), page);
-  EXPECT_EQ(tabs()->GetActiveWebContents(), preview);
+  // The tab the preview opened in closes once the window has it.
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return tabs()->count() <= tab_count; }));
 
   // The preview shows it all, and warns about the JavaScript.
   EXPECT_EQ(WaitFor(preview,
@@ -154,24 +163,25 @@ IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, LinkInAPageOpensThePreview) {
   ASSERT_TRUE(content::ExecJs(preview, std::string(kDeepQuery) +
                                            "deepQuery('compass-boosts-page "
                                            "#confirmImport').click();"));
-  ASSERT_TRUE(
-      base::test::RunUntil([&] { return !store()->boosts().empty(); }));
+  ASSERT_TRUE(base::test::RunUntil([&] { return !store()->boosts().empty(); }));
   const Boost added = store()->boosts()[0];
   EXPECT_EQ(added.author, kAuthorShared);
   EXPECT_TRUE(added.enabled);
   EXPECT_EQ(added.name, "Shared colors");
   EXPECT_EQ(added.js_world, kMainWorld);
-  EXPECT_EQ(WaitFor(preview, "deepQuery('compass-boosts-page .boosts-badge')"
-                             "?.textContent"),
+  EXPECT_EQ(WaitFor(preview,
+                    "deepQuery('compass-boosts-page .boosts-badge')"
+                    "?.textContent"),
             "Shared");
 
   // The same link again: another Boost, not a replacement.
   ASSERT_TRUE(content::ExecJs(original, "location.href = '" + link + "';"));
-  ASSERT_TRUE(base::test::RunUntil([&] { return tabs()->count() == 3; }));
-  content::WebContents* again = tabs()->GetActiveWebContents();
-  ASSERT_TRUE(content::WaitForLoadStop(again));
-  EXPECT_EQ(WaitFor(again, "deepQuery('compass-boosts-page #boostImport')"
-                           "?.hidden === false"),
+  content::WebContents* again = preview;
+  EXPECT_EQ(WaitFor(again,
+                    "deepQuery('compass-boosts-page #boostImport')"
+                    "?.hidden === false && deepQuery("
+                    "'compass-boosts-page #importName')?.textContent "
+                    "=== 'Shared colors'"),
             true);
   ASSERT_TRUE(content::ExecJs(again, std::string(kDeepQuery) +
                                          "deepQuery('compass-boosts-page "
@@ -182,25 +192,27 @@ IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, LinkInAPageOpensThePreview) {
   EXPECT_EQ(*store()->Find(added.id), added);
 }
 
-// A link opened in a new tab (as from another app) shows the preview in
-// that tab.
+// A link opened in a new tab (as from another app) shows the preview in the
+// settings window, and the tab, which had nothing else, goes.
 IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, LinkInANewTab) {
   const int before = tabs()->count();
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL(ShareLink(MakeBoost())),
       WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_NO_WAIT);
-  content::WebContents* preview = WaitForPreview(browser());
+  content::WebContents* preview = WaitForPreview(browser()->GetProfile());
   ASSERT_TRUE(preview);
-  EXPECT_EQ(tabs()->count(), before + 1);
-  EXPECT_EQ(tabs()->GetActiveWebContents(), preview);
+  ASSERT_TRUE(base::test::RunUntil([&] { return tabs()->count() == before; }));
 }
 
 // A broken link says so and adds nothing.
 IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, BrokenLink) {
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), GURL("chrome://settings/boosts?import=bm90IGEgYm9vc3Q")));
-  content::WebContents* contents = tabs()->GetActiveWebContents();
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("chrome://settings/boosts?import=bm90IGEgYm9vc3Q"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
+  content::WebContents* contents = WaitForPreview(browser()->GetProfile());
+  ASSERT_TRUE(contents);
   EXPECT_EQ(WaitFor(contents,
                     "deepQuery('compass-boosts-page #importNote')?.hidden "
                     "=== false && deepQuery('compass-boosts-page "
@@ -216,7 +228,7 @@ IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, IncognitoOpensANormalWindow) {
   ui_test_utils::NavigateToURLWithDisposition(
       incognito, GURL(ShareLink(MakeBoost())),
       WindowOpenDisposition::CURRENT_TAB, ui_test_utils::BROWSER_TEST_NO_WAIT);
-  content::WebContents* preview = WaitForPreview(browser());
+  content::WebContents* preview = WaitForPreview(browser()->GetProfile());
   ASSERT_TRUE(preview);
   EXPECT_FALSE(preview->GetBrowserContext()->IsOffTheRecord());
 }
@@ -225,17 +237,20 @@ IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, IncognitoOpensANormalWindow) {
 IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, ShareCopiesALinkThatDecodes) {
   base::expected<Boost, std::string> saved = store()->Save(MakeBoost());
   ASSERT_TRUE(saved.has_value());
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), GURL("chrome://settings/boosts")));
-  content::WebContents* contents = tabs()->GetActiveWebContents();
+  chrome::ShowSettingsSubPage(browser(), "boosts");
+  SettingsWindow* window = SettingsWindow::FromProfile(browser()->GetProfile());
+  ASSERT_TRUE(window);
+  content::WebContents* contents = window->web_contents();
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
   const std::string row =
       "deepQuery('compass-boosts-page li[data-id=\"" + saved->id + "\"]";
   ASSERT_EQ(WaitFor(contents, "(b => b ? (b.click(), true) : false)(" + row +
                                   " .boosts-share-button'))"),
             true);
   const std::string text =
-      WaitFor(contents, "deepQuery('compass-boosts-page .boosts-share')"
-                        "?.dataset.link")
+      WaitFor(contents,
+              "deepQuery('compass-boosts-page .boosts-share')"
+              "?.dataset.link")
           .ExtractString();
   ASSERT_TRUE(text.starts_with(kShareLinkPrefix));
   std::optional<std::string> fragment = ShareFragmentFromUrl(GURL(text));
@@ -251,8 +266,9 @@ IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, ShareCopiesALinkThatDecodes) {
   ASSERT_TRUE(content::ExecJs(contents, std::string(kDeepQuery) +
                                             "deepQuery('compass-boosts-page "
                                             ".boosts-share button').click();"));
-  EXPECT_EQ(WaitFor(contents, "deepQuery('compass-boosts-page "
-                              ".boosts-share-note')?.textContent"),
+  EXPECT_EQ(WaitFor(contents,
+                    "deepQuery('compass-boosts-page "
+                    ".boosts-share-note')?.textContent"),
             "Link copied.");
   base::test::TestFuture<std::u16string> copied;
   ui::Clipboard::GetForCurrentThread()->ReadText(

@@ -80,6 +80,10 @@ source_set("ui") {
     "views/little_window/little_window.h",
     "views/peek/peek.cc",
     "views/peek/peek.h",
+    "views/settings_window/settings_window.cc",
+    "views/settings_window/settings_window.h",
+    "views/settings_window/settings_window_navigation_throttle.cc",
+    "views/settings_window/settings_window_navigation_throttle.h",
     "views/reader/reader_mode.cc",
     "views/reader/reader_mode.h",
     "views/reader/reader_tab_state.cc",
@@ -133,6 +137,12 @@ source_set("ui") {
     "webui/settings/compass_settings_ui.cc",
     "webui/settings/compass_settings_ui.h",
     "webui/settings/settings_sections.cc",
+    "webui/settings/settings_window_handler.cc",
+    "webui/settings/settings_window_handler.h",
+    "webui/settings/settings_window_handler_advanced.cc",
+    "webui/settings/settings_window_handler_general.cc",
+    "webui/settings/settings_window_handler_passwords.cc",
+    "webui/settings/settings_window_handler_privacy.cc",
     "webui/share/compass_share_ui.cc",
     "webui/share/compass_share_ui.h",
     "webui/sidebar/now_playing_tracker.cc",
@@ -203,6 +213,13 @@ source_set("ui") {
     "//components/history/core/browser",
     "//components/password_manager/core/browser:password_form",
     "//compass/browser/live_folders",
+
+    # The settings window's Passwords pane uses the password manager's
+    # PasswordsPrivateDelegate and its API types.
+    "//chrome/common/extensions/api",
+
+    # The settings window's About Compass: the version and the updater.
+    "//compass/browser/updates:hooks",
     "//third_party/icu",
     "//compass/browser/prefs",
     "//compass/browser/rooms",
@@ -355,6 +372,7 @@ source_set("ui") {
       "views/frame/window_frame_mac.mm",
       "views/little_window/little_window_mac.h",
       "views/little_window/little_window_mac.mm",
+      "views/settings_window/settings_window_mac.mm",
       "arc_import/arc_importer_mac.mm",
       "cocoa/spaces_menu_mac.mm",
     ]
@@ -376,6 +394,7 @@ source_set("app_menu_hooks") {
   public = [
     "app_menu_sync.h",
     "compass_command_ids.h",
+    "settings_window_hooks.h",
   ]
   public_deps = [ "//chrome/app:command_ids" ]
 }
@@ -456,6 +475,7 @@ source_set("browser_tests") {
     "views/frame/profile_switch_browsertest.cc",
     "views/peek/peek_browsertest.cc",
     "views/reader/reader_mode_browsertest.cc",
+    "views/settings_window/settings_window_browsertest.cc",
     "views/sidebar/sidebar_header_browsertest.cc",
     "views/sidebar/compass_sidebar_browsertest.cc",
     "webui/select_popup_browsertest.cc",

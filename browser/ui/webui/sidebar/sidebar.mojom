@@ -899,3 +899,364 @@ interface SettingsHandler {
   ResetShortcut(string id) => ();
   ResetAllShortcuts() => ();
 };
+
+// A pref the settings window shows (SettingsWindowHandler's allowlist), its
+// value as JSON.
+struct SettingsPref {
+  string name;
+  string value_json;
+  // Set by policy or an extension: the page shows it and can't change it.
+  bool enforced;
+};
+
+// Whether Compass is the default browser (shell_integration).
+struct DefaultBrowserState {
+  bool is_default;
+  bool can_be_default;
+  // The check failed: the page can't say.
+  bool unknown;
+  bool disabled_by_policy;
+};
+
+// A search engine that can be the default (TemplateURLService).
+struct SearchEngine {
+  // Its TemplateURLID, as text.
+  string id;
+  string name;
+  bool is_default;
+};
+
+struct SearchEngines {
+  array<SearchEngine> engines;
+  // Set by policy or an extension: the page can't change it.
+  bool managed;
+};
+
+// A search engine or site search, as General › Manage search engines lists
+// them (KeywordEditorController's rules).
+struct SearchEngineDetails {
+  string id;
+  string name;
+  // The command bar shortcut.
+  string keyword;
+  // The search URL, with %s for the query.
+  string url;
+  bool is_default;
+  // Site search: one the user or a site added (not prepopulated).
+  bool is_site_search;
+  // A site search that's on (offered by the command bar).
+  bool is_active;
+  bool can_edit;
+  bool can_remove;
+  bool can_make_default;
+  bool can_activate;
+  bool can_deactivate;
+  // Set by policy or an extension.
+  bool managed;
+};
+
+// A language Compass knows (TranslatePrefs::GetLanguageInfoList()).
+struct LanguageInfo {
+  string code;
+  // In the browser's language, and in its own.
+  string name;
+  string native_name;
+  bool supports_translate;
+};
+
+// One of the user's preferred languages, in their order.
+struct PreferredLanguage {
+  string code;
+  // Whether Compass offers to translate pages in it (not blocked).
+  bool translate_offered;
+};
+
+// The profile's name (ProfileAttributesStorage).
+struct ProfileDetails {
+  string name;
+};
+
+// A site permission's setting (ContentSetting): kDefault for a site that
+// follows the default.
+enum PermissionValue {
+  kDefault,
+  kAllow,
+  kBlock,
+  kAsk,
+};
+
+// A permission's default (Privacy › Site settings).
+struct PermissionDefault {
+  // Upstream's group name ("location", "media-stream-camera").
+  string type;
+  PermissionValue value;
+  // The values it can take.
+  array<PermissionValue> choices;
+  // Set by policy or an extension.
+  bool managed;
+};
+
+// A site with permissions of its own.
+struct SiteSummary {
+  string origin;
+  string display_name;
+  int32 permission_count;
+};
+
+// A permission for one site.
+struct SitePermission {
+  string type;
+  // The site's own setting, or kDefault.
+  PermissionValue value;
+  // What the site gets: its own or the default.
+  PermissionValue effective;
+  array<PermissionValue> choices;
+  bool managed;
+};
+
+// What Privacy › Clear browsing data clears, over the time range (upstream's
+// browsing_data::TimePeriod).
+struct ClearBrowsingDataOptions {
+  int32 time_period;
+  bool history;
+  bool downloads;
+  bool cookies;
+  bool cache;
+  bool passwords;
+  bool form_data;
+  bool site_settings;
+};
+
+// A saved password or passkey (Passwords pane): never its secret.
+struct SavedPassword {
+  // The password manager's id for it (PasswordsPrivateDelegate).
+  int32 id;
+  // The site, as the password manager names it.
+  string site;
+  string username;
+  bool is_passkey;
+};
+
+// A saved payment card: its name and last digits, never its number.
+struct SavedCard {
+  string guid;
+  string name;
+  string last_four;
+  string expiration;
+  // Saved in Compass (not one from the account), so it can be removed here.
+  bool removable;
+};
+
+// A card being added (no guid) or edited (Passwords › Payment methods). Its
+// number is only ever sent to the browser, for a new card; editing keeps
+// the saved one.
+struct CardDraft {
+  string guid;
+  string name_on_card;
+  string number;
+  int32 expiration_month;
+  int32 expiration_year;
+  string nickname;
+  // For an edit: the saved card's last digits, as shown.
+  string last_four;
+};
+
+// An address being added (no guid) or edited.
+struct AddressDraft {
+  string guid;
+  string full_name;
+  string organization;
+  // Street lines, separated by newlines.
+  string street;
+  string city;
+  string state;
+  string postal_code;
+  // ISO 3166-1 alpha-2 ("US").
+  string country_code;
+  string phone;
+  string email;
+};
+
+struct SavedAddress {
+  string guid;
+  string name;
+  // The street and city.
+  string summary;
+};
+
+// Privacy › Safety check (phase 5e): what the password manager knows about
+// the saved passwords, and the extensions.
+struct SafetyCheckResult {
+  // Not muted: leaked or phished, weak, reused.
+  int32 compromised_passwords;
+  int32 weak_passwords;
+  int32 reused_passwords;
+  int32 saved_passwords;
+  // Turned off by Compass as harmful (Safe Browsing's blocklist).
+  int32 blocklisted_extensions;
+  int32 enabled_extensions;
+};
+
+// Advanced › About Compass.
+struct AboutInfo {
+  // Compass's own ("20261121.1830"), and the Chromium it's built on.
+  string compass_version;
+  string chromium_version;
+  // Whether this build updates itself (release builds).
+  bool can_update;
+  // An update downloaded and waiting for a relaunch.
+  string? pending_version;
+};
+
+// Where an update check is (compass::updates::CheckStatus).
+enum UpdateState {
+  kChecking,
+  kUpdating,
+  kReady,
+  kUpToDate,
+  kFailed,
+};
+
+// The settings window (chrome://compass-settings in a window of its own,
+// docs/design/settings-window.md): the page's side.
+interface SettingsWindowPage {
+  // An update check moved on: |progress| 0-100 (or -1) while updating,
+  // |message| why it failed.
+  UpdateStatusChanged(UpdateState state, int32 progress, string message);
+  // Passwords were saved, changed or removed.
+  PasswordsChanged();
+  // Payment cards or addresses changed.
+  AutofillChanged();
+  // A permission's default or a site's permission changed.
+  ContentSettingsChanged();
+  DefaultBrowserChanged(DefaultBrowserState state);
+  SearchEnginesChanged(SearchEngines engines);
+  // The preferred languages or their translation changed.
+  LanguagesChanged();
+  // The profile's name changed.
+  ProfileChanged(ProfileDetails profile);
+  // One of the prefs the page asked for changed (by the page or elsewhere).
+  PrefChanged(SettingsPref pref);
+  // Shows |path| ("boosts?add=example.com", "sync"), as opening the window
+  // at it does; the window was open already.
+  ShowPath(string path);
+  // The profile's active space changed color; null for grey.
+  SetAccent(SpaceColor? color);
+};
+
+// The settings window's browser side.
+interface SettingsWindowHandler {
+  // The profile's active space's color, which the page uses as its accent;
+  // null for grey.
+  GetAccent() => (SpaceColor? color);
+  // The height the page needs (its toolbar and the shown pane, in CSS
+  // pixels): the window takes it, within the screen.
+  SetContentHeight(int32 height);
+  // Opens |url| (a chrome:// page such as the password manager) in a tab of
+  // the last active window.
+  OpenUrl(url.mojom.Url url);
+  // Closes the window.
+  Close();
+
+  // The allowlisted prefs among |names|, which PrefChanged() then follows.
+  GetPrefs(array<string> names) => (array<SettingsPref> prefs);
+  // Sets an allowlisted pref to |value_json| (of its type); false if it isn't
+  // one, isn't of the type, or is enforced.
+  SetPref(string name, string value_json) => (bool ok);
+  // The default page zoom, as a factor (1.0 = 100%).
+  GetDefaultZoom() => (double factor);
+  SetDefaultZoom(double factor);
+  // Restarts the browser, for prefs that take effect then (hardware
+  // acceleration).
+  Relaunch();
+
+  // General (phase 2): what upstream's settings handlers do, over Mojo.
+  GetDefaultBrowser() => (DefaultBrowserState state);
+  // Asks the system to make Compass the default; DefaultBrowserChanged()
+  // follows.
+  SetAsDefaultBrowser();
+  GetSearchEngines() => (SearchEngines engines);
+  SetDefaultSearchEngine(string id);
+  // Manage search engines (phase 5b): every engine and site search.
+  GetSearchEngineDetails() => (array<SearchEngineDetails> engines);
+  // Adds one (an empty |id|) or edits one; |url| has %s for the query. Why
+  // not, if it wasn't saved: empty when saved.
+  SaveSearchEngine(string id, string name, string keyword, string url) =>
+      (string error);
+  RemoveSearchEngine(string id);
+  SetSearchEngineActive(string id, bool active);
+  // General › Languages (phase 5c), as TranslatePrefs keeps them.
+  GetLanguages() =>
+      (array<LanguageInfo> catalog, array<PreferredLanguage> preferred);
+  AddLanguage(string code);
+  RemoveLanguage(string code);
+  // One place up or down the list.
+  MoveLanguage(string code, bool up);
+  SetTranslateOffered(string code, bool offered);
+  // The download folder as shown ("~/Downloads").
+  GetDownloadLocation() => (string location);
+  // A folder picker for the download folder; the pref changes if one is
+  // picked.
+  ChooseDownloadLocation();
+  // The system's font families: each [name, display name].
+  GetFonts() => (array<array<string>> fonts);
+  // The system's proxy settings.
+  ShowProxySettings();
+
+  // Profiles › This profile.
+  GetProfile() => (ProfileDetails profile);
+  SetProfileName(string name);
+
+  // Privacy (phase 3). Site settings: the defaults, the sites with
+  // permissions of their own, and one site's.
+  GetPermissionDefaults() => (array<PermissionDefault> defaults);
+  SetPermissionDefault(string type, PermissionValue value);
+  GetSites() => (array<SiteSummary> sites);
+  GetSitePermissions(string origin) =>
+      (string display_name, array<SitePermission> permissions);
+  SetSitePermission(string origin, string type, PermissionValue value);
+  // Every permission of the site back to the default.
+  ResetSitePermissions(string origin);
+  // The site's cookies, storage and cache.
+  ClearSiteData(string origin) => ();
+  ClearBrowsingData(ClearBrowsingDataOptions options) => ();
+  // Safe Browsing: 0 off, 1 standard, 2 enhanced (SafeBrowsingState).
+  SetSafeBrowsingLevel(int32 level);
+  GetSafetyCheck() => (SafetyCheckResult result);
+
+  // Passwords (phase 4), through upstream's PasswordsPrivateDelegate.
+  GetPasswords() => (array<SavedPassword> passwords);
+  // The password, once the user has authenticated to the system (Touch ID,
+  // the account password); null if they didn't.
+  RevealPassword(int32 id) => (string? password);
+  // Copies the password, once authenticated; it's cleared from the
+  // clipboard after a while. Whether it was copied.
+  CopyPassword(int32 id) => (bool copied);
+  RemovePassword(int32 id);
+  GetCards() => (array<SavedCard> cards);
+  RemoveCard(string guid);
+  GetAddresses() => (array<SavedAddress> addresses);
+  RemoveAddress(string guid);
+  // The card and address editors (phase 5d). A saved card or address as a
+  // draft to edit; null if there's none (or it's an account card).
+  GetCard(string guid) => (CardDraft? card);
+  // Saves a draft: why not, empty when saved.
+  SaveCard(CardDraft card) => (string error);
+  GetAddress(string guid) => (AddressDraft? address);
+  SaveAddress(AddressDraft address) => (string error);
+
+  // Advanced (phase 5).
+  GetAbout() => (AboutInfo about);
+  // Checks for an update now; UpdateStatusChanged() follows.
+  CheckForUpdates();
+  // Installs a downloaded update and relaunches.
+  InstallUpdate();
+  // Puts upstream's settings back to their defaults (ProfileResetter, as
+  // chrome://settings/reset does).
+  ResetSettings() => ();
+};
+
+interface SettingsWindowHandlerFactory {
+  CreateHandler(pending_remote<SettingsWindowPage> page,
+                pending_receiver<SettingsWindowHandler> handler);
+};

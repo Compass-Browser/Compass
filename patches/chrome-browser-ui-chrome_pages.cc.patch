@@ -1,0 +1,23 @@
+diff --git a/chrome/browser/ui/chrome_pages.cc b/chrome/browser/ui/chrome_pages.cc
+index 3f270ac926d1f76db66a3ee5bf41799b726f3293..2ce1a16c9b7af3bbcb51995e8eae7c62523e9581 100644
+--- a/chrome/browser/ui/chrome_pages.cc
++++ b/chrome/browser/ui/chrome_pages.cc
+@@ -51,6 +51,7 @@
+ #include "chrome/common/url_constants.h"
+ #include "chrome/common/webui_url_constants.h"
+ #include "chrome/grit/generated_resources.h"
++#include "compass/browser/ui/settings_window_hooks.h"
+ #include "components/autofill/core/common/autofill_features.h"
+ #include "components/bookmarks/browser/bookmark_model.h"
+ #include "components/bookmarks/browser/bookmark_node.h"
+@@ -486,6 +487,10 @@ void ShowSettingsSubPageForProfile(Profile* profile,
+ 
+ void ShowSettingsSubPageInTabbedBrowser(BrowserWindowInterface* browser,
+                                         std::string_view sub_page) {
++  // Compass: its settings window, for the sections it has.
++  if (compass::MaybeShowSettingsWindow(browser->GetProfile(), sub_page)) {
++    return;
++  }
+   base::RecordAction(UserMetricsAction("ShowOptions"));
+ 
+   // Since the user may be triggering navigation from another UI element such as

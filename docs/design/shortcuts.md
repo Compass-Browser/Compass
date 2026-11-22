@@ -40,8 +40,8 @@ a link was shared or clicked, as Firefox's "Copy Clean Link" does:
   Copy URL and the sidebar's Copy Link (`CopyLinkBridge`). iOS: ios.md.
 - **The setting:** "Remove tracking from copied links"
   (`compass.copy.remove_tracking`, a profile pref, on by default, doesn't
-  sync), under Do Not Track on Settings, Privacy and security, Third-party
-  cookies (`cookies_page.html` patch; allowlisted in `prefs_util.cc`).
+  sync), under "Ask sites not to track you" in Settings › Privacy (the
+  settings window, docs/design/settings-window.md; on its prefs allowlist).
   Android: Settings, Privacy and Security, "Remove Tracking from Copied
   Links". Off, links are copied as they are.
 - **The lists** are Firefox's strip-on-share lists, unmodified, in
@@ -51,11 +51,10 @@ a link was shared or clicked, as Firefox's "Copy Clean Link" does:
   parsed on first use. `tools/update_strip_on_share.py` downloads the
   latest; the `strip-on-share` workflow runs it every Monday and opens a
   pull request when they changed, so a release ships what's merged.
-- **Their licenses** are shown in full: on the desktop, the About page's
-  "third-party files under their own licenses" opens
+- **Their licenses** are shown in full: on the desktop, About Compass's
+  "Open-source licenses" (Settings › Advanced) opens
   chrome://compass-settings/licenses.html, built from the LICENSE files by
-  `build/licenses_page.py` (`:licenses_page` in `resources/sidebar/`;
-  about_page.html.ts patch); on Android, Settings → Third-Party Licenses
+  `build/licenses_page.py` (`:licenses_page` in `resources/sidebar/`); on Android, Settings → Third-Party Licenses
   (the files as assets, `:license_assets`); on iOS, ios.md.
 - **Matching**, as Firefox: a parameter's name, as written and without case,
   against the global rule, the rule for the exact host (`hosts`) and the
@@ -92,7 +91,9 @@ closing tabs have no keys there: Ctrl+Z would come before the page.
 ## Customizing
 
 compass://settings/shortcuts ("Keyboard shortcuts" in the settings menu or
-the command bar; also alone on chrome://compass-settings, see settings.md)
+the command bar; in the settings window's Shortcuts pane, see
+settings-window.md; also alone on chrome://compass-settings/shortcuts.html,
+see settings.md)
 lists the shortcuts the user can change, by
 section: Compass's (command bar, address, sidebar, copy link, little window,
 picture-in-picture click-through but on Linux, Claude, Reader), tabs, windows,

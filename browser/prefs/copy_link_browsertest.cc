@@ -10,10 +10,12 @@
 #include "base/test/run_until.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "compass/browser/prefs/compass_prefs.h"
+#include "compass/browser/ui/views/settings_window/settings_window.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
@@ -24,45 +26,10 @@
 namespace compass {
 namespace {
 
-// Finds |selector| through every shadow root, waiting for settings' lazy
-// rendering; resolves with the element's label attribute, else its text, or
-// null.
-constexpr char kDeepFind[] = R"(
-  (selector) => new Promise(resolve => {
-    const find = root => {
-      const hit = root.querySelector(selector);
-      if (hit) return hit;
-      for (const el of root.querySelectorAll('*')) {
-        if (el.shadowRoot) {
-          const inner = find(el.shadowRoot);
-          if (inner) return inner;
-        }
-      }
-      return null;
-    };
-    let tries = 0;
-    const look = () => {
-      const hit = find(document);
-      if (hit || ++tries > 100) {
-        resolve(hit ? (hit.getAttribute('label') ??
-                       hit.textContent.replace(/\s+/g, ' ').trim())
-                    : null);
-        return;
-      }
-      setTimeout(look, 100);
-    };
-    look();
-  }))";
-
 class CopyLinkSettingsBrowserTest : public InProcessBrowserTest {
  protected:
   content::WebContents* contents() {
     return browser()->tab_strip_model()->GetActiveWebContents();
-  }
-
-  content::EvalJsResult Find(const std::string& selector) {
-    return content::EvalJs(contents(), std::string("(") + kDeepFind +
-                                           ")('" + selector + "')");
   }
 };
 
@@ -79,32 +46,48 @@ IN_PROC_BROWSER_TEST_F(CopyLinkSettingsBrowserTest, LicensesPage) {
   EXPECT_NE(text.find("Firefox's strip-on-share list"), std::string::npos);
 }
 
-IN_PROC_BROWSER_TEST_F(CopyLinkSettingsBrowserTest, AboutPageLinksToLicenses) {
-  ASSERT_TRUE(
-      ui_test_utils::NavigateToURL(browser(), GURL("chrome://settings/help")));
-  EXPECT_EQ(Find("#compassLicenses"),
-            "third-party files under their own licenses");
+// Settings' About Compass (the settings window's Advanced pane,
+// docs/design/settings-window.md) links to the licenses.
+IN_PROC_BROWSER_TEST_F(CopyLinkSettingsBrowserTest, AboutLinksToLicenses) {
+  chrome::ShowSettingsSubPage(browser(), "help");
+  SettingsWindow* window = SettingsWindow::FromProfile(browser()->GetProfile());
+  ASSERT_TRUE(window);
+  ASSERT_TRUE(content::WaitForLoadStop(window->web_contents()));
+  EXPECT_EQ(content::EvalJs(window->web_contents(), R"(
+      new Promise(resolve => {
+        const check = () => {
+          const row = document.querySelector('[data-row="licenses"]');
+          row ? resolve(row.textContent.trim()) : setTimeout(check, 20);
+        };
+        check();
+      }))"),
+            "Open-source licenses");
 }
 
-IN_PROC_BROWSER_TEST_F(CopyLinkSettingsBrowserTest, ToggleOnCookiesPage) {
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL("chrome://settings/cookies")));
-  EXPECT_EQ(Find("#compassRemoveTrackingFromCopiedLinks"),
-            "Remove tracking from copied links");
-
-  // Clicking it turns the pref off.
+// The settings window's Privacy pane has the switch, which turns the pref
+// off.
+IN_PROC_BROWSER_TEST_F(CopyLinkSettingsBrowserTest, ToggleInPrivacy) {
   PrefService* prefs = browser()->GetProfile()->GetPrefs();
   ASSERT_TRUE(prefs->GetBoolean(prefs::kRemoveTrackingFromCopiedLinks));
-  ASSERT_TRUE(content::ExecJs(
-      contents(),
-      std::string("(") + kDeepFind +
-          ")('#compassRemoveTrackingFromCopiedLinks').then(() => {"
-          "  const find = root => root.querySelector("
-          "      '#compassRemoveTrackingFromCopiedLinks') ||"
-          "    [...root.querySelectorAll('*')].filter(e => e.shadowRoot)"
-          "      .map(e => find(e.shadowRoot)).find(Boolean);"
-          "  find(document).click();"
-          "})"));
+  chrome::ShowSettingsSubPage(browser(), "cookies");
+  SettingsWindow* window = SettingsWindow::FromProfile(browser()->GetProfile());
+  ASSERT_TRUE(window);
+  ASSERT_TRUE(content::WaitForLoadStop(window->web_contents()));
+  EXPECT_EQ(content::EvalJs(window->web_contents(), R"(
+      new Promise(resolve => {
+        const check = () => {
+          const row = document.querySelector('[data-row="cleanLinks"]');
+          const input = row?.querySelector('input');
+          if (input && input.checked) {
+            input.click();
+            resolve(row.querySelector('.row-label').textContent);
+          } else {
+            setTimeout(check, 20);
+          }
+        };
+        check();
+      }))"),
+            "Remove tracking from copied links");
   EXPECT_TRUE(base::test::RunUntil([&] {
     return !prefs->GetBoolean(prefs::kRemoveTrackingFromCopiedLinks);
   }));

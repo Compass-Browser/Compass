@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
@@ -86,7 +87,8 @@ class SyncCredentials : public base::RefCountedThreadSafe<SyncCredentials> {
   bool refused_ GUARDED_BY(lock_) = false;
   scoped_refptr<base::SequencedTaskRunner> refused_runner_ GUARDED_BY(lock_);
   base::RepeatingClosure refused_callback_ GUARDED_BY(lock_);
-  const void* retry_owner_ GUARDED_BY(lock_) = nullptr;
+  // Only compared, never dereferenced: who asked for the retry.
+  RAW_PTR_EXCLUSION const void* retry_owner_ GUARDED_BY(lock_) = nullptr;
   scoped_refptr<base::SequencedTaskRunner> retry_runner_ GUARDED_BY(lock_);
   base::RepeatingClosure retry_ GUARDED_BY(lock_);
 };

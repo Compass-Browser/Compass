@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The standalone pages (chrome://compass-sync, chrome://compass-settings,
+// The standalone pages (chrome://compass-sync, chrome://compass-settings/shortcuts.html,
 // chrome://compass-settings/boosts.html, chrome://compass-import): one of
 // Compass's settings sections alone, as the end-to-end steps and browser
 // tests drive them.

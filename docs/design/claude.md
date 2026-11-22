@@ -235,8 +235,8 @@ approves each write.
 
 ### Settings
 
-- **New section "Claude"**, following the pattern in `docs/design/settings.md`: `resources/sidebar/settings/claude_page.{ts,html}` on `CompassSettingsPage`, and the `route.ts`, `router.ts`, `settings_menu`, `settings_main` and BUILD patches.
-  - The handler is bound in `browser/ui/webui/settings/settings_sections.cc` and the settings broker list.
+- **Section "Claude"**, in the settings window's AI pane (docs/design/settings-window.md, docs/design/settings.md): `resources/sidebar/settings/claude_page.{ts,html}` on `CompassSettingsPage`.
+  - The handler is bound in `browser/ui/webui/settings/settings_sections.cc`, for chrome://compass-settings.
 - **Fields:**
   - an API key (password field showing only `sk-ant-…last4` once saved, plus a Remove button);
   - the endpoint URL and auth style under "Advanced";

@@ -5,17 +5,15 @@
 #include "compass/browser/ui/webui/settings/settings_sections.h"
 
 #include <utility>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "base/strings/strcat.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/ui/webui/arc_import/compass_arc_import_ui.h"
 #include "compass/browser/ui/webui/claude/claude_settings_handler.h"
 #include "compass/browser/ui/webui/settings/compass_settings_ui.h"
 #include "compass/browser/ui/webui/sync/compass_sync_ui.h"
-#include "compass/grit/compass_sidebar_resources_map.h"
 #include "content/public/browser/web_ui.h"
-#include "content/public/browser/web_ui_data_source.h"
 
 namespace compass {
 
@@ -28,10 +26,11 @@ class SettingsSectionsImpl : public SettingsSections {
 
   void Bind(mojo::PendingReceiver<sidebar::mojom::SettingsHandler> receiver)
       override {
-    shortcuts_.reset();
-    shortcuts_ = std::make_unique<ShortcutsPageHandler>(
+    // Each section binds its own (keyboard shortcuts, links, Boosts,
+    // plugins, development mode): they all stay.
+    shortcuts_.push_back(std::make_unique<ShortcutsPageHandler>(
         Profile::FromWebUI(web_ui_), web_ui_->GetWebContents(),
-        std::move(receiver));
+        std::move(receiver)));
   }
 
   void Bind(mojo::PendingReceiver<sidebar::mojom::ArcImportHandler> receiver)
@@ -48,8 +47,8 @@ class SettingsSectionsImpl : public SettingsSections {
         std::make_unique<SyncPageHandlerFactory>(web_ui_, std::move(receiver));
   }
 
-  void Bind(mojo::PendingReceiver<claude::mojom::SettingsHandler> receiver)
-      override {
+  void Bind(
+      mojo::PendingReceiver<claude::mojom::SettingsHandler> receiver) override {
     claude_.reset();
     claude_ = std::make_unique<claude::ClaudeSettingsHandler>(
         Profile::FromWebUI(web_ui_), std::move(receiver));
@@ -58,7 +57,7 @@ class SettingsSectionsImpl : public SettingsSections {
 
  private:
   const raw_ptr<content::WebUI> web_ui_;
-  std::unique_ptr<ShortcutsPageHandler> shortcuts_;
+  std::vector<std::unique_ptr<ShortcutsPageHandler>> shortcuts_;
   std::unique_ptr<ArcImportPageHandler> arc_import_;
   std::unique_ptr<SyncPageHandlerFactory> sync_;
   std::unique_ptr<claude::ClaudeSettingsHandler> claude_;
@@ -67,15 +66,8 @@ class SettingsSectionsImpl : public SettingsSections {
 }  // namespace
 
 // static
-std::unique_ptr<SettingsSections> SettingsSections::Create(
-    content::WebUI* web_ui,
-    content::WebUIDataSource* source) {
-  // The whole Compass pak: the sections import the mojo bindings next to
-  // them. The sidebar's own pages are there too, unused.
-  for (const webui::ResourcePath& resource : kCompassSidebarResources) {
-    source->AddResourcePath(base::StrCat({"compass/", resource.path}),
-                            resource.id);
-  }
+std::unique_ptr<SettingsSections> SettingsSections::CreateHandlers(
+    content::WebUI* web_ui) {
   return std::make_unique<SettingsSectionsImpl>(web_ui);
 }
 

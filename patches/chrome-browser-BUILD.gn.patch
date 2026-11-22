@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..6c81753f54bbb283022f849538dc2ed74836f365 100644
+index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..a6a0f2db1b117e2b11084e8d42793e6eca92b2a1 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
 @@ -1046,6 +1046,8 @@ source_set("core") {
@@ -11,18 +11,19 @@ index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..6c81753f54bbb283022f849538dc2ed7
      ":active_use_util",
      ":after_startup_task_utils",
      ":bad_message",
-@@ -1435,6 +1437,10 @@ source_set("core") {
+@@ -1435,6 +1437,11 @@ source_set("core") {
      "//ui/webui/resources/cr_components/color_change_listener:mojom",
      "//ui/webui/tracked_element",
    ]
 +  if (!is_android) {
 +    deps += [ "//compass/browser/native_messaging" ]
 +    deps += [ "//compass/browser/ui/cocoa:shortcuts" ]
++    deps += [ "//compass/browser/ui:app_menu_hooks" ]
 +  }
  
    if (enable_webui_ntp) {
      deps += [
-@@ -2827,6 +2833,12 @@ source_set("browser") {
+@@ -2827,6 +2834,12 @@ source_set("browser") {
      "//ui/webui",
      "//ui/webui:buildflags",
    ]
