@@ -253,7 +253,8 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
     return;
   }
   if (!key) {
-    page_->OnStreamDone("Add your API key in Compass's AI settings.");
+    page_->OnStreamDone(
+        ClaudeCredentials::MissingKeyMessage(browser_->GetProfile()));
     return;
   }
   std::optional<base::Value> messages =

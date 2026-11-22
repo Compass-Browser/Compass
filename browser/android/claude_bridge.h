@@ -80,6 +80,10 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer,
   // the provider's.
   std::string Snapshot(JNIEnv* env);
   void SetApiKey(JNIEnv* env, const std::string& key);
+  // Sign in with ChatGPT (docs/design/ai-providers.md): opens OpenAI's
+  // sign-in in a new tab; the snapshot says how it went.
+  void SignInWithChatGPT(JNIEnv* env);
+  void SignOutOfChatGPT(JNIEnv* env);
   // "Let Claude use the whole browser" (the desktop's setting).
   void SetBrowserScope(JNIEnv* env, bool allowed);
   // Asks |text| about the page |contents| shows (null: no page); the page
@@ -310,6 +314,9 @@ class ClaudeBridge : public claude::ClaudeMemory::Observer,
   bool testing_ = false;
   bool test_ok_ = false;
   std::string test_result_;
+  // A ChatGPT sign-in is underway, and what the last one (or sign-out) said.
+  bool chatgpt_signing_in_ = false;
+  std::string chatgpt_note_;
   std::vector<claude::ModelInfo> api_models_;
   // The latest screenshots, by tool_use id.
   std::map<std::string, std::string> images_;

@@ -76,6 +76,10 @@ source_set("devtools_session") {
 # Claude Code (docs/design/android.md, C8).
 source_set("claude") {
   sources = [
+    "chatgpt_account.cc",
+    "chatgpt_account.h",
+    "chatgpt_oauth.cc",
+    "chatgpt_oauth.h",
     "claude_activity.cc",
     "claude_activity.h",
     "claude_api.cc",
@@ -125,6 +129,7 @@ source_set("claude") {
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
     "//components/prefs",
+    "//crypto",
     "//net",
     "//net/traffic_annotation",
     "//services/network/public/mojom",
@@ -148,6 +153,7 @@ if (!is_android) {
   source_set("unit_tests") {
     testonly = true
     sources = [
+      "chatgpt_oauth_unittest.cc",
       "claude_api_unittest.cc",
       "claude_code_unittest.cc",
       "claude_files_unittest.cc",
@@ -179,7 +185,10 @@ if (!is_android) {
   source_set("browser_tests") {
     testonly = true
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-    sources = [ "claude_tools_browsertest.cc" ]
+    sources = [
+      "chatgpt_account_browsertest.cc",
+      "claude_tools_browsertest.cc",
+    ]
     deps = [
       ":claude",
       ":prefs",

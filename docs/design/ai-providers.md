@@ -18,8 +18,10 @@ prompts and tools are written and tested for it.
 - **Nothing else changes:** the conversation, the tool loop, the tools, the
   approvals, the prompts and the UI stay as they are. A user who never
   picks another provider sends the same bytes as before.
-- **Not:** a ChatGPT or Gemini subscription (those apps don't lend them to
-  other apps; API keys only), Claude Code mode (desktop, Claude only),
+- **A ChatGPT plan instead of an OpenAI key**, through OpenAI's Sign in
+  with ChatGPT (below).
+- **Not:** a Gemini subscription (Google doesn't lend it to other apps; API
+  keys only), Claude Code mode (desktop, Claude only),
   subscription tokens (`claude setup-token`, Anthropic only), running
   several providers at once, or per-chat provider choice.
 
@@ -203,6 +205,92 @@ Google Gemini, Other (OpenAI-compatible).
   `system_prompt.md` still names the desktop's "Claude" settings: the
   desktop's page is renamed with P4.
 
+## Sign in with ChatGPT
+
+OpenAI's Sign in with ChatGPT (developers.openai.com/siwc, a preview since
+2026-09-29) lets an open-source, locally run app spend the user's ChatGPT
+plan (Go, Plus, Pro, Business) on the Responses API, with no key. Compass
+uses its open-source ("direct") flow: no partner form, no client secret.
+The user sees and caps what Compass uses at chatgpt.com/settings/usage, and
+disconnects it under Security, Login connections.
+
+**The flow** (`chatgpt_oauth.{h,cc}` for the protocol, without I/O;
+`ChatGPTAccount` for the rest, per profile, as profile user data):
+
+1. This install's `ext_agent_host_id` (`urn:uuid:<v4>`,
+   `compass.ai_providers.openai.chatgpt_host_id`) is made once, before the
+   first sign-in, and kept.
+2. A loopback HTTP server listens on `127.0.0.1` (port 1455, else any free
+   one), on the IO thread (`net::HttpServer`, as UI DevTools does).
+3. The authorize URL (`https://auth.openai.com/api/accounts/authorize`)
+   opens in a new browser tab: `response_type=code`, the scopes
+   `openid profile email offline_access resource.invoke
+   chatgpt.tokens.use.direct`, `resource=https://api.openai.com/v1`, fresh
+   `state`, `nonce` and PKCE (S256), the host id. A first sign-in sends
+   `client_id=dynamic_agent_client` and `agent_name_hint=Compass`, which
+   registers Compass for the account; later ones send the issued client
+   (`oaiapp_…`, `compass.ai_providers.openai.chatgpt_client_id`, kept after
+   signing out) and the last email as `login_hint`.
+4. The redirect (`http://127.0.0.1:<port>/auth/callback`) brings `code`,
+   `state` and, on a first sign-in, the issued `client_id`, saved at once.
+   A callback for another client than the saved one is refused (one
+   registration per account and install). The tab shows a short page saying
+   how it went.
+5. The code is exchanged at `https://auth.openai.com/api/accounts/oauth/token`
+   (form-encoded, the verifier, the same redirect URI and resource). The ID
+   token's issuer, audience, nonce, expiry and subject are checked; not its
+   signature, which OpenID Connect Core 3.1.3.7 lets a client skip for a
+   token straight from the token endpoint over TLS (it only names the
+   account). Without `chatgpt.tokens.use.direct` in the granted scopes, the
+   sign-in fails: the plan can't be used.
+6. The tokens (`chatgpt::Session`: client, access, refresh and ID tokens,
+   expiry, scope, email, subject) are stored as JSON, encrypted with the
+   OS's safe storage like the key, in `compass.ai_providers.openai.chatgpt_session`;
+   the email in `…chatgpt_email` for the settings.
+
+**Using it.** While signed in and OpenAI is the provider
+(`UsesChatGPT()`), `ClaudeCredentials::GetApiKey()` gives a fresh access
+token instead of the key (`ChatGPTAccount::GetAccessToken()`), and
+`EndpointFromPrefs()` gives `https://api.openai.com/v1` whatever base URL
+was set (`Endpoint::chatgpt`). Nothing else changes: the chat, the sidebar
+and Ask already send what the plan takes (Responses, `store: false`,
+`stream: true`, `instructions`, function tools, no `max_output_tokens`).
+The plan's model list (`GET /v1/models`) is `{"models": [{"slug",
+"display_name", "visibility"}]}`: `ParseModelList()` keeps the listed ones,
+in its order.
+
+**Refresh.** An access token lasts an hour; one with less than 2 minutes
+left is refreshed first (`grant_type=refresh_token`, no scope), one refresh
+at a time, every waiting request getting its result. Each reply's refresh
+token replaces the last, and the new tokens are saved before anything else
+can refresh. A refused refresh (`invalid_grant`, `refresh_token_reused`,
+`…_expired`, `invalid_client` and the like) signs out, keeping the
+registration, and the chat and settings say "Your ChatGPT sign-in has ended.
+Sign in again" (`ClaudeCredentials::MissingKeyMessage()`). A network or
+server failure keeps the tokens. A sign-in or sign-out meanwhile wins over a
+refresh that started before it.
+
+**Errors.** The plan's codes (`subscription_sharing_usage_limit_exceeded`,
+`…_user_not_eligible`, `…_usage_unavailable`, `…_invalid_user`, …) become
+their own messages (`chatgpt::PlanErrorMessage()`), before the stream
+(`DescribeError()`) or in it (`response.failed`). A plan error never falls
+back to the key: the user picks.
+
+**Signing out** forgets the tokens at once, then revokes the refresh token
+at the discovery document's `revocation_endpoint` (only an https one on
+auth.openai.com); the settings say so if OpenAI didn't confirm.
+
+**Settings.** OpenAI's section starts with "ChatGPT plan": "Continue with
+ChatGPT" (OpenAI's label), or the account and Sign Out. While signed in the
+key isn't used (but kept). Desktop: the AI pane (`SignInWithChatGPT()`,
+`SignOutOfChatGPT()` in `claude.mojom`). Android: the Claude sheet's
+settings; the sign-in opens in a Compass tab (the loopback server is the
+same, in the browser process).
+
+**Not yet:** iOS (`ASWebAuthenticationSession` wants a URL scheme, and the
+docs only offer loopback redirects); signature checks of the ID token
+against OpenAI's JWKS; `earliest_refresh_at`.
+
 ## Privacy
 
 What the chat and the sidebar's requests send (claude.md, ai-sidebar.md)
@@ -269,6 +357,8 @@ at once (the loop already runs them one after the other).
 | P2 | iOS: checked with real keys (OpenAI, Gemini, a local Ollama); prompt notes where needed |
 | P3 | Desktop and Android: the C++ translation and tests; settings on both. Done 2026-11-19 (`ai_provider`, `openai_edge`, `OpenAIEdgeTest`); not yet tried with real keys |
 | P4 | Names (above) and privacy text on every platform |
+| C1 | Sign in with ChatGPT on desktop and Android (above). Done 2026-11-22 (`chatgpt_oauth`, `ChatGPTAccount`, `ChatGPTOAuthTest`); not yet tried against OpenAI |
+| C2 | Sign in with ChatGPT on iOS |
 
 ## Verification
 

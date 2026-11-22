@@ -11,6 +11,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "compass/browser/claude/chatgpt_oauth.h"
 
 namespace compass::claude::openai {
 
@@ -813,7 +814,11 @@ std::vector<SseParser::Event> ResponsesStream::Feed(std::string_view data) {
   } else if (type == "response.failed") {
     const std::string* message =
         event->FindStringByDottedPath("response.error.message");
-    error_ = message ? *message : "The reply failed.";
+    const std::string* code =
+        event->FindStringByDottedPath("response.error.code");
+    std::optional<std::string> plan =
+        code ? chatgpt::PlanErrorMessage(*code) : std::nullopt;
+    error_ = plan ? *plan : (message ? *message : "The reply failed.");
     ended_ = true;
   } else if (type == "error") {
     const std::string* message = event->FindString("message");

@@ -16,8 +16,8 @@ const QUICK_MODEL_DEFAULT = 'claude-haiku-5-5';
 // What the key field says under it, for a provider other than Anthropic
 // (whose text is in the page, with its subscription tokens).
 const KEY_HELP: Record<string, string> = {
-  openai: 'An OpenAI API key from platform.openai.com (a ChatGPT ' +
-      'subscription can\'t be used). Stored encrypted on this device only; ' +
+  openai: 'An OpenAI API key from platform.openai.com, or sign in with ' +
+      'ChatGPT above. Stored encrypted on this device only; ' +
       'it never syncs, and pages never see it. Compass\'s prompts and tools ' +
       'are made for Claude: other models may use the browser less well.',
   gemini: 'A Gemini API key from aistudio.google.com. Stored encrypted on ' +
@@ -125,7 +125,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
           // provider's.
           this.handler_.setProvider(this.$<HTMLSelectElement>('provider').value);
           for (const id of ['keyNote', 'testNote', 'endpointNote',
-                            'serverNote']) {
+                            'serverNote', 'chatgptNote']) {
             this.show(id, false);
           }
           this.$<HTMLInputElement>('apiKey').value = '';
@@ -139,6 +139,19 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     });
     this.$<HTMLInputElement>('modelId').addEventListener('change', async () => {
       this.handler_.setModel(this.$<HTMLInputElement>('modelId').value);
+      await this.refresh_();
+    });
+    this.$('chatgptSignIn')
+        .addEventListener('click', () => this.signInWithChatGPT_());
+    this.$('chatgptSignOut').addEventListener('click', async () => {
+      const {revoked} = await this.handler_.signOutOfChatGPT();
+      this.note_(
+          'chatgptNote',
+          revoked ? 'Signed out.' :
+                    'Signed out of Compass. OpenAI didn\'t confirm ' +
+                  'revoking the sign-in: you can disconnect Compass in ' +
+                  'ChatGPT\'s settings.',
+          !revoked);
       await this.refresh_();
     });
     this.$('saveKey').addEventListener('click', () => this.saveKey_());
@@ -304,6 +317,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     this.show('claudeCodeSection', claudeCode);
     this.show('claudeCodeNoTools', !state.claudeCodeTools);
     this.$<HTMLInputElement>('claudeCodePath').value = state.claudeCodePath;
+    this.renderChatGPT_(state);
     this.show('keySaved', state.hasKey);
     this.show('keyEntry', !state.hasKey);
     this.$('keyHint').textContent = state.keyHint;
@@ -585,6 +599,38 @@ export class CompassClaudePageElement extends CompassSettingsPage {
       return option;
     }));
     select.value = chosen;
+  }
+
+  // Sign in with ChatGPT (docs/design/ai-providers.md): OpenAI only.
+  private renderChatGPT_(state: SettingsState) {
+    const openai = state.provider === 'openai';
+    this.show('chatgptSection', openai);
+    this.show('chatgptSignedOut', !state.chatgptSignedIn);
+    this.show('chatgptSignedIn', state.chatgptSignedIn);
+    this.$('chatgptAccount').textContent =
+        state.chatgptEmail ? `Signed in as ${state.chatgptEmail}` : 'Signed in';
+    if (openai && state.chatgptNote) {
+      this.note_('chatgptNote', state.chatgptNote, true);
+    }
+  }
+
+  private async signInWithChatGPT_() {
+    const button = this.$<HTMLButtonElement>('chatgptSignIn');
+    button.disabled = true;
+    this.note_('chatgptNote',
+               'Finish signing in in the tab that opened, then come back.',
+               false);
+    const {error} = await this.handler_.signInWithChatGPT();
+    button.disabled = false;
+    if (error) {
+      this.note_('chatgptNote', error, true);
+      return;
+    }
+    this.show('chatgptNote', false);
+    this.modelsListed_ = false;
+    await this.refresh_();
+    // The plan's own models.
+    await this.test_();
   }
 
   private async saveKey_() {

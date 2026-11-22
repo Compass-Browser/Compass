@@ -63,6 +63,11 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(kCommandBarAsk, false);
   registry->RegisterStringPref(kCommandBarAskModel, kDefaultAskModel);
 
+  registry->RegisterStringPref(kChatGPTSession, std::string());
+  registry->RegisterStringPref(kChatGPTEmail, std::string());
+  registry->RegisterStringPref(kChatGPTHostId, std::string());
+  registry->RegisterStringPref(kChatGPTClientId, std::string());
+
   // Other AI providers (docs/design/ai-providers.md): Anthropic's settings
   // above keep their names; another provider's key, base URL and models
   // have its id after them (ProviderPref()).

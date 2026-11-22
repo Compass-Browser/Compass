@@ -63,6 +63,14 @@ struct SettingsState {
   // Requests can go: a key is saved, or an OpenAI-compatible server's URL
   // is (which may need no key). The sidebar's switches need it.
   bool set_up;
+  // Sign in with ChatGPT (docs/design/ai-providers.md): OpenAI only. While
+  // signed in, OpenAI's requests use the ChatGPT plan, not the key.
+  bool chatgpt_signed_in;
+  // The signed-in account's email; may be empty while signed in.
+  string chatgpt_email;
+  // Why the last sign-in ended by itself, or the last token request failed;
+  // empty if neither.
+  string chatgpt_note;
   // Empty for the provider's own API (default_base_url).
   string base_url;
   AuthStyle auth_style;
@@ -145,6 +153,13 @@ interface SettingsHandler {
   // Picks who answers (a Provider's id; another is ignored). The state read
   // next is the new provider's.
   SetProvider(string provider);
+  // Sign in with ChatGPT: opens OpenAI's sign-in in a new tab and answers
+  // once it's done; |error| is empty when signed in, else why not. Another
+  // sign-in underway is cancelled.
+  SignInWithChatGPT() => (string error);
+  // Signs out of ChatGPT; |revoked| tells whether OpenAI confirmed revoking
+  // the tokens (they're forgotten here either way).
+  SignOutOfChatGPT() => (bool revoked);
   // Saves |key|, encrypted; an empty one removes the saved key. |saved| is
   // false when the OS's storage refused it.
   SetApiKey(string key) => (bool saved);

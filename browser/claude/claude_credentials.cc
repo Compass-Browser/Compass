@@ -14,6 +14,7 @@
 #include "base/strings/string_util.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/browser/claude/chatgpt_account.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
@@ -96,6 +97,17 @@ void ClaudeCredentials::SetApiKey(Profile* profile,
 void ClaudeCredentials::GetApiKey(
     Profile* profile,
     base::OnceCallback<void(std::optional<std::string>)> callback) {
+  if (UsesChatGPT(*profile->GetPrefs())) {
+    ChatGPTAccount::ForProfile(profile)->GetAccessToken(base::BindOnce(
+        [](base::OnceCallback<void(std::optional<std::string>)> callback,
+           base::expected<std::string, std::string> token) {
+          std::move(callback).Run(token.has_value()
+                                      ? std::optional<std::string>(*token)
+                                      : std::nullopt);
+        },
+        std::move(callback)));
+    return;
+  }
   if (!HasApiKey(profile)) {
     // An OpenAI-compatible server may take no key.
     std::move(callback).Run(
@@ -120,6 +132,9 @@ bool ClaudeCredentials::IsSetUp(Profile* profile) {
 
 // static
 bool ClaudeCredentials::IsSetUp(const PrefService& prefs) {
+  if (UsesChatGPT(prefs)) {
+    return true;
+  }
   const AIProvider provider = prefs::CurrentProvider(prefs);
   if (!prefs.GetString(prefs::ProviderPref(prefs::kApiKey, provider))
            .empty()) {
@@ -138,6 +153,25 @@ std::string ClaudeCredentials::GetApiKeyHint(Profile* profile) {
   return HasApiKey(profile)
              ? prefs.GetString(prefs::CurrentPref(prefs, prefs::kApiKeyHint))
              : std::string();
+}
+
+// static
+std::string ClaudeCredentials::MissingKeyMessage(Profile* profile) {
+  const PrefService& prefs = *profile->GetPrefs();
+  if (prefs::CurrentProvider(prefs) == AIProvider::kOpenAI) {
+    ChatGPTAccount* account = ChatGPTAccount::ForProfile(profile);
+    if (UsesChatGPT(prefs) && !account->last_token_error().empty()) {
+      return account->last_token_error();
+    }
+    if (!account->ended_reason().empty() && !HasApiKey(profile)) {
+      return account->ended_reason();
+    }
+  }
+  if (HasApiKey(profile)) {
+    return "The saved key can't be read any more. Enter it again in "
+           "Compass's AI settings.";
+  }
+  return "Add your API key in Compass's AI settings.";
 }
 
 }  // namespace compass::claude
