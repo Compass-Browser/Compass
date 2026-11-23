@@ -20,7 +20,8 @@ final class DevMode {
   private(set) var sites: DevModeSites
 
   private init() {
-    sites = DevModeSites(UserDefaults.standard.stringArray(forKey: Self.key) ?? [])
+    // Never saved: local development servers, as on the desktop.
+    sites = DevModeSites(UserDefaults.standard.stringArray(forKey: Self.key) ?? ["localhost"])
   }
 
   var patterns: [String] { sites.patterns }

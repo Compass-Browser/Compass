@@ -4,6 +4,7 @@
 
 #include "compass/browser/prefs/compass_prefs.h"
 
+#include "base/values.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "components/prefs/pref_registry_simple.h"
 
@@ -15,7 +16,11 @@ void RegisterCompassProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(prefs::kBrowserImportProfile, std::string());
   registry->RegisterBooleanPref(prefs::kPipOnLeavingWindow, true);
   registry->RegisterBooleanPref(prefs::kRemoveTrackingFromCopiedLinks, true);
-  registry->RegisterListPref(prefs::kDevModeHosts);
+  // On for local development servers until the user takes them off
+  // (docs/design/dev-mode.md, "The sites").
+  registry->RegisterListPref(
+      prefs::kDevModeHosts,
+      base::ListValue().Append(prefs::kDevModeDefaultHost));
   registry->RegisterBooleanPref(prefs::kTabPreviewsEnabled, true);
   registry->RegisterBooleanPref(prefs::kCtrlTabRecent, true);
   registry->RegisterDictionaryPref(prefs::kTabPreviewPlugins);

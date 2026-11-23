@@ -46,6 +46,10 @@ inline constexpr char kRemoveTrackingFromCopiedLinks[] =
 // "example.com", "*.example.com"). Not synced: a developer's sites belong
 // to the machine they work on.
 inline constexpr char kDevModeHosts[] = "compass.dev_mode.hosts";
+// kDevModeHosts' default: local development servers at "localhost".
+// ("*.localhost" isn't a pattern BoostMatch takes, a single label being too
+// wide; 127.0.0.1 is left out because the browser tests' server is there.)
+inline constexpr char kDevModeDefaultHost[] = "localhost";
 
 // Whether Ctrl+Tab goes through the window's tabs in recently used order,
 // with a row of cards while Ctrl is held, as Arc does (docs/design/sidebar.md,

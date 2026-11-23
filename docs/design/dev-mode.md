@@ -30,6 +30,14 @@ patterns, matched with Boosts' `BoostMatch` (boosts.md), so:
   https), `www.` included;
 - `*.example.com`: the domain and its subdomains.
 
+The list starts as `localhost` (`prefs::kDevModeDefaultHost`, the pref's
+default value), so a local development server is in development mode
+without asking, as in Arc. It's an ordinary entry: Settings lists it, and
+removing it or turning development mode off on a localhost page takes it
+off for good (the pref then holds the user's list). `*.localhost` isn't a
+pattern `BoostMatch` takes, and `127.0.0.1` is left out because the browser
+tests' embedded server is there. iOS starts from the same default.
+
 `compass::dev_mode::NormalizeHost()` (`browser/dev_mode/dev_mode.{h,cc}`)
 keeps what the user types leniently: `http://localhost:3000/app` is
 `localhost`. Paths aren't kept: development mode is about a host.
@@ -166,7 +174,8 @@ development mode:
 
 ## Tests
 
-- `compass_unittests`: `DevModeTest` (patterns, adding, turning on and off
+- `compass_unittests`: `DevModeDefaultsTest` (localhost by default, and
+  off for good once turned off), `DevModeTest` (patterns, adding, turning on and off
   for a page), `NetworkLogBufferTest`, `DevToolsFrontendHookTest` (replay
   only after the page session's `Network.enable`, bodies from the log, a new
   session starting over), `ShortcutsTableTest` (Ctrl+Shift+D).

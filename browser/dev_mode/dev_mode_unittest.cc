@@ -4,6 +4,7 @@
 
 #include "compass/browser/dev_mode/dev_mode.h"
 
+#include "base/values.h"
 #include "compass/browser/prefs/compass_prefs.h"
 #include "components/prefs/testing_pref_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -14,7 +15,12 @@ namespace {
 
 class DevModeTest : public testing::Test {
  protected:
-  DevModeTest() { RegisterCompassProfilePrefs(prefs_.registry()); }
+  // Starts from an empty list (as after taking the defaults off), so each
+  // test sees only the sites it adds.
+  DevModeTest() {
+    RegisterCompassProfilePrefs(prefs_.registry());
+    prefs_.SetList(prefs::kDevModeHosts, base::ListValue());
+  }
 
   TestingPrefServiceSimple prefs_;
 };
@@ -37,7 +43,23 @@ TEST(DevModeNormalizeTest, Refuses) {
   }
 }
 
-TEST_F(DevModeTest, OffByDefault) {
+// Local development servers are in development mode until taken off.
+TEST(DevModeDefaultsTest, LocalServersByDefault) {
+  TestingPrefServiceSimple prefs;
+  RegisterCompassProfilePrefs(prefs.registry());
+  EXPECT_EQ(Hosts(&prefs), (std::vector<std::string>{"localhost"}));
+  EXPECT_TRUE(IsEnabledFor(&prefs, GURL("http://localhost:3000/")));
+  EXPECT_TRUE(IsEnabledFor(&prefs, GURL("https://localhost:8443/app")));
+  EXPECT_FALSE(IsEnabledFor(&prefs, GURL("http://127.0.0.1:8080/")));
+  EXPECT_FALSE(IsEnabledFor(&prefs, GURL("https://example.com/")));
+
+  // Turning it off on a local page takes that default off, and it stays off.
+  SetEnabledFor(&prefs, GURL("http://localhost:5173/"), false);
+  EXPECT_FALSE(IsEnabledFor(&prefs, GURL("http://localhost:3000/")));
+  EXPECT_TRUE(Hosts(&prefs).empty());
+}
+
+TEST_F(DevModeTest, OffWithNoSites) {
   EXPECT_FALSE(IsEnabledFor(&prefs_, GURL("http://localhost:3000/")));
   EXPECT_TRUE(Hosts(&prefs_).empty());
 }
