@@ -118,6 +118,8 @@ if (!is_android) {
     sources = [
       "easel_capture.cc",
       "easel_capture.h",
+      "page_screenshot.cc",
+      "page_screenshot.h",
     ]
     public_deps = [ "//components/sync/protocol" ]
     deps = [
@@ -126,14 +128,20 @@ if (!is_android) {
       ":geometry",
       ":titles",
       "//base",
+      "//chrome/browser/download",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/tabs:tab_strip",
+      "//compass/browser/claude:devtools_session",
       "//compass/browser/easels:store",
       "//compass/browser/sidebar",
       "//compass/browser/window_sync",
       "//components/tabs:public",
       "//content/public/browser",
+      "//skia",
+      "//ui/base/clipboard",
+      "//ui/gfx",
+      "//ui/gfx/codec",
       "//ui/menus",
       "//url",
     ]
@@ -185,6 +193,7 @@ if (!is_android) {
       "//skia",
       "//testing/gtest",
       "//third_party/blink/public/common",
+      "//ui/base/clipboard",
       "//ui/events:dom_keycode_converter",
       "//ui/events:events_base",
       "//ui/gfx/codec",

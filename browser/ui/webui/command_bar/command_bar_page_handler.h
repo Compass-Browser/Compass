@@ -76,6 +76,9 @@ enum class CommandBarCommand {
   // Puts Capture to Easel's overlay on the active tab's page
   // (docs/design/easels.md, "Captures"): a web page, never off the record.
   kCaptureToEasel,
+  // Puts Capture Screenshot's overlay on the active tab's page
+  // (docs/design/screenshots.md): a web page or file.
+  kCaptureScreenshot,
   // Enters Reader in the active tab, an article, or leaves it
   // (docs/design/reader-mode.md).
   kReaderMode,

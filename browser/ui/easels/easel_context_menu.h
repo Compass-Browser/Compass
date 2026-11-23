@@ -13,7 +13,8 @@ namespace ui {
 class SimpleMenuModel;
 }  // namespace ui
 
-// Compass's items in a page's context menu: "Capture to Easel…"
+// Compass's items in a page's context menu: "Capture Screenshot…"
+// (docs/design/screenshots.md) and "Capture to Easel…"
 // (docs/design/easels.md, "Captures"). Upstream's RenderViewContextMenu
 // calls these (patches/
 // chrome-browser-renderer_context_menu-render_view_context_menu.cc.patch).
@@ -27,6 +28,7 @@ namespace compass::easels {
 // Outside upstream's command IDs and Compass's browser commands
 // (compass_command_ids.h).
 inline constexpr int kCaptureToEaselContextCommand = 39970;
+inline constexpr int kCaptureScreenshotContextCommand = 39971;
 
 // Adds Compass's items for |contents|' page, after the page's own (Back,
 // Reload, Save, Print...), when they apply.

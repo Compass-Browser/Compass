@@ -28,10 +28,25 @@
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
-#include "compass/browser/window_sync/tab_strip_bridge.h"
-#include "content/public/common/url_constants.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
+#include "compass/browser/claude/ai_provider.h"
+#include "compass/browser/claude/claude_prefs.h"
+#include "compass/browser/easels/easel_store.h"
+#include "compass/browser/sidebar/link_rules.h"
+#include "compass/browser/sidebar/sidebar_node.h"
+#include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/claude/today_tidier.h"
+#include "compass/browser/ui/easels/easel_capture.h"
+#include "compass/browser/ui/views/claude/claude_panel.h"
+#include "compass/browser/ui/views/dev_mode/dev_mode_controller.h"
+#include "compass/browser/ui/views/reader/reader_mode.h"
+#include "compass/browser/ui/webui/settings/settings_sections.h"
+#include "compass/browser/window_sync/space_directory.h"
+#include "compass/browser/window_sync/tab_strip_bridge.h"
+#include "compass/browser/window_sync/window_features.h"
+#include "compass/common/compass_url.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
@@ -44,22 +59,7 @@
 #include "components/sync_sessions/session_sync_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
-#include "compass/browser/claude/ai_provider.h"
-#include "compass/browser/claude/claude_prefs.h"
-#include "compass/browser/sidebar/link_rules.h"
-#include "compass/browser/sidebar/sidebar_node.h"
-#include "compass/browser/easels/easel_store.h"
-#include "compass/browser/ui/claude/today_tidier.h"
-#include "compass/browser/ui/easels/easel_capture.h"
-#include "compass/browser/ui/views/claude/claude_panel.h"
-#include "compass/browser/ui/views/dev_mode/dev_mode_controller.h"
-#include "compass/browser/ui/views/reader/reader_mode.h"
-#include "compass/browser/sidebar/space_list.h"
-#include "compass/browser/sidebar/space_model.h"
-#include "compass/browser/ui/webui/settings/settings_sections.h"
-#include "compass/browser/window_sync/space_directory.h"
-#include "compass/browser/window_sync/window_features.h"
-#include "compass/common/compass_url.h"
+#include "content/public/common/url_constants.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
@@ -104,12 +104,12 @@ constexpr CommandInfo kCommands[] = {
     {CommandBarCommand::kSettings, u"Settings", "settings"},
     {CommandBarCommand::kImportFromArc, u"Import from Another Browser",
      "import"},
-    {CommandBarCommand::kKeyboardShortcuts, u"Keyboard shortcuts",
-     "keyboard"},
+    {CommandBarCommand::kKeyboardShortcuts, u"Keyboard shortcuts", "keyboard"},
     {CommandBarCommand::kTidyToday, u"Tidy Today", "tidy"},
     {CommandBarCommand::kNewEasel, u"New Easel", "easel"},
-    {CommandBarCommand::kCaptureToEasel, u"Capture to Easel\u2026",
-     "capture"},
+    {CommandBarCommand::kCaptureToEasel, u"Capture to Easel\u2026", "capture"},
+    {CommandBarCommand::kCaptureScreenshot, u"Capture Screenshot\u2026",
+     "screenshot"},
     {CommandBarCommand::kReaderMode, u"Reader Mode", "reader"},
     {CommandBarCommand::kLeaveReaderMode, u"Leave Reader Mode", "reader"},
     {CommandBarCommand::kDevMode, u"Development Mode for This Site", "code"},
@@ -935,6 +935,10 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
       easels::StartCaptureToEasel(
           browser_->GetActiveTabInterface()->GetContents());
       break;
+    case CommandBarCommand::kCaptureScreenshot:
+      easels::StartCaptureScreenshot(
+          browser_->GetActiveTabInterface()->GetContents());
+      break;
     case CommandBarCommand::kReaderMode:
     case CommandBarCommand::kLeaveReaderMode:
       if (ReaderMode* reader_mode = ReaderMode::From(browser_)) {
@@ -1016,6 +1020,10 @@ bool CommandBarPageHandler::IsCommandAvailable(
     case CommandBarCommand::kCaptureToEasel: {
       tabs::TabInterface* tab = browser_->GetActiveTabInterface();
       return tab && easels::CanCaptureToEasel(tab->GetContents());
+    }
+    case CommandBarCommand::kCaptureScreenshot: {
+      tabs::TabInterface* tab = browser_->GetActiveTabInterface();
+      return tab && easels::CanCaptureScreenshot(tab->GetContents());
     }
     case CommandBarCommand::kReaderMode: {
       ReaderMode* reader_mode = ReaderMode::From(browser_);

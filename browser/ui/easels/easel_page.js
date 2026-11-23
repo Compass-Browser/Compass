@@ -4,7 +4,9 @@
 
 // Capture to Easel's side in the page (docs/design/easels.md, "Captures"):
 // the overlay to drag a region over and pick a board, the confirmation, and
-// what Refresh needs (where the page is scrolled). Runs in the isolated world
+// what Refresh needs (where the page is scrolled). Capture Screenshot uses
+// the same overlay (docs/design/screenshots.md): the picker offers Copy and
+// Save instead of boards, and Full Page takes the whole page. Runs in the isolated world
 // of the main frame (easel_capture_core.cc), so the page's scripts can't see
 // these functions or the overlay's closed shadow root. The browser waits for
 // the user by calling poll() until it returns something.
@@ -76,9 +78,18 @@ window.__compassEasel = window.__compassEasel || (() => {
     .stage[selecting] .sel { display: block; }
     .hint {
       position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 10px;
       padding: 7px 14px; border-radius: 999px; pointer-events: none;
       background: rgba(32, 33, 36, 0.92); color: #fff; white-space: nowrap;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    }
+    .hint button.full {
+      display: inline-block; width: auto; margin: -3px -8px -3px 0;
+      padding: 3px 10px; border-radius: 999px; pointer-events: auto;
+      background: rgba(255, 255, 255, 0.16); color: #fff; font-weight: 600;
+    }
+    .hint button.full:hover, .hint button.full:focus-visible {
+      background: rgba(255, 255, 255, 0.28);
     }
     .stage[picking] .hint { display: none; }
     .picker {
@@ -147,7 +158,10 @@ window.__compassEasel = window.__compassEasel || (() => {
     }));
   }
 
-  function start(boards) {
+  // |boards|: Capture to Easel's picker. |options.screenshot|: Capture
+  // Screenshot's instead (Copy, Save) and a Full Page button.
+  function start(boards, options) {
+    const screenshot = !!(options && options.screenshot);
     removeOverlay();
     result = null;
     pending = false;
@@ -155,12 +169,14 @@ window.__compassEasel = window.__compassEasel || (() => {
     const stage = el('div', 'stage');
     stage.tabIndex = -1;
     const sel = el('div', 'sel');
-    const hint = el('div', 'hint', 'Drag over what to capture · Esc to cancel');
+    const hint = el('div', 'hint');
+    hint.appendChild(el('span', '', 'Drag over what to capture · Esc to cancel'));
     const picker = el('div', 'picker');
     stage.append(sel, hint, picker);
     root.appendChild(stage);
 
-    const s = {host, stage, sel, picker, rect: null, from: null, onKey: null};
+    const s = {host, stage, sel, picker, rect: null, from: null, onKey: null,
+               full: false};
     session = s;
 
     s.onKey = (e) => {
@@ -191,11 +207,52 @@ window.__compassEasel = window.__compassEasel || (() => {
       finish(Object.assign({state: 'picked', easel}, s.rect, view()));
     }
 
+    // Capture Screenshot: |action| is 'copy' or 'save'.
+    function pickAction(action) {
+      if (session !== s) return;
+      if (s.full) {
+        finish(Object.assign({state: 'picked', action, full: true}, view()));
+        return;
+      }
+      if (!s.rect) return;
+      finish(Object.assign({state: 'picked', action}, s.rect, view()));
+    }
+
+    function screenshotList() {
+      const list = el('div', 'list');
+      const copy = el('button', 'new', 'Copy');
+      copy.addEventListener('click', (e) => {
+        if (e.isTrusted) pickAction('copy');
+      });
+      const save = el('button', '', 'Save to Downloads');
+      save.addEventListener('click', (e) => {
+        if (e.isTrusted) pickAction('save');
+      });
+      list.append(copy, save);
+      return list;
+    }
+
+    if (screenshot) {
+      const full = el('button', 'full', 'Full Page');
+      full.addEventListener('click', (e) => {
+        if (!e.isTrusted || session !== s) return;
+        e.stopPropagation();
+        s.full = true;
+        s.rect = null;
+        stage.removeAttribute('selecting');
+        showPicker();
+      });
+      full.addEventListener('pointerdown', (e) => e.stopPropagation());
+      hint.appendChild(full);
+    }
+
     function showPicker() {
       picker.textContent = '';
-      picker.appendChild(el('div', 'heading', 'Add to Easel'));
-      const list = el('div', 'list');
-      for (const board of boards) {
+      picker.appendChild(el('div', 'heading',
+                            screenshot ? (s.full ? 'Full Page' : 'Screenshot') :
+                                         'Add to Easel'));
+      const list = screenshot ? screenshotList() : el('div', 'list');
+      for (const board of screenshot ? [] : boards) {
         const button = el('button', '', board.title || 'Untitled Easel');
         button.title = board.title || 'Untitled Easel';
         button.addEventListener('click', (e) => {
@@ -203,11 +260,13 @@ window.__compassEasel = window.__compassEasel || (() => {
         });
         list.appendChild(button);
       }
-      const fresh = el('button', 'new', 'New Easel');
-      fresh.addEventListener('click', (e) => {
-        if (e.isTrusted) pick('');
-      });
-      list.appendChild(fresh);
+      if (!screenshot) {
+        const fresh = el('button', 'new', 'New Easel');
+        fresh.addEventListener('click', (e) => {
+          if (e.isTrusted) pick('');
+        });
+        list.appendChild(fresh);
+      }
       picker.appendChild(list);
       picker.appendChild(el('div', 'sep'));
       const cancel = el('button', 'cancel', 'Cancel');
@@ -218,7 +277,10 @@ window.__compassEasel = window.__compassEasel || (() => {
       stage.setAttribute('picking', '');
 
       // Below the region if it fits, else above, else at its bottom right.
-      const r = s.rect;
+      // The whole page: under the hint, in the middle.
+      const r = s.full ? {x: window.innerWidth / 2 + 120, y: 40, width: 0,
+                          height: 16} :
+                         s.rect;
       const w = picker.offsetWidth || 240;
       const h = picker.offsetHeight || 200;
       const gap = 8;
@@ -239,6 +301,7 @@ window.__compassEasel = window.__compassEasel || (() => {
         return;
       }
       e.preventDefault();
+      s.full = false;
       stage.removeAttribute('picking');
       stage.setAttribute('selecting', '');
       s.from = {x: e.clientX, y: e.clientY};

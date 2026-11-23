@@ -32,6 +32,12 @@ bool CanCaptureToEasel(content::WebContents* contents);
 // for a moment. Again while it's up: it starts over.
 void StartCaptureToEasel(content::WebContents* contents);
 
+// Capture Screenshot (docs/design/screenshots.md): whether it can run on
+// |contents' page (http, https or file; off the record too), and the
+// overlay to drag a region or take the whole page, then copy or save it.
+bool CanCaptureScreenshot(content::WebContents* contents);
+void StartCaptureScreenshot(content::WebContents* contents);
+
 // New Easel: a board, with a tab for it pinned at the end of |browser|'s
 // space's Pinned (Today's top in a space without Pinned), shown.
 void NewEaselInWindow(BrowserWindowInterface* browser);

@@ -2,17 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "compass/browser/ui/easels/easel_capture.h"
+
 #include <atomic>
+#include <cmath>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "base/containers/span.h"
+#include "base/files/file_enumerator.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
+#include "base/threading/thread_restrictions.h"
+#include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -21,9 +31,9 @@
 #include "compass/browser/easels/easel_store.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_model.h"
-#include "compass/browser/ui/easels/easel_capture.h"
 #include "compass/browser/ui/easels/easel_capture_core.h"
 #include "compass/browser/ui/easels/easel_refresh.h"
+#include "compass/browser/ui/easels/page_screenshot.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -36,6 +46,7 @@
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/base/clipboard/clipboard.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_key.h"
 #include "ui/events/keycodes/keyboard_codes.h"
@@ -282,6 +293,84 @@ IN_PROC_BROWSER_TEST_F(EaselCaptureBrowserTest, EscapeCancels) {
                 .ExtractBool();
   }));
   EXPECT_EQ(before, store()->Easels().size());
+}
+
+// Capture Screenshot (docs/design/screenshots.md): a region dragged over is
+// copied to the clipboard (Copy, the picker's first action).
+IN_PROC_BROWSER_TEST_F(EaselCaptureBrowserTest, ScreenshotCopiesARegion) {
+  ui::Clipboard::GetForCurrentThread()->Clear(ui::ClipboardBuffer::kCopyPaste);
+  ASSERT_TRUE(CanCaptureScreenshot(tab()));
+  StartCaptureScreenshot(tab());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(tab(), "!!document.querySelector('[popover]')")
+        .ExtractBool();
+  }));
+
+  using blink::WebInputEvent;
+  content::SimulateMouseEvent(tab(), WebInputEvent::Type::kMouseDown,
+                              blink::WebMouseEvent::Button::kLeft,
+                              gfx::Point(30, 40));
+  content::SimulateMouseEvent(tab(), WebInputEvent::Type::kMouseMove,
+                              blink::WebMouseEvent::Button::kLeft,
+                              gfx::Point(130, 90));
+  content::SimulateMouseEvent(tab(), WebInputEvent::Type::kMouseUp,
+                              blink::WebMouseEvent::Button::kLeft,
+                              gfx::Point(130, 90));
+  content::SimulateKeyPress(tab(), ui::DomKey::ENTER, ui::DomCode::ENTER,
+                            ui::VKEY_RETURN, false, false, false, false);
+
+  SkBitmap copied;
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    base::test::TestFuture<const std::vector<uint8_t>&> png;
+    ui::Clipboard::GetForCurrentThread()->ReadPng(
+        ui::ClipboardBuffer::kCopyPaste, std::nullopt, png.GetCallback());
+    copied = gfx::PNGCodec::Decode(png.Get());
+    return !copied.drawsNothing();
+  }));
+  EXPECT_EQ(copied.width(), std::round(100 * Scale()));
+  EXPECT_EQ(copied.height(), std::round(50 * Scale()));
+  EXPECT_TRUE(IsColor(copied.getColor(10, 10), SK_ColorRED));
+}
+
+// Full Page saves all of the 3000-pixel page to the download folder, not
+// only what the window shows.
+IN_PROC_BROWSER_TEST_F(EaselCaptureBrowserTest, ScreenshotSavesTheFullPage) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir downloads;
+  ASSERT_TRUE(downloads.CreateUniqueTempDir());
+  DownloadPrefs::FromBrowserContext(browser()->GetProfile())
+      ->SetDownloadPath(downloads.GetPath());
+
+  base::test::TestFuture<base::expected<std::string, std::string>> done;
+  CaptureFullPage(tab(), ScreenshotAction::kSave, done.GetCallback());
+  ASSERT_TRUE(done.Get().has_value()) << done.Get().error();
+  EXPECT_TRUE(done.Get()->starts_with("Saved to Downloads as Screenshot "));
+
+  base::FileEnumerator files(downloads.GetPath(), false,
+                             base::FileEnumerator::FILES,
+                             FILE_PATH_LITERAL("*.png"));
+  const base::FilePath path = files.Next();
+  ASSERT_FALSE(path.empty());
+  std::optional<std::vector<uint8_t>> bytes = base::ReadFileToBytes(path);
+  ASSERT_TRUE(bytes);
+  const SkBitmap saved = gfx::PNGCodec::Decode(*bytes);
+  ASSERT_FALSE(saved.drawsNothing());
+  EXPECT_GE(saved.height(), 3000);
+  EXPECT_TRUE(IsColor(saved.getColor(5, saved.height() - 5), SK_ColorRED));
+}
+
+TEST(ScreenshotFileNameTest, LocalDateAndTime) {
+  base::Time::Exploded t = {};
+  t.year = 2026;
+  t.month = 11;
+  t.day_of_month = 23;
+  t.hour = 14;
+  t.minute = 5;
+  t.second = 9;
+  base::Time time;
+  ASSERT_TRUE(base::Time::FromLocalExploded(t, &time));
+  EXPECT_EQ(ScreenshotFileName(time).AsUTF8Unsafe(),
+            "Screenshot 2026-11-23 at 14.05.09.png");
 }
 
 IN_PROC_BROWSER_TEST_F(EaselCaptureBrowserTest, NewEaselPinsATab) {

@@ -18,7 +18,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "components/tabs/public/tab_interface.h"
 #include "compass/browser/easels/easel_store.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -26,12 +25,16 @@
 #include "compass/browser/ui/easels/easel_context_menu.h"
 #include "compass/browser/ui/easels/easel_geometry.h"
 #include "compass/browser/ui/easels/easel_titles.h"
+#include "compass/browser/ui/easels/page_screenshot.h"
 #include "compass/browser/window_sync/tab_strip_bridge.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/menus/simple_menu_model.h"
 #include "url/gurl.h"
 
@@ -98,25 +101,31 @@ class CaptureSession : public content::WebContentsObserver,
   CaptureSession& operator=(const CaptureSession&) = delete;
   ~CaptureSession() override = default;
 
-  void Begin() {
+  // |screenshot|: Capture Screenshot's overlay (copy or save, or the whole
+  // page) rather than Capture to Easel's.
+  void Begin(bool screenshot) {
     poll_timer_.Stop();
     give_up_.Stop();
-    Profile* profile =
-        Profile::FromBrowserContext(GetWebContents().GetBrowserContext());
+    screenshot_ = screenshot;
     base::ListValue boards;
-    for (const sync_pb::CompassEasel* easel : EaselsForPicker(profile)) {
-      boards.Append(base::DictValue()
-                        .Set("id", easel->uuid())
-                        .Set("title", EaselTitleOf(*easel)));
+    if (!screenshot) {
+      Profile* profile =
+          Profile::FromBrowserContext(GetWebContents().GetBrowserContext());
+      for (const sync_pb::CompassEasel* easel : EaselsForPicker(profile)) {
+        boards.Append(base::DictValue()
+                          .Set("id", easel->uuid())
+                          .Set("title", EaselTitleOf(*easel)));
+      }
     }
     std::string json;
     base::JSONWriter::Write(boards, &json);
     // Keys go to the page with the overlay.
     GetWebContents().Focus();
-    RunPageScript(&GetWebContents(),
-                  base::StrCat({"__compassEasel.start(", json, ")"}),
-                  base::BindOnce(&CaptureSession::OnStarted,
-                                 weak_factory_.GetWeakPtr()));
+    RunPageScript(
+        &GetWebContents(),
+        base::StrCat({"__compassEasel.start(", json,
+                      screenshot ? ", {screenshot: true})" : ")"}),
+        base::BindOnce(&CaptureSession::OnStarted, weak_factory_.GetWeakPtr()));
   }
 
   // content::WebContentsObserver:
@@ -170,6 +179,10 @@ class CaptureSession : public content::WebContentsObserver,
       End();
       return;
     }
+    if (screenshot_) {
+      OnScreenshotPicked(*dict, value);
+      return;
+    }
     const std::optional<PageView> view = PageViewFromValue(value);
     const std::string* easel = dict->FindString("easel");
     if (!view || !easel) {
@@ -192,6 +205,59 @@ class CaptureSession : public content::WebContentsObserver,
                                      new_easel));
   }
 
+  // Capture Screenshot: copy or save the region, or the whole page.
+  void OnScreenshotPicked(const base::DictValue& dict,
+                          const base::Value& value) {
+    const std::string* action_name = dict.FindString("action");
+    const std::optional<PageView> view = PageViewFromValue(value);
+    if (!action_name || !view) {
+      End();
+      return;
+    }
+    const ScreenshotAction action = *action_name == "save"
+                                        ? ScreenshotAction::kSave
+                                        : ScreenshotAction::kCopy;
+    content::WebContents* contents = &GetWebContents();
+    base::WeakPtr<content::WebContents> weak = contents->GetWeakPtr();
+    ScreenshotCallback done = base::BindOnce(
+        [](base::WeakPtr<content::WebContents> contents,
+           base::expected<std::string, std::string> result) {
+          if (contents) {
+            ShowToast(contents.get(),
+                      result.has_value() ? *result : result.error());
+          }
+        },
+        weak);
+    const bool full = dict.FindBool("full").value_or(false);
+    const gfx::RectF region = ToRectF(dict.FindDouble("x").value_or(0),
+                                      dict.FindDouble("y").value_or(0),
+                                      dict.FindDouble("width").value_or(0),
+                                      dict.FindDouble("height").value_or(0));
+    // Done with the overlay; the copy needs only the page.
+    End();
+    if (full) {
+      CaptureFullPage(contents, action, std::move(done));
+      return;
+    }
+    CopyPageRegion(
+        contents, region, *view,
+        base::BindOnce(
+            [](base::WeakPtr<content::WebContents> contents,
+               ScreenshotAction action, ScreenshotCallback done,
+               base::expected<SkBitmap, std::string> bitmap) {
+              if (!contents) {
+                return;
+              }
+              if (!bitmap.has_value()) {
+                std::move(done).Run(base::unexpected(bitmap.error()));
+                return;
+              }
+              FinishScreenshot(contents.get(), action,
+                               std::move(bitmap.value()), std::move(done));
+            },
+            weak, action, std::move(done)));
+  }
+
   void GiveUp() {
     RunPageScript(&GetWebContents(), "__compassEasel.cancel()",
                   base::DoNothing(), /*define=*/false);
@@ -204,6 +270,7 @@ class CaptureSession : public content::WebContentsObserver,
   base::RepeatingTimer poll_timer_;
   base::OneShotTimer give_up_;
   bool polling_ = false;
+  bool screenshot_ = false;
   base::WeakPtrFactory<CaptureSession> weak_factory_{this};
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
@@ -229,7 +296,23 @@ void StartCaptureToEasel(content::WebContents* contents) {
     return;
   }
   CaptureSession::CreateForWebContents(contents);
-  CaptureSession::FromWebContents(contents)->Begin();
+  CaptureSession::FromWebContents(contents)->Begin(/*screenshot=*/false);
+}
+
+bool CanCaptureScreenshot(content::WebContents* contents) {
+  if (!contents) {
+    return false;
+  }
+  const GURL& url = contents->GetLastCommittedURL();
+  return url.SchemeIsHTTPOrHTTPS() || url.SchemeIsFile();
+}
+
+void StartCaptureScreenshot(content::WebContents* contents) {
+  if (!CanCaptureScreenshot(contents)) {
+    return;
+  }
+  CaptureSession::CreateForWebContents(contents);
+  CaptureSession::FromWebContents(contents)->Begin(/*screenshot=*/true);
 }
 
 SidebarNode* PinEaselTab(BrowserWindowInterface* browser,
@@ -284,24 +367,36 @@ void NewEaselInWindow(BrowserWindowInterface* browser) {
 
 void AppendPageContextMenuItems(content::WebContents* contents,
                                 ui::SimpleMenuModel* model) {
-  if (!CanCaptureToEasel(contents)) {
+  const bool easel = CanCaptureToEasel(contents);
+  const bool screenshot = CanCaptureScreenshot(contents);
+  if (!easel && !screenshot) {
     return;
   }
   model->AddSeparator(ui::NORMAL_SEPARATOR);
-  model->AddItem(kCaptureToEaselContextCommand, u"Capture to Easel…");
+  if (screenshot) {
+    model->AddItem(kCaptureScreenshotContextCommand, u"Capture Screenshot…");
+  }
+  if (easel) {
+    model->AddItem(kCaptureToEaselContextCommand, u"Capture to Easel…");
+  }
 }
 
 bool IsCompassContextMenuCommand(int id) {
-  return id == kCaptureToEaselContextCommand;
+  return id == kCaptureToEaselContextCommand ||
+         id == kCaptureScreenshotContextCommand;
 }
 
 bool ExecuteCompassContextMenuCommand(content::WebContents* contents,
                                       int id) {
-  if (id != kCaptureToEaselContextCommand) {
-    return false;
+  if (id == kCaptureToEaselContextCommand) {
+    StartCaptureToEasel(contents);
+    return true;
   }
-  StartCaptureToEasel(contents);
-  return true;
+  if (id == kCaptureScreenshotContextCommand) {
+    StartCaptureScreenshot(contents);
+    return true;
+  }
+  return false;
 }
 
 }  // namespace compass::easels
