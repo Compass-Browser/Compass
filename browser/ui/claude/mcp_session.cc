@@ -319,14 +319,20 @@ bool McpSession::TryRunFront() {
   }
   Profile* profile = *resolved;
   // The profiles to ask in: the call's, and for switch_space to another
-  // profile's space, the front one's, whose window would swap away
-  // (McpTabs::RunTool() swaps it only if allowed there).
+  // profile's space, the front one's, whose window would swap away. Only
+  // when it could: McpTabs::RunTool() swaps it only with "Let Claude use the
+  // whole browser" on there.
   std::vector<Profile*> asked = {profile};
   if (next.name == "switch_space" && front_profile &&
-      front_profile != profile) {
+      front_profile != profile &&
+      front_profile->GetPrefs()->GetBoolean(prefs::kBrowserScope)) {
     asked.push_back(front_profile);
   }
   for (Profile* each : asked) {
+    if (approvals_[profile] == Approval::kDenied) {
+      // Denied where the call acts: nothing more to ask, not even the swap.
+      break;
+    }
     Approval& approval = approvals_[each];
     if (approval != Approval::kUnknown) {
       continue;
@@ -488,10 +494,9 @@ void McpSession::RemoveProfile(Profile* profile) {
   const bool target_here =
       target &&
       Profile::FromBrowserContext(target->GetBrowserContext()) == profile;
-  if (target_here) {
-    // Back to following the user, in the profiles left.
-    picked_tab_ = false;
-  }
+  // A picked tab there is gone for the client, as a closed one: the page
+  // tools fail until it picks another, rather than act on the user's tab in
+  // another profile.
   if (running_ && mcp_tabs_->current() == profile) {
     // Its ClaudeTabs goes, and with it a call still running there (a history
     // search, say): answer it now, with the reason.
@@ -580,7 +585,6 @@ void McpSession::Finish(base::Value id, std::string name, ToolResult result) {
                : nullptr;
     if (target_profile &&
         !std::ranges::contains(profiles_.Run(), target_profile)) {
-      picked_tab_ = false;
       tools_.SetTarget(nullptr);
     }
   }

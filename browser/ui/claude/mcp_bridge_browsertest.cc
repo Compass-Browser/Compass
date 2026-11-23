@@ -712,5 +712,66 @@ IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, TurningOffDropsTheQuestion) {
   EXPECT_EQ(asked_profiles_[1], profile());
 }
 
+// A picked tab whose profile stops allowing MCP clients is gone for the
+// client, as a closed tab: the page tools don't fall back to the user's tab
+// in another profile.
+IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, PickedTabGoesWithItsProfile) {
+  ASSERT_NO_FATAL_FAILURE(AddWorkProfile());
+  std::unique_ptr<Client> trusted = Client::Connect(socket_path_);
+  ASSERT_TRUE(trusted);
+  Initialize(*trusted, "trusted");
+  ASSERT_NO_FATAL_FAILURE(ReadIds(*trusted, 2));
+  EXPECT_EQ(IsError(Call(*trusted, 3, "select_tab",
+                         base::DictValue().Set("tab_id", work_id_))),
+            false);
+
+  bridge()->SetProfileEnabled(work_, false);
+  work_ = nullptr;
+  std::optional<base::DictValue> text = Call(*trusted, 4, "get_page_text");
+  EXPECT_EQ(IsError(text), true);
+  EXPECT_THAT(TextOf(text), HasSubstr("closed"));
+  EXPECT_THAT(TextOf(text), Not(HasSubstr("Hello from the MCP page.")));
+
+  // Picking a tab again works.
+  EXPECT_EQ(IsError(Call(*trusted, 5, "select_tab",
+                         base::DictValue().Set("tab_id", home_id_))),
+            false);
+  EXPECT_THAT(TextOf(Call(*trusted, 6, "get_page_text")),
+              HasSubstr("Hello from the MCP page."));
+}
+
+// A switch_space denied in the space's profile is refused there, without a
+// second question about swapping the front profile's window.
+IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, DeniedSwitchAsksOnce) {
+  ASSERT_NO_FATAL_FAILURE(AddWorkProfile());
+  std::unique_ptr<Client> trusted = Client::Connect(socket_path_);
+  ASSERT_TRUE(trusted);
+  Initialize(*trusted, "trusted");
+  ASSERT_NO_FATAL_FAILURE(ReadIds(*trusted, 2));
+  // The space goes in the profile that isn't in front, whose window a
+  // switch would swap: that's the question that mustn't follow a Deny.
+  const bool home_in_front =
+      TextOf(Call(*trusted, 3, "get_page_text"))
+          .find("Hello from the MCP page.") != std::string::npos;
+  Profile* space_profile = home_in_front ? work_.get() : profile();
+  EXPECT_EQ(IsError(Call(*trusted, 4, "create_space",
+                         base::DictValue()
+                             .Set("profile", home_in_front ? "Work" : "Home")
+                             .Set("name", "Only at work"))),
+            false);
+
+  std::unique_ptr<Client> asking = Client::Connect(socket_path_);
+  ASSERT_TRUE(asking);
+  Initialize(*asking, "asking");
+  answer_ = McpApproval::kDeny;
+  std::optional<base::DictValue> denied =
+      Call(*asking, 2, "switch_space",
+           base::DictValue().Set("space", "Only at work"));
+  EXPECT_EQ(IsError(denied), true);
+  EXPECT_THAT(TextOf(denied), HasSubstr("didn't allow"));
+  ASSERT_EQ(asked_profiles_.size(), 1u);
+  EXPECT_EQ(asked_profiles_[0], space_profile);
+}
+
 }  // namespace
 }  // namespace compass::claude
