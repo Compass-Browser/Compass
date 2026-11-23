@@ -139,6 +139,19 @@ view attached to a window. Pages that
 need the user's session work, because the hidden page uses the profile's
 cookies.
 
+### Live captures
+
+On the desktop, captures keep themselves current while their board is
+open: when the editor loads, every 5 minutes after (`LIVE_CHECK_MS`) and
+whenever the page shows again, it refreshes each capture taken more than an
+hour ago (`LIVE_STALE_MS`, by `capture_time`), one at a time and without
+toasts, through the same `RefreshCapture()` as the menu's Refresh. A
+refresh that fails waits for the next check. Boards the profile only views
+aren't refreshed (their captures are the owner's), and neither are hidden
+pages. Because `capture_time` syncs, another device with the board open
+sees the new image and doesn't take it again. Android and iOS boards stay
+static (refreshed by hand on iOS).
+
 ## Sync
 
 Each board, object and image is its own entity of `COMPASS_SPACES`
@@ -203,7 +216,5 @@ become links (an image to its URL, a capture to its page).
 
 ## Later
 
-- Live captures: a capture that refreshes on its own while its board is
-  open.
 - Sharing a board as a link, as Boosts are shared.
 - Claude tools for boards (read a board, add objects).

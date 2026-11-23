@@ -33,6 +33,12 @@ const TOOLS: Array<{tool: Tool, name: string, key: string}> = [
 // Copied objects, on the clipboard beside their text.
 const CLIPBOARD_TYPE = 'application/x-compass-easel';
 
+// Live captures (docs/design/easels.md, "Live captures"): while the board
+// is open and showing, captures older than this are taken again, one at a
+// time, checked this often.
+const LIVE_STALE_MS = 60 * 60 * 1000;
+const LIVE_CHECK_MS = 5 * 60 * 1000;
+
 // A press that moves less than this (in screen points) is a click.
 const CLICK_SLOP = 4;
 
@@ -114,6 +120,8 @@ export class Editor {
   private lastSaveSeq_ = 0;
   private refreshTimer_ = 0;
   private viewTimer_ = 0;
+  // Whether live captures are being refreshed now.
+  private liveRunning_ = false;
   private loaded_ = false;
   // A shared easel this profile can only view (docs/design/sync.md, "Rooms:
   // clients"): nothing on the board changes here.
@@ -148,6 +156,44 @@ export class Editor {
 
   async start() {
     await this.refresh_();
+    // For as long as the page is open.
+    setInterval(() => void this.refreshStaleCaptures_(), LIVE_CHECK_MS);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        void this.refreshStaleCaptures_();
+      }
+    });
+    void this.refreshStaleCaptures_();
+  }
+
+  // Takes again, quietly and one by one, the captures that are older than
+  // LIVE_STALE_MS, while the board shows. Not on a board this profile only
+  // views: its captures are the owner's.
+  private async refreshStaleCaptures_() {
+    if (this.liveRunning_ || !this.loaded_ || this.viewOnly_ ||
+        document.visibilityState !== 'visible') {
+      return;
+    }
+    this.liveRunning_ = true;
+    try {
+      const stale = () => [...this.objects_.values()].filter(
+          o => o.capture && Date.now() - o.capture.captureTimeMs > LIVE_STALE_MS);
+      const tried = new Set<string>();
+      for (let next = stale(); ; next = stale()) {
+        const object = next.find(o => !tried.has(o.uuid));
+        if (!object || document.visibilityState !== 'visible') {
+          break;
+        }
+        tried.add(object.uuid);
+        // A failure (offline, the page gone) waits for the next check.
+        await this.proxy_.handler.refreshCapture(object.uuid);
+      }
+    } finally {
+      this.liveRunning_ = false;
+    }
+    if (this.loaded_) {
+      this.scheduleRefresh_(0);
+    }
   }
 
   // ---------------------------------------------------------------------
