@@ -49,15 +49,33 @@ class ClaudeTabs : public TabsDelegate {
                const Context& context,
                base::OnceCallback<void(Result)> done) override;
 
+  // ListTabs() with |home_mark| on the space the profile's own window
+  // shows, in place of "[shown in the user's window]": with several
+  // profiles listed, only the front one's window is the user's.
+  std::string ListTabs(const Context& context, const std::string& home_mark);
+
+  // Whether |id|, a tab, split or folder id from list_tabs, is this
+  // profile's. McpTabs routes a call by it.
+  bool Owns(const std::string& id);
+  // A space by name (any case) or id.
+  SpaceModel* FindSpace(const std::string& name_or_id);
+  // OpenTab() in |space|: in a window showing it, else in the user's window,
+  // switched to it. Null if it can't.
+  content::WebContents* OpenTabInSpace(SpaceModel& space,
+                                       const GURL& url,
+                                       bool active);
+
  private:
   BrowserWindowInterface* Home();
   // The sidebar node |id| names, in any of the profile's spaces or its
   // favorites, or null; |space| gets its space.
   SidebarNode* FindNode(const std::string& id, SpaceModel** space = nullptr);
-  // A space by name (any case) or id.
-  SpaceModel* FindSpace(const std::string& name_or_id);
   // The window showing |space|, or null.
   BrowserWindowInterface* WindowShowing(const SpaceModel& space);
+  // A new tab of |window|'s space.
+  content::WebContents* OpenTabIn(BrowserWindowInterface* window,
+                                  const GURL& url,
+                                  bool active);
 
   Result CloseTab(const base::DictValue& input);
   Result ActivateTab(const base::DictValue& input);

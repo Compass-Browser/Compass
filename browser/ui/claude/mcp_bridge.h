@@ -9,6 +9,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
@@ -18,6 +19,10 @@
 
 class Profile;
 
+namespace views {
+class Widget;
+}  // namespace views
+
 namespace compass::claude {
 
 class McpListener;
@@ -26,7 +31,7 @@ class McpListener;
 // Claude's tools in Compass: they run compass-mcp, which relays MCP's stdio
 // to <user data dir>/compass-mcp.sock. It listens while a profile has
 // "Allow MCP clients" on (McpProfileService tells it). A connection serves
-// the profile of the last active window among those, one McpSession each.
+// all of those profiles, one McpSession each.
 // See docs/design/claude.md, D6.
 class McpBridge {
  public:
@@ -39,7 +44,8 @@ class McpBridge {
   McpBridge(const McpBridge&) = delete;
   McpBridge& operator=(const McpBridge&) = delete;
 
-  // |profile|'s "Allow MCP clients". Off closes its connections.
+  // |profile|'s "Allow MCP clients". Off takes it out of open connections,
+  // and closes them when no profile allows MCP clients any more.
   void SetProfileEnabled(Profile* profile, bool enabled);
 
   // A chat of the Claude panel in Claude Code mode: the bridge listens while
@@ -70,8 +76,8 @@ class McpBridge {
   void OnLine(int id, std::string line);
   void OnClosed(int id);
   void Send(int id, std::string line);
-  // The profile a new connection serves, or null.
-  Profile* PickProfile();
+  // The profiles that allow MCP clients.
+  std::vector<Profile*> EnabledProfiles();
   void Ask(Profile* profile,
            const std::string& client,
            base::OnceCallback<void(McpApproval)> done);
@@ -102,6 +108,13 @@ class McpBridge {
   };
 
   std::set<raw_ptr<Profile>> profiles_;
+  // The "wants to control Compass" dialogs showing, so that turning MCP off
+  // in their profile closes them.
+  struct Dialog {
+    raw_ptr<Profile> profile;
+    base::WeakPtr<views::Widget> widget;
+  };
+  std::vector<Dialog> dialogs_;
   std::map<std::string, Chat> chats_;
   base::SequenceBound<McpListener> listener_;
   bool listening_ = false;

@@ -348,6 +348,12 @@ base::ListValue ClaudeTools::Definitions(bool memory,
   return definitions;
 }
 
+// static
+bool ClaudeTools::ActsOnTarget(const std::string& name) {
+  const std::string scope = ScopeOf(name);
+  return scope == "page" || scope == "devtools";
+}
+
 void ClaudeTools::SetFiles(FilesConfigGetter config, Approver approve) {
   files_config_ = std::move(config);
   approve_ = std::move(approve);

@@ -300,6 +300,10 @@ class ClaudeTools : public content::WebContentsObserver {
   void SetPlugins(std::unique_ptr<PluginsDelegate> delegate,
                   base::RepeatingCallback<bool()> allowed);
 
+  // Whether tool |name| reads or acts on the target tab: the page and
+  // developer tools.
+  static bool ActsOnTarget(const std::string& name);
+
   // The task's tab: the page tools act on it until select_tab or open_tab
   // picks another. Setting another one stops what runs.
   void SetTarget(content::WebContents* contents);
