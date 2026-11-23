@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/i18n/language_tag.h"
 #include "base/i18n/tag_converters.h"
@@ -20,6 +21,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/thread_pool.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/profiles/profile.h"
@@ -409,9 +411,30 @@ void SettingsWindowHandler::ChooseDownloadLocation() {
       base::FilePath::StringType(), web_contents_->GetTopLevelNativeWindow());
 }
 
+namespace {
+
+// Export Spaces' file, off the UI thread.
+void WriteSpacesExport(const base::FilePath& path, std::string html) {
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(
+          [](const base::FilePath& path, const std::string& html) {
+            if (!base::WriteFile(path, html)) {
+              LOG(ERROR) << "Export Spaces: couldn't write " << path;
+            }
+          },
+          path, std::move(html)));
+}
+
+}  // namespace
+
 void SettingsWindowHandler::FileSelected(const ui::SelectedFileInfo& file,
                                          int index) {
   folder_dialog_.reset();
+  if (std::optional<std::string> html = std::exchange(pending_export_, {})) {
+    WriteSpacesExport(file.path(), std::move(*html));
+    return;
+  }
   // As upstream's DownloadsHandler: downloads and Save As go there.
   PrefService* prefs = profile_->GetPrefs();
   prefs->SetFilePath(::prefs::kDownloadDefaultDirectory, file.path());
@@ -420,6 +443,7 @@ void SettingsWindowHandler::FileSelected(const ui::SelectedFileInfo& file,
 
 void SettingsWindowHandler::FileSelectionCanceled() {
   folder_dialog_.reset();
+  pending_export_.reset();
 }
 
 // Fonts and system ------------------------------------------------------------

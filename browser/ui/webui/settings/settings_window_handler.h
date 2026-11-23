@@ -134,6 +134,7 @@ class SettingsWindowHandler
   void SetSpaceSynced(const std::string& space_id, bool synced) override;
   void DeleteSpace(const std::string& id) override;
   void MoveSpace(const std::string& id, uint32_t index) override;
+  void ExportSpaces(const std::optional<std::string>& space_id) override;
   void GetPermissionDefaults(GetPermissionDefaultsCallback callback) override;
   void SetPermissionDefault(const std::string& type,
                             sidebar::mojom::PermissionValue value) override;
@@ -255,7 +256,12 @@ class SettingsWindowHandler
   const raw_ptr<content::WebContents> web_contents_;
   mojo::Remote<sidebar::mojom::SettingsWindowPage> page_;
   mojo::Receiver<sidebar::mojom::SettingsWindowHandler> receiver_;
+  // The open file dialog, at most one: the download folder, or where an
+  // export goes.
   scoped_refptr<ui::SelectFileDialog> folder_dialog_;
+  // What folder_dialog_ is choosing for: an export's bookmarks file when
+  // set, the download folder otherwise.
+  std::optional<std::string> pending_export_;
   scoped_refptr<extensions::PasswordsPrivateDelegate> passwords_delegate_;
   std::unique_ptr<ProfileResetter> resetter_;
   // Manage search engines' rules (made once the service has loaded).

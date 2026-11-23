@@ -520,6 +520,7 @@ source_set("browser_tests") {
     "//compass/browser/dev_mode",
     "//compass/browser/dev_mode:devtools_hooks",
     "//compass/browser/prefs",
+    "//ui/shell_dialogs:test_support",
     "//chrome/browser/history",
     "//components/history/core/browser",
     "//components/os_crypt/async/browser",

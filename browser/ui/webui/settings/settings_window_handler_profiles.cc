@@ -5,9 +5,11 @@
 // The settings window's Profiles and Spaces panes: every profile and every
 // space, whichever profile the window is (docs/design/settings-window.md).
 
+#include <algorithm>
 #include <map>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -17,6 +19,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/profiles/delete_profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
@@ -24,6 +27,8 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_metrics.h"
 #include "chrome/browser/profiles/profiles_state.h"
+#include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
+#include "compass/browser/sidebar/space_export.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/ui/webui/settings/settings_window_handler.h"
 #include "compass/browser/ui/webui/sidebar/space_mojo.h"
@@ -334,6 +339,64 @@ void SettingsWindowHandler::MoveSpace(const std::string& id, uint32_t index) {
   } else if (SpaceList* list = GetSpaceList()) {
     list->MoveSpace(*entry.space, index);
   }
+}
+
+void SettingsWindowHandler::ExportSpaces(
+    const std::optional<std::string>& space_id) {
+  if (folder_dialog_ || !web_contents_) {
+    return;
+  }
+  // What the spaces hold now: the file is written when the user has picked
+  // where.
+  SpaceExport input;
+  std::u16string name = u"Compass Spaces";
+  if (space_id) {
+    SpaceDirectory::Entry entry = FindAnySpace(*space_id);
+    if (!entry.space) {
+      return;
+    }
+    input.spaces.push_back(entry.space.get());
+    name = entry.space->name();
+  } else {
+    std::vector<raw_ptr<Profile>> profiles;
+    for (const SpaceDirectory::Entry& entry : GetAllSpaces()) {
+      input.spaces.push_back(entry.space.get());
+      if (!std::ranges::contains(profiles, entry.profile)) {
+        profiles.push_back(entry.profile);
+      }
+    }
+    for (Profile* profile : profiles) {
+      if (SpaceService* service = SpaceService::Get(profile)) {
+        input.favorites.push_back(&service->space_list().favorites());
+      }
+    }
+  }
+  pending_export_ = SpacesToBookmarksHtml(input);
+
+  // A name that's a file name anywhere.
+  std::u16string file_name;
+  constexpr std::u16string_view kNotInFileNames = u"/\\:*?\"<>|";
+  for (char16_t c : name) {
+    file_name.push_back(
+        kNotInFileNames.find(c) == std::u16string_view::npos ? c : u'-');
+  }
+  base::TrimWhitespace(file_name, base::TRIM_ALL, &file_name);
+  if (file_name.empty()) {
+    file_name = u"Space";
+  }
+  const base::FilePath default_path =
+      DownloadPrefs::FromBrowserContext(profile_)->DownloadPath().Append(
+          base::FilePath::FromUTF16Unsafe(file_name + u".html"));
+
+  folder_dialog_ = ui::SelectFileDialog::Create(
+      this, std::make_unique<ChromeSelectFilePolicy>(web_contents_.get()));
+  ui::SelectFileDialog::FileTypeInfo info;
+  info.extensions = {{FILE_PATH_LITERAL("html")}};
+  info.allowed_paths = ui::SelectFileDialog::FileTypeInfo::NATIVE_PATH;
+  folder_dialog_->SelectFile(ui::SelectFileDialog::SELECT_SAVEAS_FILE,
+                             space_id ? u"Export Space" : u"Export Spaces",
+                             default_path, &info, 1, FILE_PATH_LITERAL("html"),
+                             web_contents_->GetTopLevelNativeWindow());
 }
 
 }  // namespace compass

@@ -337,6 +337,15 @@ export class CompassSettingsSpacesPaneElement extends CrLitElement {
     this.handler_.moveSpace(space.id, step < 0 ? at : at + 1);
   }
 
+  // Export (docs/design/spaces.md, "Export"): a file dialog picks where.
+  protected onExportClick_(e: Event) {
+    this.handler_.exportSpaces(this.getSpaceId_(e));
+  }
+
+  protected onExportAllClick_() {
+    this.handler_.exportSpaces(null);
+  }
+
   // Adding and deleting.
   protected onAddClick_(e: Event) {
     this.handler_.addSpace(

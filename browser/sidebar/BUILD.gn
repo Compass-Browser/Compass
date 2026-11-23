@@ -16,6 +16,8 @@ source_set("sidebar") {
     "sidebar_serializer.h",
     "sidebar_store.cc",
     "sidebar_store.h",
+    "space_export.cc",
+    "space_export.h",
     "space_list.cc",
     "space_list.h",
     "space_model.cc",
@@ -37,6 +39,7 @@ source_set("unit_tests") {
     "link_rules_unittest.cc",
     "sidebar_serializer_unittest.cc",
     "sidebar_store_unittest.cc",
+    "space_export_unittest.cc",
     "space_list_unittest.cc",
     "space_model_unittest.cc",
   ]

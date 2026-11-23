@@ -1282,6 +1282,10 @@ interface SettingsWindowHandler {
   DeleteSpace(string id);
   // To |index| in the switcher's order (SpaceDirectory::MoveSpace()).
   MoveSpace(string id, uint32 index);
+  // Saves the space with |space_id|, or every space with the favorites
+  // when it's null, as a bookmarks file the user picks
+  // (docs/design/spaces.md, "Export").
+  ExportSpaces(string? space_id);
 
   // Privacy (phase 3). Site settings: the defaults, the sites with
   // permissions of their own, and one site's.

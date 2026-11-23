@@ -185,6 +185,10 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
             <div class="row control-row space-detail-row"
                 ?hidden="${this.isConfirmingDelete_(space)}">
               <span class="row-text"></span>
+              <button class="pill export" data-space-id="${space.id}"
+                  @click="${this.onExportClick_}">
+                Export…
+              </button>
               <button class="pill danger" data-space-id="${space.id}"
                   ?disabled="${!this.canDelete_()}"
                   @click="${this.onDeleteClick_}">
@@ -207,6 +211,22 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
           </div>` : nothing}`)}
     </div>
   </section>`)}
+<section class="row-group">
+  <div class="group">
+    <div class="row control-row">
+      <span class="row-text">
+        <span class="row-label">Export spaces</span>
+        <span class="row-detail">
+          Every space's pinned and Today tabs, and the favorites, as a
+          bookmarks file other browsers can import.
+        </span>
+      </span>
+      <button class="pill" id="exportAll" @click="${this.onExportAllClick_}">
+        Export…
+      </button>
+    </div>
+  </div>
+</section>
 <!--_html_template_end_-->`;
   // clang-format on
 }

@@ -209,7 +209,9 @@ sections, and never shown.
   the switcher's order); Edit… opens what the sidebar's space menu has:
   the icon, the theme (`<compass-theme-editor>`, given the window's handler),
   the profile (or a new one), the archive delay, sync (turning it off
-  asks), and Delete (asks). A viewer's shared space can't be changed.
+  asks), Export… (that space as a bookmarks file) and Delete (asks). A
+  last row exports every space with the favorites (spaces.md, "Export").
+  A viewer's shared space can't be changed.
   `SettingsWindowHandler` (`settings_window_handler_profiles.cc`) does the
   edits with the sidebar's own code (`space_mojo.{h,cc}`), on any profile's
   space, and sends `ProfilesChanged()` and `SpacesChanged()` whenever the

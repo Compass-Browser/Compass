@@ -154,6 +154,30 @@ in the parking window, where they close. Then `SpaceList::RemoveSpace()`
 destroys it: the store, the service (matchers, last active entries) and the
 pages hear `OnSpaceWillBeRemoved()` first.
 
+## Export
+
+Settings → Spaces saves spaces as a bookmarks file in the Netscape format
+(`compass::SpacesToBookmarksHtml()`, `browser/sidebar/space_export.{h,cc}`),
+which every browser imports, so a user's spaces aren't stuck in Compass:
+
+- **Export…** on the Spaces pane's last row: every listed space, of every
+  profile, in the switcher's order, after a "Favorites" folder per profile
+  that has any;
+- **Export…** in a space's details: that space alone.
+
+Each space is a folder holding its Pinned entries with their folders, then
+a "Today" folder of its open tabs. A pinned tab or favorite is its own page
+(`saved_url()`, with its custom or saved title), not wherever it has since
+navigated; a split is its panes, one after another; only http(s), file and
+ftp links go (another browser can't open `chrome://` pages). Live folders
+are exported as the plain folders they look like.
+
+`SettingsWindowHandler::ExportSpaces()` takes the file's contents when the
+button is clicked, then asks where with a Save dialog (the download folder,
+named after the space or "Compass Spaces"), and writes it off the UI thread.
+The archive isn't exported. iOS exports open tabs as text (ios.md); Android
+doesn't export yet.
+
 ## Shortcuts
 
 Ctrl+1 to Ctrl+9 switch the window to the first nine spaces (Ctrl+Shift
@@ -759,6 +783,10 @@ their profile's last window), page handler tests (listing, previews, entries
 kept from other profiles, swapping, assigning a profile), and the
 `AnotherProfilesSpaceSwapsTheWindow` and `SpaceMenuAssignsAProfile` browser
 tests.
+
+Export: `SpaceExportTest` (folders, splits, saved URLs, escaping, the
+browser's own pages left out, favorites first) and the `SpacesPaneExports`
+browser test (the file written where the dialog says).
 
 Reordering: `SpaceListTest.MovesSpacesBySlot`,
 `SpaceSwapTest.ReordersSpacesAcrossProfiles` (and the saved order),

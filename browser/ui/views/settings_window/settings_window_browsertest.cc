@@ -8,10 +8,13 @@
 #include <string>
 #include <string_view>
 
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/test/run_until.h"
+#include "base/threading/thread_restrictions.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
@@ -59,6 +62,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/window_open_disposition.h"
+#include "ui/shell_dialogs/fake_select_file_dialog.h"
 #include "url/gurl.h"
 
 namespace compass {
@@ -512,6 +516,48 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PrivacySitePermissions) {
 }
 
 // Privacy › Permissions: a default changes there.
+// Spaces pane → Export (docs/design/spaces.md, "Export"): the file the user
+// picks gets every space's pinned tabs as a bookmarks file.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SpacesPaneExports) {
+  SpaceService* service = SpaceService::Get(browser()->GetProfile());
+  {
+    base::RunLoop loaded;
+    service->RunWhenLoaded(loaded.QuitClosure());
+    loaded.Run();
+  }
+  SpaceModel& space = service->space_list().active_space();
+  space.SetName(u"Errands");
+  space.AddTab(space.pinned_root(), 0, GURL("https://example.com/list"),
+               u"Shopping list");
+
+  ui::FakeSelectFileDialog::Factory* factory =
+      ui::FakeSelectFileDialog::RegisterFactory();
+  base::RunLoop opened;
+  factory->SetOpenCallback(opened.QuitClosure());
+  chrome::ShowSettingsSubPage(browser(), "spaces");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  const std::string button = "document.querySelector('#exportAll')";
+  ASSERT_TRUE(WaitFor(button).is_ok());
+  ASSERT_TRUE(content::ExecJs(window()->web_contents(), button + ".click()"));
+  opened.Run();
+  EXPECT_EQ(factory->GetLastDialog()->title(), u"Export Spaces");
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir dir;
+  ASSERT_TRUE(dir.CreateUniqueTempDir());
+  const base::FilePath path = dir.GetPath().AppendASCII("spaces.html");
+  ASSERT_TRUE(factory->GetLastDialog()->CallFileSelected(path, "html"));
+  std::string html;
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return base::ReadFileToString(path, &html) && !html.empty(); }));
+  EXPECT_TRUE(html.starts_with("<!DOCTYPE NETSCAPE-Bookmark-file-1>"));
+  EXPECT_NE(html.find("<DT><H3>Errands</H3>"), std::string::npos);
+  EXPECT_NE(html.find("<DT><A HREF=\"https://example.com/list\">Shopping "
+                      "list</A>"),
+            std::string::npos);
+}
+
 IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PrivacyPermissionDefaults) {
   HostContentSettingsMap* map =
       HostContentSettingsMapFactory::GetForProfile(profile());
