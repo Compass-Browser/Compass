@@ -1,9 +1,8 @@
-Condivisione di spazi, cartelle e easel con altre persone, e Compass come browser predefinito.
+Azioni nella barra dei comandi e una chat con Claude migliore.
 
-- Browser predefinito: nell'app Impostazioni, App → App browser predefinita → Compass. I link da Mail, Messaggi e dalle altre app si aprono in Compass, in una finestrella o nello spazio indicato da una regola dei link.
-- Condividi: nella barra laterale, tieni premuta una cartella fissata e tocca Share…; per uno spazio, tocca ⋯ accanto al nome; per un easel, ⋯ dentro la lavagna. Tocca Share This Folder (o spazio, o easel), scegli il ruolo (Editor o Viewer), quando scade il link e quante persone possono usarlo, poi Create Invite Link e invialo.
-- Unisciti: tocca un link di invito (con Compass come browser predefinito si apre direttamente qui; altrimenti tocca Open in Compass nella pagina che compare). Scegli lo spazio in cui metterlo e tocca Join. Gli elementi condivisi hanno il simbolo delle persone, e anche gli altri tuoi dispositivi si uniscono.
-- In Sharing…: vedi chi c'è, cambia il ruolo di qualcuno o rimuovilo, esci (Leave) o elimina per tutti (Delete for everyone) se l'hai condiviso tu. Il nome che vedono gli altri si imposta in Impostazioni → Sharing.
-- Chi è Viewer può aprire tutto ma non modificarlo.
-- Corretto: un nuovo profilo sul Mac poteva restare per sempre su "Starting…" durante la sincronizzazione.
-- Segnalaci: inviti che non si aprono o non riescono a unirsi, modifiche che gli altri non vedono (e su quali dispositivi), e qualsiasi cosa sparisca.
+- Azioni nella barra dei comandi: scrivi il nome di un'azione, come "settings", "reader", "copy link" o "reopen", e viene per prima; Invio la esegue. Una parte del nome ("sett") la mostra in fondo, sotto Commands. Azioni: Find on Page, Reload, Copy Link, Reader, Pin o Unpin Tab, Development Mode, Tidy Today, Chat with Claude, New Incognito Tab, Reopen Closed Tab, Downloads, Settings.
+- Chat con Claude: le risposte mostrano titoli, elenchi, blocchi di codice, citazioni e tabelle; i link si aprono in una nuova scheda. Puoi scrivere mentre Claude risponde: i messaggi aspettano sopra il campo e partono uno dopo l'altro.
+- L'accesso con Google (e gli altri popup che rispondono alla pagina) ora funziona in tutte le schede.
+- La modalità sviluppo è attiva da subito per localhost.
+- Gli spazi a cui ti sei unito sul Mac mentre era installata una versione precedente ora compaiono dopo l'aggiornamento.
+- Segnalaci: un'azione che non fa nulla o fa la cosa sbagliata, un'azione che manca quando dovrebbe esserci, Invio che cerca quando c'è un'azione per prima, e risposte della chat che si vedono male.

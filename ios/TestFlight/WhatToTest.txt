@@ -1,8 +1,8 @@
-Development mode, for people who build websites.
+Actions in the command bar, and a better Claude chat.
 
-- Turn it on for the site you're working on: in the page menu, tap Development Mode; or Settings → Development Mode, then add a site (like localhost or example.com); or Cmd+Shift+D on a hardware keyboard.
-- On those sites, reload (the button, the address's menu, the page menu and Cmd+R) always gets a fresh copy from the server, never the cache.
-- A bar above the page shows its full address, with Copy.
-- Turn it off the same way, or remove the site in Settings → Development Mode. The sites stay on this device; they don't sync.
-- To inspect a page, use Safari's Web Inspector on a Mac (Develop menu → your iPhone or iPad → the Compass page).
-- Please report: pages that still come from the cache after a reload, the bar missing or showing the wrong address, and sites that won't turn on or off.
+- Command bar actions: type an action's name, like "settings", "reader", "copy link" or "reopen", and it comes first; Return runs it. Part of a name ("sett") lists it at the bottom, under Commands. Actions: Find on Page, Reload, Copy Link, Reader, Pin or Unpin Tab, Development Mode, Tidy Today, Chat with Claude, New Incognito Tab, Reopen Closed Tab, Downloads, Settings.
+- Claude chat: replies show headings, lists, code blocks, quotes and tables; links open in a new tab. You can write while Claude replies: your messages wait above the field and go one after another.
+- Sign in with Google (and other popups that report back to the page) now works in every tab.
+- Development mode starts on for localhost.
+- Spaces joined on the Mac while an older version was installed now show up after updating.
+- Please report: an action that does nothing or the wrong thing, an action missing when it should show, Return searching when an action is first, and chat replies that look wrong.
