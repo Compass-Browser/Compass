@@ -66,6 +66,9 @@ enum class CommandBarCommand {
   // Opens compass://settings/boosts with the editor on the current tab's
   // host (docs/design/boosts.md): only for a web page, never off the record.
   kBoostSite,
+  // Puts Zap's bar on the active tab's page (docs/design/boosts.md, "Zap"):
+  // a web page, never off the record.
+  kZapSite,
   // Asks Claude to group the window's Today into folders
   // (docs/design/ai-sidebar.md, "Tidy Today"): only while "Tidy Today" is on
   // and Today has 5 loose entries or more.

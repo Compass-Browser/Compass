@@ -104,6 +104,11 @@ const COMMAND_SYMBOLS: {[name: string]: CommandSymbol} = {
     path: 'M3 3h6v2H5v4H3Zm12 0h6v6h-2V5h-4ZM3 15h2v4h4v2H3Zm16 0h2v6h-6v-2h4Zm-9-5h4v4h-4Z',
     viewBox: '0 0 24 24',
   },
+  // A lightning bolt: Zap elements on this site.
+  zap: {
+    path: 'M13 2 4 14h7l-1 8 9-12h-7Z',
+    viewBox: '0 0 24 24',
+  },
   // A camera: Capture Screenshot.
   screenshot: {
     path: 'M9 3h6l1.8 2H20a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3.2Zm3 4.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z',

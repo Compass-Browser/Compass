@@ -1,0 +1,66 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Zap (docs/design/boosts.md, "Zap"): clicking elements of a page away,
+# kept as the site's zap Boost.
+
+# zap_page.js, the page's side, as a string constant:
+# compass/browser/ui/zap/zap_page_js.h.
+action("page_js") {
+  script = "//compass/build/embed_text.py"
+  inputs = [ "zap_page.js" ]
+  outputs = [ "$target_gen_dir/zap_page_js.h" ]
+  args = [
+    "--out",
+    rebase_path(outputs[0], root_build_dir),
+    "--namespace",
+    "compass::zap::assets",
+    "kZapPageJs=" + rebase_path(inputs[0], root_build_dir),
+  ]
+}
+
+if (!is_android) {
+  # Linked into //chrome/browser/ui with //compass/browser/ui.
+  source_set("zap") {
+    sources = [
+      "zap_session.cc",
+      "zap_session.h",
+    ]
+    deps = [
+      ":page_js",
+      "//base",
+      "//chrome/browser/profiles:profile",
+      "//chrome/common",
+      "//compass/browser/boosts:store",
+      "//content/public/browser",
+      "//url",
+    ]
+  }
+
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [ "zap_browsertest.cc" ]
+    deps = [
+      ":zap",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//compass/browser/boosts:store",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//net:test_support",
+      "//testing/gtest",
+      "//compass/browser/boosts",
+      "//third_party/blink/public/common",
+      "//ui/events:dom_keycode_converter",
+      "//ui/events:events_base",
+      "//url",
+    ]
+  }
+}

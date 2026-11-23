@@ -215,6 +215,7 @@ source_set("ui") {
     "//compass/browser/easels:store",
     "//compass/browser/ui/easels:capture",
     "//compass/browser/ui/easels:refresh",
+    "//compass/browser/ui/zap",
     "//components/history/core/browser",
     "//components/password_manager/core/browser:password_form",
     "//compass/browser/live_folders",

@@ -109,6 +109,36 @@ restored at startup before the first pass ends loads without its Boosts
 until it reloads. The extension's total script size is upstream's limit for
 one extension; past it, scripts load without their content (logged).
 
+## Zap
+
+Arc's Zap: "Zap elements on this site…" in the command bar
+(`kZapSite`, for web pages of profiles with Boosts) puts a bar at the
+bottom of the page (`browser/ui/zap/zap_page.js`, in the main frame's
+isolated world, a top-layer popover in a closed shadow root, as Capture to
+Easel's overlay):
+
+- hovering outlines the element under the pointer; clicking hides it at
+  once (inline `display: none !important`), and the page doesn't get the
+  click;
+- **Undo** shows the last one again; **Done** or Enter keeps them; Esc
+  puts them all back and keeps nothing.
+
+Each hidden element gets a selector: its id when that's unique and doesn't
+look generated (no runs of digits or long upper-case hashes), else steps up
+the tree (tag, up to two stable classes, `:nth-of-type` when siblings need
+it) until it's unique or reaches an ancestor with a good id.
+
+`ZapSession` (`browser/ui/zap/zap_session.{h,cc}`) polls the page as
+Capture to Easel does, and on Done saves the selectors to the site's **zap
+Boost** (`browser/boosts/zap.{h,cc}`): an ordinary Boost for the host
+(`BoostMatch` of the page's host), named "Zapped on <host>", whose CSS
+starts with `/* Zapped with Compass */` and has one
+`<selector> { display: none !important; }` rule per element. Zapping the
+site again adds to it (no duplicates) and turns it back on; it syncs,
+shows in Settings and is edited or deleted like any Boost. Selectors with
+braces, comments or newlines are dropped, so each stays one rule. A toast
+says where they went.
+
 ## Settings
 
 A section of chrome://settings, **Boosts** (`/boosts`, after Links from
@@ -299,6 +329,10 @@ look inside `COMPASS_SPACES` (docs/design/sync.md), so it needs no change.
   saving, the badge, the switch, Delete);
   `CommandBarPageHandlerTest.EmptyNewEntryQueryShowsRecentEntries` lists
   "Boost this site…".
+
+Zap: `ZapTest` (the CSS, adding to a site's zap Boost once, selectors
+that would break a rule, other Boosts) and `ZapBrowserTest` (a click
+hides, Enter keeps it hidden after a reload, Esc puts it back).
 
 ## Not in v1
 

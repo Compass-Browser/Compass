@@ -59,6 +59,7 @@ test("compass_browsertests") {
     "//compass/browser/prefs:browser_tests",
     "//compass/browser/ui:browser_tests",
     "//compass/browser/ui/easels:browser_tests",
+    "//compass/browser/ui/zap:browser_tests",
     "//compass/browser/ui/webui/easel:browser_tests",
     "//compass/browser/web_store:browser_tests",
   ]

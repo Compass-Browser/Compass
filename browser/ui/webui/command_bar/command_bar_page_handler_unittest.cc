@@ -244,7 +244,7 @@ TEST_F(CommandBarPageHandlerTest, EmptyNewEntryQueryShowsRecentEntries) {
           "command New space on this device", "command Pin tab",
           "command Add to Favorites", "command Route this site to space\u2026",
           "command Boost this site\u2026",
-          "command Copy URL",
+          "command Zap elements on this site\u2026", "command Copy URL",
           "command Reload", "command History", "command Downloads",
           "command Extensions", "command Settings",
           "command Import from Another Browser", "command Keyboard shortcuts",
@@ -282,6 +282,7 @@ TEST_F(CommandBarPageHandlerTest, CommandsHaveSymbols) {
   EXPECT_EQ(symbols["New Easel"], "easel");
   EXPECT_EQ(symbols["Capture to Easel\u2026"], "capture");
   EXPECT_EQ(symbols["Capture Screenshot\u2026"], "screenshot");
+  EXPECT_EQ(symbols["Zap elements on this site\u2026"], "zap");
   EXPECT_EQ(symbols["Chat with Claude"], "chat");
   // No two commands share one.
   std::set<std::string> distinct;

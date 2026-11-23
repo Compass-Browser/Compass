@@ -43,6 +43,7 @@
 #include "compass/browser/ui/views/dev_mode/dev_mode_controller.h"
 #include "compass/browser/ui/views/reader/reader_mode.h"
 #include "compass/browser/ui/webui/settings/settings_sections.h"
+#include "compass/browser/ui/zap/zap_session.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/tab_strip_bridge.h"
 #include "compass/browser/window_sync/window_features.h"
@@ -96,6 +97,7 @@ constexpr CommandInfo kCommands[] = {
     {CommandBarCommand::kRouteSiteToSpace, u"Route this site to space\u2026",
      "alt_route"},
     {CommandBarCommand::kBoostSite, u"Boost this site\u2026", "sparkle"},
+    {CommandBarCommand::kZapSite, u"Zap elements on this site\u2026", "zap"},
     {CommandBarCommand::kCopyUrl, u"Copy URL", "link"},
     {CommandBarCommand::kReload, u"Reload", "refresh"},
     {CommandBarCommand::kHistory, u"History", "history"},
@@ -924,6 +926,9 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
           browser_, std::string(kBoostsSettingsSubPage) +
                         "?add=" + GetActiveBoostHost().value_or(""));
       break;
+    case CommandBarCommand::kZapSite:
+      zap::StartZap(browser_->GetActiveTabInterface()->GetContents());
+      break;
     case CommandBarCommand::kTidyToday:
       TodayTidier::Get(browser_->GetProfile())->Tidy(features->space_model());
       break;
@@ -1004,6 +1009,10 @@ bool CommandBarPageHandler::IsCommandAvailable(
              GetActiveRuleDomain().has_value();
     case CommandBarCommand::kBoostSite:
       return GetActiveBoostHost().has_value();
+    case CommandBarCommand::kZapSite: {
+      tabs::TabInterface* tab = browser_->GetActiveTabInterface();
+      return tab && zap::ZapSiteFor(tab->GetContents()).has_value();
+    }
     case CommandBarCommand::kTidyToday: {
       // Never in incognito, whose profile has no TodayTidier.
       if (browser_->GetProfile()->IsOffTheRecord() || !features ||

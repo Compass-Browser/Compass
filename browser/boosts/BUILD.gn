@@ -10,6 +10,8 @@ source_set("store") {
   sources = [
     "boost_store.cc",
     "boost_store.h",
+    "zap.cc",
+    "zap.h",
   ]
   public_deps = [
     "//base",
@@ -95,6 +97,7 @@ if (!is_android) {
     sources = [
       "boost_share_unittest.cc",
       "boost_store_unittest.cc",
+      "zap_unittest.cc",
     ]
     data = [ "//compass/common/boosts/share_vectors.json" ]
     deps = [
