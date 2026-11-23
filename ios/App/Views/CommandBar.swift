@@ -5,6 +5,7 @@
 import CompassClaude
 import CompassModel
 import SwiftUI
+import WebKit
 
 /// Search or type an address; or jump to an open entry, a pinned tab or a
 /// favorite. Everything it offers is the current space's profile's: its
@@ -17,6 +18,10 @@ import SwiftUI
 /// Questions in the Command Bar" on, a question gets an "Ask Claude" row on
 /// top (Return asks); the answer streams into a card under the field, with
 /// "Continue in Chat". Never in incognito.
+///
+/// Commands (Settings, Find on Page, Reader…) match by name, as the
+/// desktop's: one the text names ("settings") leads, and Return runs it;
+/// the others that match come last, under "Commands".
 struct CommandBar: View {
   @Environment(AppModel.self) private var app
   @Environment(\.dismiss) private var dismiss
@@ -40,10 +45,19 @@ struct CommandBar: View {
           } else if offersAsk {
             askCard.padding(.bottom, 8)
           }
+          let found = foundCommands
+          if !found.named.isEmpty {
+            Card {
+              ForEach(Array(found.named.enumerated()), id: \.element.id) { index, command in
+                commandRow(command, returnRuns: index == 0 && !offersAsk)
+              }
+            }
+            .padding(.bottom, 8)
+          }
           if !text.isEmpty {
             Card {
               Row(title: Self.short(text), subtitle: looksLikeURL ? "Open address" : "Search \(SearchEngine.current.name)",
-                  trailing: "return", action: { go(text) }) {
+                  trailing: found.named.isEmpty ? "return" : "arrow.right", action: { go(text) }) {
                 Image(systemName: looksLikeURL ? "globe" : "magnifyingglass")
                   .font(.system(size: 15, weight: .semibold))
                   .foregroundStyle(.white)
@@ -104,6 +118,11 @@ struct CommandBar: View {
               }
             }
           }
+          if !found.others.isEmpty {
+            CardSection("Commands") {
+              ForEach(found.others) { commandRow($0, returnRuns: false) }
+            }
+          }
         }
         .padding(.horizontal, 14)
         .padding(.bottom, 24)
@@ -162,6 +181,8 @@ struct CommandBar: View {
               } else if asker.state == .answered {
                 // Return again: on in the chat, as the desktop's Enter.
                 continueInChat()
+              } else if let command = foundCommands.named.first {
+                command.run()
               } else if !text.isEmpty {
                 go(text)
               }
@@ -294,6 +315,142 @@ struct CommandBar: View {
       try? await Task.sleep(for: .milliseconds(450))
       app.claude.seed(question: question, answer: answer)
       app.showingClaude = true
+    }
+  }
+
+  // MARK: Commands
+
+  /// A command the bar offers.
+  private struct Command: Identifiable {
+    let title: String
+    let subtitle: String
+    let symbol: String
+    let color: Color
+    let run: () -> Void
+    var id: String { title }
+  }
+
+  /// The commands matching the text (none while it's empty): those it
+  /// names, which lead, and the others.
+  private var foundCommands: (named: [Command], others: [Command]) {
+    guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return ([], []) }
+    let matching = commands.filter { CommandMatch.matches($0.title, text) }
+    return (matching.filter { CommandMatch.names($0.title, text) },
+            matching.filter { !CommandMatch.names($0.title, text) })
+  }
+
+  private func commandRow(_ command: Command, returnRuns: Bool) -> some View {
+    Row(title: command.title, subtitle: command.subtitle, trailing: returnRuns ? "return" : nil,
+        action: command.run) {
+      Image(systemName: command.symbol).menuIcon(command.color)
+    }
+    .accessibilityIdentifier("CommandBarCommand")
+  }
+
+  /// What the bar can do now: with the shown tab's page, and the app's.
+  private var commands: [Command] {
+    var list: [Command] = []
+    let tab = app.shownTab
+    let view = tab.flatMap { app.tabs.live[$0.id] }
+    let page = view?.url ?? tab.flatMap { URL(string: $0.url) }
+    if tab != nil {
+      list.append(Command(title: "Find on Page", subtitle: "Search the shown page",
+                          symbol: "doc.text.magnifyingglass", color: .blue) {
+        dismiss()
+        app.findOnPage()
+      })
+    }
+    if view != nil {
+      list.append(Command(title: "Reload", subtitle: "Load the page again", symbol: "arrow.clockwise", color: .gray) {
+        DevMode.shared.reload(view)
+        dismiss()
+      })
+    }
+    if let page {
+      list.append(Command(title: "Copy Link", subtitle: Self.short(page.absoluteString), symbol: "link", color: .blue) {
+        CopyLink.copy(page)
+        dismiss()
+      })
+    }
+    if app.shownReader != nil {
+      list.append(Command(title: "Leave Reader", subtitle: "Back to the page", symbol: "book", color: .brown) {
+        app.toggleReader()
+        dismiss()
+      })
+    } else if app.canShowReader {
+      list.append(Command(title: "Reader", subtitle: "Read the article, without the rest", symbol: "book",
+                          color: .brown) {
+        app.toggleReader()
+        dismiss()
+      })
+    }
+    // As the menu's Pin tile: a top-level Today or Pinned entry, not in
+    // incognito.
+    if let tab, let space = app.store.space(of: tab), !space.isIncognito,
+      tab.section == .today || tab.section == .pinned, tab.parent?.isSplit != true {
+      let pinned = tab.section == .pinned
+      list.append(Command(title: pinned ? "Unpin Tab" : "Pin Tab", subtitle: tab.displayTitle,
+                          symbol: pinned ? "pin.slash" : "pin", color: .orange) {
+        withAnimation(SidebarStyle.motion) {
+          if pinned {
+            _ = app.store.move(tab, to: space.today, at: space.today.children.count)
+          } else {
+            _ = app.store.move(tab, to: space.pinned, at: space.pinned.children.count)
+          }
+        }
+        dismiss()
+      })
+    }
+    if DevMode.shared.canToggle(page) {
+      let on = DevMode.shared.isOn(page)
+      list.append(Command(title: on ? "Leave Development Mode" : "Development Mode for This Site",
+                          subtitle: page?.host() ?? "", symbol: "chevron.left.forwardslash.chevron.right",
+                          color: .gray) {
+        DevMode.shared.toggle(page)
+        dismiss()
+      })
+    }
+    if let space = app.selectedSpace, app.tidier.canTidy(space) {
+      list.append(Command(title: "Tidy Today", subtitle: "Group Today's entries into folders", symbol: "sparkles",
+                          color: .orange) {
+        app.tidyToday(space)
+        dismiss()
+      })
+    }
+    if !app.isIncognito {
+      list.append(Command(title: "Chat with \(ClaudeSettings.shared.provider.assistantName)", subtitle: "Open the chat",
+                          symbol: "bubble.left.and.text.bubble.right", color: .orange) {
+        present { app.showingClaude = true }
+      })
+      list.append(Command(title: "New Incognito Tab", subtitle: "Nothing is remembered", symbol: "eyeglasses",
+                          color: .indigo) {
+        present { app.openIncognitoTab() }
+      })
+    }
+    if app.services.closed.canUndo {
+      list.append(Command(title: "Reopen Closed Tab", subtitle: "Undo the last close",
+                          symbol: "arrow.uturn.backward", color: .blue) {
+        app.undoClose()
+        dismiss()
+      })
+    }
+    list.append(Command(title: "Downloads", subtitle: "Files saved from pages", symbol: "arrow.down.circle",
+                        color: .blue) {
+      present { app.showingDownloads = true }
+    })
+    list.append(Command(title: "Settings", subtitle: "Sync, passwords, search engine", symbol: "gearshape.fill",
+                        color: .gray) {
+      present { app.showingSettings = true }
+    })
+    return list
+  }
+
+  /// Closes the bar, then shows what `show` does: one sheet at a time.
+  private func present(_ show: @escaping () -> Void) {
+    dismiss()
+    Task {
+      try? await Task.sleep(for: .milliseconds(450))
+      show()
     }
   }
 

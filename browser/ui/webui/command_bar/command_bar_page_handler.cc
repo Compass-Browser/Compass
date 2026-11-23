@@ -5,6 +5,7 @@
 #include "compass/browser/ui/webui/command_bar/command_bar_page_handler.h"
 
 #include <algorithm>
+#include <string_view>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -142,6 +143,21 @@ bool ContainsAll(const std::u16string& haystack,
   return std::ranges::all_of(words, [&](const std::u16string& word) {
     return haystack.find(word) != std::u16string::npos;
   });
+}
+
+// Whether |words| are the first words of |name| (lowercased, without a
+// trailing ellipsis), whole: "settings" and "new space" name commands, "set"
+// and "re" don't.
+bool NamesCommand(const std::u16string& name,
+                  const std::vector<std::u16string>& words) {
+  std::u16string_view trimmed(name);
+  if (trimmed.ends_with(u"\u2026")) {
+    trimmed.remove_suffix(1);
+  }
+  const std::vector<std::u16string> name_words =
+      GetWords(std::u16string(trimmed));
+  return !words.empty() && words.size() <= name_words.size() &&
+         std::equal(words.begin(), words.end(), name_words.begin());
 }
 
 // Calls |visit| for each tab node under |node|, in tree order.
@@ -465,14 +481,18 @@ void CommandBarPageHandler::Rebuild() {
       AssignId(item, "a:ask");
       items.push_back(std::move(item));
     }
-    // The default match comes next: it's what Enter takes without a
-    // question.
+    // Commands the query names come next: typing "settings" means the
+    // command, not a search for it.
+    const size_t named_start = items.size();
+    AddCommandItems(items, CommandRows::kNamed);
+    const bool named_command = items.size() > named_start;
+    // Then the default match: it's what Enter takes otherwise.
     size_t first_other = 0;
     if (!result.empty() && result.match_at(0).allowed_to_be_default_match) {
       const AutocompleteMatch& match = result.match_at(0);
       items.push_back(MatchItem(match, 0));
-      // Enter asks: nothing is completed in the field.
-      if (!ask_row_) {
+      // Enter asks or runs the command: nothing is completed in the field.
+      if (!ask_row_ && !named_command) {
         inline_autocompletion = match.inline_autocompletion;
       }
       first_other = 1;
@@ -483,7 +503,7 @@ void CommandBarPageHandler::Rebuild() {
     }
     AddOtherDeviceTabItems(items);
     AddSpaceItems(items);
-    AddCommandItems(items);
+    AddCommandItems(items, CommandRows::kOthers);
   }
 
   items_ = std::move(items);
@@ -644,11 +664,24 @@ void CommandBarPageHandler::AddSpaceItems(std::vector<Item>& items) {
   }
 }
 
-void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items) {
+void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items,
+                                            CommandRows rows) {
   const std::vector<std::u16string> words = GetWords(text_);
+  // Whether |rows| takes a matching command |name|.
+  auto takes = [&](const std::u16string& name) {
+    switch (rows) {
+      case CommandRows::kAll:
+        return true;
+      case CommandRows::kNamed:
+        return NamesCommand(name, words);
+      case CommandRows::kOthers:
+        return !NamesCommand(name, words);
+    }
+  };
   for (const CommandInfo& info : kCommands) {
     if (!IsCommandAvailable(info.command) ||
-        !ContainsAll(base::i18n::ToLower(info.name), words)) {
+        !ContainsAll(base::i18n::ToLower(info.name), words) ||
+        !takes(info.name)) {
       continue;
     }
     Item item;
@@ -662,8 +695,10 @@ void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items) {
   }
 
   // Claude, last: "Chat with Claude" for no text or text naming it, else
-  // "Ask Claude" with the text as the question.
-  if (!IsCommandAvailable(CommandBarCommand::kAskClaude)) {
+  // "Ask Claude" with the text as the question. Named ("chat"), it leads
+  // with the other named commands.
+  if (!IsCommandAvailable(CommandBarCommand::kAskClaude) ||
+      !takes(u"Chat with Claude")) {
     return;
   }
   const std::u16string question(

@@ -171,7 +171,12 @@ class CommandBarPageHandler : public command_bar::mojom::PageHandler,
   void AddEntryItems(std::vector<Item>& items);
   void AddRecentTodayItems(std::vector<Item>& items);
   void AddSpaceItems(std::vector<Item>& items);
-  void AddCommandItems(std::vector<Item>& items);
+  // Which matching commands AddCommandItems() adds: all of them, those the
+  // query names (it's their name's first words, as "settings" or "new
+  // space"), which lead the list, or the others.
+  enum class CommandRows { kAll, kNamed, kOthers };
+  void AddCommandItems(std::vector<Item>& items,
+                       CommandRows rows = CommandRows::kAll);
   // "Tabs on other devices", grouped by device.
   void AddOtherDeviceTabItems(std::vector<Item>& items);
   Item EntryItem(const SidebarNode& node, const SpaceModel& space);

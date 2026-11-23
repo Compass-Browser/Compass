@@ -57,6 +57,7 @@
 		4453852400B1601E7D1955D7 /* SafariOpen.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 943E4453D17FD6C970BD7A46 /* SafariOpen.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		445E4DD954C74DA28619C050 /* images in Resources */ = {isa = PBXBuildFile; fileRef = 7A263C425888FF1A16E210FB /* images */; };
 		48C7984F94A06309C7BF16C5 /* AutoPiP.swift in Sources */ = {isa = PBXBuildFile; fileRef = C653E784866DBD8FD0997D3B /* AutoPiP.swift */; };
+		4907980D263785567FB1973D /* ClaudeMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A059C6BC97F140580D1B7BC /* ClaudeMarkdownView.swift */; };
 		4968D00362621422D48BCA8B /* CommandBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56591060B5711506971F138C /* CommandBar.swift */; };
 		4E1DC01DA3B10B7F37934786 /* BoostSharing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4634D8BDAA2EE60FDE7B2DC7 /* BoostSharing.swift */; };
 		4FA408CE7C5ACAE6EAF6D738 /* StartScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF087B09F1E59FE957A0DB0 /* StartScreenTests.swift */; };
@@ -111,6 +112,7 @@
 		A035DC301CF07BB150374FD4 /* CompassShared in Frameworks */ = {isa = PBXBuildFile; productRef = 804956549F3FF1171C330610 /* CompassShared */; };
 		A04E2FE056EF8197288FE01C /* ListWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6DAC3E7BAAB02E17E37AB95 /* ListWidgets.swift */; };
 		A3C3B52BEDB335DD79A4B5D8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */; };
+		A55D2923B80226C25CC3F0CF /* CommandBarCommandsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5503B813A562DF2DFAA58581 /* CommandBarCommandsTests.swift */; };
 		A5BAA7276E06B1D4740A7C9A /* JoinSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48A30338DA7B954505D9C2CC /* JoinSheet.swift */; };
 		A84D15184EB4D9C0669C15FE /* _locales in Resources */ = {isa = PBXBuildFile; fileRef = EDC160A2F8C9A864C250F339 /* _locales */; };
 		A8BCFC55EB0526B1CFD64478 /* call_pip.js in Resources */ = {isa = PBXBuildFile; fileRef = 5732C1BC2590C031707516DE /* call_pip.js */; };
@@ -144,7 +146,6 @@
 		D9D8815C4107DF4474DC2FD4 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = 15AEEA8D528A69A946C7E01B /* CompassSync */; };
 		DC7CC89BA34E3FCF8F18A976 /* KeyboardShortcutsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E5E4C521DD74CEBD175150 /* KeyboardShortcutsTests.swift */; };
 		DF5A2FEAA7314FD697E62C7A /* ClaudeChatSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 950B2D1C1AF0CBC338C181A6 /* ClaudeChatSheet.swift */; };
-		93B763119AF2A5F97DF4BA50 /* ClaudeMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69171AF9AD935FFB6E298B60 /* ClaudeMarkdownView.swift */; };
 		DFB02BF326D4B44B34C55AF8 /* ThemeEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65277AB39215D86443B8364F /* ThemeEditor.swift */; };
 		DFC3D119FC6F0613E9500099 /* Readability-readerable.js in Resources */ = {isa = PBXBuildFile; fileRef = 956236B2B30A91963A11AA21 /* Readability-readerable.js */; };
 		E7DA38301889CC7FB624865F /* SwipeUpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */; };
@@ -232,6 +233,7 @@
 		038811C2E63EC30BEA8EE872 /* SwipeTabsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeTabsTests.swift; sourceTree = "<group>"; };
 		0655D4DC672C6C26B715EF5E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		07E3C1165A078F77341564E3 /* CopyLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyLink.swift; sourceTree = "<group>"; };
+		0A059C6BC97F140580D1B7BC /* ClaudeMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeMarkdownView.swift; sourceTree = "<group>"; };
 		0BA66EDD62DA7EDDCAE8EC28 /* BoostInjector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoostInjector.swift; sourceTree = "<group>"; };
 		0D1140EA2AAC75EC3EC819CF /* SpaceWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceWidget.swift; sourceTree = "<group>"; };
 		0DED477E2FD46B08248E91DD /* PushService.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PushService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -279,6 +281,7 @@
 		4949F9FC0F1970A1F889D517 /* ShortcutsActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsActions.swift; sourceTree = "<group>"; };
 		4D6DFD0447538D43874857BE /* SidebarPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarPanel.swift; sourceTree = "<group>"; };
 		4E455C53F4AADF06D3632F37 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		5503B813A562DF2DFAA58581 /* CommandBarCommandsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBarCommandsTests.swift; sourceTree = "<group>"; };
 		56591060B5711506971F138C /* CommandBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBar.swift; sourceTree = "<group>"; };
 		5732C1BC2590C031707516DE /* call_pip.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = call_pip.js; sourceTree = "<group>"; };
 		5B0DDC37D80E42A05260EDEF /* AutoPiPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPiPTests.swift; sourceTree = "<group>"; };
@@ -316,7 +319,6 @@
 		9368A0772C67BCC14AC29785 /* EaselLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EaselLibrary.swift; sourceTree = "<group>"; };
 		943E4453D17FD6C970BD7A46 /* SafariOpen.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = SafariOpen.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		950B2D1C1AF0CBC338C181A6 /* ClaudeChatSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeChatSheet.swift; sourceTree = "<group>"; };
-		69171AF9AD935FFB6E298B60 /* ClaudeMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeMarkdownView.swift; sourceTree = "<group>"; };
 		956236B2B30A91963A11AA21 /* Readability-readerable.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "Readability-readerable.js"; sourceTree = "<group>"; };
 		960D86CC6167C5350147FD0D /* reader.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = reader.js; sourceTree = "<group>"; };
 		961F85913D33C5CF85A475CE /* ClaudeDevTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeDevTools.swift; sourceTree = "<group>"; };
@@ -513,6 +515,7 @@
 				10E79C7A3A8E519D0FED01CB /* BoostShareTests.swift */,
 				9F4313D13751DA68130C8883 /* BoostsTests.swift */,
 				726541D9BE66CA543B0C251A /* CollapseBarTests.swift */,
+				5503B813A562DF2DFAA58581 /* CommandBarCommandsTests.swift */,
 				D248EE47245F87391C4DDC09 /* DownloadsTests.swift */,
 				48E5E4C521DD74CEBD175150 /* KeyboardShortcutsTests.swift */,
 				624E0261C6D1E934507BE3C7 /* PageMenuTests.swift */,
@@ -799,9 +802,9 @@
 			children = (
 				5D8BE98AA2B25948FFDAB6AC /* ClaudeChat.swift */,
 				950B2D1C1AF0CBC338C181A6 /* ClaudeChatSheet.swift */,
-				69171AF9AD935FFB6E298B60 /* ClaudeMarkdownView.swift */,
 				977A8F8485D4C21A1859E91F /* ClaudeClient.swift */,
 				961F85913D33C5CF85A475CE /* ClaudeDevTools.swift */,
+				0A059C6BC97F140580D1B7BC /* ClaudeMarkdownView.swift */,
 				02496055CC5CED2F7938BBFE /* ClaudeMemoryStore.swift */,
 				C58E338C0AAD40A46BE75135 /* ClaudeSettings.swift */,
 				BC434C43B181FD41FBA6CD32 /* ClaudeSettingsView.swift */,
@@ -1144,9 +1147,9 @@
 				F3406C598B31BE9892367451 /* BrowserScreen.swift in Sources */,
 				A8C5CE015AFF427E149A3C30 /* ClaudeChat.swift in Sources */,
 				DF5A2FEAA7314FD697E62C7A /* ClaudeChatSheet.swift in Sources */,
-				93B763119AF2A5F97DF4BA50 /* ClaudeMarkdownView.swift in Sources */,
 				B580D148EA2C68D000F5C041 /* ClaudeClient.swift in Sources */,
 				F9071FAB2EA0B14F40BAF4F3 /* ClaudeDevTools.swift in Sources */,
+				4907980D263785567FB1973D /* ClaudeMarkdownView.swift in Sources */,
 				0BA524C95ED44728317C8441 /* ClaudeMemoryStore.swift in Sources */,
 				0B0677B675C2C7D395C3700F /* ClaudeSettings.swift in Sources */,
 				C56A4F87EBD3E7FEA87D2AD0 /* ClaudeSettingsView.swift in Sources */,
@@ -1254,6 +1257,7 @@
 				25374AD619591E0A785F35A3 /* BoostShareTests.swift in Sources */,
 				86684A54CA9356438E5AEAAC /* BoostsTests.swift in Sources */,
 				F4617C5B4269A2A19EB32B09 /* CollapseBarTests.swift in Sources */,
+				A55D2923B80226C25CC3F0CF /* CommandBarCommandsTests.swift in Sources */,
 				8DAFAAAC75CDF3AB68D09D02 /* DownloadsTests.swift in Sources */,
 				DC7CC89BA34E3FCF8F18A976 /* KeyboardShortcutsTests.swift in Sources */,
 				859F8C08EFB2E77F4C28339E /* PageMenuTests.swift in Sources */,

@@ -155,9 +155,12 @@ per change:
   question and the answer, typing goes back to the results, Esc closes.
   "About this page" on the row adds the current tab's title and host.
 
-Order: the Ask Claude row for a question, the default omnibox match,
-entries, the other omnibox matches, tabs on other devices, spaces,
-commands. With an empty query in new-entry mode the list is the
+Order: the Ask Claude row for a question, commands the query names,
+the default omnibox match, entries, the other omnibox matches, tabs on
+other devices, spaces, the other commands. A query names a command when
+its words are the first words of the command's name, whole ("settings",
+"new space", "chat" for Chat with Claude; not "sett"): Enter then runs it,
+and the default match's completion isn't put in the field. With an empty query in new-entry mode the list is the
 window's Today entries, most recent first, then the commands.
 
 ### Accepting

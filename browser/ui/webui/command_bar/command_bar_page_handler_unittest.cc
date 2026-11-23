@@ -353,6 +353,35 @@ TEST_F(CommandBarPageHandlerTest, MatchesEntriesSpacesAndCommands) {
   EXPECT_EQ(page_.results()[0]->kind, ResultKind::kNavigate);
 }
 
+// A query that names a command ("settings", "new space") puts it first,
+// ahead of the omnibox's default match, with nothing completed in the
+// field; part of a word ("sett") doesn't.
+TEST_F(CommandBarPageHandlerTest, NamedCommandsLead) {
+  OpenAndQuery(Mode::kNewEntry, "settings");
+  ASSERT_FALSE(page_.results().empty());
+  EXPECT_EQ(page_.results()[0]->kind, ResultKind::kCommand);
+  EXPECT_EQ(page_.results()[0]->title, "Settings");
+  EXPECT_EQ(page_.inline_autocompletion(), "");
+
+  OpenAndQuery(Mode::kNewEntry, " New  Space ");
+  ASSERT_GE(page_.results().size(), 2u);
+  EXPECT_EQ(page_.results()[0]->title, "New space");
+  EXPECT_EQ(page_.results()[1]->title, "New space on this device");
+
+  OpenAndQuery(Mode::kNewEntry, "route this site to space");
+  ASSERT_FALSE(page_.results().empty());
+  EXPECT_EQ(page_.results()[0]->title, "Route this site to space\u2026");
+
+  OpenAndQuery(Mode::kNewEntry, "chat");
+  ASSERT_FALSE(page_.results().empty());
+  EXPECT_EQ(page_.results()[0]->title, "Chat with Claude");
+
+  OpenAndQuery(Mode::kNewEntry, "sett");
+  ASSERT_FALSE(page_.results().empty());
+  EXPECT_NE(page_.results()[0]->kind, ResultKind::kCommand);
+  EXPECT_THAT(page_.LocalResults(), ElementsAre("command Settings"));
+}
+
 TEST_F(CommandBarPageHandlerTest, NamesTheSpaceOfOtherSpacesEntries) {
   SpaceList& list = WindowFeatures::From(browser())->service().space_list();
   SpaceModel* work = list.AddSpace(1, u"Work");
