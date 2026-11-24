@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Compass Sync on Cloudflare: Terms</title>
+<meta name="description" content="Terms for setting up your own Compass sync server in your Cloudflare account, and for using one you're invited to.">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="/compass.svg" type="image/svg+xml">
+<style>
+  :root { --bg: #ffffff; --fg: #1d1d1f; --muted: #6e6e73; --rule: #e5e5ea; --accent: #2f6fe4; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111113; --fg: #f2f2f7; --muted: #a1a1a6; --rule: #2c2c2e; --accent: #6ea0ff; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 20px 64px; }
+  h1 { font-size: 32px; line-height: 1.2; margin: 0 0 4px; }
+  h2 { font-size: 21px; margin: 36px 0 8px; padding-top: 20px; border-top: 1px solid var(--rule); }
+  p, li { margin: 0 0 10px; }
+  ul { padding-left: 22px; }
+  .meta { color: var(--muted); margin-bottom: 28px; }
+  .summary { background: color-mix(in srgb, var(--accent) 9%, transparent); border-radius: 14px; padding: 16px 20px; }
+  .summary p:last-child { margin-bottom: 0; }
+  a { color: var(--accent); }
+  code { font-size: 15px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Compass Sync on Cloudflare: Terms</h1>
+<p class="meta">Effective 24 November 2026</p>
+
+<div class="summary">
+<p><strong>In short:</strong> Compass can set up a sync server for you in your own Cloudflare account. It uses the access you give it once, for that, and doesn't keep it. The server is yours: it runs under your Cloudflare account and Cloudflare's terms, and you decide who may use it. Everything synced through it is encrypted on the devices, so neither you nor Cloudflare nor we can read it.</p>
+</div>
+
+<h2>What these terms cover</h2>
+<p>These terms cover the Compass Browser feature that sets up a Compass sync server in a Cloudflare account ("Set up a free one on Cloudflare", with Sign in with Cloudflare or a Cloudflare API token), and the use of a server set up this way, by its owner and by people they invite. The <a href="/privacy">Compass Browser Privacy Policy</a> applies too. "We" is the developer of Compass Browser.</p>
+
+<h2>What Compass does in your Cloudflare account</h2>
+<p>When you sign in with Cloudflare and allow Compass, or paste an API token, Compass asks for two permissions: <em>Account Settings Read</em> and <em>Workers Admin</em>. With them it does this, once, from your computer:</p>
+<ul>
+  <li>reads which Cloudflare account to use (the first one your sign-in or token can use);</li>
+  <li>reads your account's <code>workers.dev</code> address, or creates one (named <code>compass-</code> and eight random letters) if the account has none;</li>
+  <li>lists your account's Workers, so it doesn't replace one of yours;</li>
+  <li>uploads the Compass sync server as a Worker named <code>compass-sync</code> (or <code>compass-sync-</code> and six characters of your sync chain's ID, if you already have a <code>compass-sync</code>), with the Durable Objects it stores its data in, and with your new sync chain as its owner;</li>
+  <li>turns on its <code>workers.dev</code> address and checks that the server answers.</li>
+</ul>
+<p>The server's code is open source, the same as in Compass's public repository (<code>server/cloudflare</code>).</p>
+
+<h2>What Compass doesn't do</h2>
+<ul>
+  <li>It doesn't keep the access: the sign-in's access token, or the API token you paste, is used for the steps above and then dropped. Compass doesn't ask Cloudflare for ongoing (offline) access, so it can't act in your account later without you signing in again.</li>
+  <li>It doesn't touch anything else in your account: no other Workers, domains, DNS, settings or billing.</li>
+  <li>Nothing goes to us: the steps above talk to Cloudflare and to your new server only. Compass keeps, on your computer, which account, Worker and address it set up, and the server's address in its sync settings.</li>
+</ul>
+
+<h2>Your server, your responsibility</h2>
+<ul>
+  <li>The server runs in your Cloudflare account, as your Worker. Your use of it is under Cloudflare's own terms and policies, between you and Cloudflare.</li>
+  <li>Its use counts toward your account's Cloudflare plan and limits. The server is built to fit the free plan for a person and a few friends, but Cloudflare sets its plans, limits and prices, and they can change. If the server goes past a free plan's limits, Cloudflare may refuse requests until they reset. On a paid plan, Cloudflare may charge you for use. We don't pay for, or refund, anything Cloudflare charges you.</li>
+  <li>You choose who may use it (below), and you're responsible for that choice.</li>
+</ul>
+
+<h2>Who can use your server</h2>
+<ul>
+  <li>The sync chain Compass set it up for (your devices), and the other profiles of that chain.</li>
+  <li>People you invite. Compass makes invite links that work once and expire after 7 days. You can remove someone, or revoke an unused invite, at any time under Sync › People on your server.</li>
+  <li>Nobody else: other sync chains are refused.</li>
+</ul>
+
+<h2>If you're invited to someone's server</h2>
+<ul>
+  <li>The server runs in the inviter's Cloudflare account. They, and Cloudflare, operate it, not us.</li>
+  <li>Your synced data is encrypted on your devices with a key only your devices have, before it's sent: the server's owner can't read it. Like any sync server's operator, they could see what the server needs to work (Privacy Policy, "Sync"): an identifier for your sync chain; the type, size and time of each stored item; and your devices' list entries (device name, model, app version, when it last synced).</li>
+  <li>The owner can remove you, and can delete the server, at any time. Your data stays on your devices, but what only the server had is then gone. Keep your recovery code, as with any sync server.</li>
+</ul>
+
+<h2>Updates</h2>
+<p>Compass doesn't change your server after setting it up. A later version of Compass may offer to update it with a newer server, which takes signing in to Cloudflare again.</p>
+
+<h2>Stopping</h2>
+<ul>
+  <li>Compass keeps no access to revoke. If you used Sign in with Cloudflare, Compass may still show among your connected applications in Cloudflare (your profile › Access Management › Connected Applications), where you can remove it.</li>
+  <li>To stop the server, delete its Worker (<code>compass-sync</code>) in Cloudflare's dashboard. That also deletes what the server stores, for you and everyone you invited, and their devices stop syncing through it.</li>
+  <li>To stop syncing on a device, choose Leave sync in Compass's Sync settings.</li>
+</ul>
+
+<h2>No warranty</h2>
+<p>This feature and the server are provided free, "as is" and "as available", without warranties of any kind, to the extent the law allows. We don't promise that setting up a server will succeed, that the server will be available, or that Cloudflare's plans will keep suiting it. To the extent the law allows, we aren't liable for losses arising from setting up or using the server, including lost data and charges from Cloudflare. Nothing here limits rights you have that the law doesn't let a contract take away.</p>
+
+<h2>Cloudflare</h2>
+<p>Cloudflare and Workers are trademarks of Cloudflare, Inc. Compass Browser isn't made, endorsed or operated by Cloudflare.</p>
+
+<h2>Changes</h2>
+<p>If these terms change, we'll update them on this page and change the date at the top.</p>
+
+<h2>Contact</h2>
+<p>Questions: on iPhone or iPad, send feedback from the app through TestFlight (take a screenshot, then Share Beta Feedback). On Android, write to the contact email on Compass Browser's Google Play page.</p>
+</main>
+</body>
+</html>
