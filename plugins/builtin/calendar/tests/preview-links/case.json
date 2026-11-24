@@ -1,0 +1,10 @@
+{"mode": "preview", "config": {"count": 5},
+ "page": {"url": "https://calendar.google.com/calendar/u/1/r/day", "title": "Google Calendar", "live": true,
+          "groups": {"events": [
+            {"attrs": {"data-eventid": "YWJjIGNhbEBleGFtcGxlLmNvbQ"},
+             "fields": {"label": "9am to 10am, Linked, Calendar: Work, No location, November 21, 2026", "title": "Linked"}},
+            {"fields": {"label": "10am to 11am, No id, Calendar: Work, No location, November 21, 2026", "title": "No id"}},
+            {"attrs": {"data-eventid": "../../evil?x=1"},
+             "fields": {"label": "11am to 12pm, Bad id, Calendar: Work, No location, November 21, 2026", "title": "Bad id"}}
+          ]}},
+ "env": {"now": "2026-11-21T07:00:00Z", "timeZone": "Europe/Rome", "locale": "en-GB"}}

@@ -108,7 +108,9 @@ class TabPreviewService {
   // The user's settings for a plugin (Settings › Plugins).
   bool IsEnabled(const LivePlugin& plugin) const;
   void SetEnabled(const std::string& plugin_id, bool enabled);
-  // Granted, and for every related host the plugin lists now.
+  // Whether |plugin|'s preview may use the tab's session: a built-in's
+  // unless the user turned it off; an installed plugin's once the user
+  // granted it, for every related host it lists now.
   bool IsSessionGranted(const LivePlugin& plugin) const;
   void SetSessionGranted(const std::string& plugin_id, bool granted);
   base::DictValue GetConfig(const std::string& plugin_id) const;

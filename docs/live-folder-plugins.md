@@ -658,7 +658,8 @@ the screenshot.
 When the page doesn't show what you need, declare `"session":
 {"related": [...]}` and use `compass.fetch()` on the tab's own site: it
 works once the user turns on "use your session" for your plugin in
-Settings › Plugins (check `compass.hasSession`), with their cookies, and
+Settings › Plugins (check `compass.hasSession`; Compass's built-in plugins
+have it unless the user turns it off), with their cookies, and
 `compass.fetch(url, {select: "issues"})` parses an HTML response with a
 selector group. Related hosts are reached without cookies; nothing else is
 reachable. `compass.github`'s notifications preview does both (page first,

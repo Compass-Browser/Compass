@@ -5,24 +5,28 @@
       {
         "id": "e2@1794729600000",
         "title": "Unload van",
+        "url": "https://calendar.google.com/calendar/u/0/r/eventedit/e2",
         "subtitle": "9:00–10:00",
         "time": 1794729600000
       },
       {
         "id": "e3@1794733200000",
         "title": "Stage setup (Anna, Bruno, Carla)",
+        "url": "https://calendar.google.com/calendar/u/0/r/eventedit/e3",
         "subtitle": "10:00–18:00",
         "time": 1794733200000
       },
       {
         "id": "e1@1794783600000",
         "title": "Team offsite",
+        "url": "https://calendar.google.com/calendar/u/0/r/eventedit/e1",
         "subtitle": "Tomorrow (all day)",
         "time": 1794783600000
       },
       {
         "id": "e4@1794862800000",
         "title": "Load van",
+        "url": "https://calendar.google.com/calendar/u/0/r/eventedit/e4",
         "subtitle": "Tomorrow 22:00–23:00",
         "time": 1794862800000
       }

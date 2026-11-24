@@ -276,15 +276,18 @@ A preview reads the page, which a folder never does, so:
    dropped. `url` isn't restricted: only a click opens it.
 4. **Where.** `matches` can't name browser pages or the Web Store
    (`claude::CanUsePage()`); previews never run off the record.
-5. **Consent.** Built-ins' previews are on; installed plugins' are off until
-   the user turns them on in Settings › Plugins, where each says which
-   sites it reads.
+5. **Consent.** Built-ins' previews are on, and so is their session (below);
+   installed plugins' are off until the user turns them on in Settings ›
+   Plugins, where each says which sites it reads.
 
 **Advanced mode (`session`).** When the page doesn't show what's needed (a
 month view, a list that loads later, an unloaded tab), a plugin may make
-requests with the user's session, once the user allows it for that plugin
-("Advanced: use your session on google.com", off by default, even for
-built-ins). Then:
+requests with the user's session: a built-in at once, an installed plugin
+once the user allows it ("Advanced: use your session on google.com" in
+Settings › Plugins, which turns a built-in's off too;
+`TabPreviewService::IsSessionGranted()`). Built-ins ship with Compass,
+reviewed with it, so asking would add nothing; a plugin from elsewhere
+asks. Then:
 
 - Requests may go to the tab's **site**, subdomains included (eTLD+1 with
   the Public Suffix List's private registries, so `alice.github.io` can't
@@ -359,7 +362,9 @@ conformance case, `github/preview-*`, `gmail/preview-*`, `LiveResultTest.Preview
   (profile prefs, not synced).
 - **Hover card:** see docs/design/sidebar.md, "Hover cards".
 - **Built-ins:** `compass.calendar` reads Google Calendar's event chips
-  (English labels); `compass.github` shows recent notifications from
+  (English labels), and with the session fetches each shown event's page
+  (at most 5) for its meeting link, so its row joins the call (Meet, Zoom,
+  Teams…), else opens the event; `compass.github` shows recent notifications from
   `github.com/notifications`, from the page there, else (with the session)
   by fetching it; `compass.gmail` (preview only, `"folder": false`) shows
   unread mail: the message list's unread rows (`tr.zA.zE`) while the tab
@@ -517,9 +522,12 @@ Done (`ios/CompassKit/Sources/CompassLiveFolders`, `ios/App/Model/LiveFolders.sw
   `BYHOUR` and sub-daily frequencies are ignored.
 - GitHub needs a token; there's no OAuth flow.
 - Tab previews: rows don't show item icons yet (the icon rule is enforced,
-  but the hover card loads no images), and can't be clicked (the card
-  takes no focus). The Calendar preview reads English labels only and has
-  no session mode yet; the GitHub selectors follow today's
+  but the hover card loads no images), and take the mouse only: the card
+  takes no focus, so no keyboard. The Calendar preview reads English labels
+  only. Its rows rely on today's markup: a chip's `data-eventid` is the
+  event's eid, and the event's page (`/calendar/u/N/r/eventedit/<eid>`)
+  has its record in `script#initialdata`, an array starting with the event
+  id, where the meeting link is read. The GitHub selectors follow today's
   github.com/notifications markup and will need updates when it changes.
   The Node runtime can't parse HTML, so `select` on fetched pages is
   checked by the desktop browser test only. Desktop only: iOS and Android

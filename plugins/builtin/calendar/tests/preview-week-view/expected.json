@@ -5,6 +5,7 @@
       {
         "id": "ev_now@1795251600000",
         "title": "Design review",
+        "url": "https://calendar.google.com/calendar/u/0/r/eventedit/ev_now",
         "subtitle": "10:00–11:30",
         "time": 1795251600000,
         "badge": "Now"
@@ -12,18 +13,21 @@
       {
         "id": "ev_lunch@1795260600000",
         "title": "Lunch with Sara",
+        "url": "https://calendar.google.com/calendar/u/0/r/eventedit/ev_lunch",
         "subtitle": "12:30–13:30",
         "time": 1795260600000
       },
       {
         "id": "ev_late@1795298400000",
         "title": "Release night",
+        "url": "https://calendar.google.com/calendar/u/0/r/eventedit/ev_late",
         "subtitle": "23:00–1:00",
         "time": 1795298400000
       },
       {
         "id": "ev_mon@1795421700000",
         "title": "Standup",
+        "url": "https://calendar.google.com/calendar/u/0/r/eventedit/ev_mon",
         "subtitle": "Mon 9:15–9:30",
         "time": 1795421700000
       }

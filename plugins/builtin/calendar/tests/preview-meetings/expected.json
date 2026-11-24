@@ -1,0 +1,63 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "ZXZzdGFuZHVwIGNhbEBleGFtcGxlLmNvbQ@1795248000000",
+        "title": "Standup",
+        "url": "https://meet.google.com/abc-defg-hij",
+        "subtitle": "9:00–10:00 · Google Meet",
+        "time": 1795248000000
+      },
+      {
+        "id": "ZXZjbGllbnQgY2FsQGV4YW1wbGUuY29t@1795251600000",
+        "title": "Client call",
+        "url": "https://acme.zoom.us/j/123456789?pwd=abc",
+        "subtitle": "10:00–11:00 · Zoom",
+        "time": 1795251600000
+      },
+      {
+        "id": "ZXZsdW5jaCBjYWxAZXhhbXBsZS5jb20@1795255200000",
+        "title": "Lunch",
+        "url": "https://calendar.google.com/calendar/u/1/r/eventedit/ZXZsdW5jaCBjYWxAZXhhbXBsZS5jb20",
+        "subtitle": "11:00–12:00",
+        "time": 1795255200000
+      },
+      {
+        "id": "ZXZyZXZpZXcgY2FsQGV4YW1wbGUuY29t@1795258800000",
+        "title": "Review",
+        "url": "https://calendar.google.com/calendar/u/1/r/eventedit/ZXZyZXZpZXcgY2FsQGV4YW1wbGUuY29t",
+        "subtitle": "12:00–13:00",
+        "time": 1795258800000
+      }
+    ],
+    "title": "Coming up",
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://calendar.google.com/calendar/u/1/r/eventedit/ZXZzdGFuZHVwIGNhbEBleGFtcGxlLmNvbQ",
+      "cookies": true,
+      "via": "page"
+    },
+    {
+      "method": "GET",
+      "url": "https://calendar.google.com/calendar/u/1/r/eventedit/ZXZjbGllbnQgY2FsQGV4YW1wbGUuY29t",
+      "cookies": true,
+      "via": "page"
+    },
+    {
+      "method": "GET",
+      "url": "https://calendar.google.com/calendar/u/1/r/eventedit/ZXZsdW5jaCBjYWxAZXhhbXBsZS5jb20",
+      "cookies": true,
+      "via": "page"
+    },
+    {
+      "method": "GET",
+      "url": "https://calendar.google.com/calendar/u/1/r/eventedit/ZXZyZXZpZXcgY2FsQGV4YW1wbGUuY29t",
+      "cookies": true,
+      "via": "page"
+    }
+  ]
+}

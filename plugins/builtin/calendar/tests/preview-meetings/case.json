@@ -1,0 +1,85 @@
+{
+ "mode": "preview",
+ "config": {
+  "count": 5
+ },
+ "page": {
+  "url": "https://calendar.google.com/calendar/u/1/r/day",
+  "title": "Google Calendar",
+  "live": true,
+  "groups": {
+   "events": [
+    {
+     "attrs": {
+      "data-eventid": "ZXZzdGFuZHVwIGNhbEBleGFtcGxlLmNvbQ"
+     },
+     "text": "",
+     "fields": {
+      "label": "9am to 10am, Standup, Calendar: Work, No location, 21 November 2026",
+      "title": "Standup"
+     }
+    },
+    {
+     "attrs": {
+      "data-eventid": "ZXZjbGllbnQgY2FsQGV4YW1wbGUuY29t"
+     },
+     "text": "",
+     "fields": {
+      "label": "10am to 11am, Client call, Calendar: Work, No location, 21 November 2026",
+      "title": "Client call"
+     }
+    },
+    {
+     "attrs": {
+      "data-eventid": "ZXZsdW5jaCBjYWxAZXhhbXBsZS5jb20"
+     },
+     "text": "",
+     "fields": {
+      "label": "11am to 12pm, Lunch, Calendar: Work, No location, 21 November 2026",
+      "title": "Lunch"
+     }
+    },
+    {
+     "attrs": {
+      "data-eventid": "ZXZyZXZpZXcgY2FsQGV4YW1wbGUuY29t"
+     },
+     "text": "",
+     "fields": {
+      "label": "12pm to 1pm, Review, Calendar: Work, No location, 21 November 2026",
+      "title": "Review"
+     }
+    }
+   ]
+  }
+ },
+ "grantSession": true,
+ "responses": {
+  "https://calendar.google.com/calendar/u/1/r/eventedit/ZXZzdGFuZHVwIGNhbEBleGFtcGxlLmNvbQ": {
+   "headers": {
+    "content-type": "text/html; charset=utf-8"
+   },
+   "file": "standup.html"
+  },
+  "https://calendar.google.com/calendar/u/1/r/eventedit/ZXZjbGllbnQgY2FsQGV4YW1wbGUuY29t": {
+   "headers": {
+    "content-type": "text/html; charset=utf-8"
+   },
+   "file": "client.html"
+  },
+  "https://calendar.google.com/calendar/u/1/r/eventedit/ZXZsdW5jaCBjYWxAZXhhbXBsZS5jb20": {
+   "headers": {
+    "content-type": "text/html; charset=utf-8"
+   },
+   "file": "lunch.html"
+  },
+  "https://calendar.google.com/calendar/u/1/r/eventedit/ZXZyZXZpZXcgY2FsQGV4YW1wbGUuY29t": {
+   "status": 404,
+   "body": "Not found"
+  }
+ },
+ "env": {
+  "now": "2026-11-21T07:00:00Z",
+  "timeZone": "Europe/Rome",
+  "locale": "en-GB"
+ }
+}

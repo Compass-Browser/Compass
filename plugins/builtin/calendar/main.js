@@ -106,7 +106,16 @@ async function fetchItems(config) {
 // 2026" (en-US) or "…, 21 November 2026" (en-GB), and their visible title,
 // since titles can have commas. It needs no setup. Only English labels are
 // read; events the page doesn't show (another week, a month view's "+3
-// more") aren't seen. See docs/design/live-folders.md, "Tab previews".
+// more") aren't seen.
+//
+// A row opens the event's meeting (Meet, Zoom, Teams, ...) when it has one,
+// else the event's page. The chips don't carry meeting links, so with the
+// tab's session (on for built-ins unless turned off in Settings › Plugins)
+// the preview fetches each shown event's page: its server-rendered data
+// (script#initialdata) holds the event's record, an array whose first
+// element is the event's id. The page also carries other events' records
+// (today's), so only that record is read. See docs/design/live-folders.md,
+// "Tab previews".
 
 const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july',
                 'august', 'september', 'october', 'november', 'december'];
@@ -173,6 +182,97 @@ function parseChip(label, givenTitle, text) {
   return {start, end, allDay: false, title};
 }
 
+// The event's page, in the tab's account ("/calendar/u/1/"): a chip's
+// data-eventid is the event's eid (base64url of "<event id> <calendar>").
+function eventUrl(pageUrl, eid) {
+  if (!eid || eid.length > 512 || !/^[A-Za-z0-9_-]+$/.test(eid)) return undefined;
+  const m = /^(https:\/\/calendar\.google\.com\/calendar\/(?:u\/\d+\/)?)/.exec(pageUrl || '');
+  return m ? m[1] + 'r/eventedit/' + eid : undefined;
+}
+
+// The session's request limit: later rows open the event's page.
+const MAX_LOOKUPS = 5;
+
+const BASE64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+// The event id in an eid (base64url of "<event id> <calendar>"), or null.
+// Plugins have no atob().
+function eventIdOf(eid) {
+  let bits = 0;
+  let value = 0;
+  let out = '';
+  for (const ch of eid) {
+    const v = BASE64URL.indexOf(ch);
+    if (v < 0) return null;
+    value = (value << 6) | v;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      out += String.fromCharCode((value >> bits) & 0xff);
+      value &= (1 << bits) - 1;
+    }
+  }
+  return out.split(' ')[0] || null;
+}
+
+function initialData(html) {
+  const m = /<script\b[^>]*\bid="initialdata"[^>]*>([\s\S]*?)<\/script>/i.exec(html);
+  if (!m) return null;
+  try {
+    return JSON.parse(m[1]);
+  } catch (e) {
+    return null;
+  }
+}
+
+// The array in |data| whose first element is |id|.
+function findRecord(data, id) {
+  const stack = [data];
+  while (stack.length) {
+    const v = stack.pop();
+    if (!Array.isArray(v)) continue;
+    if (v[0] === id && v.length > 1) return v;
+    for (const x of v) if (Array.isArray(x)) stack.push(x);
+  }
+  return null;
+}
+
+// The record's meeting, {service, url}: Meet first, as SERVICES orders them.
+function meetingIn(record) {
+  const strings = [];
+  const stack = [record];
+  while (stack.length) {
+    const v = stack.pop();
+    if (typeof v === 'string') strings.push(v);
+    else if (Array.isArray(v)) stack.push(...v);
+  }
+  for (const s of SERVICES) {
+    for (const str of strings) {
+      const m = s.re.exec(str);
+      if (m) return {service: s.name, url: m[0].replace(/[).,;>\]]+$/, '')};
+    }
+  }
+  return null;
+}
+
+// Gives |events| (those with an event page) their meetings, from their
+// pages. A failed lookup leaves the event's page.
+async function addMeetings(events) {
+  const todo = events.filter((ev) => ev.url && ev.eid).slice(0, MAX_LOOKUPS);
+  await Promise.all(todo.map(async (ev) => {
+    try {
+      const res = await compass.fetch(ev.url);
+      if (!res.ok) return;
+      const id = eventIdOf(ev.eid);
+      const record = id && findRecord(initialData(await res.text()), id);
+      const link = record && meetingIn(record);
+      if (link) ev.meeting = link;
+    } catch (e) {
+      // Over the limits, signed out: the event's page.
+    }
+  }));
+}
+
 async function previewTab(page, config) {
   const now = compass.now();
   const seen = new Set();
@@ -188,14 +288,17 @@ async function previewTab(page, config) {
     const key = (id || ev.title) + '@' + ev.start;
     if (seen.has(key)) continue;
     seen.add(key);
-    events.push(Object.assign({key}, ev));
+    events.push(Object.assign({key, eid: id, url: eventUrl(page.url, id)}, ev));
   }
   events.sort((a, b) => a.start - b.start || a.title.localeCompare(b.title));
 
-  const items = events.slice(0, config.count).map((ev) => ({
+  const shown = events.slice(0, config.count);
+  if (compass.hasSession) await addMeetings(shown);
+  const items = shown.map((ev) => ({
     id: ev.key,
     title: ev.title,
-    subtitle: when(ev, now),
+    url: ev.meeting ? ev.meeting.url : ev.url,
+    subtitle: when(ev, now) + (ev.meeting ? ' · ' + ev.meeting.service : ''),
     time: ev.start,
     badge: ev.start <= now && !ev.allDay ? 'Now' : undefined,
   }));

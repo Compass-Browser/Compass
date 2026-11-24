@@ -30,6 +30,7 @@
         "max": 200
       }
     },
+    "session": {"hosts": ["calendar.google.com"]},
     "config": [
       {"key": "count", "type": "number", "label": "Events to show", "default": 5, "min": 1, "max": 10},
       {"key": "allDay", "type": "bool", "label": "Include all-day events"}

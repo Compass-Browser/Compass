@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "YWJjIGNhbEBleGFtcGxlLmNvbQ@1795248000000",
+        "title": "Linked",
+        "url": "https://calendar.google.com/calendar/u/1/r/eventedit/YWJjIGNhbEBleGFtcGxlLmNvbQ",
+        "subtitle": "9:00–10:00",
+        "time": 1795248000000
+      },
+      {
+        "id": "No id@1795251600000",
+        "title": "No id",
+        "subtitle": "10:00–11:00",
+        "time": 1795251600000
+      },
+      {
+        "id": "../../evil?x=1@1795255200000",
+        "title": "Bad id",
+        "subtitle": "11:00–12:00",
+        "time": 1795255200000
+      }
+    ],
+    "title": "Coming up",
+    "warnings": []
+  },
+  "fetches": []
+}

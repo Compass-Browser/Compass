@@ -313,11 +313,20 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, PluginsSection) {
     return github && github->FindBool("enabled") == false;
   }));
 
-  // The session, off by default, is granted for the hosts it lists.
-  ASSERT_TRUE(content::ExecJs(
-      contents(), std::string(kDeepQuery) +
-                      "deepQuery('compass-plugins-page "
-                      "#plugin-toggle-session-compass\\\\.github').click();"));
+  // A built-in's session is on without asking; turning it off is kept, and
+  // on again is granted for the hosts it lists.
+  const std::string session_toggle =
+      std::string(kDeepQuery) +
+      "deepQuery('compass-plugins-page "
+      "#plugin-toggle-session-compass\\\\.github')";
+  EXPECT_EQ(true, content::EvalJs(contents(), session_toggle + ".checked"));
+  ASSERT_TRUE(content::ExecJs(contents(), session_toggle + ".click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    const base::DictValue* github =
+        prefs->GetDict(prefs::kTabPreviewPlugins).FindDict("compass.github");
+    return github && github->FindBool("session_granted") == false;
+  }));
+  ASSERT_TRUE(content::ExecJs(contents(), session_toggle + ".click();"));
   ASSERT_TRUE(base::test::RunUntil([&] {
     const base::DictValue* github =
         prefs->GetDict(prefs::kTabPreviewPlugins).FindDict("compass.github");

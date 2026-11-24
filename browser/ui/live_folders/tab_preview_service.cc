@@ -471,7 +471,14 @@ bool TabPreviewService::IsSessionGranted(const LivePlugin& plugin) const {
     return false;
   }
   const base::DictValue* dict = PluginPrefs(plugin.manifest.id);
-  if (!dict || !dict->FindBool("session_granted").value_or(false)) {
+  const std::optional<bool> granted =
+      dict ? dict->FindBool("session_granted") : std::nullopt;
+  // Built-ins ship with Compass, related hosts and all: their session is on
+  // until the user turns it off. Installed plugins wait for the user.
+  if (plugin.builtin) {
+    return granted.value_or(true);
+  }
+  if (!granted.value_or(false)) {
     return false;
   }
   // Granted for the related hosts the user saw: an update that lists more
