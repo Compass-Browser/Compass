@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.cc b/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.cc
-index dc571ae36e3b9b695e86ab9329c20919b455cf4e..6ae05af6183d0f3a625fca65797d6d88572c184a 100644
+index dc571ae36e3b9b695e86ab9329c20919b455cf4e..ab686e5480ee09af9a09fd8837fa91d09c52c52f 100644
 --- a/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.cc
 +++ b/chrome/browser/ui/views/tabs/hovercard/tab_hover_card_bubble_view.cc
 @@ -521,6 +521,22 @@ class TabHoverCardBubbleView::TabCardView : public views::View {
@@ -33,6 +33,15 @@ index dc571ae36e3b9b695e86ab9329c20919b455cf4e..6ae05af6183d0f3a625fca65797d6d88
    const raw_ptr<TabHoverCardBubbleView> bubble_view_;
  };
  
+@@ -663,7 +680,7 @@ TabHoverCardBubbleView::TabHoverCardBubbleView(
+   // hide the hovercard on press, touch, and keyboard events.
+   SetCanActivate(false);
+ #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+-  set_accept_events(false);
++  set_accept_events(params.accept_events);
+ #endif
+ 
+   // Set so that the tab hover card is not focus traversable when keyboard
 @@ -729,6 +746,11 @@ void TabHoverCardBubbleView::SetTextFade(double percent) {
    group_card_view_->SetTextFade(percent);
  }

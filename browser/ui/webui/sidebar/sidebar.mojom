@@ -486,6 +486,9 @@ interface PageHandler {
   // moves the card there. Other nodes hide the card.
   ShowHoverCard(string id, int32 row_top, int32 row_height);
   HideHoverCard();
+  // The pointer left the rows. A card whose plugin preview rows take clicks
+  // stays while the pointer heads to it or is on it; others hide.
+  ReleaseHoverCard();
   // The pointer came to rest on tab node |id|'s row and its card will open:
   // starts a plugin's preview of the tab, if one previews its page, so the
   // card opens with it (docs/design/live-folders.md, "Tab previews").

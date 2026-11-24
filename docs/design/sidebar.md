@@ -809,11 +809,12 @@ to `ui_features.cc`).
 **The page decides when.** It sends `ShowHoverCard(id, row_top, row_height)`
 after the pointer rests on a tab for 500 ms (upstream's delay), and right
 away while a card is up, so moving down the list moves the card. Crossing
-the gap between rows doesn't hide it. Leaving the list, pressing, dragging,
-scrolling or the row going away sends `HideHoverCard()`. A pressed tab
+the gap between rows doesn't hide it. Leaving the list sends
+`ReleaseHoverCard()` (below); pressing, dragging, scrolling or the row going
+away sends `HideHoverCard()`. A pressed tab
 doesn't show its card again until the pointer moves to another tab. Folders
 and splits as a whole have no card; panes do. The card can't take focus or
-activate the window.
+activate the window; only a plugin preview's rows take clicks (below).
 
 **Plugin previews.** A tab whose page a plugin previews
 (docs/design/live-folders.md, "Tab previews") shows the plugin's rows where
@@ -829,6 +830,20 @@ the page sends `PrefetchHoverPreview(id)` when the 500 ms timer starts, so
 the card usually opens filled. An unloaded tab shows what its page showed
 last time ("Last seen 10:42"), or, with the session granted, what the
 plugin fetched. Test: `CompassSidebarPreviewBrowserTest.HoverCardPluginPreview`.
+
+**Clicking a preview's rows.** A preview's rows light up under the pointer
+and take clicks (`TabPreviewView::ItemCallback`; what a click does is in
+live-folders.md, "Tab previews"). Upstream's card ignores the mouse on
+macOS and Linux, so the patch also adds `InitParams::accept_events`, which
+the sidebar's cards set; it still can't activate the window or take focus.
+To reach the rows, the card has to outlive the pointer leaving the row:
+when the pointer leaves the rows, the page sends `ReleaseHoverCard()`
+instead of `HideHoverCard()`. A card with clickable rows then stays while
+the pointer is on the row, on the card, or in the gap between them
+(a `views::MouseWatcher`), and hides 300 ms after it's elsewhere, or at
+once on a press elsewhere. Any other card hides at once, as before. A
+click closes the card. Test:
+`CompassSidebarPreviewBrowserTest.HoverCardPluginPreviewClicks`.
 
 **Badges.** A plugin's notification count shows on its tab's row: a pill
 at the row's end, a dot when there's no number, a dot in a favorite tile's

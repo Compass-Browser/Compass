@@ -1257,7 +1257,7 @@ export class CompassSidebarAppElement extends CrLitElement {
       this.hoverId_ = null;
       this.clearHoverTimers_();
       this.hoverHideTimer_ = setTimeout(
-          () => this.hideHoverCard_(), HOVER_CARD_HIDE_DELAY_MS);
+          () => this.releaseHoverCard_(), HOVER_CARD_HIDE_DELAY_MS);
       return;
     }
     if (id === this.hoverId_) {
@@ -1279,8 +1279,10 @@ export class CompassSidebarAppElement extends CrLitElement {
     }
   }
 
+  // Off to the card, maybe: one with a plugin's rows stays while the
+  // pointer is on its way to it or on it, to take a click.
   protected onSectionsPointerleave_() {
-    this.hideHoverCard_();
+    this.releaseHoverCard_();
   }
 
   // Right-clicking an entry (or the context menu key on one) opens its menu,
@@ -1338,6 +1340,17 @@ export class CompassSidebarAppElement extends CrLitElement {
     if (this.hoverCardShown_) {
       this.hoverCardShown_ = false;
       this.browserProxy_.handler.hideHoverCard();
+    }
+  }
+
+  // The pointer left the rows: the browser hides the card, unless it's on
+  // its way to the card's clickable rows.
+  private releaseHoverCard_() {
+    this.clearHoverTimers_();
+    this.hoverId_ = null;
+    if (this.hoverCardShown_) {
+      this.hoverCardShown_ = false;
+      this.browserProxy_.handler.releaseHoverCard();
     }
   }
 

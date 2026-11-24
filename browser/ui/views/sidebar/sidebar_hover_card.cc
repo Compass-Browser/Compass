@@ -4,7 +4,9 @@
 
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
 
+#include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -21,6 +23,8 @@
 #include "components/prefs/pref_service.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/display/screen.h"
+#include "ui/gfx/geometry/point.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/views/bubble/bubble_anchor.h"
 #include "ui/views/bubble/bubble_border.h"
@@ -72,6 +76,20 @@ class SidebarHoverCardTarget : public views::View,
 BEGIN_METADATA(SidebarHoverCardTarget)
 END_METADATA
 
+// Where the pointer can be, after Release(), for the card to stay.
+class SidebarHoverCard::CardZone : public views::MouseWatcherHost {
+ public:
+  explicit CardZone(SidebarHoverCard* card) : card_(card) {}
+
+  // views::MouseWatcherHost:
+  bool Contains(const gfx::Point& screen_point, EventType type) override {
+    return card_->IsInCardZone(screen_point);
+  }
+
+ private:
+  const raw_ptr<SidebarHoverCard> card_;
+};
+
 SidebarHoverCard::SidebarHoverCard(content::WebContents* contents,
                                    views::View* sidebar)
     : content::WebContentsUserData<SidebarHoverCard>(*contents),
@@ -92,7 +110,8 @@ void SidebarHoverCard::Show(const tabs::TabData& tab_data,
                             int row_height,
                             bool show_preview,
                             content::WebContents* tab_contents,
-                            bool is_active_tab) {
+                            bool is_active_tab,
+                            TabPreviewView::ItemCallback on_preview_click) {
   if (!target_) {
     target_ =
         sidebar_->AddChildView(std::make_unique<SidebarHoverCardTarget>());
@@ -100,6 +119,10 @@ void SidebarHoverCard::Show(const tabs::TabData& tab_data,
   // A moved anchor moves the card.
   target_->SetBounds(0, row_top, sidebar_->width(), row_height);
   ++plugin_request_;
+  if (mouse_watcher_) {
+    mouse_watcher_->Stop();
+  }
+  preview_click_ = std::move(on_preview_click);
 
   // The page's URL, for plugins; the card shows chrome:// pages as
   // compass:// (docs/design/branding.md, "compass://"), as the pill does.
@@ -119,8 +142,7 @@ void SidebarHoverCard::Show(const tabs::TabData& tab_data,
     ShowThumbnail(data, /*show_preview=*/false);
     TabPreviewService& previews = service->previews();
     if (std::optional<TabPreview> cached = previews.GetCached(url)) {
-      SetPluginPreview(
-          std::make_unique<TabPreviewView>(*cached, base::Time::Now()));
+      SetPluginPreview(MakePluginPreview(*cached));
       return;
     }
     SetPluginPreview(std::make_unique<TabPreviewView>());
@@ -144,8 +166,7 @@ void SidebarHoverCard::OnPluginPreview(int request,
     return;
   }
   if (preview) {
-    SetPluginPreview(
-        std::make_unique<TabPreviewView>(*preview, base::Time::Now()));
+    SetPluginPreview(MakePluginPreview(*preview));
     return;
   }
   // Nothing to show: the screenshot, as without a plugin.
@@ -153,14 +174,74 @@ void SidebarHoverCard::OnPluginPreview(int request,
   ShowThumbnail(data, show_preview);
 }
 
-void SidebarHoverCard::SetPluginPreview(std::unique_ptr<views::View> view) {
+std::unique_ptr<TabPreviewView> SidebarHoverCard::MakePluginPreview(
+    const TabPreview& preview) {
+  TabPreviewView::ItemCallback on_click;
+  if (preview_click_) {
+    on_click = base::BindRepeating(&SidebarHoverCard::OnPreviewItemClicked,
+                                   weak_factory_.GetWeakPtr());
+  }
+  return std::make_unique<TabPreviewView>(preview, base::Time::Now(),
+                                          std::move(on_click));
+}
+
+void SidebarHoverCard::SetPluginPreview(std::unique_ptr<TabPreviewView> view) {
   if (!bubble_ || bubble_->GetWidget()->IsClosed() ||
       (!view && !has_plugin_preview_)) {
     return;
   }
   has_plugin_preview_ = !!view;
+  has_clickable_preview_ = view && view->has_clickable_rows();
   bubble_->SetCustomPreview(std::move(view));
   bubble_->SizeToContents();
+}
+
+void SidebarHoverCard::OnPreviewItemClicked(const LivePreviewItem& item,
+                                            int flags) {
+  // The card closes (later: the click is still going through it), and the
+  // sidebar does the rest.
+  TabPreviewView::ItemCallback on_click = preview_click_;
+  const LivePreviewItem clicked = item;
+  Hide();
+  if (on_click) {
+    on_click.Run(clicked, flags);
+  }
+}
+
+void SidebarHoverCard::Release() {
+  if (!bubble_ || bubble_->GetWidget()->IsClosed() ||
+      !has_clickable_preview_ ||
+      !IsInCardZone(display::Screen::Get()->GetCursorScreenPoint())) {
+    Hide();
+    return;
+  }
+  if (!mouse_watcher_) {
+    mouse_watcher_ =
+        std::make_unique<views::MouseWatcher>(std::make_unique<CardZone>(this),
+                                              this);
+  }
+  mouse_watcher_->Start(bubble_->GetWidget()->GetNativeWindow());
+}
+
+void SidebarHoverCard::MouseMovedOutOfHost() {
+  Hide();
+}
+
+bool SidebarHoverCard::IsInCardZone(const gfx::Point& screen_point) const {
+  if (!bubble_ || !target_) {
+    return false;
+  }
+  const gfx::Rect row = target_->GetBoundsInScreen();
+  const gfx::Rect card = bubble_->GetWidget()->GetWindowBoundsInScreen();
+  // The gap between the sidebar and the card (on either side), as tall as
+  // both: the way from the row to the card.
+  const int left = std::min(row.right(), card.right());
+  const int right = std::max(row.x(), card.x());
+  const int top = std::min(row.y(), card.y());
+  const int bottom = std::max(row.bottom(), card.bottom());
+  const gfx::Rect way(left, top, std::max(0, right - left), bottom - top);
+  return row.Contains(screen_point) || card.Contains(screen_point) ||
+         way.Contains(screen_point);
 }
 
 void SidebarHoverCard::ShowThumbnail(const tabs::TabData& data,
@@ -180,10 +261,13 @@ void SidebarHoverCard::ShowThumbnail(const tabs::TabData& data,
   const bool create = !bubble_;
   if (create) {
     has_plugin_preview_ = false;
+    has_clickable_preview_ = false;
     TabHoverCardBubbleView::InitParams params;
     params.use_animation = false;
     params.show_memory_usage = false;
     params.show_image_preview = previews_enabled;
+    // Plugins' preview rows take clicks.
+    params.accept_events = true;
     bubble_has_previews_ = previews_enabled;
     bubble_ = new TabHoverCardBubbleView(target_, params);
     bubble_observation_.Observe(bubble_);
@@ -212,6 +296,10 @@ void SidebarHoverCard::Hide() {
   thumbnail_observer_.Observe(nullptr);
   ++plugin_request_;
   has_plugin_preview_ = false;
+  has_clickable_preview_ = false;
+  if (mouse_watcher_) {
+    mouse_watcher_->Stop();
+  }
   if (!bubble_) {
     return;
   }
@@ -225,6 +313,10 @@ void SidebarHoverCard::OnViewIsDeleting(views::View* observed_view) {
   bubble_observation_.Reset();
   bubble_ = nullptr;
   has_plugin_preview_ = false;
+  has_clickable_preview_ = false;
+  if (mouse_watcher_) {
+    mouse_watcher_->Stop();
+  }
   thumbnail_observer_.Observe(nullptr);
 }
 

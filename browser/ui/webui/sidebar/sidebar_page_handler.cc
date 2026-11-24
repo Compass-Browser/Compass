@@ -30,6 +30,8 @@
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
@@ -77,6 +79,8 @@
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/models/menu_separator_types.h"
 #include "ui/base/page_transition_types.h"
+#include "ui/base/window_open_disposition.h"
+#include "ui/base/window_open_disposition_utils.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/point.h"
 
@@ -887,7 +891,47 @@ void SidebarPageHandler::ShowHoverCard(const std::string& id,
   // The window's active tab is on screen already.
   const bool is_active = tab && tab == tab_strip_model()->GetActiveTab();
   card->Show(data, row_top, row_height, /*show_preview=*/tab && !is_active,
-             tab ? tab->GetContents() : nullptr, is_active);
+             tab ? tab->GetContents() : nullptr, is_active,
+             base::BindRepeating(&SidebarPageHandler::OnHoverPreviewClicked,
+                                 weak_factory_.GetWeakPtr(), id));
+}
+
+void SidebarPageHandler::OnHoverPreviewClicked(const std::string& id,
+                                               const LivePreviewItem& item,
+                                               int event_flags) {
+  SidebarNode* node = FindNode(id);
+  if (!node || node->type() != SidebarNode::Type::kTab) {
+    return;
+  }
+  // Checked by ParseLivePreviewResult(); a plugin's word all the same.
+  const GURL& url = item.url.is_valid() && item.url.SchemeIsHTTPOrHTTPS()
+                        ? item.url
+                        : GURL::EmptyGURL();
+  const WindowOpenDisposition disposition =
+      ui::DispositionFromEventFlags(event_flags);
+  // Cmd (Ctrl) or a middle click on a row with a link: a new tab, as a link
+  // on the page would open.
+  if (!url.is_empty() && disposition != WindowOpenDisposition::CURRENT_TAB) {
+    NavigateParams params(browser_, url, ui::PAGE_TRANSITION_LINK);
+    params.disposition = disposition;
+    Navigate(&params);
+    return;
+  }
+  // Otherwise the tab, at the row's link if it has one. An unloaded entry
+  // opens there.
+  tabs::TabInterface* tab = registry().GetTab(node);
+  if (!url.is_empty() && !tab) {
+    GetModelOf(node).SetUrl(node, url);
+  }
+  ActivateNode(id);
+  tab = registry().GetTab(node);
+  if (!url.is_empty() && tab &&
+      tab->GetContents()->GetLastCommittedURL() != url &&
+      tab->GetContents()->GetVisibleURL() != url) {
+    // The bridge follows the navigation to the node.
+    tab->GetContents()->GetController().LoadURL(
+        url, content::Referrer(), ui::PAGE_TRANSITION_LINK, std::string());
+  }
 }
 
 void SidebarPageHandler::PrefetchHoverPreview(const std::string& id) {
@@ -913,6 +957,12 @@ void SidebarPageHandler::PrefetchHoverPreview(const std::string& id) {
 void SidebarPageHandler::HideHoverCard() {
   if (SidebarHoverCard* card = hover_card()) {
     card->Hide();
+  }
+}
+
+void SidebarPageHandler::ReleaseHoverCard() {
+  if (SidebarHoverCard* card = hover_card()) {
+    card->Release();
   }
 }
 

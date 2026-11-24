@@ -251,9 +251,12 @@ config, compass)`. A plugin can fill folders, show previews or both
 `previewTab()` gets `page = {url, title, live, groups: {<group>: [{attrs,
 text, fields}]}, text?, cookies?}` and returns `{items: [{id, title,
 subtitle?, url?, time?, badge?, icon?}], title?, footer?, count?}`: at
-most 10 items, `url` optional (a click shows the tab), `title` a header and
-`footer` a line under the rows. An empty result (no items, no footer)
-leaves the screenshot.
+most 10 items, `url` optional, `title` a header and `footer` a line under
+the rows. An empty result (no items, no footer) leaves the screenshot.
+
+Rows take clicks. A click shows the tab, at the item's `url` if it has
+one (an unloaded entry opens there); with Cmd (Ctrl) or the middle button,
+an item's `url` opens in a new background tab, as a link on the page would.
 
 ### Security model
 

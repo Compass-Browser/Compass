@@ -57,6 +57,8 @@
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "ui/views/controls/button/button.h"
+#include "ui/views/test/button_test_api.h"
 #include "ui/views/test/views_test_utils.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/infobar_delegate.h"
@@ -3133,6 +3135,149 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarPreviewBrowserTest,
                u"Inbox" &&
            !FindTabPreview(card->bubble_for_testing());
   }));
+}
+
+// The rows of a plugin's preview take clicks: the tab, at the row's link if
+// it has one, or the link in a new tab with Cmd (Ctrl).
+IN_PROC_BROWSER_TEST_F(CompassSidebarPreviewBrowserTest,
+                       HoverCardPluginPreviewClicks) {
+  embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+      [](const net::test_server::HttpRequest& request)
+          -> std::unique_ptr<net::test_server::HttpResponse> {
+        if (request.GetURL().path() != "/inbox") {
+          return nullptr;
+        }
+        auto response = std::make_unique<net::test_server::BasicHttpResponse>();
+        response->set_content_type("text/html");
+        response->set_content(
+            "<title>Inbox</title><ul><li data-id=1>Alpha</li>"
+            "<li data-id=2>Beta</li></ul>");
+        return response;
+      }));
+  ASSERT_TRUE(embedded_test_server()->Start());
+  LiveFolderService* service = LiveFolderService::Get(browser()->GetProfile());
+  ASSERT_TRUE(service);
+  // Alpha links to #alpha on the page; Beta has no link.
+  auto package = MakeLivePluginPackage(
+      GURL("https://plugins.test/click-preview/manifest.json"),
+      R"({"id": "test.click-preview", "name": "Click preview",
+          "version": "1", "api": 1, "folder": false,
+          "preview": {"matches": ["http://preview.example.com/*"],
+                      "select": {"rows": {"selector": "li",
+                                          "attrs": ["data-id"],
+                                          "text": true}}}})",
+      R"(async function previewTab(page) {
+           const base = page.url.split('#')[0];
+           return {items: page.groups.rows.map((r) => ({
+               id: r.attrs['data-id'], title: r.text,
+               url: r.attrs['data-id'] === '1' ? base + '#alpha' : undefined,
+           }))};
+         })",
+      std::string());
+  ASSERT_TRUE(package.has_value()) << package.error();
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(WriteLivePluginPackage(service->plugins_dir(), *package));
+  }
+  LivePluginRegistry::Get().AddInstalled(*package);
+  service->previews().SetEnabled("test.click-preview", true);
+
+  const GURL inbox =
+      embedded_test_server()->GetURL("preview.example.com", "/inbox");
+  content::WebContents* contents = sidebar_contents();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), inbox));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("data:text/html,<title>Two</title>"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  ASSERT_EQ(true, content::EvalJs(contents,
+                                  content::JsReplace(kWaitForTitles,
+                                                     base::ListValue()
+                                                         .Append("Inbox")
+                                                         .Append("Two"))));
+  SidebarHoverCard* card = SidebarHoverCard::FromWebContents(contents);
+  ASSERT_TRUE(card);
+  TabStripModel* strip = browser()->tab_strip_model();
+  content::WebContents* inbox_tab = strip->GetWebContentsAt(0);
+
+  // Hovers the Inbox tab and returns its card's rows, Alpha's and Beta's.
+  // The pointer leaves the rows first, as it did on its way to the card for
+  // the last click.
+  auto hover_rows = [&]() -> std::vector<views::Button*> {
+    std::vector<views::Button*> rows;
+    if (!content::ExecJs(contents, content::JsReplace(kHover, -1)) ||
+        !content::ExecJs(contents, content::JsReplace(kHover, 0))) {
+      return rows;
+    }
+    if (!base::test::RunUntil([&] {
+          TabPreviewView* preview =
+              card->IsShowing() ? FindTabPreview(card->bubble_for_testing())
+                                : nullptr;
+          return preview && preview->has_clickable_rows();
+        })) {
+      return rows;
+    }
+    for (views::View* child :
+         FindTabPreview(card->bubble_for_testing())->children()) {
+      if (auto* button = views::AsViewClass<views::Button>(child)) {
+        rows.push_back(button);
+      }
+    }
+    return rows;
+  };
+  auto click = [](views::Button* row, int flags) {
+    views::test::ButtonTestApi(row).NotifyClick(ui::MouseEvent(
+        ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+        ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON | flags,
+        ui::EF_LEFT_MOUSE_BUTTON));
+  };
+
+  // A row without a link shows the tab, and the card goes.
+  std::vector<views::Button*> rows = hover_rows();
+  ASSERT_EQ(rows.size(), 2u);
+  click(rows[1], 0);
+  EXPECT_EQ(strip->active_index(), 0);
+  EXPECT_FALSE(card->IsShowing());
+  EXPECT_EQ(inbox_tab->GetVisibleURL(), inbox);
+
+  // With Cmd (Ctrl), a row's link opens in a new background tab.
+  strip->ActivateTabAt(1);
+  rows = hover_rows();
+  ASSERT_EQ(rows.size(), 2u);
+  const GURL alpha = inbox.Resolve("#alpha");
+#if BUILDFLAG(IS_MAC)
+  click(rows[0], ui::EF_COMMAND_DOWN);
+#else
+  click(rows[0], ui::EF_CONTROL_DOWN);
+#endif
+  ASSERT_EQ(strip->count(), 3);
+  EXPECT_EQ(strip->active_index(), 1);
+  EXPECT_EQ(inbox_tab->GetVisibleURL(), inbox);
+  content::WebContents* opened = nullptr;
+  for (int i = 0; i < strip->count(); ++i) {
+    content::WebContents* tab = strip->GetWebContentsAt(i);
+    if (tab != inbox_tab && tab->GetVisibleURL() == alpha) {
+      opened = tab;
+    }
+  }
+  ASSERT_TRUE(opened);
+
+  // A plain click shows the tab at the row's link.
+  strip->CloseWebContentsAt(strip->GetIndexOfWebContents(opened),
+                            CLOSE_NONE);
+  ASSERT_EQ(true, content::EvalJs(contents,
+                                  content::JsReplace(kWaitForTitles,
+                                                     base::ListValue()
+                                                         .Append("Inbox")
+                                                         .Append("Two"))));
+  ASSERT_EQ(strip->GetWebContentsAt(0), inbox_tab);
+  strip->ActivateTabAt(1);
+  rows = hover_rows();
+  ASSERT_EQ(rows.size(), 2u);
+  click(rows[0], 0);
+  EXPECT_EQ(strip->GetActiveWebContents(), inbox_tab);
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return inbox_tab->GetLastCommittedURL() == alpha; }));
 }
 
 // A badge plugin's count shows on its tab's row, kept current without a

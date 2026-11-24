@@ -224,6 +224,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                      int32_t row_top,
                      int32_t row_height) override;
   void HideHoverCard() override;
+  void ReleaseHoverCard() override;
   void PrefetchHoverPreview(const std::string& id) override;
   void ShowContextMenu(const std::string& id, int32_t x, int32_t y) override;
   void ActOnNowPlaying(const std::string& id,
@@ -386,6 +387,12 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
 
   // Opens a copy of tab node |node| in the foreground, as a Today entry.
   void DuplicateNode(SidebarNode* node);
+
+  // A click on a row of a plugin's preview in tab node |id|'s hover card
+  // (docs/design/live-folders.md, "Tab previews").
+  void OnHoverPreviewClicked(const std::string& id,
+                             const LivePreviewItem& item,
+                             int event_flags);
 
   // The page's hover card, or null without one (in tests).
   SidebarHoverCard* hover_card();
