@@ -3,7 +3,7 @@
 The homepage: one static page whose download links come from the update
 server's `stable.json` and `beta.json` (not `canary.json`;
 docs/design/updates.md), and Linux's from GitHub Releases (Linux isn't in the
-feeds yet; canary builds are left out), the privacy policy (also linked from the iOS
+feeds; prereleases are left out, so it's the stable Flatpak branch's), the privacy policy (also linked from the iOS
 app's Settings), and a changelog for each platform in `changelog/`
 (`/changelog/mac`, `/changelog/windows`, `/changelog/linux`,
 `/changelog/ios`), written by hand
