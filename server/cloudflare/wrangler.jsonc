@@ -1,0 +1,24 @@
+{
+  // Compass sync server on Cloudflare Workers (README.md). One Durable
+  // Object per sync chain holds that chain's data in its own SQLite
+  // database; Pairing and Access are one object each for the server.
+  "name": "compass-sync",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [
+      { "name": "CHAIN", "class_name": "Chain" },
+      { "name": "PAIRING", "class_name": "Pairing" },
+      { "name": "ACCESS", "class_name": "Access" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Chain", "Pairing", "Access"] }
+  ],
+  "vars": {
+    // Comma-separated chain IDs (hex public keys) that own this server:
+    // they and the friends they invite may sync; empty = anyone may.
+    "COMPASS_SYNC_ALLOWED_CHAINS": ""
+  }
+}

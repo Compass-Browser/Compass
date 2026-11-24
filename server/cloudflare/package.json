@@ -1,0 +1,17 @@
+{
+  "name": "compass-sync-cloudflare",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit",
+    "test": "node --test test/",
+    "bundle": "wrangler deploy --dry-run --outdir .bundle && grep -v '^//# sourceMappingURL=' .bundle/index.js > dist/compass-sync.js && rm -rf .bundle"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261109.1",
+    "typescript": "6.0.3",
+    "wrangler": "4.159.0"
+  }
+}
