@@ -122,6 +122,8 @@ targets:
       - package: CompassKit
         product: CompassClaude
       - package: CompassKit
+        product: CompassOnDevice
+      - package: CompassKit
         product: CompassLiveFolders
       - package: CompassKit
         product: CompassBoosts

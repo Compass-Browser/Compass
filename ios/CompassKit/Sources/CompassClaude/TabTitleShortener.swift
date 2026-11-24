@@ -162,7 +162,8 @@ public final class TabTitleShortener {
     let request = ClaudeQuick.Request(
       feature: ClaudeQuick.shortTabTitlesKey, model: model(),
       system: SidebarPrompts.section(Self.promptID, in: prompts, locale: locale()), user: Self.describe(batch),
-      maxTokens: ClaudeQuick.maxTokens, background: true)
+      maxTokens: ClaudeQuick.maxTokens, background: true
+    ).withOnDevicePrompt(Self.promptID, prompts: prompts, locale: locale())
     let result = await quick.ask(request)
     asking.subtract(batch)
     switch result {

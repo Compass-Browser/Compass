@@ -114,6 +114,12 @@ inline constexpr char kCommandBarAskModel[] =
     "compass.claude.command_bar_ask_model";
 // kCommandBarAskModel's default.
 inline constexpr char kDefaultAskModel[] = "claude-sonnet-5-5";
+// "Answer with" for the sidebar's requests (docs/design/ai-sidebar.md, "On
+// this device"): on, Name Link Folders, Tidy Today and Shorter Tab Titles
+// ask Apple Intelligence on this Mac (OnDeviceModel), with no key and in
+// Claude Code mode; off, the chat's provider. Ask in the command bar stays
+// on the chat's provider. Read only where OnDeviceModel::Get() has a model.
+inline constexpr char kSidebarOnDevice[] = "compass.claude.sidebar_on_device";
 
 // Sign in with ChatGPT (docs/design/ai-providers.md, "Sign in with
 // ChatGPT"): the OpenAI provider on the user's ChatGPT plan instead of a key.

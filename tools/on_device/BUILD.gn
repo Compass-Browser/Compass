@@ -1,0 +1,43 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/mac/mac_sdk.gni")
+import("//compass/tools/on_device/on_device.gni")
+
+assert(is_mac && compass_on_device_model)
+
+# compass-on-device: the browser asks Apple Intelligence through it
+# (browser/claude/on_device_model.h). Its model code is CompassKit's
+# CompassOnDevice, which the iOS app uses as it is; only main.swift is the
+# helper's own. Built by swiftc directly: Chromium has no Swift toolchain
+# for the Mac (build_helper.py).
+_library = "//compass/ios/CompassKit/Sources/CompassOnDevice"
+
+action("compass-on-device") {
+  script = "build_helper.py"
+  sources = [
+    "$_library/OnDeviceLines.swift",
+    "$_library/OnDeviceModel.swift",
+    "main.swift",
+  ]
+  outputs = [ "$root_out_dir/compass-on-device" ]
+  args = [
+           "--out",
+           rebase_path(outputs[0], root_build_dir),
+           "--cpu",
+           current_cpu,
+           "--deployment-target",
+           mac_deployment_target,
+           "--sdk",
+           rebase_path(mac_sdk_path, root_build_dir),
+         ] + rebase_path(sources, root_build_dir)
+}
+
+# Contents/MacOS/compass-on-device, next to the browser (chrome/BUILD.gn
+# patch), as compass-mcp.
+bundle_data("compass_on_device_bundle_data") {
+  sources = [ "$root_out_dir/compass-on-device" ]
+  outputs = [ "{{bundle_executable_dir}}/{{source_file_part}}" ]
+  public_deps = [ ":compass-on-device" ]
+}

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import CompassOnDevice
 import Foundation
 
 /// Claude's small background requests for the sidebar (docs/design/
@@ -17,11 +18,23 @@ import Foundation
 /// Each feature has its own switch (off by default) and model (Settings →
 /// Claude): nothing is sent while the feature's switch is off. Incognito
 /// never asks: callers leave its entries out.
+///
+/// With "Answer with" Apple Intelligence (`sidebarOnDeviceKey`), a request
+/// that has an on-device feature goes to the on-device model instead
+/// (`CompassOnDevice`, docs/design/ai-sidebar.md, "On this device"): no
+/// key, nothing leaves the device, at most `maxOnDeviceBackgroundPerHour`
+/// background requests an hour.
 @MainActor
 public final class ClaudeQuick {
   /// Enough for Tidy Today's reply, which lists its folders' entries.
   public nonisolated static let maxTokens = 400
   public nonisolated static let maxBackgroundPerHour = 30
+  /// For the battery, not for cost.
+  public nonisolated static let maxOnDeviceBackgroundPerHour = 120
+  /// The features the on-device model answers, by their switch's key.
+  public nonisolated static let onDeviceFeatures: Set<String> = [
+    nameLinkFoldersKey, tidyTodayKey, shortTabTitlesKey,
+  ]
   public nonisolated static let firstBackOff: TimeInterval = 60
   public nonisolated static let laterBackOff: TimeInterval = 10 * 60
   /// The model a feature asks when its setting names none.
@@ -48,6 +61,12 @@ public final class ClaudeQuick {
     /// waits out the back-off. One the user asked for (Suggest a Name,
     /// Tidy) doesn't.
     public var background: Bool
+    /// The request for the on-device model, used instead while "Answer
+    /// with" is Apple Intelligence: the feature's prompt id
+    /// ("folder_name"...), whose reply has Claude's shape, and its system
+    /// prompt (`withOnDevicePrompt`). Empty: the feature has none.
+    public var onDeviceFeature: String = ""
+    public var onDeviceSystem: String = ""
 
     public init(
       feature: String, model: String = "", system: String, user: String, maxTokens: Int = 100,
@@ -59,6 +78,16 @@ public final class ClaudeQuick {
       self.user = user
       self.maxTokens = maxTokens
       self.background = background
+    }
+
+    /// This request, with the on-device prompt `id`: the section
+    /// "<id>_on_device" of `prompts`, or `id`'s if there's none. The
+    /// desktop's SetOnDevicePrompt().
+    public func withOnDevicePrompt(_ id: String, prompts: String, locale: String) -> Request {
+      var request = self
+      request.onDeviceFeature = id
+      request.onDeviceSystem = SidebarPrompts.onDeviceSection(id, in: prompts, locale: locale)
+      return request
     }
   }
 
@@ -91,6 +120,10 @@ public final class ClaudeQuick {
   /// The chat's cache level for an endpoint (`CacheLevelMemory`).
   let cacheLevel: @MainActor (ClaudeEndpoint) -> ChatRequest.CacheLevel
   let transport: Transport
+  /// Whether "Answer with" is Apple Intelligence.
+  let answersOnDevice: @MainActor () -> Bool
+  /// The on-device model; nil where there's none.
+  let onDevice: OnDeviceBackend?
   /// The answer, or giving up, within this.
   public var timeout: TimeInterval = 15
   public var now: () -> Date = Date.init
@@ -104,12 +137,16 @@ public final class ClaudeQuick {
   public init(
     endpoint: @escaping @MainActor () -> ClaudeEndpoint?, isOn: @escaping @MainActor (String) -> Bool,
     cacheLevel: @escaping @MainActor (ClaudeEndpoint) -> ChatRequest.CacheLevel = { _ in .normal },
-    transport: @escaping Transport = ClaudeQuick.urlSession
+    transport: @escaping Transport = ClaudeQuick.urlSession,
+    answersOnDevice: @escaping @MainActor () -> Bool = { false },
+    onDevice: OnDeviceBackend? = nil
   ) {
     self.endpoint = endpoint
     self.isOn = isOn
     self.cacheLevel = cacheLevel
     self.transport = transport
+    self.answersOnDevice = answersOnDevice
+    self.onDevice = onDevice
   }
 
   /// URLSession, without cookies or a cache.
@@ -132,8 +169,20 @@ public final class ClaudeQuick {
     return !endpoint.needsTokenRisksAccepted
   }
 
-  /// `isSetUp`, and the feature's switch is on.
-  public func isEnabled(_ feature: String) -> Bool { isSetUp && !feature.isEmpty && isOn(feature) }
+  /// Whether `feature`'s requests go to the on-device model: "Answer with"
+  /// is Apple Intelligence, there's a model, and the feature is one it
+  /// answers.
+  public func usesOnDevice(_ feature: String) -> Bool {
+    onDevice != nil && Self.onDeviceFeatures.contains(feature) && answersOnDevice()
+  }
+
+  /// The feature's switch is on, and its requests can go: `isSetUp`, or
+  /// `usesOnDevice` and the model is available.
+  public func isEnabled(_ feature: String) -> Bool {
+    guard !feature.isEmpty, isOn(feature) else { return false }
+    if usesOnDevice(feature) { return onDevice?.availability() == .available }
+    return isSetUp
+  }
 
   /// Background requests sent in the last hour.
   public var recentBackgroundRequests: Int {
@@ -143,6 +192,9 @@ public final class ClaudeQuick {
 
   /// Sends `request`: the reply's JSON object, or why not.
   public func ask(_ request: Request) async -> Result<[String: JSONValue], Failure> {
+    if let onDevice, usesOnDevice(request.feature), !request.onDeviceFeature.isEmpty {
+      return await askOnDevice(request, model: onDevice)
+    }
     guard let endpoint = endpoint(), !endpoint.needsTokenRisksAccepted else { return .failure(.notSetUp) }
     guard isEnabled(request.feature) else { return .failure(.off) }
     let start = now()
@@ -163,6 +215,58 @@ public final class ClaudeQuick {
     var urlRequest = endpoint.request(endpoint.chatPath, body: body.encoded())
     urlRequest.timeoutInterval = timeout
     let result = await Self.send(urlRequest, transport: transport, timeout: timeout, openAI: openAI ? endpoint.provider : nil)
+    record(result)
+    return result
+  }
+
+  private func askOnDevice(_ request: Request, model: OnDeviceBackend) async -> Result<
+    [String: JSONValue], Failure
+  > {
+    guard isOn(request.feature) else { return .failure(.off) }
+    guard model.availability() == .available else { return .failure(.notSetUp) }
+    let start = now()
+    if request.background {
+      if start < backingOffUntil { return .failure(.backingOff) }
+      prune(start)
+      if recent.count >= Self.maxOnDeviceBackgroundPerHour { return .failure(.rateLimited) }
+      recent.append(start)
+    }
+    let result = await Self.answer(request, model: model, timeout: timeout)
+    record(result)
+    return result
+  }
+
+  /// The on-device model's reply, given up after `timeout`.
+  nonisolated static func answer(_ request: Request, model: OnDeviceBackend, timeout: TimeInterval) async
+    -> Result<[String: JSONValue], Failure>
+  {
+    let (feature, system, user) = (request.onDeviceFeature, request.onDeviceSystem, request.user)
+    return await withTaskGroup(of: Result<[String: JSONValue], Failure>.self) { group in
+      group.addTask {
+        do throws(OnDeviceFailure) {
+          let text = try await model.answer(feature, system, user)
+          guard text.utf8.count <= maxReplyText, let reply = parseReply(text) else { return .failure(.badReply) }
+          return .success(reply)
+        } catch {
+          switch error {
+          case .unavailable: return .failure(.notSetUp)
+          case .refused: return .failure(.refused)
+          case .failed, .unknownFeature: return .failure(.failed)
+          }
+        }
+      }
+      group.addTask {
+        try? await Task.sleep(for: .seconds(timeout))
+        return .failure(.timeout)
+      }
+      let first = await group.next() ?? .failure(.timeout)
+      group.cancelAll()
+      return first
+    }
+  }
+
+  /// Counts an error towards the back-off, or clears it.
+  private func record(_ result: Result<[String: JSONValue], Failure>) {
     switch result {
     case .success:
       failures = 0
@@ -173,7 +277,6 @@ public final class ClaudeQuick {
     case .failure:
       break
     }
-    return result
   }
 
   private func prune(_ now: Date) {
@@ -285,6 +388,10 @@ extension ClaudeQuick {
   /// (`CommandBarAsker`); and the model it streams on.
   public nonisolated static let commandBarAskKey = "compass.claude.command_bar_ask"
   public nonisolated static let commandBarAskModelKey = "compass.claude.command_bar_ask_model"
+  /// "Answer with": Apple Intelligence (true) answers Name Link Folders,
+  /// Tidy Today and Shorter Tab Titles, on this device; else the chat's
+  /// provider. The desktop's kSidebarOnDevice.
+  public nonisolated static let sidebarOnDeviceKey = "compass.claude.sidebar_on_device"
 }
 
 // MARK: Prompts and names
@@ -308,8 +415,26 @@ public enum SidebarPrompts {
       }
       if inSection { lines.append(trimmed) }
     }
-    return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    var text = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
       .replacingOccurrences(of: "{locale}", with: locale)
+    if text.contains("{language}") {
+      text = text.replacingOccurrences(of: "{language}", with: languageName(locale))
+    }
+    return text
+  }
+
+  /// The section "<id>_on_device", or `id`'s if there's none.
+  public static func onDeviceSection(_ id: String, in prompts: String, locale: String) -> String {
+    let own = section(id + "_on_device", in: prompts, locale: locale)
+    return own.isEmpty ? section(id, in: prompts, locale: locale) : own
+  }
+
+  /// The English name of `locale`'s language ("it-IT" is "Italian"), which
+  /// the on-device prompts spell out as {language}: the language, not the
+  /// country, which a small model takes as a topic.
+  static func languageName(_ locale: String) -> String {
+    let code = String(locale.prefix { $0 != "-" && $0 != "_" })
+    return Locale(identifier: "en").localizedString(forLanguageCode: code) ?? "English"
   }
 }
 

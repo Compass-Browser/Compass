@@ -1,8 +1,8 @@
 diff --git a/chrome/installer/mac/signing/parts.py b/chrome/installer/mac/signing/parts.py
-index 0a3ba9233e99ef67afa8ea34d937f77032964852..7ac00296e6b08f52d4e2554a7f2af1da419ab26b 100644
+index 0a3ba9233e99ef67afa8ea34d937f77032964852..4369bb5870594a03521d64457d4c87451ed7a2cd 100644
 --- a/chrome/installer/mac/signing/parts.py
 +++ b/chrome/installer/mac/signing/parts.py
-@@ -160,6 +160,40 @@ def get_parts(config):
+@@ -160,6 +160,51 @@ def get_parts(config):
              sign_with_identifier=True,
              verify_options=verify_options,
          ),
@@ -11,6 +11,17 @@ index 0a3ba9233e99ef67afa8ea34d937f77032964852..7ac00296e6b08f52d4e2554a7f2af1da
 +        'compass-mcp': CodeSignedProduct(
 +            '{.app_product}.app/Contents/MacOS/compass-mcp'.format(config),
 +            '{}.compass-mcp'.format(uncustomized_bundle_id),
++            options=CodeSignOptions.FULL_HARDENED_RUNTIME_OPTIONS,
++            sign_with_identifier=True,
++            verify_options=verify_options,
++        ),
++        # Compass: Apple Intelligence's helper, next to the browser
++        # (docs/design/ai-sidebar.md, "On this device"); signed builds have
++        # it (compass_on_device_model, on by default).
++        'compass-on-device': CodeSignedProduct(
++            '{.app_product}.app/Contents/MacOS/compass-on-device'.format(
++                config),
++            '{}.compass-on-device'.format(uncustomized_bundle_id),
 +            options=CodeSignOptions.FULL_HARDENED_RUNTIME_OPTIONS,
 +            sign_with_identifier=True,
 +            verify_options=verify_options,

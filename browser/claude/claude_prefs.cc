@@ -62,6 +62,7 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(kShortTabTitlesModel, "claude-haiku-5-5");
   registry->RegisterBooleanPref(kCommandBarAsk, false);
   registry->RegisterStringPref(kCommandBarAskModel, kDefaultAskModel);
+  registry->RegisterBooleanPref(kSidebarOnDevice, false);
 
   registry->RegisterStringPref(kChatGPTSession, std::string());
   registry->RegisterStringPref(kChatGPTEmail, std::string());

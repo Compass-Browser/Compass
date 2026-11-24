@@ -253,7 +253,10 @@ approves each write.
     model picker (the chat's models, a gateway's list too; default
     `claude-haiku-5-5`), built from `SIDEBAR_FEATURES` in `claude_page.ts`.
     Every switch is disabled, with a line saying why, until a key is saved
-    (Claude Code mode alone doesn't answer these requests yet). For now:
+    (Claude Code mode alone doesn't answer these requests yet). On a Mac,
+    "Answer with" Apple Intelligence answers the first three on the device
+    instead, with no key (`compass.claude.sidebar_on_device`;
+    ai-sidebar.md, "On this device"). For now:
     "Name Link Folders" (`compass.claude.name_link_folders`,
     `compass.claude.name_link_folders_model`), "Tidy Today"
     (`compass.claude.tidy_today`, `compass.claude.tidy_today_model`) and

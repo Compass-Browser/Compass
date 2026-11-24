@@ -183,7 +183,8 @@ public final class LinkFolderNamer {
     let request = ClaudeQuick.Request(
       feature: ClaudeQuick.nameLinkFoldersKey, model: model(),
       system: SidebarPrompts.section(Self.promptID, in: prompts, locale: locale()), user: Self.describe(folder),
-      maxTokens: 60, background: background)
+      maxTokens: 60, background: background
+    ).withOnDevicePrompt(Self.promptID, prompts: prompts, locale: locale())
     let result = await quick.ask(request)
     asking.remove(id)
     guard case .success(let reply) = result, let text = reply["name"]?.string,

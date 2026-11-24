@@ -5,6 +5,16 @@
 # Claude in Compass: the settings' prefs, the key's storage, and the client
 # for the Claude API. See docs/design/claude.md.
 
+import("//build/buildflag_header.gni")
+import("//compass/tools/on_device/on_device.gni")
+
+# COMPASS_ON_DEVICE_MODEL: the app has compass-on-device
+# (tools/on_device/on_device.gni).
+buildflag_header("on_device_buildflags") {
+  header = "on_device_buildflags.h"
+  flags = [ "COMPASS_ON_DEVICE_MODEL=$compass_on_device_model" ]
+}
+
 # Few deps: upstream's prefs registration reaches it (through
 # //compass/browser/prefs).
 source_set("prefs") {
@@ -147,6 +157,16 @@ source_set("claude") {
       "claude_code_process.h",
     ]
   }
+
+  # Apple Intelligence through compass-on-device (docs/design/ai-sidebar.md,
+  # "On this device").
+  if (is_mac) {
+    sources += [
+      "on_device_model.cc",
+      "on_device_model.h",
+    ]
+    deps += [ ":on_device_buildflags" ]
+  }
 }
 
 if (!is_android) {
@@ -165,6 +185,9 @@ if (!is_android) {
       "openai_edge_unittest.cc",
       "sse_parser_unittest.cc",
     ]
+    if (is_mac) {
+      sources += [ "on_device_model_unittest.cc" ]
+    }
     deps = [
       ":claude",
       ":memory",

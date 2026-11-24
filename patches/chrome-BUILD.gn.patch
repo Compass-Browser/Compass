@@ -1,16 +1,17 @@
 diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
-index f1d133b6cda978b105c6110b279fdd75a1b2f061..479964d08c898b8702f38fc21c3973e057f51246 100644
+index f1d133b6cda978b105c6110b279fdd75a1b2f061..000aed77284a63fe4199fedf7b5429bf34a6c8bb 100644
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
-@@ -32,6 +32,7 @@ import("//tools/resources/generate_resource_allowlist.gni")
+@@ -32,6 +32,8 @@ import("//tools/resources/generate_resource_allowlist.gni")
  import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
  import("//ui/gl/features.gni")
  import("//v8/gni/v8.gni")
 +import("//compass/browser/updates/updates.gni")
++import("//compass/tools/on_device/on_device.gni")
  
  assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
  
-@@ -86,13 +87,14 @@ if (is_win) {
+@@ -86,13 +88,14 @@ if (is_win) {
  
      # initialexe/ is used so that the we can reorder imports and write back to
      # the final destination at $root_out_dir/.
@@ -29,7 +30,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..479964d08c898b8702f38fc21c3973e0
      ]
      args = [
        "-i",
-@@ -101,6 +103,8 @@ if (is_win) {
+@@ -101,6 +104,8 @@ if (is_win) {
        rebase_path("$root_out_dir", root_build_dir),
        "-a",
        current_cpu,
@@ -38,7 +39,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..479964d08c898b8702f38fc21c3973e0
      ]
      deps = [ ":chrome_initial" ]
    }
-@@ -155,7 +159,7 @@ if (!is_android && !is_mac) {
+@@ -155,7 +160,7 @@ if (!is_android && !is_mac) {
    }
  
    if (is_win) {
@@ -47,7 +48,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..479964d08c898b8702f38fc21c3973e0
    } else {
      _chrome_output_name = "chrome"
    }
-@@ -246,6 +250,9 @@ if (!is_android && !is_mac) {
+@@ -246,6 +251,9 @@ if (!is_android && !is_mac) {
          "//chrome/notification_helper",
          "//chrome/windows_services/elevated_tracing_service",
          "//components/crash/win:chrome_wer",
@@ -57,7 +58,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..479964d08c898b8702f38fc21c3973e0
        ]
  
        if (is_chrome_branded) {
-@@ -540,10 +547,15 @@ if (is_win) {
+@@ -540,10 +548,15 @@ if (is_win) {
      }
    }
  
@@ -74,7 +75,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..479964d08c898b8702f38fc21c3973e0
      extra_substitutions = [
        "CHROMIUM_BUNDLE_ID=$chrome_mac_bundle_id",
        "CHROMIUM_SHORT_NAME=$chrome_product_short_name",
-@@ -569,8 +581,16 @@ if (is_win) {
+@@ -569,8 +582,22 @@ if (is_win) {
        ":chrome_app_strings_bundle_data",
        ":chrome_resources",
        ":chrome_versioned_bundle_data",
@@ -88,10 +89,16 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..479964d08c898b8702f38fc21c3973e0
 +      bundle_deps += [ "//compass/browser/updates:sparkle_framework" ]
 +    }
 +
++    # Compass: compass-on-device, Apple Intelligence for the sidebar.
++    if (compass_on_device_model) {
++      bundle_deps +=
++          [ "//compass/tools/on_device:compass_on_device_bundle_data" ]
++    }
++
      if (enable_updater) {
        bundle_deps += [ ":chromium_updater_privileged_helper" ]
      }
-@@ -673,12 +693,12 @@ if (is_win) {
+@@ -673,12 +700,12 @@ if (is_win) {
    }
  
    bundle_data("chrome_app_icon") {
@@ -106,7 +113,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..479964d08c898b8702f38fc21c3973e0
      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
    }
  
-@@ -1706,9 +1726,11 @@ copy("visual_elements_resources") {
+@@ -1706,9 +1733,11 @@ copy("visual_elements_resources") {
    sources = [
      "//chrome/app/theme/$branding_path_component/win/tiles/Logo.png",
      "//chrome/app/theme/$branding_path_component/win/tiles/SmallLogo.png",
@@ -119,7 +126,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..479964d08c898b8702f38fc21c3973e0
    if (is_chrome_branded) {
      sources += [
        "//chrome/app/theme/$branding_path_component/win/tiles/LogoBeta.png",
-@@ -1723,6 +1745,12 @@ copy("visual_elements_resources") {
+@@ -1723,6 +1752,12 @@ copy("visual_elements_resources") {
    outputs = [ "$root_out_dir/{{source_file_part}}" ]
  }
  
@@ -132,7 +139,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..479964d08c898b8702f38fc21c3973e0
  group("resources") {
    public_deps = [
      "//chrome/browser:resources",
-@@ -1860,7 +1888,9 @@ if (is_win && enable_resource_allowlist_generation) {
+@@ -1860,7 +1895,9 @@ if (is_win && enable_resource_allowlist_generation) {
  }
  
  if (is_linux || is_chromeos) {
