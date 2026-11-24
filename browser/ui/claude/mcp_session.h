@@ -127,16 +127,13 @@ class McpSession {
   int ask_generation_ = 0;
   // The question is only about switch_space's swap, in the front profile.
   bool asking_for_swap_ = false;
-  // The profile of the window in front when the first call came, before
-  // any question about it moved the windows.
-  base::WeakPtr<Profile> call_front_profile_;
-  bool front_captured_ = false;
   // While a question in another profile is in front (UserTab()): the tab
-  // the user was on, and the window the question came on. Compared, never
-  // used, once that window is gone.
+  // the user was on, the window the question came on, and that window's
+  // active tab then. Compared, never used, once that window is gone.
   base::WeakPtr<content::WebContents> kept_tab_;
   raw_ptr<BrowserWindowInterface, DisableDanglingPtrDetection> asked_window_ =
       nullptr;
+  base::WeakPtr<content::WebContents> asked_window_tab_;
   // Within RemoveProfile(): calls answered there don't start the next one.
   bool removing_ = false;
   // The answer for a call RemoveProfile() stops, in place of ClaudeTools'
@@ -147,6 +144,15 @@ class McpSession {
     base::Value id;
     std::string name;
     base::DictValue arguments;
+    // The profile of the window in front when the call came, before any
+    // question moved the windows (switch_space's swap).
+    base::WeakPtr<Profile> front_profile;
+    // switch_space's swap couldn't be asked about (no window): the space's
+    // profile's own window switches.
+    bool no_swap = false;
+    // The profile the call acts in, once the user was asked there: the
+    // answer is about it, so it isn't worked out again.
+    base::WeakPtr<Profile> asked_in;
   };
   std::deque<Call> calls_;
   // Takes the first call off the queue.

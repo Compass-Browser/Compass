@@ -773,5 +773,93 @@ IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, DeniedSwitchAsksOnce) {
   EXPECT_EQ(asked_profiles_[0], space_profile);
 }
 
+// switch_space's swap, when the front profile has no window to ask in,
+// isn't a refusal: the space's profile's own window switches.
+IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, SwapWithoutWindowStillSwitches) {
+  ASSERT_NO_FATAL_FAILURE(AddWorkProfile());
+  std::unique_ptr<Client> trusted = Client::Connect(socket_path_);
+  ASSERT_TRUE(trusted);
+  Initialize(*trusted, "trusted");
+  ASSERT_NO_FATAL_FAILURE(ReadIds(*trusted, 2));
+  const bool home_in_front =
+      TextOf(Call(*trusted, 3, "get_page_text"))
+          .find("Hello from the MCP page.") != std::string::npos;
+  Profile* space_profile = home_in_front ? work_.get() : profile();
+  Profile* front_profile = home_in_front ? profile() : work_.get();
+  EXPECT_EQ(IsError(Call(*trusted, 4, "create_space",
+                         base::DictValue()
+                             .Set("profile", home_in_front ? "Work" : "Home")
+                             .Set("name", "Elsewhere"))),
+            false);
+  // "half" is always allowed in the space's profile only: the swap is the
+  // one question.
+  space_profile->GetPrefs()->SetList(
+      prefs::kMcpAllowedClients,
+      base::ListValue().Append("trusted").Append("half"));
+
+  std::unique_ptr<Client> half = Client::Connect(socket_path_);
+  ASSERT_TRUE(half);
+  Initialize(*half, "half");
+  answer_ = McpApproval::kNoWindow;
+  std::optional<base::DictValue> switched = Call(
+      *half, 2, "switch_space", base::DictValue().Set("space", "Elsewhere"));
+  EXPECT_EQ(IsError(switched), false) << TextOf(switched);
+  ASSERT_EQ(asked_profiles_.size(), 1u);
+  EXPECT_EQ(asked_profiles_[0], front_profile);
+}
+
+// A space name isn't looked up where the client was denied: the answer
+// doesn't tell it that profile has such a space.
+IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, DeniedProfilesSpacesStayHidden) {
+  ASSERT_NO_FATAL_FAILURE(AddWorkProfile());
+  std::unique_ptr<Client> trusted = Client::Connect(socket_path_);
+  ASSERT_TRUE(trusted);
+  Initialize(*trusted, "trusted");
+  ASSERT_NO_FATAL_FAILURE(ReadIds(*trusted, 2));
+  EXPECT_EQ(
+      IsError(Call(
+          *trusted, 3, "create_space",
+          base::DictValue().Set("profile", "Work").Set("name", "Acquisition"))),
+      false);
+
+  std::unique_ptr<Client> asking = Client::Connect(socket_path_);
+  ASSERT_TRUE(asking);
+  Initialize(*asking, "asking");
+  answer_ = McpApproval::kDeny;
+  EXPECT_EQ(IsError(Call(*asking, 2, "select_tab",
+                         base::DictValue().Set("tab_id", work_id_))),
+            true);
+  answer_ = McpApproval::kAllowOnce;
+  EXPECT_EQ(IsError(Call(*asking, 3, "select_tab",
+                         base::DictValue().Set("tab_id", home_id_))),
+            false);
+  const size_t asked = asked_profiles_.size();
+
+  std::optional<base::DictValue> probe =
+      Call(*asking, 4, "switch_space",
+           base::DictValue().Set("space", "Acquisition"));
+  EXPECT_EQ(IsError(probe), true);
+  EXPECT_THAT(TextOf(probe), HasSubstr("No space \"Acquisition\""));
+  EXPECT_THAT(TextOf(probe), Not(HasSubstr("Work")));
+  EXPECT_EQ(asked_profiles_.size(), asked);
+}
+
+// move_tab reads space only to pin or add to Today: elsewhere an unused
+// space doesn't route the call, or fail it.
+IN_PROC_BROWSER_TEST_F(McpBridgeBrowserTest, MoveTabIgnoresUnusedSpace) {
+  ASSERT_NO_FATAL_FAILURE(AddWorkProfile());
+  std::unique_ptr<Client> trusted = Client::Connect(socket_path_);
+  ASSERT_TRUE(trusted);
+  Initialize(*trusted, "trusted");
+  ASSERT_NO_FATAL_FAILURE(ReadIds(*trusted, 2));
+  std::optional<base::DictValue> moved =
+      Call(*trusted, 3, "move_tab",
+           base::DictValue()
+               .Set("tab_id", work_id_)
+               .Set("to", "favorites")
+               .Set("space", "No such space"));
+  EXPECT_EQ(IsError(moved), false) << TextOf(moved);
+}
+
 }  // namespace
 }  // namespace compass::claude

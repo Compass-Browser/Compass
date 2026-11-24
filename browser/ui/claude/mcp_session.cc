@@ -189,8 +189,15 @@ void McpSession::OnMessage(const std::string& line) {
       return;
     }
     base::DictValue* arguments = params->FindDict("arguments");
-    calls_.push_back({id->Clone(), *name,
-                      arguments ? std::move(*arguments) : base::DictValue()});
+    Call call{id->Clone(), *name,
+              arguments ? std::move(*arguments) : base::DictValue()};
+    if (!chat_) {
+      if (BrowserWindowInterface* front =
+              McpTabs::FrontWindow(profiles_.Run())) {
+        call.front_profile = front->GetProfile()->GetWeakPtr();
+      }
+    }
+    calls_.push_back(std::move(call));
     RunNext();
   } else {
     ReplyError(*id, kMethodNotFound,
@@ -286,15 +293,9 @@ void McpSession::RunNext() {
 bool McpSession::TryRunFront() {
   const Call& next = calls_.front();
   const std::vector<Profile*> profiles = profiles_.Run();
-  if (!front_captured_) {
-    // The window in front when the call came: a question may bring another
-    // forward (McpBridge::Ask()) before it runs.
-    BrowserWindowInterface* front = McpTabs::FrontWindow(profiles);
-    call_front_profile_ =
-        front ? front->GetProfile()->GetWeakPtr() : base::WeakPtr<Profile>();
-    front_captured_ = true;
-  }
-  Profile* front_profile = call_front_profile_.get();
+  // The window in front when the call came: a question may have brought
+  // another forward (McpBridge::Ask()) since.
+  Profile* front_profile = next.no_swap ? nullptr : next.front_profile.get();
   if (front_profile && !std::ranges::contains(profiles, front_profile)) {
     front_profile = nullptr;
   }
@@ -311,8 +312,20 @@ bool McpSession::TryRunFront() {
   const bool on_target = ClaudeTools::ActsOnTarget(next.name);
   const base::DictValue no_arguments;
   const base::DictValue& routing = on_target ? no_arguments : next.arguments;
+  auto denied = [this](Profile* profile) {
+    auto it = approvals_.find(profile);
+    return it != approvals_.end() && it->second == Approval::kDenied;
+  };
+  // Once the user was asked about a call, the answer is about the profile
+  // they were asked in: a Deny there doesn't turn into "No space" (the
+  // denied profile's spaces are no longer looked up). Not for the page
+  // tools: their profile is their target's, which may have changed since.
+  Profile* asked_in = on_target ? nullptr : next.asked_in.get();
   base::expected<Profile*, std::string> resolved =
-      mcp_tabs_->ResolveCall(next.name, routing, target, AllowedSomewhere());
+      asked_in && std::ranges::contains(profiles, asked_in)
+          ? base::expected<Profile*, std::string>(asked_in)
+          : mcp_tabs_->ResolveCall(next.name, routing, target,
+                                   AllowedSomewhere(), denied);
   if (!resolved.has_value()) {
     Refuse(resolved.error());
     return false;
@@ -342,6 +355,7 @@ bool McpSession::TryRunFront() {
       continue;
     }
     asking_for_swap_ = each != profile;
+    calls_.front().asked_in = profile->GetWeakPtr();
     AskIn(each, profiles);
     return true;
   }
@@ -366,9 +380,6 @@ bool McpSession::TryRunFront() {
 McpSession::Call McpSession::PopCall() {
   Call call = std::move(calls_.front());
   calls_.pop_front();
-  // The next call captures its own front window.
-  front_captured_ = false;
-  call_front_profile_ = nullptr;
   return call;
 }
 
@@ -377,14 +388,18 @@ content::WebContents* McpSession::UserTab(
   BrowserWindowInterface* front =
       McpTabs::FrontWindow(profiles, /*with_active_tab=*/true);
   if (kept_tab_ && front && front == asked_window_ &&
+      front->GetActiveTabInterface() &&
+      front->GetActiveTabInterface()->GetContents() ==
+          asked_window_tab_.get() &&
       std::ranges::contains(profiles, Profile::FromBrowserContext(
                                           kept_tab_->GetBrowserContext()))) {
     // A question brought its window to the front, and the user hasn't
-    // moved since: the tab they were on.
+    // moved since, not even to another tab there: the tab they were on.
     return kept_tab_.get();
   }
   kept_tab_ = nullptr;
   asked_window_ = nullptr;
+  asked_window_tab_ = nullptr;
   return ActiveTab(profiles);
 }
 
@@ -397,7 +412,11 @@ void McpSession::AskIn(Profile* profile,
     // tools keep following the tab the user was on.
     content::WebContents* tab = UserTab(profiles);
     kept_tab_ = tab ? tab->GetWeakPtr() : nullptr;
-    asked_window_ = McpTabs::FrontWindow({profile});
+    asked_window_ = McpTabs::FrontWindow({profile}, /*with_active_tab=*/true);
+    asked_window_tab_ = asked_window_ ? asked_window_->GetActiveTabInterface()
+                                            ->GetContents()
+                                            ->GetWeakPtr()
+                                      : nullptr;
   }
   asking_ = true;
   asking_profile_ = profile->GetWeakPtr();
@@ -434,6 +453,12 @@ void McpSession::OnApproval(int generation,
   // The profile may have gone, or stopped allowing MCP clients, meanwhile.
   Profile* profile = weak_profile.get();
   if (!profile || !std::ranges::contains(profiles_.Run(), profile)) {
+    RunNext();
+    return;
+  }
+  if (approval == McpApproval::kNoWindow && asking_for_swap_) {
+    // Only switch_space's swap: the space's profile's own window switches.
+    calls_.front().no_swap = true;
     RunNext();
     return;
   }
