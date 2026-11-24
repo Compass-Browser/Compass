@@ -687,15 +687,19 @@ struct BrowserScreen: View {
   }
 
   /// The swipe let go `dx` from where it started: past a third of the
-  /// screen (or flicked past half) the neighbor slides in and is shown;
+  /// screen (or flicked past half) the neighbor slides in and is shown, or
+  /// past the most recent tab the command bar opens for a new tab;
   /// otherwise the page springs back.
   private func settleSwipe(_ dx: CGFloat, predicted: CGFloat) {
     let delta = dx < 0 ? 1 : -1
     let flicked = abs(predicted) > width / 2 && (predicted < 0) == (dx < 0)
     let spring = Animation.spring(duration: 0.32, bounce: 0)
-    guard let next = neighbor(delta), abs(dx) > width / 3 || flicked else {
+    let far = abs(dx) > width / 3 || flicked
+    guard let next = neighbor(delta), far else {
       withAnimation(spring) { swipeX = 0 } completion: { swiping = false }
       app.endSwipe()
+      // Past the most recent tab, as Safari: a new tab (the command bar).
+      if far, delta == 1, neighbor(1) == nil { app.openCommandBar(newTab: true) }
       return
     }
     withAnimation(spring) { swipeX = -CGFloat(delta) * width } completion: {

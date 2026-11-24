@@ -22,16 +22,13 @@ final class SwipeTabsTests: XCTestCase {
 
   /// Swiping follows the tab picker's cards: right goes to the tab shown
   /// before, left comes back (the order holds through a run of swipes); a
-  /// short swipe springs back to the same one, and past the most recent tab
-  /// there's nothing.
+  /// short swipe springs back to the same one.
   func testSwipeChangesTab() {
     let app = XCUIApplication()
     app.launchArguments = ["-CompassOpenURLs", "https://example.org/ https://example.com/"]
     app.launch()
     XCTAssertTrue(address(app, is: "example.com"))
     swipeBar(app, from: 0.5, to: 0.42)
-    XCTAssertTrue(address(app, is: "example.com"))
-    swipeBar(app, from: 0.85, to: 0.15)
     XCTAssertTrue(address(app, is: "example.com"))
     swipeBar(app, from: 0.15, to: 0.85)
     XCTAssertTrue(address(app, is: "example.org"))
@@ -51,5 +48,19 @@ final class SwipeTabsTests: XCTestCase {
     sleep(3)
     swipeBar(app, from: 0.15, to: 0.85)
     XCTAssertTrue(address(app, is: "example.com"))
+  }
+
+  /// Past the most recent tab, a swipe opens the command bar for a new
+  /// tab (as Safari); a short one doesn't.
+  func testSwipePastNewestOpensNewTab() {
+    let app = XCUIApplication()
+    app.launchArguments = ["-CompassOpenURLs", "https://example.org/ https://example.com/"]
+    app.launch()
+    XCTAssertTrue(address(app, is: "example.com"))
+    let field = app.textFields["Search or enter address"]
+    swipeBar(app, from: 0.5, to: 0.42)
+    XCTAssertFalse(field.waitForExistence(timeout: 1))
+    swipeBar(app, from: 0.85, to: 0.15)
+    XCTAssertTrue(field.waitForExistence(timeout: 3))
   }
 }
