@@ -296,11 +296,15 @@ private struct MenuIcon: View {
 
 extension Image {
   /// A white glyph on a colored rounded square, as Settings' row icons.
+  /// The color is taken once, as in light mode, and drawn as plain RGB: a
+  /// system color (`.blue`, `.gray`) left to resolve itself came out washed
+  /// pale (gray as white, the glyph lost) in a sheet whose space theme
+  /// flips the text to light over a dark system appearance.
   func menuIcon(_ color: Color) -> some View {
     self.font(.system(size: 15, weight: .semibold))
       .foregroundStyle(.white)
       .frame(width: 32, height: 32)
-      .background(color, in: RoundedRectangle(cornerRadius: 9))
+      .background(Color(color.resolve(in: EnvironmentValues())), in: RoundedRectangle(cornerRadius: 9))
   }
 }
 
