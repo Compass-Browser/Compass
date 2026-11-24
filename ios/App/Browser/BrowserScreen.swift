@@ -146,6 +146,10 @@ struct BrowserScreen: View {
           }
         }
         .animation(.snappy(duration: 0.25), value: app.passwords.pendingSave == nil)
+        // The tab picker opening over it: the bar is gone by a quarter of
+        // the way, or it shows through the picker's tint (and its glass
+        // buttons) mid-way.
+        .opacity(max(0, 1 - app.pickerProgress * 4))
         // Incognito's bar is dark (the page keeps its own look).
         .environment(\.colorScheme, app.shownTab.map { app.tabs.isIncognito($0.id) } == true ? .dark : colorScheme)
       }
