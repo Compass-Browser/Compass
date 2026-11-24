@@ -41,7 +41,7 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <main>
 <p class="back"><a href="/">Compass Browser</a></p>
 <h1>Compass compared with other browsers</h1>
-<p>How Compass compares with Arc, its successor Dia, and the browsers people move to from Arc. Written on 10 November 2026; the other columns checked on 14 November 2026, and the Compass column updated on 21 November 2026. Other browsers change quickly, so check their sites before relying on a cell.</p>
+<p>How Compass compares with Arc, its successor Dia, and the browsers people move to from Arc. Written on 10 November 2026; the other columns checked on 14 November 2026, and the Compass column updated on 24 November 2026. Other browsers change quickly, so check their sites before relying on a cell.</p>
 <ul><li>The Compass column comes from this repository's code (<code>main</code>).</li><li>The Crest column comes from its site, changelog and repository.</li><li>The other columns come from public reviews and the vendors' sites.</li></ul>
 <p class="legend">✅ yes · ~ partial or different · ❌ no · ? not confirmed by any source found · — not applicable</p>
 <h2>Arc's status</h2>
@@ -58,7 +58,7 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <tr>
 <td><strong>Compass</strong></td>
 <td>Chromium</td>
-<td>macOS 13+ (stable), Windows 10/11 (beta), Linux (beta, Flatpak with updates), iPhone and iPad (TestFlight), Android (Google Play testing)</td>
+<td>macOS 13+ (stable), Windows 10/11 (stable), Linux (stable, Flatpak with updates), iPhone and iPad (TestFlight), Android (Google Play testing)</td>
 <td>BSD-3-Clause, free</td>
 <td>Active</td>
 </tr>
@@ -391,7 +391,7 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 </tr>
 <tr>
 <td>Per-site CSS/JS (Boosts)</td>
-<td class="compass">✅ by hand or by Claude, synced; desktop and iOS</td>
+<td class="compass">✅ by hand or by Claude, synced; Zap elements from the command bar; desktop and iOS</td>
 <td>❌</td>
 <td>✅</td>
 <td>❌</td>
@@ -419,7 +419,7 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 </tr>
 <tr>
 <td>Development mode for a site</td>
-<td class="compass">✅ no cache on reload, full address bar, DevTools buttons; desktop and iOS</td>
+<td class="compass">✅ no cache on reload, full address bar, DevTools buttons; on for localhost by default; desktop and iOS</td>
 <td>?</td>
 <td>✅</td>
 <td>?</td>
@@ -432,8 +432,22 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>?</td>
 </tr>
 <tr>
+<td>Screenshots of a region or the full page</td>
+<td class="compass">✅ copied or saved; desktop</td>
+<td>?</td>
+<td>✅</td>
+<td>?</td>
+<td>?</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
 <td>Notes / canvas (Easels)</td>
-<td class="compass">✅ text, shapes, drawing, images, links, page captures; synced; imported from Arc; desktop, Android and iOS</td>
+<td class="compass">✅ text, shapes, drawing, images, links, page captures (refreshed while a board is open, desktop); synced; imported from Arc; desktop, Android and iOS</td>
 <td>❌</td>
 <td>✅</td>
 <td>❌</td>
@@ -647,7 +661,7 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <tr class="group"><td colspan="12"><span><strong>Moving in</strong></span></td></tr>
 <tr>
 <td>Import</td>
-<td class="compass">Arc (macOS, Windows): profiles, cookies, sidebar, archive; Chrome, Edge, Brave, Vivaldi, Dia, Firefox, Zen, Safari (macOS): bookmarks, open tabs, history, passwords, Zen and Vivaldi spaces, Safari tab groups</td>
+<td class="compass">Arc (macOS, Windows): profiles, cookies, sidebar, archive; Chrome, Edge, Brave, Vivaldi, Dia: also as a whole new profile, cookies included; Chrome, Edge, Brave, Vivaldi, Dia, Firefox, Zen, Safari (macOS): bookmarks, open tabs, history, passwords, Zen and Vivaldi spaces, Safari tab groups</td>
 <td>Arc, Zen, Chrome, Safari, Firefox, Brave, Edge, Vivaldi, Opera, Dia, Comet and more</td>
 <td>—</td>
 <td>Arc, Chrome</td>
@@ -658,6 +672,20 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>?</td>
 <td>~ bookmarks, history, sign-ins from many browsers</td>
 <td>Arc, Safari, Firefox, Brave</td>
+</tr>
+<tr>
+<td>Export spaces</td>
+<td class="compass">✅ a bookmarks file any browser imports (desktop); plain-text tab lists on iPhone and iPad</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
 </tr>
 <tr>
 <td>Open source</td>
@@ -680,7 +708,7 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <h2>Compass and Crest</h2>
 <p>Crest is the closest project to Compass: also open source, also an Arc replacement, also with spaces, Peek, small windows, splits and an MCP server.</p>
 <p>Crest has, Compass doesn't:</p>
-<ul><li>A WebKit engine per site: full-quality DRM video on those pages.</li><li>Built-in ad blocking and on-device page translation.</li><li>A translucent sidebar.</li><li>Import from a few more browsers (Opera, Comet and others).</li><li>Private Spaces locked with Face ID or Touch ID, and Sub-Spaces.</li><li>An App Store release for iPhone and iPad, and a Homebrew cask.</li></ul>
+<ul><li>A WebKit engine per site: full-quality DRM video on those pages.</li><li>On-device page translation.</li><li>A translucent sidebar.</li><li>Import from a few more browsers (Opera, Comet and others).</li><li>Private Spaces locked with Face ID or Touch ID, and Sub-Spaces.</li><li>An App Store release for iPhone and iPad, and a Homebrew cask.</li></ul>
 <p>Compass has, Crest doesn't:</p>
 <ul><li>Windows, Linux and Android.</li><li>Account-free, end-to-end encrypted, self-hostable sync (Crest uses iCloud).</li><li>A Claude chat panel in the browser (Crest has only the MCP server).</li><li>Chrome extensions on the phone.</li><li>Live folders and tab previews from plugins, call picture-in-picture, send tab to phone, favorites shared across all spaces.</li><li>Ctrl+Tab in recently used order, sharing with other people, and a development mode for sites you build.</li></ul>
 <h2>Gaps</h2>

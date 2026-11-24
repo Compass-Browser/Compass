@@ -2,7 +2,7 @@
 
 How Compass compares with Arc, its successor Dia, and the browsers people
 move to from Arc. Written on 10 November 2026; the other columns checked on 14 November
-2026, and the Compass column updated on 21 November 2026. Other browsers change
+2026, and the Compass column updated on 24 November 2026. Other browsers change
 quickly, so check their sites before relying on a cell.
 
 - The Compass column comes from this repository's code (`main`).
@@ -27,7 +27,7 @@ since October 2025).
 
 | Browser | Engine | Platforms | License / price | Status |
 |---|---|---|---|---|
-| **Compass** | Chromium | macOS 13+ (stable), Windows 10/11 (beta), Linux (beta, Flatpak with updates), iPhone and iPad (TestFlight), Android (Google Play testing) | BSD-3-Clause, free | Active |
+| **Compass** | Chromium | macOS 13+ (stable), Windows 10/11 (stable), Linux (stable, Flatpak with updates), iPhone and iPad (TestFlight), Android (Google Play testing) | BSD-3-Clause, free | Active |
 | **Crest** | Chromium by default on Mac, WebKit for any site; WebKit only on iPhone/iPad | macOS 26.1+ (Apple silicon), iPhone, iPad | MPL-2.0, free | Early access (0.9.x) |
 | **Arc** | Chromium | macOS, Windows; Arc Search on iOS/Android | Free, closed | Shuts down 22 Dec 2026 |
 | **Dia** | Chromium | macOS (Apple silicon), Windows | Free core features, paid Pro tier, closed | Active, adding Arc features |
@@ -62,10 +62,11 @@ since October 2025).
 | Link routing to spaces (Air Traffic Control) | ✅ links from other apps, by domain | ✅ | ✅ | ✅ Link Rules to profiles | ✅ URL Rules | ✅ Space Routing | ❌ | ❌ | ? | ✅ | ? |
 | Auto picture-in-picture | ✅ including Teams, Meet and Zoom calls; iPhone and iPad on leaving the app | ✅ | ✅ | ✅ Meet | ? | ~ | ? | ~ | ? | ~ picture-in-picture | ~ picture-in-picture |
 | Live folders | ✅ JavaScript plugins (RSS, GitHub, web list, calendar); plugins also show a tab's content in its hover card (Google Calendar's next events, GitHub's notifications) and unread counts on tabs; Claude can write them | ? | ✅ | ❌ | ❌ | ✅ GitHub, RSS | ~ feed reader | ❌ | ❌ | ❌ | ? |
-| Per-site CSS/JS (Boosts) | ✅ by hand or by Claude, synced; desktop and iOS | ❌ | ✅ | ❌ | ❌ | ✅ Boosts, Mods | ❌ | ❌ | ❌ | ❌ | ? |
+| Per-site CSS/JS (Boosts) | ✅ by hand or by Claude, synced; Zap elements from the command bar; desktop and iOS | ❌ | ✅ | ❌ | ❌ | ✅ Boosts, Mods | ❌ | ❌ | ❌ | ❌ | ? |
 | Share spaces and folders with other people | ✅ spaces, folders and easels; invite links or email; end-to-end encrypted | ? | ✅ | ? | ? | ? | ? | ✅ Workspaces | ? | ? | ? |
-| Development mode for a site | ✅ no cache on reload, full address bar, DevTools buttons; desktop and iOS | ? | ✅ | ? | ? | ? | ? | ? | ? | ? | ? |
-| Notes / canvas (Easels) | ✅ text, shapes, drawing, images, links, page captures; synced; imported from Arc; desktop, Android and iOS | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ? |
+| Development mode for a site | ✅ no cache on reload, full address bar, DevTools buttons; on for localhost by default; desktop and iOS | ? | ✅ | ? | ? | ? | ? | ? | ? | ? | ? |
+| Screenshots of a region or the full page | ✅ copied or saved; desktop | ? | ✅ | ? | ? | ✅ | ✅ | ✅ | ? | ? | ? |
+| Notes / canvas (Easels) | ✅ text, shapes, drawing, images, links, page captures (refreshed while a board is open, desktop); synced; imported from Arc; desktop, Android and iOS | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ? |
 | Translucent sidebar | ❌ | ✅ Ultra Thin to Ultra Thick | ✅ | ? | ? | ✅ blur, transparency | ❌ | ❌ | ? | ? | ? |
 | **Web content** | | | | | | | | | | | |
 | Chrome extensions, desktop / phone | ✅ / ✅ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ❌ Firefox add-ons | ✅ / ❌ | ✅ / ❌ | ~ / ❌ | ✅ / ❌ | ✅ / ✅ also Firefox add-ons |
@@ -84,7 +85,8 @@ since October 2025).
 | Send tab to phone | ✅ | ? | ❌ | ? | ? | ✅ | ✅ | ✅ | ❌ | ? | ? |
 | Phone app with the same spaces | ✅ iPhone and iPad (beta), Android (beta, Google Play testing) | ✅ iPhone and iPad (App Store) | ~ Arc Search is separate | in progress | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ iPhone and iPad |
 | **Moving in** | | | | | | | | | | | |
-| Import | Arc (macOS, Windows): profiles, cookies, sidebar, archive; Chrome, Edge, Brave, Vivaldi, Dia, Firefox, Zen, Safari (macOS): bookmarks, open tabs, history, passwords, Zen and Vivaldi spaces, Safari tab groups | Arc, Zen, Chrome, Safari, Firefox, Brave, Edge, Vivaldi, Opera, Dia, Comet and more | — | Arc, Chrome | Arc, Zen, Chrome | Arc and Dia spaces and profiles | ~ | ~ | ? | ~ bookmarks, history, sign-ins from many browsers | Arc, Safari, Firefox, Brave |
+| Import | Arc (macOS, Windows): profiles, cookies, sidebar, archive; Chrome, Edge, Brave, Vivaldi, Dia: also as a whole new profile, cookies included; Chrome, Edge, Brave, Vivaldi, Dia, Firefox, Zen, Safari (macOS): bookmarks, open tabs, history, passwords, Zen and Vivaldi spaces, Safari tab groups | Arc, Zen, Chrome, Safari, Firefox, Brave, Edge, Vivaldi, Opera, Dia, Comet and more | — | Arc, Chrome | Arc, Zen, Chrome | Arc and Dia spaces and profiles | ~ | ~ | ? | ~ bookmarks, history, sign-ins from many browsers | Arc, Safari, Firefox, Brave |
+| Export spaces | ✅ a bookmarks file any browser imports (desktop); plain-text tab lists on iPhone and iPad | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
 | Open source | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ~ | ❌ | ❌ | ✅ | ❌ Linux and Windows code to be released |
 
 ## What only Compass has
@@ -108,7 +110,7 @@ replacement, also with spaces, Peek, small windows, splits and an MCP server.
 Crest has, Compass doesn't:
 
 - A WebKit engine per site: full-quality DRM video on those pages.
-- Built-in ad blocking and on-device page translation.
+- On-device page translation.
 - A translucent sidebar.
 - Import from a few more browsers (Opera, Comet and others).
 - Private Spaces locked with Face ID or Touch ID, and Sub-Spaces.
