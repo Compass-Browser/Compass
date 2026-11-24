@@ -313,6 +313,9 @@ class ClaudePanelBrowserTest : public InProcessBrowserTest {
   std::string last_body_;
   std::vector<std::string> bodies_;
   std::string last_key_;
+  // A test's folder. A member, not a local: it's deleted with the fixture,
+  // after the browser's main loop, where deleting files may block.
+  base::ScopedTempDir dir_;
 };
 
 IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, WithoutAKeyAsksForOne) {
@@ -582,7 +585,7 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, RunsToolsAndSendsResults) {
 // "Files").
 IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, AsksBeforeSaving) {
   SetUpClaude();
-  base::ScopedTempDir dir;
+  base::ScopedTempDir& dir = dir_;
   base::FilePath folder;
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
@@ -665,7 +668,7 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, AsksBeforeSaving) {
 // reply.
 IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, QueuesWhileReplying) {
   SetUpClaude();
-  base::ScopedTempDir dir;
+  base::ScopedTempDir& dir = dir_;
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_TRUE(dir.CreateUniqueTempDir());
@@ -765,7 +768,7 @@ IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, QueuesWhileReplying) {
 // Compass's tool through compass-mcp --chat on the chat's tab, with no
 // question asked; the panel shows the tool's row and the reply.
 IN_PROC_BROWSER_TEST_F(ClaudePanelBrowserTest, RunsOnClaudeCode) {
-  base::ScopedTempDir dir;
+  base::ScopedTempDir& dir = dir_;
   base::FilePath fake;
   {
     base::ScopedAllowBlockingForTesting allow_blocking;

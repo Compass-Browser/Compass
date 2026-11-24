@@ -12,6 +12,7 @@
 #include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/process/launch.h"
@@ -67,11 +68,24 @@ bool MakePipe(base::File* read, base::File* write) {
 #endif
 }
 
-// Reads |out| to its end, a line at a time, then waits for |process|.
-void ReadOutput(base::File out,
+// Closes |files| on the thread pool: base::File::Close() counts as blocking,
+// and Start() runs on the UI thread.
+void CloseOffThread(std::vector<base::File> files) {
+  base::ThreadPool::PostTask(
+      FROM_HERE,
+      {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+      base::DoNothingWithBoundArgs(std::move(files)));
+}
+
+// Closes the child's ends of the pipes (|child_ends|: the output ends only
+// once no copy of its write end is open here), then reads |out| to its end,
+// a line at a time, then waits for |process|.
+void ReadOutput(std::vector<base::File> child_ends,
+                base::File out,
                 base::Process process,
                 ClaudeCodeProcess::LineCallback on_line,
                 ClaudeCodeProcess::ExitCallback on_exit) {
+  child_ends.clear();
   std::string pending;
   std::vector<uint8_t> buffer(64 * 1024);
   for (;;) {
@@ -148,8 +162,20 @@ std::unique_ptr<ClaudeCodeProcess> ClaudeCodeProcess::Start(
     LineCallback on_line,
     ExitCallback on_exit) {
   base::File stdin_read, stdin_write, out_read, out_write;
+  // On the way out without a process, the pipes close off this thread.
+  auto close_all = [&] {
+    std::vector<base::File> files;
+    for (base::File* file :
+         {&stdin_read, &stdin_write, &out_read, &out_write}) {
+      if (file->IsValid()) {
+        files.push_back(std::move(*file));
+      }
+    }
+    CloseOffThread(std::move(files));
+  };
   if (!MakePipe(&stdin_read, &stdin_write) ||
       !MakePipe(&out_read, &out_write)) {
+    close_all();
     return nullptr;
   }
   base::CommandLine command(program);
@@ -185,11 +211,14 @@ std::unique_ptr<ClaudeCodeProcess> ClaudeCodeProcess::Start(
 #endif
   base::Process process = base::LaunchProcess(command, options);
   if (!process.IsValid()) {
+    close_all();
     return nullptr;
   }
-  // The child's ends close here; the output ends when it exits.
-  stdin_read.Close();
-  out_write.Close();
+  // The child's ends close on the reading thread, before it reads: the
+  // output ends when the child exits.
+  std::vector<base::File> child_ends;
+  child_ends.push_back(std::move(stdin_read));
+  child_ends.push_back(std::move(out_write));
 
   auto self = base::WrapUnique(new ClaudeCodeProcess(
       process.Duplicate(), std::move(on_line), std::move(on_exit)));
@@ -204,7 +233,8 @@ std::unique_ptr<ClaudeCodeProcess> ClaudeCodeProcess::Start(
       {base::MayBlock(), base::WithBaseSyncPrimitives(),
        base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
       base::BindOnce(
-          &ReadOutput, std::move(out_read), std::move(process),
+          &ReadOutput, std::move(child_ends), std::move(out_read),
+          std::move(process),
           base::BindPostTask(
               here, base::BindRepeating(&ClaudeCodeProcess::OnLine,
                                         self->weak_factory_.GetWeakPtr())),
