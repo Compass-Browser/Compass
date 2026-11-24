@@ -27,8 +27,10 @@ namespace compass::sync::rooms {
 
 namespace {
 
-// Changes pages are about 8 MiB of ciphertext, base64 a third more.
-constexpr size_t kMaxReplySize = 16 * 1024 * 1024;
+// Changes pages are about 8 MiB of ciphertext, base64 a third more: above
+// what SimpleURLLoader::DownloadToString() takes (5 MiB), so the reply is
+// downloaded unbounded and cut off here (RoomClient::OnProgress()).
+constexpr uint64_t kMaxReplySize = 16 * 1024 * 1024;
 constexpr base::TimeDelta kRequestTimeout = base::Seconds(30);
 // A long poll's answer comes within its wait; this is the slack.
 constexpr base::TimeDelta kLongPollSlack = base::Seconds(15);
@@ -461,34 +463,48 @@ void RoomClient::Send(std::string_view method,
     request->headers.SetHeader(kLinkedTokenHeader, *linked_token);
   }
   loaders_.push_front(
-      network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation));
-  Loaders::iterator loader = loaders_.begin();
+      {network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation),
+       std::move(callback)});
+  Loaders::iterator pending = loaders_.begin();
+  network::SimpleURLLoader* loader = pending->loader.get();
   if (body) {
     // Whole numbers (epochs, seqs, times) as integers: the server's are
     // int64s, and "1.0" isn't one.
-    (*loader)->AttachStringForUpload(
+    loader->AttachStringForUpload(
         base::WriteJsonWithOptions(
             *body, base::JsonOptions::OPTIONS_OMIT_DOUBLE_TYPE_PRESERVATION)
             .value_or("{}"),
         "application/json");
   }
-  (*loader)->SetTimeoutDuration(timeout);
-  (*loader)->SetAllowHttpErrorResults(true);
-  (*loader)->DownloadToString(
+  loader->SetTimeoutDuration(timeout);
+  loader->SetAllowHttpErrorResults(true);
+  loader->SetOnDownloadProgressCallback(base::BindRepeating(
+      &RoomClient::OnProgress, weak_factory_.GetWeakPtr(), pending));
+  loader->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
       loader_factory_.get(),
       base::BindOnce(&RoomClient::OnResponse, weak_factory_.GetWeakPtr(),
-                     loader, std::move(callback)),
-      kMaxReplySize);
+                     pending));
 }
 
-void RoomClient::OnResponse(Loaders::iterator loader,
-                            RawCallback callback,
+void RoomClient::OnResponse(Loaders::iterator pending,
                             std::optional<std::string> body) {
-  const network::mojom::URLResponseHead* head = (*loader)->ResponseInfo();
+  const network::mojom::URLResponseHead* head =
+      pending->loader->ResponseInfo();
   const int status =
       head && head->headers ? head->headers->response_code() : 0;
-  loaders_.erase(loader);
+  RawCallback callback = std::move(pending->callback);
+  loaders_.erase(pending);
   std::move(callback).Run(status, std::move(body));
+}
+
+void RoomClient::OnProgress(Loaders::iterator pending, uint64_t current) {
+  if (current <= kMaxReplySize) {
+    return;
+  }
+  // Deleting the loader cancels it: OnResponse() doesn't run.
+  RawCallback callback = std::move(pending->callback);
+  loaders_.erase(pending);
+  std::move(callback).Run(0, std::nullopt);
 }
 
 template <typename T>

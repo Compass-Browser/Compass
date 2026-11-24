@@ -358,10 +358,15 @@ class RoomClient {
   size_t pending_requests_for_testing() const { return loaders_.size(); }
 
  private:
-  using Loaders = std::list<std::unique_ptr<network::SimpleURLLoader>>;
   // The answer: status (0 none) and body.
   using RawCallback =
       base::OnceCallback<void(int status, std::optional<std::string> body)>;
+  // A request in flight, and who gets its answer.
+  struct Pending {
+    std::unique_ptr<network::SimpleURLLoader> loader;
+    RawCallback callback;
+  };
+  using Loaders = std::list<Pending>;
 
   void Send(std::string_view method,
             std::string_view path,
@@ -370,9 +375,9 @@ class RoomClient {
             base::TimeDelta timeout,
             RawCallback callback,
             std::optional<std::string> linked_token = std::nullopt);
-  void OnResponse(Loaders::iterator loader,
-                  RawCallback callback,
-                  std::optional<std::string> body);
+  void OnResponse(Loaders::iterator pending, std::optional<std::string> body);
+  // Ends a reply larger than kMaxReplySize as a network error.
+  void OnProgress(Loaders::iterator pending, uint64_t current);
   // Calls Send() and parses a JSON object with |parse|.
   template <typename T>
   void SendForJson(std::string_view method,
