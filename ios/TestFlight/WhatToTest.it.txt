@@ -1,9 +1,4 @@
-Sincronizzazione in background, e scorrimenti più fluidi sulla barra.
+Una correzione per la barra laterale a metà altezza.
 
-- Sincronizzazione in background: quando un altro dispositivo cambia i tuoi spazi, le password o le estensioni, il server di sincronizzazione ora può svegliare Compass per sincronizzarli, così sono aggiornati quando lo apri. Serve l'ultima versione del server di sincronizzazione; senza, Compass sincronizza comunque quando iOS gli dà tempo in background, come prima. È iOS a decidere quando svegliare l'app (al massimo circa ogni 15 minuti, non in Risparmio energetico, non dopo averla chiusa forzatamente).
-- Impostazioni → Sync segnala quando l'Aggiornamento app in background è disattivato per Compass, con un pulsante per attivarlo: senza, Compass sincronizza solo mentre è aperto.
-- Scorrere la barra oltre la scheda più recente (un terzo dello schermo, o uno scatto) apre una nuova scheda, come in Safari. Uno scorrimento breve torna ancora indietro.
-- Uno scorrimento verso l'alto sull'estremità destra della barra porta su la barra dei comandi per una nuova scheda sotto il dito; lasciata oltre circa un terzo si apre, più in basso torna giù.
-- Nessun lampo bianco quando uno scorrimento arriva su una scheda.
-- L'interruttore e il + del selettore schede non si vedono più sopra la scheda mentre si apre.
-- Segnalaci: modifiche dal Mac che mancano ancora quando apri Compass dopo un po', un consumo di batteria che sembra più alto di prima, e scorrimenti che aprono una nuova scheda senza volerlo.
+- Con la barra laterale a metà altezza, trascinarla fino all'altezza piena o in giù per chiuderla non apre più la scheda o la cartella da cui è partito il dito.
+- Segnalaci: tocchi nella barra laterale che non vengono registrati, o trascinamenti che aprono ancora qualcosa.

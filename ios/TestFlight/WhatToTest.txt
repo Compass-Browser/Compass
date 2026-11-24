@@ -1,9 +1,4 @@
-Sync in the background, and smoother swipes on the bar.
+A fix for the sidebar at half height.
 
-- Sync in the background: when another device changes your spaces, passwords or extensions, the sync server can now wake Compass to sync, so they're current when you open it. Your sync server needs the latest version for this; without it Compass still syncs when iOS gives it background time, as before. iOS decides when to wake the app (at most about every 15 minutes, not in Low Power Mode, not after you force-quit it).
-- Settings → Sync says when Background App Refresh is off for Compass, with a button to turn it on: without it, Compass syncs only while it's open.
-- Swiping the bar past the newest tab (a third of the screen, or a flick) opens a new tab, as in Safari. A short swipe still springs back.
-- A swipe up on the bar's right end brings the new-tab command bar up under your finger; let go past about a third and it opens, lower and it goes back down.
-- No white flash as a swipe lands on a tab.
-- The tab switcher's toggle and + no longer show over the card while it opens.
-- Please report: changes from your Mac that are still missing when you open Compass after a while, battery use that looks higher than before, and swipes that open a new tab when you didn't mean to.
+- With the sidebar at half height, dragging it up to full height or down to close it no longer opens the tab or folder your finger started on.
+- Please report: taps in the sidebar that don't register, or drags that still open something.
