@@ -20,8 +20,10 @@ final class SwipeTabsTests: XCTestCase {
     start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: hold)
   }
 
-  /// Left goes to the older entry, right comes back; a short swipe springs
-  /// back to the same one.
+  /// Swiping follows the tab picker's cards: right goes to the tab shown
+  /// before, left comes back (the order holds through a run of swipes); a
+  /// short swipe springs back to the same one, and past the most recent tab
+  /// there's nothing.
   func testSwipeChangesTab() {
     let app = XCUIApplication()
     app.launchArguments = ["-CompassOpenURLs", "https://example.org/ https://example.com/"]
@@ -30,7 +32,23 @@ final class SwipeTabsTests: XCTestCase {
     swipeBar(app, from: 0.5, to: 0.42)
     XCTAssertTrue(address(app, is: "example.com"))
     swipeBar(app, from: 0.85, to: 0.15)
+    XCTAssertTrue(address(app, is: "example.com"))
+    swipeBar(app, from: 0.15, to: 0.85)
     XCTAssertTrue(address(app, is: "example.org"))
+    swipeBar(app, from: 0.85, to: 0.15)
+    XCTAssertTrue(address(app, is: "example.com"))
+  }
+
+  /// Once the swiping has stopped for a moment, the tab swiped to is the
+  /// most recent: right goes back to the one before it.
+  func testSwipeOrderSettles() {
+    let app = XCUIApplication()
+    app.launchArguments = ["-CompassOpenURLs", "https://example.org/ https://example.com/"]
+    app.launch()
+    XCTAssertTrue(address(app, is: "example.com"))
+    swipeBar(app, from: 0.15, to: 0.85)
+    XCTAssertTrue(address(app, is: "example.org"))
+    sleep(3)
     swipeBar(app, from: 0.15, to: 0.85)
     XCTAssertTrue(address(app, is: "example.com"))
   }

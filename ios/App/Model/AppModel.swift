@@ -739,27 +739,60 @@ final class AppModel {
     }
   }
 
-  /// A space's entries in the bar's swipe order: pinned, then Today
-  /// (newest first); splits as one entry, desktop-only pages left out.
-  func swipeEntries(of space: Space) -> [SidebarNode] {
-    (space.pinned.children.flatMap(\.subtree) + space.today.children.reversed())
-      .filter { !$0.isFolder && $0.parent?.isSplit != true && $0.isPhoneVisible }
+  /// The bar's sideways swipe runs through the tab picker's cards: the live
+  /// tabs, least recently shown first, incognito ones only from an
+  /// incognito tab. Showing a tab makes it the most recent, so a run of
+  /// swipes keeps the order it started with (as the iPhone's app switcher
+  /// does) until the swiping stops for a moment.
+  @ObservationIgnored private var swipeOrder: [String]?
+  /// When the last swipe started or settled.
+  @ObservationIgnored private var swipeOrderTouched = ContinuousClock.now
+  /// How long after a swipe the order stays as it was.
+  static let swipeOrderHold: Duration = .seconds(2)
+
+  private func swipeTabs() -> [String] {
+    let incognito = shownTab.map { tabs.isIncognito($0.id) } ?? false
+    let current = tabs.loadedOrder.filter { store.node(id: $0) != nil && tabs.isIncognito($0) == incognito }
+    guard let swipeOrder else { return current }
+    // Tabs closed or unloaded since drop out; any new ones go at the end.
+    let kept = swipeOrder.filter(current.contains)
+    return kept + current.filter { !kept.contains($0) }
   }
 
-  /// The entry `delta` steps from `node` in its space (the bar's swipe, ⌃Tab).
-  func neighbor(of node: SidebarNode, _ delta: Int) -> SidebarNode? {
-    guard let space = store.space(of: node) else { return nil }
-    let entries = swipeEntries(of: space)
-    guard let index = entries.firstIndex(where: { $0 === node }) else { return nil }
-    let next = index + delta
-    return entries.indices.contains(next) ? entries[next] : nil
+  /// A finger starts swiping the bar sideways: the order it started with
+  /// holds if the last swipe was a moment ago, else it's taken afresh.
+  func beginSwipe() {
+    if swipeOrder == nil || ContinuousClock.now - swipeOrderTouched > Self.swipeOrderHold {
+      swipeOrder = nil
+      swipeOrder = swipeTabs()
+    }
+    swipeOrderTouched = .now
+  }
+
+  /// The swipe settled: the order holds a moment longer, for the next one.
+  func endSwipe() { swipeOrderTouched = .now }
+
+  /// The tab `delta` cards from the shown one in the picker's order (the
+  /// bar's swipe): 1 more recent, -1 less.
+  func swipeNeighbor(_ delta: Int) -> SidebarNode? {
+    guard let shown = shownTab else { return nil }
+    let order = swipeTabs()
+    guard let index = order.firstIndex(of: shown.id), order.indices.contains(index + delta) else { return nil }
+    return store.node(id: order[index + delta])
+  }
+
+  /// A space's entries in the sidebar's order (⌃Tab): pinned, then Today
+  /// (newest first); splits as one entry, desktop-only pages left out.
+  func sidebarEntries(of space: Space) -> [SidebarNode] {
+    (space.pinned.children.flatMap(\.subtree) + space.today.children.reversed())
+      .filter { !$0.isFolder && $0.parent?.isSplit != true && $0.isPhoneVisible }
   }
 
   /// ⌃Tab / ⌃⇧Tab: the next or previous entry, wrapping around; the first
   /// or last when nothing is shown.
   func stepEntry(_ delta: Int) {
     guard let space = selectedSpace else { return }
-    let entries = swipeEntries(of: space)
+    let entries = sidebarEntries(of: space)
     guard !entries.isEmpty else { return }
     let index = selectedNode.flatMap { node in entries.firstIndex(where: { $0 === node }) }
     let next = index.map { ($0 + delta + entries.count) % entries.count } ?? (delta > 0 ? 0 : entries.count - 1)

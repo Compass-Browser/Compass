@@ -288,11 +288,15 @@ struct BrowserScreen: View {
     return ZStack {
       Color(.systemBackground)
       if let tab, let image = app.tabs.snapshots[tab.id] {
-        Image(uiImage: image)
-          .resizable()
-          .scaledToFill()
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-          .clipped()
+        // At the page's width, from the screen's top, where the web view
+        // drew it: the space this is laid out in reaches past the screen's
+        // edges, and filling it would scale the page up and shift it.
+        GeometryReader { geo in
+          Image(uiImage: image)
+            .resizable()
+            .frame(width: geo.size.width, height: geo.size.width * image.size.height / max(image.size.width, 1))
+            .offset(y: -geo.frame(in: .global).minY)
+        }
       } else if let tab {
         VStack(spacing: 12) {
           SiteIcon(url: tab.url, size: 48)
@@ -318,13 +322,13 @@ struct BrowserScreen: View {
       .padding(.horizontal, 14)
       .frame(maxWidth: .infinity)
       .frame(height: 44)
-      .background(Color.primary.opacity(0.07), in: Capsule())
+      .addressPillBackground()
       BarIcon(symbol: "plus")
       BarIcon(symbol: "ellipsis")
     }
     .foregroundStyle(.primary)
     .padding(5)
-    .floatingGlass(in: Capsule(), frosted: true)
+    .floatingGlass(in: Capsule())
     .padding(.horizontal, 12)
     .padding(.bottom, 2)
     .accessibilityHidden(true)
@@ -462,7 +466,8 @@ struct BrowserScreen: View {
     .buttonStyle(.plain)
     .foregroundStyle(.primary)
     .padding(5)
-    .floatingGlass(in: Capsule(), frosted: true)
+    // Clear glass: the page shows through, refracted, as in Safari.
+    .floatingGlass(in: Capsule(), interactive: true)
     .padding(.horizontal, 12)
     .padding(.bottom, 2)
     // Over the buttons' own gestures (the address pill covers most of the
@@ -483,8 +488,9 @@ struct BrowserScreen: View {
             if dragAxis == .vertical, dragZone == .left { app.preparePicker() }
           }
           if dragAxis == .horizontal {
+            if !swiping { app.beginSwipe() }
             swiping = true
-            // Past the space's ends it only gives a little.
+            // Past the picker's ends it only gives a little.
             swipeX = neighbor(dx < 0 ? 1 : -1) == nil ? dx / 4 : dx
             return
           }
@@ -541,7 +547,7 @@ struct BrowserScreen: View {
       }
       .padding(.horizontal, 14)
       .frame(height: 30)
-      .floatingGlass(in: Capsule(), frosted: true)
+      .floatingGlass(in: Capsule(), interactive: true)
       .contentShape(Capsule())
     }
     .buttonStyle(.plain)
@@ -570,7 +576,7 @@ struct BrowserScreen: View {
       .padding(.horizontal, showsReaderButton ? 40 : 14)
       .frame(maxWidth: .infinity)
       .frame(height: 44)
-      .background(Color.primary.opacity(0.07), in: Capsule())
+      .addressPillBackground()
       .contentShape(Capsule())
       .contentShape(.contextMenuPreview, Capsule())
     }
@@ -662,10 +668,10 @@ struct BrowserScreen: View {
     return URL(string: url)?.host()?.replacingOccurrences(of: "www.", with: "") ?? url
   }
 
-  /// The next (1) or previous (-1) entry of the space: pinned, then Today
-  /// (newest first).
+  /// The tab right (1, more recently shown) or left (-1) of the shown one
+  /// in the tab picker's order.
   private func neighbor(_ delta: Int) -> SidebarNode? {
-    node.flatMap { app.neighbor(of: $0, delta) }
+    app.swipeNeighbor(delta)
   }
 
   /// The swipe let go `dx` from where it started: past a third of the
@@ -677,6 +683,7 @@ struct BrowserScreen: View {
     let spring = Animation.spring(duration: 0.32, bounce: 0)
     guard let next = neighbor(delta), abs(dx) > width / 3 || flicked else {
       withAnimation(spring) { swipeX = 0 } completion: { swiping = false }
+      app.endSwipe()
       return
     }
     withAnimation(spring) { swipeX = -CGFloat(delta) * width } completion: {
@@ -688,6 +695,19 @@ struct BrowserScreen: View {
         swipeX = 0
         swiping = false
       }
+      app.endSwipe()
+    }
+  }
+}
+
+extension View {
+  /// The bar's address pill: a light fill of the background color with
+  /// a hairline edge, so the address stands out on the clear glass around
+  /// it (light on a light bar, dark on a dark one).
+  fileprivate func addressPillBackground() -> some View {
+    background {
+      Capsule().fill(Color(.systemBackground).opacity(0.3))
+        .overlay(Capsule().strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5))
     }
   }
 }
