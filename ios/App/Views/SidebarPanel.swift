@@ -55,6 +55,11 @@ struct SidebarPanel: View {
 
   private func content(height: CGFloat, position: CGFloat) -> some View {
       SidebarScreen()
+        // While a drag moves the panel, its rows take no touches: the finger
+        // rides along on the row it started on, which would take the release
+        // as a tap (the list doesn't scroll at half height, so nothing
+        // cancels it as a scroll would).
+        .disabled(contentDragAxis == .vertical)
         // At half height, as a sheet: a vertical drag anywhere moves the
         // panel (the list doesn't scroll until it's at full height).
         .simultaneousGesture(contentDrag, including: app.sidebarHalf ? .all : .subviews)

@@ -78,6 +78,40 @@ final class SidebarPanelTests: XCTestCase {
     XCTAssertLessThan(headerY, 0.3, "back at full height")
   }
 
+  /// At half height a drag that starts on a row moves the panel and doesn't
+  /// also tap the row (it would show that tab).
+  func testHalfHeightDragFromRowDoesNotTapIt() {
+    openSidebar()
+    let grabber = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.085))
+    let address = app.buttons["Address"]
+    XCTAssertEqual(address.value as? String, "example.org")
+    grabber.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
+    sleep(1)
+    // Up to full height.
+    halfHeightRow().press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)))
+    sleep(1)
+    XCTAssertLessThan(headerY, 0.3, "at full height")
+    XCTAssertEqual(address.value as? String, "example.org", "row not tapped")
+    // Back to half, then down from the row to closed.
+    grabber.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
+    sleep(1)
+    // A flick: from low on the panel the travel alone stops short of closed.
+    halfHeightRow().press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)),
+                          withVelocity: .fast, thenHoldForDuration: 0)
+    sleep(1)
+    XCTAssertGreaterThan(headerY, 0.95, "closed")
+    XCTAssertEqual(address.value as? String, "example.org", "row not tapped")
+  }
+
+  /// A tab row (one of the sample's Wikipedia pages) on screen with the
+  /// panel at half height.
+  private func halfHeightRow() -> XCUICoordinate {
+    let rows = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'wikipedia'")).allElementsBoundByIndex
+    let row = rows.first { $0.frame.midY > app.frame.height * 0.6 && $0.frame.midY < app.frame.height * 0.9 }
+    XCTAssertNotNil(row, "a tab row on screen")
+    return row!.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+  }
+
   /// At half height a drag down on the list closes it.
   func testHalfHeightListDragCloses() {
     openSidebar()
