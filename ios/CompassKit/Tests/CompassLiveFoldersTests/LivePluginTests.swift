@@ -22,7 +22,7 @@ struct LivePluginTests {
 
   @Test func builtinsLoad() {
     let ids = scripts.builtins().map(\.id)
-    #expect(ids == ["compass.calendar", "compass.github", "compass.rss", "compass.web-list"])
+    #expect(ids == ["compass.calendar", "compass.github", "compass.gmail", "compass.rss", "compass.web-list"])
     let github = scripts.builtins().first { $0.id == "compass.github" }!
     #expect(github.manifest.secrets.map(\.key) == ["token"] && github.icon != nil)
     #expect(github.manifest.refresh.min >= 300)

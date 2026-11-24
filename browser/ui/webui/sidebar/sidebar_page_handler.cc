@@ -1754,6 +1754,11 @@ void SidebarPageHandler::GetLivePlugins(GetLivePluginsCallback callback) {
                     : nullptr;
         if (service) {
           for (const LivePlugin& plugin : service->registry().plugins()) {
+            // Preview-only plugins (compass.gmail) can't fill a folder;
+            // Settings › Plugins lists them.
+            if (!plugin.manifest.folder) {
+              continue;
+            }
             plugins.push_back(ToMojoPlugin(plugin, &service->store()));
           }
         }

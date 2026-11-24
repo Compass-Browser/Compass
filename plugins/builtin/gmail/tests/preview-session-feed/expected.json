@@ -1,0 +1,33 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "tag:gmail.google.com,2004:1785123456789012345",
+        "title": "Compiler review tomorrow",
+        "url": "https://mail.google.com/mail/u/2?account_id=ada@example.com&message_id=18c2f0a1b2c3d4e5&view=conv&extsrc=atom",
+        "subtitle": "Grace Hopper",
+        "time": 1795509660000
+      },
+      {
+        "id": "tag:gmail.google.com,2004:1785123456789012346",
+        "title": "Your invoice",
+        "url": "https://mail.google.com/mail/u/2?account_id=ada@example.com&message_id=18c2f0a1b2c3d4e7&view=conv&extsrc=atom",
+        "subtitle": "billing@example.net",
+        "time": 1795453200000
+      }
+    ],
+    "title": "Inbox",
+    "footer": "27 unread",
+    "count": 27,
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://mail.google.com/mail/u/2/feed/atom",
+      "cookies": true,
+      "via": "browser"
+    }
+  ]
+}

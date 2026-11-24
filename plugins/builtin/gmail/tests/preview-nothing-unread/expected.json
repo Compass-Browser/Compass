@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "result": {
+    "items": [],
+    "title": "Inbox",
+    "footer": "No unread mail",
+    "count": 0,
+    "warnings": []
+  },
+  "fetches": []
+}

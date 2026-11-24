@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "18c2f0a1b2c3d4e5",
+        "title": "Compiler review tomorrow",
+        "url": "https://mail.google.com/mail/u/1/#inbox/18c2f0a1b2c3d4e5",
+        "subtitle": "Grace Hopper · 9:41 AM"
+      },
+      {
+        "id": "18c2f0a1b2c3d4e7",
+        "title": "Your invoice",
+        "url": "https://mail.google.com/mail/u/1/#inbox/18c2f0a1b2c3d4e7",
+        "subtitle": "Billing · Nov 23"
+      }
+    ],
+    "title": "Inbox",
+    "footer": "3 unread",
+    "count": 3,
+    "warnings": []
+  },
+  "fetches": []
+}

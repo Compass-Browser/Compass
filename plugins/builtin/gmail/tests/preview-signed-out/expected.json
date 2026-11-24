@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "result": {
+    "items": [],
+    "count": 0,
+    "warnings": []
+  },
+  "fetches": [
+    {
+      "method": "GET",
+      "url": "https://mail.google.com/mail/u/0/feed/atom",
+      "cookies": true,
+      "via": "browser"
+    }
+  ]
+}

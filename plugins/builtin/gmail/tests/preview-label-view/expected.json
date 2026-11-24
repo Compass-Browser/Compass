@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "id": "18c2f0a1b2c3d4f0",
+        "title": "Quarterly plan",
+        "url": "https://mail.google.com/mail/u/0/#label/Work/18c2f0a1b2c3d4f0",
+        "subtitle": "Grace Hopper · 8:02 AM"
+      }
+    ],
+    "footer": "1,204 unread in Inbox",
+    "count": 1204,
+    "warnings": []
+  },
+  "fetches": []
+}

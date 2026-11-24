@@ -296,6 +296,11 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, PluginsSection) {
                     "li[data-id=\"compass.rss\"]').querySelectorAll("
                     "'.plugin-chip')].map(c => c.textContent).join(',')"),
             "Live folder");
+  // Gmail only previews tabs and counts on them.
+  EXPECT_EQ(WaitFor("[...deepQuery('compass-plugins-page "
+                    "li[data-id=\"compass.gmail\"]').querySelectorAll("
+                    "'.plugin-chip')].map(c => c.textContent).join(',')"),
+            "Tab preview,Badge");
 
   // Built-ins' previews are on; turning GitHub's off is kept.
   ASSERT_TRUE(content::ExecJs(

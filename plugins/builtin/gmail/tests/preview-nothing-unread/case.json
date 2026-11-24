@@ -1,0 +1,14 @@
+{
+  "mode": "preview",
+  "page": {
+    "url": "https://mail.google.com/mail/u/0/#inbox",
+    "title": "Inbox - ada@example.com - Gmail",
+    "live": true,
+    "groups": {
+      "rows": [
+        {"attrs": {"class": "zA yO"}, "fields": {"name": "Linus", "subject": "Read already", "thread": "18c2f0a1b2c3d4e6"}}
+      ],
+      "inbox": [{"attrs": {"aria-label": "Inbox"}}]
+    }
+  }
+}

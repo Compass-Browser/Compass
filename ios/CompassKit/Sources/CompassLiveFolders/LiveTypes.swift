@@ -122,6 +122,9 @@ public struct LiveManifest: Codable, Sendable, Equatable {
   public var secrets: [Secret]
   public var config: [Field]
   public var refresh: Refresh
+  /// False for a plugin that only previews tabs (`"folder": false`); the
+  /// rules always fill it in, older stored manifests may not have it.
+  public var folder: Bool?
 }
 
 /// A plugin ready to run: its manifest, entry script and icon.

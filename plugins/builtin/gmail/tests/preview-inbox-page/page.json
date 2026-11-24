@@ -1,0 +1,22 @@
+{
+  "url": "https://mail.google.com/mail/u/1/#inbox",
+  "title": "Inbox (3) - ada@example.com - Gmail",
+  "live": true,
+  "groups": {
+    "rows": [
+      {"attrs": {"class": "zA zE x7"},
+       "fields": {"name": "Grace Hopper", "email": "grace@example.org", "sender": "Grace Hopper",
+                  "subject": "Compiler review tomorrow", "snippet": " - Can we move it to 10?",
+                  "thread": "18c2f0a1b2c3d4e5", "date": "Tue, Nov 24, 2026, 9:41 AM", "when": "9:41 AM"}},
+      {"attrs": {"class": "zA yO x7"},
+       "fields": {"name": "Linus", "email": "linus@example.org", "sender": "Linus",
+                  "subject": "Already read", "thread": "18c2f0a1b2c3d4e6", "when": "9:30 AM"}},
+      {"attrs": {"class": "zA zE"},
+       "fields": {"name": "", "email": "billing@example.net", "sender": "Billing",
+                  "subject": "  Your   invoice  ", "thread": "18c2f0a1b2c3d4e7", "when": "Nov 23"}},
+      {"attrs": {"class": "zA zE"},
+       "fields": {"name": "Alan", "subject": "", "thread": "18c2f0a1b2c3d4e8", "when": "Nov 22"}}
+    ],
+    "inbox": [{"attrs": {"aria-label": "Inbox 3 unread"}}]
+  }
+}

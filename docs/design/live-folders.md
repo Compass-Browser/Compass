@@ -179,6 +179,7 @@ otherwise.
 | `compass.github` | Search API: review requests, my PRs, assigned, mentions, any query, optionally in one repo or owner | token (api.github.com doesn't accept the github.com session) |
 | `compass.web-list` | Links on a page matching text or a `/regex/`, or a JSON list with field paths | optional cookies for that site |
 | `compass.calendar` | Private iCal address (Google, Outlook, iCloud) → events in the next N hours, opening their Meet/Zoom/Teams/Webex/… link | the address is a secret |
+| `compass.gmail` | No folder: Gmail tabs' preview and unread badge (the page, or the unread Atom feed with the session) | the user's session, if allowed |
 
 ## Testing
 
@@ -330,8 +331,11 @@ needs no hover:
 `compass.github` counts unread notifications: on github.com/notifications
 from the Inbox counter, elsewhere (with the session) from the fetched page's
 counter; without the session, the header's "You have unread
-notifications" gives a dot. Tests: the `preview-count` conformance case,
-`github/preview-*`, `LiveResultTest.PreviewRules`,
+notifications" gives a dot. `compass.gmail` counts unread inbox mail: from
+the side menu's Inbox counter, else the tab's title while it shows the inbox
+("Inbox (3) - …", in any language, so a discarded tab counts too), and with
+the session from the Atom feed's `fullcount`. Tests: the `preview-count`
+conformance case, `github/preview-*`, `gmail/preview-*`, `LiveResultTest.PreviewRules`,
 `CompassSidebarPreviewBrowserTest.PluginBadges`.
 
 ### Desktop
@@ -354,7 +358,11 @@ notifications" gives a dot. Tests: the `preview-count` conformance case,
 - **Built-ins:** `compass.calendar` reads Google Calendar's event chips
   (English labels); `compass.github` shows recent notifications from
   `github.com/notifications`, from the page there, else (with the session)
-  by fetching it.
+  by fetching it; `compass.gmail` (preview only, `"folder": false`) shows
+  unread mail: the message list's unread rows (`tr.zA.zE`) while the tab
+  shows one, else, with the session, the account's unread feed
+  (`mail/u/<n>/feed/atom`). The New Live Folder picker leaves preview-only
+  plugins out (desktop and iOS); Settings › Plugins lists them.
 
 ## Plan
 

@@ -31,6 +31,7 @@ struct LivePluginIcon: View {
     case "compass.github": "chevron.left.forwardslash.chevron.right"
     case "compass.web-list": "list.bullet.rectangle"
     case "compass.calendar": "calendar"
+    case "compass.gmail": "envelope"
     default: "bolt.fill"
     }
   }
@@ -103,7 +104,8 @@ struct LiveFolderEditor: View {
   private var picker: some View {
     List {
       Section {
-        ForEach(live.plugins, id: \.id) { p in
+        // Preview-only plugins (compass.gmail) can't fill a folder.
+        ForEach(live.plugins.filter { $0.manifest.folder != false }, id: \.id) { p in
           Button { choose(p) } label: {
             HStack(spacing: 12) {
               LivePluginIcon(plugin: p, size: 18).frame(width: 28)

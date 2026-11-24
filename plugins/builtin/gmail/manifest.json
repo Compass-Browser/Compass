@@ -1,0 +1,42 @@
+{
+  "id": "compass.gmail",
+  "name": "Gmail",
+  "description": "Unread mail on Gmail tabs: a count on the tab's row and the newest unread messages when you hover it.",
+  "version": "1.0.0",
+  "api": 1,
+  "entry": "main.js",
+  "icon": "icon.svg",
+  "folder": false,
+  "preview": {
+    "matches": ["https://mail.google.com/mail/*"],
+    "select": {
+      "rows": {
+        "selector": "tr.zA",
+        "attrs": ["class"],
+        "fields": {
+          "name": ".yW [email]@name",
+          "email": ".yW [email]@email",
+          "sender": ".yW",
+          "subject": ".bog",
+          "snippet": ".y2",
+          "thread": "[data-legacy-thread-id]@data-legacy-thread-id",
+          "date": ".xW span@title",
+          "when": ".xW span"
+        },
+        "max": 50
+      },
+      "inbox": {
+        "selector": "[role=navigation] a[href$=\"#inbox\"]",
+        "attrs": ["aria-label"],
+        "max": 1
+      }
+    },
+    "badge": true,
+    "session": {},
+    "config": [
+      {"key": "count", "type": "number", "label": "Messages to show", "default": 5, "min": 1, "max": 10},
+      {"key": "unreadOnly", "type": "bool", "label": "Only unread", "default": true},
+      {"key": "hint", "type": "bool", "label": "Say where to turn on the session when a tab isn't showing the inbox", "default": true}
+    ]
+  }
+}

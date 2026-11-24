@@ -1,0 +1,8 @@
+{
+  "mode": "preview",
+  "page": {"url": "https://mail.google.com/mail/u/0/", "title": "Gmail", "live": false},
+  "grantSession": true,
+  "responses": {
+    "https://mail.google.com/mail/u/0/feed/atom": {"status": 401, "body": "<title>Unauthorized</title>"}
+  }
+}

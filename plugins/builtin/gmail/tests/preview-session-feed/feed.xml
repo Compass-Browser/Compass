@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+<title>Gmail - Inbox for ada@example.com</title>
+<tagline>New messages in your Gmail Inbox</tagline>
+<fullcount>27</fullcount>
+<link rel="alternate" href="https://mail.google.com/mail/u/2" type="text/html" />
+<modified>2026-11-24T10:05:12Z</modified>
+<entry>
+<title>Compiler review tomorrow</title>
+<summary>Can we move it to 10? I have a clash at 9.</summary>
+<link rel="alternate" href="https://mail.google.com/mail/u/2?account_id=ada@example.com&amp;message_id=18c2f0a1b2c3d4e5&amp;view=conv&amp;extsrc=atom" type="text/html" />
+<modified>2026-11-24T08:41:00Z</modified>
+<issued>2026-11-24T08:41:00Z</issued>
+<id>tag:gmail.google.com,2004:1785123456789012345</id>
+<author><name>Grace Hopper</name><email>grace@example.org</email></author>
+</entry>
+<entry>
+<title>Your invoice</title>
+<summary>Invoice 1042 is ready.</summary>
+<link rel="alternate" href="https://mail.google.com/mail/u/2?account_id=ada@example.com&amp;message_id=18c2f0a1b2c3d4e7&amp;view=conv&amp;extsrc=atom" type="text/html" />
+<modified>2026-11-23T17:00:00Z</modified>
+<issued>2026-11-23T17:00:00Z</issued>
+<id>tag:gmail.google.com,2004:1785123456789012346</id>
+<author><name></name><email>billing@example.net</email></author>
+</entry>
+<entry>
+<title>Third, not shown</title>
+<link rel="alternate" href="https://mail.google.com/mail/u/2?message_id=3" type="text/html" />
+<issued>2026-11-22T17:00:00Z</issued>
+<id>tag:gmail.google.com,2004:1785123456789012347</id>
+<author><name>Alan</name></author>
+</entry>
+</feed>

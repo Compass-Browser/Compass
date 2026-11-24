@@ -1,0 +1,15 @@
+{
+  "mode": "preview",
+  "page": {
+    "url": "https://mail.google.com/mail/u/0/#label/Work",
+    "title": "Work (1) - ada@example.com - Gmail",
+    "live": true,
+    "groups": {
+      "rows": [
+        {"attrs": {"class": "zA zE"},
+         "fields": {"name": "Grace Hopper", "subject": "Quarterly plan", "thread": "18c2f0a1b2c3d4f0", "when": "8:02 AM"}}
+      ],
+      "inbox": [{"attrs": {"aria-label": "Inbox 1,204 unread"}}]
+    }
+  }
+}

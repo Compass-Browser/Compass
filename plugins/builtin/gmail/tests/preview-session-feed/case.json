@@ -1,0 +1,16 @@
+{
+  "mode": "preview",
+  "page": {
+    "url": "https://mail.google.com/mail/u/2/#settings/general",
+    "title": "Settings - ada@example.com - Gmail",
+    "live": false
+  },
+  "grantSession": true,
+  "config": {"count": 2},
+  "responses": {
+    "https://mail.google.com/mail/u/2/feed/atom": {
+      "headers": {"content-type": "application/atom+xml; charset=UTF-8"},
+      "file": "feed.xml"
+    }
+  }
+}

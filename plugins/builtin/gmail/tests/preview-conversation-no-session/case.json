@@ -1,0 +1,12 @@
+{
+  "mode": "preview",
+  "page": {
+    "url": "https://mail.google.com/mail/u/0/#inbox/FMfcgzQXJWDsKmPqRtLbVnHgZxCkWpTd",
+    "title": "Compiler review tomorrow - ada@example.com - Gmail",
+    "live": true,
+    "groups": {
+      "rows": [],
+      "inbox": [{"attrs": {"aria-label": "Inbox 1 unread"}}]
+    }
+  }
+}
