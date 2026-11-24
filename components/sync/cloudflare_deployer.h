@@ -139,7 +139,12 @@ class CloudflareDeployer {
               ProgressCallback progress,
               Callback callback);
 
+  // |push_relay| false: the server starts with phone notifications through
+  // the Compass push relay off (COMPASS_SYNC_PUSH_DEFAULT=off); its owners
+  // can turn them on later (docs/design/sync.md, "Push on a Cloudflare
+  // server").
   void Deploy(const std::string& owner_chain_id,
+              bool push_relay,
               ProgressCallback progress,
               Callback callback);
 
@@ -155,9 +160,10 @@ class CloudflareDeployer {
   // |migration_tag| is the script's current one: "" for a new script (all
   // the classes, as v2), "v1" (Room added), "v2" (none). An empty
   // |owner_chain_id| (an update) keeps the script's variables instead of
-  // setting the owners.
+  // setting the owners (and |push_relay|, which only a new server takes).
   static std::string MakeMetadata(const std::string& owner_chain_id,
-                                  const std::string& migration_tag);
+                                  const std::string& migration_tag,
+                                  bool push_relay = true);
   // A user-facing sentence for an error.
   static std::string Describe(const Result& result);
 
@@ -201,6 +207,7 @@ class CloudflareDeployer {
   base::TimeDelta health_interval_ = base::Seconds(3);
 
   std::string owner_;
+  bool push_relay_ = true;
   // Update mode: what to find, and the version to wait for.
   bool update_ = false;
   int version_ = 0;

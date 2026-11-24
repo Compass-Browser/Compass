@@ -138,7 +138,8 @@ CloudflareDeployer::~CloudflareDeployer() = default;
 // static
 std::string CloudflareDeployer::MakeMetadata(
     const std::string& owner_chain_id,
-    const std::string& migration_tag) {
+    const std::string& migration_tag,
+    bool push_relay) {
   base::DictValue metadata;
   metadata.Set("main_module", "index.js");
   metadata.Set("compatibility_date", kCloudflareCompatibilityDate);
@@ -160,6 +161,12 @@ std::string CloudflareDeployer::MakeMetadata(
                         .Set("type", "plain_text")
                         .Set("name", "COMPASS_SYNC_ALLOWED_CHAINS")
                         .Set("text", base::ToLowerASCII(owner_chain_id)));
+    if (!push_relay) {
+      bindings.Append(base::DictValue()
+                          .Set("type", "plain_text")
+                          .Set("name", "COMPASS_SYNC_PUSH_DEFAULT")
+                          .Set("text", "off"));
+    }
   }
   metadata.Set("bindings", std::move(bindings));
   // The SQLite migration of the classes the script doesn't have yet;
@@ -233,9 +240,11 @@ void CloudflareDeployer::Update(const std::string& script_name,
 }
 
 void CloudflareDeployer::Deploy(const std::string& owner_chain_id,
+                                bool push_relay,
                                 ProgressCallback progress,
                                 Callback callback) {
   owner_ = owner_chain_id;
+  push_relay_ = push_relay;
   progress_ = std::move(progress);
   callback_ = std::move(callback);
   Progress("Checking your Cloudflare account…");
@@ -480,7 +489,8 @@ void CloudflareDeployer::OnScripts(int status,
                      name, "\"; filename=\"", name, "\"\r\nContent-Type: ", type,
                      "\r\n\r\n", content, "\r\n"});
   };
-  part("metadata", "application/json", MakeMetadata(owner_, migration_tag));
+  part("metadata", "application/json",
+       MakeMetadata(owner_, migration_tag, push_relay_));
   part("index.js", "application/javascript+module", script_);
   base::StrAppend(&body, {"--", boundary, "--\r\n"});
   Call("PUT",

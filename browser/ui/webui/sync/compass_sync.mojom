@@ -169,6 +169,13 @@ struct ServerPeople {
   bool available;
   array<ServerMember> members;
   array<ServerInvite> invites;
+  // Phone notifications through the Compass push relay (docs/design/
+  // sync.md, "Push on a Cloudflare server"): whether the server has the
+  // setting (version 3 on), whether it's on, and the relay's host (empty:
+  // push is off on the server for good).
+  bool push_relay_available;
+  bool push_relay;
+  string push_relay_host;
 };
 
 // A newer server Compass can install (docs/design/sync.md, "Updating a
@@ -194,11 +201,14 @@ interface PageHandler {
   StartSync(string server_url) => (bool ok, string error, array<string> words);
   // Sets up the user's own server in their Cloudflare account with
   // |token| (an API token that can edit Workers) and starts a chain on it,
-  // as StartSync(). Progress shows in Status.server_setup.
-  StartOnCloudflare(string token)
+  // as StartSync(). Progress shows in Status.server_setup. |push_relay|:
+  // phone notifications through the Compass push relay, which the owner
+  // can change later (ServerPeople.push_relay).
+  StartOnCloudflare(string token, bool push_relay)
       => (bool ok, string error, array<string> words);
   // As StartOnCloudflare(), signing in to Cloudflare in a new tab.
-  StartOnCloudflareSignIn() => (bool ok, string error, array<string> words);
+  StartOnCloudflareSignIn(bool push_relay)
+      => (bool ok, string error, array<string> words);
   // Joins the server of an invite link with a new chain, then starts it
   // as StartSync().
   JoinWithInvite(string link)
@@ -243,6 +253,8 @@ interface PageHandler {
   UpdateServer(string token) => (bool ok, string error);
   // On, owner: a friend's chain ID or an invite's code.
   RemoveFromServer(string target) => (bool ok, string error);
+  // On, owner: phone notifications through the push relay on or off.
+  SetServerPushRelay(bool on) => (bool ok, string error);
 
   // Slice 5. Changes come through Page.OnStateChanged().
   GetProfileMapping() => (ProfileMapping mapping);

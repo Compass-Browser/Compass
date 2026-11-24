@@ -32,13 +32,15 @@ constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
           description:
             "Manages who may use the user's own sync server: lists the "
             "friends the user invited, makes or revokes an invite, removes "
-            "a friend; or, for someone invited, joins the server with the "
-            "invite's code."
+            "a friend, turns the server's phone notifications through the "
+            "Compass push relay on or off; or, for someone invited, joins "
+            "the server with the invite's code."
           trigger: "The user opens the people on their server, invites or "
-                   "removes someone on the sync page, or joins a server with "
-                   "an invite link."
+                   "removes someone or changes the notifications switch on "
+                   "the sync page, or joins a server with an invite link."
           data: "The chain's signed token; an invite's code and the name "
-                "the user gave it; a friend's chain ID."
+                "the user gave it; a friend's chain ID; the switch's "
+                "state."
           destination: OTHER
           destination_other: "The sync server the user set or was invited "
                              "to."
@@ -211,6 +213,13 @@ void AccessClient::List(const std::string& token, PeopleCallback callback) {
                                 i.GetDict().FindDouble("expires_in").value_or(0))});
                }
              }
+             if (const base::DictValue* settings = dict.FindDict("settings")) {
+               people.push_relay = settings->FindBool("push_relay");
+               if (const std::string* url =
+                       settings->FindString("push_relay_url")) {
+                 people.push_relay_url = *url;
+               }
+             }
              std::move(callback).Run(std::move(people), Error::kNone);
            },
            std::move(callback)));
@@ -245,6 +254,19 @@ void AccessClient::Remove(const std::string& token,
        base::StrCat({"/compass/access/",
                      base::EscapeAllExceptUnreserved(target)}),
        token, std::nullopt,
+       base::BindOnce(
+           [](DoneCallback callback, int status,
+              std::optional<base::Value> json) {
+             std::move(callback).Run(ErrorOf(status, json));
+           },
+           std::move(callback)));
+}
+
+void AccessClient::SetPushRelay(const std::string& token,
+                                bool on,
+                                DoneCallback callback) {
+  Send("PUT", "/compass/access/settings", token,
+       base::WriteJson(base::DictValue().Set("push_relay", on)),
        base::BindOnce(
            [](DoneCallback callback, int status,
               std::optional<base::Value> json) {

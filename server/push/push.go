@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"slices"
@@ -65,6 +66,14 @@ type Config struct {
 	// BackgroundInterval is the least time between two background pushes to
 	// a device; DefaultBackgroundInterval if zero.
 	BackgroundInterval time.Duration
+	// Relay, if set, is the Compass push relay's URL (relay.go), used when
+	// neither APNs nor FCM is configured; RelayClient, if set, replaces
+	// the default HTTP client (tests).
+	Relay       string
+	RelayClient *http.Client
+	// PublicHost is the server's name the relay binds handles to; empty:
+	// the Host each registration came to.
+	PublicHost string
 }
 
 // The alert a new sent tab wakes a phone with; its notification service
@@ -81,8 +90,9 @@ const maxConcurrent = 16
 // Service serves registrations and sends the pushes.
 type Service struct {
 	cfg    Config
-	sender *Sender    // Nil without a key: registrations are kept, nothing sent.
-	fcm    *FCMSender // Nil without a service account, likewise.
+	sender *Sender      // Nil without a key: registrations are kept, nothing sent.
+	fcm    *FCMSender   // Nil without a service account, likewise.
+	relay  *RelayClient // Set only without either (relay.go).
 	slots  chan struct{}
 	now    func() time.Time
 	// sent is told about each push (tests).
@@ -123,6 +133,9 @@ func New(cfg Config) (*Service, error) {
 			return nil, err
 		}
 		s.fcm = fcm
+	}
+	if s.sender == nil && s.fcm == nil && cfg.Relay != "" {
+		s.relay = NewRelayClient(cfg.Relay, cfg.RelayClient)
 	}
 	return s, nil
 }
@@ -226,6 +239,29 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	tok := datastore.PushToken{CacheGUID: guid, Token: body.Token,
 		Environment: body.Environment, Topic: body.Topic}
+	if s.relay != nil {
+		// Keep the relay's handle, never the token.
+		host := s.cfg.PublicHost
+		if host == "" {
+			host = r.Host
+		}
+		host = strings.ToLower(host)
+		platform, kind := "apns", RelayAPNs
+		if body.Platform == "fcm" {
+			platform, kind = "fcm", RelayFCM
+		}
+		handle, err := s.relay.Seal(ctx, host, platform, body.Token, body.Environment, body.Topic)
+		if errors.Is(err, ErrRelayRefused) {
+			fail(w, http.StatusBadRequest, "the push relay refused this registration")
+			return
+		}
+		if err != nil {
+			log.Warn().Err(err).Msg("Push: sealing at the relay failed")
+			fail(w, http.StatusServiceUnavailable, "the push relay can't be reached; register again later")
+			return
+		}
+		tok = datastore.PushToken{CacheGUID: guid, Token: handle, Environment: kind, Topic: host}
+	}
 	if err = s.cfg.Store.SetPushToken(ctx, chain, tok, s.now()); err != nil {
 		log.Error().Err(err).Msg("Push: register failed")
 		fail(w, http.StatusInternalServerError, "unable to complete request")
@@ -246,7 +282,7 @@ func (s *Service) OnCommit(chain, cacheGUID string, types, created []int) {
 	if !sendTab && !background {
 		return
 	}
-	if s.sender == nil && s.fcm == nil {
+	if s.sender == nil && s.fcm == nil && s.relay == nil {
 		if sendTab {
 			log.Debug().Msg("Push: a tab was sent, but no APNs key or FCM account is configured")
 		}
@@ -255,7 +291,7 @@ func (s *Service) OnCommit(chain, cacheGUID string, types, created []int) {
 	if sendTab {
 		go s.wake(chain, cacheGUID)
 	}
-	if background && s.sender != nil {
+	if background && (s.sender != nil || s.relay != nil) {
 		go s.wakeBackground(chain, cacheGUID)
 	}
 }
@@ -289,7 +325,7 @@ func (s *Service) wakeBackground(chain, except string) {
 		return
 	}
 	for _, t := range tokens {
-		if t.CacheGUID == except || t.Environment == FCMEnvironment {
+		if t.CacheGUID == except || t.Environment == FCMEnvironment || t.Environment == RelayFCM {
 			continue
 		}
 		s.scheduleBackground(chain, t.CacheGUID)
@@ -357,7 +393,7 @@ func (s *Service) sendBackground(chain, cacheGUID string) {
 		return
 	}
 	for _, t := range tokens {
-		if t.CacheGUID == cacheGUID && t.Environment != FCMEnvironment {
+		if t.CacheGUID == cacheGUID && t.Environment != FCMEnvironment && t.Environment != RelayFCM {
 			s.send(ctx, chain, t, syncPayload, true)
 		}
 	}
@@ -371,6 +407,11 @@ func (s *Service) send(ctx context.Context, chain string, t datastore.PushToken,
 	case s.slots <- struct{}{}:
 	case <-ctx.Done():
 		return false
+	}
+	if isRelay(t.Environment) {
+		s.sendThroughRelay(ctx, chain, t, background)
+		<-s.slots
+		return true
 	}
 	fcm := t.Environment == FCMEnvironment
 	var res Result
@@ -404,4 +445,34 @@ func (s *Service) send(ctx context.Context, chain string, t datastore.PushToken,
 			Bool("background", background).Msg("Push: the push was refused")
 	}
 	return true
+}
+
+// sendThroughRelay asks the relay to push to the handle |t| holds (relay.go),
+// forgetting it if the relay says it's no good.
+func (s *Service) sendThroughRelay(ctx context.Context, chain string, t datastore.PushToken, background bool) {
+	if s.relay == nil {
+		// Made through a relay this server no longer uses.
+		return
+	}
+	kind := "send-tab"
+	if background {
+		kind = "sync"
+	}
+	drop, err := s.relay.Push(ctx, t.Topic, t.Token, kind)
+	switch {
+	case err != nil:
+		log.Warn().Err(err).Msg("Push: the relay failed")
+	case drop:
+		log.Info().Msg("Push: dropping a handle the relay refused")
+		if err = s.cfg.Store.DropPushToken(ctx, chain, t.Token); err != nil {
+			log.Error().Err(err).Msg("Push: dropping a handle failed")
+		}
+	}
+	if s.sent != nil {
+		status := http.StatusOK
+		if err != nil || drop {
+			status = http.StatusGone
+		}
+		s.sent(t, Result{Status: status}, err)
+	}
 }

@@ -159,8 +159,10 @@ class CompassSyncService : public KeyedService,
                      StartCallback callback) override;
 #if !BUILDFLAG(IS_ANDROID)
   void StartOnCloudflare(const std::string& access_token,
+                         bool push_relay,
                          StartCallback callback) override;
-  void StartOnCloudflareSignIn(StartCallback callback) override;
+  void StartOnCloudflareSignIn(bool push_relay,
+                               StartCallback callback) override;
   void GetServerUpdate(ServerUpdateCallback callback) override;
   void UpdateServer(const std::string& access_token,
                     DoneCallback callback) override;
@@ -169,6 +171,7 @@ class CompassSyncService : public KeyedService,
                       StartCallback callback) override;
   void GetServerPeople(PeopleCallback callback) override;
   void InviteFriend(const std::string& name, InviteCallback callback) override;
+  void SetServerPushRelay(bool on, DoneCallback callback) override;
   void RemoveFromServer(const std::string& target,
                         DoneCallback callback) override;
   void JoinWithRecoveryCode(const std::string& server_url,

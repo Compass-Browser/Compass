@@ -301,6 +301,7 @@ export class Chain extends DurableObject<Env> {
     this.rememberChainID(chainID);
     const client = url.searchParams.get("client_id") ?? "";
     if (client && this.isDeviceRemoved(client)) return deviceRemoved();
+    this.followPushChoice(request.headers.get("X-Compass-Push"));
 
     const path = url.pathname;
     if (path === "/command/" && request.method === "POST") return this.command(request, chainID);
@@ -1042,12 +1043,26 @@ export class Chain extends DurableObject<Env> {
     const from = msg.commit?.cacheGuid ?? "";
     this.notify(from, [...types].sort((a, b) => a - b));
     const background = [...types].some((t) => BACKGROUND_TYPES.has(t));
-    if ((sentTab || background) && this.cfg.pushRelay) {
+    if ((sentTab || background) && this.pushRelay) {
       this.ctx.waitUntil(this.pushCommit(from, sentTab, background));
     }
   }
 
   // --- Push (push.ts) ---------------------------------------------------------
+
+  // The owners' choice, from the Worker with each request (access.ts),
+  // kept for pushes the alarm sends. Turned off, the handles go.
+  private followPushChoice(header: string | null): void {
+    if (header !== "on" && header !== "off") return;
+    const off = header === "off";
+    if (off === (this.ctx.storage.kv.get<boolean>("push_off") ?? false)) return;
+    this.ctx.storage.kv.put("push_off", off);
+    if (off) this.sql.exec(`DELETE FROM push_handles`);
+  }
+
+  private get pushRelay(): string {
+    return this.ctx.storage.kv.get<boolean>("push_off") ? "" : this.cfg.pushRelay;
+  }
 
   // register answers POST and DELETE /v2/compass/push?client_id=<cache GUID>
   // as push.go does, keeping a relay handle instead of the token. Without a
@@ -1068,7 +1083,7 @@ export class Chain extends DurableObject<Env> {
     if (raw.length > 8192) return text(400, "JSON body required");
     const reg = parseRegistration(raw, this.cfg);
     if (typeof reg === "string") return text(400, reg);
-    const relay = this.cfg.pushRelay;
+    const relay = this.pushRelay;
     if (!relay) return new Response(null, { status: 204 });
     const server = request.headers.get("X-Host") ?? "";
     const handle = await seal(relay, server, reg);
@@ -1101,7 +1116,7 @@ export class Chain extends DurableObject<Env> {
   // at its next launch).
   private handles(): { guid: string; handle: string; platform: string; server: string }[] {
     return this.sql
-      .exec(`SELECT cache_guid, handle, platform, server FROM push_handles WHERE relay = ?`, this.cfg.pushRelay)
+      .exec(`SELECT cache_guid, handle, platform, server FROM push_handles WHERE relay = ?`, this.pushRelay)
       .toArray()
       .map((r) => ({
         guid: r.cache_guid as string,
@@ -1149,7 +1164,7 @@ export class Chain extends DurableObject<Env> {
       .exec(`SELECT cache_guid FROM push_handles WHERE bg_due IS NOT NULL AND bg_due <= ?`, now)
       .toArray()
       .map((r) => r.cache_guid as string);
-    if (due.length === 0 || !this.cfg.pushRelay) {
+    if (due.length === 0 || !this.pushRelay) {
       this.sql.exec(`UPDATE push_handles SET bg_due = NULL WHERE bg_due IS NOT NULL AND bg_due <= ?`, now);
       return;
     }
@@ -1164,7 +1179,7 @@ export class Chain extends DurableObject<Env> {
   }
 
   private async send(h: { guid: string; handle: string; server: string }, type: "send-tab" | "sync"): Promise<void> {
-    const result = await relayPush(this.cfg.pushRelay, h.server, h.handle, type);
+    const result = await relayPush(this.pushRelay, h.server, h.handle, type);
     if (result === "drop") {
       this.sql.exec(`DELETE FROM push_handles WHERE cache_guid = ? AND handle = ?`, h.guid, h.handle);
     }

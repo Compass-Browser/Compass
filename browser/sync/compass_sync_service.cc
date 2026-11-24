@@ -2811,7 +2811,8 @@ int LoadSyncWorkerVersion() {
 
 }  // namespace
 
-void CompassSyncService::StartOnCloudflareSignIn(StartCallback callback) {
+void CompassSyncService::StartOnCloudflareSignIn(bool push_relay,
+                                                 StartCallback callback) {
   if (HasSeed() || left_) {
     std::move(callback).Run(false, "Sync is already set up. Restart first.",
                             {});
@@ -2828,8 +2829,9 @@ void CompassSyncService::StartOnCloudflareSignIn(StartCallback callback) {
   server_setup_ = "Sign in to Cloudflare in the new tab and allow Compass…";
   NotifyObservers();
   cloudflare_sign_in_->Start(base::BindOnce(
-      [](base::WeakPtr<CompassSyncService> self, StartCallback callback,
-         std::optional<std::string> token, std::string error) {
+      [](base::WeakPtr<CompassSyncService> self, bool push_relay,
+         StartCallback callback, std::optional<std::string> token,
+         std::string error) {
         if (!self) {
           return;
         }
@@ -2841,12 +2843,13 @@ void CompassSyncService::StartOnCloudflareSignIn(StartCallback callback) {
           std::move(callback).Run(false, std::move(error), {});
           return;
         }
-        self->StartOnCloudflare(*token, std::move(callback));
+        self->StartOnCloudflare(*token, push_relay, std::move(callback));
       },
-      weak_factory_.GetWeakPtr(), std::move(callback)));
+      weak_factory_.GetWeakPtr(), push_relay, std::move(callback)));
 }
 
 void CompassSyncService::StartOnCloudflare(const std::string& access_token,
+                                           bool push_relay,
                                            StartCallback callback) {
   if (HasSeed() || left_) {
     std::move(callback).Run(false, "Sync is already set up. Restart first.",
@@ -2881,7 +2884,7 @@ void CompassSyncService::StartOnCloudflare(const std::string& access_token,
   server_setup_ = "Connecting to Cloudflare…";
   NotifyObservers();
   deployer_->Deploy(
-      owner,
+      owner, push_relay,
       base::BindRepeating(
           [](base::WeakPtr<CompassSyncService> self, const std::string& line) {
             if (self) {
@@ -3158,6 +3161,24 @@ void CompassSyncService::InviteFriend(const std::string& name,
               return;
             }
             std::move(callback).Run(true, std::string(), *link);
+          },
+          std::move(callback)));
+}
+
+void CompassSyncService::SetServerPushRelay(bool on, DoneCallback callback) {
+  AccessClient* client = GetAccessClient();
+  const std::optional<std::string> token =
+      client ? credentials_->MakeToken(base::Time::Now()) : std::nullopt;
+  if (!token) {
+    std::move(callback).Run(false, "Sync isn't running on this device.");
+    return;
+  }
+  client->SetPushRelay(
+      *token, on,
+      base::BindOnce(
+          [](DoneCallback callback, AccessClient::Error error) {
+            std::move(callback).Run(error == AccessClient::Error::kNone,
+                                    AccessClient::Describe(error));
           },
           std::move(callback)));
 }

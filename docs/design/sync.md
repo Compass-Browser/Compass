@@ -1535,10 +1535,27 @@ secrets.
   can be blocked (`BLOCKED_SERVERS`). A token Apple or Google calls gone
   answers `410`, the server drops the handle, and the relay doesn't send
   to it for 30 days. The relay keeps no logs.
-- **Off.** `COMPASS_SYNC_PUSH_RELAY=off` on the server: registrations are
-  accepted and nothing is kept, as before version 3. If the relay can't be
+- **Chosen at setup.** The Cloudflare setup panel has a "Phone
+  notifications" switch (on), saying what the relay gets; off, Compass
+  deploys the server with `COMPASS_SYNC_PUSH_DEFAULT=off`
+  (`CloudflareDeployer::Deploy(owner, push_relay)`), which the access list
+  takes until the owner chooses otherwise.
+- **The owner's switch.** The People section has "Phone notifications",
+  which says what the relay gets and names its host; it
+  sets the access list's `push_relay` (`PUT /v2/compass/access/settings`,
+  `AccessClient::SetPushRelay()`, `SetServerPushRelay()`). The Worker passes
+  it to the chains' objects with each request; off, they delete their
+  handles, and registrations keep nothing and reach no relay. Within a
+  minute (the access cache). Shown for servers that report the setting
+  (version 3 on). `COMPASS_SYNC_PUSH_RELAY=off` on the server turns push
+  off for good, as before version 3, and hides the switch. If the relay can't be
   reached, registration answers `503` and the device registers again at
   its next launch.
+- **Self-hosted Go servers** can use it too, opt-in:
+  `COMPASS_SYNC_PUSH_RELAY=https://push.compassbrowser.org`, taken only
+  while neither an APNs key nor an FCM account is set (`push/relay.go`;
+  server/README.md, "Push through the Compass relay"). The handle is kept
+  in the token's place (environment `relay-apns` or `relay-fcm`).
 - **Checked** (2026-11-24): a Worker's `fetch` reaches APNs over HTTP/2
   with an ES256 token made with Web Crypto, and an alert sent through the
   deployed relay reached an iPhone. The relay's tests run it against mock

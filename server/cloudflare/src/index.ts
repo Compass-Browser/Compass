@@ -9,7 +9,7 @@
 
 import { type AccessState } from "./access";
 import { AuthError, bearer, idList, verifyToken } from "./auth";
-import { type Env, fail, json, text } from "./config";
+import { type Env, fail, json, loadConfig, text } from "./config";
 import { SERVER_VERSION } from "./version";
 import { forgetGate, rooms } from "./rooms";
 
@@ -67,10 +67,13 @@ function chainStub(env: Env, chain: string) {
   return env.CHAIN.get(env.CHAIN.idFromName(chain.toLowerCase()));
 }
 
-function toChain(env: Env, chain: string, path: string, request: Request, init: RequestInit = {}): Promise<Response> {
+async function toChain(env: Env, chain: string, path: string, request: Request, init: RequestInit = {}): Promise<Response> {
   const url = new URL(request.url);
   const headers = new Headers(init.headers);
   headers.set("X-Chain-ID", chain);
+  // The owners' push choice (access.ts), which the chain's object follows
+  // (push.ts); cached with the chain's access answer.
+  headers.set("X-Compass-Push", (await accessState(env, chain)).push ? "on" : "off");
   const enc = request.headers.get("Content-Encoding");
   if (enc) headers.set("Content-Encoding", enc);
   return chainStub(env, chain).fetch(
@@ -201,7 +204,14 @@ export default {
     if (rest === "/compass/access" || rest.startsWith("/compass/access/")) {
       const chain = await authorize(env, request);
       if (!chain) return fail(401, "invalid sync token");
-      if (rest === "/compass/access" && method === "GET") return access(env).members(chain);
+      const relay = loadConfig(env).pushRelay;
+      if (rest === "/compass/access" && method === "GET") return access(env).members(chain, relay);
+      if (rest === "/compass/access/settings" && method === "PUT") {
+        const rsp = await access(env).setSettings(chain, (await readJSON(request)) ?? {}, relay);
+        // Every chain's cached answer carries the setting.
+        if (rsp.ok) accessCache.clear();
+        return rsp;
+      }
       if (rest === "/compass/access/invites" && method === "POST") {
         const body = await readJSON(request);
         const name = typeof body?.name === "string" ? body.name : "";

@@ -37,6 +37,7 @@ const SETUP_BUTTONS = [
   'recover',
   'startCloudflare',
   'signInCloudflare',
+  'setupPushRelay',
   'joinInvite',
 ];
 
@@ -181,6 +182,19 @@ export class CompassSyncPageElement extends CompassSettingsPage {
       this.loadPeople_();
     });
 
+    // docs/design/sync.md, "Push on a Cloudflare server".
+    $<HTMLInputElement>('pushRelay').addEventListener('change', async () => {
+      const toggle = $<HTMLInputElement>('pushRelay');
+      $('peopleError').textContent = '';
+      toggle.disabled = true;
+      const {ok, error} = await this.handler_.setServerPushRelay(toggle.checked);
+      toggle.disabled = false;
+      if (!ok) {
+        toggle.checked = !toggle.checked;
+        $('peopleError').textContent = error;
+      }
+    });
+
     $('copyInvite').addEventListener('click', async () => {
       const link = this.$<HTMLInputElement>('inviteLink');
       try {
@@ -225,7 +239,8 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     $('signInCloudflare').addEventListener('click', async () => {
       $('offError').textContent = '';
       const {ok, error, words} =
-          await this.handler_.startOnCloudflareSignIn();
+          await this.handler_.startOnCloudflareSignIn(
+              $<HTMLInputElement>('setupPushRelay').checked);
       if (!ok) {
         $('offError').textContent = error;
         return;
@@ -236,7 +251,9 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     $('startCloudflare').addEventListener('click', async () => {
       $('offError').textContent = '';
       const {ok, error, words} =
-          await this.handler_.startOnCloudflare(value('cloudflareToken'));
+          await this.handler_.startOnCloudflare(
+              value('cloudflareToken'),
+              $<HTMLInputElement>('setupPushRelay').checked);
       if (!ok) {
         $('offError').textContent = error;
         return;
@@ -414,6 +431,17 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     if (!people.available) {
       return;
     }
+    // A server from before version 3 has no such setting; one with push off
+    // for good (no relay) can't turn it on.
+    this.show(
+        'pushRelayRow',
+        people.pushRelayAvailable && people.pushRelayHost !== '');
+    this.$<HTMLInputElement>('pushRelay').checked = people.pushRelay;
+    this.$('pushRelayDetails').textContent =
+        'When a tab is sent to an iPhone or Android phone, Compass\'s push ' +
+        `relay (${people.pushRelayHost}) tells it at once. It gets each ` +
+        'phone\'s notification token, never your tabs or data. Off, sent ' +
+        'tabs arrive when the phone next syncs.';
     const date = (ms: number) =>
         new Date(ms).toLocaleDateString(undefined, {dateStyle: 'medium'});
     const row = (title: string, details: string, action: string,

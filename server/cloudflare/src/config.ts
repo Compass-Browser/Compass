@@ -25,6 +25,7 @@ export interface Env {
   COMPASS_SYNC_PUSH_RELAY?: string;
   COMPASS_SYNC_APNS_TOPICS?: string;
   COMPASS_SYNC_PUSH_BACKGROUND_SECONDS?: string;
+  COMPASS_SYNC_PUSH_DEFAULT?: string;
 }
 
 // The Compass push relay (relay/README.md), used unless

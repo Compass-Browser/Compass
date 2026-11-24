@@ -53,6 +53,13 @@ struct ServerPeople {
 
   std::vector<ServerMember> members;
   std::vector<ServerInvite> invites;
+  // Whether the server wakes phones through the Compass push relay
+  // (docs/design/sync.md, "Push on a Cloudflare server"); nullopt for a
+  // server without that setting (before version 3).
+  std::optional<bool> push_relay;
+  // The relay it uses; empty when the server has push turned off for good
+  // (COMPASS_SYNC_PUSH_RELAY=off), so the owners can't turn it on.
+  std::string push_relay_url;
 };
 
 // An invite link, https://<server>/invite#<code> (server/cloudflare,
@@ -119,6 +126,8 @@ class AccessClient {
   void Remove(const std::string& token,
               const std::string& target,
               DoneCallback callback);
+  // PUT /compass/access/settings {"push_relay"} (owners).
+  void SetPushRelay(const std::string& token, bool on, DoneCallback callback);
   // POST /compass/access/join {"code"}, with the joining chain's token.
   void Join(const std::string& token,
             const std::string& code,

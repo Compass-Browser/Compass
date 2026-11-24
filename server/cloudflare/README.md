@@ -68,8 +68,16 @@ Compass push relay (`relay/README.md`), which the Compass developers run at
 - A handle the relay calls gone or not its own is dropped; so are a
   device's on `DELETE /v2/compass/push`, on removal, and on reset.
 
-`COMPASS_SYNC_PUSH_RELAY` sets another relay; `off` turns push off
-(registrations are accepted and nothing is kept, as before version 3).
+Compass asks at setup; `COMPASS_SYNC_PUSH_DEFAULT=off` (what it sets when
+the owner said no) starts the server with it off. The owners turn it off
+and on later in Compass (the People section; `PUT
+/v2/compass/access/settings`). The Worker passes their choice to the
+chains' objects with each request (`X-Compass-Push`, cached with the
+access answer for up to a minute); turned off, each chain's object deletes
+its handles, registrations are accepted and nothing is kept or sent to the
+relay. An open server (no owners) follows the variable only.
+`COMPASS_SYNC_PUSH_RELAY` sets another relay; `off` turns push off for good
+(as before version 3), and Compass then shows no switch.
 `COMPASS_SYNC_APNS_TOPICS` is the Go server's (`it.cipi1965.compass`).
 
 ## Who may use it
@@ -87,6 +95,7 @@ invite code:
 | `POST /v2/compass/access/join` `{"code": "..."}` | any valid token | `204` (also when already allowed), `404` unknown code, `410` used or expired |
 | `GET /v2/compass/access` | owner | `{"owners": [...], "members": [{"chain", "name", "added_at", "linked"}], "invites": [{"code", "name", "expires_in"}]}` |
 | `DELETE /v2/compass/access/{chain or code}` | owner | `204`: removes a friend (and their linked profiles) or revokes an invite |
+| `PUT /v2/compass/access/settings` `{"push_relay": false}` | owner | `200 {"push_relay", "push_relay_url"}`: push through the relay on or off (Push, below); also in `GET /v2/compass/access` as `settings` |
 
 Profile accounts pass with the chain they're linked to
 (`POST /v2/compass/account/link`, as on the Go server). Other chains get

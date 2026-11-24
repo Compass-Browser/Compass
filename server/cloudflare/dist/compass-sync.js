@@ -612,6 +612,11 @@ var Access = class extends DurableObject {
     const r = this.sql.exec(`SELECT root FROM links WHERE chain = ?`, chain).toArray()[0];
     return r ? r.root : "";
   }
+  // Until the owners choose in Compass, COMPASS_SYNC_PUSH_DEFAULT ("off"
+  // when the owner said no at setup) decides.
+  pushOn() {
+    return this.ctx.storage.kv.get("push_relay") ?? this.env.COMPASS_SYNC_PUSH_DEFAULT !== "off";
+  }
   listed(chain) {
     const owners = this.owners();
     if (owners.length === 0) return { allowed: true, owner: false };
@@ -622,7 +627,9 @@ var Access = class extends DurableObject {
   // state says whether a chain may sync, directly or through the chain it
   // is linked to, and whether it owns the server.
   state(chainID) {
-    const chain = chainID.toLowerCase();
+    return { ...this.listedOrLinked(chainID.toLowerCase()), push: this.pushOn() };
+  }
+  listedOrLinked(chain) {
     const own = this.listed(chain);
     if (own.allowed) return own;
     const root = this.root(chain);
@@ -630,6 +637,17 @@ var Access = class extends DurableObject {
     const blocked = idList(this.env.BLOCKED_CLIENT_IDS);
     if (blocked.includes(root)) return { allowed: false, owner: false };
     return this.listed(root);
+  }
+  // setSettings changes the owners' settings (owners only): for now
+  // {"push_relay": bool}.
+  setSettings(byID, settings, relay) {
+    if (!this.state(byID).owner) return fail(403, "owner_only");
+    if (typeof settings.push_relay !== "boolean") return fail(400, "bad_request");
+    this.ctx.storage.kv.put("push_relay", settings.push_relay);
+    return json(200, this.settings(relay));
+  }
+  settings(relay) {
+    return { push_relay: this.pushOn(), push_relay_url: relay };
   }
   // link links `other` (a profile account) to `from`'s root (Go:
   // LinkChainToRoot). `from` must be allowed (the Worker checked).
@@ -694,7 +712,7 @@ var Access = class extends DurableObject {
     return new Response(null, { status: 204 });
   }
   // members lists the friends and open invites (owners only).
-  members(byID) {
+  members(byID, relay) {
     if (!this.state(byID).owner) return fail(403, "owner_only");
     const now = Date.now();
     const members = this.sql.exec(`SELECT chain, added_at, name FROM members ORDER BY added_at`).toArray().map((r) => ({
@@ -704,7 +722,7 @@ var Access = class extends DurableObject {
       linked: Number(this.sql.exec(`SELECT COUNT(*) AS n FROM links WHERE root = ?`, r.chain).one().n)
     }));
     const invites = this.sql.exec(`SELECT code, name, expires_at FROM invites WHERE used_by IS NULL AND expires_at >= ? ORDER BY created_at`, now).toArray().map((r) => ({ code: r.code, name: r.name, expires_in: Math.floor((Number(r.expires_at) - now) / 1e3) }));
-    return json(200, { owners: this.owners(), members, invites });
+    return json(200, { owners: this.owners(), members, invites, settings: this.settings(relay) });
   }
   // remove takes a friend off the list (their linked profiles go with
   // them), or revokes an open invite.
@@ -1428,6 +1446,7 @@ var Chain = class extends DurableObject2 {
     this.rememberChainID(chainID);
     const client = url.searchParams.get("client_id") ?? "";
     if (client && this.isDeviceRemoved(client)) return deviceRemoved();
+    this.followPushChoice(request.headers.get("X-Compass-Push"));
     const path = url.pathname;
     if (path === "/command/" && request.method === "POST") return this.command(request, chainID);
     if (path === "/events" && request.method === "GET") return this.events(request, client);
@@ -2139,11 +2158,23 @@ data: ${JSON.stringify({ types })}
     const from = msg.commit?.cacheGuid ?? "";
     this.notify(from, [...types].sort((a, b) => a - b));
     const background = [...types].some((t) => BACKGROUND_TYPES.has(t));
-    if ((sentTab || background) && this.cfg.pushRelay) {
+    if ((sentTab || background) && this.pushRelay) {
       this.ctx.waitUntil(this.pushCommit(from, sentTab, background));
     }
   }
   // --- Push (push.ts) ---------------------------------------------------------
+  // The owners' choice, from the Worker with each request (access.ts),
+  // kept for pushes the alarm sends. Turned off, the handles go.
+  followPushChoice(header) {
+    if (header !== "on" && header !== "off") return;
+    const off = header === "off";
+    if (off === (this.ctx.storage.kv.get("push_off") ?? false)) return;
+    this.ctx.storage.kv.put("push_off", off);
+    if (off) this.sql.exec(`DELETE FROM push_handles`);
+  }
+  get pushRelay() {
+    return this.ctx.storage.kv.get("push_off") ? "" : this.cfg.pushRelay;
+  }
   // register answers POST and DELETE /v2/compass/push?client_id=<cache GUID>
   // as push.go does, keeping a relay handle instead of the token. Without a
   // relay, registrations are accepted and nothing is kept.
@@ -2163,7 +2194,7 @@ data: ${JSON.stringify({ types })}
     if (raw.length > 8192) return text(400, "JSON body required");
     const reg = parseRegistration(raw, this.cfg);
     if (typeof reg === "string") return text(400, reg);
-    const relay = this.cfg.pushRelay;
+    const relay = this.pushRelay;
     if (!relay) return new Response(null, { status: 204 });
     const server = request.headers.get("X-Host") ?? "";
     const handle = await seal(relay, server, reg);
@@ -2199,7 +2230,7 @@ data: ${JSON.stringify({ types })}
   // another relay can't be opened by this one; its device registers again
   // at its next launch).
   handles() {
-    return this.sql.exec(`SELECT cache_guid, handle, platform, server FROM push_handles WHERE relay = ?`, this.cfg.pushRelay).toArray().map((r) => ({
+    return this.sql.exec(`SELECT cache_guid, handle, platform, server FROM push_handles WHERE relay = ?`, this.pushRelay).toArray().map((r) => ({
       guid: r.cache_guid,
       handle: r.handle,
       platform: r.platform,
@@ -2237,7 +2268,7 @@ data: ${JSON.stringify({ types })}
   // (from the alarm), unless Compass is open there by now.
   async sendDueBackground(now) {
     const due = this.sql.exec(`SELECT cache_guid FROM push_handles WHERE bg_due IS NOT NULL AND bg_due <= ?`, now).toArray().map((r) => r.cache_guid);
-    if (due.length === 0 || !this.cfg.pushRelay) {
+    if (due.length === 0 || !this.pushRelay) {
       this.sql.exec(`UPDATE push_handles SET bg_due = NULL WHERE bg_due IS NOT NULL AND bg_due <= ?`, now);
       return;
     }
@@ -2251,7 +2282,7 @@ data: ${JSON.stringify({ types })}
     await Promise.all(sends);
   }
   async send(h, type) {
-    const result = await relayPush(this.cfg.pushRelay, h.server, h.handle, type);
+    const result = await relayPush(this.pushRelay, h.server, h.handle, type);
     if (result === "drop") {
       this.sql.exec(`DELETE FROM push_handles WHERE cache_guid = ? AND handle = ?`, h.guid, h.handle);
     }
@@ -3667,10 +3698,11 @@ function chainStub3(env, chain) {
   return env.CHAIN.get(env.CHAIN.idFromName(chain.toLowerCase()));
 }
 __name(chainStub3, "chainStub");
-function toChain(env, chain, path, request, init = {}) {
+async function toChain(env, chain, path, request, init = {}) {
   const url = new URL(request.url);
   const headers = new Headers(init.headers);
   headers.set("X-Chain-ID", chain);
+  headers.set("X-Compass-Push", (await accessState(env, chain)).push ? "on" : "off");
   const enc = request.headers.get("Content-Encoding");
   if (enc) headers.set("Content-Encoding", enc);
   return chainStub3(env, chain).fetch(
@@ -3780,7 +3812,13 @@ var index_default = {
     if (rest === "/compass/access" || rest.startsWith("/compass/access/")) {
       const chain = await authorize(env, request);
       if (!chain) return fail(401, "invalid sync token");
-      if (rest === "/compass/access" && method === "GET") return access(env).members(chain);
+      const relay = loadConfig(env).pushRelay;
+      if (rest === "/compass/access" && method === "GET") return access(env).members(chain, relay);
+      if (rest === "/compass/access/settings" && method === "PUT") {
+        const rsp = await access(env).setSettings(chain, await readJSON(request) ?? {}, relay);
+        if (rsp.ok) accessCache.clear();
+        return rsp;
+      }
       if (rest === "/compass/access/invites" && method === "POST") {
         const body = await readJSON(request);
         const name = typeof body?.name === "string" ? body.name : "";

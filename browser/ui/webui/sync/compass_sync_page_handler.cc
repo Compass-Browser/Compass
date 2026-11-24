@@ -13,6 +13,7 @@
 #include "base/time/time.h"
 #include "compass/browser/sync/sync_settings.h"
 #include "components/qr_code_generator/qr_code_generator.h"
+#include "url/gurl.h"
 
 namespace compass {
 namespace {
@@ -244,9 +245,11 @@ void CompassSyncPageHandler::StartSync(const std::string& server_url,
 
 void CompassSyncPageHandler::StartOnCloudflare(
     const std::string& token,
+    bool push_relay,
     StartOnCloudflareCallback callback) {
   controller_->StartOnCloudflare(
-      token, base::BindOnce(
+      token, push_relay,
+      base::BindOnce(
                  [](StartOnCloudflareCallback callback, bool ok,
                     std::string error, std::vector<std::string> words) {
                    std::move(callback).Run(ok, error, words);
@@ -255,8 +258,9 @@ void CompassSyncPageHandler::StartOnCloudflare(
 }
 
 void CompassSyncPageHandler::StartOnCloudflareSignIn(
+    bool push_relay,
     StartOnCloudflareSignInCallback callback) {
-  controller_->StartOnCloudflareSignIn(base::BindOnce(
+  controller_->StartOnCloudflareSignIn(push_relay, base::BindOnce(
       [](StartOnCloudflareSignInCallback callback, bool ok, std::string error,
          std::vector<std::string> words) {
         std::move(callback).Run(ok, error, words);
@@ -292,6 +296,9 @@ void CompassSyncPageHandler::GetServerPeople(
             out->invites.push_back(sync::mojom::ServerInvite::New(
                 i.code, i.name, i.expires.InMillisecondsFSinceUnixEpoch()));
           }
+          out->push_relay_available = people->push_relay.has_value();
+          out->push_relay = people->push_relay.value_or(false);
+          out->push_relay_host = GURL(people->push_relay_url).host();
         }
         std::move(callback).Run(std::move(out));
       },
@@ -319,6 +326,16 @@ void CompassSyncPageHandler::RemoveFromServer(
                     std::move(callback).Run(ok, error);
                   },
                   std::move(callback)));
+}
+
+void CompassSyncPageHandler::SetServerPushRelay(
+    bool on,
+    SetServerPushRelayCallback callback) {
+  controller_->SetServerPushRelay(
+      on, base::BindOnce(
+              [](SetServerPushRelayCallback callback, bool ok,
+                 std::string error) { std::move(callback).Run(ok, error); },
+              std::move(callback)));
 }
 
 void CompassSyncPageHandler::GetServerUpdate(

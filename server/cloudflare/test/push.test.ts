@@ -72,6 +72,11 @@ const android = (n: number) => ({ platform: "fcm", token: `fcm${n}:` + "a".repea
 const handleOf = (token: string) => `h1.${Buffer.from(token).toString("base64url")}`;
 const tokenOf = (handle: string) => Buffer.from(handle.slice(3), "base64url").toString();
 
+// The server's owners (COMPASS_SYNC_ALLOWED_CHAINS): every test's chain is
+// one, so the access list's settings can be changed.
+const owners = Array.from({ length: 8 }, () => new Chain());
+const owner = () => owners.pop()!;
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // pushes waits a moment (they go out after the commit answers) and returns
@@ -110,7 +115,8 @@ before(async () => {
   server = spawn(
     "npx",
     ["wrangler", "dev", "--port", String(port), "--ip", "127.0.0.1", "--persist-to", join(dir, "state"),
-      "--var", `COMPASS_SYNC_PUSH_RELAY:${relay}`, "--var", "COMPASS_SYNC_PUSH_BACKGROUND_SECONDS:2"],
+      "--var", `COMPASS_SYNC_PUSH_RELAY:${relay}`, "--var", "COMPASS_SYNC_PUSH_BACKGROUND_SECONDS:2",
+      "--var", `COMPASS_SYNC_ALLOWED_CHAINS:${owners.map((c) => c.id).join(",")}`],
     { stdio: ["ignore", "pipe", "pipe"] },
   );
   let out = "";
@@ -135,7 +141,7 @@ after(() => {
 });
 
 test("registering seals the token at the relay, for this server", async () => {
-  const c = new Chain();
+  const c = owner();
   assert.equal(await c.register("phone", iphone(1)), 204);
   const seal = calls.find((x) => x.path === "/v1/seal")!;
   assert.deepEqual(seal.body, { server: new URL(URL_).host, platform: "apns", ...iphone(1) });
@@ -161,7 +167,7 @@ test("registering seals the token at the relay, for this server", async () => {
 });
 
 test("a sent tab alerts every other device, iPhone and Android", async () => {
-  const c = new Chain();
+  const c = owner();
   await c.register("phone", iphone(3));
   await c.register("droid", android(3));
   await c.register("mac", iphone(4)); // the sender: not alerted
@@ -174,7 +180,7 @@ test("a sent tab alerts every other device, iPhone and Android", async () => {
 });
 
 test("background sync: iPhones only, spaced, not while Compass is open", async () => {
-  const c = new Chain();
+  const c = owner();
   await c.register("phone", iphone(5));
   await c.register("droid", android(5));
   calls = [];
@@ -200,7 +206,7 @@ test("background sync: iPhones only, spaced, not while Compass is open", async (
 });
 
 test("gone devices, unregistering and removed devices stop pushes", async () => {
-  const c = new Chain();
+  const c = owner();
   await c.register("a", iphone(6));
   await c.register("b", iphone(7));
   await c.register("d", iphone(8));
@@ -217,10 +223,41 @@ test("gone devices, unregistering and removed devices stop pushes", async () => 
 });
 
 test("a device that registers again under a new cache GUID is pushed to once", async () => {
-  const c = new Chain();
+  const c = owner();
   await c.register("old", iphone(9));
   await c.register("new", iphone(9));
   calls = [];
   await c.commit("mac", SEND_TAB);
   assert.deepEqual(await pushes(), [`send-tab ${iphone(9).token}`]);
+});
+
+test("the owners can turn push off, which forgets the handles", async () => {
+  const c = owner();
+  const settings = async () => ((await (await c.call("GET", "/v2/compass/access")).json()) as { settings: unknown }).settings;
+  const relay = "http://127.0.0.1";
+  const first = (await settings()) as { push_relay: boolean; push_relay_url: string };
+  assert.equal(first.push_relay, true);
+  assert.ok(first.push_relay_url.startsWith(relay), first.push_relay_url);
+  await c.register("phone", iphone(10));
+  const put = (on: unknown) => c.call("PUT", "/v2/compass/access/settings", JSON.stringify({ push_relay: on }));
+  assert.equal((await put("yes")).status, 400);
+  const off = await put(false);
+  assert.equal(off.status, 200);
+  assert.equal(((await off.json()) as { push_relay: boolean }).push_relay, false);
+  calls = [];
+  await c.commit("mac", SEND_TAB);
+  assert.deepEqual(await pushes(), []);
+  // Registering keeps nothing and asks the relay nothing.
+  assert.equal(await c.register("phone", iphone(10)), 204);
+  assert.equal(calls.length, 0);
+  // On again: the old handle is gone; a new registration works.
+  assert.equal((await put(true)).status, 200);
+  await c.commit("mac", SEND_TAB);
+  assert.deepEqual(await pushes(), []);
+  await c.register("phone", iphone(10));
+  await c.commit("mac", SEND_TAB);
+  assert.deepEqual(await pushes(), [`send-tab ${iphone(10).token}`]);
+  // Only owners: a chain not on the list is refused.
+  const stranger = new Chain();
+  assert.equal((await stranger.call("PUT", "/v2/compass/access/settings", JSON.stringify({ push_relay: false }))).status, 401);
 });

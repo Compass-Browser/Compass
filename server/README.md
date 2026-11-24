@@ -98,6 +98,7 @@ Environment variables (all optional):
 | `COMPASS_SYNC_APNS_KEY` | none | An APNs auth key (`.p8`), to wake iPhones when a tab is sent to them (see "Push to iPhones"); without it, sent tabs arrive at the next sync |
 | `COMPASS_SYNC_APNS_KEY_ID` | none | That key's ID (required with the key) |
 | `COMPASS_SYNC_APNS_TEAM_ID` | none | The Apple Developer team ID (required with the key) |
+| `COMPASS_SYNC_PUSH_RELAY` | none | The Compass push relay's URL (`https://push.compassbrowser.org`), to wake phones without keys of your own (see "Push through the Compass relay"); used only while neither an APNs key nor an FCM account is set |
 | `COMPASS_SYNC_APNS_TOPICS` | `it.cipi1965.compass` | Comma-separated bundle IDs devices may register for (Android package names too) |
 | `COMPASS_SYNC_FCM_CREDENTIALS` | none | A Firebase service account's JSON key, to wake Android devices through FCM (see "Push to iPhones"); without it, sent tabs reach them at the next sync |
 | `BLOCKED_CLIENT_IDS` | none | Comma-separated chain IDs (hex public keys) to refuse |
@@ -352,6 +353,24 @@ account with the Firebase Cloud Messaging role in the app's Firebase
 project, put its JSON key where the container can read it, and set
 `COMPASS_SYNC_FCM_CREDENTIALS`. A token FCM reports as unregistered is
 dropped.
+
+
+### Push through the Compass relay
+
+Compass's apps only accept pushes signed with the Compass developers' APNs
+key and Firebase project, which a self-hosted server doesn't have. Set
+`COMPASS_SYNC_PUSH_RELAY=https://push.compassbrowser.org` and the server
+pushes through the Compass push relay instead (`cloudflare/relay/README.md`):
+each registration is sent to the relay, which seals the token into a handle
+only it can open, bound to this server's name (`COMPASS_SYNC_PUBLIC_HOST`, or
+the Host the registration came to); the server keeps the handle (the token
+column holds it, the environment says `relay-apns` or `relay-fcm`, the topic
+holds the server's name) and asks the relay for the sent tab's alert or the
+background sync, by the same rules as above. The relay sees each phone's
+token, never your data, and can only send those two pushes. If the relay
+can't be reached, registration answers `503` and the phone registers again
+at its next launch. A device that joins the chain again under a new cache
+GUID keeps its old handle until the relay calls it gone. Off by default.
 
 ## Limits
 

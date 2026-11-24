@@ -20,11 +20,13 @@ ProfileMappingStatus SyncController::GetProfileMapping() const {
 }
 
 void SyncController::StartOnCloudflare(const std::string& access_token,
+                                       bool push_relay,
                                        StartCallback callback) {
   std::move(callback).Run(false, "Not supported here.", {});
 }
 
-void SyncController::StartOnCloudflareSignIn(StartCallback callback) {
+void SyncController::StartOnCloudflareSignIn(bool push_relay,
+                                             StartCallback callback) {
   std::move(callback).Run(false, "Not supported here.", {});
 }
 
@@ -48,6 +50,10 @@ void SyncController::GetServerUpdate(ServerUpdateCallback callback) {
 
 void SyncController::UpdateServer(const std::string& access_token,
                                   DoneCallback callback) {
+  std::move(callback).Run(false, "Not supported here.");
+}
+
+void SyncController::SetServerPushRelay(bool on, DoneCallback callback) {
   std::move(callback).Run(false, "Not supported here.");
 }
 

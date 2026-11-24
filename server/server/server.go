@@ -191,6 +191,13 @@ func LoadConfig() (Config, error) {
 	// The name devices bind into pairing (sync.md, "Pairing API"); empty:
 	// the Host each pairing request came to.
 	cfg.Pairing.PublicHost = os.Getenv("COMPASS_SYNC_PUBLIC_HOST")
+	// Without keys of its own, the Compass push relay (push/relay.go).
+	cfg.Push.Relay = strings.TrimSpace(os.Getenv("COMPASS_SYNC_PUSH_RELAY"))
+	if cfg.Push.Relay != "" && !strings.HasPrefix(cfg.Push.Relay, "https://") &&
+		!strings.HasPrefix(cfg.Push.Relay, "http://") {
+		return cfg, fmt.Errorf("invalid COMPASS_SYNC_PUSH_RELAY %q: an http(s) URL", cfg.Push.Relay)
+	}
+	cfg.Push.PublicHost = cfg.Pairing.PublicHost
 	// Company sign-in (sync.md, "Company sign-in (OIDC)").
 	if cfg.OIDC, err = oidclogin.ConfigFromEnv(cfg.Pairing.PublicHost); err != nil {
 		return cfg, err

@@ -382,6 +382,21 @@
     <p class="note">Compass sets up a sync server in your own Cloudflare
       account. It's free, and only your devices, and friends you invite,
       can use it.</p>
+    <!-- docs/design/sync.md, "Push on a Cloudflare server". -->
+    <ul class="rows">
+      <li>
+        <label class="grow" for="setupPushRelay">
+          <div class="name">Phone notifications</div>
+          <div class="details">When a tab is sent to an iPhone or Android
+            phone, Compass's push relay (push.compassbrowser.org) tells it
+            at once. It gets each phone's notification token, never your
+            tabs or data. Off, sent tabs arrive when the phone next syncs.
+            You can change this later.</div>
+        </label>
+        <input id="setupPushRelay" type="checkbox" class="switch"
+            role="switch" checked>
+      </li>
+    </ul>
     <div class="buttons">
       <button id="signInCloudflare">Sign in with Cloudflare</button>
       <button id="showCloudflareToken" class="link">Use an API token
@@ -528,6 +543,16 @@
       read it.</p>
     <ul id="peopleList" class="rows"></ul>
     <p id="noPeople" class="note" hidden>No one else yet.</p>
+    <!-- docs/design/sync.md, "Push on a Cloudflare server". -->
+    <ul id="pushRelayRow" class="rows" hidden>
+      <li>
+        <label class="grow" for="pushRelay">
+          <div class="name">Phone notifications</div>
+          <div class="details" id="pushRelayDetails"></div>
+        </label>
+        <input id="pushRelay" type="checkbox" class="switch" role="switch">
+      </li>
+    </ul>
     <label class="field" for="inviteName">Invite a friend</label>
     <input id="inviteName" type="text" autocomplete="off"
         placeholder="Their name (only you see it)">

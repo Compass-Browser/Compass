@@ -48,7 +48,7 @@ class CloudflareDeployerTest : public testing::Test {
 
   void Start() {
     deployer_.Deploy(
-        kOwner,
+        kOwner, /*push_relay=*/true,
         base::BindLambdaForTesting(
             [this](const std::string& line) { progress_.push_back(line); }),
         base::BindLambdaForTesting(
@@ -123,6 +123,27 @@ TEST_F(CloudflareDeployerTest, Metadata) {
       CloudflareDeployer::MakeMetadata(kOwner, /*migration_tag=*/"v2"),
       base::JSON_PARSE_RFC);
   EXPECT_FALSE(m->GetDict().Find("migrations"));
+}
+
+// Push through the relay turned off at setup: the server starts with it
+// off. An update never sets it (the server keeps its variables).
+TEST_F(CloudflareDeployerTest, MetadataWithoutPushRelay) {
+  std::optional<base::Value> m = base::JSONReader::Read(
+      CloudflareDeployer::MakeMetadata(kOwner, /*migration_tag=*/"",
+                                       /*push_relay=*/false),
+      base::JSON_PARSE_RFC);
+  const base::ListValue* bindings = m->GetDict().FindList("bindings");
+  ASSERT_EQ(6u, bindings->size());
+  EXPECT_EQ("COMPASS_SYNC_PUSH_DEFAULT",
+            *(*bindings)[5].GetDict().FindString("name"));
+  EXPECT_EQ("off", *(*bindings)[5].GetDict().FindString("text"));
+  m = base::JSONReader::Read(
+      CloudflareDeployer::MakeMetadata(/*owner_chain_id=*/"",
+                                       /*migration_tag=*/"v2",
+                                       /*push_relay=*/false),
+      base::JSON_PARSE_RFC);
+  EXPECT_EQ(4u, m->GetDict().FindList("bindings")->size());
+  EXPECT_TRUE(m->GetDict().FindList("keep_bindings"));
 }
 
 // A new account: no workers.dev subdomain, no scripts.

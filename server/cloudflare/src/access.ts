@@ -6,7 +6,9 @@
 // codes; a friend who joins with one is a member. A chain's profile
 // accounts are linked to it (POST /v2/compass/account/link, as on the Go
 // server) and pass with it. Blocked chains (BLOCKED_CLIENT_IDS) are refused
-// by the Worker before it asks here.
+// by the Worker before it asks here. The owners also choose whether
+// phones are woken through the Compass push relay (push.ts; on by
+// default), which the Worker passes to the chains' objects.
 
 import { DurableObject } from "cloudflare:workers";
 import { idList } from "./auth";
@@ -44,6 +46,8 @@ CREATE TABLE IF NOT EXISTS invites (
 export interface AccessState {
   allowed: boolean;
   owner: boolean;
+  // The owners' choice: push through the relay (README.md, "Push").
+  push: boolean;
 }
 
 function randomCode(): string {
@@ -71,6 +75,12 @@ export class Access extends DurableObject<Env> {
     return r ? (r.root as string) : "";
   }
 
+  // Until the owners choose in Compass, COMPASS_SYNC_PUSH_DEFAULT ("off"
+  // when the owner said no at setup) decides.
+  private pushOn(): boolean {
+    return this.ctx.storage.kv.get<boolean>("push_relay") ?? this.env.COMPASS_SYNC_PUSH_DEFAULT !== "off";
+  }
+
   private listed(chain: string): { allowed: boolean; owner: boolean } {
     const owners = this.owners();
     if (owners.length === 0) return { allowed: true, owner: false };
@@ -82,7 +92,10 @@ export class Access extends DurableObject<Env> {
   // state says whether a chain may sync, directly or through the chain it
   // is linked to, and whether it owns the server.
   state(chainID: string): AccessState {
-    const chain = chainID.toLowerCase();
+    return { ...this.listedOrLinked(chainID.toLowerCase()), push: this.pushOn() };
+  }
+
+  private listedOrLinked(chain: string): { allowed: boolean; owner: boolean } {
     const own = this.listed(chain);
     if (own.allowed) return own;
     const root = this.root(chain);
@@ -90,6 +103,19 @@ export class Access extends DurableObject<Env> {
     const blocked = idList(this.env.BLOCKED_CLIENT_IDS);
     if (blocked.includes(root)) return { allowed: false, owner: false };
     return this.listed(root);
+  }
+
+  // setSettings changes the owners' settings (owners only): for now
+  // {"push_relay": bool}.
+  setSettings(byID: string, settings: Record<string, unknown>, relay: string): Response {
+    if (!this.state(byID).owner) return fail(403, "owner_only");
+    if (typeof settings.push_relay !== "boolean") return fail(400, "bad_request");
+    this.ctx.storage.kv.put("push_relay", settings.push_relay);
+    return json(200, this.settings(relay));
+  }
+
+  private settings(relay: string) {
+    return { push_relay: this.pushOn(), push_relay_url: relay };
   }
 
   // link links `other` (a profile account) to `from`'s root (Go:
@@ -151,7 +177,7 @@ export class Access extends DurableObject<Env> {
   }
 
   // members lists the friends and open invites (owners only).
-  members(byID: string): Response {
+  members(byID: string, relay: string): Response {
     if (!this.state(byID).owner) return fail(403, "owner_only");
     const now = Date.now();
     const members = this.sql
@@ -167,7 +193,7 @@ export class Access extends DurableObject<Env> {
       .exec(`SELECT code, name, expires_at FROM invites WHERE used_by IS NULL AND expires_at >= ? ORDER BY created_at`, now)
       .toArray()
       .map((r) => ({ code: r.code, name: r.name, expires_in: Math.floor((Number(r.expires_at) - now) / 1000) }));
-    return json(200, { owners: this.owners(), members, invites });
+    return json(200, { owners: this.owners(), members, invites, settings: this.settings(relay) });
   }
 
   // remove takes a friend off the list (their linked profiles go with

@@ -69,7 +69,9 @@ TEST_F(AccessClientRequestTest, List) {
                            "members":[{"chain":"bb","name":"Sam",
                                        "added_at":1700000000,"linked":2}],
                            "invites":[{"code":"cc","name":"Kim",
-                                       "expires_in":3600}]})");
+                                       "expires_in":3600}],
+                           "settings":{"push_relay":false,
+                                       "push_relay_url":"https://r.example"}})");
   std::optional<ServerPeople> people;
   AccessClient::Error error = AccessClient::Error::kFailed;
   base::RunLoop loop;
@@ -91,6 +93,41 @@ TEST_F(AccessClientRequestTest, List) {
             people->members[0].added);
   ASSERT_EQ(1u, people->invites.size());
   EXPECT_EQ("cc", people->invites[0].code);
+  EXPECT_EQ(false, people->push_relay);
+  EXPECT_EQ("https://r.example", people->push_relay_url);
+}
+
+TEST_F(AccessClientRequestTest, ListFromAServerBeforePush) {
+  factory_.AddResponse(std::string(kServer) + "/compass/access",
+                       R"({"owners":["aa"],"members":[],"invites":[]})");
+  std::optional<ServerPeople> people;
+  base::RunLoop loop;
+  client_.List("tok", base::BindLambdaForTesting(
+                          [&](std::optional<ServerPeople> p,
+                              AccessClient::Error e) {
+                            people = std::move(p);
+                            loop.Quit();
+                          }));
+  loop.Run();
+  ASSERT_TRUE(people);
+  EXPECT_FALSE(people->push_relay);
+  EXPECT_EQ("", people->push_relay_url);
+}
+
+TEST_F(AccessClientRequestTest, SetPushRelay) {
+  factory_.AddResponse(std::string(kServer) + "/compass/access/settings",
+                       R"({"push_relay":false})");
+  AccessClient::Error error = AccessClient::Error::kFailed;
+  base::RunLoop loop;
+  client_.SetPushRelay("tok", false,
+                       base::BindLambdaForTesting([&](AccessClient::Error e) {
+                         error = e;
+                         loop.Quit();
+                       }));
+  loop.Run();
+  EXPECT_EQ(AccessClient::Error::kNone, error);
+  EXPECT_EQ("PUT", last_.method);
+  EXPECT_EQ(R"({"push_relay":false})", network::GetUploadData(last_));
 }
 
 TEST_F(AccessClientRequestTest, ListOnAServerWithoutAccessOrAsAFriend) {

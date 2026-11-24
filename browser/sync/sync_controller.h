@@ -187,12 +187,17 @@ class SyncController {
   // a new chain, then starts that chain on it as StartNewChain() does
   // (docs/design/sync.md, "A free server on Cloudflare"). Progress shows in
   // GetStatus().server_setup. Default: fails.
+  // |push_relay|: whether the server wakes phones through the Compass push
+  // relay (docs/design/sync.md, "Push on a Cloudflare server"), which its
+  // owners can change later.
   virtual void StartOnCloudflare(const std::string& access_token,
+                                 bool push_relay,
                                  StartCallback callback);
   // Off: as StartOnCloudflare(), with an access token from "Sign in with
   // Cloudflare" in a new tab instead of a pasted one. Progress shows in
   // GetStatus().server_setup. Default: fails.
-  virtual void StartOnCloudflareSignIn(StartCallback callback);
+  virtual void StartOnCloudflareSignIn(bool push_relay,
+                                       StartCallback callback);
   // Off: makes a new chain on the server of an invite link
   // (https://<server>/invite#<code>): joins the server's access list with
   // the code, then starts the chain as StartNewChain() does
@@ -228,6 +233,10 @@ class SyncController {
   // fails.
   virtual void UpdateServer(const std::string& access_token,
                             DoneCallback callback);
+  // On, owner: turns the server's phone notifications through the Compass
+  // push relay on or off (docs/design/sync.md, "Push on a Cloudflare
+  // server"). Default: fails.
+  virtual void SetServerPushRelay(bool on, DoneCallback callback);
   // On, owner: removes a friend (their chain ID) or revokes an open invite
   // (its code).
   virtual void RemoveFromServer(const std::string& target,
