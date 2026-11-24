@@ -30,6 +30,7 @@
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/views/settings_window/settings_window.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
@@ -410,15 +411,17 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportingAgainAddsNewSpaces) {
             profiles);
 }
 
-// On the first run, with Arc on the Mac, the first window opens the import.
+// On the first run, with Arc on the Mac, the first window opens the import,
+// in the settings window's pane.
 IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, OffersImportOnFirstRun) {
   ASSERT_NO_FATAL_FAILURE(WriteArcSidebar());
   SetFirstRunForArcImportOfferForTesting(true);
-  BrowserWindowInterface* window = CreateBrowser(browser()->GetProfile());
+  CreateBrowser(browser()->GetProfile());
   ASSERT_TRUE(base::test::RunUntil([&] {
-    content::WebContents* active =
-        window->GetTabStripModel()->GetActiveWebContents();
-    return active && active->GetVisibleURL().path() == "/importArc";
+    SettingsWindow* settings =
+        SettingsWindow::FromProfile(browser()->GetProfile());
+    return settings && settings->web_contents() &&
+           settings->web_contents()->GetVisibleURL().path() == "/importArc";
   }));
   SetFirstRunForArcImportOfferForTesting(std::nullopt);
 }

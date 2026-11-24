@@ -198,6 +198,25 @@ TEST_F(RoomClientTest, NetworkErrorIsStatusZero) {
   EXPECT_TRUE(future.Get().error().is_network());
 }
 
+// Replies may be larger than SimpleURLLoader's bounded download (a changes
+// page is about 11 MB), but not without limit.
+TEST_F(RoomClientTest, ReplySizeIsBounded) {
+  const std::string url =
+      std::string(kServer) + "/compass/rooms?client_id=guid%2F1";
+  factory_.AddResponse(
+      url, R"({"rooms":[],"padding":")" + std::string(12 << 20, 'a') + "\"}");
+  base::test::TestFuture<RoomResult<std::vector<RoomSummary>>> large;
+  client_.ListRooms(large.GetCallback());
+  EXPECT_TRUE(large.Get().has_value());
+
+  factory_.AddResponse(url, std::string((16 << 20) + 1, 'a'));
+  base::test::TestFuture<RoomResult<std::vector<RoomSummary>>> too_large;
+  client_.ListRooms(too_large.GetCallback());
+  ASSERT_FALSE(too_large.Get().has_value());
+  EXPECT_TRUE(too_large.Get().error().is_network());
+  EXPECT_EQ(client_.pending_requests_for_testing(), 0u);
+}
+
 TEST_F(RoomClientTest, SuccessorSendsLinkedToken) {
   factory_.AddResponse(std::string(kServer) + "/compass/rooms/" + kRoom +
                            "/successor?client_id=guid%2F1",
