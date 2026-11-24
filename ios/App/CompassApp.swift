@@ -32,22 +32,38 @@ struct CompassApp: App {
     // Leaving the app moves a playing video to picture-in-picture, from the
     // first moment iOS says so (scenePhase comes later).
     AutoPiP.watchLeavingTheApp { [weak services] in services?.active?.leavingAppVideo() }
-    // A best-effort sync while in the background (push needs the app open).
+    // A best-effort sync while in the background, beside the server's
+    // silent pushes (AppDelegate) and as their fallback.
     // On the main queue: the handler is written in the App's init, so Swift
     // takes it as main-actor code and traps if it runs anywhere else (with
     // `using: nil` the scheduler called it on a background queue, and the
     // app crashed in the background).
     BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.refreshTask, using: .main) { task in
+      // The next one first: this one may run out of time.
+      Self.scheduleRefresh()
+      // Completed exactly once, by the work or by iOS's deadline: a task
+      // left open past it gets the app killed and fewer refreshes later.
+      let completion = RefreshCompletion(task)
       let work = Task { @MainActor in
+        let before = services.sync.lastSync
         await services.sync.syncNow()
+        let synced = !services.sync.isOn || services.sync.lastSync != before
         await services.contentBlocking.refresh()
         // Live folders that are due (each device runs its own plugins).
+        // Their wait doesn't end on cancellation, so the deadline
+        // completes the task without it.
         await services.liveFolders.refreshDueAndWait()
         try? services.store.save(to: services.sidebarURL)
-        task.setTaskCompleted(success: true)
+        completion.finish(success: synced)
       }
-      task.expirationHandler = { work.cancel() }
-      Self.scheduleRefresh()
+      task.expirationHandler = {
+        MainActor.assumeIsolated {
+          work.cancel()
+          // What was synced so far is kept.
+          try? services.store.save(to: services.sidebarURL)
+          completion.finish(success: false)
+        }
+      }
     }
   }
 
@@ -101,6 +117,20 @@ struct CompassApp: App {
         Self.scheduleRefresh()
       }
     }
+  }
+}
+
+/// A background task's completion, told once: by its work when that ends,
+/// or by the expiration handler when iOS's time is up.
+@MainActor
+final class RefreshCompletion {
+  private var task: BGTask?
+
+  init(_ task: BGTask) { self.task = task }
+
+  func finish(success: Bool) {
+    task?.setTaskCompleted(success: success)
+    task = nil
   }
 }
 

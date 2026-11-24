@@ -362,6 +362,7 @@ struct SettingsView: View {
     } footer: {
       if isRemoved { Text(SyncController.removedMessage) }
     }
+    if !isRemoved { BackgroundRefreshNote() }
     if app.sync.state == .loginRequired || app.sync.isSigningIn {
       Section { SyncSignIn() } header: { Text("Sign In") }
     }
@@ -999,6 +1000,47 @@ struct SearchEnginePicker: View {
 /// Settings → Links from Other Apps → Sites: link rules, a domain → a space
 /// each, as the desktop's settings section. A rule whose space was deleted
 /// says so until it's edited or deleted. They sync with the spaces.
+/// Sync's note when iOS's Background App Refresh is off for Compass (or
+/// for every app, or by Low Power Mode): it syncs only while open, then.
+/// Shows nothing when it's on.
+struct BackgroundRefreshNote: View {
+  @State private var status = UIApplication.shared.backgroundRefreshStatus
+  @State private var lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+
+  var body: some View {
+    Group {
+      if status != .available {
+        Section {
+          Label("Background App Refresh is off", systemImage: "arrow.clockwise.circle")
+            .foregroundStyle(.secondary)
+          if status == .denied, !lowPower {
+            Button("Turn On in Settings") {
+              if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            }
+          }
+        } footer: {
+          Text(footer)
+        }
+        .accessibilityIdentifier("BackgroundRefreshNote")
+      }
+    }
+    .onReceive(NotificationCenter.default.publisher(for: UIApplication.backgroundRefreshStatusDidChangeNotification)) { _ in
+      status = UIApplication.shared.backgroundRefreshStatus
+    }
+    .onReceive(NotificationCenter.default.publisher(for: .NSProcessInfoPowerStateDidChange)) { _ in
+      lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+      status = UIApplication.shared.backgroundRefreshStatus
+    }
+  }
+
+  private var footer: String {
+    let only = "Compass syncs only while it's open, so changes from your other devices show up when you open it."
+    if status == .restricted { return only + " It's restricted on this device (Screen Time or device management)." }
+    if lowPower { return only + " Low Power Mode turns it off until it ends." }
+    return only + " Turn it on in Settings › Compass › Background App Refresh."
+  }
+}
+
 struct LinkRulesSection: View {
   @Environment(AppModel.self) private var app
   /// Opens the editor: Settings presents it (SettingsSheet), not this
