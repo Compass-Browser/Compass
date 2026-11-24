@@ -44,16 +44,22 @@ struct TabPicker: View {
   }
 
   private func picker(_ progress: CGFloat) -> some View {
-    GeometryReader { geo in
+    let backdrop = min(progress * 3, 1)
+    return GeometryReader { geo in
       let size = geo.size
       ZStack {
         SpaceTint(theme: app.pickerSpace?.theme ?? .blue)
           .overlay(Color.black.opacity(0.18))
           // Closing onto another tab, the old page mustn't show around the
           // growing card.
-          .opacity(app.pickerHolding ? max(progress, switching ? 1 : 0) : progress)
+          // Opaque by a third of the way: the page under it would show
+          // twice, there and on the card.
+          .opacity(app.pickerHolding ? max(backdrop, switching ? 1 : 0) : backdrop)
           .contentShape(Rectangle())
           .gesture(drag(id: nil, size: size))
+        // Under the cards: while the picker opens, the still large card
+        // covers them.
+        bottomBar.opacity(progress)
         if locked {
           lockedNote.opacity(progress)
         } else {
@@ -63,7 +69,6 @@ struct TabPicker: View {
           }
           row(size: size, progress: progress)
         }
-        bottomBar.opacity(progress)
       }
       .frame(width: size.width, height: size.height)
     }
