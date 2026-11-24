@@ -245,5 +245,8 @@ generate_grd("build_sync_worker_grdp") {
   out_grd = "$target_gen_dir/sync_worker.grdp"
   input_files_base_dir = rebase_path("//compass/server/cloudflare/dist", "//")
   resource_path_prefix = "sync_worker"
-  input_files = [ "compass-sync.js" ]
+  input_files = [
+    "compass-sync.js",
+    "compass-sync.version",
+  ]
 }

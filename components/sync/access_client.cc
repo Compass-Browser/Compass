@@ -149,6 +149,21 @@ std::string AccessClient::Describe(Error error) {
   }
 }
 
+void AccessClient::GetServerInfo(InfoCallback callback) {
+  Send("GET", "/compass/info", std::string(), std::nullopt,
+       base::BindOnce(
+           [](InfoCallback callback, int status,
+              std::optional<base::Value> json) {
+             if (status != 200 || !json) {
+               std::move(callback).Run(std::nullopt);
+               return;
+             }
+             std::move(callback).Run(
+                 ParseServerInfo(base::WriteJson(*json).value_or("")));
+           },
+           std::move(callback)));
+}
+
 void AccessClient::List(const std::string& token, PeopleCallback callback) {
   Send("GET", "/compass/access", token, std::nullopt,
        base::BindOnce(
@@ -270,8 +285,10 @@ void AccessClient::Send(const std::string& method,
   request->url = server_url_.ReplaceComponents(replacements);
   request->method = method;
   request->credentials_mode = network::mojom::CredentialsMode::kOmit;
-  request->headers.SetHeader(net::HttpRequestHeaders::kAuthorization,
-                             base::StrCat({"Bearer ", token}));
+  if (!token.empty()) {
+    request->headers.SetHeader(net::HttpRequestHeaders::kAuthorization,
+                               base::StrCat({"Bearer ", token}));
+  }
   loaders_.push_front(
       network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation));
   Loaders::iterator loader = loaders_.begin();

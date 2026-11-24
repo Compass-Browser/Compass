@@ -17,6 +17,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "compass/components/sync/cloudflare_deployer.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "url/gurl.h"
 
@@ -102,6 +103,11 @@ class AccessClient {
   ~AccessClient();
 
   const GURL& server_url() const { return server_url_; }
+
+  // GET /compass/info, unsigned: what the server says of itself (nullopt:
+  // no answer, or not JSON).
+  using InfoCallback = base::OnceCallback<void(std::optional<ServerInfo>)>;
+  void GetServerInfo(InfoCallback callback);
 
   // GET /compass/access (owners).
   void List(const std::string& token, PeopleCallback callback);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {DataTypeState, Details, Device, Login, Pairing, ProfileMapping, ProfileMappingEntry, ServerPeople, Status} from '../compass_sync.mojom-webui.js';
+import type {DataTypeState, Details, Device, Login, Pairing, ProfileMapping, ProfileMappingEntry, ServerPeople, ServerUpdate, Status} from '../compass_sync.mojom-webui.js';
 import {DataType, PageCallbackRouter, PageHandlerFactory, PageHandlerRemote, PairingStep, State} from '../compass_sync.mojom-webui.js';
 
 import {CompassSettingsPage} from './page_base.js';
@@ -192,6 +192,25 @@ export class CompassSyncPageElement extends CompassSettingsPage {
       }
     });
 
+    // docs/design/sync.md, "Updating a server".
+    const update = async (token: string) => {
+      $('updateError').textContent = '';
+      const {ok, error} = await this.handler_.updateServer(token);
+      if (!ok) {
+        $('updateError').textContent = error;
+        return;
+      }
+      $<HTMLInputElement>('updateToken').value = '';
+      this.loadServerUpdate_();
+    };
+    $('updateServer').addEventListener('click', () => update(''));
+    $('updateServerToken')
+        .addEventListener('click', () => update(value('updateToken')));
+    $('showUpdateToken').addEventListener('click', () => {
+      this.show('updateTokenPanel', true);
+      $('updateToken').focus();
+    });
+
     // docs/design/sync.md, "A free server on Cloudflare".
     $('showCloudflare').addEventListener('click', () => {
       this.show('cloudflarePanel', true);
@@ -355,6 +374,35 @@ export class CompassSyncPageElement extends CompassSettingsPage {
   private async loadPeople_() {
     const {people} = await this.handler_.getServerPeople();
     this.renderPeople_(people);
+    if (people.available) {
+      this.loadServerUpdate_();
+    }
+  }
+
+  // The owner's offer to update a server Compass set up on Cloudflare.
+  private async loadServerUpdate_() {
+    const {update} = await this.handler_.getServerUpdate();
+    this.renderServerUpdate_(update);
+  }
+
+  private renderServerUpdate_(update: ServerUpdate) {
+    this.show('serverUpdate', update.available);
+    if (!update.available) {
+      return;
+    }
+    // What each version brings, for the versions the server lacks.
+    const NEW_IN: Record<number, string> = {
+      2: 'sharing spaces, folders and easels with others',
+    };
+    const added = [];
+    for (let v = update.current + 1; v <= update.latest; ++v) {
+      if (NEW_IN[v]) {
+        added.push(NEW_IN[v]);
+      }
+    }
+    this.$('serverUpdateNote').textContent =
+        (added.length ? `It adds ${added.join(', ')}. ` : '') +
+        'Your data and the people on it stay as they are.';
   }
 
   // The friends and open invites of the server this chain owns; nothing on
@@ -504,6 +552,11 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     // to start meanwhile.
     const settingUp = !!status.serverSetup;
     this.$('cloudflareProgress').textContent = status.serverSetup;
+    // An update of the server runs while sync is on.
+    this.$('updateProgress').textContent = status.serverSetup;
+    for (const id of ['updateServer', 'updateServerToken']) {
+      this.$<HTMLButtonElement>(id).disabled = settingUp;
+    }
     if (settingUp) {
       this.show('cloudflarePanel', true);
       for (const id of

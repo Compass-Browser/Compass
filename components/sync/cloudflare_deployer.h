@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -28,8 +29,29 @@ namespace compass::sync {
 // The Worker script's settings that Compass deploys with
 // (server/cloudflare/wrangler.jsonc).
 inline constexpr char kCloudflareCompatibilityDate[] = "2026-11-01";
-inline constexpr char kCloudflareMigrationTag[] = "v1";
+// The Durable Object migrations, as in wrangler.jsonc: v1 added Chain,
+// Pairing and Access, v2 Room (rooms, docs/design/sync.md, "Rooms").
+inline constexpr char kCloudflareMigrationTag[] = "v2";
 inline constexpr char kCloudflareScriptName[] = "compass-sync";
+
+// What a Compass sync server says of itself: GET <server>/compass/info's
+// "server", {"kind": "cloudflare", "version": N} (server/cloudflare,
+// src/version.ts). Nullopt for an answer that isn't JSON; a server without
+// it (the Go server, Cloudflare servers before versions) gives an empty
+// kind and version 0.
+struct ServerInfo {
+  std::string kind;
+  int version = 0;
+};
+std::optional<ServerInfo> ParseServerInfo(std::string_view json);
+
+// The Worker and workers.dev subdomain of a server URL Compass sets up,
+// https://<script>.<subdomain>.workers.dev/v2; nullopt for any other URL.
+struct CloudflareServerName {
+  std::string script;
+  std::string subdomain;
+};
+std::optional<CloudflareServerName> CloudflareServerNameOf(const GURL& url);
 
 // Where the deployed server ended up.
 struct CloudflareDeployment {
@@ -75,6 +97,8 @@ class CloudflareDeployer {
     kNetwork,
     // Deployed, but the server didn't answer in time.
     kNotReachable,
+    // Update: the signed-in account has no such server.
+    kNotFound,
   };
 
   struct Result {
@@ -103,6 +127,18 @@ class CloudflareDeployer {
 
   // Deploys a server owned by |owner_chain_id| (the chain's hex public key).
   // Destroying |this| cancels it without running |callback|.
+  // Updates a server Compass set up (docs/design/sync.md, "Updating a
+  // server"): the account whose workers.dev subdomain is |subdomain| and
+  // that has the Worker |script_name| gets the bundled server, with its
+  // variables kept as they are (keep_bindings: the owners may be another
+  // chain than this device's) and the migration its tag needs. Done once
+  // the server's /v2/compass/info says |version| or later.
+  void Update(const std::string& script_name,
+              const std::string& subdomain,
+              int version,
+              ProgressCallback progress,
+              Callback callback);
+
   void Deploy(const std::string& owner_chain_id,
               ProgressCallback progress,
               Callback callback);
@@ -116,8 +152,12 @@ class CloudflareDeployer {
   }
 
   // The script's metadata part (exposed for tests).
+  // |migration_tag| is the script's current one: "" for a new script (all
+  // the classes, as v2), "v1" (Room added), "v2" (none). An empty
+  // |owner_chain_id| (an update) keeps the script's variables instead of
+  // setting the owners.
   static std::string MakeMetadata(const std::string& owner_chain_id,
-                                  bool with_migration);
+                                  const std::string& migration_tag);
   // A user-facing sentence for an error.
   static std::string Describe(const Result& result);
 
@@ -133,6 +173,9 @@ class CloudflareDeployer {
   void OnCallDone(JsonCallback callback, std::optional<std::string> body);
 
   void OnAccounts(int status, std::optional<base::Value> json);
+  // Update: the accounts' subdomains, one at a time, until |subdomain|.
+  void CheckNextAccount();
+  void OnAccountSubdomain(int status, std::optional<base::Value> json);
   void OnSubdomain(int status, std::optional<base::Value> json);
   void CreateSubdomain(int attempt);
   void OnSubdomainCreated(int attempt,
@@ -158,6 +201,11 @@ class CloudflareDeployer {
   base::TimeDelta health_interval_ = base::Seconds(3);
 
   std::string owner_;
+  // Update mode: what to find, and the version to wait for.
+  bool update_ = false;
+  int version_ = 0;
+  std::vector<std::string> accounts_;
+  size_t next_account_ = 0;
   // The call under way ("GET /accounts/{id}/workers/subdomain"), for
   // errors and the log.
   std::string step_;

@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
@@ -88,21 +89,38 @@ class CloudflareDeployerTest : public testing::Test {
 
 TEST_F(CloudflareDeployerTest, Metadata) {
   std::optional<base::Value> m = base::JSONReader::Read(
-      CloudflareDeployer::MakeMetadata(kOwner, /*with_migration=*/true),
+      CloudflareDeployer::MakeMetadata(kOwner, /*migration_tag=*/""),
       base::JSON_PARSE_RFC);
   ASSERT_TRUE(m && m->is_dict());
   EXPECT_EQ("index.js", *m->GetDict().FindString("main_module"));
   const base::ListValue* bindings = m->GetDict().FindList("bindings");
   ASSERT_TRUE(bindings);
-  ASSERT_EQ(4u, bindings->size());
+  ASSERT_EQ(5u, bindings->size());
   EXPECT_EQ("CHAIN", *(*bindings)[0].GetDict().FindString("name"));
+  EXPECT_EQ("ROOM", *(*bindings)[3].GetDict().FindString("name"));
   // The owner, lower-case as the server compares it.
   EXPECT_EQ(base::ToLowerASCII(kOwner),
-            *(*bindings)[3].GetDict().FindString("text"));
-  EXPECT_EQ("v1", *m->GetDict().FindStringByDottedPath("migrations.new_tag"));
+            *(*bindings)[4].GetDict().FindString("text"));
+  // A new script: every class at once, as the latest tag.
+  EXPECT_EQ("v2", *m->GetDict().FindStringByDottedPath("migrations.new_tag"));
+  EXPECT_FALSE(m->GetDict().FindStringByDottedPath("migrations.old_tag"));
+  EXPECT_EQ(4u, m->GetDict()
+                    .FindListByDottedPath("migrations.new_sqlite_classes")
+                    ->size());
+
+  // A script from before rooms: Room only, from v1.
+  m = base::JSONReader::Read(
+      CloudflareDeployer::MakeMetadata(kOwner, /*migration_tag=*/"v1"),
+      base::JSON_PARSE_RFC);
+  EXPECT_EQ("v1", *m->GetDict().FindStringByDottedPath("migrations.old_tag"));
+  EXPECT_EQ("v2", *m->GetDict().FindStringByDottedPath("migrations.new_tag"));
+  const base::ListValue* added =
+      m->GetDict().FindListByDottedPath("migrations.new_sqlite_classes");
+  ASSERT_EQ(1u, added->size());
+  EXPECT_EQ("Room", (*added)[0].GetString());
 
   m = base::JSONReader::Read(
-      CloudflareDeployer::MakeMetadata(kOwner, /*with_migration=*/false),
+      CloudflareDeployer::MakeMetadata(kOwner, /*migration_tag=*/"v2"),
       base::JSON_PARSE_RFC);
   EXPECT_FALSE(m->GetDict().Find("migrations"));
 }
@@ -158,7 +176,7 @@ TEST_F(CloudflareDeployerTest, ExistingScripts) {
   Answer("GET", std::string(kApi) + "/accounts/acc1/workers/scripts",
          R"({"success":true,"result":[
               {"id":"compass-sync","migration_tag":"v1"},
-              {"id":"compass-sync-abcdef","migration_tag":"v1"}]})");
+              {"id":"compass-sync-abcdef","migration_tag":"v2"}]})");
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(std::string::npos, LastUpload().find("migrations"));
   Answer("PUT",
@@ -228,6 +246,75 @@ TEST_F(CloudflareDeployerTest, NotReachable) {
   ASSERT_TRUE(result_);
   EXPECT_EQ(CloudflareDeployer::Error::kNotReachable, result_->error);
   ASSERT_TRUE(result_->deployment);
+}
+
+TEST(CloudflareServerTest, InfoAndNames) {
+  EXPECT_EQ(2, ParseServerInfo(R"({"login":null,"server":{"kind":"cloudflare","version":2}})")
+                   ->version);
+  EXPECT_EQ("cloudflare",
+            ParseServerInfo(R"({"server":{"kind":"cloudflare","version":2}})")->kind);
+  // A Go server, or a Cloudflare server from before versions.
+  EXPECT_EQ(0, ParseServerInfo(R"({"login":null})")->version);
+  EXPECT_FALSE(ParseServerInfo("404 page not found"));
+
+  std::optional<CloudflareServerName> name = CloudflareServerNameOf(
+      GURL("https://compass-sync.compass-abc.workers.dev/v2"));
+  ASSERT_TRUE(name);
+  EXPECT_EQ("compass-sync", name->script);
+  EXPECT_EQ("compass-abc", name->subdomain);
+  EXPECT_FALSE(CloudflareServerNameOf(GURL("https://sync.example.com/v2")));
+  EXPECT_FALSE(CloudflareServerNameOf(GURL("https://workers.dev/v2")));
+  EXPECT_FALSE(CloudflareServerNameOf(GURL("https://a.b.c.workers.dev/v2")));
+  EXPECT_FALSE(CloudflareServerNameOf(GURL("http://a.b.workers.dev/v2")));
+}
+
+// An update: the account with the server's subdomain (not the first), its
+// script uploaded keeping its variables and with the migration from v1,
+// then waited for until it says the new version.
+TEST_F(CloudflareDeployerTest, Update) {
+  deployer_.Update(
+      "compass-sync", "me", 2,
+      base::BindLambdaForTesting(
+          [this](const std::string& line) { progress_.push_back(line); }),
+      base::BindLambdaForTesting(
+          [this](CloudflareDeployer::Result r) { result_ = std::move(r); }));
+  Answer("GET", std::string(kApi) + "/accounts?per_page=50",
+         R"({"success":true,"result":[{"id":"acc0"},{"id":"acc1"}]})");
+  Answer("GET", std::string(kApi) + "/accounts/acc0/workers/subdomain",
+         R"({"success":true,"result":{"subdomain":"someone-else"}})");
+  Answer("GET", std::string(kApi) + "/accounts/acc1/workers/subdomain",
+         R"({"success":true,"result":{"subdomain":"me"}})");
+  Answer("GET", std::string(kApi) + "/accounts/acc1/workers/scripts",
+         R"({"success":true,"result":[{"id":"compass-sync","migration_tag":"v1"}]})");
+  base::RunLoop().RunUntilIdle();
+  const std::string upload = LastUpload();
+  EXPECT_NE(std::string::npos, upload.find("\"keep_bindings\""));
+  EXPECT_EQ(std::string::npos, upload.find("COMPASS_SYNC_ALLOWED_CHAINS"));
+  EXPECT_NE(std::string::npos, upload.find("\"old_tag\":\"v1\""));
+  Answer("PUT", std::string(kApi) + "/accounts/acc1/workers/scripts/compass-sync",
+         R"({"success":true})");
+  // The old version answers a moment longer.
+  const std::string info = "https://compass-sync.me.workers.dev/v2/compass/info";
+  Answer("GET", info, R"({"login":null})");
+  EXPECT_FALSE(result_);
+  env_.FastForwardBy(base::Seconds(1));
+  Answer("GET", info, R"({"login":null,"server":{"kind":"cloudflare","version":2}})");
+  ASSERT_TRUE(result_);
+  EXPECT_EQ(CloudflareDeployer::Error::kNone, result_->error);
+  EXPECT_EQ("acc1", result_->deployment->account_id);
+}
+
+TEST_F(CloudflareDeployerTest, UpdateNotInThisAccount) {
+  deployer_.Update("compass-sync", "me", 2, base::DoNothing(),
+                   base::BindLambdaForTesting([this](CloudflareDeployer::Result r) {
+                     result_ = std::move(r);
+                   }));
+  Answer("GET", std::string(kApi) + "/accounts?per_page=50",
+         R"({"success":true,"result":[{"id":"acc0"}]})");
+  Answer("GET", std::string(kApi) + "/accounts/acc0/workers/subdomain",
+         R"({"success":true,"result":{"subdomain":"someone-else"}})");
+  ASSERT_TRUE(result_);
+  EXPECT_EQ(CloudflareDeployer::Error::kNotFound, result_->error);
 }
 
 }  // namespace

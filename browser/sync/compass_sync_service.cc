@@ -2777,18 +2777,36 @@ void CompassSyncService::OnAuthErrorHint() {
 #if !BUILDFLAG(IS_ANDROID)
 namespace {
 
-// The server Compass uploads (resources/sidebar/BUILD.gn,
-// build_sync_worker_grdp).
+// The server Compass uploads, and its version (resources/sidebar/BUILD.gn,
+// build_sync_worker_grdp; server/cloudflare/src/version.ts).
 constexpr std::string_view kSyncWorkerPath = "sync_worker/compass-sync.js";
+constexpr std::string_view kSyncWorkerVersionPath =
+    "sync_worker/compass-sync.version";
 
-std::string LoadSyncWorkerScript() {
+std::string LoadSyncWorkerResource(std::string_view path) {
   for (const webui::ResourcePath& resource : kCompassSidebarResources) {
-    if (resource.path == kSyncWorkerPath) {
+    if (resource.path == path) {
       return ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
           resource.id);
     }
   }
   return std::string();
+}
+
+std::string LoadSyncWorkerScript() {
+  return LoadSyncWorkerResource(kSyncWorkerPath);
+}
+
+// 0 if the build has none.
+int LoadSyncWorkerVersion() {
+  int version = 0;
+  if (!base::StringToInt(base::TrimWhitespaceASCII(
+                             LoadSyncWorkerResource(kSyncWorkerVersionPath),
+                             base::TRIM_ALL),
+                         &version)) {
+    return 0;
+  }
+  return version;
 }
 
 }  // namespace
@@ -2912,6 +2930,128 @@ void CompassSyncService::StartOnCloudflare(const std::string& access_token,
                     self, std::move(callback)));
           },
           weak_factory_.GetWeakPtr(), seed, std::move(callback)));
+}
+void CompassSyncService::GetServerUpdate(ServerUpdateCallback callback) {
+  const GURL url = GetServerUrl();
+  const int latest = LoadSyncWorkerVersion();
+  AccessClient* client = GetAccessClient();
+  // Only servers at the address Compass gives the ones it sets up.
+  if (!client || latest <= 0 || !CloudflareServerNameOf(url)) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+  client->GetServerInfo(base::BindOnce(
+      [](ServerUpdateCallback callback, int latest,
+         std::optional<ServerInfo> info) {
+        // Another kind of server at such an address: not Compass's to
+        // update. One from before versions has no kind, and is 1.
+        if (!info || (!info->kind.empty() && info->kind != "cloudflare")) {
+          std::move(callback).Run(std::nullopt);
+          return;
+        }
+        const int current = info->kind.empty() ? 1 : info->version;
+        if (current >= latest) {
+          std::move(callback).Run(std::nullopt);
+          return;
+        }
+        std::move(callback).Run(ServerUpdate{current, latest});
+      },
+      std::move(callback), latest));
+}
+
+void CompassSyncService::UpdateServer(const std::string& access_token,
+                                      DoneCallback callback) {
+  if (!seed_ || !IsChainRunning()) {
+    std::move(callback).Run(false, "Sync isn't running on this device.");
+    return;
+  }
+  if (deployer_ || cloudflare_sign_in_) {
+    std::move(callback).Run(false, "The server is being set up or updated.");
+    return;
+  }
+  const std::string token(
+      base::TrimWhitespaceASCII(access_token, base::TRIM_ALL));
+  if (!token.empty()) {
+    UpdateServerWithToken(token, std::move(callback));
+    return;
+  }
+  cloudflare_sign_in_ = std::make_unique<CloudflareSignIn>(
+      profile_, profile_->GetDefaultStoragePartition()
+                    ->GetURLLoaderFactoryForBrowserProcess());
+  server_setup_ = "Sign in to Cloudflare in the new tab and allow Compass…";
+  NotifyObservers();
+  cloudflare_sign_in_->Start(base::BindOnce(
+      [](base::WeakPtr<CompassSyncService> self, DoneCallback callback,
+         std::optional<std::string> token, std::string error) {
+        if (!self) {
+          return;
+        }
+        base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+            FROM_HERE, std::move(self->cloudflare_sign_in_));
+        self->server_setup_.clear();
+        if (!token) {
+          self->NotifyObservers();
+          std::move(callback).Run(false, std::move(error));
+          return;
+        }
+        self->UpdateServerWithToken(*token, std::move(callback));
+      },
+      weak_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void CompassSyncService::UpdateServerWithToken(const std::string& access_token,
+                                               DoneCallback callback) {
+  const std::optional<CloudflareServerName> name =
+      CloudflareServerNameOf(GetServerUrl());
+  std::string script = LoadSyncWorkerScript();
+  const int latest = LoadSyncWorkerVersion();
+  if (!name || script.empty() || latest <= 0) {
+    std::move(callback).Run(false, "This server can't be updated from here.");
+    return;
+  }
+  deployer_ = std::make_unique<CloudflareDeployer>(
+      profile_->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess(),
+      access_token, std::move(script));
+  server_setup_ = "Connecting to Cloudflare…";
+  NotifyObservers();
+  deployer_->Update(
+      name->script, name->subdomain, latest,
+      base::BindRepeating(
+          [](base::WeakPtr<CompassSyncService> self, const std::string& line) {
+            if (self) {
+              self->server_setup_ = line;
+              self->NotifyObservers();
+            }
+          },
+          weak_factory_.GetWeakPtr()),
+      base::BindOnce(
+          [](base::WeakPtr<CompassSyncService> self, DoneCallback callback,
+             CloudflareDeployer::Result result) {
+            if (!self) {
+              return;
+            }
+            base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+                FROM_HERE, std::move(self->deployer_));
+            self->server_setup_.clear();
+            self->NotifyObservers();
+            if (result.error != CloudflareDeployer::Error::kNone) {
+              std::move(callback).Run(false,
+                                      CloudflareDeployer::Describe(result));
+              return;
+            }
+            // Where it is, for a device that didn't set it up.
+            if (result.deployment) {
+              self->prefs_->SetDict(
+                  prefs::kCloudflare,
+                  base::DictValue()
+                      .Set("account_id", result.deployment->account_id)
+                      .Set("script", result.deployment->script_name)
+                      .Set("subdomain", result.deployment->subdomain));
+            }
+            std::move(callback).Run(true, std::string());
+          },
+          weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

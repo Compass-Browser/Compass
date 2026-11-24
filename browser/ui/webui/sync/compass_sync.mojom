@@ -171,6 +171,14 @@ struct ServerPeople {
   array<ServerInvite> invites;
 };
 
+// A newer server Compass can install (docs/design/sync.md, "Updating a
+// server").
+struct ServerUpdate {
+  bool available;
+  int32 current;
+  int32 latest;
+};
+
 // Bootstraps the connection; called once by the page.
 interface PageHandlerFactory {
   CreatePageHandler(pending_remote<Page> page,
@@ -227,6 +235,12 @@ interface PageHandler {
   GetServerPeople() => (ServerPeople people);
   // On, owner: a single-use invite; |link| is what to send.
   InviteFriend(string name) => (bool ok, string error, string link);
+  // On: whether the server can be updated.
+  GetServerUpdate() => (ServerUpdate update);
+  // On: updates it with |token| (a Cloudflare API token), or after
+  // "Sign in with Cloudflare" when it's empty. Progress shows in
+  // Status.server_setup.
+  UpdateServer(string token) => (bool ok, string error);
   // On, owner: a friend's chain ID or an invite's code.
   RemoveFromServer(string target) => (bool ok, string error);
 

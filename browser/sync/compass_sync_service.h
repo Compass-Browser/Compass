@@ -161,6 +161,9 @@ class CompassSyncService : public KeyedService,
   void StartOnCloudflare(const std::string& access_token,
                          StartCallback callback) override;
   void StartOnCloudflareSignIn(StartCallback callback) override;
+  void GetServerUpdate(ServerUpdateCallback callback) override;
+  void UpdateServer(const std::string& access_token,
+                    DoneCallback callback) override;
 #endif
   void JoinWithInvite(const std::string& invite_link,
                       StartCallback callback) override;
@@ -509,6 +512,11 @@ class CompassSyncService : public KeyedService,
   void ResetChainWithSeed(const GURL& server_url,
                           const Seed& seed,
                           StartCallback callback);
+#if !BUILDFLAG(IS_ANDROID)
+  // UpdateServer() with a token.
+  void UpdateServerWithToken(const std::string& access_token,
+                             DoneCallback callback);
+#endif
   // StartNewChain() with a seed made already (StartOnCloudflare() deploys
   // the server for its chain first).
   void StartNewChainWithSeed(const GURL& url,

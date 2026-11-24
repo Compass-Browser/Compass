@@ -42,6 +42,15 @@ void SyncController::InviteFriend(const std::string& name,
   std::move(callback).Run(false, "Not supported here.", std::string());
 }
 
+void SyncController::GetServerUpdate(ServerUpdateCallback callback) {
+  std::move(callback).Run(std::nullopt);
+}
+
+void SyncController::UpdateServer(const std::string& access_token,
+                                  DoneCallback callback) {
+  std::move(callback).Run(false, "Not supported here.");
+}
+
 void SyncController::RemoveFromServer(const std::string& target,
                                       DoneCallback callback) {
   std::move(callback).Run(false, "Not supported here.");

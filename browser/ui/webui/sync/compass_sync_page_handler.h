@@ -56,6 +56,9 @@ class CompassSyncPageHandler : public sync::mojom::PageHandler,
                     InviteFriendCallback callback) override;
   void RemoveFromServer(const std::string& target,
                         RemoveFromServerCallback callback) override;
+  void GetServerUpdate(GetServerUpdateCallback callback) override;
+  void UpdateServer(const std::string& token,
+                    UpdateServerCallback callback) override;
   void JoinWithRecoveryCode(const std::string& server_url,
                             const std::string& words,
                             JoinWithRecoveryCodeCallback callback) override;

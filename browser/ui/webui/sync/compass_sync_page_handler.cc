@@ -321,6 +321,29 @@ void CompassSyncPageHandler::RemoveFromServer(
                   std::move(callback)));
 }
 
+void CompassSyncPageHandler::GetServerUpdate(
+    GetServerUpdateCallback callback) {
+  controller_->GetServerUpdate(base::BindOnce(
+      [](GetServerUpdateCallback callback,
+         std::optional<sync::SyncController::ServerUpdate> update) {
+        std::move(callback).Run(sync::mojom::ServerUpdate::New(
+            update.has_value(), update ? update->current : 0,
+            update ? update->latest : 0));
+      },
+      std::move(callback)));
+}
+
+void CompassSyncPageHandler::UpdateServer(const std::string& token,
+                                          UpdateServerCallback callback) {
+  controller_->UpdateServer(
+      token, base::BindOnce(
+                 [](UpdateServerCallback callback, bool ok,
+                    std::string error) {
+                   std::move(callback).Run(ok, error);
+                 },
+                 std::move(callback)));
+}
+
 void CompassSyncPageHandler::JoinWithRecoveryCode(
     const std::string& server_url,
     const std::string& words,

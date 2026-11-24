@@ -89,6 +89,40 @@ const base::Value* ResultField(const std::optional<base::Value>& json) {
 
 }  // namespace
 
+std::optional<ServerInfo> ParseServerInfo(std::string_view json) {
+  std::optional<base::Value> value =
+      base::JSONReader::Read(json, base::JSON_PARSE_RFC);
+  if (!value || !value->is_dict()) {
+    return std::nullopt;
+  }
+  ServerInfo info;
+  if (const base::DictValue* server = value->GetDict().FindDict("server")) {
+    if (const std::string* kind = server->FindString("kind")) {
+      info.kind = *kind;
+    }
+    info.version = server->FindInt("version").value_or(0);
+  }
+  return info;
+}
+
+std::optional<CloudflareServerName> CloudflareServerNameOf(const GURL& url) {
+  constexpr std::string_view kSuffix = ".workers.dev";
+  if (!url.is_valid() || !url.SchemeIs("https")) {
+    return std::nullopt;
+  }
+  const std::string host = base::ToLowerASCII(url.host());
+  if (!host.ends_with(kSuffix)) {
+    return std::nullopt;
+  }
+  const std::string name = host.substr(0, host.size() - kSuffix.size());
+  const size_t dot = name.find('.');
+  if (dot == std::string::npos || dot == 0 || dot + 1 >= name.size() ||
+      name.find('.', dot + 1) != std::string::npos) {
+    return std::nullopt;
+  }
+  return CloudflareServerName{name.substr(0, dot), name.substr(dot + 1)};
+}
+
 CloudflareDeployer::CloudflareDeployer(
     scoped_refptr<network::SharedURLLoaderFactory> loader_factory,
     std::string access_token,
@@ -102,33 +136,49 @@ CloudflareDeployer::CloudflareDeployer(
 CloudflareDeployer::~CloudflareDeployer() = default;
 
 // static
-std::string CloudflareDeployer::MakeMetadata(const std::string& owner_chain_id,
-                                             bool with_migration) {
+std::string CloudflareDeployer::MakeMetadata(
+    const std::string& owner_chain_id,
+    const std::string& migration_tag) {
   base::DictValue metadata;
   metadata.Set("main_module", "index.js");
   metadata.Set("compatibility_date", kCloudflareCompatibilityDate);
   base::ListValue bindings;
   for (const auto& [name, class_name] :
        {std::pair{"CHAIN", "Chain"}, std::pair{"PAIRING", "Pairing"},
-        std::pair{"ACCESS", "Access"}}) {
+        std::pair{"ACCESS", "Access"}, std::pair{"ROOM", "Room"}}) {
     bindings.Append(base::DictValue()
                         .Set("type", "durable_object_namespace")
                         .Set("name", name)
                         .Set("class_name", class_name));
   }
-  bindings.Append(base::DictValue()
-                      .Set("type", "plain_text")
-                      .Set("name", "COMPASS_SYNC_ALLOWED_CHAINS")
-                      .Set("text", base::ToLowerASCII(owner_chain_id)));
+  if (owner_chain_id.empty()) {
+    // An update: the owners and any other variable stay as they are.
+    metadata.Set("keep_bindings",
+                 base::ListValue().Append("plain_text").Append("secret_text"));
+  } else {
+    bindings.Append(base::DictValue()
+                        .Set("type", "plain_text")
+                        .Set("name", "COMPASS_SYNC_ALLOWED_CHAINS")
+                        .Set("text", base::ToLowerASCII(owner_chain_id)));
+  }
   metadata.Set("bindings", std::move(bindings));
-  if (with_migration) {
+  // The SQLite migration of the classes the script doesn't have yet;
+  // Cloudflare refuses one a script already ran (412).
+  if (migration_tag.empty()) {
     metadata.Set("migrations",
                  base::DictValue()
                      .Set("new_tag", kCloudflareMigrationTag)
                      .Set("new_sqlite_classes", base::ListValue()
                                                     .Append("Chain")
                                                     .Append("Pairing")
-                                                    .Append("Access")));
+                                                    .Append("Access")
+                                                    .Append("Room")));
+  } else if (migration_tag == "v1") {
+    metadata.Set("migrations",
+                 base::DictValue()
+                     .Set("old_tag", "v1")
+                     .Set("new_tag", kCloudflareMigrationTag)
+                     .Set("new_sqlite_classes", base::ListValue().Append("Room")));
   }
   return base::WriteJson(metadata).value_or("{}");
 }
@@ -159,7 +209,27 @@ std::string CloudflareDeployer::Describe(const Result& result) {
     case Error::kNotReachable:
       return "The server is set up but doesn't answer yet. Try again in a "
              "few minutes.";
+    case Error::kNotFound:
+      return "Your server isn't in the Cloudflare account you signed in "
+             "with. Sign in with the account it was set up in.";
   }
+}
+
+void CloudflareDeployer::Update(const std::string& script_name,
+                                const std::string& subdomain,
+                                int version,
+                                ProgressCallback progress,
+                                Callback callback) {
+  update_ = true;
+  version_ = version;
+  deployment_.script_name = script_name;
+  deployment_.subdomain = subdomain;
+  progress_ = std::move(progress);
+  callback_ = std::move(callback);
+  Progress("Finding your server on Cloudflare…");
+  Call("GET", "/accounts?per_page=50", std::string(), std::string(),
+       base::BindOnce(&CloudflareDeployer::OnAccounts,
+                      weak_factory_.GetWeakPtr()));
 }
 
 void CloudflareDeployer::Deploy(const std::string& owner_chain_id,
@@ -237,6 +307,18 @@ void CloudflareDeployer::OnAccounts(int status,
     Fail(Error::kNoAccount);
     return;
   }
+  if (update_) {
+    // The server's account is the one with its workers.dev subdomain.
+    for (const base::Value& account : result->GetList()) {
+      const std::string* account_id =
+          account.is_dict() ? account.GetDict().FindString("id") : nullptr;
+      if (account_id && !account_id->empty()) {
+        accounts_.push_back(*account_id);
+      }
+    }
+    CheckNextAccount();
+    return;
+  }
   const std::string* id = result->GetList()[0].GetDict().FindString("id");
   if (!id || id->empty()) {
     Fail(Error::kNoAccount);
@@ -247,6 +329,39 @@ void CloudflareDeployer::OnAccounts(int status,
        std::string(), std::string(),
        base::BindOnce(&CloudflareDeployer::OnSubdomain,
                       weak_factory_.GetWeakPtr()));
+}
+
+void CloudflareDeployer::CheckNextAccount() {
+  if (next_account_ >= accounts_.size()) {
+    Fail(Error::kNotFound);
+    return;
+  }
+  deployment_.account_id = accounts_[next_account_++];
+  Call("GET",
+       base::StrCat({"/accounts/", deployment_.account_id,
+                     "/workers/subdomain"}),
+       std::string(), std::string(),
+       base::BindOnce(&CloudflareDeployer::OnAccountSubdomain,
+                      weak_factory_.GetWeakPtr()));
+}
+
+void CloudflareDeployer::OnAccountSubdomain(int status,
+                                            std::optional<base::Value> json) {
+  if (status == 401) {
+    FailFor(status, json);
+    return;
+  }
+  const base::Value* result = ResultField(json);
+  const std::string* subdomain =
+      Succeeded(status, json) && result && result->is_dict()
+          ? result->GetDict().FindString("subdomain")
+          : nullptr;
+  if (!subdomain || *subdomain != deployment_.subdomain) {
+    // Not this account (or one the sign-in can't read): the next.
+    CheckNextAccount();
+    return;
+  }
+  ListScripts();
 }
 
 void CloudflareDeployer::OnSubdomain(int status,
@@ -332,20 +447,29 @@ void CloudflareDeployer::OnScripts(int status,
       }
     }
   }
-  // An account that has a "compass-sync" already (set up before, by hand
-  // or for another chain) keeps it: this one gets a name of its own.
-  deployment_.script_name =
-      scripts.contains(kCloudflareScriptName)
-          ? base::StrCat({kCloudflareScriptName, "-",
-                          base::ToLowerASCII(owner_.substr(0, 6))})
-          : kCloudflareScriptName;
-  // A new script needs its Durable Objects' SQLite migration; one that ran
-  // it (this chain's setup tried before) mustn't get it again.
+  if (update_) {
+    if (!scripts.contains(deployment_.script_name)) {
+      // Another account with this subdomain can't exist; the script is gone.
+      Fail(Error::kNotFound);
+      return;
+    }
+  } else {
+    // An account that has a "compass-sync" already (set up before, by hand
+    // or for another chain) keeps it: this one gets a name of its own.
+    deployment_.script_name =
+        scripts.contains(kCloudflareScriptName)
+            ? base::StrCat({kCloudflareScriptName, "-",
+                            base::ToLowerASCII(owner_.substr(0, 6))})
+            : kCloudflareScriptName;
+  }
+  // The migrations the script of that name (this chain's setup tried
+  // before) has run already.
   const auto existing = scripts.find(deployment_.script_name);
-  const bool with_migration = existing == scripts.end() ||
-                              existing->second != kCloudflareMigrationTag;
+  const std::string migration_tag =
+      existing == scripts.end() ? std::string() : existing->second;
 
-  Progress("Uploading the sync server…");
+  Progress(update_ ? "Uploading the new version…"
+                   : "Uploading the sync server…");
   const std::string boundary =
       base::StrCat({"compass-", RandomLetters(24)});
   std::string body;
@@ -356,7 +480,7 @@ void CloudflareDeployer::OnScripts(int status,
                      name, "\"; filename=\"", name, "\"\r\nContent-Type: ", type,
                      "\r\n\r\n", content, "\r\n"});
   };
-  part("metadata", "application/json", MakeMetadata(owner_, with_migration));
+  part("metadata", "application/json", MakeMetadata(owner_, migration_tag));
   part("index.js", "application/javascript+module", script_);
   base::StrAppend(&body, {"--", boundary, "--\r\n"});
   Call("PUT",
@@ -372,6 +496,11 @@ void CloudflareDeployer::OnUploaded(int status,
                                     std::optional<base::Value> json) {
   if (!Succeeded(status, json)) {
     FailFor(status, json);
+    return;
+  }
+  if (update_) {
+    // Its route is on already.
+    OnRouteEnabled(200, base::Value(base::DictValue().Set("success", true)));
     return;
   }
   Call("POST",
@@ -392,14 +521,19 @@ void CloudflareDeployer::OnRouteEnabled(int status,
   deployment_.server_url =
       GURL(base::StrCat({"https://", deployment_.script_name, ".",
                          deployment_.subdomain, ".workers.dev/v2"}));
-  Progress("Waiting for the server to come online…");
+  Progress(update_ ? "Waiting for the new version to answer…"
+                   : "Waiting for the server to come online…");
   health_deadline_ = base::TimeTicks::Now() + health_timeout_;
   CheckHealth();
 }
 
 void CloudflareDeployer::CheckHealth() {
   auto request = std::make_unique<network::ResourceRequest>();
-  request->url = deployment_.server_url.Resolve("/healthz");
+  // An update waits for its version (/v2/compass/info); a new server for
+  // its address to resolve and answer.
+  request->url = update_ ? GURL(base::StrCat({deployment_.server_url.spec(),
+                                              "/compass/info"}))
+                         : deployment_.server_url.Resolve("/healthz");
   request->credentials_mode = network::mojom::CredentialsMode::kOmit;
   loader_ = network::SimpleURLLoader::Create(std::move(request),
                                              kTrafficAnnotation);
@@ -408,12 +542,16 @@ void CloudflareDeployer::CheckHealth() {
       loader_factory_.get(),
       base::BindOnce(&CloudflareDeployer::OnHealth,
                      weak_factory_.GetWeakPtr()),
-      1024);
+      4096);
 }
 
 void CloudflareDeployer::OnHealth(std::optional<std::string> body) {
   loader_.reset();
-  if (body && base::TrimWhitespaceASCII(*body, base::TRIM_ALL) == "ok") {
+  const bool healthy =
+      body && (update_ ? ParseServerInfo(*body).value_or(ServerInfo()).version >=
+                             version_
+                       : base::TrimWhitespaceASCII(*body, base::TRIM_ALL) == "ok");
+  if (healthy) {
     Result result;
     result.deployment = deployment_;
     std::move(callback_).Run(std::move(result));

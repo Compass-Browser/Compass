@@ -503,6 +503,26 @@
        access list that this chain owns. -->
   <div id="people" hidden>
     <h2>People on your server</h2>
+    <!-- docs/design/sync.md, "Updating a server". -->
+    <div id="serverUpdate" class="card" hidden>
+      <p><strong>A newer version of your server is ready.</strong>
+        <span id="serverUpdateNote"></span></p>
+      <div class="buttons">
+        <button id="updateServer">Update with Cloudflare</button>
+        <button id="showUpdateToken" class="link">Use an API token
+          instead</button>
+      </div>
+      <div id="updateTokenPanel" hidden>
+        <label class="field" for="updateToken">Cloudflare API token</label>
+        <input id="updateToken" type="password" autocomplete="off"
+            spellcheck="false">
+        <div class="buttons">
+          <button id="updateServerToken">Update</button>
+        </div>
+      </div>
+      <p id="updateProgress" class="note" aria-live="polite"></p>
+      <p id="updateError" class="error"></p>
+    </div>
     <p class="note">Only your devices and the friends you invite can sync
       on your server. Their data is encrypted on their devices: you can't
       read it.</p>

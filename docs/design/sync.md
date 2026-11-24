@@ -1415,9 +1415,19 @@ the chain's data in its own SQLite database (a port of `command/` and
 notifications stay Server-Sent Events for the client: the chain's object
 announces changes on a hibernating WebSocket (free while quiet) and the
 Worker holds the device's stream. The Go suite's end-to-end tests that take
-a URL (`COMPASS_SYNC_E2E_URL`) pass against it, locally and deployed. Not
-ported yet: rooms (404), push (devices learn of sent tabs at their next
-sync), company sign-in.
+a URL (`COMPASS_SYNC_E2E_URL`) pass against it, locally and deployed,
+the rooms tests among them (`roomsServer()` takes the URL too; the ones
+needing a local database, other limits or sign-in skip). Rooms: a Durable
+Object per room (`src/room.ts`) with the Go contract above; the Worker
+holds `changes?wait=` long polls itself and the room's object wakes it on a
+hibernating WebSocket (the desktop re-polls every room it mounts
+continuously, which would otherwise keep each room's object awake); `room`
+events and `GET /rooms` go through each member chain's object, which keeps
+an index of its rooms; room bytes count in the owner chain's. Checked with
+two Compass instances sharing a folder through it (an edit shows on the
+other in about 1.3 s, the client's 0.8 s send delay included). Not ported
+yet: push (devices learn of sent tabs at their next sync), company sign-in
+(so no directory or email invites).
 
 **Who may use it.** The Worker serves only its owners
 (`COMPASS_SYNC_ALLOWED_CHAINS`), the chains they link (profiles), and
@@ -1447,8 +1457,11 @@ used once. "Use an API token instead" takes a pasted token (template
    the account, its workers.dev subdomain (made if missing), the script
    `compass-sync` (or `compass-sync-<6 hex of the chain>` if the account
    has one), uploaded with the chain as `COMPASS_SYNC_ALLOWED_CHAINS` and
-   the Durable Objects' SQLite migration (not sent to a script that ran
-   it: Cloudflare answers 412), its workers.dev route on, then
+   the Durable Objects' SQLite migration (by the script's
+   `migration_tag`: a new script gets every class as `v2`, a `v1` one,
+   from before rooms, `Room` from `v1` to `v2`, a `v2` one nothing;
+   Cloudflare refuses a migration a script ran, 412), its workers.dev
+   route on, then
    `/healthz` until it answers (a new subdomain can take minutes);
 3. records where it is (`compass.sync.cloudflare`: account, script,
    subdomain; never the token) and starts the chain on
@@ -1465,6 +1478,36 @@ private one the new chain is then let in as the old one was, an owner as
 an owner, a friend as a friend. A server without the route answers 404,
 which is fine; if the server can't be reached the reset doesn't happen,
 since the new chain could be locked out.
+
+### Updating a server
+
+A server Compass set up keeps the version it was set up with; Compass
+offers its owner the newer one it ships.
+
+- **Versions.** `server/cloudflare/src/version.ts` (`SERVER_VERSION`),
+  raised with each change existing servers should get (1: the first
+  release; 2: rooms). The server reports it in `GET /v2/compass/info` as
+  `"server": {"kind": "cloudflare", "version": N}` (servers from before
+  have no `server`, and count as 1); `npm run bundle` writes it to
+  `dist/compass-sync.version`, which Compass ships next to the script.
+- **The offer.** With sync on, an owner's People section (only owners see
+  it) shows "A newer version of your server is ready" when the server's
+  address is one Compass gives (`https://<script>.<subdomain>.workers.dev`,
+  `CloudflareServerNameOf()`), its `/info` is a Cloudflare server's (or has
+  no `server`), and it reports less than Compass's
+  (`GetServerUpdate()`). It says what the versions it lacks add.
+- **Updating** (`UpdateServer()`): Sign in with Cloudflare, or a token, as
+  for setting up. `CloudflareDeployer::Update()` looks through the
+  sign-in's accounts for the one whose workers.dev subdomain is the
+  server's, checks it has the script, and uploads the shipped one with
+  `keep_bindings: ["plain_text", "secret_text"]`: the owners
+  (`COMPASS_SYNC_ALLOWED_CHAINS`, which after a reset name another chain
+  than the device's), and any variable the user set, stay as they are. The
+  migration comes from the script's tag (above). It's done once the
+  server's `/info` reports the new version. Any owner device can do it, not
+  only the one that set the server up; it then records where the server is
+  (`compass.sync.cloudflare`). Durable Objects keep their data across the
+  upload.
 
 ### Inviting friends
 

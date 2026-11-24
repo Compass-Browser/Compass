@@ -210,6 +210,24 @@ class SyncController {
   using InviteCallback = base::OnceCallback<
       void(bool ok, std::string error, std::string link)>;
   virtual void InviteFriend(const std::string& name, InviteCallback callback);
+  // On: the server can be updated: it's one Compass set up on Cloudflare,
+  // and Compass ships a newer version (docs/design/sync.md, "Updating a
+  // server"). Nullopt otherwise (or no answer). Default: nullopt.
+  struct ServerUpdate {
+    // What the server reports (1 for servers from before versions).
+    int current = 0;
+    // What this Compass would install.
+    int latest = 0;
+  };
+  using ServerUpdateCallback =
+      base::OnceCallback<void(std::optional<ServerUpdate>)>;
+  virtual void GetServerUpdate(ServerUpdateCallback callback);
+  // On: updates the server to Compass's version, with |access_token| (a
+  // Cloudflare API token), or after "Sign in with Cloudflare" in a new tab
+  // when it's empty. Progress shows in GetStatus().server_setup. Default:
+  // fails.
+  virtual void UpdateServer(const std::string& access_token,
+                            DoneCallback callback);
   // On, owner: removes a friend (their chain ID) or revokes an open invite
   // (its code).
   virtual void RemoveFromServer(const std::string& target,
