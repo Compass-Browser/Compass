@@ -1,8 +1,9 @@
-Actions in the command bar, and a better Claude chat.
+Apple Intelligence for the sidebar, and incognito in the tab switcher.
 
-- Command bar actions: type an action's name, like "settings", "reader", "copy link" or "reopen", and it comes first; Return runs it. Part of a name ("sett") lists it at the bottom, under Commands. Actions: Find on Page, Reload, Copy Link, Reader, Pin or Unpin Tab, Development Mode, Tidy Today, Chat with Claude, New Incognito Tab, Reopen Closed Tab, Downloads, Settings.
-- Claude chat: replies show headings, lists, code blocks, quotes and tables; links open in a new tab. You can write while Claude replies: your messages wait above the field and go one after another.
-- Sign in with Google (and other popups that report back to the page) now works in every tab.
-- Development mode starts on for localhost.
-- Spaces joined on the Mac while an older version was installed now show up after updating.
-- Please report: an action that does nothing or the wrong thing, an action missing when it should show, Return searching when an action is first, and chat replies that look wrong.
+- Apple Intelligence: Settings → AI in the Sidebar → Answer With can send Name Link Folders, Tidy Today and Shorter Tab Titles to the on-device model. No key needed, and nothing leaves the phone. Ask in the command bar stays with your chat provider.
+- Tab switcher: from an incognito tab it shows only incognito tabs, otherwise only regular ones. A Tabs / Incognito toggle beside + switches between them. While incognito is locked, its side shows the lock instead of the tabs.
+- Tab switcher +: a tap opens a new tab on the side you're on; holding it offers New Tab, New Incognito Tab and New Easel, as the bar's + does.
+- Swiping the bar sideways goes through tabs in the tab switcher's order (most recent first), as the iPhone's app switcher does. The bar is clear Liquid Glass.
+- The bar fades out as the tab switcher opens, instead of showing through it.
+- The menu's icons (Site Settings, Settings…) keep their colors with a bright space theme in dark mode.
+- Please report: incognito tabs showing on the regular side (or the other way round), anything showing while incognito is locked, swipes landing on the wrong tab, and Apple Intelligence answers that look wrong.

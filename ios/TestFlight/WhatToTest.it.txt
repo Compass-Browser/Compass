@@ -1,8 +1,9 @@
-Azioni nella barra dei comandi e una chat con Claude migliore.
+Apple Intelligence per la barra laterale, e l'incognito nel selettore schede.
 
-- Azioni nella barra dei comandi: scrivi il nome di un'azione, come "settings", "reader", "copy link" o "reopen", e viene per prima; Invio la esegue. Una parte del nome ("sett") la mostra in fondo, sotto Commands. Azioni: Find on Page, Reload, Copy Link, Reader, Pin o Unpin Tab, Development Mode, Tidy Today, Chat with Claude, New Incognito Tab, Reopen Closed Tab, Downloads, Settings.
-- Chat con Claude: le risposte mostrano titoli, elenchi, blocchi di codice, citazioni e tabelle; i link si aprono in una nuova scheda. Puoi scrivere mentre Claude risponde: i messaggi aspettano sopra il campo e partono uno dopo l'altro.
-- L'accesso con Google (e gli altri popup che rispondono alla pagina) ora funziona in tutte le schede.
-- La modalità sviluppo è attiva da subito per localhost.
-- Gli spazi a cui ti sei unito sul Mac mentre era installata una versione precedente ora compaiono dopo l'aggiornamento.
-- Segnalaci: un'azione che non fa nulla o fa la cosa sbagliata, un'azione che manca quando dovrebbe esserci, Invio che cerca quando c'è un'azione per prima, e risposte della chat che si vedono male.
+- Apple Intelligence: Impostazioni → AI in the Sidebar → Answer With può mandare Name Link Folders, Tidy Today e Shorter Tab Titles al modello sul dispositivo. Nessuna chiave, e nulla lascia il telefono. Ask nella barra dei comandi resta sul provider della chat.
+- Selettore schede: da una scheda in incognito mostra solo le schede in incognito, altrimenti solo quelle normali. Un interruttore Tabs / Incognito accanto al + passa dall'uno all'altro. Mentre l'incognito è bloccato, il suo lato mostra il lucchetto al posto delle schede.
+- Il + del selettore schede: un tocco apre una nuova scheda sul lato in cui sei; tenendolo premuto offre New Tab, New Incognito Tab e New Easel, come il + della barra.
+- Scorrere la barra di lato passa tra le schede nell'ordine del selettore schede (le più recenti prima), come il selettore app dell'iPhone. La barra è in Liquid Glass trasparente.
+- La barra sfuma mentre si apre il selettore schede, invece di vedersi attraverso.
+- Le icone del menu (Site Settings, Settings…) mantengono i colori con un tema dello spazio chiaro in modalità scura.
+- Segnalaci: schede in incognito sul lato normale (o il contrario), qualcosa che si vede mentre l'incognito è bloccato, scorrimenti che finiscono sulla scheda sbagliata, e risposte di Apple Intelligence che sembrano sbagliate.
