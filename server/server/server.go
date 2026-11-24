@@ -310,13 +310,14 @@ func setupRouter(
 	pushCfg := cfg.Push
 	pushCfg.Store = db
 	pushCfg.Authorize = authorize
+	pushCfg.Streaming = hub.Connected
 	pusher, err := push.New(pushCfg)
 	if err != nil {
 		return ctx, nil, nil, err
 	}
 	notify := func(chain, cacheGUID string, types, created []int) {
 		hub.Notify(chain, cacheGUID, types)
-		pusher.OnCommit(chain, cacheGUID, created)
+		pusher.OnCommit(chain, cacheGUID, types, created)
 	}
 	devicesHandler := devices.New(devices.Config{
 		Store:     db,

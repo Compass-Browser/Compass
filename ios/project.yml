@@ -158,7 +158,9 @@ targets:
         NSMicrophoneUsageDescription: Compass lets websites you allow use the microphone, for calls and recordings.
         NSFaceIDUsageDescription: Compass asks for Face ID before showing your recovery code.
         # audio: a picture-in-picture video keeps playing outside the app.
-        UIBackgroundModes: [fetch, audio]
+        # remote-notification: the sync server's silent push has the app
+        # sync in the background (send-tab.md, "Background sync").
+        UIBackgroundModes: [fetch, audio, remote-notification]
         # Self-hosted servers on the LAN or Tailscale may be plain HTTP.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true

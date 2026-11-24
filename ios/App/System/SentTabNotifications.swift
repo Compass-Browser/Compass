@@ -26,20 +26,17 @@ final class SentTabNotifications: NSObject, UNUserNotificationCenterDelegate {
   func setUp(services: AppServices) {
     center.delegate = self
     services.sync.onSentTabs = { [weak self] tabs, account in self?.post(tabs, account: account) }
-    // Already allowed (an earlier launch): the device token comes each launch.
-    center.getNotificationSettings { settings in
-      guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
-      Task { @MainActor in UIApplication.shared.registerForRemoteNotifications() }
-    }
+    // The device token comes each launch. Without notifications allowed
+    // it still brings the server's silent pushes (background sync).
+    if services.sync.isOn { UIApplication.shared.registerForRemoteNotifications() }
   }
 
   /// Asked once sync is on (iOS asks the user only the first time).
   func requestAuthorization() {
-    center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-      // The device token for the server's push (AppDelegate gets it).
-      guard granted else { return }
-      Task { @MainActor in UIApplication.shared.registerForRemoteNotifications() }
-    }
+    // The device token for the server's pushes (AppDelegate gets it): the
+    // sent tabs' alerts if allowed, the silent background syncs anyway.
+    UIApplication.shared.registerForRemoteNotifications()
+    center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
   }
 
   func post(_ tabs: [SentTab], account: String) {

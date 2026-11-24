@@ -1,13 +1,15 @@
 // Package push registers devices' APNs tokens per chain and wakes a chain's
 // iPhones when another device sends them a tab (docs/design/send-tab.md,
-// "Delivery").
+// "Delivery"), or has them sync in the background when another device
+// changes their spaces, passwords or extensions ("Background sync").
 //
 //	POST   /?client_id=<cache GUID>  (sync token)  204
 //	       {"token":"<hex>","environment":"sandbox"|"production","topic":"<bundle ID>"}
 //	DELETE /?client_id=<cache GUID>  (sync token)  204
 //
 // When a commit adds a SEND_TAB_TO_SELF entity, every registered token of
-// the chain except the committer's gets an alert push. The entry itself is
+// the chain except the committer's gets an alert push; when one changes a
+// background type, every other iPhone a silent one. The entry itself is
 // encrypted, so the server can't tell which device it's for; the phone's
 // notification service extension fetches and decrypts it.
 package push
@@ -176,6 +178,19 @@ func (r Result) Invalid() bool {
 
 // Send pushes an alert |payload| to |token| on |topic|.
 func (s *Sender) Send(ctx context.Context, environment, topic, token string, payload []byte) (Result, error) {
+	// A sent tab older than a day isn't worth a banner; the app shows it.
+	return s.send(ctx, environment, topic, token, payload, "alert", "10", 24*time.Hour)
+}
+
+// SendBackground pushes a silent |payload| (content-available) to |token|
+// on |topic|: iOS wakes the app for it when it sees fit. Apple requires
+// priority 5 for these. An hour later the next sync is near anyway.
+func (s *Sender) SendBackground(ctx context.Context, environment, topic, token string, payload []byte) (Result, error) {
+	return s.send(ctx, environment, topic, token, payload, "background", "5", time.Hour)
+}
+
+func (s *Sender) send(ctx context.Context, environment, topic, token string, payload []byte,
+	pushType, priority string, lifetime time.Duration) (Result, error) {
 	host := ProductionHost
 	if environment == "sandbox" {
 		host = SandboxHost
@@ -193,11 +208,10 @@ func (s *Sender) Send(ctx context.Context, environment, topic, token string, pay
 	}
 	req.Header.Set("Authorization", "bearer "+jwt)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("apns-push-type", "alert")
-	req.Header.Set("apns-priority", "10")
+	req.Header.Set("apns-push-type", pushType)
+	req.Header.Set("apns-priority", priority)
 	req.Header.Set("apns-topic", topic)
-	// A sent tab older than a day isn't worth a banner; the app shows it.
-	req.Header.Set("apns-expiration", strconv.FormatInt(s.now().Add(24*time.Hour).Unix(), 10))
+	req.Header.Set("apns-expiration", strconv.FormatInt(s.now().Add(lifetime).Unix(), 10))
 	resp, err := s.client.Do(req)
 	if err != nil {
 		return Result{}, fmt.Errorf("error sending the push: %w", err)

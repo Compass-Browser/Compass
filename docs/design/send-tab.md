@@ -58,6 +58,30 @@ unchanged, so the desktop needs no new format:
      notification needs Apple's filtering entitlement). The app's local
      notification for a GUID already shown by push is skipped.
 
+## Background sync
+
+The same registrations have an iPhone sync while Compass is closed, so its
+sidebar and passwords are current when it's opened:
+
+- **Server**: when a commit changes a background type (COMPASS_SPACES,
+  PASSWORDS, EXTENSIONS; not HISTORY, SESSIONS or DEVICE_INFO, which change
+  all the time while a Mac is in use), every other APNs registration of the
+  account gets a silent push: `apns-push-type: background`,
+  `apns-priority: 5`, an hour's expiration,
+  `{"aps": {"content-available": 1}, "compass": {"type": "sync"}}`. At most
+  one per device per 15 minutes (iOS gives an app a few an hour): changes
+  within that wait for its end and go out as one push. A device with a
+  change stream open (Compass in use there) gets none. FCM registrations
+  get none (Android).
+- **Phone**: the `remote-notification` background mode;
+  `application(_:didReceiveRemoteNotification:fetchCompletionHandler:)`
+  runs one sync cycle and saves the sidebar. It registers for remote
+  notifications whenever sync is on, whether or not the user allowed
+  notifications (a silent push needs no permission).
+
+iOS decides whether to wake the app (Low Power Mode, a force-quit app, its
+budget); the background refresh task stays as the fallback.
+
 ## Parts
 
 | Part | Where |
@@ -65,7 +89,7 @@ unchanged, so the desktop needs no new format:
 | iOS: DEVICE_INFO flag, `SendTabBridge`, local notifications, tap opens and marks opened | iOS app |
 | iOS: APNs registration, token upload, notification service extension | iOS app |
 | Desktop: SEND_TAB_TO_SELF and its entry points | browser |
-| Server: `/v2/compass/push`, APNs on new SEND_TAB_TO_SELF | `server/push` |
+| Server: `/v2/compass/push`, APNs on new SEND_TAB_TO_SELF, background pushes | `server/push` |
 
 A server that sends pushes needs an APNs auth key (Certificates,
 Identifiers & Profiles → Keys → Apple Push Notifications service): the

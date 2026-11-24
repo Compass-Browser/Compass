@@ -58,6 +58,35 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     #endif
   }
 
+  /// The sync server's silent push (`{"compass": {"type": "sync"}}`):
+  /// another device changed spaces, passwords or extensions, and iOS gives
+  /// the app about 30 s to sync them (send-tab.md, "Background sync").
+  func application(
+    _ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+    fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
+  ) {
+    let type = (userInfo["compass"] as? [String: Any])?["type"] as? String
+    nonisolated(unsafe) let done = completionHandler
+    MainActor.assumeIsolated {
+      guard type == "sync", let services = AppServices.shared, services.sync.isOn else {
+        done(.noData)
+        return
+      }
+      Task { @MainActor in
+        let before = services.sync.lastSync
+        await services.sync.syncNow()
+        try? services.store.save(to: services.sidebarURL)
+        if services.sync.lastSync != before {
+          done(.newData)
+        } else if case .failed = services.sync.state {
+          done(.failed)
+        } else {
+          done(.noData)
+        }
+      }
+    }
+  }
+
   /// iOS woke the app for the background download session's events.
   func application(
     _ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,

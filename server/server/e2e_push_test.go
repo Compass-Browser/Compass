@@ -119,6 +119,7 @@ func pushServer(t *testing.T) (string, *fakeAPNs, *datastore.SQLite) {
 	require.NoError(t, err)
 	cfg.Push.APNs = push.APNsConfig{KeyPath: keyPath, KeyID: "KEY123", TeamID: "TEAM123",
 		Host: apns.srv.URL, HTTPClient: apns.srv.Client()}
+	cfg.Push.BackgroundInterval = backgroundInterval
 	ctx, logger := server.SetupLogger(context.Background())
 	ctx, r, hub, err := server.SetupRouter(ctx, logger, cfg, db)
 	require.NoError(t, err)
@@ -155,6 +156,21 @@ func sentTab(id string, version int64) *sync_pb.SyncEntity {
 		ClientTagHash: ptr.String("tag-" + id), Name: ptr.String("encrypted"),
 		Deleted: ptr.Bool(false), Specifics: spec}
 }
+
+// password is an encrypted PASSWORDS entity, a type whose changes have the
+// chain's iPhones sync in the background.
+func password(id string) *sync_pb.SyncEntity {
+	enc := &sync_pb.EncryptedData{KeyName: ptr.String("k"), Blob: ptr.String("opaque")}
+	spec := &sync_pb.EntitySpecifics{Encrypted: enc,
+		SpecificsVariant: &sync_pb.EntitySpecifics_Password{Password: &sync_pb.PasswordSpecifics{}}}
+	return &sync_pb.SyncEntity{IdString: ptr.String(id), Version: ptr.Int64(0),
+		ClientTagHash: ptr.String("tag-" + id), Name: ptr.String("encrypted"),
+		Deleted: ptr.Bool(false), Specifics: spec}
+}
+
+// backgroundInterval is the push servers' least time between two background
+// pushes to a device.
+const backgroundInterval = 2 * time.Second
 
 const (
 	phoneToken  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -252,4 +268,49 @@ func TestPushRegistrationValidation(t *testing.T) {
 	require.Len(t, toks, 1)
 	assert.Equal(t, datastore.PushToken{CacheGUID: "guid", Token: phone2Token, Environment: "production",
 		Topic: "it.cipi1965.compass"}, toks[0])
+}
+
+func TestEndToEndBackgroundSyncPush(t *testing.T) {
+	url, apns, _ := pushServer(t)
+	seed := randomSeed(t)
+	mac := newDevice(t, url, seed, "mac-guid")
+	phone := newDevice(t, url, seed, "phone-guid")
+	open := newDevice(t, url, seed, "open-guid")
+	require.Equal(t, http.StatusNoContent, phone.register("POST", phone.token(time.Now()), registration(phoneToken, "sandbox")))
+	require.Equal(t, http.StatusNoContent, open.register("POST", open.token(time.Now()), registration(phone2Token, "production")))
+	require.Equal(t, http.StatusNoContent, mac.register("POST", mac.token(time.Now()), registration(macToken, "production")))
+	// Compass is open on one phone: its stream has it sync, no push.
+	stream, status := open.subscribe(open.token(time.Now()))
+	require.Equal(t, http.StatusOK, status)
+
+	// The Mac saves a password: the closed phone gets a silent push.
+	mac.commit(password("p1"))
+	reqs := apns.wait(t, 1)
+	require.Len(t, reqs, 1)
+	r := reqs[0]
+	assert.Equal(t, "/3/device/"+phoneToken, r.path)
+	assert.Equal(t, "background", r.header.Get("apns-push-type"))
+	assert.Equal(t, "5", r.header.Get("apns-priority"))
+	assert.Equal(t, "it.cipi1965.compass", r.header.Get("apns-topic"))
+	aps := r.payload["aps"].(map[string]any)
+	assert.Equal(t, float64(1), aps["content-available"])
+	assert.Nil(t, aps["alert"])
+	assert.Equal(t, "sync", r.payload["compass"].(map[string]any)["type"])
+	stream.expect("event: changed")
+
+	// More changes within the interval: one push, once it has passed.
+	start := time.Now()
+	mac.commit(password("p2"))
+	mac.commit(password("p3"))
+	reqs = apns.wait(t, 1)
+	assert.Equal(t, "/3/device/"+phoneToken, reqs[0].path)
+	assert.Greater(t, time.Since(start), backgroundInterval/2)
+
+	// A sent tab is an alert only, to both phones (the open one shows it
+	// too); no background push with it.
+	mac.commit(sentTab("tab-1", 0))
+	reqs = apns.wait(t, 2)
+	for _, r := range reqs {
+		assert.Equal(t, "alert", r.header.Get("apns-push-type"))
+	}
 }

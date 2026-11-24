@@ -172,6 +172,19 @@ func (h *Hub) Count(chain string) int {
 	return len(h.byChain[chainKey(chain)])
 }
 
+// Connected says whether the device |client| (its cache GUID) of |chain|
+// has a stream open.
+func (h *Hub) Connected(chain, client string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for l := range h.byChain[chainKey(chain)] {
+		if l.client == client {
+			return true
+		}
+	}
+	return false
+}
+
 // Notify tells |chain|'s streams, except those of the device |exceptClient|
 // (its cache GUID; empty excludes nobody), that |types| changed. It never
 // blocks: a stream that hasn't written the last event yet gets the types
