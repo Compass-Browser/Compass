@@ -20,10 +20,10 @@ source_set("sync") {
     "//base",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_util",
+    "//compass/components/sync:chain",
     "//components/keyed_service/core",
     "//components/sync/protocol",
     "//components/sync/service",
-    "//compass/components/sync:chain",
     "//url",
   ]
   if (is_android) {
@@ -52,54 +52,58 @@ source_set("sync") {
     ":favicon_png",
     ":spaces_bridge",
     "//base:i18n",
+    "//chrome/browser:browser_process",
     "//chrome/browser/favicon",
     "//chrome/browser/history",
+    "//chrome/browser/lifetime",
+    "//chrome/browser/profiles:profile_manager",
+    "//chrome/browser/sync",
+    "//chrome/browser/sync:data_type_store_service_factory",
+    "//chrome/browser/sync:factories",
+    "//chrome/common",
+    "//chrome/common:channel_info",
+    "//compass/browser/sidebar",
+    "//compass/components/sync:controllers_hook",
+    "//compass/components/sync:engine",
+    "//compass/components/sync:notifier",
     "//components/favicon/core",
     "//components/favicon_base",
     "//components/history/core/browser",
     "//components/keyed_service/core",
-    "//ui/gfx",
-    "//chrome/browser/sync:data_type_store_service_factory",
-    "//chrome/common:channel_info",
-    "//compass/browser/sidebar",
-    "//compass/components/sync:controllers_hook",
-    "//compass/components/sync:notifier",
-    "//components/sync/model",
-    "//chrome/browser:browser_process",
-    "//chrome/browser/lifetime",
-    "//chrome/browser/profiles:profile_manager",
-    "//chrome/browser/sync",
-    "//chrome/browser/sync:factories",
-    "//chrome/common",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
     "//components/pref_registry",
     "//components/prefs",
     "//components/signin/public/base",
     "//components/sync/base",
+    "//components/sync/model",
     "//components/sync_device_info",
-    "//compass/components/sync:engine",
     "//content/public/browser",
     "//google_apis",
     "//services/network/public/cpp",
+    "//ui/gfx",
   ]
+
   # Claude's memory syncs with the spaces (compass_spaces_sync.cc,
   # compass_spaces_sync_android.cc).
   deps += [ "//compass/browser/claude:memory" ]
+
   # Boosts too (compass_spaces_sync.cc, compass_spaces_sync_android.cc;
   # docs/design/boosts.md).
   deps += [ "//compass/browser/boosts:store" ]
+
   # And Easels (docs/design/easels.md).
   deps += [ "//compass/browser/easels:store" ]
+
   # And the mounts of rooms, which share items with other people
   # (docs/design/sync.md, "Rooms: clients").
   deps += [ "//compass/browser/rooms" ]
   if (is_android) {
     deps += [
       "//chrome/browser/gcm",
+      "//compass/browser/android:spaces",
       "//components/gcm_driver",
       "//components/gcm_driver/instance_id",
-      "//compass/browser/android:spaces",
       "//net",
     ]
   } else {
@@ -190,14 +194,17 @@ source_set("unit_tests") {
     "//components/prefs:test_support",
     "//components/sync:test_support",
     "//components/sync/base",
-    "//components/sync/service",
-    "//components/sync_device_info",
     "//components/sync/model",
     "//components/sync/protocol",
+    "//components/sync/service",
+    "//components/sync_device_info",
+    "//skia",
     "//testing/gmock",
     "//testing/gtest",
-    "//skia",
     "//ui/gfx/codec",
     "//url",
+
+    # Headers these sources include directly (gn check).
+    "//compass/components/sync:engine",
   ]
 }

@@ -50,8 +50,8 @@
 #include "compass/components/sync/compass_sync_notifier.h"
 #include "compass/components/sync/login_client.h"
 #if BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/gcm/gcm_profile_service_factory.h"
-#include "chrome/browser/gcm/instance_id/instance_id_profile_service_factory.h"
+#include "chrome/browser/gcm/gcm_profile_service_factory.h"  // nogncheck
+#include "chrome/browser/gcm/instance_id/instance_id_profile_service_factory.h"  // nogncheck
 #include "compass/browser/sync/compass_push_android.h"
 #include "components/gcm_driver/gcm_profile_service.h"
 #include "components/gcm_driver/instance_id/instance_id_profile_service.h"
