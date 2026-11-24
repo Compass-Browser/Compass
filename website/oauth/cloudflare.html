@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Sign in with Cloudflare · Compass Browser</title>
+<meta name="description" content="Where Cloudflare sends you back after you sign in to set up your Compass sync server.">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="/compass.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/changelog/changelog.css">
+<style>
+  .open {
+    background: color-mix(in srgb, var(--blue) 10%, transparent);
+    border-radius: 18px; padding: 18px 22px; margin: 0 0 16px;
+  }
+  .open p { margin: 0 0 10px; }
+  .open p:last-child { margin: 0; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+  .buttons a {
+    padding: 8px 16px; border-radius: 999px; background: var(--surface);
+    border: 1px solid var(--line); color: var(--text); text-decoration: none;
+    font-size: 14px; font-weight: 500;
+  }
+  .note { color: var(--muted); font-size: 14px; }
+  ol { margin: 0 0 16px; padding-left: 22px; }
+  ol li { margin: 0 0 6px; }
+</style>
+</head>
+<body>
+<main>
+<p class="back"><a href="/">Compass Browser</a></p>
+<h1>Sign in with Cloudflare from Compass</h1>
+<div class="open">
+  <p><strong>This step only works when Compass starts it.</strong> Compass sets up your own sync server in your Cloudflare account: it opens Cloudflare's sign-in in a tab, and when you allow it, Compass picks up the answer and closes the tab by itself, before this page shows.</p>
+  <p>If you see this page, the sign-in didn't start from Compass, or it ran in another browser. Nothing was set up.</p>
+</div>
+<article>
+  <h3>To set up your server</h3>
+  <ol>
+    <li>Open Compass, then Settings, then Sync.</li>
+    <li>Choose <strong>No server? Set up a free one on Cloudflare</strong>.</li>
+    <li>Choose <strong>Sign in with Cloudflare</strong>, and allow Compass on the page that opens.</li>
+  </ol>
+  <p class="note">The answer Cloudflare sent here is useless on its own: only the copy of Compass that started the sign-in can use it, and it does so once, to set up the server. Compass doesn't keep access to your Cloudflare account.</p>
+</article>
+<p class="buttons"><a href="/#download">Download Compass</a></p>
+</main>
+</body>
+</html>
