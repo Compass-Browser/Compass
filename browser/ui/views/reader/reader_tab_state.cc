@@ -4,6 +4,8 @@
 
 #include "compass/browser/ui/views/reader/reader_tab_state.h"
 
+#include <memory>
+#include <optional>
 #include <string_view>
 #include <utility>
 
@@ -19,6 +21,7 @@
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/contents_capture_border_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
@@ -222,8 +225,14 @@ void ReaderTabState::AttachTo(ContentsContainerView* container) {
   auto view = std::make_unique<views::WebView>(
       GetWebContents().GetBrowserContext());
   view->SetWebContents(reader_contents_.get());
-  // Last, so over the page and everything else in the pane.
-  view_ = container->AddChildView(std::move(view));
+  // Over the page and everything else in the pane, but under the capture
+  // border, which ContentsContainerView keeps on top.
+  views::View* border = container->capture_contents_border_view();
+  std::optional<size_t> border_index =
+      border ? container->GetIndexOf(border) : std::nullopt;
+  view_ = border_index
+              ? container->AddChildViewAt(std::move(view), *border_index)
+              : container->AddChildView(std::move(view));
   views::View* contents_view = container->contents_view();
   view_->SetBoundsRect(contents_view->bounds());
   view_observations_.AddObservation(view_);
