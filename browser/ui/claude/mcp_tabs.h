@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/functional/function_ref.h"
 #include "base/memory/raw_ptr.h"
 #include "base/types/expected.h"
 #include "compass/browser/claude/claude_tools.h"
@@ -58,12 +59,15 @@ class McpTabs : public TabsDelegate {
   // else |target|'s (the tab the page tools act on, if any), else the front
   // window's. An error if they name different profiles, or a name or id
   // matches in more than one. Without |name_profiles| (a client allowed in
-  // no profile yet), errors don't name profiles.
+  // no profile yet), errors don't name profiles. A space name isn't looked
+  // up in profiles |denied| says the client was denied in: nothing tells it
+  // what their spaces are called.
   base::expected<Profile*, std::string> ResolveCall(
       const std::string& name,
       const base::DictValue& input,
       content::WebContents* target,
-      bool name_profiles);
+      bool name_profiles,
+      base::FunctionRef<bool(Profile*)> denied);
   // The next call acts in |profile|; |input| is its arguments (list_tabs's
   // `profile`, open_tab's `space`); |front_profile| is the profile of the
   // front window when the call came, before any question (switch_space's

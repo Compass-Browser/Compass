@@ -129,7 +129,8 @@ base::expected<Profile*, std::string> McpTabs::ResolveCall(
     const std::string& name,
     const base::DictValue& input,
     content::WebContents* target,
-    bool name_profiles) {
+    bool name_profiles,
+    base::FunctionRef<bool(Profile*)> denied) {
   const std::vector<Profile*> profiles = profiles_.Run();
   Profile* found = nullptr;
   std::string found_by;
@@ -217,10 +218,16 @@ base::expected<Profile*, std::string> McpTabs::ResolveCall(
     }
   }
 
-  if (const std::string* space = input.FindString("space")) {
+  // move_tab reads space only to pin or add to Today
+  // (ClaudeTabs::MoveTab()): elsewhere it doesn't name a profile.
+  const std::string* to = input.FindString("to");
+  const bool space_unused =
+      name == "move_tab" && !(to && (*to == "pinned" || *to == "today"));
+  const std::string* space = space_unused ? nullptr : input.FindString("space");
+  if (space) {
     std::vector<Profile*> owners;
     for (Profile* profile : profiles) {
-      if (TabsOf(profile).FindSpace(*space)) {
+      if (!denied(profile) && TabsOf(profile).FindSpace(*space)) {
         owners.push_back(profile);
       }
     }
