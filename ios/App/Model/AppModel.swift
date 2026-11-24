@@ -712,6 +712,35 @@ final class AppModel {
     openCommandBar(newTab: true)
   }
 
+  /// The command bar for a new tab, pulled up from the bar's right end
+  /// (CommandBarPull): how far up (0...1) under the finger, nil otherwise.
+  var newTabPull: CGFloat?
+
+  /// The pull let go at `newTabPull`, heading for `predicted`: high enough
+  /// (or flicked), the stand-in rises to where the sheet sits and the real
+  /// sheet takes its place without its own animation; else it goes back
+  /// down.
+  func settleNewTabPull(predicted: CGFloat) {
+    guard let pull = newTabPull else { return }
+    guard pull > 0.3 || predicted > 0.5 else {
+      withAnimation(.spring(duration: 0.3, bounce: 0)) { newTabPull = 0 } completion: { [weak self] in
+        self?.newTabPull = nil
+      }
+      return
+    }
+    withAnimation(.spring(duration: 0.25, bounce: 0)) { newTabPull = 1 } completion: { [weak self] in
+      guard let self else { return }
+      var instant = Transaction()
+      instant.disablesAnimations = true
+      withTransaction(instant) { self.openCommandBar(newTab: true) }
+      // Under the sheet by now: the stand-in goes once the sheet has drawn.
+      Task { [weak self] in
+        try? await Task.sleep(for: .milliseconds(150))
+        self?.newTabPull = nil
+      }
+    }
+  }
+
   /// The picker's + held: the bar's + menu (NewTabMenu). The picker closes
   /// onto the page shown (its card, on this side), then the action runs (after, or the closing
   /// would show the page again over a new Easel).

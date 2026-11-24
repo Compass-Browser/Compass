@@ -510,7 +510,9 @@ struct BrowserScreen: View {
           switch dragZone {
           case .left: app.pickerDrag = min(max(-dy / TabPicker.travel, 0), 1)
           case .center: if !app.isWide { app.sidebarDrag = sidebarPosition(at: value.location.y) }
-          case .right: break
+          // The command bar comes up with the finger (CommandBarPull); an
+          // iPad's is a centered sheet, opened on letting go.
+          case .right: if !app.isWide { app.newTabPull = CommandBarPull.position(at: value.location.y) }
           }
         }
         .onEnded { value in
@@ -536,7 +538,9 @@ struct BrowserScreen: View {
               app.settleSidebar(at: drag, predicted: sidebarPosition(at: value.predictedEndLocation.y))
             }
           case .right:
-            if value.translation.height < -30 || value.predictedEndTranslation.height < -80 {
+            if !app.isWide {
+              app.settleNewTabPull(predicted: CommandBarPull.position(at: value.predictedEndLocation.y))
+            } else if value.translation.height < -30 || value.predictedEndTranslation.height < -80 {
               app.openCommandBar(newTab: true)
             }
           }

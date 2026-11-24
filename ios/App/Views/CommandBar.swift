@@ -132,6 +132,10 @@ struct CommandBar: View {
     .background(SpaceTint(theme: app.selectedSpace?.theme ?? .blue))
     .spaceAppearance(app.selectedSpace?.theme)
     .presentationDragIndicator(.visible)
+    // Where the sheet sits, for the pull's stand-in to end there.
+    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { top in
+      if top > 0, replacing == nil { CommandBarPull.sheetTop = top }
+    }
     // Another line than the one asked: its answer goes.
     .onChange(of: text) {
       if asker.state != .idle, text.trimmingCharacters(in: .whitespacesAndNewlines) != asker.question { asker.cancel() }
@@ -486,5 +490,83 @@ struct CommandBar: View {
     for prefix in ["https://", "http://", "www."] where s.hasPrefix(prefix) { s.removeFirst(prefix.count) }
     if s.hasSuffix("/") { s.removeLast() }
     return s
+  }
+}
+
+/// The command bar for a new tab, pulled up from the bar's right end: a
+/// sheet can't follow a finger, so this stand-in does, drawn as the sheet's
+/// top (its handle, title, field and Cancel) with its top edge under the
+/// finger. Let go high enough, it rises to where the sheet sits and the
+/// real sheet replaces it (`AppModel.settleNewTabPull`).
+struct CommandBarPull: View {
+  @Environment(AppModel.self) private var app
+
+  /// The sheet's corners and the page's dimming under it, as measured.
+  static let radius: CGFloat = 34
+  static let dim: CGFloat = 0.25
+  /// The sheet's top on screen: measured each time it shows; before that,
+  /// as measured on an iPhone, a little above the safe area's top.
+  @MainActor static var sheetTop: CGFloat?
+  @MainActor static var top: CGFloat { sheetTop ?? max(SidebarPanel.top - 8, 0) }
+
+  /// The pull's 0...1 position with its top edge under the finger (at `y`
+  /// on screen).
+  @MainActor static func position(at y: CGFloat) -> CGFloat {
+    let height = max(SidebarPanel.screenHeight - top, 1)
+    return min(max((SidebarPanel.screenHeight - y) / height, 0), 1)
+  }
+
+  var body: some View {
+    if let pull = app.newTabPull { panel(min(max(pull, 0), 1)) }
+  }
+
+  private func panel(_ pull: CGFloat) -> some View {
+    let top = Self.top
+    let height = SidebarPanel.screenHeight - top
+    let theme = app.selectedSpace?.theme
+    let tint = theme?.accent ?? .accentColor
+    return ZStack(alignment: .top) {
+      // The sheet dims the page itself once it's up.
+      if !app.showingCommandBar { Color.black.opacity(Self.dim * pull) }
+      VStack(alignment: .leading, spacing: 10) {
+        HStack(spacing: 6) {
+          if let space = app.selectedSpace { SpaceIcon(space: space, size: 13).foregroundStyle(tint) }
+          Text("New tab in \(app.selectedSpace?.name ?? "Compass")")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.secondary)
+        }
+        .padding(.leading, 4)
+        HStack(spacing: 12) {
+          HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+              .font(.system(size: 16, weight: .semibold))
+              .foregroundStyle(.secondary)
+            Text("Search or enter address")
+              .font(.system(size: 17))
+              .foregroundStyle(Color(.placeholderText))
+            Spacer(minLength: 0)
+          }
+          .padding(.horizontal, 12)
+          .frame(height: 46)
+          .background(cardFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+          .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tint.opacity(0.55), lineWidth: 1.5))
+          Text("Cancel").font(.body.weight(.medium))
+        }
+      }
+      .padding(.horizontal, 14)
+      .padding(.top, 22)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+      .overlay(alignment: .top) {
+        Capsule().fill(.secondary.opacity(0.5)).frame(width: 36, height: 5).padding(.top, 5)
+      }
+      .background(SpaceTint(theme: theme ?? .blue))
+      .spaceAppearance(theme)
+      .clipShape(UnevenRoundedRectangle(topLeadingRadius: Self.radius, topTrailingRadius: Self.radius, style: .continuous))
+      .frame(height: height)
+      .offset(y: top + (1 - pull) * height)
+    }
+    .ignoresSafeArea()
+    .allowsHitTesting(false)
+    .accessibilityHidden(true)
   }
 }

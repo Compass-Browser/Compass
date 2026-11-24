@@ -435,6 +435,7 @@ struct RootView: View {
     }
       .overlay { if !app.isWide { SidebarPanel() } }
       .overlay { TabPicker() }
+      .overlay { CommandBarPull() }
       .sheet(isPresented: $app.showingCommandBar) {
         // A new tab, or the shown tab's address.
         CommandBar(replacing: app.commandBarNewTab ? nil : app.shownTab)

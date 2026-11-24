@@ -59,4 +59,26 @@ final class SwipeUpZonesTests: XCTestCase {
     swipeUp(fromX: app.buttons["BarNewTab"].frame.midX)
     XCTAssertTrue(app.textFields["Search or enter address"].waitForExistence(timeout: 3), "command bar open")
   }
+
+  /// The command bar follows the finger up; let go low (and slow), it goes
+  /// back down without opening.
+  func testShortNewTabPullGoesBack() {
+    let x = app.buttons["BarNewTab"].frame.midX
+    let pill = app.buttons["Address"].frame
+    let start = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x, dy: pill.midY))
+    let end = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x, dy: app.frame.height * 0.8))
+    start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.5)
+    XCTAssertFalse(app.textFields["Search or enter address"].waitForExistence(timeout: 2), "command bar not open")
+    XCTAssertTrue(app.buttons["BarNewTab"].isHittable)
+  }
+
+  /// Held half way up, then let go: it opens.
+  func testSlowNewTabPullOpens() {
+    let x = app.buttons["BarNewTab"].frame.midX
+    let pill = app.buttons["Address"].frame
+    let start = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x, dy: pill.midY))
+    let end = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x, dy: app.frame.height * 0.45))
+    start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 1)
+    XCTAssertTrue(app.textFields["Search or enter address"].waitForExistence(timeout: 3), "command bar open")
+  }
 }
