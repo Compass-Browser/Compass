@@ -31,6 +31,10 @@ struct BrowserScreen: View {
   @State private var swipeX: CGFloat = 0
   /// The neighbors are drawn: from the swipe's start until it settles.
   @State private var swiping = false
+  /// The tab a swipe just landed on: its snapshot stays over the page a
+  /// moment, until the web view (attached in the same frame) has drawn,
+  /// or the page flashes blank in between.
+  @State private var landing: SidebarNode?
   enum Zone { case left, center, right }
   /// The address pill's frame on screen: a swipe up starting on it opens
   /// the sidebar; left of it (back, forward) the tab picker, right of it
@@ -121,6 +125,9 @@ struct BrowserScreen: View {
             if let previous = neighbor(-1) { preview(previous).offset(x: -width) }
           }
           .allowsHitTesting(false)
+        }
+        if let landing {
+          preview(landing).allowsHitTesting(false).transition(.opacity)
         }
       }
       .offset(x: swipeX)
@@ -494,6 +501,7 @@ struct BrowserScreen: View {
           if dragAxis == .horizontal {
             if !swiping { app.beginSwipe() }
             swiping = true
+            landing = nil
             // Past the picker's ends it only gives a little.
             swipeX = neighbor(dx < 0 ? 1 : -1) == nil ? dx / 4 : dx
             return
@@ -698,8 +706,16 @@ struct BrowserScreen: View {
         app.show(next)
         swipeX = 0
         swiping = false
+        landing = next
       }
       app.endSwipe()
+      // As the tab picker's closing does (AppModel.pickTab): the page has
+      // drawn by now, and the snapshot fades off it.
+      Task {
+        try? await Task.sleep(for: .milliseconds(150))
+        guard landing === next else { return }
+        withAnimation(.easeOut(duration: 0.15)) { landing = nil }
+      }
     }
   }
 }
