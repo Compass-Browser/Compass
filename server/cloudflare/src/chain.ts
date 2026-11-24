@@ -18,6 +18,15 @@
 
 import { DurableObject } from "cloudflare:workers";
 import { type Config, deviceRemoved, type Env, fail, json, loadConfig, text } from "./config";
+import {
+  BACKGROUND_TYPES,
+  MAX_REGISTRATIONS,
+  parseRegistration,
+  relayPush,
+  SEND_TAB_TYPE,
+  seal,
+  tokenHash,
+} from "./push";
 import type { RoomEvent } from "./roomwire";
 import {
   type ClientToServerMessage,
@@ -121,6 +130,20 @@ CREATE TABLE IF NOT EXISTS room_index (
   pending INTEGER NOT NULL,
   epoch   INTEGER NOT NULL,
   seq     INTEGER NOT NULL
+) WITHOUT ROWID;
+-- Devices' push registrations, as relay handles (push.ts): never the
+-- token itself, only its hash, to find a device that registered again
+-- under a new cache GUID. bg_last and bg_due space background pushes.
+CREATE TABLE IF NOT EXISTS push_handles (
+  cache_guid TEXT PRIMARY KEY,
+  handle     TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  platform   TEXT NOT NULL,
+  server     TEXT NOT NULL,
+  relay      TEXT NOT NULL,
+  updated    INTEGER NOT NULL,
+  bg_last    INTEGER NOT NULL DEFAULT 0,
+  bg_due     INTEGER
 ) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS identity (
   one     INTEGER PRIMARY KEY CHECK (one = 1),
@@ -284,6 +307,7 @@ export class Chain extends DurableObject<Env> {
     if (path === "/events" && request.method === "GET") return this.events(request, client);
     if (path === "/quota" && request.method === "GET") return this.quota();
     if (path.startsWith("/devices") && request.method === "DELETE") return this.removeDevice(url, client);
+    if (path === "/push") return this.register(request, client);
     return text(404, "404 page not found");
   }
 
@@ -305,6 +329,7 @@ export class Chain extends DurableObject<Env> {
     this.lastTouch = now;
     this.sql.exec(`UPDATE chain SET last_active = ?`, Math.floor(now / 1000));
     if ((await this.ctx.storage.getAlarm()) === null) {
+      this.ctx.storage.kv.put("purge_at", now + PURGE_INTERVAL_MS);
       await this.ctx.storage.setAlarm(now + PURGE_INTERVAL_MS);
     }
   }
@@ -963,6 +988,7 @@ export class Chain extends DurableObject<Env> {
       }
     }
     for (const ws of this.ctx.getWebSockets("c:" + guid)) ws.close(1000, "device removed");
+    this.sql.exec(`DELETE FROM push_handles WHERE cache_guid = ?`, guid);
     this.notify(self, [DEVICE_INFO_TYPE]);
     return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
   }
@@ -998,19 +1024,150 @@ export class Chain extends DurableObject<Env> {
     }
   }
 
-  private notifyCommit(msg: ClientToServerMessage, rsp: ClientToServerResponse, _isNew: boolean[]): void {
+  private notifyCommit(msg: ClientToServerMessage, rsp: ClientToServerResponse, isNew: boolean[]): void {
     const entries = msg.commit?.entries ?? [];
     const results = rsp.commit?.entryResponse ?? [];
     const types = new Set<number>();
+    let sentTab = false;
     entries.forEach((e, i) => {
       if (results[i]?.responseType !== ResponseType.SUCCESS || !e.specifics) return;
       try {
-        types.add(dataTypeOfSpecifics(e.specifics));
+        const type = dataTypeOfSpecifics(e.specifics);
+        types.add(type);
+        if (type === SEND_TAB_TYPE && isNew[i]) sentTab = true;
       } catch {
         // Not a type: nothing to announce.
       }
     });
-    this.notify(msg.commit?.cacheGuid ?? "", [...types].sort((a, b) => a - b));
+    const from = msg.commit?.cacheGuid ?? "";
+    this.notify(from, [...types].sort((a, b) => a - b));
+    const background = [...types].some((t) => BACKGROUND_TYPES.has(t));
+    if ((sentTab || background) && this.cfg.pushRelay) {
+      this.ctx.waitUntil(this.pushCommit(from, sentTab, background));
+    }
+  }
+
+  // --- Push (push.ts) ---------------------------------------------------------
+
+  // register answers POST and DELETE /v2/compass/push?client_id=<cache GUID>
+  // as push.go does, keeping a relay handle instead of the token. Without a
+  // relay, registrations are accepted and nothing is kept.
+  private async register(request: Request, guid: string): Promise<Response> {
+    if (this.isDisabled()) return text(403, "sync chain disabled");
+    if (!guid || guid.length > MAX_CLIENT_ID) return text(400, "client_id required (the device's cache GUID)");
+    if (request.method === "DELETE") {
+      this.sql.exec(`DELETE FROM push_handles WHERE cache_guid = ?`, guid);
+      return new Response(null, { status: 204 });
+    }
+    let raw: string;
+    try {
+      raw = new TextDecoder().decode(await readBody(request));
+    } catch {
+      return text(400, "JSON body required");
+    }
+    if (raw.length > 8192) return text(400, "JSON body required");
+    const reg = parseRegistration(raw, this.cfg);
+    if (typeof reg === "string") return text(400, reg);
+    const relay = this.cfg.pushRelay;
+    if (!relay) return new Response(null, { status: 204 });
+    const server = request.headers.get("X-Host") ?? "";
+    const handle = await seal(relay, server, reg);
+    if (handle === "refused") return text(400, "the push relay refused this registration");
+    if (handle === null) return text(503, "the push relay can't be reached; register again later");
+    const hash = await tokenHash(reg.platform, reg.token);
+    const now = Math.floor(Date.now() / 1000);
+    this.ctx.storage.transactionSync(() => {
+      // The same device under another cache GUID (it rejoined the chain).
+      this.sql.exec(`DELETE FROM push_handles WHERE token_hash = ? AND cache_guid <> ?`, hash, guid);
+      this.sql.exec(
+        `INSERT INTO push_handles (cache_guid, handle, token_hash, platform, server, relay, updated)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (cache_guid) DO UPDATE SET handle = excluded.handle, token_hash = excluded.token_hash,
+           platform = excluded.platform, server = excluded.server, relay = excluded.relay,
+           updated = excluded.updated`,
+        guid, handle, hash, reg.platform, server, relay, now,
+      );
+      this.sql.exec(
+        `DELETE FROM push_handles WHERE cache_guid NOT IN (
+           SELECT cache_guid FROM push_handles ORDER BY updated DESC, cache_guid LIMIT ?)`,
+        MAX_REGISTRATIONS,
+      );
+    });
+    return new Response(null, { status: 204 });
+  }
+
+  // The registrations made at this server's current relay (a handle from
+  // another relay can't be opened by this one; its device registers again
+  // at its next launch).
+  private handles(): { guid: string; handle: string; platform: string; server: string }[] {
+    return this.sql
+      .exec(`SELECT cache_guid, handle, platform, server FROM push_handles WHERE relay = ?`, this.cfg.pushRelay)
+      .toArray()
+      .map((r) => ({
+        guid: r.cache_guid as string,
+        handle: r.handle as string,
+        platform: r.platform as string,
+        server: r.server as string,
+      }));
+  }
+
+  private streaming(guid: string): boolean {
+    return this.ctx.getWebSockets("c:" + guid).length > 0;
+  }
+
+  // pushCommit: a new sent tab alerts every other device; a background
+  // type has every other iPhone sync, spaced (push.go, OnCommit).
+  private async pushCommit(from: string, sentTab: boolean, background: boolean): Promise<void> {
+    const now = Date.now();
+    const sends: Promise<void>[] = [];
+    for (const h of this.handles()) {
+      if (h.guid === from) continue;
+      if (sentTab) sends.push(this.send(h, "send-tab"));
+      if (!background || h.platform !== "apns" || this.streaming(h.guid)) continue;
+      const row = this.sql
+        .exec(`SELECT bg_last, bg_due FROM push_handles WHERE cache_guid = ?`, h.guid)
+        .one();
+      if (row.bg_due !== null) continue; // One is waiting; it covers this change too.
+      const last = Number(row.bg_last);
+      if (last === 0 || now - last >= this.cfg.backgroundIntervalMs) {
+        this.sql.exec(`UPDATE push_handles SET bg_last = ? WHERE cache_guid = ?`, now, h.guid);
+        sends.push(this.send(h, "sync"));
+      } else {
+        const due = last + this.cfg.backgroundIntervalMs;
+        this.sql.exec(`UPDATE push_handles SET bg_due = ? WHERE cache_guid = ?`, due, h.guid);
+        const alarm = await this.ctx.storage.getAlarm();
+        if (alarm === null || alarm > due) await this.ctx.storage.setAlarm(due);
+      }
+    }
+    await Promise.all(sends);
+  }
+
+  // sendDueBackground sends the background pushes whose interval has passed
+  // (from the alarm), unless Compass is open there by now.
+  private async sendDueBackground(now: number): Promise<void> {
+    const due = this.sql
+      .exec(`SELECT cache_guid FROM push_handles WHERE bg_due IS NOT NULL AND bg_due <= ?`, now)
+      .toArray()
+      .map((r) => r.cache_guid as string);
+    if (due.length === 0 || !this.cfg.pushRelay) {
+      this.sql.exec(`UPDATE push_handles SET bg_due = NULL WHERE bg_due IS NOT NULL AND bg_due <= ?`, now);
+      return;
+    }
+    const byGuid = new Map(this.handles().map((h) => [h.guid, h]));
+    const sends: Promise<void>[] = [];
+    for (const guid of due) {
+      this.sql.exec(`UPDATE push_handles SET bg_due = NULL, bg_last = ? WHERE cache_guid = ?`, now, guid);
+      const h = byGuid.get(guid);
+      if (h && !this.streaming(guid)) sends.push(this.send(h, "sync"));
+    }
+    await Promise.all(sends);
+  }
+
+  private async send(h: { guid: string; handle: string; server: string }, type: "send-tab" | "sync"): Promise<void> {
+    const result = await relayPush(this.cfg.pushRelay, h.server, h.handle, type);
+    if (result === "drop") {
+      this.sql.exec(`DELETE FROM push_handles WHERE cache_guid = ? AND handle = ?`, h.guid, h.handle);
+    }
   }
 
   async webSocketMessage(): Promise<void> {
@@ -1153,6 +1310,7 @@ export class Chain extends DurableObject<Env> {
       this.sql.exec(`DELETE FROM removed_devices`);
       this.sql.exec(`DELETE FROM room_index`);
       this.sql.exec(`DELETE FROM identity`);
+      this.sql.exec(`DELETE FROM push_handles`);
       this.sql.exec(
         `UPDATE chain SET disabled_at = ?, bytes = 0, item_count = 0, history_period1 = 0,
            history_period2 = 0, history_period3 = 0, history_period4 = 0, quota_full = 0`,
@@ -1173,10 +1331,18 @@ export class Chain extends DurableObject<Env> {
   }
 
   // alarm runs hourly while the chain is in use: expired history and old
-  // tombstones go, and an idle chain is cleared and disabled.
+  // tombstones go, and an idle chain is cleared and disabled. It also sends
+  // background pushes that waited for their interval (pushCommit), so it
+  // runs at the earlier of the two.
   async alarm(): Promise<void> {
     if (this.isDisabled()) return;
     const now = Date.now();
+    await this.sendDueBackground(now);
+    const purgeAt = this.ctx.storage.kv.get<number>("purge_at") ?? 0;
+    if (now < purgeAt) {
+      await this.setNextAlarm(purgeAt);
+      return;
+    }
     const lastActive = this.sql.exec(`SELECT last_active FROM chain`).one().last_active;
     if (
       this.cfg.idleChainDays > 0 &&
@@ -1187,7 +1353,13 @@ export class Chain extends DurableObject<Env> {
       return;
     }
     this.purge(now);
-    await this.ctx.storage.setAlarm(now + PURGE_INTERVAL_MS);
+    this.ctx.storage.kv.put("purge_at", now + PURGE_INTERVAL_MS);
+    await this.setNextAlarm(now + PURGE_INTERVAL_MS);
+  }
+
+  private async setNextAlarm(purgeAt: number): Promise<void> {
+    const due = this.sql.exec(`SELECT MIN(bg_due) AS d FROM push_handles`).one().d;
+    await this.ctx.storage.setAlarm(due === null ? purgeAt : Math.min(purgeAt, Number(due)));
   }
 
   private purge(now: number): void {

@@ -1425,9 +1425,9 @@ continuously, which would otherwise keep each room's object awake); `room`
 events and `GET /rooms` go through each member chain's object, which keeps
 an index of its rooms; room bytes count in the owner chain's. Checked with
 two Compass instances sharing a folder through it (an edit shows on the
-other in about 1.3 s, the client's 0.8 s send delay included). Not ported
-yet: push (devices learn of sent tabs at their next sync), company sign-in
-(so no directory or email invites).
+other in about 1.3 s, the client's 0.8 s send delay included). Push goes
+through the Compass push relay ("Push on a Cloudflare server", below). Not
+ported: company sign-in (so no directory or email invites).
 
 **Who may use it.** The Worker serves only its owners
 (`COMPASS_SYNC_ALLOWED_CHAINS`), the chains they link (profiles), and
@@ -1486,7 +1486,7 @@ offers its owner the newer one it ships.
 
 - **Versions.** `server/cloudflare/src/version.ts` (`SERVER_VERSION`),
   raised with each change existing servers should get (1: the first
-  release; 2: rooms). The server reports it in `GET /v2/compass/info` as
+  release; 2: rooms; 3: push through the relay). The server reports it in `GET /v2/compass/info` as
   `"server": {"kind": "cloudflare", "version": N}` (servers from before
   have no `server`, and count as 1); `npm run bundle` writes it to
   `dist/compass-sync.version`, which Compass ships next to the script.
@@ -1508,6 +1508,43 @@ offers its owner the newer one it ships.
   only the one that set the server up; it then records where the server is
   (`compass.sync.cloudflare`). Durable Objects keep their data across the
   upload.
+
+### Push on a Cloudflare server
+
+A server in someone's own Cloudflare account can't hold Compass's APNs key
+or Firebase service account, so from version 3 it pushes through the
+**Compass push relay** (`server/cloudflare/relay/`), a Worker the Compass
+developers run at `https://push.compassbrowser.org` with those keys as
+secrets.
+
+- **Sealed handles.** On `POST /v2/compass/push` the server asks the relay
+  (`POST /v1/seal`) to encrypt the device's registration with a key only
+  the relay has (AES-256-GCM), bound to the server's host; the chain's
+  object keeps that handle and a hash of the token, never the token
+  (`server/cloudflare/src/push.ts`). The relay stores no tokens.
+- **Two fixed pushes.** The server asks `POST /v1/push` with a handle and
+  `send-tab` or `sync`; the relay sends the Go server's "New tab" alert or
+  its silent sync, nothing else, so a server can't put its own text on a
+  phone. When to push is the Go server's rule (`push.go`), run in the
+  chain's object: a new sent tab alerts the other devices; spaces,
+  passwords or extensions have the other iPhones sync, once per 15 minutes
+  each, not while their change stream is open (the wait is the chain's
+  alarm).
+- **Abuse.** A handle works only for its server; per device, 30 alerts and
+  6 background pushes an hour; per server, 300 requests a minute; servers
+  can be blocked (`BLOCKED_SERVERS`). A token Apple or Google calls gone
+  answers `410`, the server drops the handle, and the relay doesn't send
+  to it for 30 days. The relay keeps no logs.
+- **Off.** `COMPASS_SYNC_PUSH_RELAY=off` on the server: registrations are
+  accepted and nothing is kept, as before version 3. If the relay can't be
+  reached, registration answers `503` and the device registers again at
+  its next launch.
+- **Checked** (2026-11-24): a Worker's `fetch` reaches APNs over HTTP/2
+  with an ES256 token made with Web Crypto, and an alert sent through the
+  deployed relay reached an iPhone. The relay's tests run it against mock
+  APNs, Google OAuth and FCM endpoints that check its signatures; the
+  server's run it against a mock relay (`npm run test:relay`,
+  `test/push.test.ts`).
 
 ### Inviting friends
 

@@ -1,0 +1,31 @@
+{
+  // The Compass push relay (README.md): Cloudflare-hosted sync servers
+  // have no APNs or FCM keys, so they hand their devices' push tokens to
+  // this Worker, which holds the keys and sends Compass's two fixed pushes.
+  // Deployed once, by the Compass developers; never by users.
+  "name": "compass-push-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  // The address sync servers use (config.ts, DEFAULT_PUSH_RELAY).
+  "routes": [{ "pattern": "push.compassbrowser.org", "custom_domain": true }],
+  // No request logs: they'd hold device handles.
+  "observability": { "enabled": false },
+  "durable_objects": {
+    "bindings": [{ "name": "DEVICE", "class_name": "Device" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Device"] }],
+  // Per sync server (the host it gives), per minute.
+  "ratelimits": [
+    { "name": "SERVER_LIMIT", "namespace_id": "4101", "simple": { "limit": 300, "period": 60 } }
+  ],
+  "vars": {
+    // Bundle IDs and package names a token may be sealed for.
+    "TOPICS": "it.cipi1965.compass",
+    // Comma-separated sync server hosts the relay refuses.
+    "BLOCKED_SERVERS": ""
+  }
+  // Secrets (wrangler secret put): SEAL_KEYS ("<id>:<base64 32 bytes>",
+  // comma-separated, the first seals), APNS_KEY (the .p8), APNS_KEY_ID,
+  // APNS_TEAM_ID, FCM_CREDENTIALS (the service account's JSON).
+}

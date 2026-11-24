@@ -393,6 +393,8 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     // What each version brings, for the versions the server lacks.
     const NEW_IN: Record<number, string> = {
       2: 'sharing spaces, folders and easels with others',
+      3: 'notifications on phones when a tab is sent to them, through ' +
+          'Compass\'s push relay at push.compassbrowser.org',
     };
     const added = [];
     for (let v = update.current + 1; v <= update.latest; ++v) {

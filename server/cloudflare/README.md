@@ -41,10 +41,36 @@ so Compass needs no changes to use it.
 - The protobuf messages are read and written by a small codec
   (`src/proto.ts`); specifics stay the bytes the client sent.
 
-Not ported yet: push (sent tabs and background sync reach devices at their next sync,
-as on a Go server without APNs or FCM keys), company sign-in (OIDC),
-Prometheus metrics, backups (Durable Objects keep their own point-in-time
-recovery for 30 days).
+- **Push** (`src/push.ts`) goes through the Compass push relay
+  (`relay/`, below). Not ported: company sign-in (OIDC), Prometheus
+  metrics, backups (Durable Objects keep their own point-in-time recovery
+  for 30 days).
+
+## Push
+
+A server deployed into someone's own Cloudflare account can't hold
+Compass's APNs key or Firebase service account, so it pushes through the
+Compass push relay (`relay/README.md`), which the Compass developers run at
+`https://push.compassbrowser.org`:
+
+- `POST /v2/compass/push` (same body and checks as the Go server) has the
+  relay seal the device's token into a handle bound to this server's host
+  (`COMPASS_SYNC_PUBLIC_HOST`, or the host the request came to). The
+  chain's object keeps the handle and a hash of the token, never the token.
+  If the relay can't be reached the answer is `503`, and the device
+  registers again at its next launch.
+- The rules are the Go server's: a new sent tab alerts the chain's other
+  devices (iPhones and Android); a change to spaces, passwords or
+  extensions has its other iPhones sync in the background, at most once
+  per `COMPASS_SYNC_PUSH_BACKGROUND_SECONDS` (900) each, and not while
+  their change stream is open. A wait for the interval is the chain's
+  alarm.
+- A handle the relay calls gone or not its own is dropped; so are a
+  device's on `DELETE /v2/compass/push`, on removal, and on reset.
+
+`COMPASS_SYNC_PUSH_RELAY` sets another relay; `off` turns push off
+(registrations are accepted and nothing is kept, as before version 3).
+`COMPASS_SYNC_APNS_TOPICS` is the Go server's (`it.cipi1965.compass`).
 
 ## Who may use it
 
@@ -85,8 +111,9 @@ Your chain ID is on `chrome://compass-sync`. The server URL for Compass is
 Every variable in the Go server's README table that applies here has the
 same name and default: `COMPASS_SYNC_MAX_ENTITIES`, `_MAX_BYTES`,
 `_MAX_HISTORY`, `_HISTORY_DAYS`, `_TOMBSTONE_DAYS`, `_IDLE_CHAIN_DAYS`,
-`_POLL_SECONDS`, `_PUBLIC_HOST`, `HIGH_DEVICE_LIMIT_CLIENT_IDS`,
-`BLOCKED_CLIENT_IDS`.
+`_POLL_SECONDS`, `_PUBLIC_HOST`, `_APNS_TOPICS`, `HIGH_DEVICE_LIMIT_CLIENT_IDS`,
+`BLOCKED_CLIENT_IDS`; and its own `COMPASS_SYNC_PUSH_RELAY` and
+`_PUSH_BACKGROUND_SECONDS` (Push, above).
 
 ## Versions and updates
 
@@ -135,7 +162,11 @@ npx wrangler dev --port 8797
   go test ./server/ -run 'TestEndToEndRooms|TestRooms' -v)
 # This server's own (change stream, quota, device removal, reset; rooms:
 # events, long polls, resets, successors, quota, the private gate):
-COMPASS_CF_URL=http://127.0.0.1:8797 npm test
+COMPASS_CF_URL=http://127.0.0.1:8797 node --test test/worker.test.ts
+# Push, against a mock relay (starts its own wrangler dev):
+node --test test/push.test.ts
+# The relay itself (relay/README.md):
+npm run test:relay
 # The access list, against a server whose owner is a test seed's chain:
 #   wrangler dev --var COMPASS_SYNC_ALLOWED_CHAINS:<that chain ID>
 COMPASS_CF_URL=... COMPASS_CF_OWNER_SEED=<64 hex> npm test

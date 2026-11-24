@@ -4,5 +4,6 @@
 // `npm run bundle` writes it next to the bundle (dist/compass-sync.version).
 //
 // 1: the first release (servers deployed before this file existed report
-//    no version, and count as 1). 2: rooms.
-export const SERVER_VERSION = 2;
+//    no version, and count as 1). 2: rooms. 3: push through the Compass
+//    push relay (push.ts).
+export const SERVER_VERSION = 3;

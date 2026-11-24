@@ -22,7 +22,14 @@ export interface Env {
   COMPASS_SYNC_POLL_SECONDS?: string;
   COMPASS_SYNC_PUBLIC_HOST?: string;
   HIGH_DEVICE_LIMIT_CLIENT_IDS?: string;
+  COMPASS_SYNC_PUSH_RELAY?: string;
+  COMPASS_SYNC_APNS_TOPICS?: string;
+  COMPASS_SYNC_PUSH_BACKGROUND_SECONDS?: string;
 }
+
+// The Compass push relay (relay/README.md), used unless
+// COMPASS_SYNC_PUSH_RELAY says otherwise ("off" or "": no push).
+export const DEFAULT_PUSH_RELAY = "https://push.compassbrowser.org";
 
 export interface Config {
   maxEntities: number;
@@ -33,6 +40,9 @@ export interface Config {
   idleChainDays: number; // 0 = keep
   pollSeconds: number;
   highDeviceLimit: Set<string>;
+  pushRelay: string; // "" = no push
+  pushTopics: string[];
+  backgroundIntervalMs: number;
 }
 
 function num(v: string | undefined, def: number, ok: (n: number) => boolean): number {
@@ -55,7 +65,16 @@ export function loadConfig(env: Env): Config {
     highDeviceLimit: new Set(
       (env.HIGH_DEVICE_LIMIT_CLIENT_IDS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
     ),
+    pushRelay: pushRelay(env.COMPASS_SYNC_PUSH_RELAY),
+    backgroundIntervalMs: num(env.COMPASS_SYNC_PUSH_BACKGROUND_SECONDS, 900, (n) => n >= 1) * 1000,
+    pushTopics: (env.COMPASS_SYNC_APNS_TOPICS || "it.cipi1965.compass").split(",").map((s) => s.trim()).filter(Boolean),
   };
+}
+
+function pushRelay(v: string | undefined): string {
+  if (v === undefined) return DEFAULT_PUSH_RELAY;
+  const t = v.trim().replace(/\/+$/, "");
+  return t === "" || t === "off" || !/^https?:\/\//.test(t) ? "" : t;
 }
 
 export function json(status: number, body: unknown, headers: Record<string, string> = {}): Response {

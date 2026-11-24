@@ -4,8 +4,8 @@
 // chain's object (chain.ts), the pairing relay (pairing.ts), the access
 // list (access.ts) or, for rooms, rooms.ts and the room's object (room.ts).
 //
-// Not here yet: push (sent tabs and background sync reach devices at their
-// next sync instead) and company sign-in.
+// Push goes through the Compass push relay (push.ts, relay/). Not here:
+// company sign-in.
 
 import { type AccessState } from "./access";
 import { AuthError, bearer, idList, verifyToken } from "./auth";
@@ -144,16 +144,16 @@ export default {
     }
 
     if (rest === "/compass/push") {
+      if (method !== "POST" && method !== "DELETE") {
+        return text(405, "POST or DELETE");
+      }
       const chain = await authorize(env, request);
       if (!chain) return fail(401, "invalid sync token");
-      // No APNs or FCM keys on a self-hosted Worker: registrations are
-      // accepted and nothing is pushed; devices learn of sent tabs at their
-      // next sync, as on a Go server without keys.
-      if (method === "POST" || method === "DELETE") {
-        await request.body?.cancel();
-        return new Response(null, { status: 204 });
-      }
-      return text(405, "method not allowed");
+      // The chain's object has the relay seal the token (push.ts) and keeps
+      // the handle; X-Host is the server's name the handle is bound to.
+      return toChain(env, chain, "/push", request, {
+        headers: { "X-Host": (env.COMPASS_SYNC_PUBLIC_HOST || url.host).toLowerCase() },
+      });
     }
 
     if (rest === "/compass/pair" || rest.startsWith("/compass/pair/")) {
