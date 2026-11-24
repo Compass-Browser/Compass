@@ -1,9 +1,9 @@
-Apple Intelligence for the sidebar, and incognito in the tab switcher.
+Sync in the background, and smoother swipes on the bar.
 
-- Apple Intelligence: Settings → AI in the Sidebar → Answer With can send Name Link Folders, Tidy Today and Shorter Tab Titles to the on-device model. No key needed, and nothing leaves the phone. Ask in the command bar stays with your chat provider.
-- Tab switcher: from an incognito tab it shows only incognito tabs, otherwise only regular ones. A Tabs / Incognito toggle beside + switches between them. While incognito is locked, its side shows the lock instead of the tabs.
-- Tab switcher +: a tap opens a new tab on the side you're on; holding it offers New Tab, New Incognito Tab and New Easel, as the bar's + does.
-- Swiping the bar sideways goes through tabs in the tab switcher's order (most recent first), as the iPhone's app switcher does. The bar is clear Liquid Glass.
-- The bar fades out as the tab switcher opens, instead of showing through it.
-- The menu's icons (Site Settings, Settings…) keep their colors with a bright space theme in dark mode.
-- Please report: incognito tabs showing on the regular side (or the other way round), anything showing while incognito is locked, swipes landing on the wrong tab, and Apple Intelligence answers that look wrong.
+- Sync in the background: when another device changes your spaces, passwords or extensions, the sync server can now wake Compass to sync, so they're current when you open it. Your sync server needs the latest version for this; without it Compass still syncs when iOS gives it background time, as before. iOS decides when to wake the app (at most about every 15 minutes, not in Low Power Mode, not after you force-quit it).
+- Settings → Sync says when Background App Refresh is off for Compass, with a button to turn it on: without it, Compass syncs only while it's open.
+- Swiping the bar past the newest tab (a third of the screen, or a flick) opens a new tab, as in Safari. A short swipe still springs back.
+- A swipe up on the bar's right end brings the new-tab command bar up under your finger; let go past about a third and it opens, lower and it goes back down.
+- No white flash as a swipe lands on a tab.
+- The tab switcher's toggle and + no longer show over the card while it opens.
+- Please report: changes from your Mac that are still missing when you open Compass after a while, battery use that looks higher than before, and swipes that open a new tab when you didn't mean to.

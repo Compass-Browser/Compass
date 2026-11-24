@@ -1,9 +1,9 @@
-Apple Intelligence per la barra laterale, e l'incognito nel selettore schede.
+Sincronizzazione in background, e scorrimenti più fluidi sulla barra.
 
-- Apple Intelligence: Impostazioni → AI in the Sidebar → Answer With può mandare Name Link Folders, Tidy Today e Shorter Tab Titles al modello sul dispositivo. Nessuna chiave, e nulla lascia il telefono. Ask nella barra dei comandi resta sul provider della chat.
-- Selettore schede: da una scheda in incognito mostra solo le schede in incognito, altrimenti solo quelle normali. Un interruttore Tabs / Incognito accanto al + passa dall'uno all'altro. Mentre l'incognito è bloccato, il suo lato mostra il lucchetto al posto delle schede.
-- Il + del selettore schede: un tocco apre una nuova scheda sul lato in cui sei; tenendolo premuto offre New Tab, New Incognito Tab e New Easel, come il + della barra.
-- Scorrere la barra di lato passa tra le schede nell'ordine del selettore schede (le più recenti prima), come il selettore app dell'iPhone. La barra è in Liquid Glass trasparente.
-- La barra sfuma mentre si apre il selettore schede, invece di vedersi attraverso.
-- Le icone del menu (Site Settings, Settings…) mantengono i colori con un tema dello spazio chiaro in modalità scura.
-- Segnalaci: schede in incognito sul lato normale (o il contrario), qualcosa che si vede mentre l'incognito è bloccato, scorrimenti che finiscono sulla scheda sbagliata, e risposte di Apple Intelligence che sembrano sbagliate.
+- Sincronizzazione in background: quando un altro dispositivo cambia i tuoi spazi, le password o le estensioni, il server di sincronizzazione ora può svegliare Compass per sincronizzarli, così sono aggiornati quando lo apri. Serve l'ultima versione del server di sincronizzazione; senza, Compass sincronizza comunque quando iOS gli dà tempo in background, come prima. È iOS a decidere quando svegliare l'app (al massimo circa ogni 15 minuti, non in Risparmio energetico, non dopo averla chiusa forzatamente).
+- Impostazioni → Sync segnala quando l'Aggiornamento app in background è disattivato per Compass, con un pulsante per attivarlo: senza, Compass sincronizza solo mentre è aperto.
+- Scorrere la barra oltre la scheda più recente (un terzo dello schermo, o uno scatto) apre una nuova scheda, come in Safari. Uno scorrimento breve torna ancora indietro.
+- Uno scorrimento verso l'alto sull'estremità destra della barra porta su la barra dei comandi per una nuova scheda sotto il dito; lasciata oltre circa un terzo si apre, più in basso torna giù.
+- Nessun lampo bianco quando uno scorrimento arriva su una scheda.
+- L'interruttore e il + del selettore schede non si vedono più sopra la scheda mentre si apre.
+- Segnalaci: modifiche dal Mac che mancano ancora quando apri Compass dopo un po', un consumo di batteria che sembra più alto di prima, e scorrimenti che aprono una nuova scheda senza volerlo.
