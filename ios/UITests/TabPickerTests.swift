@@ -68,4 +68,18 @@ final class TabPickerTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["No incognito tabs"].waitForExistence(timeout: 2))
     XCTAssertEqual(app.buttons.matching(identifier: "PickerCard").count, 0)
   }
+
+  /// The + held offers the bar's + menu; New Incognito Tab closes the
+  /// picker onto the incognito space.
+  func testPlusMenuNewIncognitoTab() {
+    let app = launchWithPicker()
+    app.buttons["PickerNewTab"].press(forDuration: 1.0)
+    let item = app.buttons["New Incognito Tab"]
+    XCTAssertTrue(item.waitForExistence(timeout: 3))
+    XCTAssertTrue(app.buttons["New Easel"].exists)
+    item.tap()
+    XCTAssertTrue(pickerGone(app))
+    let note = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Incognito tabs aren'")).firstMatch
+    XCTAssertTrue(note.waitForExistence(timeout: 5))
+  }
 }

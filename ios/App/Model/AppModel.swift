@@ -696,8 +696,10 @@ final class AppModel {
 
   /// The space the picker stands for: its tint, and where its + opens a
   /// tab. Regular: the shown space, or the last regular one shown.
-  var pickerSpace: Space? {
-    if pickerIncognito { return store.incognito }
+  var pickerSpace: Space? { pickerIncognito ? store.incognito : regularSpace }
+
+  /// The shown space if it isn't incognito, else the last regular one shown.
+  private var regularSpace: Space? {
     if let space = selectedSpace, !space.isIncognito { return space }
     return UserDefaults.standard.string(forKey: StartScreen.spaceKey).flatMap(store.space(id:)) ?? store.spaces.first
   }
@@ -708,6 +710,22 @@ final class AppModel {
     pickTab(at: pickerTabs.isEmpty ? nil : Int(pickerPosition.rounded()))
     if let space = pickerSpace { selectedSpaceID = space.id }
     openCommandBar(newTab: true)
+  }
+
+  /// The picker's + held: the bar's + menu (NewTabMenu). The picker closes
+  /// onto the page shown (its card, on this side), then the action runs (after, or the closing
+  /// would show the page again over a new Easel).
+  func newTabMenuFromPicker(_ action: NewTabMenu.Action) {
+    pickTab(at: shownTab.flatMap { pickerTabs.firstIndex(of: $0.id) }) { [weak self] in
+      guard let self else { return }
+      switch action {
+      case .tab:
+        if let space = self.regularSpace { self.selectedSpaceID = space.id }
+        self.openCommandBar(newTab: true)
+      case .incognito: self.openIncognitoTab()
+      case .easel: self.newEasel()
+      }
+    }
   }
 
   func openPicker() {
@@ -733,7 +751,7 @@ final class AppModel {
   /// under it once it fills the screen (attaching a web view and updating
   /// the sidebar mid-animation made it stutter), and the picker goes a
   /// moment later, when the page has drawn.
-  func pickTab(at index: Int?) {
+  func pickTab(at index: Int?, then after: (() -> Void)? = nil) {
     var target: SidebarNode?
     if let index, pickerTabs.indices.contains(index) {
       target = store.node(id: pickerTabs[index])
@@ -746,6 +764,7 @@ final class AppModel {
     } completion: { [weak self] in
       guard let self else { return }
       if let target, target !== self.shownTab, self.store.node(id: target.id) != nil { self.show(target) }
+      after?()
       Task { [weak self] in
         try? await Task.sleep(for: .milliseconds(120))
         guard let self, !self.showingPicker, self.pickerDrag == nil else { return }

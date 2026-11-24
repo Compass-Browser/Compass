@@ -300,7 +300,8 @@ struct TabPicker: View {
   }
 
   /// A new tab: the picker closes onto the centered card, the command bar
-  /// opens over it.
+  /// opens over it. Held, the bar's + menu (New Tab, New Incognito Tab,
+  /// New Easel).
   private var plusButton: some View {
     Button {
       app.newTabFromPicker()
@@ -315,6 +316,8 @@ struct TabPicker: View {
     .floatingGlass(in: Capsule())
     .accessibilityLabel(app.pickerIncognito ? "New incognito tab" : "New tab")
     .accessibilityIdentifier("PickerNewTab")
+    // Held: the bar's + menu.
+    .contextMenu { NewTabMenu { app.newTabMenuFromPicker($0) } }
   }
 }
 

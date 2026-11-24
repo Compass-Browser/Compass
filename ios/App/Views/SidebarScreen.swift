@@ -112,12 +112,26 @@ struct SidebarScreen: View {
 /// A long press on a "+" (the sidebar's, the bar's): a new tab, or a new
 /// incognito tab (as ⌘⇧N).
 struct NewTabMenu: View {
+  enum Action { case tab, incognito, easel }
+
   @Environment(AppModel.self) private var app
+  /// Runs the picked action instead (the tab picker's +, which closes
+  /// first); nil: each runs as is.
+  var perform: ((Action) -> Void)? = nil
 
   var body: some View {
-    Button("New Tab", systemImage: "plus") { app.openCommandBar(newTab: true) }
-    Button("New Incognito Tab", systemImage: "eyeglasses") { app.openIncognitoTab() }
-    Button("New Easel", systemImage: "rectangle.on.rectangle.angled") { app.newEasel() }
+    Button("New Tab", systemImage: "plus") { run(.tab) }
+    Button("New Incognito Tab", systemImage: "eyeglasses") { run(.incognito) }
+    Button("New Easel", systemImage: "rectangle.on.rectangle.angled") { run(.easel) }
+  }
+
+  private func run(_ action: Action) {
+    if let perform { return perform(action) }
+    switch action {
+    case .tab: app.openCommandBar(newTab: true)
+    case .incognito: app.openIncognitoTab()
+    case .easel: app.newEasel()
+    }
   }
 }
 
