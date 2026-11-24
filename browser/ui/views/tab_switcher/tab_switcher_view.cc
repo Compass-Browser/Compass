@@ -94,7 +94,8 @@ class TabSwitcherCard : public views::Button {
     title->SetHorizontalAlignment(gfx::ALIGN_LEFT);
     title->SetElideBehavior(gfx::ELIDE_TAIL);
     row->SetFlexForView(title, 1);
-    title->SetMaximumWidth(thumbnail_size_.width() - kFaviconSize - 6);
+    title->SetMaximumWidthSingleLine(thumbnail_size_.width() - kFaviconSize -
+                                     6);
     AddChildView(std::move(row));
 
     if (card.thumbnail) {
