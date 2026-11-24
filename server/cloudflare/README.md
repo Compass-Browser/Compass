@@ -24,11 +24,24 @@ so Compass needs no changes to use it.
 - **Pairing** (`src/pairing.ts`) is one object for the server, with slots in
   memory as in Go.
 - **Access** (`src/access.ts`): who may use the server (below).
+- **Rooms** (shared spaces, folders and easels; sync.md, "Rooms"): one
+  object per room (`src/room.ts`) with its members, records, envelopes and
+  invites; the Worker's part is `src/rooms.ts`. Same routes, checks and
+  answers as the Go server, except what needs company sign-in (the
+  directory and email invites answer `404 directory_disabled`; members'
+  `name` and `email` are `""`). A room's bytes count in its owner chain's
+  quota. Each change reaches the member chains' objects, which send the
+  `room` event on their change streams and keep an index of their rooms
+  (`GET /v2/compass/rooms`) and the chain's identity key. A long poll
+  (`GET .../changes?wait=`) is a hibernating WebSocket to the room's
+  object, held by the Worker, so waiting costs no Durable Object time.
+  The Worker keeps a chain's "removed device / disabled" answer for a
+  minute. Clearing a chain (reset, idle expiry) deletes the rooms it owns
+  and its other memberships, as on the Go server. No admin commands.
 - The protobuf messages are read and written by a small codec
   (`src/proto.ts`); specifics stay the bytes the client sent.
 
-Not ported yet: rooms (shared spaces, folders and easels answer 404),
-push (sent tabs and background sync reach devices at their next sync,
+Not ported yet: push (sent tabs and background sync reach devices at their next sync,
 as on a Go server without APNs or FCM keys), company sign-in (OIDC),
 Prometheus metrics, backups (Durable Objects keep their own point-in-time
 recovery for 30 days).
@@ -52,7 +65,10 @@ invite code:
 Profile accounts pass with the chain they're linked to
 (`POST /v2/compass/account/link`, as on the Go server). Other chains get
 `401`. A removed friend is refused within a minute (the Worker caches
-answers). `BLOCKED_CLIENT_IDS` refuses chains outright.
+answers). `BLOCKED_CLIENT_IDS` refuses chains outright. Rooms follow the
+Go server's private-server gate: a chain not on the list may use the rooms
+it's a member of, or holds an invite to, and nothing else (`403
+chain_not_allowed`); creating a room needs the list.
 
 ## Deploying by hand
 
@@ -72,6 +88,18 @@ same name and default: `COMPASS_SYNC_MAX_ENTITIES`, `_MAX_BYTES`,
 `_POLL_SECONDS`, `_PUBLIC_HOST`, `HIGH_DEVICE_LIMIT_CLIENT_IDS`,
 `BLOCKED_CLIENT_IDS`.
 
+## Versions and updates
+
+`src/version.ts` has the server's version (`SERVER_VERSION`), reported in
+`GET /v2/compass/info` as `"server": {"kind": "cloudflare", "version": N}`.
+Raise it with any change existing servers should get, then `npm run
+bundle` (it writes `dist/compass-sync.version` next to the bundle). Compass
+offers the owner of an older server an update on its sync page, which
+uploads the new bundle keeping the server's variables (`keep_bindings`) and
+adding the Durable Object classes it lacks (docs/design/sync.md, "Updating
+a server"). A migration needs a new tag in `wrangler.jsonc` and in
+`components/sync/cloudflare_deployer.cc`, from every older tag.
+
 ## Free plan
 
 A person's devices should fit the free plan's daily allowance (from
@@ -84,6 +112,10 @@ check the current limits). What uses it:
   history and open tabs commit most;
 - open change streams cost Worker requests only when they connect, and
   no Durable Object time while quiet.
+- a room's long poll is one Worker request and two room-object requests
+  per poll (the WebSocket, then the answer; one when it times out empty),
+  with no Durable Object time while it waits; each room change is a call
+  to every member chain's object.
 
 A free Worker has 10 ms of CPU per request; a long-lived change stream can
 reach it after many hours and is then closed, and the device reconnects at
@@ -97,7 +129,12 @@ npx wrangler dev --port 8797
 # The Go server's end-to-end tests that take a URL:
 (cd .. && COMPASS_SYNC_E2E_URL=http://127.0.0.1:8797 \
   go test ./server/ -run 'TestEndToEnd(TwoDevices|CreateOverTombstone|Auth|Pairing)$')
-# This server's own (change stream, quota, device removal, reset):
+# The rooms tests that can run against a URL (the others skip; one uses a
+# fixed room ID, so start from a fresh --persist-to directory):
+(cd .. && COMPASS_SYNC_E2E_URL=http://127.0.0.1:8797 \
+  go test ./server/ -run 'TestEndToEndRooms|TestRooms' -v)
+# This server's own (change stream, quota, device removal, reset; rooms:
+# events, long polls, resets, successors, quota, the private gate):
 COMPASS_CF_URL=http://127.0.0.1:8797 npm test
 # The access list, against a server whose owner is a test seed's chain:
 #   wrangler dev --var COMPASS_SYNC_ALLOWED_CHAINS:<that chain ID>

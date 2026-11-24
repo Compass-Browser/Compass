@@ -4,11 +4,13 @@
 import type { Access } from "./access";
 import type { Chain } from "./chain";
 import type { Pairing } from "./pairing";
+import type { Room } from "./room";
 
 export interface Env {
   CHAIN: DurableObjectNamespace<Chain>;
   PAIRING: DurableObjectNamespace<Pairing>;
   ACCESS: DurableObjectNamespace<Access>;
+  ROOM: DurableObjectNamespace<Room>;
   COMPASS_SYNC_ALLOWED_CHAINS?: string;
   BLOCKED_CLIENT_IDS?: string;
   COMPASS_SYNC_MAX_ENTITIES?: string;

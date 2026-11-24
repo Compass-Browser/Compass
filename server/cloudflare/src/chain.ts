@@ -5,13 +5,20 @@
 // tags, the entity, byte and history quotas, create over a tombstone, the
 // device limit, device removal, idle-chain expiry. Change notifications go
 // to hibernating WebSockets, which the Worker turns into the Server-Sent
-// Events stream clients read (events.ts).
+// Events stream clients read (index.ts, events).
+//
+// Rooms (room.ts): the chain's object counts the bytes of the rooms the
+// chain owns in its quota (addRoomBytes), keeps an index of the rooms it's
+// a member of (room_index, for GET /v2/compass/rooms) and its identity key,
+// sends "room" events to its streams (roomEvent), and clears its rooms when
+// the chain is cleared.
 //
 // The Worker has authenticated the request and passes the chain ID (as the
 // token spells it) in X-Chain-ID.
 
 import { DurableObject } from "cloudflare:workers";
 import { type Config, deviceRemoved, type Env, fail, json, loadConfig, text } from "./config";
+import type { RoomEvent } from "./roomwire";
 import {
   type ClientToServerMessage,
   type ClientToServerResponse,
@@ -106,6 +113,20 @@ CREATE TABLE IF NOT EXISTS removed_devices (
   cache_guid TEXT PRIMARY KEY,
   removed_at INTEGER NOT NULL
 ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS room_index (
+  room_id TEXT PRIMARY KEY,
+  kind    TEXT NOT NULL,
+  owner   TEXT NOT NULL,
+  role    TEXT NOT NULL,
+  pending INTEGER NOT NULL,
+  epoch   INTEGER NOT NULL,
+  seq     INTEGER NOT NULL
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS identity (
+  one     INTEGER PRIMARY KEY CHECK (one = 1),
+  pub     TEXT NOT NULL,
+  updated INTEGER NOT NULL
+);
 `;
 
 const ENTITY_COLUMNS = `id, parent_id, version, mtime, ctime, name, non_unique_name,
@@ -324,7 +345,7 @@ export class Chain extends DurableObject<Env> {
           break;
         }
         case Contents.CLEAR_SERVER_DATA:
-          this.disable();
+          await this.disable();
           rsp.clearServerData = true;
           rsp.errorCode = ErrorType.SUCCESS;
           break;
@@ -1004,15 +1025,134 @@ export class Chain extends DurableObject<Env> {
     }
   }
 
+  // --- Rooms (calls from the Worker and room objects) -----------------------
+
+  // roomGate is the Worker's check before a rooms request (rooms.ts): is the
+  // device removed, is the chain disabled. A chain that passes is marked
+  // active, as a sync request does.
+  async roomGate(chainID: string, client: string): Promise<{ disabled: boolean; removed: boolean }> {
+    this.rememberChainID(chainID);
+    const removed = client !== "" && this.isDeviceRemoved(client);
+    const disabled = this.isDisabled();
+    if (!removed && !disabled) await this.touch();
+    return { disabled, removed };
+  }
+
+  status(): { disabled: boolean } {
+    return { disabled: this.isDisabled() };
+  }
+
+  // addRoomBytes counts a change of a room's size (it owns the room) in the
+  // chain's bytes: false, and nothing counted, when growth wouldn't fit
+  // COMPASS_SYNC_MAX_BYTES. Shrinking always works.
+  addRoomBytes(delta: number): boolean {
+    try {
+      this.addBytes(delta);
+      return true;
+    } catch (e) {
+      if (e instanceof QuotaExceeded) return false;
+      throw e;
+    }
+  }
+
+  // roomEvent is a room's object telling of a change: the chain's index of
+  // rooms takes the membership as it now is (none: not a member any more),
+  // and every stream but the calling device's gets a "room" event.
+  roomEvent(ev: RoomEvent): void {
+    if (this.sql.exec(`SELECT chain_id FROM chain`).one().chain_id === null) this.rememberChainID(ev.chain);
+    if (!this.isDisabled()) {
+      this.ctx.storage.transactionSync(() => {
+        if (ev.identity) this.storeIdentity(ev.identity);
+        const m = ev.membership;
+        if (m) {
+          this.sql.exec(
+            `INSERT INTO room_index (room_id, kind, owner, role, pending, epoch, seq) VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT (room_id) DO UPDATE SET kind = excluded.kind, owner = excluded.owner,
+               role = excluded.role, pending = excluded.pending, epoch = excluded.epoch, seq = excluded.seq`,
+            ev.room, m.kind, m.owner, m.role, m.pending ? 1 : 0, m.epoch, m.seq,
+          );
+        } else {
+          this.sql.exec(`DELETE FROM room_index WHERE room_id = ?`, ev.room);
+        }
+      });
+    }
+    if (ev.silent) return;
+    const msg = `event: room\ndata: ${JSON.stringify({ room_id: ev.room, seq: ev.seq, changes: ev.changes })}\n\n`;
+    for (const ws of this.ctx.getWebSockets()) {
+      const att = ws.deserializeAttachment() as { client?: string } | null;
+      if (ev.skipClient && att?.client === ev.skipClient) continue;
+      try {
+        ws.send(msg);
+      } catch {
+        // Closing; the Worker reconnects the device.
+      }
+    }
+  }
+
+  // listRooms answers GET /v2/compass/rooms: the chain's current
+  // memberships, by room ID; null for a chain the private server doesn't
+  // list and that is in no room.
+  listRooms(listed: boolean): { rooms: Record<string, unknown>[] } | null {
+    const rooms = this.sql
+      .exec(`SELECT room_id, kind, owner, role, pending, epoch, seq FROM room_index ORDER BY room_id`)
+      .toArray()
+      .map((r) => ({
+        id: r.room_id,
+        kind: r.kind,
+        owner: r.owner,
+        role: r.role,
+        pending: Number(r.pending) !== 0,
+        epoch: Number(r.epoch),
+        seq: Number(r.seq),
+      }));
+    if (!listed && rooms.length === 0) return null;
+    return { rooms };
+  }
+
+  hasRooms(): boolean {
+    return this.sql.exec(`SELECT 1 FROM room_index LIMIT 1`).toArray().length > 0;
+  }
+
+  ownedRoomCount(): number {
+    return Number(this.sql.exec(`SELECT COUNT(*) AS n FROM room_index WHERE role = 'owner'`).one().n);
+  }
+
+  // identityKey is the chain's X25519 identity key (base64), or null.
+  identityKey(): string | null {
+    const r = this.sql.exec(`SELECT pub FROM identity`).toArray()[0];
+    return r ? (r.pub as string) : null;
+  }
+
+  // setIdentityKey records the identity key and returns the rooms the chain
+  // is a current member of, whose memberships take it too.
+  setIdentityKey(pub: string): string[] {
+    this.storeIdentity(pub);
+    return this.sql.exec(`SELECT room_id FROM room_index ORDER BY room_id`).toArray().map((r) => r.room_id as string);
+  }
+
+  private storeIdentity(pub: string): void {
+    this.sql.exec(
+      `INSERT INTO identity (one, pub, updated) VALUES (1, ?, ?)
+       ON CONFLICT (one) DO UPDATE SET pub = excluded.pub, updated = excluded.updated WHERE identity.pub IS NOT excluded.pub`,
+      pub, Date.now(),
+    );
+  }
+
   // --- Maintenance -----------------------------------------------------------
 
   // disable clears the chain's data and refuses it from now on ("reset
-  // sync", and idle chains): ClearServerData.
-  private disable(): void {
+  // sync", and idle chains): ClearServerData. Its rooms go too (sync.md,
+  // "Going away"): those it owns are deleted, its other memberships and
+  // envelopes and its identity key go; nothing is announced.
+  private async disable(): Promise<void> {
+    const chain = String(this.sql.exec(`SELECT chain_id FROM chain`).one().chain_id ?? "").toLowerCase();
+    const rooms = this.sql.exec(`SELECT room_id FROM room_index`).toArray().map((r) => r.room_id as string);
     this.ctx.storage.transactionSync(() => {
       this.sql.exec(`DELETE FROM entities`);
       this.sql.exec(`DELETE FROM unique_tags`);
       this.sql.exec(`DELETE FROM removed_devices`);
+      this.sql.exec(`DELETE FROM room_index`);
+      this.sql.exec(`DELETE FROM identity`);
       this.sql.exec(
         `UPDATE chain SET disabled_at = ?, bytes = 0, item_count = 0, history_period1 = 0,
            history_period2 = 0, history_period3 = 0, history_period4 = 0, quota_full = 0`,
@@ -1020,6 +1160,16 @@ export class Chain extends DurableObject<Env> {
       );
     });
     for (const ws of this.ctx.getWebSockets()) ws.close(1000, "chain disabled");
+    if (!chain) return;
+    for (let i = 0; i < rooms.length; i += 50) {
+      await Promise.all(
+        rooms.slice(i, i + 50).map((room) =>
+          this.env.ROOM.get(this.env.ROOM.idFromName(room))
+            .chainGone(room, chain)
+            .catch((e: unknown) => console.error("clearing a room of a cleared chain failed", e)),
+        ),
+      );
+    }
   }
 
   // alarm runs hourly while the chain is in use: expired history and old
@@ -1033,7 +1183,7 @@ export class Chain extends DurableObject<Env> {
       lastActive !== null &&
       Number(lastActive) < Math.floor(now / 1000) - this.cfg.idleChainDays * 86400
     ) {
-      this.disable();
+      await this.disable();
       return;
     }
     this.purge(now);

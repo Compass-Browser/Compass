@@ -17,9 +17,9 @@ function hexBytes(hex) {
 }
 __name(hexBytes, "hexBytes");
 function base64UrlDecode(s) {
-  const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+  const b642 = s.replace(/-/g, "+").replace(/_/g, "/");
   try {
-    return atob(b64);
+    return atob(b642);
   } catch {
     throw new AuthError("bad base64");
   }
@@ -104,6 +104,451 @@ function deviceRemoved() {
   return fail(403, "device_removed", { "X-Compass-Device": "removed" });
 }
 __name(deviceRemoved, "deviceRemoved");
+
+// src/version.ts
+var SERVER_VERSION = 2;
+
+// src/roomwire.ts
+var MAX_WAIT_SECONDS = 30;
+var MAX_RECORDS_PER_WRITE = 500;
+var MAX_CHANGES_LIMIT = 1e3;
+var MAX_WRITE_BYTES = 24 << 20;
+var MAX_BATCH_CIPHERTEXT = 16 << 20;
+var MAX_BODY = 1 << 20;
+var ENVELOPE_BYTES = 80;
+var RECORD_OVERHEAD = 28;
+var MAX_PROFILE_BYTES = 4096;
+var MAX_INVITE_USES = 1e3;
+var IDENTITY_KEY_BYTES = 32;
+var SECRET_BYTES = 32;
+var ROOM_ID_BYTES = 16;
+var MAX_ROOM_MEMBERS = 50;
+var MAX_ROOM_RECORD_BYTES = 1 << 20;
+var MAX_ROOM_INVITES = 100;
+var MAX_ROOMS_PER_OWNER = 1e3;
+var MAX_CHANGES_BYTES = 8 << 20;
+var MAX_ENVELOPES = 1e3;
+var RECORD_ID_RE = /^[A-Za-z0-9._:-]{1,128}$/;
+var ROOM_ID_RE = /^[A-Za-z0-9_-]{22}$/;
+var INVITE_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+var SECRET_HASH_RE = /^[0-9a-f]{64}$/;
+var CHAIN_ID_RE = /^[0-9a-f]{64}$/;
+var ROLE_OWNER = "owner";
+var ROLE_EDITOR = "editor";
+var ROLE_VIEWER = "viewer";
+var KINDS = ["space", "folder", "easel"];
+var LINKED_TOKEN_HEADER = "X-Compass-Linked-Token";
+function b64(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 32768) {
+    s += String.fromCharCode(...bytes.subarray(i, i + 32768));
+  }
+  return btoa(s);
+}
+__name(b64, "b64");
+function fromBinary(s) {
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+__name(fromBinary, "fromBinary");
+function decodeStd(s) {
+  const t = s.replace(/[\r\n]/g, "");
+  if (t.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(t)) return null;
+  try {
+    return fromBinary(atob(t));
+  } catch {
+    return null;
+  }
+}
+__name(decodeStd, "decodeStd");
+function rawURL(bytes) {
+  return b64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+__name(rawURL, "rawURL");
+function decodeRawURL(s, n) {
+  if (!/^[A-Za-z0-9_-]*$/.test(s)) return null;
+  let std = s.replace(/-/g, "+").replace(/_/g, "/");
+  while (std.length % 4) std += "=";
+  let out;
+  try {
+    out = fromBinary(atob(std));
+  } catch {
+    return null;
+  }
+  if (out.length !== n || rawURL(out) !== s) return null;
+  return out;
+}
+__name(decodeRawURL, "decodeRawURL");
+function validRoomID(id) {
+  return ROOM_ID_RE.test(id) && decodeRawURL(id, ROOM_ID_BYTES) !== null;
+}
+__name(validRoomID, "validRoomID");
+function newID() {
+  return rawURL(crypto.getRandomValues(new Uint8Array(16)));
+}
+__name(newID, "newID");
+async function sha256(b) {
+  return new Uint8Array(await crypto.subtle.digest("SHA-256", b));
+}
+__name(sha256, "sha256");
+function equalBytes(a, b) {
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a[i] ^ b[i];
+  return d === 0;
+}
+__name(equalBytes, "equalBytes");
+var HttpError = class extends Error {
+  constructor(status, code, extra = {}) {
+    super(code);
+    this.status = status;
+    this.code = code;
+    this.extra = extra;
+  }
+  status;
+  code;
+  extra;
+  static {
+    __name(this, "HttpError");
+  }
+};
+var Bad = class extends Error {
+  static {
+    __name(this, "Bad");
+  }
+};
+function badRequest(detail) {
+  return json(400, { error: "bad_request", detail });
+}
+__name(badRequest, "badRequest");
+function noContent() {
+  return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+}
+__name(noContent, "noContent");
+function errorResponse(e) {
+  if (e instanceof HttpError) return json(e.status, { error: e.code, ...e.extra });
+  if (e instanceof Bad) return badRequest(e.message);
+  console.error("rooms: request failed", e);
+  return json(500, { error: "unable to complete request" });
+}
+__name(errorResponse, "errorResponse");
+async function readJSONBody(request, limit) {
+  const parts = [];
+  let size = 0;
+  if (request.body) {
+    const reader = request.body.getReader();
+    for (; ; ) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > limit) {
+        await reader.cancel().catch(() => {
+        });
+        throw new HttpError(413, "too_large");
+      }
+      parts.push(value);
+    }
+  }
+  const buf = new Uint8Array(size);
+  let pos = 0;
+  for (const p of parts) {
+    buf.set(p, pos);
+    pos += p.length;
+  }
+  let v;
+  try {
+    v = JSON.parse(new TextDecoder().decode(buf));
+  } catch (e) {
+    throw new Bad("invalid JSON: " + (e instanceof Error ? e.message : String(e)));
+  }
+  if (v === null) return {};
+  if (typeof v !== "object" || Array.isArray(v)) throw new Bad("invalid JSON: not an object");
+  return v;
+}
+__name(readJSONBody, "readJSONBody");
+function typeError(k, want) {
+  return new Bad(`invalid JSON: ${k} must be ${want}`);
+}
+__name(typeError, "typeError");
+function fStr(o, k) {
+  const v = o[k];
+  if (v === void 0 || v === null) return "";
+  if (typeof v !== "string") throw typeError(k, "a string");
+  return v;
+}
+__name(fStr, "fStr");
+function fOptInt(o, k) {
+  const v = o[k];
+  if (v === void 0 || v === null) return null;
+  if (typeof v !== "number" || !Number.isSafeInteger(v)) throw typeError(k, "an integer");
+  return v;
+}
+__name(fOptInt, "fOptInt");
+function fInt(o, k) {
+  return fOptInt(o, k) ?? 0;
+}
+__name(fInt, "fInt");
+function fBool(o, k) {
+  const v = o[k];
+  if (v === void 0 || v === null) return false;
+  if (typeof v !== "boolean") throw typeError(k, "a boolean");
+  return v;
+}
+__name(fBool, "fBool");
+function fBytes(o, k) {
+  const v = o[k];
+  if (v === void 0 || v === null) return null;
+  if (typeof v !== "string") throw typeError(k, "base64");
+  const b = decodeStd(v);
+  if (!b) throw typeError(k, "base64");
+  return b;
+}
+__name(fBytes, "fBytes");
+function fObjects(o, k) {
+  const v = o[k];
+  if (v === void 0 || v === null) return [];
+  if (!Array.isArray(v)) throw typeError(k, "an array");
+  return v.map((e) => {
+    if (e === null) return {};
+    if (typeof e !== "object" || Array.isArray(e)) throw typeError(k, "an array of objects");
+    return e;
+  });
+}
+__name(fObjects, "fObjects");
+
+// src/rooms.ts
+var GATE_TTL_MS = 6e4;
+var gateCache = /* @__PURE__ */ new Map();
+function forgetGate(chain) {
+  gateCache.delete(chain.toLowerCase());
+}
+__name(forgetGate, "forgetGate");
+function chainStub(env, chain) {
+  return env.CHAIN.get(env.CHAIN.idFromName(chain.toLowerCase()));
+}
+__name(chainStub, "chainStub");
+function roomStub(env, room2) {
+  return env.ROOM.get(env.ROOM.idFromName(room2));
+}
+__name(roomStub, "roomStub");
+async function gate(env, chain, device) {
+  const key = chain.toLowerCase();
+  const now = Date.now();
+  const hit = gateCache.get(key)?.get(device);
+  if (hit && hit.until > now) return hit.gate;
+  const g = await chainStub(env, chain).roomGate(chain, device);
+  if (gateCache.size > 1e4) gateCache.clear();
+  let byDevice = gateCache.get(key);
+  if (!byDevice) gateCache.set(key, byDevice = /* @__PURE__ */ new Map());
+  if (byDevice.size > 100) byDevice.clear();
+  byDevice.set(device, { gate: g, until: now + GATE_TTL_MS });
+  return g;
+}
+__name(gate, "gate");
+var ROOM_ROUTES = [
+  [/^$/, ["GET", "DELETE"]],
+  [/^\/changes$/, ["GET"]],
+  [/^\/records$/, ["POST"]],
+  [/^\/invites$/, ["POST"]],
+  [/^\/invites\/[^/]+$/, ["DELETE"]],
+  [/^\/join$/, ["POST"]],
+  [/^\/members$/, ["POST"]],
+  [/^\/members\/[^/]+$/, ["PATCH", "DELETE"]],
+  [/^\/(owner|successor|epochs|envelopes)$/, ["POST"]]
+];
+async function rooms(env, request, rest, deps) {
+  const method = request.method;
+  let kind;
+  let roomID = "";
+  let sub = "";
+  if (rest === "/compass/rooms") {
+    if (method !== "GET" && method !== "POST") return text(405, "Method Not Allowed");
+    kind = "list";
+  } else if (rest.startsWith("/compass/rooms/")) {
+    const after = rest.slice("/compass/rooms/".length);
+    const slash = after.indexOf("/");
+    roomID = slash < 0 ? after : after.slice(0, slash);
+    sub = slash < 0 ? "" : after.slice(slash).replace(/\/$/, "");
+    if (!roomID) return text(404, "404 page not found");
+    const route = ROOM_ROUTES.find(([re]) => re.test(sub));
+    if (!route) return text(404, "404 page not found");
+    if (!route[1].includes(method)) return text(405, "Method Not Allowed");
+    kind = "room";
+  } else if (rest === "/compass/identity") {
+    if (method !== "GET" && method !== "PUT") return text(405, "Method Not Allowed");
+    kind = "identity";
+  } else if (rest === "/compass/directory") {
+    if (method !== "GET") return text(405, "Method Not Allowed");
+    kind = "directory";
+  } else {
+    return null;
+  }
+  const chain = await deps.authenticate(env, request.headers.get("Authorization"));
+  if (!chain) return fail(401, "invalid sync token");
+  const url = new URL(request.url);
+  const device = url.searchParams.get("client_id") ?? "";
+  const g = await gate(env, chain, device);
+  if (g.removed) return deviceRemoved();
+  if (g.disabled) return fail(403, "chain_disabled");
+  const c = { id: chain.toLowerCase(), listed: await deps.listed(env, chain), device };
+  try {
+    switch (kind) {
+      case "list":
+        return method === "GET" ? await listRooms(env, c) : await createRoom(env, request, c);
+      case "identity":
+        return method === "GET" ? await getIdentity(env, c) : await putIdentity(env, request, c);
+      case "directory":
+        if (!c.listed) return fail(403, "chain_not_allowed");
+        return fail(404, "directory_disabled");
+      case "room":
+        return await room(env, request, url, c, roomID, sub, deps);
+    }
+  } catch (e) {
+    return errorResponse(e);
+  }
+}
+__name(rooms, "rooms");
+async function listRooms(env, c) {
+  const out = await chainStub(env, c.id).listRooms(c.listed);
+  if (!out) return fail(403, "chain_not_allowed");
+  return json(200, out);
+}
+__name(listRooms, "listRooms");
+async function createRoom(env, request, c) {
+  if (!c.listed) return fail(403, "chain_not_allowed");
+  const body = await readJSONBody(request, MAX_BODY);
+  const id = fStr(body, "id");
+  const kind = fStr(body, "kind");
+  const pub = fBytes(body, "identity_pub");
+  const envelope = fBytes(body, "envelope");
+  const profile = fBytes(body, "profile");
+  if (id !== "" && !validRoomID(id)) throw new Bad("id must be 16 bytes, base64url without padding");
+  if (!KINDS.includes(kind)) throw new Bad("kind must be space, folder or easel");
+  if (pub?.length !== IDENTITY_KEY_BYTES) throw new Bad("identity_pub must be 32 bytes");
+  if (envelope?.length !== ENVELOPE_BYTES) throw new Bad("envelope must be 80 bytes");
+  if ((profile?.length ?? 0) > MAX_PROFILE_BYTES) throw new Bad("profile must be at most 4096 bytes");
+  if (await chainStub(env, c.id).ownedRoomCount() >= MAX_ROOMS_PER_OWNER) {
+    throw new HttpError(409, "too_many_rooms");
+  }
+  const roomID = id || newID();
+  return roomStub(env, roomID).fetch(
+    new Request("https://room/create", {
+      method: "POST",
+      headers: roomHeaders(c, roomID),
+      body: JSON.stringify({
+        kind,
+        identity_pub: b64(pub),
+        envelope: b64(envelope),
+        profile: profile && profile.length > 0 ? b64(profile) : null
+      })
+    })
+  );
+}
+__name(createRoom, "createRoom");
+async function hasRoomsOrListed(env, c) {
+  if (!c.listed && !await chainStub(env, c.id).hasRooms()) throw new HttpError(403, "chain_not_allowed");
+}
+__name(hasRoomsOrListed, "hasRoomsOrListed");
+async function getIdentity(env, c) {
+  await hasRoomsOrListed(env, c);
+  return json(200, { identity_pub: await chainStub(env, c.id).identityKey() });
+}
+__name(getIdentity, "getIdentity");
+async function putIdentity(env, request, c) {
+  await hasRoomsOrListed(env, c);
+  const body = await readJSONBody(request, MAX_BODY);
+  const pub = fBytes(body, "identity_pub");
+  if (pub?.length !== IDENTITY_KEY_BYTES) throw new Bad("identity_pub must be 32 bytes");
+  const key = b64(pub);
+  const rooms2 = await chainStub(env, c.id).setIdentityKey(key);
+  await Promise.all(
+    rooms2.map(
+      (r) => roomStub(env, r).identityChanged(r, c.id, key, c.device).catch((e) => console.error("rooms: updating an identity key failed", e))
+    )
+  );
+  return noContent();
+}
+__name(putIdentity, "putIdentity");
+function roomHeaders(c, roomID, extra = {}) {
+  return new Headers({
+    "X-Chain-ID": c.id,
+    "X-Listed": c.listed ? "1" : "0",
+    "X-Client-ID": c.device,
+    "X-Room-ID": roomID,
+    ...extra
+  });
+}
+__name(roomHeaders, "roomHeaders");
+async function room(env, request, url, c, roomID, sub, deps) {
+  if (!validRoomID(roomID)) {
+    if (sub === "/join") await readJSONBody(request, MAX_BODY);
+    return fail(404, "not_found");
+  }
+  const extra = {};
+  let path = sub || "/";
+  const linked = (request.headers.get(LINKED_TOKEN_HEADER) ?? "").trim();
+  if (sub === "/successor" || sub === "/owner" && linked !== "") {
+    path = "/successor";
+    const next = linked ? await deps.authenticate(env, linked.startsWith("Bearer ") ? linked : "Bearer " + linked) : "";
+    extra["X-Linked-Chain"] = next.toLowerCase();
+  }
+  const stub = roomStub(env, roomID);
+  const forward = /* @__PURE__ */ __name((headers) => stub.fetch(
+    new Request(`https://room${path}${url.search}`, {
+      method: request.method,
+      headers,
+      body: request.method === "GET" || request.method === "DELETE" ? null : request.body
+    })
+  ), "forward");
+  if (sub === "/changes") {
+    const w = url.searchParams.get("wait") ?? "";
+    const wait = /^\d+$/.test(w) ? Number(w) : 0;
+    if (wait > 0 && wait <= MAX_WAIT_SECONDS) return longPoll(request, roomHeaders(c, roomID), wait, forward);
+  }
+  return forward(roomHeaders(c, roomID, extra));
+}
+__name(room, "room");
+async function longPoll(request, headers, wait, forward) {
+  const up = new Headers(headers);
+  up.set("Upgrade", "websocket");
+  const rsp = await forward(up);
+  const ws = rsp.webSocket;
+  if (!ws) return rsp;
+  ws.accept();
+  return new Promise((resolve) => {
+    let hello = null;
+    let done = false;
+    const finish = /* @__PURE__ */ __name((timedOut) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      try {
+        ws.close(1e3, "done");
+      } catch {
+      }
+      if (timedOut && hello) {
+        resolve(json(200, { seq: hello.seq, epoch: hello.epoch, records: [], more: false }));
+      } else {
+        resolve(forward(headers));
+      }
+    }, "finish");
+    const timer = setTimeout(() => finish(true), wait * 1e3);
+    ws.addEventListener("message", (ev) => {
+      if (typeof ev.data !== "string") return;
+      if (ev.data === "wake") return finish(false);
+      try {
+        hello = JSON.parse(ev.data);
+      } catch {
+        finish(false);
+      }
+    });
+    ws.addEventListener("close", () => finish(false));
+    ws.addEventListener("error", () => finish(false));
+    request.signal?.addEventListener?.("abort", () => finish(true));
+  });
+}
+__name(longPoll, "longPoll");
 
 // src/access.ts
 import { DurableObject } from "cloudflare:workers";
@@ -738,6 +1183,20 @@ CREATE TABLE IF NOT EXISTS removed_devices (
   cache_guid TEXT PRIMARY KEY,
   removed_at INTEGER NOT NULL
 ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS room_index (
+  room_id TEXT PRIMARY KEY,
+  kind    TEXT NOT NULL,
+  owner   TEXT NOT NULL,
+  role    TEXT NOT NULL,
+  pending INTEGER NOT NULL,
+  epoch   INTEGER NOT NULL,
+  seq     INTEGER NOT NULL
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS identity (
+  one     INTEGER PRIMARY KEY CHECK (one = 1),
+  pub     TEXT NOT NULL,
+  updated INTEGER NOT NULL
+);
 `;
 var ENTITY_COLUMNS = `id, parent_id, version, mtime, ctime, name, non_unique_name,
   server_defined_unique_tag, deleted, originator_cache_guid, originator_client_item_id,
@@ -910,7 +1369,7 @@ var Chain = class extends DurableObject2 {
           break;
         }
         case Contents.CLEAR_SERVER_DATA:
-          this.disable();
+          await this.disable();
           rsp.clearServerData = true;
           rsp.errorCode = ErrorType.SUCCESS;
           break;
@@ -1563,14 +2022,128 @@ data: ${JSON.stringify({ types })}
     } catch {
     }
   }
+  // --- Rooms (calls from the Worker and room objects) -----------------------
+  // roomGate is the Worker's check before a rooms request (rooms.ts): is the
+  // device removed, is the chain disabled. A chain that passes is marked
+  // active, as a sync request does.
+  async roomGate(chainID, client) {
+    this.rememberChainID(chainID);
+    const removed = client !== "" && this.isDeviceRemoved(client);
+    const disabled = this.isDisabled();
+    if (!removed && !disabled) await this.touch();
+    return { disabled, removed };
+  }
+  status() {
+    return { disabled: this.isDisabled() };
+  }
+  // addRoomBytes counts a change of a room's size (it owns the room) in the
+  // chain's bytes: false, and nothing counted, when growth wouldn't fit
+  // COMPASS_SYNC_MAX_BYTES. Shrinking always works.
+  addRoomBytes(delta) {
+    try {
+      this.addBytes(delta);
+      return true;
+    } catch (e) {
+      if (e instanceof QuotaExceeded) return false;
+      throw e;
+    }
+  }
+  // roomEvent is a room's object telling of a change: the chain's index of
+  // rooms takes the membership as it now is (none: not a member any more),
+  // and every stream but the calling device's gets a "room" event.
+  roomEvent(ev) {
+    if (this.sql.exec(`SELECT chain_id FROM chain`).one().chain_id === null) this.rememberChainID(ev.chain);
+    if (!this.isDisabled()) {
+      this.ctx.storage.transactionSync(() => {
+        if (ev.identity) this.storeIdentity(ev.identity);
+        const m = ev.membership;
+        if (m) {
+          this.sql.exec(
+            `INSERT INTO room_index (room_id, kind, owner, role, pending, epoch, seq) VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT (room_id) DO UPDATE SET kind = excluded.kind, owner = excluded.owner,
+               role = excluded.role, pending = excluded.pending, epoch = excluded.epoch, seq = excluded.seq`,
+            ev.room,
+            m.kind,
+            m.owner,
+            m.role,
+            m.pending ? 1 : 0,
+            m.epoch,
+            m.seq
+          );
+        } else {
+          this.sql.exec(`DELETE FROM room_index WHERE room_id = ?`, ev.room);
+        }
+      });
+    }
+    if (ev.silent) return;
+    const msg = `event: room
+data: ${JSON.stringify({ room_id: ev.room, seq: ev.seq, changes: ev.changes })}
+
+`;
+    for (const ws of this.ctx.getWebSockets()) {
+      const att = ws.deserializeAttachment();
+      if (ev.skipClient && att?.client === ev.skipClient) continue;
+      try {
+        ws.send(msg);
+      } catch {
+      }
+    }
+  }
+  // listRooms answers GET /v2/compass/rooms: the chain's current
+  // memberships, by room ID; null for a chain the private server doesn't
+  // list and that is in no room.
+  listRooms(listed) {
+    const rooms2 = this.sql.exec(`SELECT room_id, kind, owner, role, pending, epoch, seq FROM room_index ORDER BY room_id`).toArray().map((r) => ({
+      id: r.room_id,
+      kind: r.kind,
+      owner: r.owner,
+      role: r.role,
+      pending: Number(r.pending) !== 0,
+      epoch: Number(r.epoch),
+      seq: Number(r.seq)
+    }));
+    if (!listed && rooms2.length === 0) return null;
+    return { rooms: rooms2 };
+  }
+  hasRooms() {
+    return this.sql.exec(`SELECT 1 FROM room_index LIMIT 1`).toArray().length > 0;
+  }
+  ownedRoomCount() {
+    return Number(this.sql.exec(`SELECT COUNT(*) AS n FROM room_index WHERE role = 'owner'`).one().n);
+  }
+  // identityKey is the chain's X25519 identity key (base64), or null.
+  identityKey() {
+    const r = this.sql.exec(`SELECT pub FROM identity`).toArray()[0];
+    return r ? r.pub : null;
+  }
+  // setIdentityKey records the identity key and returns the rooms the chain
+  // is a current member of, whose memberships take it too.
+  setIdentityKey(pub) {
+    this.storeIdentity(pub);
+    return this.sql.exec(`SELECT room_id FROM room_index ORDER BY room_id`).toArray().map((r) => r.room_id);
+  }
+  storeIdentity(pub) {
+    this.sql.exec(
+      `INSERT INTO identity (one, pub, updated) VALUES (1, ?, ?)
+       ON CONFLICT (one) DO UPDATE SET pub = excluded.pub, updated = excluded.updated WHERE identity.pub IS NOT excluded.pub`,
+      pub,
+      Date.now()
+    );
+  }
   // --- Maintenance -----------------------------------------------------------
   // disable clears the chain's data and refuses it from now on ("reset
-  // sync", and idle chains): ClearServerData.
-  disable() {
+  // sync", and idle chains): ClearServerData. Its rooms go too (sync.md,
+  // "Going away"): those it owns are deleted, its other memberships and
+  // envelopes and its identity key go; nothing is announced.
+  async disable() {
+    const chain = String(this.sql.exec(`SELECT chain_id FROM chain`).one().chain_id ?? "").toLowerCase();
+    const rooms2 = this.sql.exec(`SELECT room_id FROM room_index`).toArray().map((r) => r.room_id);
     this.ctx.storage.transactionSync(() => {
       this.sql.exec(`DELETE FROM entities`);
       this.sql.exec(`DELETE FROM unique_tags`);
       this.sql.exec(`DELETE FROM removed_devices`);
+      this.sql.exec(`DELETE FROM room_index`);
+      this.sql.exec(`DELETE FROM identity`);
       this.sql.exec(
         `UPDATE chain SET disabled_at = ?, bytes = 0, item_count = 0, history_period1 = 0,
            history_period2 = 0, history_period3 = 0, history_period4 = 0, quota_full = 0`,
@@ -1578,6 +2151,14 @@ data: ${JSON.stringify({ types })}
       );
     });
     for (const ws of this.ctx.getWebSockets()) ws.close(1e3, "chain disabled");
+    if (!chain) return;
+    for (let i = 0; i < rooms2.length; i += 50) {
+      await Promise.all(
+        rooms2.slice(i, i + 50).map(
+          (room2) => this.env.ROOM.get(this.env.ROOM.idFromName(room2)).chainGone(room2, chain).catch((e) => console.error("clearing a room of a cleared chain failed", e))
+        )
+      );
+    }
   }
   // alarm runs hourly while the chain is in use: expired history and old
   // tombstones go, and an idle chain is cleared and disabled.
@@ -1586,7 +2167,7 @@ data: ${JSON.stringify({ types })}
     const now = Date.now();
     const lastActive = this.sql.exec(`SELECT last_active FROM chain`).one().last_active;
     if (this.cfg.idleChainDays > 0 && lastActive !== null && Number(lastActive) < Math.floor(now / 1e3) - this.cfg.idleChainDays * 86400) {
-      this.disable();
+      await this.disable();
       return;
     }
     this.purge(now);
@@ -1912,11 +2493,886 @@ function timingSafeEqual(a, b) {
 }
 __name(timingSafeEqual, "timingSafeEqual");
 
+// src/room.ts
+import { DurableObject as DurableObject4 } from "cloudflare:workers";
+var MAX_WATCHERS = 1e3;
+var SCHEMA3 = `
+CREATE TABLE IF NOT EXISTS room (
+  one     INTEGER PRIMARY KEY CHECK (one = 1),
+  id      TEXT NOT NULL,
+  owner   TEXT NOT NULL,
+  kind    TEXT NOT NULL,
+  created INTEGER NOT NULL,
+  seq     INTEGER NOT NULL DEFAULT 0,
+  epoch   INTEGER NOT NULL DEFAULT 1,
+  bytes   INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS members (
+  client_id    TEXT PRIMARY KEY,
+  role         TEXT NOT NULL,
+  identity_pub BLOB,
+  profile      BLOB,
+  invited      INTEGER NOT NULL,
+  joined       INTEGER NOT NULL DEFAULT 0,
+  removed      INTEGER NOT NULL DEFAULT 0
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS records (
+  record_id  TEXT PRIMARY KEY,
+  seq        INTEGER NOT NULL,
+  epoch      INTEGER NOT NULL,
+  deleted    INTEGER NOT NULL DEFAULT 0,
+  author     TEXT NOT NULL,
+  ciphertext BLOB,
+  size       INTEGER NOT NULL DEFAULT 0
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS records_by_seq ON records (seq);
+CREATE TABLE IF NOT EXISTS envelopes (
+  client_id TEXT NOT NULL,
+  epoch     INTEGER NOT NULL,
+  sealed    BLOB NOT NULL,
+  PRIMARY KEY (client_id, epoch)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS invites (
+  id          TEXT PRIMARY KEY,
+  secret_hash BLOB NOT NULL,
+  role        TEXT NOT NULL,
+  created     INTEGER NOT NULL,
+  expires     INTEGER NOT NULL DEFAULT 0,
+  uses_left   INTEGER,
+  revoked     INTEGER NOT NULL DEFAULT 0
+) WITHOUT ROWID;
+`;
+function bytesOf2(v) {
+  if (v instanceof ArrayBuffer) return new Uint8Array(v);
+  if (v instanceof Uint8Array) return v;
+  return null;
+}
+__name(bytesOf2, "bytesOf");
+function blob2(b) {
+  if (!b || b.length === 0) return null;
+  return b.slice().buffer;
+}
+__name(blob2, "blob");
+function b64OrNull(b) {
+  return b === null ? null : b64(b);
+}
+__name(b64OrNull, "b64OrNull");
+function validRole(role) {
+  return role === ROLE_EDITOR || role === ROLE_VIEWER;
+}
+__name(validRole, "validRole");
+function chainStub2(env, chain) {
+  return env.CHAIN.get(env.CHAIN.idFromName(chain.toLowerCase()));
+}
+__name(chainStub2, "chainStub");
+function recordOut(r) {
+  const out = {
+    id: r.record_id,
+    seq: Number(r.seq),
+    epoch: Number(r.epoch),
+    deleted: Number(r.deleted) !== 0,
+    author: r.author
+  };
+  const ct = bytesOf2(r.ciphertext);
+  if (ct && ct.length > 0) out.ciphertext = b64(ct);
+  return out;
+}
+__name(recordOut, "recordOut");
+function parseCount(v, def) {
+  if (v === null || v === "") return def;
+  if (!/^[+-]?\d+$/.test(v)) return null;
+  const n = Number(v);
+  return Number.isSafeInteger(n) ? n : null;
+}
+__name(parseCount, "parseCount");
+var quotaExceeded = /* @__PURE__ */ __name(() => new HttpError(507, "quota_exceeded"), "quotaExceeded");
+var Room = class extends DurableObject4 {
+  static {
+    __name(this, "Room");
+  }
+  sql;
+  queue = Promise.resolve();
+  constructor(ctx, env) {
+    super(ctx, env);
+    this.sql = ctx.storage.sql;
+    this.sql.exec(SCHEMA3);
+  }
+  // locked runs the room's changes one at a time: they await other objects
+  // (quota, events) between reading and writing.
+  locked(fn) {
+    const p = this.queue.then(fn, fn);
+    this.queue = p.catch(() => {
+    });
+    return p;
+  }
+  // --- HTTP ------------------------------------------------------------------
+  async fetch(request) {
+    const url = new URL(request.url);
+    const h = request.headers;
+    const c = {
+      id: (h.get("X-Chain-ID") ?? "").toLowerCase(),
+      listed: h.get("X-Listed") === "1",
+      device: h.get("X-Client-ID") ?? "",
+      room: h.get("X-Room-ID") ?? ""
+    };
+    if (!c.id || !c.room) return text(401, "Unauthorized");
+    const path = url.pathname;
+    const method = request.method;
+    try {
+      if (path === "/create" && method === "POST") return await this.create(c, request);
+      if (path === "/join" && method === "POST") return await this.join(c, request);
+      const handler = this.route(method, path);
+      if (!handler) return text(404, "404 page not found");
+      if (!c.listed && !this.member(c.id)) throw new HttpError(403, "chain_not_allowed");
+      return await handler(c, request, url);
+    } catch (e) {
+      return errorResponse(e);
+    }
+  }
+  route(method, path) {
+    const seg = path.split("/").filter(Boolean);
+    const [a, b] = seg;
+    const is = /* @__PURE__ */ __name((m) => method === m, "is");
+    if (seg.length === 0) {
+      if (is("GET")) return (c) => this.view(c, 200);
+      if (is("DELETE")) return (c) => this.deleteRoom(c);
+      return null;
+    }
+    if (seg.length === 1) {
+      if (a === "changes" && is("GET")) return (c, r, u) => this.changes(c, r, u);
+      if (a === "records" && is("POST")) return (c, r) => this.records(c, r);
+      if (a === "invites" && is("POST")) return (c, r) => this.createInvite(c, r);
+      if (a === "members" && is("POST")) return () => {
+        throw new HttpError(404, "directory_disabled");
+      };
+      if (a === "owner" && is("POST")) return (c, r) => this.transfer(c, r);
+      if (a === "successor" && is("POST")) return (c, r) => this.successor(c, r);
+      if (a === "epochs" && is("POST")) return (c, r) => this.rotate(c, r);
+      if (a === "envelopes" && is("POST")) return (c, r) => this.addEnvelopes(c, r);
+      return null;
+    }
+    if (seg.length === 2) {
+      if (a === "invites" && is("DELETE")) return (c) => this.revokeInvite(c, b);
+      if (a === "members" && is("PATCH")) return (c, r) => this.updateMember(c, r, b);
+      if (a === "members" && is("DELETE")) return (c) => this.removeMember(c, b);
+    }
+    return null;
+  }
+  // --- State -----------------------------------------------------------------
+  roomRow() {
+    const r = this.sql.exec(`SELECT id, owner, kind, created, seq, epoch, bytes FROM room`).toArray()[0];
+    if (!r) return null;
+    return {
+      id: r.id,
+      owner: r.owner,
+      kind: r.kind,
+      created: Number(r.created),
+      seq: Number(r.seq),
+      epoch: Number(r.epoch),
+      bytes: Number(r.bytes)
+    };
+  }
+  memberOf(r) {
+    return {
+      client_id: r.client_id,
+      role: r.role,
+      identity_pub: bytesOf2(r.identity_pub),
+      profile: bytesOf2(r.profile),
+      invited: Number(r.invited),
+      joined: Number(r.joined),
+      removed: Number(r.removed)
+    };
+  }
+  member(chain) {
+    const r = this.sql.exec(`SELECT * FROM members WHERE client_id = ?`, chain.toLowerCase()).toArray()[0];
+    return r ? this.memberOf(r) : null;
+  }
+  // currentMembers are the joined and pending members, by client ID.
+  currentMembers() {
+    return this.sql.exec(`SELECT * FROM members WHERE removed = 0 ORDER BY client_id`).toArray().map((r) => this.memberOf(r));
+  }
+  currentIDs() {
+    return this.currentMembers().map((m) => m.client_id);
+  }
+  // access loads the room and the caller's membership: not_found if either
+  // is missing, removed, not_joined if pending and !pendingOK, forbidden if
+  // its role isn't in roles (none: any).
+  access(caller, pendingOK, roles = []) {
+    const room2 = this.roomRow();
+    if (!room2) throw new HttpError(404, "not_found");
+    const me = this.member(caller);
+    if (!me) throw new HttpError(404, "not_found");
+    if (me.removed !== 0) throw new HttpError(403, "removed");
+    if (me.joined === 0 && !pendingOK) throw new HttpError(403, "not_joined");
+    if (roles.length > 0 && !roles.includes(me.role)) throw new HttpError(403, "forbidden");
+    return { room: room2, me };
+  }
+  // currentTarget is a member operation's target: member_not_found unless
+  // it's a current member.
+  currentTarget(chain) {
+    const m = this.member(chain);
+    if (!m || m.removed !== 0) throw new HttpError(404, "member_not_found");
+    return m;
+  }
+  putEnvelope(chain, epoch, sealed) {
+    this.sql.exec(
+      `INSERT INTO envelopes (client_id, epoch, sealed) VALUES (?, ?, ?)
+       ON CONFLICT (client_id, epoch) DO UPDATE SET sealed = excluded.sealed`,
+      chain,
+      epoch,
+      blob2(sealed)
+    );
+  }
+  wipe() {
+    this.ctx.storage.transactionSync(() => {
+      for (const t of ["room", "members", "records", "envelopes", "invites"]) this.sql.exec(`DELETE FROM ${t}`);
+    });
+  }
+  // --- Notifications ---------------------------------------------------------
+  membership(chain, room2) {
+    if (!room2) return null;
+    const m = this.member(chain);
+    if (!m || m.removed !== 0) return null;
+    return { kind: room2.kind, owner: room2.owner, role: m.role, pending: m.joined === 0, epoch: room2.epoch, seq: room2.seq };
+  }
+  // announce tells each chain of targets of a change to the room: a "room"
+  // event on its streams (but the calling device's) and its membership as
+  // it now is, for its index. Failures are logged: a member finds out at
+  // its next request.
+  async announce(c, change, targets, opts = {}) {
+    const room2 = this.roomRow();
+    const seq = opts.seq ?? room2?.seq ?? 0;
+    await Promise.all(
+      [...new Set(targets)].map(async (t) => {
+        const ev = {
+          chain: t,
+          room: c.room,
+          seq,
+          changes: [change],
+          skipClient: t === c.id ? c.device : "",
+          membership: this.membership(t, room2)
+        };
+        if (opts.silent) ev.silent = true;
+        if (opts.identity && opts.identity.chain === t) ev.identity = b64(opts.identity.pub);
+        try {
+          await chainStub2(this.env, t).roomEvent(ev);
+        } catch (e) {
+          console.error("rooms: telling a member failed", e);
+        }
+      })
+    );
+  }
+  // wake ends the long polls of chain (all: every one).
+  wake(chain) {
+    for (const ws of this.ctx.getWebSockets(chain ? "w:" + chain : void 0)) {
+      try {
+        ws.send("wake");
+      } catch {
+      }
+    }
+  }
+  async webSocketMessage() {
+  }
+  async webSocketClose(ws, code) {
+    try {
+      ws.close(code === 1005 ? 1e3 : code, "closed");
+    } catch {
+    }
+  }
+  // --- Answers ---------------------------------------------------------------
+  // view answers the room as c sees it.
+  view(c, status) {
+    const { room: room2, me } = this.access(c.id, true);
+    const members = this.currentMembers().map((m) => ({
+      client_id: m.client_id,
+      role: m.role,
+      identity_pub: b64OrNull(m.identity_pub),
+      profile: b64OrNull(m.profile),
+      name: "",
+      // No company sign-in on this server.
+      email: "",
+      invited: m.invited,
+      joined: m.joined,
+      pending: m.joined === 0
+    }));
+    const envelopes = this.sql.exec(`SELECT epoch, sealed FROM envelopes WHERE client_id = ? ORDER BY epoch`, me.client_id).toArray().map((r) => ({ epoch: Number(r.epoch), sealed: b64(bytesOf2(r.sealed) ?? new Uint8Array(0)) }));
+    const out = {
+      id: room2.id,
+      kind: room2.kind,
+      owner: room2.owner,
+      created: room2.created,
+      epoch: room2.epoch,
+      seq: room2.seq,
+      bytes: room2.bytes,
+      role: me.role,
+      pending: me.joined === 0,
+      members,
+      envelopes
+    };
+    if (me.role === ROLE_OWNER) out.invites = this.invites().map(inviteOut);
+    return json(status, out);
+  }
+  invites() {
+    return this.sql.exec(`SELECT * FROM invites ORDER BY created, id`).toArray().map(inviteRow);
+  }
+  // --- Routes ----------------------------------------------------------------
+  // create makes the room (the Worker checked the body, the caller's right
+  // to create and its number of rooms).
+  async create(c, request) {
+    const body = await request.json();
+    const pub = decodeStd(body.identity_pub);
+    const envelope = decodeStd(body.envelope);
+    const profile = body.profile ? decodeStd(body.profile) : null;
+    return this.locked(async () => {
+      if (this.roomRow()) throw new HttpError(409, "room_exists");
+      const now = Date.now();
+      this.ctx.storage.transactionSync(() => {
+        this.sql.exec(
+          `INSERT INTO room (one, id, owner, kind, created, seq, epoch, bytes) VALUES (1, ?, ?, ?, ?, 0, 1, 0)`,
+          c.room,
+          c.id,
+          body.kind,
+          now
+        );
+        this.sql.exec(
+          `INSERT INTO members (client_id, role, identity_pub, profile, invited, joined, removed)
+           VALUES (?, ?, ?, ?, ?, ?, 0)`,
+          c.id,
+          ROLE_OWNER,
+          blob2(pub),
+          blob2(profile),
+          now,
+          now
+        );
+        this.putEnvelope(c.id, 1, envelope);
+      });
+      await this.announce(c, "members", [c.id], { silent: true, identity: { chain: c.id, pub } });
+      return this.view(c, 201);
+    });
+  }
+  async deleteRoom(c) {
+    return this.locked(async () => {
+      const { room: room2 } = this.access(c.id, false, [ROLE_OWNER]);
+      const members = this.currentIDs();
+      this.wipe();
+      this.wake();
+      if (room2.bytes !== 0) await chainStub2(this.env, room2.owner).addRoomBytes(-room2.bytes);
+      await this.announce(c, "deleted", members, { seq: room2.seq });
+      return noContent();
+    });
+  }
+  // changes answers GET .../changes. A WebSocket request (the Worker's long
+  // poll) with nothing new becomes a watcher: it gets {"seq","epoch"} now
+  // and "wake" when it should ask again.
+  changes(c, request, url) {
+    const q = url.searchParams;
+    const since = parseCount(q.get("since"), 0);
+    if (since === null || since < 0) throw new Bad("since must be a sequence number");
+    const limit = parseCount(q.get("limit"), MAX_CHANGES_LIMIT);
+    if (limit === null || limit < 1 || limit > MAX_CHANGES_LIMIT) throw new Bad("limit must be 1 to 1000");
+    const wait = parseCount(q.get("wait"), 0);
+    if (wait === null || wait < 0 || wait > MAX_WAIT_SECONDS) throw new Bad("wait must be 0 to 30 seconds");
+    const { room: room2 } = this.access(c.id, false);
+    const records = [];
+    let total = 0;
+    let more = false;
+    for (const r of this.sql.exec(
+      `SELECT record_id, seq, epoch, deleted, author, ciphertext FROM records WHERE seq > ? ORDER BY seq LIMIT ?`,
+      since,
+      limit + 1
+    )) {
+      if (records.length === limit || records.length > 0 && total >= MAX_CHANGES_BYTES) {
+        more = true;
+        break;
+      }
+      total += bytesOf2(r.ciphertext)?.length ?? 0;
+      records.push(recordOut(r));
+    }
+    const watch = request.headers.get("Upgrade") === "websocket";
+    if (!watch || wait === 0 || records.length > 0 || this.ctx.getWebSockets().length >= MAX_WATCHERS) {
+      return json(200, { seq: room2.seq, epoch: room2.epoch, records, more });
+    }
+    const pair = new WebSocketPair();
+    const [outside, inside] = [pair[0], pair[1]];
+    this.ctx.acceptWebSocket(inside, ["w:" + c.id]);
+    inside.send(JSON.stringify({ seq: room2.seq, epoch: room2.epoch }));
+    return new Response(null, { status: 101, webSocket: outside });
+  }
+  async records(c, request) {
+    const body = await readJSONBody(request, MAX_WRITE_BYTES);
+    const raw = fObjects(body, "records").map((r) => ({
+      id: fStr(r, "id"),
+      epoch: fInt(r, "epoch"),
+      deleted: fBool(r, "deleted"),
+      ciphertext: fBytes(r, "ciphertext"),
+      baseSeq: fOptInt(r, "base_seq")
+    }));
+    if (raw.length === 0 || raw.length > MAX_RECORDS_PER_WRITE) throw new Bad("records must hold 1 to 500 records");
+    const seen = /* @__PURE__ */ new Set();
+    let total = 0;
+    for (const r of raw) {
+      const ctLen = r.ciphertext?.length ?? 0;
+      if (!RECORD_ID_RE.test(r.id)) throw new Bad("record id must be 1 to 128 of A-Z a-z 0-9 . _ : -");
+      if (seen.has(r.id)) throw new Bad(`record ${r.id} appears twice`);
+      if (r.epoch < 1) throw new Bad("epoch must be 1 or more");
+      if (!r.deleted && ctLen < RECORD_OVERHEAD) {
+        throw new Bad(`record ${r.id} needs a ciphertext of 28 bytes or more (nonce, ciphertext, tag)`);
+      }
+      if (ctLen > MAX_ROOM_RECORD_BYTES) throw new HttpError(413, "record_too_large");
+      if (r.baseSeq !== null && r.baseSeq < 0) throw new Bad("base_seq must be 0 or more");
+      seen.add(r.id);
+      total += ctLen;
+    }
+    if (total > MAX_BATCH_CIPHERTEXT) throw new HttpError(413, "too_large");
+    return this.locked(async () => {
+      const { room: room2, me } = this.access(c.id, false, [ROLE_OWNER, ROLE_EDITOR]);
+      const conflicts = [];
+      const oldSizes = [];
+      for (const w of raw) {
+        if (w.epoch !== room2.epoch) throw new HttpError(409, "stale_epoch");
+        const old = this.sql.exec(`SELECT record_id, seq, epoch, deleted, author, ciphertext, size FROM records WHERE record_id = ?`, w.id).toArray()[0];
+        if (!old) {
+          oldSizes.push(0);
+          if (w.baseSeq !== null && w.baseSeq !== 0) {
+            conflicts.push({ id: w.id, seq: 0, epoch: 0, deleted: false, author: "" });
+          }
+        } else {
+          oldSizes.push(Number(old.size));
+          if (w.baseSeq !== null && w.baseSeq !== Number(old.seq)) conflicts.push(recordOut(old));
+        }
+      }
+      if (conflicts.length > 0) throw new HttpError(409, "conflict", { current: conflicts });
+      let delta = 0;
+      raw.forEach((w, i) => {
+        const ctLen = w.deleted ? 0 : w.ciphertext?.length ?? 0;
+        delta += ctLen + w.id.length - oldSizes[i];
+      });
+      const owner = chainStub2(this.env, room2.owner);
+      if (delta > 0 && !await owner.addRoomBytes(delta)) throw quotaExceeded();
+      const out = [];
+      let seq = room2.seq;
+      try {
+        this.ctx.storage.transactionSync(() => {
+          for (const w of raw) {
+            seq++;
+            const ct = w.deleted ? null : w.ciphertext;
+            const size = (ct?.length ?? 0) + w.id.length;
+            this.sql.exec(
+              `INSERT INTO records (record_id, seq, epoch, deleted, author, ciphertext, size)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT (record_id) DO UPDATE SET seq = excluded.seq, epoch = excluded.epoch,
+                 deleted = excluded.deleted, author = excluded.author, ciphertext = excluded.ciphertext,
+                 size = excluded.size`,
+              w.id,
+              seq,
+              w.epoch,
+              w.deleted ? 1 : 0,
+              me.client_id,
+              blob2(ct),
+              size
+            );
+            out.push({ id: w.id, seq });
+          }
+          this.sql.exec(`UPDATE room SET seq = ?, bytes = MAX(bytes + ?, 0)`, seq, delta);
+        });
+      } catch (e) {
+        if (delta > 0) await owner.addRoomBytes(-delta);
+        throw e;
+      }
+      if (delta < 0) await owner.addRoomBytes(delta);
+      this.wake();
+      await this.announce(c, "records", this.currentIDs());
+      return json(200, { seq, records: out });
+    });
+  }
+  async createInvite(c, request) {
+    const body = await readJSONBody(request, MAX_BODY);
+    const role = fStr(body, "role");
+    const secretHash = fStr(body, "secret_hash");
+    const expires = fInt(body, "expires");
+    const uses = fInt(body, "uses");
+    const now = Date.now();
+    if (!validRole(role)) throw new Bad("role must be editor or viewer");
+    if (!SECRET_HASH_RE.test(secretHash)) {
+      throw new Bad("secret_hash must be the SHA-256 of the secret, 64 lower-case hex digits");
+    }
+    if (expires < 0 || expires !== 0 && expires <= now) throw new Bad("expires must be 0 or in the future");
+    if (uses < 0 || uses > MAX_INVITE_USES) throw new Bad("uses must be 0 to 1000");
+    const hash = new Uint8Array(secretHash.match(/../g).map((x) => parseInt(x, 16)));
+    return this.locked(async () => {
+      this.access(c.id, false, [ROLE_OWNER]);
+      const open = Number(this.sql.exec(`SELECT COUNT(*) AS n FROM invites WHERE revoked = 0`).one().n);
+      if (open >= MAX_ROOM_INVITES) throw new HttpError(409, "too_many_invites");
+      const inv = {
+        id: newID(),
+        secret_hash: hash,
+        role,
+        created: now,
+        expires,
+        uses_left: uses === 0 ? null : uses,
+        revoked: false
+      };
+      this.sql.exec(
+        `INSERT INTO invites (id, secret_hash, role, created, expires, uses_left, revoked) VALUES (?, ?, ?, ?, ?, ?, 0)`,
+        inv.id,
+        blob2(hash),
+        role,
+        now,
+        expires,
+        inv.uses_left
+      );
+      await this.announce(c, "invites", [c.id]);
+      return json(201, inviteOut(inv));
+    });
+  }
+  async revokeInvite(c, inviteID) {
+    if (!INVITE_ID_RE.test(inviteID)) throw new HttpError(404, "invite_not_found");
+    return this.locked(async () => {
+      this.access(c.id, false, [ROLE_OWNER]);
+      if (this.sql.exec(`SELECT 1 FROM invites WHERE id = ?`, inviteID).toArray().length === 0) {
+        throw new HttpError(404, "invite_not_found");
+      }
+      this.sql.exec(`UPDATE invites SET revoked = 1 WHERE id = ?`, inviteID);
+      await this.announce(c, "invites", [c.id]);
+      return noContent();
+    });
+  }
+  // checkInvite verifies a link invite's secret (constant time) and that it
+  // may still be used now.
+  checkInvite(inviteID, hash, now) {
+    const r = this.sql.exec(`SELECT * FROM invites WHERE id = ?`, inviteID).toArray()[0];
+    if (!r) {
+      equalBytes(hash, new Uint8Array(32));
+      throw new HttpError(403, "invite_invalid");
+    }
+    const inv = inviteRow(r);
+    if (!equalBytes(hash, inv.secret_hash)) throw new HttpError(403, "invite_invalid");
+    if (inv.revoked) throw new HttpError(403, "invite_revoked");
+    if (inv.expires !== 0 && now >= inv.expires) throw new HttpError(403, "invite_expired");
+    if (inv.uses_left !== null && inv.uses_left <= 0) throw new HttpError(403, "invite_used_up");
+    return inv;
+  }
+  async join(c, request) {
+    const body = await readJSONBody(request, MAX_BODY);
+    const inviteID = fStr(body, "invite_id");
+    const secretText = fStr(body, "secret");
+    const pub = fBytes(body, "identity_pub");
+    const profile = fBytes(body, "profile");
+    if (pub?.length !== IDENTITY_KEY_BYTES) throw new Bad("identity_pub must be 32 bytes");
+    if ((profile?.length ?? 0) > MAX_PROFILE_BYTES) throw new Bad("profile must be at most 4096 bytes");
+    const secret = decodeRawURL(secretText, SECRET_BYTES);
+    if (inviteID !== "" && (!INVITE_ID_RE.test(inviteID) || !secret)) throw new HttpError(403, "invite_invalid");
+    const hash = secret ? await sha256(secret) : new Uint8Array(32);
+    return this.locked(async () => {
+      const now = Date.now();
+      if (!c.listed && !this.member(c.id)) {
+        if (inviteID === "") throw new HttpError(403, "chain_not_allowed");
+        try {
+          this.checkInvite(inviteID, hash, now);
+        } catch (e) {
+          if (e instanceof HttpError && e.code === "invite_invalid") throw new HttpError(403, "chain_not_allowed");
+          throw e;
+        }
+      }
+      if (!this.roomRow()) throw new HttpError(403, "invite_invalid");
+      const m = this.member(c.id);
+      if (m && m.removed === 0 && m.joined !== 0) return this.view(c, 200);
+      if (m && m.removed === 0) {
+        if (m.identity_pub && !equalBytes(m.identity_pub, pub)) throw new HttpError(409, "identity_mismatch");
+        this.sql.exec(
+          `UPDATE members SET joined = ?, identity_pub = ?, profile = COALESCE(?, profile) WHERE client_id = ?`,
+          now,
+          blob2(pub),
+          blob2(profile),
+          c.id
+        );
+      } else {
+        if (inviteID === "") throw new HttpError(403, m ? "removed" : "invite_invalid");
+        const inv = this.checkInvite(inviteID, hash, now);
+        if (m && !(inv.created > m.removed)) throw new HttpError(403, "removed");
+        const n = Number(this.sql.exec(`SELECT COUNT(*) AS n FROM members WHERE removed = 0`).one().n);
+        if (n >= MAX_ROOM_MEMBERS) throw new HttpError(409, "room_full");
+        this.ctx.storage.transactionSync(() => {
+          this.sql.exec(
+            `INSERT INTO members (client_id, role, identity_pub, profile, invited, joined, removed)
+             VALUES (?, ?, ?, ?, ?, ?, 0)
+             ON CONFLICT (client_id) DO UPDATE SET role = excluded.role, identity_pub = excluded.identity_pub,
+               profile = excluded.profile, invited = excluded.invited, joined = excluded.joined, removed = 0`,
+            c.id,
+            inv.role,
+            blob2(pub),
+            blob2(profile),
+            now,
+            now
+          );
+          if (inv.uses_left !== null) this.sql.exec(`UPDATE invites SET uses_left = uses_left - 1 WHERE id = ?`, inv.id);
+        });
+      }
+      await this.announce(c, "members", this.currentIDs(), { identity: { chain: c.id, pub } });
+      return this.view(c, 200);
+    });
+  }
+  async updateMember(c, request, client) {
+    const who = client.toLowerCase();
+    if (!CHAIN_ID_RE.test(who)) throw new HttpError(404, "member_not_found");
+    const body = await readJSONBody(request, MAX_BODY);
+    for (const k of Object.keys(body)) if (k !== "role" && k !== "profile") throw new Bad("unknown field " + k);
+    const hasRole = "role" in body;
+    const hasProfile = "profile" in body;
+    if (!hasRole && !hasProfile) throw new Bad("nothing to change");
+    let role = "";
+    if (hasRole) {
+      if (typeof body.role !== "string" || !validRole(body.role)) throw new Bad("role must be editor or viewer");
+      role = body.role;
+    }
+    let profile = null;
+    if (hasProfile) {
+      try {
+        profile = fBytes(body, "profile");
+      } catch {
+        throw new Bad("profile must be base64 or null");
+      }
+      if ((profile?.length ?? 0) > MAX_PROFILE_BYTES) throw new Bad("profile must be at most 4096 bytes");
+      if (who !== c.id) throw new HttpError(403, "forbidden");
+    }
+    return this.locked(async () => {
+      if (hasRole) {
+        this.access(c.id, false, [ROLE_OWNER]);
+        const m = this.currentTarget(who);
+        if (m.role === ROLE_OWNER) throw new HttpError(403, "forbidden");
+        this.sql.exec(`UPDATE members SET role = ? WHERE client_id = ?`, role, m.client_id);
+      }
+      if (hasProfile) {
+        const { me } = this.access(c.id, true);
+        this.sql.exec(`UPDATE members SET profile = ? WHERE client_id = ?`, blob2(profile), me.client_id);
+      }
+      await this.announce(c, "members", this.currentIDs());
+      return noContent();
+    });
+  }
+  async removeMember(c, client) {
+    const who = client.toLowerCase();
+    if (!CHAIN_ID_RE.test(who)) throw new HttpError(404, "member_not_found");
+    return this.locked(async () => {
+      const self = who === c.id;
+      const { me } = this.access(c.id, self);
+      if (!self && me.role !== ROLE_OWNER) throw new HttpError(403, "forbidden");
+      const m = this.currentTarget(who);
+      if (m.role === ROLE_OWNER) throw new HttpError(409, "owner_must_transfer");
+      this.ctx.storage.transactionSync(() => {
+        this.sql.exec(`UPDATE members SET removed = ? WHERE client_id = ?`, Date.now(), m.client_id);
+        this.sql.exec(`DELETE FROM envelopes WHERE client_id = ?`, m.client_id);
+      });
+      this.wake(m.client_id);
+      await this.announce(c, "members", [...this.currentIDs(), m.client_id]);
+      return noContent();
+    });
+  }
+  async transfer(c, request) {
+    const body = await readJSONBody(request, MAX_BODY);
+    const id = fStr(body, "client_id").toLowerCase();
+    if (!CHAIN_ID_RE.test(id)) throw new Bad("client_id must be 64 hex digits");
+    return this.locked(async () => {
+      const { room: room2, me } = this.access(c.id, false, [ROLE_OWNER]);
+      const m = this.currentTarget(id);
+      if (m.joined === 0) throw new HttpError(403, "not_joined");
+      if (m.client_id === me.client_id) return noContent();
+      await this.moveBytes(room2, m.client_id);
+      this.ctx.storage.transactionSync(() => {
+        this.sql.exec(`UPDATE room SET owner = ?`, m.client_id);
+        this.sql.exec(`UPDATE members SET role = ? WHERE client_id = ?`, ROLE_EDITOR, me.client_id);
+        this.sql.exec(`UPDATE members SET role = ? WHERE client_id = ?`, ROLE_OWNER, m.client_id);
+      });
+      if (room2.bytes !== 0) await chainStub2(this.env, room2.owner).addRoomBytes(-room2.bytes);
+      await this.announce(c, "members", this.currentIDs());
+      return noContent();
+    });
+  }
+  // moveBytes counts the room's bytes against chain next (quota_exceeded if
+  // they don't fit); the caller gives them back to the old owner after.
+  async moveBytes(room2, next) {
+    if (room2.bytes > 0 && !await chainStub2(this.env, next).addRoomBytes(room2.bytes)) throw quotaExceeded();
+  }
+  // successor moves the caller's membership (its role, the owner's room and
+  // quota included) to the chain whose token was in X-Compass-Linked-Token
+  // (the Worker checked it: X-Linked-Chain, empty if it was bad).
+  async successor(c, request) {
+    const next = (request.headers.get("X-Linked-Chain") ?? "").toLowerCase();
+    if (!next) throw new HttpError(400, "invalid_linked_token");
+    if (next === c.id) throw new Bad("the successor is the caller's own chain");
+    const body = await readJSONBody(request, MAX_BODY);
+    const pub = fBytes(body, "identity_pub");
+    const envs = fObjects(body, "envelopes").map((e) => ({ epoch: fInt(e, "epoch"), sealed: fBytes(e, "sealed") }));
+    if (pub?.length !== IDENTITY_KEY_BYTES) throw new Bad("identity_pub must be 32 bytes");
+    if (envs.length === 0 || envs.length > MAX_ENVELOPES) throw new Bad("envelopes must hold 1 to 1000 envelopes");
+    const seen = /* @__PURE__ */ new Set();
+    for (const e of envs) {
+      if (seen.has(e.epoch)) throw new Bad("two envelopes for one epoch");
+      if (e.sealed?.length !== ENVELOPE_BYTES) throw new Bad("sealed must be 80 bytes");
+      seen.add(e.epoch);
+    }
+    if ((await chainStub2(this.env, next).status()).disabled) throw new HttpError(409, "successor_disabled");
+    return this.locked(async () => {
+      const { room: room2, me } = this.access(c.id, true);
+      const there = this.member(next);
+      if (there && there.removed === 0) throw new HttpError(409, "already_member");
+      let current = false;
+      for (const e of envs) {
+        if (e.epoch < 1 || e.epoch > room2.epoch) throw new HttpError(409, "stale_epoch");
+        current ||= e.epoch === room2.epoch;
+      }
+      if (!current) throw new HttpError(409, "stale_epoch");
+      const owner = me.role === ROLE_OWNER;
+      if (owner) await this.moveBytes(room2, next);
+      const now = Date.now();
+      this.ctx.storage.transactionSync(() => {
+        if (owner) this.sql.exec(`UPDATE room SET owner = ?`, next);
+        this.sql.exec(
+          `INSERT INTO members (client_id, role, identity_pub, profile, invited, joined, removed)
+           VALUES (?, ?, ?, ?, ?, ?, 0)
+           ON CONFLICT (client_id) DO UPDATE SET role = excluded.role, identity_pub = excluded.identity_pub,
+             profile = excluded.profile, invited = excluded.invited, joined = excluded.joined, removed = 0`,
+          next,
+          me.role,
+          blob2(pub),
+          blob2(me.profile),
+          me.invited,
+          me.joined === 0 ? 0 : now
+        );
+        this.sql.exec(`DELETE FROM envelopes WHERE client_id IN (?, ?)`, me.client_id, next);
+        for (const e of envs) this.putEnvelope(next, e.epoch, e.sealed);
+        this.sql.exec(
+          `UPDATE members SET removed = ?, role = CASE WHEN role = ? THEN ? ELSE role END WHERE client_id = ?`,
+          now,
+          ROLE_OWNER,
+          ROLE_EDITOR,
+          me.client_id
+        );
+      });
+      if (owner && room2.bytes !== 0) await chainStub2(this.env, room2.owner).addRoomBytes(-room2.bytes);
+      this.wake(me.client_id);
+      await this.announce(c, "members", [...this.currentIDs(), me.client_id], { identity: { chain: next, pub } });
+      return noContent();
+    });
+  }
+  async rotate(c, request) {
+    const body = await readJSONBody(request, MAX_BODY);
+    const epoch = fInt(body, "epoch");
+    const envs = fObjects(body, "envelopes").map((e) => ({ id: fStr(e, "client_id"), sealed: fBytes(e, "sealed") }));
+    if (epoch < 2) throw new Bad("epoch must be 2 or more");
+    const byID = /* @__PURE__ */ new Map();
+    for (const e of envs) {
+      const id = e.id.toLowerCase();
+      if (!CHAIN_ID_RE.test(id)) throw new Bad("client_id must be 64 hex digits");
+      if (byID.has(id)) throw new Bad("two envelopes for " + id);
+      if (e.sealed?.length !== ENVELOPE_BYTES) throw new Bad("sealed must be 80 bytes");
+      byID.set(id, e.sealed);
+    }
+    return this.locked(async () => {
+      const { room: room2 } = this.access(c.id, false, [ROLE_OWNER]);
+      if (epoch !== room2.epoch + 1) throw new HttpError(409, "stale_epoch");
+      const members = this.currentIDs();
+      const missing = members.filter((id) => !byID.has(id));
+      const unknown = [...byID.keys()].filter((id) => !members.includes(id)).sort();
+      if (missing.length > 0 || unknown.length > 0) {
+        throw new HttpError(409, "envelopes_mismatch", { missing, unknown });
+      }
+      this.ctx.storage.transactionSync(() => {
+        for (const id of members) this.putEnvelope(id, epoch, byID.get(id));
+        this.sql.exec(`UPDATE room SET epoch = ?`, epoch);
+      });
+      await this.announce(c, "keys", members);
+      return noContent();
+    });
+  }
+  async addEnvelopes(c, request) {
+    const body = await readJSONBody(request, MAX_BODY);
+    const envs = fObjects(body, "envelopes").map((e) => ({
+      id: fStr(e, "client_id").toLowerCase(),
+      epoch: fInt(e, "epoch"),
+      sealed: fBytes(e, "sealed")
+    }));
+    if (envs.length === 0 || envs.length > MAX_ENVELOPES) throw new Bad("envelopes must hold 1 to 1000 envelopes");
+    for (const e of envs) {
+      if (!CHAIN_ID_RE.test(e.id)) throw new Bad("client_id must be 64 hex digits");
+      if (e.sealed?.length !== ENVELOPE_BYTES) throw new Bad("sealed must be 80 bytes");
+    }
+    return this.locked(async () => {
+      const { room: room2 } = this.access(c.id, false, [ROLE_OWNER]);
+      for (const e of envs) {
+        if (e.epoch < 1 || e.epoch > room2.epoch) throw new HttpError(409, "stale_epoch");
+        this.currentTarget(e.id);
+      }
+      this.ctx.storage.transactionSync(() => {
+        for (const e of envs) this.putEnvelope(e.id, e.epoch, e.sealed);
+      });
+      await this.announce(c, "keys", [...new Set(envs.map((e) => e.id))].sort());
+      return noContent();
+    });
+  }
+  // --- Calls from other objects and the Worker -------------------------------
+  // identityChanged records chain's new identity key in its membership, if
+  // it's a current member with another key, and tells the members (PUT
+  // /v2/compass/identity). device is the calling device.
+  async identityChanged(roomID, chain, pub, device) {
+    const key = decodeStd(pub);
+    if (!key) return;
+    await this.locked(async () => {
+      const m = this.member(chain);
+      if (!m || m.removed !== 0 || m.identity_pub && equalBytes(m.identity_pub, key)) return;
+      this.sql.exec(`UPDATE members SET identity_pub = ? WHERE client_id = ?`, blob2(key), m.client_id);
+      await this.announce({ id: m.client_id, listed: true, device, room: roomID }, "members", this.currentIDs());
+    });
+  }
+  // chainGone is a chain's data being cleared (reset, idle expiry): a room
+  // it owns is deleted, its membership of another goes with its envelopes.
+  // Nothing is announced (sync.md, "Going away"); the other members' indexes
+  // drop a deleted room.
+  async chainGone(roomID, chainID) {
+    const chain = chainID.toLowerCase();
+    await this.locked(async () => {
+      const room2 = this.roomRow();
+      if (!room2) return;
+      if (room2.owner === chain) {
+        const others = this.currentIDs().filter((id) => id !== chain);
+        this.wipe();
+        this.wake();
+        await this.announce({ id: chain, listed: true, device: "", room: roomID }, "deleted", others, {
+          seq: room2.seq,
+          silent: true
+        });
+        return;
+      }
+      this.ctx.storage.transactionSync(() => {
+        this.sql.exec(`DELETE FROM members WHERE client_id = ?`, chain);
+        this.sql.exec(`DELETE FROM envelopes WHERE client_id = ?`, chain);
+      });
+      this.wake(chain);
+    });
+  }
+};
+function inviteRow(r) {
+  return {
+    id: r.id,
+    secret_hash: bytesOf2(r.secret_hash) ?? new Uint8Array(0),
+    role: r.role,
+    created: Number(r.created),
+    expires: Number(r.expires),
+    uses_left: r.uses_left === null ? null : Number(r.uses_left),
+    revoked: Number(r.revoked) !== 0
+  };
+}
+__name(inviteRow, "inviteRow");
+function inviteOut(inv) {
+  return { id: inv.id, role: inv.role, created: inv.created, expires: inv.expires, uses_left: inv.uses_left, revoked: inv.revoked };
+}
+__name(inviteOut, "inviteOut");
+
 // src/index.ts
-var LINKED_TOKEN_HEADER = "X-Compass-Linked-Token";
+var LINKED_TOKEN_HEADER2 = "X-Compass-Linked-Token";
 var KEEP_ALIVE_MS = 25e3;
 var ACCESS_TTL_MS = 6e4;
-var VERSION = "cloudflare-1";
+var VERSION = `cloudflare-${SERVER_VERSION}`;
 var accessCache = /* @__PURE__ */ new Map();
 function access(env) {
   return env.ACCESS.get(env.ACCESS.idFromName("access"));
@@ -1951,17 +3407,17 @@ async function authorize(env, request) {
   return (await accessState(env, chain)).allowed ? chain : "";
 }
 __name(authorize, "authorize");
-function chainStub(env, chain) {
+function chainStub3(env, chain) {
   return env.CHAIN.get(env.CHAIN.idFromName(chain.toLowerCase()));
 }
-__name(chainStub, "chainStub");
+__name(chainStub3, "chainStub");
 function toChain(env, chain, path, request, init = {}) {
   const url = new URL(request.url);
   const headers = new Headers(init.headers);
   headers.set("X-Chain-ID", chain);
   const enc = request.headers.get("Content-Encoding");
   if (enc) headers.set("Content-Encoding", enc);
-  return chainStub(env, chain).fetch(
+  return chainStub3(env, chain).fetch(
     new Request(`https://chain${path}${url.search}`, {
       method: request.method,
       body: request.method === "GET" || request.method === "HEAD" ? null : request.body,
@@ -1986,9 +3442,18 @@ var index_default = {
       if (method !== "POST") return text(405, "Method Not Allowed");
       const chain = await authorize(env, request);
       if (!chain) return text(401, "Unauthorized");
-      return toChain(env, chain, "/command/", request);
+      const rsp = await toChain(env, chain, "/command/", request);
+      forgetGate(chain);
+      return rsp;
     }
-    if (rest === "/compass/info" && method === "GET") return json(200, { login: null });
+    if (rest === "/compass/info" && method === "GET") {
+      return json(200, { login: null, server: { kind: "cloudflare", version: SERVER_VERSION } });
+    }
+    const r = await rooms(env, request, rest, {
+      authenticate,
+      listed: /* @__PURE__ */ __name(async (e, chain) => (await accessState(e, chain)).allowed, "listed")
+    });
+    if (r) return r;
     if (rest === "/compass/events") {
       if (method !== "GET") return fail(405, "GET only", { Allow: "GET" });
       const chain = await authorize(env, request);
@@ -2006,7 +3471,9 @@ var index_default = {
       const chain = await authorize(env, request);
       if (!chain) return fail(401, "invalid sync token");
       const guid = rest.slice("/compass/devices".length);
-      return toChain(env, chain, "/devices" + guid, request);
+      const rsp = await toChain(env, chain, "/devices" + guid, request);
+      forgetGate(chain);
+      return rsp;
     }
     if (rest === "/compass/push") {
       const chain = await authorize(env, request);
@@ -2039,9 +3506,9 @@ var index_default = {
     if (rest === "/compass/account/link" && method === "POST") {
       const chain = await authorize(env, request);
       if (!chain) return fail(401, "invalid sync token");
-      const raw = (request.headers.get(LINKED_TOKEN_HEADER) ?? "").trim();
+      const raw = (request.headers.get(LINKED_TOKEN_HEADER2) ?? "").trim();
       const other = raw ? await authenticate(env, raw.startsWith("Bearer ") ? raw : "Bearer " + raw) : "";
-      if (!other) return fail(400, "invalid " + LINKED_TOKEN_HEADER);
+      if (!other) return fail(400, "invalid " + LINKED_TOKEN_HEADER2);
       accessCache.delete(other.toLowerCase());
       return access(env).link(chain, other);
     }
@@ -2176,5 +3643,6 @@ export {
   Access,
   Chain,
   Pairing,
+  Room,
   index_default as default
 };

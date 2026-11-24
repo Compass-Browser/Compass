@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -29,9 +30,17 @@ import (
 )
 
 // roomsServer is a server on its own database with |maxBytes| per chain
-// (0: the default); returns its URL and the database's path.
+// (0: the default); returns its URL and the database's path. With
+// COMPASS_SYNC_E2E_URL set it's that server instead (path ""), as
+// serverURL; a test that needs its own |maxBytes| is then skipped.
 func roomsServer(t *testing.T, maxBytes int64) (string, string) {
 	t.Helper()
+	if url := os.Getenv("COMPASS_SYNC_E2E_URL"); url != "" {
+		if maxBytes > 0 {
+			t.Skip("needs its own COMPASS_SYNC_MAX_BYTES; not with COMPASS_SYNC_E2E_URL")
+		}
+		return strings.TrimSuffix(url, "/"), ""
+	}
 	path := filepath.Join(t.TempDir(), "rooms.db")
 	cfg, err := server.LoadConfig()
 	require.NoError(t, err)
@@ -49,6 +58,16 @@ func roomsServer(t *testing.T, maxBytes int64) (string, string) {
 	srv.Start()
 	t.Cleanup(func() { hub.Close(); srv.Close() })
 	return srv.URL, path
+}
+
+// skipRemote skips a test that can't run against COMPASS_SYNC_E2E_URL: it
+// needs the database's path, the server's own configuration or the fake
+// identity provider.
+func skipRemote(t *testing.T, why string) {
+	t.Helper()
+	if os.Getenv("COMPASS_SYNC_E2E_URL") != "" {
+		t.Skip(why + "; not with COMPASS_SYNC_E2E_URL")
+	}
 }
 
 func b64(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
@@ -607,6 +626,7 @@ func TestRoomsLimitsHTTP(t *testing.T) {
 }
 
 func TestRoomsPrivateServerGate(t *testing.T) {
+	skipRemote(t, "sets COMPASS_SYNC_ALLOWED_CHAINS")
 	base, _ := roomsServer(t, 0)
 	a := newDevice(t, base, randomSeed(t), "guid-a")
 	b := newDevice(t, base, randomSeed(t), "guid-b")
@@ -693,6 +713,7 @@ func signIn(t *testing.T, base string, d *device, email string) {
 }
 
 func TestRoomsWithCompanySignIn(t *testing.T) {
+	skipRemote(t, "needs the fake identity provider and the database")
 	base, dbPath := oidcServer(t)
 	a := newDevice(t, base, randomSeed(t), "guid-a")
 	b := newDevice(t, base, randomSeed(t), "guid-b")
@@ -775,6 +796,7 @@ func TestRoomsWithCompanySignIn(t *testing.T) {
 }
 
 func TestRoomsAdmin(t *testing.T) {
+	skipRemote(t, "needs the database")
 	base, path := roomsServer(t, 0)
 	t.Setenv("COMPASS_SYNC_DB", path)
 	a, b, c, room := sharedRoom(t, base)
@@ -813,6 +835,7 @@ func TestRoomsAdmin(t *testing.T) {
 // new chain before the old one is cleared, owner included; on a private
 // server the new chains aren't listed.
 func TestRoomsSuccessorOnReset(t *testing.T) {
+	skipRemote(t, "needs the database and sets COMPASS_SYNC_ALLOWED_CHAINS")
 	base, path := roomsServer(t, 0)
 	a, b, c, room := sharedRoom(t, base)
 	code, _ := b.write(room, 1, rec("x", "before the reset"))

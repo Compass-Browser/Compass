@@ -17,6 +17,8 @@
 //                                             (timed=1: returns {at})
 //   op=wait space=S node=X [timeout=SECONDS]  waits until X is in S, returns
 //                                             when it showed ({at}, Date.now())
+//   op=id space=S node=X                      X's ID ({id}; a folder's is
+//                                             what compass-share's id= takes)
 //   op=rename space=S node=X title=T          a folder's name or a tab's
 //   op=move space=S node=X parent=P [index=I] (default: the end)
 //   op=collapse space=S node=X [collapsed=false]
@@ -245,6 +247,11 @@ switch (ARGS.op) {
       await sleep(100);
     }
     throw new Error('no node ' + ARGS.node + ' in time');
+  }
+  case 'id': {
+    const space = await findSpace(ARGS.space);
+    const node = await resolve(space, ARGS.node);
+    return {id: node.id};
   }
   case 'rename': {
     const space = await show(ARGS.space);

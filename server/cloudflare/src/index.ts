@@ -1,24 +1,27 @@
 // The Compass sync server on Cloudflare Workers: the Go server's HTTP API
 // (docs/design/sync.md, "Server") on Durable Objects. The Worker checks
 // the sync token and who may use the server, then hands the request to the
-// chain's object (chain.ts), the pairing relay (pairing.ts) or the access
-// list (access.ts).
+// chain's object (chain.ts), the pairing relay (pairing.ts), the access
+// list (access.ts) or, for rooms, rooms.ts and the room's object (room.ts).
 //
-// Not here yet: rooms, push (sent tabs and background sync reach devices at
-// their next sync instead) and company sign-in.
+// Not here yet: push (sent tabs and background sync reach devices at their
+// next sync instead) and company sign-in.
 
 import { type AccessState } from "./access";
 import { AuthError, bearer, idList, verifyToken } from "./auth";
 import { type Env, fail, json, text } from "./config";
+import { SERVER_VERSION } from "./version";
+import { forgetGate, rooms } from "./rooms";
 
 export { Access } from "./access";
 export { Chain } from "./chain";
 export { Pairing } from "./pairing";
+export { Room } from "./room";
 
 const LINKED_TOKEN_HEADER = "X-Compass-Linked-Token";
 const KEEP_ALIVE_MS = 25_000;
 const ACCESS_TTL_MS = 60_000;
-const VERSION = "cloudflare-1";
+const VERSION = `cloudflare-${SERVER_VERSION}`;
 
 // Access answers, cached per isolate for a minute: a removed friend is
 // refused within that.
@@ -98,10 +101,23 @@ export default {
       if (method !== "POST") return text(405, "Method Not Allowed");
       const chain = await authorize(env, request);
       if (!chain) return text(401, "Unauthorized");
-      return toChain(env, chain, "/command/", request);
+      const rsp = await toChain(env, chain, "/command/", request);
+      forgetGate(chain); // It may have reset the chain.
+      return rsp;
     }
 
-    if (rest === "/compass/info" && method === "GET") return json(200, { login: null });
+    // Which server this is, for Compass's update offer (version.ts).
+    if (rest === "/compass/info" && method === "GET") {
+      return json(200, { login: null, server: { kind: "cloudflare", version: SERVER_VERSION } });
+    }
+
+    // Rooms: a chain the access list doesn't name may still use the rooms
+    // it's in, so these routes check the list themselves.
+    const r = await rooms(env, request, rest, {
+      authenticate,
+      listed: async (e, chain) => (await accessState(e, chain)).allowed,
+    });
+    if (r) return r;
 
     if (rest === "/compass/events") {
       if (method !== "GET") return fail(405, "GET only", { Allow: "GET" });
@@ -122,7 +138,9 @@ export default {
       const chain = await authorize(env, request);
       if (!chain) return fail(401, "invalid sync token");
       const guid = rest.slice("/compass/devices".length); // "" or "/<escaped guid>"
-      return toChain(env, chain, "/devices" + guid, request);
+      const rsp = await toChain(env, chain, "/devices" + guid, request);
+      forgetGate(chain);
+      return rsp;
     }
 
     if (rest === "/compass/push") {
