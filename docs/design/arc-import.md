@@ -1,8 +1,9 @@
 # Import from Arc
 
 Status: done (reader, profile copy, sidebar, archive, Easels, the import page);
-not yet run end to end on a real Arc install. macOS and Windows (below,
-"Windows"). Based on Chromium 157.0.8103.51.
+run end to end on a real Arc install on macOS (checked by hand, November
+2026); Windows not yet checked against a real install. macOS and Windows
+(below, "Windows"). Based on Chromium 157.0.8103.51.
 
 ## Goal
 
