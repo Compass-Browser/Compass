@@ -73,6 +73,12 @@ inline constexpr char kAccountLinkedServer[] =
 // and after signing in.
 inline constexpr char kLoginLinksPending[] = "compass.sync.login_links_pending";
 
+// Home profile: the server Compass set up in the user's Cloudflare account
+// (docs/design/sync.md, "A free server on Cloudflare"), a dictionary with
+// "account_id", "script" and "subdomain". Empty: the server wasn't set up
+// by Compass. The Cloudflare token itself is never stored.
+inline constexpr char kCloudflare[] = "compass.sync.cloudflare";
+
 }  // namespace compass::sync::prefs
 
 #endif  // COMPASS_COMPONENTS_SYNC_PREF_NAMES_H_

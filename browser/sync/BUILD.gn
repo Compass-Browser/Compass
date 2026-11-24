@@ -38,6 +38,8 @@ source_set("sync") {
     ]
   } else {
     sources += [
+      "cloudflare_sign_in.cc",
+      "cloudflare_sign_in.h",
       "compass_profile_creator.cc",
       "compass_spaces_sync.cc",
     ]
@@ -102,6 +104,9 @@ source_set("sync") {
     ]
   } else {
     deps += [
+      # The sync server Compass sets up on Cloudflare (StartOnCloudflare()).
+      "//compass/resources/sidebar:resources",
+      "//ui/base",
       "//chrome/browser/ui:browser_manager_service",
       "//chrome/browser/ui/navigator",
       "//chrome/browser/ui/tabs:tab_strip",
@@ -123,6 +128,7 @@ source_set("settings") {
   public_deps = [
     "//base",
     "//compass/components/sync:chain",
+    "//compass/components/sync:notifier",
     "//components/sync/base",
     "//components/sync_device_info",
   ]

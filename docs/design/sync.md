@@ -1403,6 +1403,95 @@ to 60 s for `/health-check` to name the commit and `/healthz` to say `ok`,
 and checks the public URL. ssh uses the caller's keys; no secrets in the
 script.
 
+## A free server on Cloudflare
+
+Running a server is the hard part of self-hosting, so Compass can set one
+up in the user's own Cloudflare account, on the free plan.
+
+**The server** (`server/cloudflare/`, its README has the details) is the
+Go server's API on a Cloudflare Worker: one Durable Object per chain, with
+the chain's data in its own SQLite database (a port of `command/` and
+`datastore/sqlite.go`); the pairing relay; and an access list. Change
+notifications stay Server-Sent Events for the client: the chain's object
+announces changes on a hibernating WebSocket (free while quiet) and the
+Worker holds the device's stream. The Go suite's end-to-end tests that take
+a URL (`COMPASS_SYNC_E2E_URL`) pass against it, locally and deployed. Not
+ported yet: rooms (404), push (devices learn of sent tabs at their next
+sync), company sign-in.
+
+**Who may use it.** The Worker serves only its owners
+(`COMPASS_SYNC_ALLOWED_CHAINS`), the chains they link (profiles), and
+friends an owner invites: `POST /v2/compass/access/invites` makes a
+single-use code (7 days), `POST /v2/compass/access/join {"code"}` with
+the friend's own token adds them, `GET /v2/compass/access` lists them and
+`DELETE /v2/compass/access/{chain}` removes one. Everyone else gets 401.
+
+**Setting it up** (desktop, chrome://compass-sync, "No server? Set up a
+free one on Cloudflare"). **Sign in with Cloudflare**
+(`StartOnCloudflareSignIn()`, `browser/sync/cloudflare_sign_in.h`) opens
+Cloudflare's consent in a new tab: OAuth authorization code with PKCE
+(S256), Compass's public client (`kCloudflareClientId`,
+`components/sync/cloudflare_oauth.h`; no secret), scopes
+`account-settings.read workers-scripts.admin`, a 32-character state
+(Cloudflare wants 8 or more). The redirect URI,
+`https://compassbrowser.org/oauth/cloudflare`, is never loaded: a
+`WebContentsObserver` on the tab catches the navigation to it (Cloudflare
+answers the consent with a redirect), closes the tab and trades the code
+at `dash.cloudflare.com/oauth2/token`. The client may not ask for
+`offline_access`, so there's no refresh token, and the access token is
+used once. "Use an API token instead" takes a pasted token (template
+"Edit Cloudflare Workers"). Either way `StartOnCloudflare()`:
+
+1. makes the new chain's seed, so its chain ID is known first;
+2. deploys (`CloudflareDeployer`, `components/sync/cloudflare_deployer.h`):
+   the account, its workers.dev subdomain (made if missing), the script
+   `compass-sync` (or `compass-sync-<6 hex of the chain>` if the account
+   has one), uploaded with the chain as `COMPASS_SYNC_ALLOWED_CHAINS` and
+   the Durable Objects' SQLite migration (not sent to a script that ran
+   it: Cloudflare answers 412), its workers.dev route on, then
+   `/healthz` until it answers (a new subdomain can take minutes);
+3. records where it is (`compass.sync.cloudflare`: account, script,
+   subdomain; never the token) and starts the chain on
+   `https://<script>.<subdomain>.workers.dev/v2` as "Start sync" does.
+
+If the deploy fails nothing is saved; the page shows Cloudflare's message.
+The script ships with Compass: `npm run bundle` in `server/cloudflare`
+writes `dist/compass-sync.js` (checked in, about 20 KiB gzipped), which
+`resources/sidebar/BUILD.gn` packs as `sync_worker/compass-sync.js`.
+
+**Reset sync** first links the new chain to the old one (`POST
+/v2/compass/account/link`, the profiles' route), on any server: on a
+private one the new chain is then let in as the old one was, an owner as
+an owner, a friend as a friend. A server without the route answers 404,
+which is fine; if the server can't be reached the reset doesn't happen,
+since the new chain could be locked out.
+
+### Inviting friends
+
+On a server with an access list this chain owns, the page shows **People
+on your server** under the devices (`GetServerPeople()`, `GET
+/v2/compass/access`; a friend's chain gets 403 and a Go server 404, and
+the section stays hidden): each friend (the invite's name, when they
+joined, how many profiles they linked) with **Remove** behind a confirm,
+each open invite with **Revoke**, and **Make an invite link** with an
+optional name. `InviteFriend()` (`POST /v2/compass/access/invites`) gives
+`https://<server>/invite#<code>`: single use, 7 days, the code in the
+fragment so it never reaches the server's logs. Opened in a browser, the
+server shows a page saying how to use it.
+
+The friend, with sync off, chooses **I have an invite** and pastes the
+link. `JoinWithInvite()` (`ParseInviteLink()`, `access_client.h`) makes the
+new chain's seed, joins the list with the code (`POST
+/v2/compass/access/join`, signed by the new chain: 204, 404
+`no_such_invite`, 410 used or expired), then starts the chain as "Start
+sync" does. Their other devices join by pairing, and their profiles link
+as anywhere else. Removing a friend refuses them within a minute (the
+Worker caches answers); their data stays on their devices and on the
+server until it expires (`COMPASS_SYNC_IDLE_CHAIN_DAYS`).
+
+Next: redeploying when Compass ships a newer server (it takes signing in
+again, as no token is kept).
+
 ## UI
 
 Upstream's sync settings are replaced by a page of our own,

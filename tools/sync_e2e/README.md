@@ -35,6 +35,9 @@ On `chrome://compass-sync` (the sync page):
 | `join_pairing.js --arg server=URL --arg code=N-NNNNNN` | Joins with a pairing code; returns once it waits for the other side. |
 | `answer_device.js --arg answer=allow\|deny` | Answers "Add <device>?" on the syncing instance. |
 | `cancel_pairing.js` | Cancels the pairing panel. |
+| `join_invite.js --arg link=URL` | "I have an invite": joins a server with an invite link; returns the 12 recovery words. |
+| `invite_friend.js [--arg name=NAME]` | "Make an invite link" under People on your server; returns the link. |
+| `people.js [--arg wait=REGEX]` | People on your server: shown or not, and its rows. |
 | `map_profiles.js [--arg map="NAME=CHAIN NAME;..."]` | Confirms the profile mapping step of a join. |
 | `sync_status.js [--arg wait=REGEX]` | The status line, visible sections, pairing panel and invite QR. |
 | `page_details.js` | The rest of the page: server field, devices, switches, app menu label. |

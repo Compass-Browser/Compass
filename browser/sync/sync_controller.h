@@ -5,6 +5,7 @@
 #ifndef COMPASS_BROWSER_SYNC_SYNC_CONTROLLER_H_
 #define COMPASS_BROWSER_SYNC_SYNC_CONTROLLER_H_
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -12,6 +13,7 @@
 #include "base/functional/callback.h"
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
+#include "compass/components/sync/access_client.h"
 #include "compass/components/sync/profile_list.h"
 
 class GURL;
@@ -75,6 +77,9 @@ struct SyncStatus {
   // the message, which says so (StartingStatus()).
   bool offer_restart = false;
   SyncLogin login;
+  // Off: while StartOnCloudflare() runs, what it's doing ("Uploading the
+  // sync server…"). Empty otherwise.
+  std::string server_setup;
 };
 
 enum class PairingStep {
@@ -177,6 +182,38 @@ class SyncController {
   // StartLogin()), and the callback waits for it.
   virtual void StartNewChain(const std::string& server_url,
                              StartCallback callback) = 0;
+  // Off: sets up the user's own server in their Cloudflare account with
+  // |access_token| (a Cloudflare API token that can edit Workers), owned by
+  // a new chain, then starts that chain on it as StartNewChain() does
+  // (docs/design/sync.md, "A free server on Cloudflare"). Progress shows in
+  // GetStatus().server_setup. Default: fails.
+  virtual void StartOnCloudflare(const std::string& access_token,
+                                 StartCallback callback);
+  // Off: as StartOnCloudflare(), with an access token from "Sign in with
+  // Cloudflare" in a new tab instead of a pasted one. Progress shows in
+  // GetStatus().server_setup. Default: fails.
+  virtual void StartOnCloudflareSignIn(StartCallback callback);
+  // Off: makes a new chain on the server of an invite link
+  // (https://<server>/invite#<code>): joins the server's access list with
+  // the code, then starts the chain as StartNewChain() does
+  // (docs/design/sync.md, "Inviting friends"). Default: fails.
+  virtual void JoinWithInvite(const std::string& invite_link,
+                              StartCallback callback);
+  // On: the friends on the server's access list and the open invites, if
+  // the server has a list and this chain owns it; nullopt otherwise.
+  // Default: nullopt.
+  using PeopleCallback =
+      base::OnceCallback<void(std::optional<ServerPeople> people)>;
+  virtual void GetServerPeople(PeopleCallback callback);
+  // On, owner: a single-use invite for a friend (|name| is a reminder for
+  // the owner, may be empty); |link| is what to send them.
+  using InviteCallback = base::OnceCallback<
+      void(bool ok, std::string error, std::string link)>;
+  virtual void InviteFriend(const std::string& name, InviteCallback callback);
+  // On, owner: removes a friend (their chain ID) or revokes an open invite
+  // (its code).
+  virtual void RemoveFromServer(const std::string& target,
+                                DoneCallback callback);
   // Off: joins the chain of a recovery code. As StartNewChain(), signs the
   // chain in first if the server asks and it isn't.
   virtual void JoinWithRecoveryCode(const std::string& server_url,

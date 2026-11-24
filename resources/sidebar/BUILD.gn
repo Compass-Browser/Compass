@@ -155,11 +155,13 @@ build_webui("build") {
     ":build_licenses_grdp",
     ":build_live_plugins_grdp",
     ":build_live_worker_grdp",
+    ":build_sync_worker_grdp",
   ]
   extra_grdp_files = [
     "$target_gen_dir/licenses.grdp",
     "$target_gen_dir/live_plugins.grdp",
     "$target_gen_dir/live_worker.grdp",
+    "$target_gen_dir/sync_worker.grdp",
   ]
 }
 
@@ -231,4 +233,17 @@ generate_grd("build_live_worker_grdp") {
   out_grd = "$target_gen_dir/live_worker.grdp"
   input_files_base_dir = rebase_path(".", "//")
   input_files = [ "live_folders/worker.js" ]
+}
+
+# The sync server for Cloudflare, as `npm run bundle` builds it in
+# server/cloudflare: Compass uploads it when the user sets up a free server
+# (docs/design/sync.md, "A free server on Cloudflare"). CompassSyncService
+# reads it from the resource bundle by its path; pages that serve all of
+# this pak's files serve it too, which is harmless (it's open source).
+generate_grd("build_sync_worker_grdp") {
+  grd_prefix = "compass_sync_worker"
+  out_grd = "$target_gen_dir/sync_worker.grdp"
+  input_files_base_dir = rebase_path("//compass/server/cloudflare/dist", "//")
+  resource_path_prefix = "sync_worker"
+  input_files = [ "compass-sync.js" ]
 }

@@ -45,6 +45,17 @@ class CompassSyncPageHandler : public sync::mojom::PageHandler,
   void GetState(GetStateCallback callback) override;
   void StartSync(const std::string& server_url,
                  StartSyncCallback callback) override;
+  void StartOnCloudflare(const std::string& token,
+                         StartOnCloudflareCallback callback) override;
+  void StartOnCloudflareSignIn(
+      StartOnCloudflareSignInCallback callback) override;
+  void JoinWithInvite(const std::string& link,
+                      JoinWithInviteCallback callback) override;
+  void GetServerPeople(GetServerPeopleCallback callback) override;
+  void InviteFriend(const std::string& name,
+                    InviteFriendCallback callback) override;
+  void RemoveFromServer(const std::string& target,
+                        RemoveFromServerCallback callback) override;
   void JoinWithRecoveryCode(const std::string& server_url,
                             const std::string& words,
                             JoinWithRecoveryCodeCallback callback) override;

@@ -42,6 +42,11 @@
 #include "compass/browser/sync/compass_spaces_sync.h"
 #include "compass/browser/sync/compass_sync_service_factory.h"
 #include "compass/browser/sync/sync_settings.h"
+#if !BUILDFLAG(IS_ANDROID)
+#include "compass/browser/sync/cloudflare_sign_in.h"
+#include "compass/grit/compass_sidebar_resources_map.h"
+#include "ui/base/resource/resource_bundle.h"
+#endif
 #include "compass/components/sync/compass_sync_notifier.h"
 #include "compass/components/sync/login_client.h"
 #if BUILDFLAG(IS_ANDROID)
@@ -366,6 +371,7 @@ void CompassSyncService::RegisterProfilePrefs(
   registry->RegisterBooleanPref(prefs::kResetPending, false);
   registry->RegisterBooleanPref(prefs::kDeviceRemoved, false);
   registry->RegisterListPref(prefs::kLoginLinksPending);
+  registry->RegisterDictionaryPref(prefs::kCloudflare);
   RegisterSyncSettingsPrefs(registry);
 }
 
@@ -383,6 +389,13 @@ void CompassSyncService::Shutdown() {
   login_.reset();
   login_client_.reset();
   setup_client_.reset();
+  deployer_.reset();
+#if !BUILDFLAG(IS_ANDROID)
+  cloudflare_sign_in_.reset();
+#endif
+  reset_linker_.reset();
+  access_client_.reset();
+  invite_client_.reset();
   oneshot_clients_.clear();
   host_.reset();
   joiner_.reset();
@@ -452,6 +465,7 @@ void CompassSyncService::RemoveObserver(Observer* observer) {
 SyncStatus CompassSyncService::GetStatus() const {
   SyncStatus status;
   status.server_url = prefs_->GetString(prefs::kServerUrl);
+  status.server_setup = server_setup_;
   // Company sign-in. A profile account's sign-in runs in its home profile.
   const CompassSyncService* home = IsProfileAccount() ? FindHome() : nullptr;
   const LoginFlow* flow =
@@ -704,11 +718,16 @@ void CompassSyncService::StartNewChain(const std::string& server_url,
         false, "Enter the server's URL, like https://sync.example.com/v2.", {});
     return;
   }
-  if (login_ || setup_client_) {
+  if (login_ || setup_client_ || deployer_ || invite_client_) {
     std::move(callback).Run(false, "Sync is being set up.", {});
     return;
   }
-  const Seed seed = GenerateSeed();
+  StartNewChainWithSeed(url, GenerateSeed(), std::move(callback));
+}
+
+void CompassSyncService::StartNewChainWithSeed(const GURL& url,
+                                               const Seed& seed,
+                                               StartCallback callback) {
   // On a server that asks for sign-in, the new chain signs in first: it's
   // saved, and syncs after the restart, only once it has (sync.md, "Company
   // sign-in (OIDC)", "Client").
@@ -782,7 +801,7 @@ void CompassSyncService::JoinWithRecoveryCode(const std::string& server_url,
         false, "That recovery code isn't valid. Check the 12 words.");
     return;
   }
-  if (login_ || setup_client_) {
+  if (login_ || setup_client_ || deployer_ || invite_client_) {
     std::move(callback).Run(false, "Sync is being set up.");
     return;
   }
@@ -1817,6 +1836,50 @@ void CompassSyncService::ResetChain(StartCallback callback) {
     server_url = GetServerUrl();
   }
   const Seed seed = GenerateSeed();
+  // A private server (an access list, or the Go server's allowed chains)
+  // serves the chains it knows and those they link: the old chain links the
+  // new one first, so the new chain is let in as the old one was, an owner
+  // as an owner, a friend as a friend (server/cloudflare/README.md, "Who
+  // may use it"; sync.md, "Profiles"). A server without links answers 404,
+  // which is fine; one that can't be reached cancels the reset, which could
+  // otherwise lock this device out.
+  reset_linker_ = std::make_unique<AccountLinker>(
+      profile_->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess(),
+      server_url);
+  const base::Time now = base::Time::Now();
+  reset_linker_->Link(
+      MakeAccessToken(DeriveAuthKey(*seed_), now),
+      MakeAccessToken(DeriveAuthKey(seed), now),
+      base::BindOnce(
+          [](base::WeakPtr<CompassSyncService> self, GURL server_url, Seed seed,
+             StartCallback callback, AccountLinker::Result result) {
+            if (!self) {
+              return;
+            }
+            base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+                FROM_HERE, std::move(self->reset_linker_));
+            if (result == AccountLinker::Result::kFailed) {
+              std::move(callback).Run(
+                  false,
+                  "Couldn't reach your sync server to move it to the new "
+                  "chain. Nothing changed; try again.",
+                  {});
+              return;
+            }
+            if (!self->seed_ || !self->IsChainRunning()) {
+              std::move(callback).Run(
+                  false, "Sync isn't running on this device.", {});
+              return;
+            }
+            self->ResetChainWithSeed(server_url, seed, std::move(callback));
+          },
+          weak_factory_.GetWeakPtr(), server_url, seed, std::move(callback)));
+}
+
+void CompassSyncService::ResetChainWithSeed(const GURL& server_url,
+                                            const Seed& seed,
+                                            StartCallback callback) {
   // Shared items (rooms) move to the new chain's accounts first, each
   // profile's with its own (docs/design/sync.md, "Rooms: clients"); the
   // rooms keep their own keys, so the stops below don't cut them off.
@@ -2709,6 +2772,272 @@ void CompassSyncService::OnAccountStatus(std::optional<AccountStatus> account,
 
 void CompassSyncService::OnAuthErrorHint() {
   RefreshLogin(/*force=*/false);
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+namespace {
+
+// The server Compass uploads (resources/sidebar/BUILD.gn,
+// build_sync_worker_grdp).
+constexpr std::string_view kSyncWorkerPath = "sync_worker/compass-sync.js";
+
+std::string LoadSyncWorkerScript() {
+  for (const webui::ResourcePath& resource : kCompassSidebarResources) {
+    if (resource.path == kSyncWorkerPath) {
+      return ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
+          resource.id);
+    }
+  }
+  return std::string();
+}
+
+}  // namespace
+
+void CompassSyncService::StartOnCloudflareSignIn(StartCallback callback) {
+  if (HasSeed() || left_) {
+    std::move(callback).Run(false, "Sync is already set up. Restart first.",
+                            {});
+    return;
+  }
+  if (login_ || setup_client_ || deployer_ || invite_client_ ||
+      cloudflare_sign_in_) {
+    std::move(callback).Run(false, "Sync is being set up.", {});
+    return;
+  }
+  cloudflare_sign_in_ = std::make_unique<CloudflareSignIn>(
+      profile_, profile_->GetDefaultStoragePartition()
+                    ->GetURLLoaderFactoryForBrowserProcess());
+  server_setup_ = "Sign in to Cloudflare in the new tab and allow Compass…";
+  NotifyObservers();
+  cloudflare_sign_in_->Start(base::BindOnce(
+      [](base::WeakPtr<CompassSyncService> self, StartCallback callback,
+         std::optional<std::string> token, std::string error) {
+        if (!self) {
+          return;
+        }
+        base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+            FROM_HERE, std::move(self->cloudflare_sign_in_));
+        self->server_setup_.clear();
+        if (!token) {
+          self->NotifyObservers();
+          std::move(callback).Run(false, std::move(error), {});
+          return;
+        }
+        self->StartOnCloudflare(*token, std::move(callback));
+      },
+      weak_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void CompassSyncService::StartOnCloudflare(const std::string& access_token,
+                                           StartCallback callback) {
+  if (HasSeed() || left_) {
+    std::move(callback).Run(false, "Sync is already set up. Restart first.",
+                            {});
+    return;
+  }
+  const std::string token(
+      base::TrimWhitespaceASCII(access_token, base::TRIM_ALL));
+  if (token.empty()) {
+    std::move(callback).Run(false, "Paste your Cloudflare token.", {});
+    return;
+  }
+  if (login_ || setup_client_ || deployer_ || invite_client_) {
+    std::move(callback).Run(false, "Sync is being set up.", {});
+    return;
+  }
+  std::string script = LoadSyncWorkerScript();
+  if (script.empty()) {
+    std::move(callback).Run(false, "This build has no sync server to set up.",
+                            {});
+    return;
+  }
+  // The chain comes first: the server is deployed with it as its owner, so
+  // from its first request it serves only this chain, its profiles and the
+  // friends it invites.
+  const Seed seed = GenerateSeed();
+  const std::string owner = GetChainId(DeriveAuthKey(seed));
+  deployer_ = std::make_unique<CloudflareDeployer>(
+      profile_->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess(),
+      token, std::move(script));
+  server_setup_ = "Connecting to Cloudflare…";
+  NotifyObservers();
+  deployer_->Deploy(
+      owner,
+      base::BindRepeating(
+          [](base::WeakPtr<CompassSyncService> self, const std::string& line) {
+            if (self) {
+              self->server_setup_ = line;
+              self->NotifyObservers();
+            }
+          },
+          weak_factory_.GetWeakPtr()),
+      base::BindOnce(
+          [](base::WeakPtr<CompassSyncService> self, Seed seed,
+             StartCallback callback, CloudflareDeployer::Result result) {
+            if (!self) {
+              return;
+            }
+            base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+                FROM_HERE, std::move(self->deployer_));
+            if (result.error != CloudflareDeployer::Error::kNone ||
+                !result.deployment) {
+              self->server_setup_.clear();
+              self->NotifyObservers();
+              std::move(callback).Run(
+                  false, CloudflareDeployer::Describe(result), {});
+              return;
+            }
+            const CloudflareDeployment& d = *result.deployment;
+            self->prefs_->SetDict(prefs::kCloudflare,
+                                  base::DictValue()
+                                      .Set("account_id", d.account_id)
+                                      .Set("script", d.script_name)
+                                      .Set("subdomain", d.subdomain));
+            self->server_setup_ = "Starting sync…";
+            self->NotifyObservers();
+            self->StartNewChainWithSeed(
+                d.server_url, seed,
+                base::BindOnce(
+                    [](base::WeakPtr<CompassSyncService> self,
+                       StartCallback callback, bool ok, std::string error,
+                       std::vector<std::string> words) {
+                      if (self) {
+                        self->server_setup_.clear();
+                        self->NotifyObservers();
+                      }
+                      std::move(callback).Run(ok, std::move(error),
+                                              std::move(words));
+                    },
+                    self, std::move(callback)));
+          },
+          weak_factory_.GetWeakPtr(), seed, std::move(callback)));
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+void CompassSyncService::JoinWithInvite(const std::string& invite_link,
+                                        StartCallback callback) {
+  if (HasSeed() || left_) {
+    std::move(callback).Run(false, "Sync is already set up. Restart first.",
+                            {});
+    return;
+  }
+  const std::optional<InviteLink> link = ParseInviteLink(invite_link);
+  if (!link) {
+    std::move(callback).Run(
+        false,
+        "Paste the whole invite link, like "
+        "https://compass-sync.example.workers.dev/invite#….",
+        {});
+    return;
+  }
+  if (login_ || setup_client_ || deployer_ || invite_client_) {
+    std::move(callback).Run(false, "Sync is being set up.", {});
+    return;
+  }
+  // The new chain joins the server's list with the code first, so its
+  // first sync request is let in.
+  const Seed seed = GenerateSeed();
+  invite_client_ = std::make_unique<AccessClient>(
+      profile_->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess(),
+      link->server_url);
+  invite_client_->Join(
+      MakeAccessToken(DeriveAuthKey(seed), base::Time::Now()), link->code,
+      base::BindOnce(
+          [](base::WeakPtr<CompassSyncService> self, GURL url, Seed seed,
+             StartCallback callback, AccessClient::Error error) {
+            if (!self) {
+              return;
+            }
+            base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+                FROM_HERE, std::move(self->invite_client_));
+            if (error != AccessClient::Error::kNone) {
+              std::move(callback).Run(false, AccessClient::Describe(error),
+                                      {});
+              return;
+            }
+            self->StartNewChainWithSeed(url, seed, std::move(callback));
+          },
+          weak_factory_.GetWeakPtr(), link->server_url, seed,
+          std::move(callback)));
+}
+
+AccessClient* CompassSyncService::GetAccessClient() {
+  if (!seed_ || !IsChainRunning()) {
+    return nullptr;
+  }
+  const GURL url = GetServerUrl();
+  if (!access_client_ || access_client_->server_url() != url) {
+    access_client_ = std::make_unique<AccessClient>(
+        profile_->GetDefaultStoragePartition()
+            ->GetURLLoaderFactoryForBrowserProcess(),
+        url);
+  }
+  return access_client_.get();
+}
+
+void CompassSyncService::GetServerPeople(PeopleCallback callback) {
+  AccessClient* client = GetAccessClient();
+  const std::optional<std::string> token =
+      client ? credentials_->MakeToken(base::Time::Now()) : std::nullopt;
+  if (!token) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+  client->List(*token, base::BindOnce(
+                           [](PeopleCallback callback,
+                              std::optional<ServerPeople> people,
+                              AccessClient::Error error) {
+                             // A server without a list, a friend's chain,
+                             // or no answer: nothing to show.
+                             std::move(callback).Run(std::move(people));
+                           },
+                           std::move(callback)));
+}
+
+void CompassSyncService::InviteFriend(const std::string& name,
+                                      InviteCallback callback) {
+  AccessClient* client = GetAccessClient();
+  const std::optional<std::string> token =
+      client ? credentials_->MakeToken(base::Time::Now()) : std::nullopt;
+  if (!token) {
+    std::move(callback).Run(false, "Sync isn't running on this device.",
+                            std::string());
+    return;
+  }
+  std::string trimmed(base::TrimWhitespaceASCII(name, base::TRIM_ALL));
+  client->CreateInvite(
+      *token, trimmed,
+      base::BindOnce(
+          [](InviteCallback callback, std::optional<std::string> link,
+             AccessClient::Error error) {
+            if (!link) {
+              std::move(callback).Run(false, AccessClient::Describe(error),
+                                      std::string());
+              return;
+            }
+            std::move(callback).Run(true, std::string(), *link);
+          },
+          std::move(callback)));
+}
+
+void CompassSyncService::RemoveFromServer(const std::string& target,
+                                          DoneCallback callback) {
+  AccessClient* client = GetAccessClient();
+  const std::optional<std::string> token =
+      client ? credentials_->MakeToken(base::Time::Now()) : std::nullopt;
+  if (!token || target.empty()) {
+    std::move(callback).Run(false, "Sync isn't running on this device.");
+    return;
+  }
+  client->Remove(*token, target,
+                 base::BindOnce(
+                     [](DoneCallback callback, AccessClient::Error error) {
+                       std::move(callback).Run(error == AccessClient::Error::kNone,
+                                               AccessClient::Describe(error));
+                     },
+                     std::move(callback)));
 }
 
 void CompassSyncService::CheckServerLogin(

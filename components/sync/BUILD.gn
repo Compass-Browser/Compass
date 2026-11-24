@@ -106,6 +106,18 @@ source_set("notifier") {
     # sign-in (OIDC)").
     "login_client.cc",
     "login_client.h",
+
+    # Setting up the user's own server on Cloudflare (docs/design/sync.md,
+    # "A free server on Cloudflare").
+    "cloudflare_deployer.cc",
+    "cloudflare_deployer.h",
+    "cloudflare_oauth.cc",
+    "cloudflare_oauth.h",
+
+    # Who may use such a server: invites (docs/design/sync.md, "Inviting
+    # friends").
+    "access_client.cc",
+    "access_client.h",
   ]
   public_deps = [
     ":chain",
@@ -115,14 +127,20 @@ source_set("notifier") {
     "//services/network/public/cpp",
     "//url",
   ]
-  deps = [ "//services/network/public/mojom" ]
+  deps = [
+    "//crypto",
+    "//services/network/public/mojom",
+  ]
 }
 
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "access_client_unittest.cc",
     "bip39_unittest.cc",
     "chain_unittest.cc",
+    "cloudflare_deployer_unittest.cc",
+    "cloudflare_oauth_unittest.cc",
     "compass_account_linker_unittest.cc",
     "compass_device_remover_unittest.cc",
     "compass_sync_notifier_unittest.cc",

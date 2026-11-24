@@ -129,7 +129,8 @@ sync::mojom::StatusPtr CompassSyncPageHandler::ToMojo(
       status.offer_restart,
       sync::mojom::Login::New(login.server_requires, login.provider_name,
                               login.user_name, login.user_email,
-                              login.in_progress, login.user_code));
+                              login.in_progress, login.user_code),
+      status.server_setup);
 }
 
 // static
@@ -239,6 +240,85 @@ void CompassSyncPageHandler::StartSync(const std::string& server_url,
                         std::move(callback).Run(ok, error, words);
                       },
                       std::move(callback)));
+}
+
+void CompassSyncPageHandler::StartOnCloudflare(
+    const std::string& token,
+    StartOnCloudflareCallback callback) {
+  controller_->StartOnCloudflare(
+      token, base::BindOnce(
+                 [](StartOnCloudflareCallback callback, bool ok,
+                    std::string error, std::vector<std::string> words) {
+                   std::move(callback).Run(ok, error, words);
+                 },
+                 std::move(callback)));
+}
+
+void CompassSyncPageHandler::StartOnCloudflareSignIn(
+    StartOnCloudflareSignInCallback callback) {
+  controller_->StartOnCloudflareSignIn(base::BindOnce(
+      [](StartOnCloudflareSignInCallback callback, bool ok, std::string error,
+         std::vector<std::string> words) {
+        std::move(callback).Run(ok, error, words);
+      },
+      std::move(callback)));
+}
+
+void CompassSyncPageHandler::JoinWithInvite(const std::string& link,
+                                            JoinWithInviteCallback callback) {
+  controller_->JoinWithInvite(
+      link, base::BindOnce(
+                [](JoinWithInviteCallback callback, bool ok, std::string error,
+                   std::vector<std::string> words) {
+                  std::move(callback).Run(ok, error, words);
+                },
+                std::move(callback)));
+}
+
+void CompassSyncPageHandler::GetServerPeople(
+    GetServerPeopleCallback callback) {
+  controller_->GetServerPeople(base::BindOnce(
+      [](GetServerPeopleCallback callback,
+         std::optional<sync::ServerPeople> people) {
+        auto out = sync::mojom::ServerPeople::New();
+        out->available = people.has_value();
+        if (people) {
+          for (const sync::ServerMember& m : people->members) {
+            out->members.push_back(sync::mojom::ServerMember::New(
+                m.chain, m.name, m.added.InMillisecondsFSinceUnixEpoch(),
+                m.linked));
+          }
+          for (const sync::ServerInvite& i : people->invites) {
+            out->invites.push_back(sync::mojom::ServerInvite::New(
+                i.code, i.name, i.expires.InMillisecondsFSinceUnixEpoch()));
+          }
+        }
+        std::move(callback).Run(std::move(out));
+      },
+      std::move(callback)));
+}
+
+void CompassSyncPageHandler::InviteFriend(const std::string& name,
+                                          InviteFriendCallback callback) {
+  controller_->InviteFriend(
+      name, base::BindOnce(
+                [](InviteFriendCallback callback, bool ok, std::string error,
+                   std::string link) {
+                  std::move(callback).Run(ok, error, link);
+                },
+                std::move(callback)));
+}
+
+void CompassSyncPageHandler::RemoveFromServer(
+    const std::string& target,
+    RemoveFromServerCallback callback) {
+  controller_->RemoveFromServer(
+      target, base::BindOnce(
+                  [](RemoveFromServerCallback callback, bool ok,
+                     std::string error) {
+                    std::move(callback).Run(ok, error);
+                  },
+                  std::move(callback)));
 }
 
 void CompassSyncPageHandler::JoinWithRecoveryCode(

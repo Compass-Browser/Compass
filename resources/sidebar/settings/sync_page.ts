@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {DataTypeState, Details, Device, Login, Pairing, ProfileMapping, ProfileMappingEntry, Status} from '../compass_sync.mojom-webui.js';
+import type {DataTypeState, Details, Device, Login, Pairing, ProfileMapping, ProfileMappingEntry, ServerPeople, Status} from '../compass_sync.mojom-webui.js';
 import {DataType, PageCallbackRouter, PageHandlerFactory, PageHandlerRemote, PairingStep, State} from '../compass_sync.mojom-webui.js';
 
 import {CompassSettingsPage} from './page_base.js';
@@ -29,6 +29,16 @@ const TYPE_LABELS = new Map<DataType, [string, string]>([
   [DataType.kSettings, ['Settings', 'Settings and search engines']],
   [DataType.kOpenTabs, ['Open tabs', 'Your tabs, for the other devices']],
 ]);
+
+// The buttons that start setting sync up, disabled while a setup runs.
+const SETUP_BUTTONS = [
+  'start',
+  'join',
+  'recover',
+  'startCloudflare',
+  'signInCloudflare',
+  'joinInvite',
+];
 
 function stateName(state: State): string {
   switch (state) {
@@ -81,6 +91,9 @@ export class CompassSyncPageElement extends CompassSettingsPage {
   private expiryTimer_: number|null = null;
   // The invite whose QR code is drawn, so a status change doesn't redraw it.
   private qrShown_ = '';
+  // The server whose people the page has loaded (only when sync is on), so
+  // a status change doesn't ask again.
+  private peopleLoadedFor_ = '';
 
   protected get pageTitle() {
     return 'Sync';
@@ -132,6 +145,84 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         $('offError').textContent = error;
         return;
       }
+      this.showWords_(words, 'I saved it');
+    });
+
+    // docs/design/sync.md, "Inviting friends".
+    $('showInvite').addEventListener('click', () => {
+      this.show('invitePanel', true);
+      $('inviteJoinLink').focus();
+    });
+
+    $('joinInvite').addEventListener('click', async () => {
+      $('offError').textContent = '';
+      const {ok, error, words} =
+          await this.handler_.joinWithInvite(value('inviteJoinLink'));
+      if (!ok) {
+        $('offError').textContent = error;
+        return;
+      }
+      $<HTMLInputElement>('inviteJoinLink').value = '';
+      this.showWords_(words, 'I saved it');
+    });
+
+    $('invite').addEventListener('click', async () => {
+      $('peopleError').textContent = '';
+      const {ok, error, link} =
+          await this.handler_.inviteFriend(value('inviteName'));
+      if (!ok) {
+        $('peopleError').textContent = error;
+        return;
+      }
+      $<HTMLInputElement>('inviteName').value = '';
+      $<HTMLInputElement>('inviteLink').value = link;
+      this.show('inviteResult', true);
+      $<HTMLInputElement>('inviteLink').select();
+      this.loadPeople_();
+    });
+
+    $('copyInvite').addEventListener('click', async () => {
+      const link = this.$<HTMLInputElement>('inviteLink');
+      try {
+        await navigator.clipboard.writeText(link.value);
+        $('copyInvite').textContent = 'Copied';
+        setTimeout(() => $('copyInvite').textContent = 'Copy link', 2000);
+      } catch {
+        link.select();
+      }
+    });
+
+    // docs/design/sync.md, "A free server on Cloudflare".
+    $('showCloudflare').addEventListener('click', () => {
+      this.show('cloudflarePanel', true);
+      $('cloudflareToken').focus();
+    });
+
+    $('showCloudflareToken').addEventListener('click', () => {
+      this.show('cloudflareTokenPanel', true);
+      $('cloudflareToken').focus();
+    });
+
+    $('signInCloudflare').addEventListener('click', async () => {
+      $('offError').textContent = '';
+      const {ok, error, words} =
+          await this.handler_.startOnCloudflareSignIn();
+      if (!ok) {
+        $('offError').textContent = error;
+        return;
+      }
+      this.showWords_(words, 'I saved it');
+    });
+
+    $('startCloudflare').addEventListener('click', async () => {
+      $('offError').textContent = '';
+      const {ok, error, words} =
+          await this.handler_.startOnCloudflare(value('cloudflareToken'));
+      if (!ok) {
+        $('offError').textContent = error;
+        return;
+      }
+      $<HTMLInputElement>('cloudflareToken').value = '';
       this.showWords_(words, 'I saved it');
     });
 
@@ -261,6 +352,77 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     this.show('noDevices', devices.length === 0);
   }
 
+  private async loadPeople_() {
+    const {people} = await this.handler_.getServerPeople();
+    this.renderPeople_(people);
+  }
+
+  // The friends and open invites of the server this chain owns; nothing on
+  // a server without an access list, or one the chain was invited to.
+  private renderPeople_(people: ServerPeople) {
+    this.show('people', people.available);
+    if (!people.available) {
+      return;
+    }
+    const date = (ms: number) =>
+        new Date(ms).toLocaleDateString(undefined, {dateStyle: 'medium'});
+    const row = (title: string, details: string, action: string,
+                 target: string, confirm: [string, string] | null) => {
+      const item = document.createElement('li');
+      const text = document.createElement('div');
+      text.className = 'grow';
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = title;
+      const info = document.createElement('div');
+      info.className = 'details';
+      info.textContent = details;
+      text.append(name, info);
+      const button = document.createElement('button');
+      button.className = 'secondary small';
+      button.textContent = action;
+      button.setAttribute('aria-label', `${action} ${title}`);
+      button.addEventListener('click', async () => {
+        if (confirm &&
+            !await this.confirmAction_(confirm[0], confirm[1], 'Remove')) {
+          return;
+        }
+        this.$('peopleError').textContent = '';
+        const {ok, error} = await this.handler_.removeFromServer(target);
+        if (!ok) {
+          this.$('peopleError').textContent = error;
+        }
+        this.loadPeople_();
+      });
+      item.append(text, button);
+      return item;
+    };
+    const rows = [
+      ...people.members.map(m => {
+        // Their other profiles, and the chains they reset to.
+        const profiles = m.linked > 0 ?
+            ` · ${m.linked} linked account${m.linked === 1 ? '' : 's'}` :
+            '';
+        const title = m.name || 'Friend';
+        return row(
+            title, `Joined ${date(m.addedMs)}${profiles}`, 'Remove', m.chain,
+            [
+              `Remove ${title}?`,
+              'They stop syncing on your server within a minute. Their ' +
+                  'data stays on their devices. You can invite them again.',
+            ]);
+      }),
+      ...people.invites.map(
+          i => row(
+              i.name ? `Invite for ${i.name}` : 'Invite',
+              `Not used yet · expires ${date(i.expiresMs)}`, 'Revoke', i.code,
+              null)),
+    ];
+    this.$('peopleList').replaceChildren(...rows);
+    this.show('peopleList', rows.length > 0);
+    this.show('noPeople', rows.length === 0);
+  }
+
   // Asks, then removes |device| from the chain on the server. The list
   // drops it once the browser side has; errors show under the list.
   private async removeDevice_(device: Device) {
@@ -338,6 +500,17 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         (state === State.kOn || state === State.kStarting ||
          state === State.kError || state === State.kLoginRequired);
     this.renderLogin_(state, status.login);
+    // A server being set up on Cloudflare: its progress, and nothing else
+    // to start meanwhile.
+    const settingUp = !!status.serverSetup;
+    this.$('cloudflareProgress').textContent = status.serverSetup;
+    if (settingUp) {
+      this.show('cloudflarePanel', true);
+      for (const id of
+               SETUP_BUTTONS) {
+        this.$<HTMLButtonElement>(id).disabled = true;
+      }
+    }
     this.show('off', state === State.kOff);
     this.show(
         'restartPanel',
@@ -348,6 +521,15 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     this.$<HTMLButtonElement>('addDevice').disabled = state !== State.kOn;
     this.$('serverUrl').textContent = status.serverUrl;
     this.renderDevices_(details.devices);
+    // Who may use the server: asked once per server while sync is on.
+    if (state === State.kOn && !removed &&
+        this.peopleLoadedFor_ !== status.serverUrl) {
+      this.peopleLoadedFor_ = status.serverUrl;
+      this.loadPeople_();
+    } else if (state !== State.kOn) {
+      this.peopleLoadedFor_ = '';
+      this.show('people', false);
+    }
     this.renderTypes_(details.types);
 
     this.show('pairing', pairingActive);
@@ -384,7 +566,8 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         provider ? `Sign in with ${provider}` : 'Sign in';
     this.$('loginCode').textContent = login.userCode;
     this.$<HTMLButtonElement>('reopenLogin').disabled = !login.userCode;
-    for (const id of ['start', 'join', 'recover']) {
+    for (const id of
+             SETUP_BUTTONS) {
       this.$<HTMLButtonElement>(id).disabled = login.inProgress;
     }
     const user = login.userName && login.userEmail ?

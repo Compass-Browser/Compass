@@ -33,6 +33,7 @@
 #include "compass/browser/sync/sync_settings.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/components/sync/chain.h"
+#include "compass/components/sync/cloudflare_deployer.h"
 #include "compass/components/sync/compass_account_linker.h"
 #include "compass/components/sync/compass_device_remover.h"
 #include "compass/components/sync/compass_sync_quota.h"
@@ -75,6 +76,7 @@ class CompassSyncNotifier;
 class CompassPushAndroid;
 #endif
 class SyncCredentials;
+class CloudflareSignIn;
 
 // A profile's place in a sync chain (docs/design/sync.md, slice 2): keeps
 // the seed (encrypted in a pref), hands the chain key to the engine, sets
@@ -155,6 +157,17 @@ class CompassSyncService : public KeyedService,
   PairingStatus GetPairingStatus() const override;
   void StartNewChain(const std::string& server_url,
                      StartCallback callback) override;
+#if !BUILDFLAG(IS_ANDROID)
+  void StartOnCloudflare(const std::string& access_token,
+                         StartCallback callback) override;
+  void StartOnCloudflareSignIn(StartCallback callback) override;
+#endif
+  void JoinWithInvite(const std::string& invite_link,
+                      StartCallback callback) override;
+  void GetServerPeople(PeopleCallback callback) override;
+  void InviteFriend(const std::string& name, InviteCallback callback) override;
+  void RemoveFromServer(const std::string& target,
+                        DoneCallback callback) override;
   void JoinWithRecoveryCode(const std::string& server_url,
                             const std::string& words,
                             DoneCallback callback) override;
@@ -489,6 +502,18 @@ class CompassSyncService : public KeyedService,
   void OnAccountStatus(std::optional<AccountStatus> account, LoginError error);
   // A 401 from the notifier or the quota: maybe the chain must sign in.
   void OnAuthErrorHint();
+  // The access client for the running chain's server; null without a
+  // chain running.
+  AccessClient* GetAccessClient();
+  // ResetChain() once the server lets the new chain in.
+  void ResetChainWithSeed(const GURL& server_url,
+                          const Seed& seed,
+                          StartCallback callback);
+  // StartNewChain() with a seed made already (StartOnCloudflare() deploys
+  // the server for its chain first).
+  void StartNewChainWithSeed(const GURL& url,
+                             const Seed& seed,
+                             StartCallback callback);
   // Before a chain is saved (StartNewChain(), JoinWithRecoveryCode()):
   // whether the server asks the chain of |seed| to sign in and it isn't.
   // Uses setup_client_.
@@ -519,6 +544,20 @@ class CompassSyncService : public KeyedService,
   void CloseLoginPage(const GURL& page_url);
   // "Sign in to Acme SSO".
   std::string SignInPhrase() const;
+
+  // StartOnCloudflare(): the deploy that runs, and its progress line.
+  std::unique_ptr<CloudflareDeployer> deployer_;
+#if !BUILDFLAG(IS_ANDROID)
+  // StartOnCloudflareSignIn(): the sign-in tab, until it gives a token.
+  std::unique_ptr<CloudflareSignIn> cloudflare_sign_in_;
+#endif
+  // ResetChain() on a server Compass set up: the old chain links the new.
+  std::unique_ptr<AccountLinker> reset_linker_;
+  // The running chain's server's access list (invites), and the one a
+  // JoinWithInvite() joins.
+  std::unique_ptr<AccessClient> access_client_;
+  std::unique_ptr<AccessClient> invite_client_;
+  std::string server_setup_;
 
   std::unique_ptr<LoginClient> login_client_;
   // Checks before saving a chain.

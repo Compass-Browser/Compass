@@ -43,6 +43,9 @@ struct Status {
   // the message.
   bool offer_restart;
   Login login;
+  // Off: while a server is being set up on Cloudflare, what's happening
+  // ("Uploading the sync server…"). Empty otherwise.
+  string server_setup;
 };
 
 // See compass::sync::PairingStep.
@@ -143,6 +146,31 @@ struct ProfileMapping {
   array<ProfileMappingEntry> proposed;
 };
 
+// The server's access list (docs/design/sync.md, "Inviting friends").
+struct ServerMember {
+  // Their chain ID, for RemoveFromServer().
+  string chain;
+  string name;
+  // ms since the Unix epoch.
+  double added_ms;
+  // Their profiles linked to it.
+  int32 linked;
+};
+
+struct ServerInvite {
+  // For RemoveFromServer() (revokes it).
+  string code;
+  string name;
+  double expires_ms;
+};
+
+struct ServerPeople {
+  // False unless the server has an access list this chain owns.
+  bool available;
+  array<ServerMember> members;
+  array<ServerInvite> invites;
+};
+
 // Bootstraps the connection; called once by the page.
 interface PageHandlerFactory {
   CreatePageHandler(pending_remote<Page> page,
@@ -156,6 +184,17 @@ interface PageHandler {
   // Off.
   // Makes a chain; |words| is the recovery code, shown once.
   StartSync(string server_url) => (bool ok, string error, array<string> words);
+  // Sets up the user's own server in their Cloudflare account with
+  // |token| (an API token that can edit Workers) and starts a chain on it,
+  // as StartSync(). Progress shows in Status.server_setup.
+  StartOnCloudflare(string token)
+      => (bool ok, string error, array<string> words);
+  // As StartOnCloudflare(), signing in to Cloudflare in a new tab.
+  StartOnCloudflareSignIn() => (bool ok, string error, array<string> words);
+  // Joins the server of an invite link with a new chain, then starts it
+  // as StartSync().
+  JoinWithInvite(string link)
+      => (bool ok, string error, array<string> words);
   JoinWithRecoveryCode(string server_url, string words)
       => (bool ok, string error);
   // Progress comes through Page.OnStateChanged().
@@ -183,6 +222,13 @@ interface PageHandler {
   ResetSync() => (bool ok, string error, array<string> words);
 
   Restart();
+
+  // On: who may use the server, if this chain owns it.
+  GetServerPeople() => (ServerPeople people);
+  // On, owner: a single-use invite; |link| is what to send.
+  InviteFriend(string name) => (bool ok, string error, string link);
+  // On, owner: a friend's chain ID or an invite's code.
+  RemoveFromServer(string target) => (bool ok, string error);
 
   // Slice 5. Changes come through Page.OnStateChanged().
   GetProfileMapping() => (ProfileMapping mapping);
