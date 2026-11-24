@@ -86,9 +86,13 @@ void PageActivationThrottle::NotifyActivation() {
   content::NavigationHandle* handle = navigation_handle();
   const bool block = IsAdBlockActiveFor(
       handle->GetWebContents()->GetBrowserContext(), handle->GetURL());
-  // A redirect from a site it blocks on to one it doesn't goes back to
-  // upstream's dry run; nothing to say otherwise.
-  if (!block && !notified_enabled_) {
+  // Only a change is news: a redirect from a site it blocks on to one it
+  // doesn't goes back to upstream's dry run, and the other way enables it.
+  // Telling the observers "enabled" again for each redirect between sites it
+  // blocks on (a sign-in's chain of them) trips the ads metrics observer,
+  // which takes one activation per page
+  // (AdsPageLoadMetricsObserver::OnPageActivationComputed's DCHECK).
+  if (block == notified_enabled_) {
     return;
   }
   auto* observer_manager =

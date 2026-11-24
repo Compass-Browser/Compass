@@ -27,6 +27,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
+#include "net/http/http_status_code.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
@@ -89,6 +90,11 @@ class AdBlockBrowserTest : public InProcessBrowserTest {
     } else if (path == "/adblock/ok.js") {
       response->set_content_type("text/javascript");
       response->set_content("window.okRan = true;");
+    } else if (path == "/adblock/redirect") {
+      // To the page on the host in the query.
+      response->set_code(net::HTTP_FOUND);
+      response->AddCustomHeader(
+          "Location", PageUrl(std::string(request.GetURL().query())).spec());
     } else if (path == "/adblock/ad.json") {
       response->set_content_type("application/json");
       response->set_content("{}");
@@ -141,6 +147,19 @@ IN_PROC_BROWSER_TEST_F(AdBlockBrowserTest, BlocksAndHides) {
   EXPECT_EQ(Display(web_contents(), "strong"), "none");
   EXPECT_EQ(Display(web_contents(), "site"), "none");
   EXPECT_EQ(Display(web_contents(), "content"), "block");
+}
+
+// A redirect between two sites it blocks on (a sign-in's chain, as
+// Cloudflare's): the page is told once that blocking is on, and blocking
+// works on the page it lands on. Telling it again tripped a DCHECK in the
+// ads metrics observer.
+IN_PROC_BROWSER_TEST_F(AdBlockBrowserTest, RedirectBetweenBlockedSites) {
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(),
+      embedded_test_server()->GetURL("a.test", "/adblock/redirect?b.test"),
+      PageUrl("b.test")));
+  EXPECT_FALSE(Eval(web_contents(), "window.adRan"));
+  EXPECT_TRUE(Eval(web_contents(), "window.okRan"));
 }
 
 IN_PROC_BROWSER_TEST_F(AdBlockBrowserTest, SiteRulesAndExceptions) {
