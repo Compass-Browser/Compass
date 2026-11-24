@@ -46,4 +46,26 @@ final class TabPickerTests: XCTestCase {
     XCTAssertTrue(pickerGone(app))
     XCTAssertTrue(app.buttons["Address"].waitForExistence(timeout: 2))
   }
+
+  /// From an incognito tab the picker shows incognito's tabs only.
+  func testIncognitoPickerShowsIncognitoTabs() {
+    let app = XCUIApplication()
+    app.launchArguments = ["-CompassIncognitoURL", "https://example.net/", "-CompassPicker", "YES"]
+    app.launch()
+    XCTAssertTrue(app.buttons["PickerCard"].firstMatch.waitForExistence(timeout: 20))
+    XCTAssertEqual(app.buttons.matching(identifier: "PickerCard").count, 1)
+    XCTAssertTrue(app.buttons["PickerIncognito"].isSelected)
+    XCTAssertEqual(app.buttons["PickerCard"].firstMatch.value as? String, "Incognito")
+  }
+
+  /// From a regular tab it shows the regular ones; the toggle switches to
+  /// incognito's (none here).
+  func testToggleSwitchesToIncognito() {
+    let app = launchWithPicker()
+    XCTAssertTrue(app.buttons["PickerRegular"].isSelected)
+    XCTAssertEqual(app.buttons.matching(identifier: "PickerCard").count, 2)
+    app.buttons["PickerIncognito"].tap()
+    XCTAssertTrue(app.staticTexts["No incognito tabs"].waitForExistence(timeout: 2))
+    XCTAssertEqual(app.buttons.matching(identifier: "PickerCard").count, 0)
+  }
 }

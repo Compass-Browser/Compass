@@ -11,6 +11,10 @@ import SwiftUI
 /// swipe right pulls the stack apart. A tap shows a card's tab, a flick up
 /// closes it, a drag down closes the picker onto the centered card.
 ///
+/// It shows the regular spaces' tabs or incognito's, never both: incognito's
+/// when the window is in incognito, and a toggle by + switches. While
+/// incognito is locked or covered, its side shows the lock instead of cards.
+///
 /// It opens from a swipe up on the bar's left end and follows the finger:
 /// at 0 the centered card fills the screen exactly where the page is (the
 /// whole row is scaled up about it), at 1 it rests as a card. Closing runs
@@ -43,24 +47,87 @@ struct TabPicker: View {
     GeometryReader { geo in
       let size = geo.size
       ZStack {
-        SpaceTint(theme: app.selectedSpace?.theme ?? .blue)
+        SpaceTint(theme: app.pickerSpace?.theme ?? .blue)
           .overlay(Color.black.opacity(0.18))
           // Closing onto another tab, the old page mustn't show around the
           // growing card.
           .opacity(app.pickerHolding ? max(progress, switching ? 1 : 0) : progress)
           .contentShape(Rectangle())
           .gesture(drag(id: nil, size: size))
-        if app.pickerTabs.isEmpty {
-          Text("No open tabs").font(.headline).foregroundStyle(.secondary).opacity(progress)
+        if locked {
+          lockedNote.opacity(progress)
+        } else {
+          if app.pickerTabs.isEmpty {
+            Text(app.pickerIncognito ? "No incognito tabs" : "No open tabs")
+              .font(.headline).foregroundStyle(.secondary).opacity(progress)
+          }
+          row(size: size, progress: progress)
         }
-        row(size: size, progress: progress)
-        plusButton.opacity(progress)
+        bottomBar.opacity(progress)
       }
       .frame(width: size.width, height: size.height)
     }
     .ignoresSafeArea()
-    .spaceAppearance(app.selectedSpace?.theme)
+    .spaceAppearance(app.pickerSpace?.theme)
     .allowsHitTesting(app.showingPicker)
+  }
+
+  /// Incognito's side while it's locked or covered: no cards (nor their
+  /// snapshots), the lock.
+  private var locked: Bool { app.pickerIncognito && app.incognitoHidden }
+
+  private var lockedNote: some View {
+    VStack(spacing: 14) {
+      Image(systemName: "eyeglasses").font(.system(size: 44, weight: .semibold))
+      if app.services.incognitoLocked {
+        Text("Incognito is locked").font(.headline)
+        Button("Unlock") { Task { await app.services.unlockIncognito() } }
+          .buttonStyle(.borderedProminent)
+          .tint(.white.opacity(0.25))
+          .accessibilityIdentifier("PickerUnlockIncognito")
+      }
+    }
+    .foregroundStyle(.white)
+  }
+
+  /// At the bottom: the toggle, and + (not while incognito's is locked).
+  private var bottomBar: some View {
+    VStack {
+      Spacer()
+      HStack(spacing: 12) {
+        modeToggle
+        if !locked { plusButton }
+      }
+      .padding(.bottom, SidebarPanel.bottomInset + 8)
+    }
+  }
+
+  /// Regular tabs or incognito's.
+  private var modeToggle: some View {
+    HStack(spacing: 0) {
+      modeButton("Tabs", symbol: "square.on.square", incognito: false)
+      modeButton("Incognito", symbol: "eyeglasses", incognito: true)
+    }
+    .padding(4)
+    .floatingGlass(in: Capsule())
+  }
+
+  private func modeButton(_ title: String, symbol: String, incognito: Bool) -> some View {
+    let on = app.pickerIncognito == incognito
+    return Button {
+      withAnimation(.snappy(duration: 0.3)) { app.setPickerIncognito(incognito) }
+    } label: {
+      Label(title, systemImage: symbol)
+        .font(.system(size: 15, weight: .semibold))
+        .padding(.horizontal, 14)
+        .frame(height: 36)
+        .background(Capsule().fill(on ? Color.primary.opacity(0.15) : .clear))
+        .contentShape(Capsule())
+    }
+    .buttonStyle(.plain)
+    .foregroundStyle(.primary)
+    .accessibilityAddTraits(on ? .isSelected : [])
+    .accessibilityIdentifier(incognito ? "PickerIncognito" : "PickerRegular")
   }
 
   /// The centered card isn't the page shown: closing switches tabs.
@@ -235,24 +302,19 @@ struct TabPicker: View {
   /// A new tab: the picker closes onto the centered card, the command bar
   /// opens over it.
   private var plusButton: some View {
-    VStack {
-      Spacer()
-      Button {
-        app.pickTab(at: app.pickerTabs.isEmpty ? nil : Int(app.pickerPosition.rounded()))
-        app.openCommandBar(newTab: true)
-      } label: {
-        Image(systemName: "plus")
-          .font(.system(size: 22, weight: .semibold))
-          .frame(width: 84, height: 48)
-          .contentShape(Capsule())
-      }
-      .buttonStyle(.plain)
-      .foregroundStyle(.primary)
-      .floatingGlass(in: Capsule())
-      .accessibilityLabel("New tab")
-      .accessibilityIdentifier("PickerNewTab")
-      .padding(.bottom, SidebarPanel.bottomInset + 8)
+    Button {
+      app.newTabFromPicker()
+    } label: {
+      Image(systemName: "plus")
+        .font(.system(size: 22, weight: .semibold))
+        .frame(width: 84, height: 48)
+        .contentShape(Capsule())
     }
+    .buttonStyle(.plain)
+    .foregroundStyle(.primary)
+    .floatingGlass(in: Capsule())
+    .accessibilityLabel(app.pickerIncognito ? "New incognito tab" : "New tab")
+    .accessibilityIdentifier("PickerNewTab")
   }
 }
 

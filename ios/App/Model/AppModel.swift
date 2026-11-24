@@ -87,6 +87,9 @@ final class AppModel {
   /// it's open, and which one is centered (fractional mid-scroll).
   var pickerTabs: [String] = []
   var pickerPosition: CGFloat = 0
+  /// The picker shows incognito's tabs instead of the regular spaces':
+  /// one or the other, never both. Opens on the window's (`isIncognito`).
+  var pickerIncognito = false
   /// The picker is closing onto a card: it stays up (the card full screen,
   /// over its page) until the switch underneath has drawn.
   var pickerHolding = false
@@ -672,10 +675,39 @@ final class AppModel {
   func preparePicker() {
     pickerHolding = false
     if let shown = shownTab { tabs.snapshot(shown.id) }
-    // Incognito tabs aren't shown: the picker is the regular spaces' tabs.
-    pickerTabs = tabs.loadedOrder.filter { store.node(id: $0) != nil && !tabs.isIncognito($0) }
+    pickerIncognito = isIncognito
+    loadPickerTabs()
+  }
+
+  /// The picker's cards: incognito's tabs or the regular spaces', as
+  /// `pickerIncognito` says; the shown tab centered, else the most recent.
+  private func loadPickerTabs() {
+    pickerTabs = tabs.loadedOrder.filter { store.node(id: $0) != nil && tabs.isIncognito($0) == pickerIncognito }
     let index = shownTab.flatMap { pickerTabs.firstIndex(of: $0.id) } ?? pickerTabs.count - 1
     pickerPosition = CGFloat(max(index, 0))
+  }
+
+  /// The picker's toggle: incognito's tabs, or the regular spaces'.
+  func setPickerIncognito(_ on: Bool) {
+    guard on != pickerIncognito else { return }
+    pickerIncognito = on
+    loadPickerTabs()
+  }
+
+  /// The space the picker stands for: its tint, and where its + opens a
+  /// tab. Regular: the shown space, or the last regular one shown.
+  var pickerSpace: Space? {
+    if pickerIncognito { return store.incognito }
+    if let space = selectedSpace, !space.isIncognito { return space }
+    return UserDefaults.standard.string(forKey: StartScreen.spaceKey).flatMap(store.space(id:)) ?? store.spaces.first
+  }
+
+  /// The picker's +: a new tab in the picker's mode (an incognito one from
+  /// incognito's cards), the command bar over the centered card.
+  func newTabFromPicker() {
+    pickTab(at: pickerTabs.isEmpty ? nil : Int(pickerPosition.rounded()))
+    if let space = pickerSpace { selectedSpaceID = space.id }
+    openCommandBar(newTab: true)
   }
 
   func openPicker() {
