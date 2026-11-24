@@ -141,7 +141,8 @@ public final class TodayTidier {
       system: SidebarPrompts.section(Self.promptID, in: prompts, locale: locale()), user: Self.describe(entries),
       maxTokens: ClaudeQuick.maxTokens,
       // The user asked: no hourly limit, no waiting out a back-off.
-      background: false)
+      background: false
+    ).withOnDevicePrompt(Self.promptID, prompts: prompts, locale: locale())
     let spaceID = space.id
     busy.insert(spaceID)
     let result = await quick.ask(request)

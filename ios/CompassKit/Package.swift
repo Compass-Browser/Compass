@@ -20,6 +20,9 @@ let package = Package(
     .library(name: "CompassShared", targets: ["CompassShared"]),
     // Claude chat's request, stream and conversation (docs/design/claude.md).
     .library(name: "CompassClaude", targets: ["CompassClaude"]),
+    // Apple Intelligence for the sidebar's small requests, shared with the
+    // Mac's compass-on-device helper (tools/on_device/).
+    .library(name: "CompassOnDevice", targets: ["CompassOnDevice"]),
     // Live folder plugins in JavaScriptCore (docs/design/live-folders.md).
     .library(name: "CompassLiveFolders", targets: ["CompassLiveFolders"]),
     // Per-site CSS and JavaScript (docs/design/boosts.md).
@@ -50,7 +53,10 @@ let package = Package(
     ),
     .target(name: "CompassShared"),
     .target(name: "CompassModel", dependencies: ["CompassShared"]),
-    .target(name: "CompassClaude", dependencies: ["CompassShared", "CompassModel"]),
+    // No dependencies: the Mac's helper builds it with swiftc alone
+    // (tools/on_device/BUILD.gn).
+    .target(name: "CompassOnDevice"),
+    .target(name: "CompassClaude", dependencies: ["CompassShared", "CompassModel", "CompassOnDevice"]),
     .target(name: "CompassLiveFolders", resources: [.copy("Resources/jsc_globals.js")]),
     .target(name: "CompassBoosts"),
     .target(name: "CompassEasels", dependencies: ["SyncProto"]),
@@ -66,7 +72,8 @@ let package = Package(
     .testTarget(name: "CompassSyncTests", dependencies: ["CompassSync"]),
     .testTarget(name: "CompassModelTests", dependencies: ["CompassModel"]),
     .testTarget(name: "CompassSharedTests", dependencies: ["CompassShared"]),
-    .testTarget(name: "CompassClaudeTests", dependencies: ["CompassClaude", "CompassModel"]),
+    .testTarget(name: "CompassClaudeTests", dependencies: ["CompassClaude", "CompassModel", "CompassOnDevice"]),
+    .testTarget(name: "CompassOnDeviceTests", dependencies: ["CompassOnDevice"]),
     .testTarget(name: "CompassLiveFoldersTests", dependencies: ["CompassLiveFolders"]),
     .testTarget(name: "CompassBoostsTests", dependencies: ["CompassBoosts"]),
     .testTarget(name: "CompassEaselsTests", dependencies: ["CompassEasels"]),

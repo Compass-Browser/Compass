@@ -4,6 +4,7 @@
 
 import CompassBoosts
 import CompassClaude
+import CompassOnDevice
 import Foundation
 import Observation
 
@@ -121,6 +122,37 @@ final class ClaudeSettings {
   var commandBarAskModel: String {
     didSet { defaults.set(commandBarAskModel, forKey: key(ClaudeQuick.commandBarAskModelKey)) }
   }
+  /// "Answer With" (off by default; docs/design/ai-sidebar.md, "On this
+  /// device"): Apple Intelligence answers Name Link Folders, Tidy Today and
+  /// Shorter Tab Titles instead of the chat's provider.
+  var sidebarOnDevice: Bool {
+    didSet { defaults.set(sidebarOnDevice, forKey: ClaudeQuick.sidebarOnDeviceKey) }
+  }
+  /// Whether Apple Intelligence can answer now; asked again by
+  /// `refreshOnDevice()` (the settings, each time they show).
+  private(set) var onDeviceAvailability = OnDeviceModel.availability
+  /// Whether to offer "Answer With": a device that can run Apple
+  /// Intelligence (or one where it's already chosen).
+  var offersOnDevice: Bool { onDeviceAvailability != .unsupported || sidebarOnDevice }
+
+  func refreshOnDevice() { onDeviceAvailability = OnDeviceModel.availability }
+
+  /// Whether a sidebar feature's switch can be on: what answers it can.
+  func isReady(_ feature: String) -> Bool {
+    if sidebarOnDevice && ClaudeQuick.onDeviceFeatures.contains(feature) {
+      return onDeviceAvailability == .available
+    }
+    return isSetUp
+  }
+
+  /// What a feature that isn't ready says.
+  func notReadyText(_ feature: String) -> String {
+    if sidebarOnDevice && ClaudeQuick.onDeviceFeatures.contains(feature) {
+      return onDeviceAvailability.reason ?? ""
+    }
+    return "Needs AI set up: save an API key (or a server) above."
+  }
+
   /// What "Test connection" listed, else the known models.
   var models: [ClaudeModel] = ClaudeModel.known
 
@@ -148,6 +180,7 @@ final class ClaudeSettings {
     tidyToday = defaults.bool(forKey: ClaudeQuick.tidyTodayKey)
     shortTabTitles = defaults.bool(forKey: ClaudeQuick.shortTabTitlesKey)
     commandBarAsk = defaults.bool(forKey: ClaudeQuick.commandBarAskKey)
+    sidebarOnDevice = defaults.bool(forKey: ClaudeQuick.sidebarOnDeviceKey)
     fileAccess = ClaudeFileAccess(rawValue: defaults.integer(forKey: "ClaudeFilesAccess")) ?? .off
     folderBookmark = defaults.data(forKey: "ClaudeFilesFolder")
     folderName = folderBookmark.flatMap(Self.resolve)?.url.lastPathComponent

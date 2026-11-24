@@ -448,8 +448,33 @@
     switch and model. Only tabs' titles and sites are sent, to the endpoint
     above, never what pages contain; incognito windows never. At most 30
     automatic requests an hour.</p>
-  <p class="hint" id="sidebarNeedsKey" hidden>These need an API key (or a
-    gateway's) above. Claude Code mode doesn't do them yet.</p>
+  <!-- "Answer with" (docs/design/ai-sidebar.md, "On this device"): on a
+       Mac with the Apple Intelligence helper. -->
+  <div class="claude-backend" role="radiogroup" aria-label="Answer with"
+      id="sidebarAnswerWith" hidden>
+    <label>
+      <input type="radio" name="sidebarAnswerWith" id="sidebarChat">
+      <span>
+        <span class="name">Same as chat</span>
+        <span class="hint block">The provider above answers, with its
+          key.</span>
+      </span>
+    </label>
+    <label>
+      <input type="radio" name="sidebarAnswerWith" id="sidebarOnDevice">
+      <span>
+        <span class="name">Apple Intelligence (on this Mac)</span>
+        <span class="hint block">The model built into macOS answers Name
+          Link Folders, Tidy Today and Shorter Tab Titles, with no key and in
+          Claude Code mode too; titles and sites never leave this Mac. It's
+          smaller than Claude: its names are plainer, and Tidy leaves more
+          tabs loose. Answer Questions in the Command Bar stays with the
+          provider above.</span>
+      </span>
+    </label>
+  </div>
+  <p class="hint" id="onDeviceUnavailable" hidden></p>
+  <p class="hint" id="sidebarNeedsKey" hidden></p>
   <!-- One row per feature (claude_page.ts, SIDEBAR_FEATURES): a switch, and
        the model it asks. -->
   <div id="sidebarFeatureRows"></div>

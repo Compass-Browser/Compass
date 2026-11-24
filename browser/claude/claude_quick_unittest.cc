@@ -416,6 +416,33 @@ TEST_F(ClaudeQuickTest, SidebarPrompts) {
   EXPECT_EQ(titles.find("## "), std::string::npos);
 }
 
+// The on-device prompts (docs/design/ai-sidebar.md, "On this device"): the
+// language spelled out, and a feature without its own section uses
+// Claude's.
+TEST_F(ClaudeQuickTest, OnDevicePrompts) {
+  EXPECT_EQ(SidebarPromptFrom("## a\nIn {language}.\n", "a", "it-IT"),
+            "In Italian.");
+  EXPECT_EQ(SidebarPromptFrom("## a\nIn {language}.\n", "a", "pt_BR"),
+            "In Portuguese.");
+
+  QuickRequest folder;
+  SetOnDevicePrompt(folder, "folder_name", "it-IT");
+  EXPECT_EQ(folder.on_device_feature, "folder_name");
+  EXPECT_EQ(folder.on_device_system,
+            SidebarPrompt("folder_name_on_device", "it-IT"));
+  EXPECT_NE(folder.on_device_system.find("Italian"), std::string::npos);
+  EXPECT_EQ(folder.on_device_system.find("{language}"), std::string::npos);
+
+  QuickRequest tidy;
+  SetOnDevicePrompt(tidy, "tidy_today", "en");
+  EXPECT_EQ(tidy.on_device_system, SidebarPrompt("tidy_today_on_device", "en"));
+  EXPECT_FALSE(tidy.on_device_system.empty());
+
+  QuickRequest none;
+  SetOnDevicePrompt(none, "command_bar_ask", "en");
+  EXPECT_EQ(none.on_device_system, SidebarPrompt("command_bar_ask", "en"));
+}
+
 // Shorter tab titles: which titles get one.
 TEST_F(ClaudeQuickTest, NeedsShortTitle) {
   EXPECT_FALSE(NeedsShortTitle(u""));

@@ -123,6 +123,13 @@ struct SettingsState {
   // "Answer Questions in the Command Bar", and its model.
   bool command_bar_ask;
   string command_bar_ask_model;
+  // "Answer with" (docs/design/ai-sidebar.md, "On this device"): false
+  // where there's no Apple Intelligence helper (not a Mac, or a build
+  // without it). |sidebar_on_device|: Apple Intelligence answers Name Link
+  // Folders, Tidy Today and Shorter Tab Titles, which then need no key;
+  // CheckOnDevice() says whether it can.
+  bool on_device_supported;
+  bool sidebar_on_device;
 };
 
 // A fact Claude saved about the user.
@@ -212,4 +219,9 @@ interface SettingsHandler {
   SetCommandBarAsk(bool enabled);
   // Empty goes back to the default (Claude Sonnet).
   SetCommandBarAskModel(string model);
+  // "Answer with": Apple Intelligence (true) or the chat's provider.
+  SetSidebarOnDevice(bool on_device);
+  // Whether Apple Intelligence can answer now: |unavailable| is empty if it
+  // can, else why not, for the user.
+  CheckOnDevice() => (string unavailable);
 };

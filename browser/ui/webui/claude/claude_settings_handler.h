@@ -85,6 +85,8 @@ class ClaudeSettingsHandler : public mojom::SettingsHandler,
   void SetShortTabTitlesModel(const std::string& model) override;
   void SetCommandBarAsk(bool enabled) override;
   void SetCommandBarAskModel(const std::string& model) override;
+  void SetSidebarOnDevice(bool on_device) override;
+  void CheckOnDevice(CheckOnDeviceCallback callback) override;
   void GetMemories(GetMemoriesCallback callback) override;
   void AddMemory(const std::string& text, AddMemoryCallback callback) override;
   void UpdateMemory(const std::string& id,

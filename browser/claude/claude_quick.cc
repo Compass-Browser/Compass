@@ -20,6 +20,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/claude/claude_assets.h"
 #include "compass/browser/claude/claude_client.h"
@@ -30,6 +31,11 @@
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
+#include "ui/base/l10n/l10n_util.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "compass/browser/claude/on_device_model.h"
+#endif
 
 namespace compass::claude {
 
@@ -382,7 +388,30 @@ std::string SidebarPromptFrom(std::string_view prompts,
   const std::string joined = base::JoinString(section, "\n");
   std::string text(base::TrimWhitespaceASCII(joined, base::TRIM_ALL));
   base::ReplaceSubstringsAfterOffset(&text, 0, "{locale}", locale);
+  if (text.find("{language}") != std::string::npos) {
+    // "it-IT" is "Italian": the language, not the country, which a small
+    // model takes as a topic.
+    const std::string_view code =
+        locale.substr(0, std::min(locale.find_first_of("-_"), locale.size()));
+    std::string language = base::UTF16ToUTF8(l10n_util::GetDisplayNameForLocale(
+        code, "en", /*is_for_ui=*/false));
+    if (language.empty() || language == code) {
+      language = "English";
+    }
+    base::ReplaceSubstringsAfterOffset(&text, 0, "{language}", language);
+  }
   return text;
+}
+
+void SetOnDevicePrompt(QuickRequest& request,
+                       std::string_view id,
+                       std::string_view locale) {
+  request.on_device_feature = std::string(id);
+  request.on_device_system =
+      SidebarPrompt(base::StrCat({id, "_on_device"}), locale);
+  if (request.on_device_system.empty()) {
+    request.on_device_system = SidebarPrompt(id, locale);
+  }
 }
 
 std::string SidebarPrompt(std::string_view id, std::string_view locale) {
@@ -460,10 +489,12 @@ struct ClaudeQuick::Pending {
 
 ClaudeQuick::ClaudeQuick(PrefService* prefs,
                          GetLoaderFactory get_loader_factory,
-                         GetKey get_key)
+                         GetKey get_key,
+                         OnDeviceModel* on_device)
     : prefs_(prefs),
       get_loader_factory_(std::move(get_loader_factory)),
-      get_key_(std::move(get_key)) {}
+      get_key_(std::move(get_key)),
+      on_device_(on_device) {}
 
 ClaudeQuick::~ClaudeQuick() = default;
 
@@ -476,8 +507,30 @@ bool ClaudeQuick::IsSetUp() const {
   return ClaudeCredentials::IsSetUp(*prefs_);
 }
 
+bool ClaudeQuick::UsesOnDevice(std::string_view feature_pref) const {
+  if (!on_device_ || !prefs_->GetBoolean(prefs::kSidebarOnDevice)) {
+    return false;
+  }
+  return feature_pref == prefs::kNameLinkFolders ||
+         feature_pref == prefs::kTidyToday ||
+         feature_pref == prefs::kShortTabTitles;
+}
+
 bool ClaudeQuick::IsEnabled(std::string_view feature_pref) const {
-  if (!IsSetUp() || feature_pref.empty()) {
+  if (feature_pref.empty()) {
+    return false;
+  }
+  if (UsesOnDevice(feature_pref)) {
+#if BUILDFLAG(IS_MAC)
+    // Unknown counts as available: the first request finds out, and the
+    // settings ask before offering the switches.
+    const OnDeviceAvailability availability = on_device_->availability();
+    if (availability != OnDeviceAvailability::kUnknown &&
+        availability != OnDeviceAvailability::kAvailable) {
+      return false;
+    }
+#endif
+  } else if (!IsSetUp()) {
     return false;
   }
   const PrefService::Preference* pref =
@@ -550,13 +603,23 @@ void ClaudeQuick::Cancel(int id) {
 }
 
 void ClaudeQuick::Start(int id) {
-  const bool background = pending_.at(id)->request.background;
-  if (!IsSetUp()) {
+  const QuickRequest& request = pending_.at(id)->request;
+  const bool background = request.background;
+  const bool on_device = UsesOnDevice(request.feature_pref) &&
+                         !request.on_device_feature.empty() && !request.stream;
+  if (!on_device && !IsSetUp()) {
     Finish(id, base::unexpected(QuickError::kNotSetUp));
     return;
   }
-  if (!IsEnabled(pending_.at(id)->request.feature_pref)) {
-    Finish(id, base::unexpected(QuickError::kOff));
+  if (!IsEnabled(request.feature_pref)) {
+    // A switch that's on, on a model that can't answer, is "not set up".
+    const PrefService::Preference* pref =
+        prefs_->FindPreference(request.feature_pref);
+    const bool switched_on = pref && pref->GetValue()->is_bool() &&
+                             pref->GetValue()->GetBool();
+    Finish(id, base::unexpected(on_device && switched_on
+                                    ? QuickError::kNotSetUp
+                                    : QuickError::kOff));
     return;
   }
   const base::TimeTicks now = base::TimeTicks::Now();
@@ -566,13 +629,27 @@ void ClaudeQuick::Start(int id) {
       return;
     }
     PruneRecent(now);
-    if (recent_.size() >= kMaxBackgroundPerHour) {
+    if (recent_.size() >=
+        (on_device ? kMaxOnDeviceBackgroundPerHour : kMaxBackgroundPerHour)) {
       Finish(id, base::unexpected(QuickError::kRateLimited));
       return;
     }
     recent_.push_back(now);
   }
   Pending& entry = *pending_.at(id);
+#if BUILDFLAG(IS_MAC)
+  if (on_device) {
+    entry.timer.Start(FROM_HERE, kTimeout,
+                      base::BindOnce(&ClaudeQuick::OnTimeout,
+                                     weak_factory_.GetWeakPtr(), id));
+    on_device_->Ask(entry.request.on_device_feature,
+                    entry.request.on_device_system, entry.request.user,
+                    kTimeout,
+                    base::BindOnce(&ClaudeQuick::OnDeviceReply,
+                                   weak_factory_.GetWeakPtr(), id));
+    return;
+  }
+#endif
   // The answer, or the time it took to give up, includes reading the key.
   entry.timer.Start(FROM_HERE,
                     entry.request.stream ? kStreamTimeout : kTimeout,
@@ -682,6 +759,38 @@ void ClaudeQuick::OnDone(int id, std::optional<std::string> error) {
   Finish(id, std::move(*reply));
 }
 
+void ClaudeQuick::OnDeviceReply(
+    int id,
+    base::expected<std::string, OnDeviceError> reply) {
+#if BUILDFLAG(IS_MAC)
+  if (!reply.has_value()) {
+    switch (reply.error()) {
+      case OnDeviceError::kUnavailable:
+        Finish(id, base::unexpected(QuickError::kNotSetUp));
+        return;
+      case OnDeviceError::kRefused:
+        Finish(id, base::unexpected(QuickError::kRefused));
+        return;
+      case OnDeviceError::kTimeout:
+        Finish(id, base::unexpected(QuickError::kTimeout));
+        return;
+      case OnDeviceError::kFailed:
+        Finish(id, base::unexpected(QuickError::kFailed));
+        return;
+    }
+  }
+  std::optional<base::DictValue> parsed =
+      reply->size() <= kMaxReplyText ? ParseQuickReply(*reply) : std::nullopt;
+  if (!parsed) {
+    Finish(id, base::unexpected(QuickError::kBadReply));
+    return;
+  }
+  Finish(id, std::move(*parsed));
+#else
+  NOTREACHED();
+#endif
+}
+
 void ClaudeQuick::OnTimeout(int id) {
   auto it = pending_.find(id);
   if (it != pending_.end() && it->second->client) {
@@ -756,6 +865,10 @@ std::unique_ptr<KeyedService>
 ClaudeQuickFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
+  OnDeviceModel* on_device = nullptr;
+#if BUILDFLAG(IS_MAC)
+  on_device = OnDeviceModel::Get();
+#endif
   return std::make_unique<ClaudeQuick>(
       profile->GetPrefs(),
       base::BindRepeating(
@@ -768,7 +881,8 @@ ClaudeQuickFactory::BuildServiceInstanceForBrowserContext(
           [](Profile* profile, ClaudeQuick::KeyCallback callback) {
             ClaudeCredentials::GetApiKey(profile, std::move(callback));
           },
-          base::Unretained(profile)));
+          base::Unretained(profile)),
+      on_device);
 }
 
 }  // namespace compass::claude

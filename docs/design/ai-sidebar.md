@@ -31,7 +31,8 @@ acts without a visible result the user can undo.
   (`compass.claude.short_tab_titles`) and "Answer Questions in the Command
   Bar" (`compass.claude.command_bar_ask`). There's no master switch. Every
   switch needs Claude set up, and is disabled with a line saying so while
-  it isn't.
+  it isn't; with "Answer with" Apple Intelligence, the first three need
+  the on-device model instead ("On this device").
 - **What's sent:** for folder names, Tidy Today and short titles, only
   tab titles and hosts (never paths, query strings or page text). For Ask,
   the question, and the current tab's title and host when the user leaves
@@ -466,6 +467,84 @@ then Tidy Today (A3), shorter tab titles (A4) and Ask in the command bar
   switch off or in incognito, errors, the timeout, cancel, the switch
   turned off mid-answer, Continue in Chat's conversation).
 
+## On this device (A8: Apple Intelligence)
+
+Name Link Folders, Tidy Today and Shorter Tab Titles can be answered by
+Apple Intelligence's on-device model instead of the chat's provider, on a
+Mac and on iOS (issue #1): no key, Claude Code mode too, and titles and
+hosts never leave the device. Ask in the command bar stays on the chat's
+provider (a ~3B model answers knowledge questions poorly).
+
+- **The setting.** "Answer with": "Same as chat" (the default) or "Apple
+  Intelligence (on this Mac)" (`compass.claude.sidebar_on_device`, a bool;
+  iOS UserDefaults of the same name, "Answer With" in Settings → AI in the
+  Sidebar, offered where the device can run Apple Intelligence). With it,
+  the three features hide their model pickers, and their switches can be on
+  only while the model is available. Unavailable, the settings say why
+  (an older system or a device that can't run it, Apple Intelligence off,
+  the model still downloading) and the switches stay off: there's no
+  silent fallback to the cloud.
+- **One library, two platforms.** `CompassOnDevice` in CompassKit
+  (`ios/CompassKit/Sources/CompassOnDevice/`, no dependencies):
+  `OnDeviceModel.availability`, `OnDeviceModel.answer(feature:system:user:)`
+  and `OnDeviceLines`, the Mac helper's protocol. Each feature's reply is
+  generated as a fixed `@Generable` type (guided generation: free-form
+  replies broke the JSON), greedily, with the guardrails for transforming
+  given text, and handed back as the JSON object Claude's prompt asks for
+  (short titles come as `[{id, title}]` and become `{"titles": {...}}`), so
+  `ParseTidyReply()`, `ParseShortTitlesReply()` and the callers don't
+  change. iOS's `ClaudeQuick` calls it directly (`OnDeviceBackend.system`).
+- **The Mac's helper.** Foundation Models has only a Swift API, and
+  Chromium's macOS toolchain has no Swift tool, so the browser asks
+  `compass-on-device` (`tools/on_device/`): that library and a two-line
+  `main.swift`, built by a GN action that runs `xcrun swiftc`
+  (`build_helper.py`; FoundationModels linked weakly, so it starts on any
+  macOS and says "unsupported"; the SDK path resolved, since swiftc finds
+  `@Generable`'s macro plugin next to the real SDK, not Chromium's link to
+  it). It ships as `Contents/MacOS/compass-on-device` (`bundle_data`, the
+  `chrome/BUILD.gn` patch) and is signed like `compass-mcp` (the
+  `parts.py` patch). `compass_on_device_model` (GN arg, default `is_mac`;
+  needs Xcode with the macOS 26 SDK or newer) builds it, and its buildflag
+  `COMPASS_ON_DEVICE_MODEL` lets `OnDeviceModel::Get()` offer it.
+- **The protocol** (JSON, a line each way): `{"id", "status": true}` →
+  `{"id", "availability": "available" | "unsupported" | "disabled" |
+  "not_ready"}`; `{"id", "feature", "system", "user"}` → `{"id", "text"}`
+  or `{"id", "error": "unavailable" | "refused" | "failed" |
+  "bad_request"}`.
+- **`OnDeviceModel`** (`browser/claude/on_device_model.{h,cc}`, Mac): one
+  helper process per request (it ends when its stdin closes), one request
+  at a time on a background sequence, each within `ClaudeQuick::kTimeout`
+  of being asked, waiting included; a helper past its time is killed. It
+  remembers the last availability; unknown counts as available until a
+  request or the settings' check (`CheckOnDevice()`) says otherwise.
+- **`ClaudeQuick`** (both platforms): a `QuickRequest` carries an
+  on-device feature (the prompt's id) and system prompt
+  (`SetOnDevicePrompt()`, iOS `withOnDevicePrompt`). With "Answer with" on
+  and a model, `UsesOnDevice()` sends it there; `IsEnabled()` then needs
+  the switch and the model, not a key. Errors map onto `QuickError`s
+  (unavailable is `kNotSetUp`). Background requests: at most 120 an hour
+  on the device (for the battery, not cost); the back-off is the same.
+- **Prompts.** The small model gets its own sections where Claude's
+  didn't work for it: `folder_name_on_device`, `tidy_today_on_device` and
+  `short_titles_on_device` (`<id>_on_device`, else `<id>`'s). They spell
+  out the language (`{language}`, the English name of the browser's
+  language: with "it-IT" alone, names came back in English), say what an
+  id is (it took numbers from titles), and are shorter, with one example.
+- **Quality**, tried on a MacBook Pro (macOS 27.2) with 15 mixed Italian
+  and English tabs: names in Italian in 0.4–0.8 s ("Viaggio a Lisbona",
+  "Ricette"; empty for tabs with nothing in common, though not always);
+  Tidy in 1–2 s, five folders, one trip split in two; short titles for 10
+  of 15 in under 3 s ("Modello 730/2026", "Fix login redirect loop").
+  Weaker than Claude, as the settings say; Undo Name and Tidy's Undo cover
+  its mistakes, and the browser's checks (`SanitizeAiName()`, at least 2
+  entries a folder) still drop what's off.
+- **Tests:** `OnDeviceModelTest`, `OnDeviceHelperTest` (fake helpers as
+  shell scripts: the request line, no reply, the timeout),
+  `ClaudeQuickOnDeviceTest` (no key, the on-device prompt, errors, the
+  switch off, the chat's provider, unavailable), `ClaudeQuickTest.OnDevicePrompts`;
+  iOS `OnDeviceLinesTests` and `ClaudeQuickOnDeviceTests`. The real model
+  only by hand.
+
 ## As built on Android (A7)
 
 The desktop's C++ (android.md, "Claude in the sidebar (P12)"):
@@ -490,6 +569,7 @@ the Android side yet.
 | A5 | Ask in the command bar |
 | A6 | iOS: A1–A5 (done) |
 | A7 | Android: A1–A5 (done) |
+| A8 | Apple Intelligence for A2–A4 on the Mac and iOS (done) |
 
 ## Tests
 

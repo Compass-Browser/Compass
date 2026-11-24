@@ -142,43 +142,54 @@ struct ClaudeSettingsView: View {
       }
 
       // Claude in the sidebar (docs/design/ai-sidebar.md): a row per
-      // feature, each with its own switch and model.
+      // feature, each with its own switch and model; with "Answer With"
+      // Apple Intelligence, its features have no model.
       Section {
-        ClaudeFeatureRow(
-          title: "Name Link Folders",
+        if settings.offersOnDevice {
+          Picker("Answer With", selection: $settings.sidebarOnDevice) {
+            Text("Same as Chat").tag(false)
+            Text("Apple Intelligence").tag(true)
+          }
+          .accessibilityIdentifier("ClaudeSidebarAnswerWith")
+        }
+        feature(
+          ClaudeQuick.nameLinkFoldersKey, title: "Name Link Folders",
           description:
             "The AI names the folders that gather a page's links, from their tabs' titles and sites, and folder menus offer “Suggest a Name”. Each new name can be undone from the folder's menu.",
           isOn: $settings.nameLinkFolders, model: $settings.nameLinkFoldersModel,
-          models: settings.pickerModels(including: settings.nameLinkFoldersModel), ready: settings.isSetUp,
           identifier: "ClaudeNameLinkFolders")
-        ClaudeFeatureRow(
-          title: "Tidy Today",
+        feature(
+          ClaudeQuick.tidyTodayKey, title: "Tidy Today",
           description:
             "Today's header offers “Tidy”: the AI groups Today's loose tabs into named folders, from their titles and sites. “Undo” puts everything back.",
           isOn: $settings.tidyToday, model: $settings.tidyTodayModel,
-          models: settings.pickerModels(including: settings.tidyTodayModel), ready: settings.isSetUp,
           identifier: "ClaudeTidyToday")
-        ClaudeFeatureRow(
-          title: "Shorter Tab Titles",
+        feature(
+          ClaudeQuick.shortTabTitlesKey, title: "Shorter Tab Titles",
           description:
             "Long tab titles read as short ones in the sidebar, “PR #123: fix login” for a pull request's whole title. Only in the sidebar's rows, never saved or synced; a name you give a tab wins.",
           isOn: $settings.shortTabTitles, model: $settings.shortTabTitlesModel,
-          models: settings.pickerModels(including: settings.shortTabTitlesModel), ready: settings.isSetUp,
           identifier: "ClaudeShortTabTitles")
-        ClaudeFeatureRow(
-          title: "Answer Questions in the Command Bar",
+        feature(
+          ClaudeQuick.commandBarAskKey, title: "Answer Questions in the Command Bar",
           description:
             "A question typed in the command bar gets an “\(settings.provider.askTitle)” row, and a short answer under the field; “Continue in Chat” goes on from there. “About this page” sends the page's title and site, never what it contains.",
           isOn: $settings.commandBarAsk, model: $settings.commandBarAskModel,
-          models: settings.pickerModels(including: settings.commandBarAskModel), ready: settings.isSetUp,
           identifier: "ClaudeCommandBarAsk")
       } header: {
         Text("AI in the Sidebar")
       } footer: {
-        Text(
-          "Small tasks the AI does for you, each with its own switch and model. Only tabs' titles and sites are sent (and the questions you ask), to the endpoint above, never what pages contain; Incognito never. At most 30 automatic requests an hour."
-        )
+        if settings.sidebarOnDevice {
+          Text(
+            "Apple Intelligence answers Name Link Folders, Tidy Today and Shorter Tab Titles on this device: no key needed, and titles and sites never leave it. It's smaller than the AI above, so its names are plainer and Tidy leaves more tabs loose. Answer Questions stays with the AI above, which gets only your questions; Incognito never."
+          )
+        } else {
+          Text(
+            "Small tasks the AI does for you, each with its own switch and model. Only tabs' titles and sites are sent (and the questions you ask), to the endpoint above, never what pages contain; Incognito never. At most 30 automatic requests an hour."
+          )
+        }
       }
+      .onAppear { settings.refreshOnDevice() }
 
       Section {
         Toggle("Use Memory", isOn: $settings.memoryEnabled)
@@ -282,6 +293,19 @@ struct ClaudeSettingsView: View {
     }
   }
 
+  /// A sidebar feature's row: ready, and with a model, as what answers it
+  /// ("Answer With") allows.
+  private func feature(
+    _ key: String, title: String, description: String, isOn: Binding<Bool>, model: Binding<String>,
+    identifier: String
+  ) -> ClaudeFeatureRow {
+    let local = settings.sidebarOnDevice && ClaudeQuick.onDeviceFeatures.contains(key)
+    return ClaudeFeatureRow(
+      title: title, description: description, isOn: isOn, model: model,
+      models: settings.pickerModels(including: model.wrappedValue), ready: settings.isReady(key),
+      notReady: settings.notReadyText(key), showsModel: !local, identifier: identifier)
+  }
+
   private func test() {
     guard let endpoint = settings.endpoint else { return }
     if endpoint.needsTokenRisksAccepted {
@@ -317,8 +341,13 @@ struct ClaudeFeatureRow: View {
   @Binding var model: String
   /// The chat picker's models (a gateway's list too).
   let models: [ClaudeModel]
-  /// Claude is set up (a key saved).
+  /// What answers it can: Claude is set up (a key saved), or Apple
+  /// Intelligence is available.
   let ready: Bool
+  /// Why not, when not `ready`.
+  var notReady = "Needs AI set up: save an API key (or a server) above."
+  /// Apple Intelligence answers it: no model to pick.
+  var showsModel = true
   let identifier: String
 
   var body: some View {
@@ -330,15 +359,17 @@ struct ClaudeFeatureRow: View {
     }
     .disabled(!ready)
     .accessibilityIdentifier(identifier)
-    Picker("Model", selection: $model) {
-      ForEach(models) { model in
-        Text(model.displayName == model.id ? model.id : model.displayName).tag(model.id)
+    if showsModel {
+      Picker("Model", selection: $model) {
+        ForEach(models) { model in
+          Text(model.displayName == model.id ? model.id : model.displayName).tag(model.id)
+        }
       }
+      .disabled(!ready)
+      .accessibilityIdentifier(identifier + "Model")
     }
-    .disabled(!ready)
-    .accessibilityIdentifier(identifier + "Model")
     if !ready {
-      Label("Needs AI set up: save an API key (or a server) above.", systemImage: "info.circle")
+      Label(notReady, systemImage: "info.circle")
         .font(.caption)
         .foregroundStyle(.secondary)
     }

@@ -148,6 +148,8 @@ void TodayTidier::Tidy(SpaceModel& space) {
       claude::prefs::CurrentPref(prefs, claude::prefs::kTidyTodayModel));
   request.system = claude::SidebarPrompt(
       "tidy_today", g_browser_process->GetApplicationLocale());
+  claude::SetOnDevicePrompt(request, "tidy_today",
+                            g_browser_process->GetApplicationLocale());
   request.user = DescribeEntries(entries);
   request.max_tokens = claude::ClaudeQuick::kMaxTokens;
   // The user asked: no hourly limit, no waiting out a back-off.

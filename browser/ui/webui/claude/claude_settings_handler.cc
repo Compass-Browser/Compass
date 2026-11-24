@@ -36,6 +36,10 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "ui/shell_dialogs/selected_file_info.h"
 
+#if BUILDFLAG(IS_MAC)
+#include "compass/browser/claude/on_device_model.h"
+#endif
+
 namespace compass::claude {
 
 namespace {
@@ -210,6 +214,12 @@ void ClaudeSettingsHandler::GetState(GetStateCallback callback) {
   state->short_tab_titles_model = current(prefs::kShortTabTitlesModel);
   state->command_bar_ask = prefs->GetBoolean(prefs::kCommandBarAsk);
   state->command_bar_ask_model = current(prefs::kCommandBarAskModel);
+#if BUILDFLAG(IS_MAC)
+  state->on_device_supported =
+      state->sidebar_supported && OnDeviceModel::Get() != nullptr;
+#endif
+  state->sidebar_on_device =
+      state->on_device_supported && prefs->GetBoolean(prefs::kSidebarOnDevice);
   for (const base::Value& client : prefs->GetList(prefs::kMcpAllowedClients)) {
     if (client.is_string()) {
       state->mcp_allowed_clients.push_back(client.GetString());
@@ -382,6 +392,25 @@ void ClaudeSettingsHandler::SetCommandBarAsk(bool enabled) {
 
 void ClaudeSettingsHandler::SetCommandBarAskModel(const std::string& model) {
   SetProviderModel(prefs::kCommandBarAskModel, model);
+}
+
+void ClaudeSettingsHandler::SetSidebarOnDevice(bool on_device) {
+  profile_->GetPrefs()->SetBoolean(prefs::kSidebarOnDevice, on_device);
+}
+
+void ClaudeSettingsHandler::CheckOnDevice(CheckOnDeviceCallback callback) {
+#if BUILDFLAG(IS_MAC)
+  if (OnDeviceModel* model = OnDeviceModel::Get()) {
+    model->CheckAvailability(base::BindOnce(
+        [](CheckOnDeviceCallback callback,
+           OnDeviceAvailability availability) {
+          std::move(callback).Run(DescribeOnDeviceAvailability(availability));
+        },
+        std::move(callback)));
+    return;
+  }
+#endif
+  std::move(callback).Run("Apple Intelligence isn't available here.");
 }
 
 void ClaudeSettingsHandler::SetProviderModel(const char* name,

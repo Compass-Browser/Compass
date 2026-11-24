@@ -40,6 +40,8 @@ interface SidebarFeature {
   setModel: (handler: SettingsHandlerRemote, model: string) => void;
   // The model when its setting names none; QUICK_MODEL_DEFAULT if unset.
   defaultModel?: string;
+  // Apple Intelligence can answer it ("Answer with").
+  onDevice?: boolean;
 }
 
 const SIDEBAR_FEATURES: SidebarFeature[] = [
@@ -54,6 +56,7 @@ const SIDEBAR_FEATURES: SidebarFeature[] = [
     model: state => state.nameLinkFoldersModel,
     setEnabled: (handler, on) => handler.setNameLinkFolders(on),
     setModel: (handler, model) => handler.setNameLinkFoldersModel(model),
+    onDevice: true,
   },
   {
     id: 'tidyToday',
@@ -65,6 +68,7 @@ const SIDEBAR_FEATURES: SidebarFeature[] = [
     model: state => state.tidyTodayModel,
     setEnabled: (handler, on) => handler.setTidyToday(on),
     setModel: (handler, model) => handler.setTidyTodayModel(model),
+    onDevice: true,
   },
   {
     id: 'shortTabTitles',
@@ -76,6 +80,7 @@ const SIDEBAR_FEATURES: SidebarFeature[] = [
     model: state => state.shortTabTitlesModel,
     setEnabled: (handler, on) => handler.setShortTabTitles(on),
     setModel: (handler, model) => handler.setShortTabTitlesModel(model),
+    onDevice: true,
   },
   {
     id: 'commandBarAsk',
@@ -103,6 +108,9 @@ import {CompassSettingsPage} from './page_base.js';
 export class CompassClaudePageElement extends CompassSettingsPage {
   private handler_ = SettingsHandler.getRemote();
   private state_: SettingsState|null = null;
+  // Why Apple Intelligence can't answer ('' if it can); null until asked.
+  private onDeviceUnavailable_: string|null = null;
+  private checkingOnDevice_ = false;
   // The provider the models below are for; another resets them.
   private provider_ = 'anthropic';
   private models_: Array<Model|KnownModel> = knownModels('anthropic');
@@ -504,6 +512,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
 
       const modelRow = document.createElement('div');
       modelRow.className = 'feature-model';
+      modelRow.id = `${feature.id}ModelRow`;
       const modelLabel = document.createElement('label');
       modelLabel.htmlFor = `${feature.id}Model`;
       modelLabel.textContent = 'Model';
@@ -514,20 +523,69 @@ export class CompassClaudePageElement extends CompassSettingsPage {
       modelRow.append(modelLabel, select);
       rows.append(label, modelRow);
     }
+    const answerWith = async (onDevice: boolean) => {
+      // Mojo keeps the order: the state read next has the change.
+      this.handler_.setSidebarOnDevice(onDevice);
+      this.onDeviceUnavailable_ = null;
+      await this.refresh_();
+    };
+    this.$('sidebarChat').addEventListener('change', () => answerWith(false));
+    this.$('sidebarOnDevice')
+        .addEventListener('change', () => answerWith(true));
   }
 
-  // Each switch is off, and can't be turned on, until the provider is set
-  // up (a key, a gateway's, or an OpenAI-compatible server's URL; Claude
-  // Code mode doesn't answer these requests).
+  // Each switch is off, and can't be turned on, until what answers it can:
+  // the provider, set up (a key, a gateway's, or an OpenAI-compatible
+  // server's URL; Claude Code mode doesn't answer these requests), or with
+  // "Answer with" Apple Intelligence, available (checkOnDevice(), whose
+  // answer renders again). Apple Intelligence's features have no model.
   private renderSidebarFeatures_(state: SettingsState) {
     this.show('sidebarFeatures', state.sidebarSupported);
+    this.show('sidebarAnswerWith', state.onDeviceSupported);
+    const onDevice = state.onDeviceSupported && state.sidebarOnDevice;
+    this.$<HTMLInputElement>('sidebarChat').checked = !onDevice;
+    this.$<HTMLInputElement>('sidebarOnDevice').checked = onDevice;
+    const deviceReady = onDevice && this.onDeviceUnavailable_ === '';
+    let needsKey = false;
     for (const feature of SIDEBAR_FEATURES) {
+      const local = onDevice && !!feature.onDevice;
+      const usable = local ? deviceReady : state.setUp;
+      needsKey = needsKey || (!local && !state.setUp);
       const input = this.$<HTMLInputElement>(feature.id);
-      input.checked = feature.enabled(state) && state.setUp;
-      input.disabled = !state.setUp;
-      this.$<HTMLSelectElement>(`${feature.id}Model`).disabled = !state.setUp;
+      input.checked = feature.enabled(state) && usable;
+      input.disabled = !usable;
+      this.$<HTMLSelectElement>(`${feature.id}Model`).disabled = !usable;
+      this.show(`${feature.id}ModelRow`, !local);
     }
-    this.show('sidebarNeedsKey', !state.setUp);
+    this.show('onDeviceUnavailable', onDevice && !deviceReady);
+    this.$('onDeviceUnavailable').textContent =
+        this.onDeviceUnavailable_ ?? 'Checking Apple Intelligence…';
+    this.show('sidebarNeedsKey', needsKey);
+    this.$('sidebarNeedsKey').textContent = onDevice ?
+        'Answer Questions in the Command Bar needs an API key (or a ' +
+            'gateway\'s) above.' :
+        state.onDeviceSupported ?
+        'These need an API key (or a gateway\'s) above, or Apple ' +
+            'Intelligence. Claude Code mode doesn\'t do them yet.' :
+        'These need an API key (or a gateway\'s) above. Claude Code mode ' +
+            'doesn\'t do them yet.';
+    if (onDevice && this.onDeviceUnavailable_ === null &&
+        !this.checkingOnDevice_) {
+      this.checkOnDevice_();
+    }
+  }
+
+  // Asks whether Apple Intelligence can answer, then shows the switches
+  // again. Each visit to the page asks once; a change of "Answer with"
+  // asks again.
+  private async checkOnDevice_() {
+    this.checkingOnDevice_ = true;
+    const {unavailable} = await this.handler_.checkOnDevice();
+    this.checkingOnDevice_ = false;
+    this.onDeviceUnavailable_ = unavailable;
+    if (this.state_) {
+      this.renderSidebarFeatures_(this.state_);
+    }
   }
 
   // "Allow MCP clients", how to add Compass to a client, the clients

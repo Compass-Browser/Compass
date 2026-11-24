@@ -33,6 +33,11 @@ namespace network {
 class SharedURLLoaderFactory;
 }  // namespace network
 
+namespace compass::claude {
+class OnDeviceModel;
+enum class OnDeviceError;
+}  // namespace compass::claude
+
 // Claude's small requests for the sidebar: names for link folders and Tidy
 // Today now, short titles later. See
 // docs/design/ai-sidebar.md, "Shared core".
@@ -124,6 +129,8 @@ std::string DescribeAskPage(std::string_view page_title,
 // The section |id| ("## <id>") of |prompts| (common/claude/
 // sidebar_prompts.md's text), trimmed, with {locale} replaced by |locale|.
 // Empty if there's no such section.
+// Also {language}, by the English name of |locale|'s language ("Italian"),
+// which the on-device prompts spell out.
 std::string SidebarPromptFrom(std::string_view prompts,
                               std::string_view id,
                               std::string_view locale);
@@ -146,7 +153,20 @@ struct QuickRequest {
   bool background = true;
   // A plain-text reply streamed as it comes (Stream()), not a JSON object.
   bool stream = false;
+  // The request for the on-device model (docs/design/ai-sidebar.md, "On
+  // this device"), used instead while kSidebarOnDevice is on: the
+  // feature's prompt id ("folder_name", "tidy_today", "short_titles"),
+  // whose reply has the same shape as Claude's, and its system prompt
+  // (SetOnDevicePrompt()). Empty: the feature has none.
+  std::string on_device_feature;
+  std::string on_device_system;
 };
+
+// Sets |request|'s on-device feature to the prompt |id| and its system
+// prompt to the section "<id>_on_device", or |id|'s if there's none.
+void SetOnDevicePrompt(QuickRequest& request,
+                       std::string_view id,
+                       std::string_view locale);
 
 // Ask's request (docs/design/ai-sidebar.md, "Ask in the command bar"): the
 // "command_bar_ask" prompt section, one user message of |page_line|
@@ -199,6 +219,11 @@ std::string DescribeQuickError(QuickError error);
 // limited to kMaxBackgroundPerHour an hour, and an error stops them for
 // kFirstBackOff, a second one in a row for kLaterBackOff. Null off the
 // record and for guests: incognito never asks.
+//
+// With kSidebarOnDevice on (and an OnDeviceModel), a request that has an
+// on-device feature asks Apple Intelligence instead: no key, Claude Code
+// mode too, nothing leaves the Mac, at most kMaxOnDeviceBackgroundPerHour
+// background requests an hour (for the battery).
 class ClaudeQuick : public KeyedService {
  public:
   // Enough for Tidy Today's reply, which lists its folders' entries.
@@ -207,6 +232,7 @@ class ClaudeQuick : public KeyedService {
   // A streamed answer's whole time (Stream()).
   static constexpr base::TimeDelta kStreamTimeout = base::Seconds(60);
   static constexpr size_t kMaxBackgroundPerHour = 30;
+  static constexpr size_t kMaxOnDeviceBackgroundPerHour = 120;
   static constexpr base::TimeDelta kFirstBackOff = base::Minutes(1);
   static constexpr base::TimeDelta kLaterBackOff = base::Minutes(10);
 
@@ -221,9 +247,11 @@ class ClaudeQuick : public KeyedService {
   using GetLoaderFactory = base::RepeatingCallback<
       scoped_refptr<network::SharedURLLoaderFactory>()>;
 
+  // |on_device| may be null (no Apple Intelligence); it outlives this.
   ClaudeQuick(PrefService* prefs,
               GetLoaderFactory get_loader_factory,
-              GetKey get_key);
+              GetKey get_key,
+              OnDeviceModel* on_device = nullptr);
   ClaudeQuick(const ClaudeQuick&) = delete;
   ClaudeQuick& operator=(const ClaudeQuick&) = delete;
   ~ClaudeQuick() override;
@@ -233,7 +261,13 @@ class ClaudeQuick : public KeyedService {
   // Whether a key is saved: the Claude API's, or a gateway's. (Claude Code
   // mode alone doesn't answer these requests.)
   bool IsSetUp() const;
-  // IsSetUp(), and the feature's switch |feature_pref| is on.
+  // Whether |feature_pref|'s requests go to the on-device model:
+  // kSidebarOnDevice is on, there's a model, and the feature is one it
+  // answers (Name Link Folders, Tidy Today, Shorter Tab Titles).
+  bool UsesOnDevice(std::string_view feature_pref) const;
+  // The feature's switch |feature_pref| is on, and its requests can go:
+  // IsSetUp(), or UsesOnDevice() and the model isn't known to be
+  // unavailable.
   bool IsEnabled(std::string_view feature_pref) const;
 
   // Sends |request|; |callback| gets the reply's JSON object or why not,
@@ -260,6 +294,8 @@ class ClaudeQuick : public KeyedService {
   void OnEvent(int id, const SseParser::Event& event);
   void OnDone(int id, std::optional<std::string> error);
   void OnTimeout(int id);
+  // The on-device model's reply to request |id|.
+  void OnDeviceReply(int id, base::expected<std::string, OnDeviceError> reply);
   // Ends request |id| with |result|, later (never inside its client).
   void Finish(int id, Result result);
   void RunFinished(int id, Result result);
@@ -268,6 +304,7 @@ class ClaudeQuick : public KeyedService {
   const raw_ptr<PrefService> prefs_;
   const GetLoaderFactory get_loader_factory_;
   const GetKey get_key_;
+  const raw_ptr<OnDeviceModel> on_device_;
   int next_id_ = 1;
   std::map<int, std::unique_ptr<Pending>> pending_;
   // When the last hour's background requests went.

@@ -299,6 +299,7 @@ SidebarPageHandler::SidebarPageHandler(
           &SidebarPageHandler::SendTidyState, base::Unretained(this),
           /*force=*/false);
       tidy_prefs_.Add(claude::prefs::kTidyToday, send);
+      tidy_prefs_.Add(claude::prefs::kSidebarOnDevice, send);
       claude::prefs::ObserveProviderPrefs(
           tidy_prefs_, {claude::prefs::kApiKey, claude::prefs::kBaseUrl},
           send);

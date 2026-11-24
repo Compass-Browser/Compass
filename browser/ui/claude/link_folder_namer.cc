@@ -272,6 +272,8 @@ void LinkFolderNamer::Ask(const base::Uuid& folder_id, bool background) {
       claude::prefs::CurrentPref(prefs, claude::prefs::kNameLinkFoldersModel));
   request.system = claude::SidebarPrompt(
       "folder_name", g_browser_process->GetApplicationLocale());
+  claude::SetOnDevicePrompt(request, "folder_name",
+                            g_browser_process->GetApplicationLocale());
   request.user = DescribeFolder(*folder);
   request.max_tokens = 60;
   request.background = background;

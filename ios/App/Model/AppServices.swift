@@ -165,7 +165,8 @@ final class AppServices {
     quick = ClaudeQuick(
       endpoint: { ClaudeSettings.shared.endpoint },
       isOn: { ClaudeSettings.shared.isOn($0) },
-      cacheLevel: { CacheLevelMemory().level(for: $0.baseURL, isClaudeAPI: $0.isClaudeAPI) })
+      cacheLevel: { CacheLevelMemory().level(for: $0.baseURL, isClaudeAPI: $0.isClaudeAPI) },
+      answersOnDevice: { ClaudeSettings.shared.sidebarOnDevice }, onDevice: .system)
     namer = LinkFolderNamer(
       store: store, quick: quick, prompts: ClaudeSettings.sidebarPrompts,
       model: { ClaudeSettings.shared.featureModel(ClaudeSettings.shared.nameLinkFoldersModel) })

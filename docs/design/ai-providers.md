@@ -296,6 +296,9 @@ against OpenAI's JWKS; `earliest_refresh_at`.
 What the chat and the sidebar's requests send (claude.md, ai-sidebar.md)
 goes to the picked provider, under its terms, instead of Anthropic. The
 settings say so under the picker. Incognito still never asks.
+With "Answer with" Apple Intelligence (ai-sidebar.md, "On this device"),
+Name Link Folders, Tidy Today and Shorter Tab Titles don't go to any
+provider: the on-device model answers them, on the Mac and on iOS.
 
 ## Quality
 

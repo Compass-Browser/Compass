@@ -55,6 +55,7 @@ ShortTitler::ShortTitler(PrefService* prefs,
   const base::RepeatingClosure changed = base::BindRepeating(
       &ShortTitler::OnSettingsChanged, base::Unretained(this));
   registrar_.Add(claude::prefs::kShortTabTitles, changed);
+  registrar_.Add(claude::prefs::kSidebarOnDevice, changed);
   claude::prefs::ObserveProviderPrefs(
       registrar_, {claude::prefs::kApiKey, claude::prefs::kBaseUrl}, changed);
 }
@@ -321,6 +322,7 @@ void ShortTitler::SendBatch() {
   request.model = prefs_->GetString(
       claude::prefs::CurrentPref(*prefs_, claude::prefs::kShortTabTitlesModel));
   request.system = claude::SidebarPrompt("short_titles", get_locale_.Run());
+  claude::SetOnDevicePrompt(request, "short_titles", get_locale_.Run());
   request.user = DescribeTitles(tabs);
   request.max_tokens = claude::ClaudeQuick::kMaxTokens;
   // Automatic: the hourly limit and the back-off apply.
