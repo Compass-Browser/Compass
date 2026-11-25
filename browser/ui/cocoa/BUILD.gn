@@ -11,6 +11,7 @@ source_set("shortcuts") {
     "shortcuts_mac.h",
     "shortcuts_mac.mm",
   ]
+
   # Header only, no target of its own.
   sources += [ "../compass_command_ids.h" ]
   public_deps = [
@@ -22,6 +23,11 @@ source_set("shortcuts") {
     "//compass/browser/shortcuts",
     "//ui/events:events_base",
   ]
+  if (is_mac) {
+    # Headers these sources include directly (gn check). Upstream defines
+    # this target on macOS only, and GN loads this file on every platform.
+    deps += [ "//chrome/browser:global_keyboard_shortcuts_mac" ]
+  }
   frameworks = [
     "AppKit.framework",
     "Carbon.framework",
