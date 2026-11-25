@@ -53,7 +53,7 @@
 #if BUILDFLAG(IS_MAC)
 #include "compass/browser/ui/cocoa/shortcuts_mac.h"
 #elif BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
-#include "chrome/browser/ui/accelerator_table.h"
+#include "chrome/browser/ui/accelerator_table.h"  // nogncheck
 #include "compass/browser/shortcuts/shortcuts_table.h"
 #include "compass/browser/ui/views/frame/browser_view_accelerators.h"
 #endif

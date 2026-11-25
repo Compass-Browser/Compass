@@ -16,10 +16,10 @@ source_set("prefs") {
   ]
   deps = [
     "//base",
+    "//chrome/common:constants",
     "//compass/browser/claude:prefs",
     "//compass/common:url",
-    "//chrome/common:constants",
-    "//components/embedder_support:embedder_support",
+    "//components/embedder_support",
     "//components/password_manager/core/common",
     "//components/prefs",
     "//url",
@@ -35,7 +35,7 @@ source_set("unit_tests") {
   deps = [
     ":prefs",
     "//chrome/common:constants",
-    "//components/embedder_support:embedder_support",
+    "//components/embedder_support",
     "//components/password_manager/core/common",
     "//components/prefs",
     "//components/prefs:test_support",
@@ -57,19 +57,22 @@ if (!is_android) {
       ":prefs",
       "//base",
       "//base/test:test_support",
+      "//chrome/browser",
       "//chrome/browser:browser_process",
       "//chrome/browser/profiles:profile",
-      "//chrome/browser",
       "//chrome/common",
       "//chrome/common:chrome_features",
       "//chrome/common:constants",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
 
+      # Headers these sources include directly (gn check).
+      "//chrome/browser/ui/startup",
+
       # Settings show in the settings window.
       "//compass/browser/ui",
       "//components/autofill/core/common:features",
-      "//components/embedder_support:embedder_support",
+      "//components/embedder_support",
       "//components/network_time",
       "//components/omnibox/browser:aim_eligibility_service_features",
       "//components/password_manager/core/common",

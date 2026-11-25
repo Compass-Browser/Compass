@@ -35,8 +35,8 @@
 #include "url/gurl.h"
 
 #if defined(USE_AURA)
-#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"  // nogncheck
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"  // nogncheck
 #include "ui/aura/window.h"
 #include "ui/base/base_window.h"
 #endif

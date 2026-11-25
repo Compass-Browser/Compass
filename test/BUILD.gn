@@ -10,12 +10,20 @@ source_set("browser_window_test") {
     "compass_browser_window_test.cc",
     "compass_browser_window_test.h",
   ]
-  public_deps = [ "//chrome/test:test_support" ]
+  public_deps = [
+    "//chrome/test:test_support",
+
+    # Headers these sources include directly (gn check).
+    "//chrome/test/base:browser_with_test_window_test",
+  ]
   deps = [
     "//base",
     "//chrome/browser",
     "//content/public/browser",
     "//ui/base",
     "//url",
+
+    # Headers these sources include directly (gn check).
+    "//chrome/test/base:test_browser_window",
   ]
 }

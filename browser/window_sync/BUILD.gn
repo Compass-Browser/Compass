@@ -28,11 +28,11 @@ source_set("window_sync") {
   ]
   public_deps = [
     "//chrome/browser/ui/tabs:tab_strip",
+    "//compass/browser/sidebar",
     "//components/sessions",
     "//components/split_tabs",
     "//components/tab_groups",
     "//components/tabs:public",
-    "//compass/browser/sidebar",
     "//ui/base/unowned_user_data",
   ]
   deps = [
@@ -45,13 +45,13 @@ source_set("window_sync") {
     "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/sessions",
     "//chrome/browser/tab_list",
+    "//chrome/browser/ui:browser_live_tab_context",
+    "//chrome/browser/ui:recently_audible_helper",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/browser_window:create_browser_window",
     "//chrome/browser/ui/navigator",
-    "//chrome/browser/ui:browser_live_tab_context",
-    "//chrome/browser/ui:recently_audible_helper",
+    "//chrome/browser/ui/tabs",
     "//chrome/browser/ui/tabs:tab_model",
-    "//chrome/browser/ui/tabs:tabs",
     "//chrome/browser/ui/tabs:utils",
     "//chrome/common",
     "//compass/browser/easels:store",
@@ -75,7 +75,6 @@ source_set("unit_tests") {
     "tab_strip_bridge_unittest.cc",
   ]
   deps = [
-    "//compass/test:browser_window_test",
     ":window_sync",
     "//base",
     "//base/test:test_support",
@@ -86,11 +85,15 @@ source_set("unit_tests") {
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/test:test_support",
     "//chrome/test/base:browser_with_test_window_test",
+    "//compass/test:browser_window_test",
     "//content/public/browser",
     "//content/public/common",
     "//testing/gmock",
     "//testing/gtest",
     "//ui/base",
     "//url",
+
+    # Headers these sources include directly (gn check).
+    "//chrome/test/base:testing_browser_process",
   ]
 }

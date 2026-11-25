@@ -17,7 +17,6 @@
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
@@ -58,7 +57,7 @@
 #include "url/gurl.h"
 
 #if !BUILDFLAG(IS_MAC)
-#include "chrome/browser/ui/startup/startup_browser_creator.h"
+#include "chrome/browser/ui/startup/startup_browser_creator.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(IS_LINUX)

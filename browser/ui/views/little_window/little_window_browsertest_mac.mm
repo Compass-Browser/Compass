@@ -17,7 +17,6 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/test/run_until.h"
 #import "chrome/browser/app_controller_mac.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "compass/browser/ui/views/little_window/little_window_browsertest.h"
