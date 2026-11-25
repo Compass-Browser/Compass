@@ -1,0 +1,15 @@
+diff --git a/sandbox/policy/mojom/sandbox.mojom b/sandbox/policy/mojom/sandbox.mojom
+index 2aad768a501faead0248c1e7d8644fc75f592518..35108cfa9c1755d54394030421c3c1e8b06e7081 100644
+--- a/sandbox/policy/mojom/sandbox.mojom
++++ b/sandbox/policy/mojom/sandbox.mojom
+@@ -135,6 +135,10 @@ enum Sandbox {
+   // Like kUtility but allows access to IOSurface on macOS.
+   [EnableIf=is_mac] kMirroring,
+ 
++  // Compass: AVFoundation's AVPlayer and FairPlay (//compass/media/avf):
++  // network, audio, CoreAnimation and media services.
++  [EnableIf=is_mac] kAVFoundationMedia,
++
+   // Used to prime zygotes before they specialize. The process will receive a
+   // new sandbox later in its lifetime.
+   [EnableIf=is_chromeos|is_linux] kZygoteIntermediateSandbox,

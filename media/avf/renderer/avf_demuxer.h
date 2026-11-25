@@ -119,6 +119,7 @@ class AVFDemuxer : public media::Demuxer, public mojom::AVFPlayerClient {
                 const std::string& error);
   void OnDisconnected();
   void FailInitialization(const std::string& reason);
+  void FallBackToChromiumHls();
 
   const GURL url_;
   mojo::PendingRemote<mojom::AVFPlayerFactory> pending_factory_;

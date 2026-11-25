@@ -4,6 +4,8 @@
 
 #include "compass/media/avf/renderer/avf_renderer_hooks.h"
 
+#include <atomic>
+
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -22,12 +24,24 @@ namespace compass::avf {
 std::unique_ptr<media::Demuxer> MaybeCreateDemuxer(
     const GURL& url,
     base::FunctionRef<void(mojo::GenericPendingReceiver)> bind_interface) {
-  if (!ShouldUseAVFoundation(url)) {
+  if (!ShouldUseAVFoundation(url) || !IsAVFoundationUsable()) {
     return nullptr;
   }
   mojo::PendingRemote<mojom::AVFPlayerFactory> factory;
   bind_interface(factory.InitWithNewPipeAndPassReceiver());
   return std::make_unique<AVFDemuxer>(url, std::move(factory));
+}
+
+namespace {
+std::atomic<bool> g_avfoundation_unavailable{false};
+}  // namespace
+
+bool IsAVFoundationUsable() {
+  return !g_avfoundation_unavailable.load(std::memory_order_relaxed);
+}
+
+void SetAVFoundationUnavailable() {
+  g_avfoundation_unavailable.store(true, std::memory_order_relaxed);
 }
 
 std::unique_ptr<media::RendererFactory> MaybeCreateRendererFactory(

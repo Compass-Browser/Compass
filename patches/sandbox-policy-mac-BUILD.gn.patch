@@ -1,0 +1,13 @@
+diff --git a/sandbox/policy/mac/BUILD.gn b/sandbox/policy/mac/BUILD.gn
+index d852145ecb50d08c479a97fcaa49df9bc71440c6..ce158b9c92947750d0f3ab139b611f89b7d4e756 100644
+--- a/sandbox/policy/mac/BUILD.gn
++++ b/sandbox/policy/mac/BUILD.gn
+@@ -21,6 +21,8 @@ sb_files = [
+   "on_device_translation.sb",
+   "utility.sb",
+   "webnn_model_compilation.sb",
++  # Compass: AVFoundation's AVPlayer and FairPlay (//compass/media/avf).
++  "//compass/media/avf/service/avfoundation_media.sb",
+ ]
+ 
+ action_foreach("package_sb_files") {

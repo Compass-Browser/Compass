@@ -1,0 +1,12 @@
+diff --git a/content/browser/service_host/utility_sandbox_delegate.cc b/content/browser/service_host/utility_sandbox_delegate.cc
+index 845171e88ef7e848ef65aa8aee3d66bf55afac18..88f9189e6148b305ed04bd6420c242012679144b 100644
+--- a/content/browser/service_host/utility_sandbox_delegate.cc
++++ b/content/browser/service_host/utility_sandbox_delegate.cc
+@@ -65,6 +65,7 @@ UtilitySandboxedProcessLauncherDelegate::
+ #endif
+ #if BUILDFLAG(IS_MAC)
+       sandbox_type_ == sandbox::mojom::Sandbox::kMirroring ||
++      sandbox_type_ == sandbox::mojom::Sandbox::kAVFoundationMedia ||
+ #endif
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+       sandbox_type_ == sandbox::mojom::Sandbox::kProxyResolver ||

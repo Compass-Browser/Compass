@@ -10,6 +10,7 @@
 
 #include "base/files/file_path.h"
 #include "base/path_service.h"
+#include "base/process/process.h"
 #include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
 #include "base/test/run_until.h"
@@ -20,6 +21,9 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "compass/media/avf/common/avf_features.h"
+#include "compass/media/avf/public/mojom/avf_player.mojom.h"
+#include "content/public/browser/service_process_host.h"
+#include "content/public/browser/service_process_info.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -74,6 +78,25 @@ class AVFHlsBrowserTest : public InProcessBrowserTest {
     return "none";
   }
 
+  size_t RequestCount() {
+    base::AutoLock lock(lock_);
+    return requests_.size();
+  }
+
+  // As HeaderFor(), among the requests after the first `first`.
+  std::string HeaderSince(size_t first,
+                          const std::string& path,
+                          const std::string& header) {
+    base::AutoLock lock(lock_);
+    for (size_t i = first; i < requests_.size(); ++i) {
+      if (requests_[i].relative_url == path) {
+        auto it = requests_[i].headers.find(header);
+        return it == requests_[i].headers.end() ? "" : it->second;
+      }
+    }
+    return "none";
+  }
+
  private:
   void OnRequest(const net::test_server::HttpRequest& request) {
     base::AutoLock lock(lock_);
@@ -119,6 +142,53 @@ IN_PROC_BROWSER_TEST_F(AVFHlsBrowserTest, SendsFirstPartyCookies) {
     EXPECT_NE(cookies.back().find("session=avf-test"), std::string::npos)
         << path << ": " << cookies.back();
   }
+}
+
+// Running AVFoundation media service processes.
+std::vector<content::ServiceProcessInfo> AVFProcesses() {
+  std::vector<content::ServiceProcessInfo> processes;
+  for (auto& info : content::ServiceProcessHost::GetRunningProcessInfo()) {
+    if (info.IsService<mojom::AVFMediaService>()) {
+      processes.push_back(std::move(info));
+    }
+  }
+  return processes;
+}
+
+// Kills the AVFoundation process and waits until the browser saw it go.
+void CrashAVFProcess() {
+  std::vector<content::ServiceProcessInfo> processes = AVFProcesses();
+  ASSERT_EQ(processes.size(), 1u);
+  ASSERT_TRUE(processes[0].GetProcess().Terminate(/*exit_code=*/9,
+                                                  /*wait=*/true));
+  ASSERT_TRUE(base::test::RunUntil([] { return AVFProcesses().empty(); }));
+}
+
+// A crashed AVFoundation process is relaunched; after two crashes, pages get
+// Chromium's HLS player instead (and the browser doesn't go down with it).
+IN_PROC_BROWSER_TEST_F(AVFHlsBrowserTest, FallsBackAfterCrashes) {
+  const GURL page = embedded_test_server()->GetURL("/avf.html");
+  for (int crash = 0; crash < 2; ++crash) {
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), page));
+    content::EvalJsResult result =
+        content::EvalJs(web_contents(), "play('clear.m3u8')");
+    ASSERT_TRUE(result.is_ok()) << "load " << crash << ": " << result;
+    CrashAVFProcess();
+  }
+
+  const size_t requests_before = RequestCount();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), page));
+  ASSERT_TRUE(content::ExecJs(
+      web_contents(), "document.getElementById('v').src = 'clear.m3u8'"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return HeaderSince(requests_before, "/clear.m3u8", "User-Agent") != "none";
+  }));
+  // Chromium's HLS demuxer, not AVPlayer, fetched it, and no AVFoundation
+  // process came back.
+  EXPECT_EQ(HeaderSince(requests_before, "/clear.m3u8",
+                        "X-Playback-Session-Id"),
+            "");
+  EXPECT_TRUE(AVFProcesses().empty());
 }
 
 class AVFHlsDisabledBrowserTest : public AVFHlsBrowserTest {

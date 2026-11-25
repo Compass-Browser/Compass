@@ -1,5 +1,5 @@
 diff --git a/content/renderer/media/media_factory.cc b/content/renderer/media/media_factory.cc
-index cfd3fb96ca4102eba20be1c90784be5f4da2221e..d65f029ab2975b54bdbab418632f919739fa63f9 100644
+index cfd3fb96ca4102eba20be1c90784be5f4da2221e..563dc6f2428bd3946848dd6e49afc85753bf3587 100644
 --- a/content/renderer/media/media_factory.cc
 +++ b/content/renderer/media/media_factory.cc
 @@ -4,6 +4,8 @@
@@ -35,7 +35,7 @@ index cfd3fb96ca4102eba20be1c90784be5f4da2221e..d65f029ab2975b54bdbab418632f9197
 +    CHECK(!is_base_renderer_factory_set);
 +    factory_selector->AddConditionalFactory(
 +        RendererType::kContentEmbedderDefined, std::move(avf_factory),
-+        base::BindRepeating([] { return true; }));
++        base::BindRepeating(&compass::avf::IsAVFoundationUsable));
 +  }
 +
  #if BUILDFLAG(IS_ANDROID)

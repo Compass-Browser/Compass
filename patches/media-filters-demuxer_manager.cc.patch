@@ -1,8 +1,28 @@
 diff --git a/media/filters/demuxer_manager.cc b/media/filters/demuxer_manager.cc
-index bf5624040dd6730c0d975f0336e49a8855880461..9d306a073ba373fc600f5d719d80ae0d19ad592d 100644
+index bf5624040dd6730c0d975f0336e49a8855880461..463074794f1fbe14237d7ef00617621f0b09afde 100644
 --- a/media/filters/demuxer_manager.cc
 +++ b/media/filters/demuxer_manager.cc
-@@ -249,7 +249,9 @@ PipelineStatus DemuxerManager::CreateDemuxer(
+@@ -111,6 +111,19 @@ void DemuxerManager::OnPipelineError(PipelineStatus error) {
+   }
+ 
+ #if BUILDFLAG(ENABLE_HLS_DEMUXER)
++  // Compass: AVFoundation's demuxer override (//compass/media/avf) asks for
++  // Chromium's HLS demuxer when AVFoundation is unavailable (its service
++  // crashed). There's no data source to stop; the override is used up, so
++  // the restart creates the HLS demuxer.
++  if (error == DEMUXER_ERROR_DETECTED_HLS && !data_source_ &&
++      GetDemuxerType() == DemuxerType::kStreamProviderDemuxer) {
++    hls_fallback_ = true;
++    client_->StopForDemuxerReset();
++    FreeResourcesAfterMediaThreadWait(base::BindOnce(
++        &DemuxerManager::RestartClientForHLS, weak_factory_.GetWeakPtr()));
++    return;
++  }
++
+   if (error == DEMUXER_ERROR_DETECTED_HLS) {
+     hls_fallback_ = true;
+ 
+@@ -249,7 +262,9 @@ PipelineStatus DemuxerManager::CreateDemuxer(
    }
  
  #if BUILDFLAG(ENABLE_HLS_DEMUXER)
@@ -13,7 +33,7 @@ index bf5624040dd6730c0d975f0336e49a8855880461..9d306a073ba373fc600f5d719d80ae0d
      std::unique_ptr<Demuxer> demuxer;
      std::tie(data_source_info_, demuxer) = CreateHlsDemuxer();
      SetDemuxer(std::move(demuxer));
-@@ -381,6 +383,11 @@ bool DemuxerManager::IsLiveContent() const {
+@@ -381,6 +396,11 @@ bool DemuxerManager::IsLiveContent() const {
    if (GetDemuxerType() == DemuxerType::kManifestDemuxer) {
      return !demuxer_->IsSeekable();
    }
@@ -25,7 +45,7 @@ index bf5624040dd6730c0d975f0336e49a8855880461..9d306a073ba373fc600f5d719d80ae0d
    return false;
  }
  
-@@ -496,6 +503,11 @@ void DemuxerManager::SetDemuxer(std::unique_ptr<Demuxer> demuxer) {
+@@ -496,6 +516,11 @@ void DemuxerManager::SetDemuxer(std::unique_ptr<Demuxer> demuxer) {
    if (client_) {
      client_->MakeDemuxerThreadDumper(demuxer_.get());
    }

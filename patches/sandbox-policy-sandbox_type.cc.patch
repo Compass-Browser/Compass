@@ -1,0 +1,39 @@
+diff --git a/sandbox/policy/sandbox_type.cc b/sandbox/policy/sandbox_type.cc
+index 2d61c0c52ecb3d14c7ae01a2d00259595528acc3..7a8182af8e05b1a375b4dc1b06dbaa287c29dc59 100644
+--- a/sandbox/policy/sandbox_type.cc
++++ b/sandbox/policy/sandbox_type.cc
+@@ -56,6 +56,7 @@ constexpr char kMediaFoundationCdmSandbox[] = "mf_cdm";
+ 
+ #if BUILDFLAG(IS_MAC)
+ constexpr char kMirroringSandbox[] = "mirroring";
++constexpr char kAVFoundationMediaSandbox[] = "avfoundation_media";
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+@@ -168,6 +169,7 @@ void SetCommandLineFlagsForSandboxType(base::CommandLine* command_line,
+ #endif  // BUILDFLAG(IS_CHROMEOS)
+ #if BUILDFLAG(IS_MAC)
+     case Sandbox::kMirroring:
++    case Sandbox::kAVFoundationMedia:
+ #endif  // BUILDFLAG(IS_MAC)
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+     case Sandbox::kProxyResolver:
+@@ -303,6 +305,8 @@ std::string StringFromUtilitySandboxType(Sandbox sandbox_type) {
+ #if BUILDFLAG(IS_MAC)
+     case Sandbox::kMirroring:
+       return kMirroringSandbox;
++    case Sandbox::kAVFoundationMedia:
++      return kAVFoundationMediaSandbox;
+ #endif  // BUILDFLAG(IS_MAC)
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+     case Sandbox::kProxyResolver:
+@@ -397,6 +401,9 @@ sandbox::mojom::Sandbox UtilitySandboxTypeFromString(
+   }
+ #endif
+ #if BUILDFLAG(IS_MAC)
++  if (sandbox_string == kAVFoundationMediaSandbox) {
++    return Sandbox::kAVFoundationMedia;
++  }
+   if (sandbox_string == kMirroringSandbox) {
+     return Sandbox::kMirroring;
+   }

@@ -5,10 +5,11 @@ AVFoundation's AVPlayer instead of Chromium's HLS demuxer, as Safari does.
 This is the groundwork for FairPlay Streaming (`com.apple.fps`), which only
 works through AVFoundation.
 
-Status: milestones 1–4 are in: native HLS (clear, VOD and live) plays
+Status: milestones 1–5 are in: native HLS (clear, VOD and live) plays
 through AVPlayer, shown in the page, with the page's cookies and user agent;
 FairPlay works through EME as in Safari; sites the user picks can be told
-Compass is Safari. The sandbox is still to come (see Plan).
+Compass is Safari; the AVFoundation process is sandboxed, and Chromium's HLS
+player takes over if it keeps crashing.
 
 ## Why AVPlayer, and not a Chromium renderer
 
@@ -88,9 +89,10 @@ GPU process
     come back to the profile.
 - **AVFMediaService** (`media/avf/service/`, registered in
   `patches/chrome-utility-services.cc.patch`) runs AVPlayer on the utility
-  process's main thread, which gets an NSApplication run loop
-  (`--message-loop-type-ui`). Each `AVPlayerLayer` is the root of its own
-  `CAContext` and keeps a fixed size (`external_layer_constants.h`).
+  process's main thread, which gets a run loop (`--message-loop-type-ui`;
+  sandboxed, an NSRunLoop rather than NSApplication). Each `AVPlayerLayer`
+  is the root of its own `CAContext` and keeps a fixed size
+  (`external_layer_constants.h`).
 - **GPU process.** `compass::ExternalLayerRegistry` (`ui/external_layer/`,
   bound by `patches/chrome-gpu-browser_exposed_gpu_interfaces.cc.patch`) maps
   plane ids to context ids. A video-hole quad becomes a CA overlay
@@ -214,6 +216,53 @@ for every site by default.
   reports its key, but Bitmovin doesn't start a session; an implementation
   of the legacy API over this EME would be next.
 
+## The sandbox
+
+The AVFoundation process fetches and parses untrusted media, so it runs in
+its own Seatbelt profile, `media/avf/service/avfoundation_media.sb`, as
+sandbox type `kAVFoundationMedia` (a new value in `sandbox.mojom`, with the
+hooks every macOS type has: `patches/sandbox-policy-*`,
+`patches/content-browser-sandbox_parameters_mac.mm.patch`,
+`patches/content-browser-service_host-utility_sandbox_delegate.cc.patch`).
+On top of `common.sb`:
+
+- CoreAnimation and WindowServer (the `CAContext`), VideoToolbox and
+  IOSurface/IOAccelerator, as `gpu.sb`;
+- CoreAudio output, as `audio.sb`;
+- outbound network, DNS and TLS trust, as `network.sb` (AVPlayer fetches the
+  stream itself);
+- CoreMedia's services, and **`com.apple.lskdd.xpc`, FairPlay's key
+  daemon** (without it no SPC: "The operation could not be completed");
+- fonts (`allow-font-access`): AVPlayerLayer draws captions itself;
+- the Darwin user cache and temp directories (`AddDarwinDirs()`).
+
+Denied, and fine without: analytics and telemetry, TCC, usage tracking,
+camera extensions, and CFNetwork's on-disk HTTP cache and cookie store for
+the helper (`~/Library/Caches/<helper>/Cache.db`, `HTTPStorages`), so AVPlayer
+keeps nothing on disk, in Incognito too.
+
+Finding what it needs: blocked mach lookups don't show as `deny` lines but
+as `failed to do a bootstrap look-up: xpc_error=[159]` in the process's own
+log (`/usr/bin/log show --info --debug --predicate 'processID == <pid>'`;
+zsh has a `log` builtin), with `--enable-sandbox-logging`.
+
+## When the AVFoundation process crashes
+
+The browser keeps one AVFoundation process and never shuts it down, so
+losing it means it crashed; it's relaunched for the next player. After two
+crashes in a session (`kMaxServiceCrashes`), `AVFPlayerFactory` creates no
+more players or FairPlay CDMs, and players use Chromium's HLS player:
+
+- `AVFDemuxer` answers its initialization with `DEMUXER_ERROR_DETECTED_HLS`
+  (also when the process dies while loading) and marks AVFoundation
+  unusable in the renderer process (`SetAVFoundationUnavailable()`), which
+  turns the AVF renderer factory's condition off;
+- `DemuxerManager` then restarts the player with its HLS demuxer, without
+  the data source its own HLS fallback expects
+  (`patches/media-filters-demuxer_manager.cc.patch`).
+
+A crash during playback stops that player with an error.
+
 ## Known gaps
 
 - **A video hole inside a nested render pass** (the video under a CSS filter
@@ -224,8 +273,6 @@ for every site by default.
   with its own `NSURLSession`: the ad blocker, DevTools, service workers and
   Chromium's proxy settings don't see the requests, and a third-party stream
   gets no cookies.
-- **Not sandboxed** (`kNoSandbox`, like the macOS notification service):
-  AVPlayer needs network, audio and the FairPlay system services.
 - No audio/text track selection; HLS subtitles render inside AVPlayer only if
   at all. HLS URLs without `.m3u8` (detected by content sniffing) still use
   Chromium's HLS demuxer. No seeking in a live stream's DVR window.
@@ -244,8 +291,9 @@ for every site by default.
    CKC's output rules itself).
 4. ~~"Present as Safari"~~ (above). Next: Safari's legacy prefixed EME
    (`WebKitMediaKeys`) for the players that still use it there.
-5. A sandbox profile, falling back to Chromium's HLS demuxer if the service
-   crashes, browser tests.
+5. ~~The sandbox, the fallback when the process crashes~~ (above).
+   Next: Safari's legacy prefixed EME (`WebKitMediaKeys`), tracks, DVR
+   seeking, sniffed HLS.
 
 ## Checking it
 
@@ -263,6 +311,8 @@ for every site by default.
 - `compass_browsertests` (macOS): `AVFHlsBrowserTest.PlaysHls` (AVPlayer
   fetches the stream, `X-Playback-Session-Id`, and the page gets its
   duration and size), `SendsFirstPartyCookies`,
+  `AVFHlsBrowserTest.FallsBackAfterCrashes` (the process killed twice:
+  relaunched, then Chromium's HLS player),
   `AVFHlsDisabledBrowserTest.UsesChromiumHls`, `FairPlayBrowserTest.
   Configurations` (Safari's configurations work, `cenc`/`sinf` and
   persistent licenses don't), `Sessions` (certificate first, skd:// URIs,

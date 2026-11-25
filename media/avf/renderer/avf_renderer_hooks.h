@@ -34,6 +34,12 @@ std::unique_ptr<media::Demuxer> MaybeCreateDemuxer(
 std::unique_ptr<media::RendererFactory> MaybeCreateRendererFactory(
     const GURL& url);
 
+// False once AVFoundation turned out unavailable in this renderer process
+// (its service crashed): players then fall back to Chromium's HLS demuxer
+// and renderer. The condition of MaybeCreateRendererFactory()'s factory.
+bool IsAVFoundationUsable();
+void SetAVFoundationUnavailable();
+
 // FairPlay (com.apple.fps). `WrapCdmFactory()` is called by media_factory.cc
 // for the frame's CDM factory, `WrapKeySystemsCallback()` by
 // ChromeContentRendererClient::GetSupportedKeySystems()

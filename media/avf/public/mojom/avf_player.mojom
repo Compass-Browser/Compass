@@ -110,9 +110,10 @@ struct AVFPlayerOptions {
   array<AVFCookie> cookies;
 };
 
-// The utility process. Not sandboxed yet: AVPlayer needs the network, audio
-// and the FairPlay system services (milestone 5 adds a profile).
-[ServiceSandbox=sandbox.mojom.Sandbox.kNoSandbox]
+// The utility process, in its own sandbox: AVPlayer needs the network,
+// audio, CoreAnimation and media services
+// (media/avf/service/avfoundation_media.sb).
+[ServiceSandbox=sandbox.mojom.Sandbox.kAVFoundationMedia]
 interface AVFMediaService {
   // Replies with the CoreAnimation context that holds the player's layer.
   CreatePlayer(url.mojom.Url url,

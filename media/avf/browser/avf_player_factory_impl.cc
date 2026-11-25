@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/no_destructor.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -37,22 +38,46 @@
 namespace compass::avf {
 namespace {
 
+// After this many crashes of the AVFoundation process in a session, pages
+// get Chromium's HLS player (and no FairPlay) instead.
+constexpr int kMaxServiceCrashes = 2;
+
+struct MediaServiceState {
+  mojo::Remote<mojom::AVFMediaService> service;
+  int crashes = 0;
+};
+
+MediaServiceState& GetMediaServiceState() {
+  static base::NoDestructor<MediaServiceState> state;
+  return *state;
+}
+
+bool IsMediaServiceUsable() {
+  return GetMediaServiceState().crashes < kMaxServiceCrashes;
+}
+
 // One AVFoundation utility process for all players, launched on first use.
+// It's never shut down, so losing it means it crashed.
 mojom::AVFMediaService& GetMediaService() {
-  static base::NoDestructor<mojo::Remote<mojom::AVFMediaService>> service;
-  if (!service->is_bound() || !service->is_connected()) {
-    service->reset();
+  MediaServiceState& state = GetMediaServiceState();
+  if (!state.service.is_bound()) {
     content::ServiceProcessHost::Launch(
-        service->BindNewPipeAndPassReceiver(),
+        state.service.BindNewPipeAndPassReceiver(),
         content::ServiceProcessHost::Options()
             .WithDisplayName("Compass Media (AVFoundation)")
             // AVFoundation and CoreAnimation need a run loop on the main
             // thread.
             .WithExtraCommandLineSwitches({switches::kMessageLoopTypeUi})
             .Pass());
-    service->reset_on_disconnect();
+    state.service.set_disconnect_handler(base::BindOnce([] {
+      MediaServiceState& state = GetMediaServiceState();
+      state.crashes++;
+      LOG(ERROR) << "AVFoundation media service crashed (" << state.crashes
+                 << ")";
+      state.service.reset();
+    }));
   }
-  return *service->get();
+  return *state.service.get();
 }
 
 mojom::ExternalLayerRegistry& GetExternalLayerRegistry() {
@@ -97,6 +122,11 @@ void AVFPlayerFactoryImpl::CreatePlayer(
     CreatePlayerCallback callback) {
   if (!ShouldUseAVFoundation(url)) {
     mojo::ReportBadMessage("AVFPlayerFactory: not an HLS URL");
+    return;
+  }
+  if (!IsMediaServiceUsable()) {
+    // The renderer falls back to Chromium's HLS player.
+    std::move(callback).Run(std::nullopt);
     return;
   }
   content::RenderFrameHost& frame = render_frame_host();
@@ -221,7 +251,7 @@ void AVFPlayerFactoryImpl::IsPresentingAsSafari(
 }
 
 void AVFPlayerFactoryImpl::CreateCdm(CreateCdmCallback callback) {
-  if (!IsFairPlayEnabled()) {
+  if (!IsFairPlayEnabled() || !IsMediaServiceUsable()) {
     std::move(callback).Run(mojo::NullRemote(), nullptr);
     return;
   }

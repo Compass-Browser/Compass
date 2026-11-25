@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/synchronization/lock.h"
+#include "compass/media/avf/renderer/avf_renderer_hooks.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/channel_layout.h"
 #include "media/base/decoder_buffer.h"
@@ -142,7 +143,8 @@ void AVFDemuxer::Initialize(media::DemuxerHost* host,
 void AVFDemuxer::OnPlayerCreated(
     const std::optional<base::UnguessableToken>& overlay_plane_id) {
   if (!overlay_plane_id) {
-    FailInitialization("could not create AVPlayer");
+    // The browser turned AVFoundation off (its service kept crashing).
+    FallBackToChromiumHls();
     return;
   }
   overlay_plane_id_ = *overlay_plane_id;
@@ -174,6 +176,16 @@ void AVFDemuxer::OnLoaded(bool success,
   }
 }
 
+void AVFDemuxer::FallBackToChromiumHls() {
+  LOG(ERROR) << "AVFoundation HLS unavailable; using Chromium's HLS player";
+  SetAVFoundationUnavailable();
+  if (init_cb_) {
+    // DemuxerManager restarts the player with its HLS demuxer
+    // (patches/media-filters-demuxer_manager.cc.patch).
+    std::move(init_cb_).Run(media::DEMUXER_ERROR_DETECTED_HLS);
+  }
+}
+
 void AVFDemuxer::FailInitialization(const std::string& reason) {
   LOG(ERROR) << "AVFoundation HLS: " << reason;
   if (init_cb_) {
@@ -183,7 +195,8 @@ void AVFDemuxer::FailInitialization(const std::string& reason) {
 
 void AVFDemuxer::OnDisconnected() {
   if (init_cb_) {
-    FailInitialization("AVFoundation media service disconnected");
+    // The service crashed while loading: Chromium's HLS demuxer takes over.
+    FallBackToChromiumHls();
     return;
   }
   if (observer_) {
