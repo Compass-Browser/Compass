@@ -8,8 +8,11 @@
 #include <stdint.h>
 
 #include <optional>
+#include <set>
+#include <string>
 
 #include "base/functional/callback.h"
+#include "base/unguessable_token.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "compass/media/avf/public/mojom/avf_player.mojom.h"
@@ -19,6 +22,11 @@
 #include "url/gurl.h"
 
 #if defined(__OBJC__)
+@class AVContentKeyRequest;
+@class AVContentKeySession;
+@class CompassAVFKeyDelegate;
+@class NSError;
+@class NSMutableArray;
 @class AVPlayer;
 @class AVPlayerItem;
 @class AVPlayerLayer;
@@ -34,15 +42,21 @@ class CAContext;
 
 namespace compass::avf {
 
+class AVFCdm;
+
 // One AVPlayer, in the AVFoundation utility process, on its main thread.
 // Its AVPlayerLayer is the root of a CAContext the GPU process hosts.
 class AVFPlayerImpl : public mojom::AVFPlayer {
  public:
+  using FindCdmCallback =
+      base::RepeatingCallback<AVFCdm*(const base::UnguessableToken&)>;
+
   AVFPlayerImpl(const GURL& url,
                 mojom::AVFPlayerOptionsPtr options,
                 mojo::PendingReceiver<mojom::AVFPlayer> receiver,
                 mojo::PendingRemote<mojom::AVFPlayerClient> client,
-                base::OnceClosure on_disconnect);
+                base::OnceClosure on_disconnect,
+                FindCdmCallback find_cdm);
   AVFPlayerImpl(const AVFPlayerImpl&) = delete;
   AVFPlayerImpl& operator=(const AVFPlayerImpl&) = delete;
   ~AVFPlayerImpl() override;
@@ -54,9 +68,19 @@ class AVFPlayerImpl : public mojom::AVFPlayer {
   void SetRate(double rate) override;
   void Seek(base::TimeDelta time, SeekCallback callback) override;
   void SetVolume(float volume) override;
+  void SetCdm(const base::UnguessableToken& cdm_id,
+              SetCdmCallback callback) override;
+
+#if defined(__OBJC__)
+  // From the player's AVContentKeySession (FairPlay).
+  void OnKeyRequest(AVContentKeyRequest* request, bool renewal);
+  void OnKeyRequestSucceeded(AVContentKeyRequest* request);
+  void OnKeyRequestFailed(AVContentKeyRequest* request, NSError* error);
+#endif
 
   // From CompassAVFObserver.
   void OnItemStatusChanged();
+  void OnAssetDurationLoaded();
   void OnPresentationSizeChanged();
   void OnLoadedRangesChanged();
   void OnDurationChanged();
@@ -67,6 +91,7 @@ class AVFPlayerImpl : public mojom::AVFPlayer {
 
  private:
   void Disconnect();
+  void ReplyToLoad(base::TimeDelta duration);
   void SendTimeUpdate();
   base::TimeDelta CurrentTime() const;
   double EffectiveRate() const;
@@ -81,6 +106,17 @@ class AVFPlayerImpl : public mojom::AVFPlayer {
   AVPlayerLayer* __strong layer_;
   CAContext* __strong context_;
   CompassAVFObserver* __strong observer_;
+
+  // FairPlay: the asset's key requests go to this session; the page's CDM
+  // (SetCdm()) answers them.
+  AVContentKeySession* __strong key_session_;
+  CompassAVFKeyDelegate* __strong key_delegate_;
+  NSMutableArray* __strong key_requests_;
+  // skd:// URIs the page got an "encrypted" event for (once each, as in
+  // Safari; AVFoundation's retries go to the session that has the key).
+  std::set<std::string> announced_keys_;
+  FindCdmCallback find_cdm_;
+  base::WeakPtr<AVFCdm> cdm_;
 
   LoadCallback load_callback_;
   // The rate the page asked for; AVPlayer only plays once the page does.

@@ -1,0 +1,22 @@
+diff --git a/third_party/blink/renderer/platform/media/key_system_config_selector.cc b/third_party/blink/renderer/platform/media/key_system_config_selector.cc
+index 41b470dd1cac1aab9e0fc01bcb3513cac421f931..7b743783194d0bd495b2375e1f581a084228b0a6 100644
+--- a/third_party/blink/renderer/platform/media/key_system_config_selector.cc
++++ b/third_party/blink/renderer/platform/media/key_system_config_selector.cc
+@@ -405,6 +405,17 @@ bool KeySystemConfigSelector::IsSupportedContentType(
+   // From RFC6838: "Both top-level type and subtype names are case-insensitive."
+   std::string container_lower = base::ToLowerASCII(container_mime_type);
+ 
++  // Compass: FairPlay plays native HLS through AVFoundation
++  // (//compass/media/avf), and Safari's pages ask for it with the playlist's
++  // type, often without codecs. AVPlayer decides what it can play.
++  if (key_system == "com.apple.fps" &&
++      (container_lower == "application/vnd.apple.mpegurl" ||
++       container_lower == "application/x-mpegurl" ||
++       container_lower == "audio/mpegurl")) {
++    config_state->AddRule(EmeConfig::SupportedRule());
++    return true;
++  }
++
+   // contentTypes must provide a codec string unless the container implies a
+   // particular codec. For EME, none of the currently supported containers
+   // imply a codec, so |codecs| must be provided.

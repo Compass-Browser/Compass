@@ -13,6 +13,7 @@
 // process which CoreAnimation context belongs to the player's overlay plane.
 module compass.mojom;
 
+import "media/mojo/mojom/content_decryption_module.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 import "sandbox/policy/mojom/sandbox.mojom";
@@ -45,6 +46,10 @@ interface AVFPlayer {
   Seek(mojo_base.mojom.TimeDelta time) => ();
 
   SetVolume(float volume);
+
+  // Uses the FairPlay CDM `cdm_id` (from AVFMediaService.CreateCdm) for this
+  // player's content keys. False if there is no such CDM.
+  SetCdm(mojo_base.mojom.UnguessableToken cdm_id) => (bool success);
 };
 
 // Events from one AVPlayer. Implemented in the renderer.
@@ -59,6 +64,10 @@ interface AVFPlayerClient {
   OnDurationChange(mojo_base.mojom.TimeDelta duration);
   OnEnded();
   OnError(string message);
+
+  // AVPlayer needs a FairPlay key: the page gets an "encrypted" event with
+  // init data type "skd" and `init_data`, the key's skd:// URI.
+  OnEncrypted(array<uint8> init_data);
 };
 
 // Exposed by the browser to renderer frames.
@@ -69,6 +78,11 @@ interface AVFPlayerFactory {
                pending_receiver<AVFPlayer> player,
                pending_remote<AVFPlayerClient> client)
       => (mojo_base.mojom.UnguessableToken? overlay_plane_id);
+
+  // Creates a FairPlay (com.apple.fps) CDM in the AVFoundation utility
+  // process, for the renderer's media::MojoCdm.
+  CreateCdm() => (pending_remote<media.mojom.ContentDecryptionModule>? cdm,
+                  media.mojom.CdmContext? cdm_context);
 };
 
 // A cookie AVPlayer sends with its requests (AVURLAssetHTTPCookiesKey).
@@ -101,6 +115,10 @@ interface AVFMediaService {
                pending_receiver<AVFPlayer> player,
                pending_remote<AVFPlayerClient> client)
       => (uint32 ca_context_id);
+
+  // A FairPlay CDM; `cdm_id` names it to AVFPlayer.SetCdm.
+  CreateCdm(pending_receiver<media.mojom.ContentDecryptionModule> cdm)
+      => (mojo_base.mojom.UnguessableToken cdm_id);
 };
 
 // Exposed by the GPU process to the browser: which CoreAnimation context to

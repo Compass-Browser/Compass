@@ -5,6 +5,7 @@
 #ifndef COMPASS_MEDIA_AVF_COMMON_AVF_FEATURES_H_
 #define COMPASS_MEDIA_AVF_COMMON_AVF_FEATURES_H_
 
+#include "base/component_export.h"
 #include "base/feature_list.h"
 
 class GURL;
@@ -13,10 +14,17 @@ namespace compass::avf {
 
 // Plays native HLS (<video src="*.m3u8">) with AVFoundation's AVPlayer
 // instead of Chromium's HLS demuxer. macOS only.
-BASE_DECLARE_FEATURE(kAVFoundationHls);
+COMPONENT_EXPORT(COMPASS_AVF_COMMON) BASE_DECLARE_FEATURE(kAVFoundationHls);
+
+// Offers FairPlay Streaming (com.apple.fps) through EME, for native HLS
+// played by AVPlayer. Needs kAVFoundationHls. macOS only.
+COMPONENT_EXPORT(COMPASS_AVF_COMMON) BASE_DECLARE_FEATURE(kFairPlay);
 
 // Whether a media element loading `url` should play it with AVPlayer.
-bool ShouldUseAVFoundation(const GURL& url);
+COMPONENT_EXPORT(COMPASS_AVF_COMMON) bool ShouldUseAVFoundation(const GURL& url);
+
+// Whether pages get com.apple.fps.
+COMPONENT_EXPORT(COMPASS_AVF_COMMON) bool IsFairPlayEnabled();
 
 }  // namespace compass::avf
 

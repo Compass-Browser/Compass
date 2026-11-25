@@ -8,12 +8,16 @@
 #include <map>
 #include <memory>
 
+#include "base/functional/callback.h"
+#include "base/unguessable_token.h"
+#include "media/mojo/mojom/content_decryption_module.mojom.h"
 #include "compass/media/avf/public/mojom/avf_player.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 
 namespace compass::avf {
 
+class AVFCdm;
 class AVFPlayerImpl;
 
 // The AVFoundation utility process's service: creates AVPlayers. Runs on the
@@ -33,12 +37,18 @@ class AVFMediaService : public mojom::AVFMediaService {
                     mojo::PendingReceiver<mojom::AVFPlayer> player,
                     mojo::PendingRemote<mojom::AVFPlayerClient> client,
                     CreatePlayerCallback callback) override;
+  void CreateCdm(
+      mojo::PendingReceiver<media::mojom::ContentDecryptionModule> cdm,
+      CreateCdmCallback callback) override;
 
  private:
   void DeletePlayer(int id);
+  void DeleteCdm(const base::UnguessableToken& id);
+  AVFCdm* FindCdm(const base::UnguessableToken& id);
 
   mojo::Receiver<mojom::AVFMediaService> receiver_;
   std::map<int, std::unique_ptr<AVFPlayerImpl>> players_;
+  std::map<base::UnguessableToken, std::unique_ptr<AVFCdm>> cdms_;
   int next_id_ = 0;
 };
 

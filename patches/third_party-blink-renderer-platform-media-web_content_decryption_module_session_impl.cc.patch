@@ -1,0 +1,20 @@
+diff --git a/third_party/blink/renderer/platform/media/web_content_decryption_module_session_impl.cc b/third_party/blink/renderer/platform/media/web_content_decryption_module_session_impl.cc
+index c37b7bd47cc9951284ff0882d60aff5da938fba9..d599db781e6bc0f8f93715837b3bd55a9094a33a 100644
+--- a/third_party/blink/renderer/platform/media/web_content_decryption_module_session_impl.cc
++++ b/third_party/blink/renderer/platform/media/web_content_decryption_module_session_impl.cc
+@@ -107,6 +107,15 @@ bool SanitizeInitData(media::EmeInitDataType init_data_type,
+       return true;
+     }
+ 
++    case media::EmeInitDataType::SKD:
++      // Compass: an skd:// URI for FairPlay; the CDM checks it.
++      if (init_data.size() > media::limits::kMaxKeyIdLength * 16) {
++        error_message->assign("Initialization data for skd is too long.");
++        return false;
++      }
++      sanitized_init_data->assign(init_data.begin(), init_data.end());
++      return true;
++
+     case media::EmeInitDataType::UNKNOWN:
+       break;
+   }

@@ -96,6 +96,7 @@ class AVFDemuxer : public media::Demuxer, public mojom::AVFPlayerClient {
                        base::TimeDelta curr_time,
                        TrackChangeCB change_completed_cb) override;
   void SetPlaybackRate(double rate) override;
+  void SetEncryptedMediaInitDataCB(EncryptedMediaInitDataCB cb) override;
 
   // mojom::AVFPlayerClient:
   void OnTimeUpdate(base::TimeDelta media_time, double rate) override;
@@ -106,6 +107,7 @@ class AVFDemuxer : public media::Demuxer, public mojom::AVFPlayerClient {
   void OnDurationChange(base::TimeDelta duration) override;
   void OnEnded() override;
   void OnError(const std::string& message) override;
+  void OnEncrypted(const std::vector<uint8_t>& init_data) override;
 
  private:
   class PlaceholderStream;
@@ -127,6 +129,7 @@ class AVFDemuxer : public media::Demuxer, public mojom::AVFPlayerClient {
   raw_ptr<media::DemuxerHost> host_ = nullptr;
   media::PipelineStatusCallback init_cb_;
   raw_ptr<AVFPlaybackObserver> observer_ = nullptr;
+  EncryptedMediaInitDataCB encrypted_cb_;
 
   base::UnguessableToken overlay_plane_id_;
   gfx::Size natural_size_;

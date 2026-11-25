@@ -1,0 +1,16 @@
+diff --git a/media/base/demuxer.h b/media/base/demuxer.h
+index e118c81293030003b6b0e795ef69181a3b417ac5..0c39e394409dfb1711185bb3be821e51c073330d 100644
+--- a/media/base/demuxer.h
++++ b/media/base/demuxer.h
+@@ -181,6 +181,11 @@ class MEDIA_EXPORT Demuxer : public MediaResource {
+ 
+   // Allow canChangeType to be disabled.
+   virtual void DisableCanChangeType();
++
++  // Compass: gives a demuxer override (which DemuxerManager doesn't create,
++  // so can't give one when it does) the callback for its encrypted media
++  // init data: AVFoundation's FairPlay key requests (//compass/media/avf).
++  virtual void SetEncryptedMediaInitDataCB(EncryptedMediaInitDataCB cb) {}
+ };
+ 
+ }  // namespace media

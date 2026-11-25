@@ -22,6 +22,7 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
+#include "media/mojo/mojom/content_decryption_module.mojom.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/cookies/canonical_cookie.h"
@@ -199,6 +200,25 @@ void AVFPlayerFactoryImpl::OnPlayerCreated(CreatePlayerCallback callback,
   GetExternalLayerRegistry().Register(overlay_plane_id, ca_context_id);
   overlay_plane_ids_.push_back(overlay_plane_id);
   std::move(callback).Run(overlay_plane_id);
+}
+
+void AVFPlayerFactoryImpl::CreateCdm(CreateCdmCallback callback) {
+  if (!IsFairPlayEnabled()) {
+    std::move(callback).Run(mojo::NullRemote(), nullptr);
+    return;
+  }
+  mojo::PendingRemote<media::mojom::ContentDecryptionModule> cdm;
+  GetMediaService().CreateCdm(
+      cdm.InitWithNewPipeAndPassReceiver(),
+      base::BindOnce(
+          [](CreateCdmCallback callback,
+             mojo::PendingRemote<media::mojom::ContentDecryptionModule> cdm,
+             const base::UnguessableToken& cdm_id) {
+            auto cdm_context = media::mojom::CdmContext::New();
+            cdm_context->cdm_id = cdm_id;
+            std::move(callback).Run(std::move(cdm), std::move(cdm_context));
+          },
+          std::move(callback), std::move(cdm)));
 }
 
 }  // namespace compass::avf

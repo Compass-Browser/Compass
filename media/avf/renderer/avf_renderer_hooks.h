@@ -7,12 +7,15 @@
 
 #include <memory>
 
+#include "base/functional/callback.h"
 #include "base/functional/function_ref.h"
+#include "media/base/key_system_info.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 
 class GURL;
 
 namespace media {
+class CdmFactory;
 class Demuxer;
 class RendererFactory;
 }  // namespace media
@@ -30,6 +33,16 @@ std::unique_ptr<media::Demuxer> MaybeCreateDemuxer(
 
 std::unique_ptr<media::RendererFactory> MaybeCreateRendererFactory(
     const GURL& url);
+
+// FairPlay (com.apple.fps). `WrapCdmFactory()` is called by media_factory.cc
+// for the frame's CDM factory, `WrapKeySystemsCallback()` by
+// ChromeContentRendererClient::GetSupportedKeySystems()
+// (patches/chrome-renderer-chrome_content_renderer_client.cc.patch).
+std::unique_ptr<media::CdmFactory> WrapCdmFactory(
+    std::unique_ptr<media::CdmFactory> factory,
+    base::RepeatingCallback<void(mojo::GenericPendingReceiver)> bind_interface);
+media::GetSupportedKeySystemsCB WrapKeySystemsCallback(
+    media::GetSupportedKeySystemsCB callback);
 
 }  // namespace compass::avf
 

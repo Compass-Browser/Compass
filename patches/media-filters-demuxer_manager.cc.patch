@@ -1,5 +1,5 @@
 diff --git a/media/filters/demuxer_manager.cc b/media/filters/demuxer_manager.cc
-index bf5624040dd6730c0d975f0336e49a8855880461..05c6eafb10c650923d035f45914e99da510ba728 100644
+index bf5624040dd6730c0d975f0336e49a8855880461..9d306a073ba373fc600f5d719d80ae0d19ad592d 100644
 --- a/media/filters/demuxer_manager.cc
 +++ b/media/filters/demuxer_manager.cc
 @@ -249,7 +249,9 @@ PipelineStatus DemuxerManager::CreateDemuxer(
@@ -25,3 +25,15 @@ index bf5624040dd6730c0d975f0336e49a8855880461..05c6eafb10c650923d035f45914e99da
    return false;
  }
  
+@@ -496,6 +503,11 @@ void DemuxerManager::SetDemuxer(std::unique_ptr<Demuxer> demuxer) {
+   if (client_) {
+     client_->MakeDemuxerThreadDumper(demuxer_.get());
+   }
++  // Compass: an override reports its encrypted init data like the demuxers
++  // created here (see Demuxer::SetEncryptedMediaInitDataCB()).
++  demuxer_->SetEncryptedMediaInitDataCB(base::BindPostTaskToCurrentDefault(
++      base::BindRepeating(&DemuxerManager::OnEncryptedMediaInitData,
++                          weak_factory_.GetWeakPtr())));
+ }
+ 
+ void DemuxerManager::OnEncryptedMediaInitData(

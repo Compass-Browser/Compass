@@ -5,10 +5,10 @@ AVFoundation's AVPlayer instead of Chromium's HLS demuxer, as Safari does.
 This is the groundwork for FairPlay Streaming (`com.apple.fps`), which only
 works through AVFoundation.
 
-Status: milestones 1 and 2 are in: clear HLS (VOD and live) plays through
-AVPlayer, shown in the page, with the page's cookies and user agent. FairPlay
-EME, the "Present as Safari" site setting and the sandbox are still to come
-(see Plan).
+Status: milestones 1–3 are in: native HLS (clear, VOD and live) plays
+through AVPlayer, shown in the page, with the page's cookies and user agent,
+and FairPlay works through EME as in Safari. The "Present as Safari" site
+setting and the sandbox are still to come (see Plan).
 
 ## Why AVPlayer, and not a Chromium renderer
 
@@ -110,6 +110,75 @@ GPU process
   for that (`patches/components-viz-service-display-direct_renderer.cc.patch`).
   HTML above the video still draws above it.
 
+## FairPlay through EME
+
+Pages use FairPlay as they do in Safari:
+
+```js
+video.addEventListener('encrypted', async (e) => {  // e.initDataType: 'skd'
+  const access = await navigator.requestMediaKeySystemAccess('com.apple.fps', [{
+    initDataTypes: ['skd'],
+    videoCapabilities: [{contentType: 'application/vnd.apple.mpegurl'}],
+  }]);
+  const keys = await access.createMediaKeys();
+  await keys.setServerCertificate(certificate);  // the app certificate
+  await video.setMediaKeys(keys);
+  const session = keys.createSession();
+  session.onmessage = async (m) =>                // m.message: the SPC
+      session.update(await postToLicenseServer(m.message));  // the CKC
+  await session.generateRequest(e.initDataType, e.initData);
+});
+video.src = 'https://…/master.m3u8';
+```
+
+- **Key requests.** Each AVPlayer has its own `AVContentKeySession`, with the
+  asset as recipient, from before it loads. A key request (`skd://…` from
+  the playlist's `EXT-X-KEY`) becomes the page's `encrypted` event, once per
+  key: `AVFPlayerClient.OnEncrypted` → `AVFDemuxer` → a new
+  `Demuxer::SetEncryptedMediaInitDataCB()` that `DemuxerManager` gives
+  overrides (`patches/media-base-demuxer.h.patch`,
+  `patches/media-filters-demuxer_manager.cc.patch`) → `WebMediaPlayerImpl`.
+  The init data type is a new `EmeInitDataType::SKD`, `"skd"`
+  (`patches/media-base-eme_constants.*`, Blink's sanitizer in
+  `patches/third_party-blink-renderer-platform-media-web_content_decryption_module_session_impl.cc.patch`);
+  its data is the URI in UTF-8, as in WebKit.
+- **The key system.** `FairPlayKeySystemInfo` (`media/avf/renderer/`) is
+  added to the renderer's key systems
+  (`ChromeContentRendererClient::GetSupportedKeySystems()`,
+  `patches/chrome-renderer-chrome_content_renderer_client.cc.patch`):
+  `"skd"` init data only, temporary sessions, empty robustness, no
+  distinctive identifier or persistent state, MP4 codecs and any scheme
+  (AVFoundation decides what the stream is). Blink also accepts the playlist
+  types (`application/vnd.apple.mpegurl`, without codecs) for it
+  (`patches/third_party-blink-renderer-platform-media-key_system_config_selector.cc.patch`).
+  **"skd" only is what keeps MSE players safe:** hls.js, Shaka and video.js
+  ask for `com.apple.fps` with `"cenc"`/`"sinf"` and MSE; they get no
+  configuration and keep using Widevine (otherwise they'd pick FairPlay over
+  MSE, which can't work).
+- **The CDM** (`AVFCdm`, `media/avf/service/`) lives in the AVFoundation
+  utility process with the players and implements
+  `media.mojom.ContentDecryptionModule`. The renderer reaches it with
+  Chromium's own `media::MojoCdm`, made by `AVFCdmFactory`, which wraps the
+  frame's CDM factory for `com.apple.fps`
+  (`patches/content-renderer-media-media_factory.cc.patch`) and asks the
+  browser (`AVFPlayerFactory.CreateCdm`) for one. Its `cdm_id` is what
+  `AVFRenderer::SetCdm()` passes to `AVFPlayer.SetCdm`, which hands the
+  player's key requests to that CDM.
+- **Sessions.** `setServerCertificate()` is required before
+  `generateRequest("skd", uri)`; the session takes the player's request for
+  that URI (or waits for it), and
+  `makeStreamingContentKeyRequestDataForApp` (certificate, content
+  identifier = the URI) gives the SPC for the `message` event
+  (`license-request`; renewals come as `license-renewal`). `update(ckc)`
+  goes to `processContentKeyResponse`; AVFoundation's verdict becomes the
+  key's status (`usable`, or `internal-error` and a decode error). A failed
+  request that AVFoundation retries goes to the same session.
+- **Loading before the key.** A FairPlay item becomes ready to play only once
+  it has the key, which needs the CDM, which the pipeline attaches only once
+  loading is done; so loading also finishes once the playlists give the
+  duration, and the video's size comes later.
+- Feature `CompassFairPlay` (on, on macOS; needs `CompassAVFoundationHls`).
+
 ## Known gaps
 
 - **A video hole inside a nested render pass** (the video under a CSS filter
@@ -133,10 +202,11 @@ GPU process
    resume, live streams, the underlay when the frame isn't all CA layers.~~
    Checked: seeking (exact), rates, pause, ended, loop, picture-in-picture.
    Left for later: tracks, DVR seeking, sniffed HLS.
-3. FairPlay EME: `com.apple.fps` with `skd` init data only (so hls.js, Shaka
-   and video.js, which ask for `cenc`/`sinf` on MSE, keep using Widevine),
-   an `AVContentKeySession` CDM in the utility process, `encrypted` events
-   from AVPlayer's key requests.
+3. ~~FairPlay EME~~ (above). Checked against Axinom's FairPlay test vector
+   with Apple's page pattern: SPC, CKC, `usable`, playing at 1280×720; a bad
+   CKC gives `internal-error`. Not yet: persistent sessions, HDCP policy
+   checks (`getStatusForPolicy()` says `usable`; AVFoundation enforces the
+   CKC's output rules itself).
 4. "Present as Safari": a per-site setting (page info) that sends a Safari
    user agent without client hints.
 5. A sandbox profile, falling back to Chromium's HLS demuxer if the service
@@ -157,5 +227,10 @@ GPU process
 - `compass_browsertests` (macOS): `AVFHlsBrowserTest.PlaysHls` (AVPlayer
   fetches the stream, `X-Playback-Session-Id`, and the page gets its
   duration and size), `SendsFirstPartyCookies`,
-  `AVFHlsDisabledBrowserTest.UsesChromiumHls`. The fixture in
+  `AVFHlsDisabledBrowserTest.UsesChromiumHls`, `FairPlayBrowserTest.
+  Configurations` (Safari's configurations work, `cenc`/`sinf` and
+  persistent licenses don't), `Sessions` (certificate first, skd:// URIs,
+  a session waiting for its key), `FairPlayDisabledBrowserTest.NotOffered`.
+  Playing protected content needs a license server, so it's checked by hand
+  (Axinom's test vector). The fixture in
   `media/avf/test/data/` is 6 s of Tears of Steel (CC BY 3.0).

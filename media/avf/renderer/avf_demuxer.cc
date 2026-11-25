@@ -248,6 +248,17 @@ void AVFDemuxer::OnTracksChanged(media::DemuxerStream::Type track_type,
 
 void AVFDemuxer::SetPlaybackRate(double rate) {}
 
+void AVFDemuxer::SetEncryptedMediaInitDataCB(EncryptedMediaInitDataCB cb) {
+  encrypted_cb_ = std::move(cb);
+}
+
+void AVFDemuxer::OnEncrypted(const std::vector<uint8_t>& init_data) {
+  // The page's "encrypted" event, with init data type "skd".
+  if (encrypted_cb_) {
+    encrypted_cb_.Run(media::EmeInitDataType::SKD, init_data);
+  }
+}
+
 void AVFDemuxer::OnTimeUpdate(base::TimeDelta media_time, double rate) {
   last_time_ = media_time;
   if (observer_) {

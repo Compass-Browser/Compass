@@ -15,6 +15,7 @@
 #include "base/logging.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "compass/media/avf/service/avf_cdm.h"
 #include "compass/ui/external_layer/external_layer_constants.h"
 #include "media/base/timestamp_constants.h"
 #include "net/base/apple/url_conversions.h"
@@ -22,6 +23,61 @@
 
 // Bridges KVO and notifications from AVFoundation to AVFPlayerImpl, on the
 // main thread (where AVFPlayerImpl lives).
+// The AVContentKeySession's delegate: hands FairPlay key requests to
+// AVFPlayerImpl on the main thread (the session's delegate queue).
+@interface CompassAVFKeyDelegate : NSObject <AVContentKeySessionDelegate>
+- (instancetype)initWithOwner:(base::WeakPtr<compass::avf::AVFPlayerImpl>)owner;
+@end
+
+@implementation CompassAVFKeyDelegate {
+  base::WeakPtr<compass::avf::AVFPlayerImpl> _owner;
+}
+
+- (instancetype)initWithOwner:
+    (base::WeakPtr<compass::avf::AVFPlayerImpl>)owner {
+  if ((self = [super init])) {
+    _owner = owner;
+  }
+  return self;
+}
+
+- (void)contentKeySession:(AVContentKeySession*)session
+    didProvideContentKeyRequest:(AVContentKeyRequest*)keyRequest {
+  if (auto* owner = _owner.get()) {
+    owner->OnKeyRequest(keyRequest, /*renewal=*/false);
+  }
+}
+
+- (void)contentKeySession:(AVContentKeySession*)session
+    didProvideRenewingContentKeyRequest:(AVContentKeyRequest*)keyRequest {
+  if (auto* owner = _owner.get()) {
+    owner->OnKeyRequest(keyRequest, /*renewal=*/true);
+  }
+}
+
+- (void)contentKeySession:(AVContentKeySession*)session
+    contentKeyRequestDidSucceed:(AVContentKeyRequest*)keyRequest {
+  if (auto* owner = _owner.get()) {
+    owner->OnKeyRequestSucceeded(keyRequest);
+  }
+}
+
+- (void)contentKeySession:(AVContentKeySession*)session
+           contentKeyRequest:(AVContentKeyRequest*)keyRequest
+    didFailWithError:(NSError*)error {
+  if (auto* owner = _owner.get()) {
+    owner->OnKeyRequestFailed(keyRequest, error);
+  }
+}
+
+- (BOOL)contentKeySession:(AVContentKeySession*)session
+    shouldRetryContentKeyRequest:(AVContentKeyRequest*)keyRequest
+                          reason:(AVContentKeyRequestRetryReason)retryReason {
+  return NO;
+}
+
+@end
+
 @interface CompassAVFObserver : NSObject
 - (instancetype)initWithPlayer:(AVPlayer*)player
                           item:(AVPlayerItem*)item
@@ -222,10 +278,12 @@ AVFPlayerImpl::AVFPlayerImpl(
     mojom::AVFPlayerOptionsPtr options,
     mojo::PendingReceiver<mojom::AVFPlayer> receiver,
     mojo::PendingRemote<mojom::AVFPlayerClient> client,
-    base::OnceClosure on_disconnect)
+    base::OnceClosure on_disconnect,
+    FindCdmCallback find_cdm)
     : receiver_(this, std::move(receiver)),
       client_(std::move(client)),
-      on_disconnect_(std::move(on_disconnect)) {
+      on_disconnect_(std::move(on_disconnect)),
+      find_cdm_(std::move(find_cdm)) {
   receiver_.set_disconnect_handler(
       base::BindOnce(&AVFPlayerImpl::Disconnect, base::Unretained(this)));
   client_.set_disconnect_handler(
@@ -270,6 +328,16 @@ AVFPlayerImpl::AVFPlayerImpl(
 
   AVURLAsset* asset = [AVURLAsset URLAssetWithURL:net::NSURLWithGURL(url)
                                           options:asset_options];
+
+  // FairPlay: the asset's key requests come to this session before AVPlayer
+  // loads anything, whether or not the page ever sets a CDM.
+  key_requests_ = [NSMutableArray array];
+  key_delegate_ =
+      [[CompassAVFKeyDelegate alloc] initWithOwner:weak_factory_.GetWeakPtr()];
+  key_session_ = [AVContentKeySession
+      contentKeySessionWithKeySystem:AVContentKeySystemFairPlayStreaming];
+  [key_session_ setDelegate:key_delegate_ queue:dispatch_get_main_queue()];
+  [key_session_ addContentKeyRecipient:asset];
   item_ = [AVPlayerItem playerItemWithAsset:asset];
   player_ = [AVPlayer playerWithPlayerItem:item_];
   player_.automaticallyWaitsToMinimizeStalling = YES;
@@ -297,6 +365,7 @@ AVFPlayerImpl::AVFPlayerImpl(
 }
 
 AVFPlayerImpl::~AVFPlayerImpl() {
+  [key_session_ setDelegate:nil queue:nil];
   [observer_ stop];
   [player_ pause];
   [player_ replaceCurrentItemWithPlayerItem:nil];
@@ -316,6 +385,35 @@ void AVFPlayerImpl::Disconnect() {
 void AVFPlayerImpl::Load(LoadCallback callback) {
   load_callback_ = std::move(callback);
   OnItemStatusChanged();
+  if (!load_callback_) {
+    return;
+  }
+  // A FairPlay item only becomes ready to play once it has its key, which
+  // needs the page's CDM, which the pipeline only attaches once loading is
+  // done. So also finish loading once the playlists give the duration; the
+  // video's size comes later (OnNaturalSizeChange).
+  auto weak = weak_factory_.GetWeakPtr();
+  auto task_runner = base::SequencedTaskRunner::GetCurrentDefault();
+  AVAsset* asset = item_.asset;
+  [asset loadValuesAsynchronouslyForKeys:@[ @"duration" ]
+                       completionHandler:^{
+                         task_runner->PostTask(
+                             FROM_HERE,
+                             base::BindOnce(&AVFPlayerImpl::OnAssetDurationLoaded,
+                                            weak));
+                       }];
+}
+
+void AVFPlayerImpl::OnAssetDurationLoaded() {
+  if (!load_callback_ || item_.status == AVPlayerItemStatusFailed) {
+    return;
+  }
+  NSError* error = nil;
+  if ([item_.asset statusOfValueForKey:@"duration" error:&error] !=
+      AVKeyValueStatusLoaded) {
+    return;  // The item's status reports the failure.
+  }
+  ReplyToLoad(ToTimeDelta(item_.asset.duration));
 }
 
 void AVFPlayerImpl::SetRate(double rate) {
@@ -356,6 +454,58 @@ void AVFPlayerImpl::SetVolume(float volume) {
   player_.volume = volume;
 }
 
+void AVFPlayerImpl::SetCdm(const base::UnguessableToken& cdm_id,
+                           SetCdmCallback callback) {
+  AVFCdm* cdm = find_cdm_.Run(cdm_id);
+  if (!cdm) {
+    std::move(callback).Run(false);
+    return;
+  }
+  cdm_ = cdm->GetWeakPtr();
+  // Requests that came before the page set its MediaKeys.
+  for (AVContentKeyRequest* request in key_requests_) {
+    if (request.status == AVContentKeyRequestStatusRequestingResponse) {
+      cdm->OnKeyRequest(request, /*renewal=*/false);
+    }
+  }
+  std::move(callback).Run(true);
+}
+
+void AVFPlayerImpl::OnKeyRequest(AVContentKeyRequest* request, bool renewal) {
+  [key_requests_ addObject:request];
+  std::string identifier;
+  if ([request.identifier isKindOfClass:NSString.class]) {
+    identifier = base::SysNSStringToUTF8(request.identifier);
+  }
+  if (!identifier.starts_with("skd://")) {
+    LOG(ERROR) << "FairPlay: not an skd:// key request";
+    [request processContentKeyResponseError:
+                 [NSError errorWithDomain:@"CompassFairPlay" code:1 userInfo:nil]];
+    return;
+  }
+  // The page's "encrypted" event (skd), then its CDM, if it has one already.
+  if (!renewal && announced_keys_.insert(identifier).second) {
+    client_->OnEncrypted(
+        std::vector<uint8_t>(identifier.begin(), identifier.end()));
+  }
+  if (cdm_) {
+    cdm_->OnKeyRequest(request, renewal);
+  }
+}
+
+void AVFPlayerImpl::OnKeyRequestSucceeded(AVContentKeyRequest* request) {
+  if (cdm_) {
+    cdm_->OnKeyRequestSucceeded(request);
+  }
+}
+
+void AVFPlayerImpl::OnKeyRequestFailed(AVContentKeyRequest* request,
+                                       NSError* error) {
+  if (cdm_) {
+    cdm_->OnKeyRequestFailed(request, error);
+  }
+}
+
 void AVFPlayerImpl::OnItemStatusChanged() {
   switch (item_.status) {
     case AVPlayerItemStatusUnknown:
@@ -375,10 +525,18 @@ void AVFPlayerImpl::OnItemStatusChanged() {
       break;
   }
   if (!load_callback_) {
+    // Loading finished before the item was ready (FairPlay, see Load()).
+    OnPresentationSizeChanged();
+    OnDurationChanged();
+    OnPlaybackStateChanged();
     return;
   }
+  ReplyToLoad(Duration());
+}
+
+void AVFPlayerImpl::ReplyToLoad(base::TimeDelta duration) {
   auto metadata = mojom::AVFMetadata::New();
-  metadata->duration = Duration();
+  metadata->duration = duration;
   for (AVPlayerItemTrack* track in item_.tracks) {
     NSString* type = track.assetTrack.mediaType;
     if ([type isEqualToString:AVMediaTypeVideo]) {

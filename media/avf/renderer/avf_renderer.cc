@@ -9,6 +9,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "media/base/cdm_context.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer_client.h"
 #include "media/base/timestamp_constants.h"
@@ -54,6 +55,19 @@ void AVFRenderer::Initialize(media::MediaResource* media_resource,
     PaintHoleFrame(demuxer_->natural_size());
   }
   std::move(init_cb).Run(media::PIPELINE_OK);
+}
+
+void AVFRenderer::SetCdm(media::CdmContext* cdm_context,
+                         CdmAttachedCB cdm_attached_cb) {
+  // Only the FairPlay CDM (a MojoCdm for the CDM in the AVFoundation process,
+  // //compass/media/avf/renderer/avf_cdm_factory.cc) has an id there.
+  std::optional<base::UnguessableToken> cdm_id =
+      cdm_context ? cdm_context->GetCdmId() : std::nullopt;
+  if (!cdm_id || !demuxer_ || !demuxer_->player()) {
+    std::move(cdm_attached_cb).Run(false);
+    return;
+  }
+  demuxer_->player()->SetCdm(*cdm_id, std::move(cdm_attached_cb));
 }
 
 void AVFRenderer::SetLatencyHint(std::optional<base::TimeDelta> latency_hint) {

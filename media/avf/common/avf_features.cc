@@ -17,6 +17,23 @@ BASE_FEATURE(kAVFoundationHls, "CompassAVFoundationHls",
 #endif
 );
 
+BASE_FEATURE(kFairPlay, "CompassFairPlay",
+#if BUILDFLAG(IS_MAC)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
+bool IsFairPlayEnabled() {
+#if BUILDFLAG(IS_MAC)
+  return base::FeatureList::IsEnabled(kAVFoundationHls) &&
+         base::FeatureList::IsEnabled(kFairPlay);
+#else
+  return false;
+#endif
+}
+
 bool ShouldUseAVFoundation(const GURL& url) {
 #if BUILDFLAG(IS_MAC)
   if (!base::FeatureList::IsEnabled(kAVFoundationHls)) {

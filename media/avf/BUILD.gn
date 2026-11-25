@@ -13,11 +13,15 @@
 #              (chrome/utility/services.cc)
 #   //compass/ui/external_layer  the GPU side: hosting the AVPlayer's layer
 
-source_set("common") {
+# A component: the feature flags must have one definition in component builds,
+# where the renderer and browser code live in different libraries.
+component("common") {
+  output_name = "compass_avf_common"
   sources = [
     "common/avf_features.cc",
     "common/avf_features.h",
   ]
+  defines = [ "IS_COMPASS_AVF_COMMON_IMPL" ]
   deps = [
     "//base",
     "//url",
@@ -26,18 +30,23 @@ source_set("common") {
 
 source_set("renderer") {
   sources = [
+    "renderer/avf_cdm_factory.cc",
+    "renderer/avf_cdm_factory.h",
     "renderer/avf_demuxer.cc",
     "renderer/avf_demuxer.h",
     "renderer/avf_renderer.cc",
     "renderer/avf_renderer.h",
     "renderer/avf_renderer_hooks.cc",
     "renderer/avf_renderer_hooks.h",
+    "renderer/fairplay_key_system_info.cc",
+    "renderer/fairplay_key_system_info.h",
   ]
   public_deps = [ "//compass/media/avf/public/mojom" ]
   deps = [
     ":common",
     "//base",
     "//media",
+    "//media/mojo/clients",
     "//mojo/public/cpp/bindings",
     "//ui/gfx/geometry",
     "//url",
@@ -70,6 +79,8 @@ source_set("browser") {
 if (is_mac) {
   source_set("service") {
     sources = [
+      "service/avf_cdm.h",
+      "service/avf_cdm.mm",
       "service/avf_media_service.h",
       "service/avf_media_service.mm",
       "service/avf_player_impl.h",
@@ -108,7 +119,10 @@ source_set("unit_tests") {
 source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-  sources = [ "browser/avf_hls_browsertest.cc" ]
+  sources = [
+    "browser/avf_hls_browsertest.cc",
+    "browser/fairplay_browsertest.cc",
+  ]
   deps = [
     ":common",
     "//base",
