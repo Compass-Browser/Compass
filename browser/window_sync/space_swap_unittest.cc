@@ -19,6 +19,7 @@
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/empty_tab.h"
+#include "compass/browser/window_sync/live_tab_registry.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/startup_space.h"
@@ -256,6 +257,41 @@ TEST_F(SpaceSwapTest, DeletingTheShownSpaceSwapsToItsNeighbor) {
   EXPECT_EQ(&WindowFeatures::From(swapped())->space_model(), other_home_);
   EXPECT_THAT(Spaces(), ElementsAre(other_home_.get()));
   EXPECT_FALSE(directory().IsListed(profile()));
+}
+
+// The same while the swap waits for the new window to paint: the space and
+// its nodes go before the old window empties, and its tabs, whose entries
+// went with them, close when it does.
+TEST_F(SpaceSwapTest, DeletingTheShownSpaceMidSwapClosesItsTabs) {
+  ListOther();
+  OpenTabs(browser(), {"a.test", "b.test"});
+  SpaceModel* home = &list().active_space();
+  LiveTabRegistry& registry = WindowFeatures::From(browser())->registry();
+  ASSERT_TRUE(registry.GetNode(browser()->GetTabStripModel()->GetTabAtIndex(0)));
+  std::vector<base::OnceClosure> leaves;
+  SetSwapPresenter(base::BindLambdaForTesting(
+      [&](BrowserWindowInterface* old, BrowserWindowInterface* window,
+          base::OnceClosure leave) { leaves.push_back(std::move(leave)); }));
+
+  DeleteSpace(profile(), *home);
+  Settle();
+
+  ASSERT_TRUE(swapped());
+  EXPECT_THAT(Spaces(), ElementsAre(other_home_.get()));
+  // The old window still shows them, with no entry to point at.
+  TabStripModel* strip = browser()->GetTabStripModel();
+  ASSERT_EQ(strip->count(), 2);
+  for (int i = 0; i < strip->count(); ++i) {
+    EXPECT_FALSE(registry.GetNode(strip->GetTabAtIndex(i)));
+  }
+
+  ASSERT_EQ(leaves.size(), 1u);
+  std::move(leaves[0]).Run();
+  Settle();
+  SetSwapPresenter({});
+
+  EXPECT_TRUE(strip->empty());
+  EXPECT_FALSE(parking() && !parking()->GetTabStripModel()->empty());
 }
 
 TEST_F(SpaceSwapTest, OffTheRecordWindowsListOnlyTheirOwn) {
