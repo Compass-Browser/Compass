@@ -1,5 +1,5 @@
 diff --git a/build/win/reorder-imports.py b/build/win/reorder-imports.py
-index 11602df2777ec3fdecb319bce04110488f329b32..2e721200585ee69e0202dae39c7e8357ce81e8b8 100644
+index 11602df2777ec3fdecb319bce04110488f329b32..2e721200585ee69e0202dae39c7e8357ce81e8b8 100755
 --- a/build/win/reorder-imports.py
 +++ b/build/win/reorder-imports.py
 @@ -18,7 +18,7 @@ sys.path.insert(

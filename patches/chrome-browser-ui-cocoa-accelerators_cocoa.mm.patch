@@ -10,7 +10,7 @@ index 12d6be60e250efa15872027b297baab899e250c9..25618bd688e9150208173ae0bc17115c
  #import "ui/base/accelerators/platform_accelerator_cocoa.h"
  #import "ui/events/cocoa/cocoa_event_utils.h"
  #import "ui/events/keycodes/keyboard_code_conversion_mac.h"
-@@ -151,6 +152,8 @@
+@@ -151,6 +152,8 @@ AcceleratorsCocoa::AcceleratorsCocoa() {
        std::make_pair(IDC_FULLSCREEN, AcceleratorForEnterFullscreen()));
    DCHECK(result.second);
  

@@ -10,7 +10,7 @@ index 6829c9cb92c228dd19d44c9f739bf4595720cc2d..c053aa428086a645d7c71096439375ea
  
  namespace {
  
-@@ -37,7 +38,8 @@
+@@ -37,7 +38,8 @@ char* ProductDirNameForBundle(NSBundle* chrome_bundle) {
  #elif BUILDFLAG(GOOGLE_CHROME_BRANDING)
        product_dir_name = "Google/Chrome";
  #else

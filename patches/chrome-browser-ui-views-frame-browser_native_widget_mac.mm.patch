@@ -11,7 +11,7 @@ index 73a8db26c25b7848f6f51bf1ac9ebb89dd6fbae2..edcc355735e6a7fe6cb618612927248f
  #include "components/bookmarks/common/bookmark_pref_names.h"
  #include "components/dom_distiller/content/browser/distillable_page_utils.h"
  #include "components/dom_distiller/core/url_utils.h"
-@@ -275,6 +277,20 @@ - (NSTouchBar*)makeTouchBar {
+@@ -275,6 +277,20 @@ int32_t BrowserNativeWidgetMac::SheetOffsetY() {
  void BrowserNativeWidgetMac::GetWindowFrameTitlebarHeight(
      bool* override_titlebar_height,
      float* titlebar_height) {
@@ -32,7 +32,7 @@ index 73a8db26c25b7848f6f51bf1ac9ebb89dd6fbae2..edcc355735e6a7fe6cb618612927248f
    if (browser_view_ && browser_view_->browser_widget() &&
        browser_view_->browser_widget()->GetFrameView()) {
      *override_titlebar_height = true;
-@@ -735,15 +751,18 @@ - (NSTouchBar*)makeTouchBar {
+@@ -735,15 +751,18 @@ void BrowserNativeWidgetMac::PopulateCreateWindowParams(
                           NSWindowStyleMaskTitled | NSWindowStyleMaskResizable;
      params->window_title_hidden = true;
    } else if (browser_view_->GetIsNormalType() ||
@@ -54,7 +54,7 @@ index 73a8db26c25b7848f6f51bf1ac9ebb89dd6fbae2..edcc355735e6a7fe6cb618612927248f
        params->window_title_hidden = true;
      }
    } else {
-@@ -764,6 +783,17 @@ - (NSTouchBar*)makeTouchBar {
+@@ -764,6 +783,17 @@ NativeWidgetMacNSWindow* BrowserNativeWidgetMac::CreateNSWindow(
    return ns_window;
  }
  

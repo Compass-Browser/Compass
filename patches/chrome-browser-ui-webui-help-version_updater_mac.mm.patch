@@ -45,7 +45,7 @@ index 57648956faf5058fada6b02abd3301deebb5a295..834013f88cb4692cdf610027efe7d17c
  // macOS implementation of version update functionality, used by the WebUI
  // About/Help page.
  class VersionUpdaterMac : public VersionUpdater {
-@@ -120,6 +149,11 @@ void UpdateStatus(VersionUpdater::StatusCallback status_callback,
+@@ -120,6 +149,11 @@ class VersionUpdaterMac : public VersionUpdater {
    // VersionUpdater implementation.
    void CheckForUpdate(StatusCallback status_callback,
                        PromoteCallback promote_callback) override {
