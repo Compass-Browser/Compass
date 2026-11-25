@@ -25,6 +25,7 @@ build_webui("build") {
     "placeholder.html",
     "compass_sidebar.html",
     "settings_window.html",
+    "settings_window/compass_logo.svg",
     "settings_window/window.css",
     "shortcuts.html",
     "share.html",

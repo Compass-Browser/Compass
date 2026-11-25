@@ -409,7 +409,8 @@ and short rows, and anything long or rarely used is one row away, behind a ›.
     reset does.
   - Development Mode: a row with its sites, opening its page (`devMode`).
 - **About** (`<compass-settings-about-pane>`, `about_pane.ts`), the last pane:
-  Compass's icon (`chrome://theme/current-channel-logo@2x`), name, version
+  Compass's icon (`settings_window/compass_logo.svg`, a copy of
+  `assets/compass_glyph.svg`: upstream's channel logo is 32 px), name, version
   (Compass's, `compass::updates::CompassVersion()`, with the channel, and
   Chromium's), the update row (Check for Updates or Relaunch to Update), the
   update channel (`compass.update_channel`: stable, beta, canary;

@@ -1165,6 +1165,11 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, AboutPane) {
                             "!!document.querySelector('[data-row=\"channel\"] "
                             "select')"),
             "/about false true");
+  // Its icon is the vector logo, sharp at any size.
+  EXPECT_EQ(WaitFor("(() => { const logo = document.querySelector("
+                    "'.about-logo'); return logo.complete && "
+                    "logo.naturalWidth > 0 && logo.src.endsWith('.svg'); })()"),
+            true);
 }
 
 // Pages of their own (docs/design/settings-window.md, "Pages and views"):

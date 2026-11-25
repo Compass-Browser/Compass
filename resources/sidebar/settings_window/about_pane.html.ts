@@ -11,8 +11,7 @@ export function getHtml(this: CompassSettingsAboutPaneElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <header class="about-header">
-  <img class="about-logo" alt=""
-      src="chrome://theme/current-channel-logo@2x">
+  <img class="about-logo" alt="" src="/settings_window/compass_logo.svg">
   <h2 class="about-name">Compass</h2>
   <span class="about-version" id="version">${this.getVersionText_()}</span>
   <span class="about-chromium">${this.getChromiumText_()}</span>
