@@ -79,6 +79,11 @@ interface AVFPlayerFactory {
                pending_remote<AVFPlayerClient> client)
       => (mojo_base.mojom.UnguessableToken? overlay_plane_id);
 
+  // Whether the document presents itself as Safari (its tab has a Safari
+  // user agent, e.g. "Present as Safari"). com.apple.fps then accepts the
+  // init data types Safari's does ("cenc" too), as players probe it with.
+  IsPresentingAsSafari() => (bool safari);
+
   // Creates a FairPlay (com.apple.fps) CDM in the AVFoundation utility
   // process, for the renderer's media::MojoCdm.
   CreateCdm() => (pending_remote<media.mojom.ContentDecryptionModule>? cdm,

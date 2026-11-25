@@ -46,6 +46,10 @@ inline constexpr char kRemoveTrackingFromCopiedLinks[] =
 // "example.com", "*.example.com"). Not synced: a developer's sites belong
 // to the machine they work on.
 inline constexpr char kDevModeHosts[] = "compass.dev_mode.hosts";
+// Sites (registrable domains, e.g. "example.com") that get a Safari user
+// agent (docs/design/fairplay.md, "Present as Safari"). macOS.
+inline constexpr char kPresentAsSafariSites[] =
+    "compass.present_as_safari.sites";
 // kDevModeHosts' default: local development servers at "localhost".
 // ("*.localhost" isn't a pattern BoostMatch takes, a single label being too
 // wide; 127.0.0.1 is left out because the browser tests' server is there.)

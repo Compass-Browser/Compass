@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..274162e044fa31248d6e610f3822a35b30b11eb8 100644
+index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..13ea2b4396e4b24a2aeec3f4ae4afdd742254b6e 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
 @@ -1046,6 +1046,10 @@ source_set("core") {
@@ -29,13 +29,15 @@ index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..274162e044fa31248d6e610f3822a35b
  
    if (enable_webui_ntp) {
      deps += [
-@@ -2827,6 +2840,13 @@ source_set("browser") {
+@@ -2827,6 +2840,15 @@ source_set("browser") {
      "//ui/webui",
      "//ui/webui:buildflags",
    ]
 +  deps += [ "//compass/browser/adblock" ]
 +  if (!is_android) {
 +    deps += [ "//compass/browser" ]
++    # "Present as Safari" (docs/design/fairplay.md).
++    deps += [ "//compass/browser/present_as_safari:page_info" ]
 +  } else {
 +    # Compass for Android: the spaces model and its JNI bridges.
 +    deps += [ "//compass/browser/android" ]

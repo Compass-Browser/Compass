@@ -21,6 +21,7 @@ void RegisterCompassProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterListPref(
       prefs::kDevModeHosts,
       base::ListValue().Append(prefs::kDevModeDefaultHost));
+  registry->RegisterListPref(prefs::kPresentAsSafariSites);
   registry->RegisterBooleanPref(prefs::kTabPreviewsEnabled, true);
   registry->RegisterBooleanPref(prefs::kCtrlTabRecent, true);
   registry->RegisterDictionaryPref(prefs::kTabPreviewPlugins);

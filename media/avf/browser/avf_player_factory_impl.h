@@ -36,6 +36,7 @@ class AVFPlayerFactoryImpl
                     mojo::PendingReceiver<mojom::AVFPlayer> player,
                     mojo::PendingRemote<mojom::AVFPlayerClient> client,
                     CreatePlayerCallback callback) override;
+  void IsPresentingAsSafari(IsPresentingAsSafariCallback callback) override;
   void CreateCdm(CreateCdmCallback callback) override;
 
  private:

@@ -8,16 +8,30 @@
 
 namespace compass::avf {
 
-FairPlayKeySystemInfo::FairPlayKeySystemInfo() = default;
+FairPlayKeySystemInfo::FairPlayKeySystemInfo(bool safari) : safari_(safari) {}
 FairPlayKeySystemInfo::~FairPlayKeySystemInfo() = default;
 
 std::string FairPlayKeySystemInfo::GetBaseKeySystemName() const {
   return kFairPlayKeySystem;
 }
 
+bool FairPlayKeySystemInfo::IsSupportedKeySystem(
+    const std::string& key_system) const {
+  // As in Safari (CDMFactoryFairPlayStreaming::supportsKeySystem): players
+  // ask for "com.apple.fps.1_0" ... "com.apple.fps.3_0" too (Bitmovin does).
+  return key_system == kFairPlayKeySystem ||
+         key_system.starts_with(std::string(kFairPlayKeySystem) + ".");
+}
+
+bool FairPlayKeySystemInfo::ShouldUseBaseKeySystemName() const {
+  // The CDM is made for "com.apple.fps" whatever the page asked for.
+  return true;
+}
+
 bool FairPlayKeySystemInfo::IsSupportedInitDataType(
     media::EmeInitDataType init_data_type) const {
-  return init_data_type == media::EmeInitDataType::SKD;
+  return init_data_type == media::EmeInitDataType::SKD ||
+         (safari_ && init_data_type == media::EmeInitDataType::CENC);
 }
 
 media::EmeConfig::Rule FairPlayKeySystemInfo::GetEncryptionSchemeConfigRule(

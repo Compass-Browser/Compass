@@ -1,17 +1,18 @@
 diff --git a/chrome/browser/ui/views/page_info/page_info_main_view.cc b/chrome/browser/ui/views/page_info/page_info_main_view.cc
-index 877b22f59603125dcdfa66cce26737522a91f6e9..a23d6461080bf2c6efb0404a870890325496f224 100644
+index 877b22f59603125dcdfa66cce26737522a91f6e9..70f6b146d8e5b2c8d46f1478ba53c1f77a5d520f 100644
 --- a/chrome/browser/ui/views/page_info/page_info_main_view.cc
 +++ b/chrome/browser/ui/views/page_info/page_info_main_view.cc
-@@ -28,6 +28,8 @@
+@@ -28,6 +28,9 @@
  #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
  #include "chrome/browser/ui/views/page_info/permission_toggle_row_view.h"
  #include "chrome/browser/ui/views/page_info/star_rating_view.h"
 +#include "compass/browser/ui/views/adblock/adblock_page_info.h"
 +#include "compass/browser/ui/views/dev_mode/dev_mode_page_info.h"
++#include "compass/browser/present_as_safari/present_as_safari_page_info.h"
  #include "chrome/browser/ui/views/sub_apps_permission_explanation.h"
  #include "chrome/browser/vr/vr_tab_helper.h"
  #include "chrome/common/url_constants.h"
-@@ -179,6 +181,11 @@ PageInfoMainView::PageInfoMainView(
+@@ -179,6 +182,13 @@ PageInfoMainView::PageInfoMainView(
    SetProperty(views::kElementIdentifierKey, kMainLayoutElementId);
  
    site_settings_view_ = AddChildView(CreateContainerView());
@@ -20,6 +21,8 @@ index 877b22f59603125dcdfa66cce26737522a91f6e9..a23d6461080bf2c6efb0404a87089032
 +                                 ui_delegate_->GetWebContents());
 +  compass::AddDevModePageInfoRow(site_settings_view_,
 +                                 ui_delegate_->GetWebContents());
++  compass::AddPresentAsSafariPageInfoRow(site_settings_view_,
++                                         ui_delegate_->GetWebContents());
  
    if (open_extensions_menu_callback_) {
      see_extensions_button_ =

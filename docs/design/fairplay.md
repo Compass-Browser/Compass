@@ -5,10 +5,10 @@ AVFoundation's AVPlayer instead of Chromium's HLS demuxer, as Safari does.
 This is the groundwork for FairPlay Streaming (`com.apple.fps`), which only
 works through AVFoundation.
 
-Status: milestones 1–3 are in: native HLS (clear, VOD and live) plays
-through AVPlayer, shown in the page, with the page's cookies and user agent,
-and FairPlay works through EME as in Safari. The "Present as Safari" site
-setting and the sandbox are still to come (see Plan).
+Status: milestones 1–4 are in: native HLS (clear, VOD and live) plays
+through AVPlayer, shown in the page, with the page's cookies and user agent;
+FairPlay works through EME as in Safari; sites the user picks can be told
+Compass is Safari. The sandbox is still to come (see Plan).
 
 ## Why AVPlayer, and not a Chromium renderer
 
@@ -178,6 +178,41 @@ video.src = 'https://…/master.m3u8';
   loading is done; so loading also finishes once the playlists give the
   duration, and the video's size comes later.
 - Feature `CompassFairPlay` (on, on macOS; needs `CompassAVFoundationHls`).
+- **Key system names.** Like Safari (`CDMFactoryFairPlayStreaming::
+  supportsKeySystem()`), `com.apple.fps` and any `com.apple.fps.*`
+  (`com.apple.fps.1_0` … `3_0`, which Bitmovin asks for); the CDM is made
+  for `com.apple.fps`.
+
+## Present as Safari
+
+Many players use FairPlay only when they think they're in Safari (by user
+agent), so even with FairPlay here they'd use Widevine. "Present as Safari"
+is a per-site switch in the page info popup (macOS, with FairPlay on), off
+for every site by default.
+
+- **The sites:** `compass.present_as_safari.sites`, a profile list pref of
+  registrable domains (`video.example.com` → `example.com`; IP addresses and
+  non-http(s) URLs can't be added). `browser/present_as_safari/`.
+- **The user agent:** a tab helper
+  (`patches/chrome-browser-ui-tab_helpers.cc.patch`) gives main-frame
+  navigations to those sites Safari 26's user agent
+  (`kSafariUserAgent`) as the tab's user agent override, with no user agent
+  metadata, so no client hints are sent (as in Safari); other sites get
+  Compass's back. Subresources and AVPlayer's requests follow the page's
+  user agent. Turning the switch on or off reloads the page.
+- **FairPlay as in Safari:** on such pages (any page whose tab overrides the
+  user agent with Safari's: `AVFPlayerFactory.IsPresentingAsSafari`),
+  `com.apple.fps` also accepts `"cenc"` init data, as Safari's does,
+  because players probe it so. Elsewhere it stays `"skd"`-only.
+- **Limits:** only the user agent changes. `navigator.vendor`,
+  `window.chrome`, `navigator.userAgentData` (present, with no brands) and
+  the engine itself still differ from Safari, so a site that looks further
+  may still tell; Cloudflare challenged bitmovin.com once on first visit.
+  Players on Safari's legacy prefixed API (`WebKitMediaKeys`,
+  `webkitneedkey`), which Chromium doesn't have, don't get FairPlay:
+  Bitmovin 8.285 now picks FairPlay and native HLS here, and AVPlayer
+  reports its key, but Bitmovin doesn't start a session; an implementation
+  of the legacy API over this EME would be next.
 
 ## Known gaps
 
@@ -207,8 +242,8 @@ video.src = 'https://…/master.m3u8';
    CKC gives `internal-error`. Not yet: persistent sessions, HDCP policy
    checks (`getStatusForPolicy()` says `usable`; AVFoundation enforces the
    CKC's output rules itself).
-4. "Present as Safari": a per-site setting (page info) that sends a Safari
-   user agent without client hints.
+4. ~~"Present as Safari"~~ (above). Next: Safari's legacy prefixed EME
+   (`WebKitMediaKeys`) for the players that still use it there.
 5. A sandbox profile, falling back to Chromium's HLS demuxer if the service
    crashes, browser tests.
 
@@ -223,7 +258,8 @@ video.src = 'https://…/master.m3u8';
 
 ## Tests
 
-- `compass_unittests`: `AVFFeaturesTest.*`, `ExternalLayerRegistryTest.*`.
+- `compass_unittests`: `AVFFeaturesTest.*`, `ExternalLayerRegistryTest.*`,
+  `PresentAsSafariTest.*`.
 - `compass_browsertests` (macOS): `AVFHlsBrowserTest.PlaysHls` (AVPlayer
   fetches the stream, `X-Playback-Session-Id`, and the page gets its
   duration and size), `SendsFirstPartyCookies`,
@@ -231,6 +267,10 @@ video.src = 'https://…/master.m3u8';
   Configurations` (Safari's configurations work, `cenc`/`sinf` and
   persistent licenses don't), `Sessions` (certificate first, skd:// URIs,
   a session waiting for its key), `FairPlayDisabledBrowserTest.NotOffered`.
+  `PresentAsSafariBrowserTest.SafariForTheUsersSites` (the page, its
+  requests and AVPlayer's get Safari's user agent; other sites and the
+  switch off don't), `SafariFairPlayConfigs` (`cenc` and `com.apple.fps.N_0`
+  on such a site, `skd` only elsewhere).
   Playing protected content needs a license server, so it's checked by hand
   (Axinom's test vector). The fixture in
   `media/avf/test/data/` is 6 s of Tears of Steel (CC BY 3.0).

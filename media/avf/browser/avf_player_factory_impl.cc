@@ -202,6 +202,24 @@ void AVFPlayerFactoryImpl::OnPlayerCreated(CreatePlayerCallback callback,
   std::move(callback).Run(overlay_plane_id);
 }
 
+void AVFPlayerFactoryImpl::IsPresentingAsSafari(
+    IsPresentingAsSafariCallback callback) {
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(&render_frame_host());
+  content::NavigationEntry* entry =
+      web_contents ? web_contents->GetController().GetLastCommittedEntry()
+                   : nullptr;
+  bool safari = false;
+  if (entry && entry->GetIsOverridingUserAgent()) {
+    const std::string& ua =
+        web_contents->GetUserAgentOverride().ua_string_override;
+    safari = ua.find(" Safari/") != std::string::npos &&
+             ua.find(" Version/") != std::string::npos &&
+             ua.find("Chrome/") == std::string::npos;
+  }
+  std::move(callback).Run(safari);
+}
+
 void AVFPlayerFactoryImpl::CreateCdm(CreateCdmCallback callback) {
   if (!IsFairPlayEnabled()) {
     std::move(callback).Run(mojo::NullRemote(), nullptr);

@@ -41,8 +41,11 @@ std::unique_ptr<media::RendererFactory> MaybeCreateRendererFactory(
 std::unique_ptr<media::CdmFactory> WrapCdmFactory(
     std::unique_ptr<media::CdmFactory> factory,
     base::RepeatingCallback<void(mojo::GenericPendingReceiver)> bind_interface);
+// `bind_interface` binds a receiver through the frame's browser interface
+// broker; it's used before this returns.
 media::GetSupportedKeySystemsCB WrapKeySystemsCallback(
-    media::GetSupportedKeySystemsCB callback);
+    media::GetSupportedKeySystemsCB callback,
+    base::FunctionRef<void(mojo::GenericPendingReceiver)> bind_interface);
 
 }  // namespace compass::avf
 
