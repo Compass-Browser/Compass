@@ -1,0 +1,104 @@
+diff --git a/ui/accelerated_widget_mac/ca_renderer_layer_tree.mm b/ui/accelerated_widget_mac/ca_renderer_layer_tree.mm
+index 69d3c6a709b6c87bf72496d99e5a82f6cfca0cf0..b2f76f5fc8b7ba575f26b7c03b57925038ddd6a0 100644
+--- a/ui/accelerated_widget_mac/ca_renderer_layer_tree.mm
++++ b/ui/accelerated_widget_mac/ca_renderer_layer_tree.mm
+@@ -4,6 +4,11 @@
+ 
+ #include "ui/accelerated_widget_mac/ca_renderer_layer_tree.h"
+ 
++#include "build/build_config.h"
++#include "compass/ui/external_layer/external_layer_constants.h"
++#include "compass/ui/external_layer/external_layer_registry.h"
++#include "ui/base/cocoa/remote_layer_api.h"
++
+ #import <AVFoundation/AVFoundation.h>
+ #include <CoreGraphics/CoreGraphics.h>
+ #include <CoreMedia/CoreMedia.h>
+@@ -971,6 +976,18 @@ void CARendererLayerTree::TransformLayer::AddContentLayer(
+       params.io_surface_color_space, params.edge_aa_mask, params.opacity,
+       params.nearest_neighbor_filter, params.hdr_metadata,
+       params.protected_video_type, params.is_render_pass_draw_quad);
++#if BUILDFLAG(IS_MAC)
++  // Compass: a video hole whose AVPlayer layer the browser registered.
++  if (params.external_layer_id) {
++    if (std::optional<uint32_t> context_id =
++            compass::ExternalLayerRegistry::Get().Lookup(
++                *params.external_layer_id)) {
++      ContentLayer& layer = content_layers_.back();
++      layer.type_ = CALayerType::kExternal;
++      layer.external_context_id_ = context_id;
++    }
++  }
++#endif
+ }
+ 
+ void CARendererLayerTree::RootLayer::CommitToCA(CALayer* superlayer,
+@@ -1165,6 +1182,14 @@ void CARendererLayerTree::ContentLayer::CommitToCA(
+     DCHECK(old_layer_->ca_layer_);
+     std::swap(ca_layer_, old_layer_->ca_layer_);
+     std::swap(av_layer_, old_layer_->av_layer_);
++    std::swap(external_host_, old_layer_->external_host_);
++#if BUILDFLAG(IS_MAC)
++    if (type_ == CALayerType::kExternal &&
++        old_layer_->external_context_id_ != external_context_id_) {
++      static_cast<CALayerHost*>(external_host_).contextId =
++          *external_context_id_;
++    }
++#endif
+     update_contents =
+         old_layer_->io_surface_ != io_surface_ ||
+         old_layer_->io_surface_color_space_ != io_surface_color_space_ ||
+@@ -1211,6 +1236,20 @@ void CARendererLayerTree::ContentLayer::CommitToCA(
+         break;
+       case CALayerType::kDefault:
+         ca_layer_ = [[CALayer alloc] init];
++        break;
++      case CALayerType::kExternal: {
++#if BUILDFLAG(IS_MAC)
++        ca_layer_ = [[CALayer alloc] init];
++        CALayerHost* host = [[CALayerHost alloc] init];
++        host.contextId = *external_context_id_;
++        host.anchorPoint = CGPointZero;
++        [ca_layer_ addSublayer:host];
++        external_host_ = host;
++#else
++        ca_layer_ = [[CALayer alloc] init];
++#endif
++        break;
++      }
+     }
+     ca_layer_.anchorPoint = CGPointZero;
+   }
+@@ -1267,6 +1306,8 @@ void CARendererLayerTree::ContentLayer::CommitToCA(
+         // https://crbug.com/702369
+       }
+       break;
++    case CALayerType::kExternal:
++      break;
+     case CALayerType::kDefault:
+       if (update_contents) {
+         if (io_surface_) {
+@@ -1308,6 +1349,12 @@ void CARendererLayerTree::ContentLayer::CommitToCA(
+     dip_rect.Scale(1 / tree()->scale_factor_);
+     ca_layer_.position = CGPointMake(dip_rect.x(), dip_rect.y());
+     ca_layer_.bounds = CGRectMake(0, 0, dip_rect.width(), dip_rect.height());
++    if (type_ == CALayerType::kExternal && external_host_) {
++      // The external context keeps a fixed size; scale it to this rect.
++      external_host_.transform = CATransform3DMakeScale(
++          dip_rect.width() / compass::kExternalLayerWidth,
++          dip_rect.height() / compass::kExternalLayerHeight, 1);
++    }
+   }
+   if (update_background_color) {
+     CGFloat rgba_color_components[4] = {
+@@ -1353,6 +1400,10 @@ void CARendererLayerTree::ContentLayer::CommitToCA(
+         // Blue represents a copied HDR layer.
+         blue = 1.0;
+         break;
++      case CALayerType::kExternal:
++        // Magenta: Compass's external (AVPlayer) layer.
++        red = blue = 1.0;
++        break;
+       case CALayerType::kVideo:
+         if (gfx::IOSurfacePixelFormatMaxBitsPerComponent(pixel_format) <= 8) {
+           // Yellow is <= 8-bit AVSampleBufferDisplayLayer.

@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..286ebda849d81c938de475edda8a199f443164c6 100644
+index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..274162e044fa31248d6e610f3822a35b30b11eb8 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
 @@ -1046,6 +1046,10 @@ source_set("core") {
@@ -13,7 +13,7 @@ index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..286ebda849d81c938de475edda8a199f
      ":active_use_util",
      ":after_startup_task_utils",
      ":bad_message",
-@@ -1435,6 +1439,11 @@ source_set("core") {
+@@ -1435,6 +1439,15 @@ source_set("core") {
      "//ui/webui/resources/cr_components/color_change_listener:mojom",
      "//ui/webui/tracked_element",
    ]
@@ -22,10 +22,14 @@ index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..286ebda849d81c938de475edda8a199f
 +    deps += [ "//compass/browser/ui/cocoa:shortcuts" ]
 +    deps += [ "//compass/browser/ui:app_menu_hooks" ]
 +  }
++  if (is_mac) {
++    # Native HLS through AVFoundation (docs/design/fairplay.md).
++    deps += [ "//compass/media/avf:browser" ]
++  }
  
    if (enable_webui_ntp) {
      deps += [
-@@ -2827,6 +2836,13 @@ source_set("browser") {
+@@ -2827,6 +2840,13 @@ source_set("browser") {
      "//ui/webui",
      "//ui/webui:buildflags",
    ]

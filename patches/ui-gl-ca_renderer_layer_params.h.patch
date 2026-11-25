@@ -1,0 +1,22 @@
+diff --git a/ui/gl/ca_renderer_layer_params.h b/ui/gl/ca_renderer_layer_params.h
+index c296a4f8b0222756502d4be4caa144e05e655120..5f1abdb4a4212f18f4db90fa62bd5df40533412c 100644
+--- a/ui/gl/ca_renderer_layer_params.h
++++ b/ui/gl/ca_renderer_layer_params.h
+@@ -8,6 +8,7 @@
+ #include <optional>
+ 
+ #include "base/memory/raw_ptr.h"
++#include "base/unguessable_token.h"
+ #include "third_party/skia/include/core/SkColor.h"
+ #include "ui/gfx/color_space.h"
+ #include "ui/gfx/geometry/point.h"
+@@ -66,6 +67,9 @@ struct GL_EXPORT CARendererLayerParams {
+   gfx::HDRMetadata hdr_metadata;
+   gfx::ProtectedVideoType protected_video_type;
+   bool is_render_pass_draw_quad;
++  // Compass: host the CoreAnimation context registered for this overlay plane
++  // id instead of drawing contents (//compass/ui/external_layer).
++  std::optional<base::UnguessableToken> external_layer_id;
+ };
+ 
+ }  // namespace ui

@@ -1,0 +1,31 @@
+diff --git a/chrome/gpu/browser_exposed_gpu_interfaces.cc b/chrome/gpu/browser_exposed_gpu_interfaces.cc
+index ac93923554098c862cd107f4d10f8a4b51060475..ae94eeec5829d5ba0820cf4cb8034a6b1408d72b 100644
+--- a/chrome/gpu/browser_exposed_gpu_interfaces.cc
++++ b/chrome/gpu/browser_exposed_gpu_interfaces.cc
+@@ -4,6 +4,13 @@
+ 
+ #include "chrome/gpu/browser_exposed_gpu_interfaces.h"
+ 
++#include "build/build_config.h"
++#if BUILDFLAG(IS_MAC)
++#include "base/functional/bind.h"
++#include "base/task/single_thread_task_runner.h"
++#include "compass/ui/external_layer/external_layer_registry_impl.h"
++#endif
++
+ #include "base/memory/scoped_refptr.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "build/build_config.h"
+@@ -118,4 +125,12 @@ void ExposeChromeGpuInterfacesToBrowser(
+       base::SingleThreadTaskRunner::GetCurrentDefault());
+ #endif  // BUILDFLAG(IS_CHROMEOS) &&
+         // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
++#if BUILDFLAG(IS_MAC)
++  // Compass: which CoreAnimation context (AVPlayer's layer in the AVFoundation
++  // utility process) to host for a video-hole overlay plane. Only the browser
++  // can register one (docs/design/fairplay.md).
++  binders->Add<compass::mojom::ExternalLayerRegistry>(
++      base::BindRepeating(&compass::BindExternalLayerRegistry),
++      base::SingleThreadTaskRunner::GetCurrentDefault());
++#endif
+ }

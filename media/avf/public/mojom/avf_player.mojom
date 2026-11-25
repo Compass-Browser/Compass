@@ -1,0 +1,98 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Native HLS on macOS through AVFoundation (docs/design/fairplay.md).
+//
+//   renderer (AVFDemuxer/AVFRenderer)
+//     --AVFPlayerFactory--> browser (AVFPlayerFactoryImpl)
+//     --AVFMediaService--> AVFoundation utility process (AVPlayer)
+//
+// The AVFPlayer and AVFPlayerClient pipes go straight from the renderer to
+// the utility process; the browser only creates the player and tells the GPU
+// process which CoreAnimation context belongs to the player's overlay plane.
+module compass.mojom;
+
+import "mojo/public/mojom/base/time.mojom";
+import "mojo/public/mojom/base/unguessable_token.mojom";
+import "sandbox/policy/mojom/sandbox.mojom";
+import "ui/gfx/geometry/mojom/geometry.mojom";
+import "url/mojom/url.mojom";
+
+// What the media pipeline needs before it can start.
+struct AVFMetadata {
+  // Zero or infinite (kInfiniteDuration) for live streams.
+  mojo_base.mojom.TimeDelta duration;
+  bool has_video;
+  bool has_audio;
+  gfx.mojom.Size natural_size;
+};
+
+struct AVFTimeRange {
+  mojo_base.mojom.TimeDelta start;
+  mojo_base.mojom.TimeDelta end;
+};
+
+// One AVPlayer. Implemented in the utility process, called from the renderer.
+interface AVFPlayer {
+  // Loads the asset. Replies once AVPlayerItem is ready to play, or failed.
+  Load() => (bool success, AVFMetadata? metadata, string error);
+
+  // 0 pauses.
+  SetRate(double rate);
+
+  // Replies once AVPlayer finished seeking.
+  Seek(mojo_base.mojom.TimeDelta time) => ();
+
+  SetVolume(float volume);
+};
+
+// Events from one AVPlayer. Implemented in the renderer.
+interface AVFPlayerClient {
+  // Current media time and the rate it advances at (0 when paused or
+  // stalled). Sent on every change and periodically while playing.
+  OnTimeUpdate(mojo_base.mojom.TimeDelta media_time, double rate);
+
+  OnBufferingStateChange(bool have_enough);
+  OnBufferedRangesChange(array<AVFTimeRange> ranges);
+  OnNaturalSizeChange(gfx.mojom.Size size);
+  OnDurationChange(mojo_base.mojom.TimeDelta duration);
+  OnEnded();
+  OnError(string message);
+};
+
+// Exposed by the browser to renderer frames.
+interface AVFPlayerFactory {
+  // Creates a player for `url`. `overlay_plane_id` names the video-hole
+  // overlay the renderer paints; null if the player couldn't be created.
+  CreatePlayer(url.mojom.Url url,
+               pending_receiver<AVFPlayer> player,
+               pending_remote<AVFPlayerClient> client)
+      => (mojo_base.mojom.UnguessableToken? overlay_plane_id);
+};
+
+struct AVFPlayerOptions {
+  string user_agent;
+  url.mojom.Url? referrer;
+};
+
+// The utility process. Not sandboxed yet: AVPlayer needs the network, audio
+// and the FairPlay system services (milestone 5 adds a profile).
+[ServiceSandbox=sandbox.mojom.Sandbox.kNoSandbox]
+interface AVFMediaService {
+  // Replies with the CoreAnimation context that holds the player's layer.
+  CreatePlayer(url.mojom.Url url,
+               AVFPlayerOptions options,
+               pending_receiver<AVFPlayer> player,
+               pending_remote<AVFPlayerClient> client)
+      => (uint32 ca_context_id);
+};
+
+// Exposed by the GPU process to the browser: which CoreAnimation context to
+// host where a video-hole quad with `overlay_plane_id` is drawn.
+[ServiceSandbox=sandbox.mojom.Sandbox.kGpu]
+interface ExternalLayerRegistry {
+  Register(mojo_base.mojom.UnguessableToken overlay_plane_id,
+           uint32 ca_context_id);
+  Unregister(mojo_base.mojom.UnguessableToken overlay_plane_id);
+};

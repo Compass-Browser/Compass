@@ -35,7 +35,9 @@ test("compass_unittests") {
     "//compass/components/sync:history_unit_tests",
     "//compass/components/sync:unit_tests",
     "//compass/components/sync/rooms:unit_tests",
+    "//compass/media/avf:unit_tests",
     "//compass/renderer/adblock:unit_tests",
+    "//compass/ui/external_layer:unit_tests",
   ]
   if (is_mac) {
     deps += [ "//compass/components/os_crypt:unit_tests" ]

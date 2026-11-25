@@ -1,0 +1,30 @@
+diff --git a/components/viz/service/display/ca_layer_overlay.cc b/components/viz/service/display/ca_layer_overlay.cc
+index 1b7157b1d5a9cf517d0f65393e89ba46dbcd3201..7a8602e23330b7aa95aa930b028ac1eb95d34191 100644
+--- a/components/viz/service/display/ca_layer_overlay.cc
++++ b/components/viz/service/display/ca_layer_overlay.cc
+@@ -17,6 +17,7 @@
+ #include "components/viz/common/quads/solid_color_draw_quad.h"
+ #include "components/viz/common/quads/texture_draw_quad.h"
+ #include "components/viz/common/quads/tile_draw_quad.h"
++#include "components/viz/common/quads/video_hole_draw_quad.h"
+ #include "components/viz/service/display/display_resource_provider.h"
+ #include "ui/base/cocoa/remote_layer_api.h"
+ #include "ui/gfx/buffer_types.h"
+@@ -295,6 +296,17 @@ class CALayerOverlayProcessorInternal {
+             ca_layer_overlay);
+       case DrawQuad::Material::kSurfaceContent:
+         return gfx::kCALayerFailedSurfaceContent;
++#if BUILDFLAG(IS_MAC)
++      case DrawQuad::Material::kVideoHole:
++        // Compass: AVPlayer's layer goes here (docs/design/fairplay.md).
++        ca_layer_overlay->external_layer_id =
++            VideoHoleDrawQuad::MaterialCast(quad)->overlay_plane_id;
++        // No resource to lock or draw: schedule it like a transparent solid
++        // color layer, which the CA renderer turns into the hosting layer.
++        ca_layer_overlay->color = SkColors::kTransparent;
++        ca_layer_overlay->is_solid_color = true;
++        return gfx::kCALayerSuccess;
++#endif
+       default:
+         break;
+     }

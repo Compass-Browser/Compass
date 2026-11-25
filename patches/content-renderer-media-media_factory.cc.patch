@@ -1,0 +1,43 @@
+diff --git a/content/renderer/media/media_factory.cc b/content/renderer/media/media_factory.cc
+index cfd3fb96ca4102eba20be1c90784be5f4da2221e..e39b7f5af5593d4b0d52432e34f25073582de955 100644
+--- a/content/renderer/media/media_factory.cc
++++ b/content/renderer/media/media_factory.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "content/renderer/media/media_factory.h"
+ 
++#include "compass/media/avf/renderer/avf_renderer_hooks.h"
++
+ #include <memory>
+ #include <string>
+ #include <tuple>
+@@ -458,6 +460,13 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
+   std::unique_ptr<media::Demuxer> demuxer_override =
+       GetContentClient()->renderer()->OverrideDemuxerForUrl(render_frame_, url,
+                                                             media_task_runner);
++  // Compass: native HLS through AVFoundation on macOS (docs/design/fairplay.md).
++  if (!demuxer_override) {
++    demuxer_override = compass::avf::MaybeCreateDemuxer(
++        GURL(url), [this](mojo::GenericPendingReceiver receiver) {
++          GetInterfaceBroker().GetInterface(std::move(receiver));
++        });
++  }
+ 
+ #if BUILDFLAG(ENABLE_CAST_RECEIVER)
+   if (!demuxer_override && cast_streaming_resource_provider_) {
+@@ -558,6 +567,15 @@ MediaFactory::CreateRendererFactorySelector(
+                                      std::move(factory));
+   }
+ 
++  // Compass: AVFoundation plays this URL; it pairs with the AVFDemuxer
++  // created in CreateMediaPlayer().
++  if (auto avf_factory = compass::avf::MaybeCreateRendererFactory(GURL(url))) {
++    CHECK(!is_base_renderer_factory_set);
++    factory_selector->AddConditionalFactory(
++        RendererType::kContentEmbedderDefined, std::move(avf_factory),
++        base::BindRepeating([] { return true; }));
++  }
++
+ #if BUILDFLAG(IS_ANDROID)
+   // FlingingRendererClientFactory (FRCF) setup.
+   auto flinging_factory = std::make_unique<FlingingRendererClientFactory>(

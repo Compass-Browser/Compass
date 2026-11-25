@@ -1,0 +1,12 @@
+diff --git a/content/renderer/BUILD.gn b/content/renderer/BUILD.gn
+index a63c3bea226425589ebb8b9b55b1bace381d3a96..f0efd7333aa85ec7e471c9847b0ac3c0deb96c73 100644
+--- a/content/renderer/BUILD.gn
++++ b/content/renderer/BUILD.gn
+@@ -228,6 +228,7 @@ target(link_target_type, "renderer") {
+   ]
+ 
+   deps = [
++    "//compass/media/avf:renderer",  # Compass: AVFoundation HLS.
+     "//base",
+     "//base:i18n",
+     "//build:chromecast_buildflags",

@@ -1,0 +1,15 @@
+diff --git a/media/filters/demuxer_manager.cc b/media/filters/demuxer_manager.cc
+index bf5624040dd6730c0d975f0336e49a8855880461..914c7f616a0cb56acaae66d8d9c1b702abfaec9c 100644
+--- a/media/filters/demuxer_manager.cc
++++ b/media/filters/demuxer_manager.cc
+@@ -249,7 +249,9 @@ PipelineStatus DemuxerManager::CreateDemuxer(
+   }
+ 
+ #if BUILDFLAG(ENABLE_HLS_DEMUXER)
+-  if (hls_fallback_ || IsManifestDemuxerURL()) {
++  // Compass: an embedder demuxer override (AVFoundation HLS on macOS,
++  // //compass/media/avf) takes precedence over the HLS demuxer.
++  if (!demuxer_override_ && (hls_fallback_ || IsManifestDemuxerURL())) {
+     std::unique_ptr<Demuxer> demuxer;
+     std::tie(data_source_info_, demuxer) = CreateHlsDemuxer();
+     SetDemuxer(std::move(demuxer));

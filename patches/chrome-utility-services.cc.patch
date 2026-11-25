@@ -1,0 +1,21 @@
+diff --git a/chrome/utility/services.cc b/chrome/utility/services.cc
+index 14cdd3f48779e59f7a6efe858d30d68bd94c511e..24fb3c426746d646242f097701bc3668bff25b2e 100644
+--- a/chrome/utility/services.cc
++++ b/chrome/utility/services.cc
+@@ -54,6 +54,7 @@
+ 
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/services/mac_notifications/mac_notification_provider_impl.h"
++#include "compass/media/avf/service/avf_media_service.h"
+ #include "chrome/services/system_signals/mac/mac_system_signals_service.h"
+ #include "services/proxy_resolver/public/mojom/system_proxy_resolver.mojom.h"
+ #include "services/proxy_resolver_mac/mac_system_proxy_resolver_impl.h"
+@@ -536,6 +537,8 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
+ 
+ #if BUILDFLAG(IS_MAC)
+   services.Add(RunMacNotificationService);
++  // Compass: AVPlayer for native HLS (docs/design/fairplay.md).
++  services.Add(compass::avf::RunAVFMediaService);
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ #if (BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION) && \
