@@ -105,7 +105,11 @@ final class AppServices {
       store.addTab(url: "https://en.wikipedia.org/wiki/Sintra", title: "Sintra", to: trip)
     }
     store.addTab(url: "https://www.apple.com/iphone/", title: "iPhone", to: personal.pinned)
-    store.addTab(url: "https://compassbrowser.org", title: "Compass Browser", to: personal.pinned)
+    // The tab a launch shows (On Launch → Last Tab), as if it was the last one looked at.
+    if let home = store.addTab(url: "https://compassbrowser.org", title: "Compass Browser", to: personal.pinned) {
+      UserDefaults.standard.set(home.id, forKey: StartScreen.tabKey)
+      UserDefaults.standard.set(personal.id, forKey: StartScreen.spaceKey)
+    }
     for (url, title) in [
       ("https://en.wikipedia.org/wiki/Pastel_de_nata", "Pastel de nata"),
       ("https://en.wikipedia.org/wiki/Fado", "Fado"),

@@ -1084,8 +1084,8 @@ struct ClosedToast: Equatable {
   let action: Action
 }
 
-/// What a launch shows (Settings → On Launch): the sidebar over an empty
-/// page, or the tab last shown with the sidebar down.
+/// What a launch shows (Settings → On Launch): the tab last shown with the
+/// sidebar down (the default), or the sidebar over an empty page.
 enum StartScreen: String, CaseIterable, Identifiable {
   case sidebar, lastTab
 
@@ -1094,7 +1094,7 @@ enum StartScreen: String, CaseIterable, Identifiable {
   static let tabKey = "LastShownTab"
   static let spaceKey = "LastShownSpace"
 
-  static var current: StartScreen { UserDefaults.standard.string(forKey: key).flatMap(Self.init) ?? .sidebar }
+  static var current: StartScreen { UserDefaults.standard.string(forKey: key).flatMap(Self.init) ?? .lastTab }
 
   var id: String { rawValue }
   var name: String {

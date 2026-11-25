@@ -158,7 +158,14 @@ final class SyncController {
     self.store = store
     self.history = history
     self.directory = directory
-    if let seed = Keychain.data("seed"), let server = Keychain.data("server").flatMap({ URL(dataRepresentation: $0, relativeTo: nil) }),
+    // Debug: -CompassNoSync YES doesn't resume the Keychain's chain, so a
+    // demo (UITests/ReviewDemoTests) can't sync with the developer's devices.
+    #if DEBUG
+      let resumes = !UserDefaults.standard.bool(forKey: "CompassNoSync")
+    #else
+      let resumes = true
+    #endif
+    if resumes, let seed = Keychain.data("seed"), let server = Keychain.data("server").flatMap({ URL(dataRepresentation: $0, relativeTo: nil) }),
       let chain = try? Chain(seed: seed)
     {
       start(chain: chain, server: server)

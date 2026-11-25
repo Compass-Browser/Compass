@@ -30,7 +30,7 @@ struct SettingsView: View {
   @AppStorage(Spotlight.enabledKey) private var spotlight = true
   @AppStorage(AutoPiP.enabledKey) private var autoPiP = true
   @AppStorage(AutoPiP.scrollKey) private var autoPiPScroll = true
-  @AppStorage(StartScreen.key) private var startScreen = StartScreen.sidebar
+  @AppStorage(StartScreen.key) private var startScreen = StartScreen.lastTab
   @AppStorage(LittleWindows.key) private var littleWindows = true
   @AppStorage(CleanLink.removeTrackingKey) private var removeTracking = true
   // In the App Group: the share extension reads it.
