@@ -1,0 +1,16 @@
+diff --git a/media/base/pipeline_impl.cc b/media/base/pipeline_impl.cc
+index 2195d4c847dc18bb42be2a7dd19912cc5d3d9f47..b74ff27808bf1c5d744561b00b928b1c1e1ec731 100644
+--- a/media/base/pipeline_impl.cc
++++ b/media/base/pipeline_impl.cc
+@@ -734,6 +734,11 @@ void PipelineImpl::RendererWrapper::CreateRendererInternal(
+   }
+ #endif  // BUILDFLAG(IS_WIN)
+ 
++  // Compass: FairPlay's CDM plays through AVFoundation's renderer.
++  if (cdm_context_ && CdmRequiresEmbedderRenderer(cdm_context_)) {
++    renderer_type = RendererType::kContentEmbedderDefined;
++  }
++
+   // During Resume(), the |default_renderer_| might already match the
+   // |renderer_type|, in which case we shouldn't need to create a new one.
+   if (!default_renderer_ ||

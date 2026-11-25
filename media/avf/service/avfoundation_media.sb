@@ -139,6 +139,10 @@
   (remote tcp)
   (remote udp)
 )
+; FairPlay for MSE: the loopback server AVPlayer reads MSE streams from
+; (mse/loopback_server.mm), on 127.0.0.1 only.
+(allow network-bind (local ip "localhost:*"))
+(allow network-inbound (local ip "localhost:*"))
 (allow system-socket
   (require-all (socket-domain AF_SYSTEM)
                (socket-protocol 2)) ; SYSPROTO_CONTROL

@@ -1,0 +1,20 @@
+diff --git a/third_party/blink/renderer/platform/media/web_media_player_impl.cc b/third_party/blink/renderer/platform/media/web_media_player_impl.cc
+index 268a51238a303f8584d436033c04be71177e8553..60890948a5e54482bddc8c4b92db6ffc22a3a24f 100644
+--- a/third_party/blink/renderer/platform/media/web_media_player_impl.cc
++++ b/third_party/blink/renderer/platform/media/web_media_player_impl.cc
+@@ -1837,6 +1837,15 @@ void WebMediaPlayerImpl::SetCdmInternal(WebContentDecryptionModule* cdm) {
+   pipeline_controller_->SetCdm(
+       cdm_context,
+       blink::BindOnce(&WebMediaPlayerImpl::OnCdmAttached, weak_this_));
++
++  // Compass: FairPlay's CDM plays through AVFoundation's renderer, which the
++  // pipeline picks when it makes one (media::CdmRequiresEmbedderRenderer());
++  // a pipeline already playing with another (clear content first, or
++  // MediaKeys set late) restarts to get it (docs/design/fairplay.md).
++  if (media::CdmRequiresEmbedderRenderer(cdm_context) &&
++      renderer_type_ != media::RendererType::kContentEmbedderDefined) {
++    ScheduleRestart();
++  }
+ }
+ 
+ void WebMediaPlayerImpl::OnCdmAttached(bool success) {

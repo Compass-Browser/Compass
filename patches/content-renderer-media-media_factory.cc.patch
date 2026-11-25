@@ -1,5 +1,5 @@
 diff --git a/content/renderer/media/media_factory.cc b/content/renderer/media/media_factory.cc
-index cfd3fb96ca4102eba20be1c90784be5f4da2221e..563dc6f2428bd3946848dd6e49afc85753bf3587 100644
+index cfd3fb96ca4102eba20be1c90784be5f4da2221e..8dcc9cf73726d8549dd2789a1599296d64c408e0 100644
 --- a/content/renderer/media/media_factory.cc
 +++ b/content/renderer/media/media_factory.cc
 @@ -4,6 +4,8 @@
@@ -25,23 +25,27 @@ index cfd3fb96ca4102eba20be1c90784be5f4da2221e..563dc6f2428bd3946848dd6e49afc857
  
  #if BUILDFLAG(ENABLE_CAST_RECEIVER)
    if (!demuxer_override && cast_streaming_resource_provider_) {
-@@ -558,6 +567,15 @@ MediaFactory::CreateRendererFactorySelector(
+@@ -558,6 +567,19 @@ MediaFactory::CreateRendererFactorySelector(
                                       std::move(factory));
    }
  
-+  // Compass: AVFoundation plays this URL; it pairs with the AVFDemuxer
-+  // created in CreateMediaPlayer().
-+  if (auto avf_factory = compass::avf::MaybeCreateRendererFactory(GURL(url))) {
-+    CHECK(!is_base_renderer_factory_set);
-+    factory_selector->AddConditionalFactory(
-+        RendererType::kContentEmbedderDefined, std::move(avf_factory),
-+        base::BindRepeating(&compass::avf::IsAVFoundationUsable));
++  // Compass: AVFoundation's renderer, for native HLS (with the AVFDemuxer
++  // created in CreateMediaPlayer()) and FairPlay's CDM (FairPlay for MSE).
++  if (!is_base_renderer_factory_set) {
++    compass::avf::AddRendererFactory(
++        factory_selector.get(), GURL(url),
++        base::BindRepeating(
++            [](MediaFactory* factory, mojo::GenericPendingReceiver receiver) {
++              factory->GetInterfaceBroker().GetInterface(std::move(receiver));
++            },
++            // The frame's MediaFactory outlives its players.
++            base::Unretained(this)));
 +  }
 +
  #if BUILDFLAG(IS_ANDROID)
    // FlingingRendererClientFactory (FRCF) setup.
    auto flinging_factory = std::make_unique<FlingingRendererClientFactory>(
-@@ -826,6 +844,16 @@ media::CdmFactory* MediaFactory::GetCdmFactory() {
+@@ -826,6 +848,16 @@ media::CdmFactory* MediaFactory::GetCdmFactory() {
    cdm_factory_ = std::make_unique<media::DefaultCdmFactory>();
  #endif  // BUILDFLAG(ENABLE_MOJO_CDM)
  

@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "compass/media/avf/common/avf_features.h"
 #include "compass/media/avf/public/mojom/avf_player.mojom.h"
+#include "compass/media/avf/renderer/avf_renderer_hooks.h"
 #include "compass/media/avf/renderer/fairplay_key_system_info.h"
 #include "media/base/cdm_config.h"
 #include "media/mojo/clients/mojo_cdm.h"
@@ -32,6 +33,7 @@ void OnCdmCreated(
         .Run(nullptr, media::CreateCdmStatus::kUnknownError);
     return;
   }
+  RegisterFairPlayCdm(cdm_context->cdm_id);
   std::move(cdm_created_cb)
       .Run(base::MakeRefCounted<media::MojoCdm>(
                mojo::Remote<media::mojom::ContentDecryptionModule>(

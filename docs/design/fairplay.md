@@ -5,11 +5,11 @@ AVFoundation's AVPlayer instead of Chromium's HLS demuxer, as Safari does.
 This is the groundwork for FairPlay Streaming (`com.apple.fps`), which only
 works through AVFoundation.
 
-Status: milestones 1–5 are in: native HLS (clear, VOD and live) plays
+Status: milestones 1–6 are in: native HLS (clear, VOD and live) plays
 through AVPlayer, shown in the page, with the page's cookies and user agent;
-FairPlay works through EME as in Safari; sites the user picks can be told
-Compass is Safari; the AVFoundation process is sandboxed, and Chromium's HLS
-player takes over if it keeps crashing.
+FairPlay works through EME as in Safari, for native HLS and for MSE; sites
+the user picks can be told Compass is Safari; the AVFoundation process is
+sandboxed, and Chromium's HLS player takes over if it keeps crashing.
 
 ## Why AVPlayer, and not a Chromium renderer
 
@@ -26,9 +26,12 @@ The Phase 0 spike (November 2026) tried every route a third-party app has:
   from an HLS URL. `AVAssetResourceLoaderDelegate` can serve playlists but not
   media segments (-12881), so AVPlayer fetches the segments itself.
 
-So FairPlay on MSE (what hls.js, Shaka and video.js would use) isn't possible
-with public APIs, and native HLS is the form FairPlay takes on the web anyway
-(Bitmovin, Brightcove, JW Player, Radiant use it only that way, in Safari).
+So Safari's way of doing FairPlay on MSE (what hls.js, Shaka, video.js and
+the big services' own players use) isn't open to Compass. Compass gets there
+another way: it turns the MSE stream into HLS for AVPlayer ("FairPlay for
+MSE" below). Native HLS is the form most FairPlay players take on the web
+anyway (Bitmovin, Brightcove, JW Player, Radiant use it only that way, in
+Safari).
 
 ## How it works
 
@@ -180,10 +183,131 @@ video.src = 'https://…/master.m3u8';
   loading is done; so loading also finishes once the playlists give the
   duration, and the video's size comes later.
 - Feature `CompassFairPlay` (on, on macOS; needs `CompassAVFoundationHls`).
+- **What's offered.** The playlist's types (`application/vnd.apple.mpegurl`
+  and the like) with `skd` init data, for native HLS; and, with FairPlay for
+  MSE, MP4 with H.264, HEVC or AAC and `cenc` init data
+  (`FairPlayKeySystemInfo`). Without FairPlay for MSE (its feature off), MP4
+  is offered only to pages presenting as Safari: an MSE player that picked
+  `com.apple.fps` would send its samples to Chromium's decryptor, which
+  can't use this CDM (Apple TV+ did, and failed: "CdmContextRef cannot be
+  obtained").
 - **Key system names.** Like Safari (`CDMFactoryFairPlayStreaming::
   supportsKeySystem()`), `com.apple.fps` and any `com.apple.fps.*`
   (`com.apple.fps.1_0` … `3_0`, which Bitmovin asks for); the CDM is made
   for `com.apple.fps`.
+
+## FairPlay for MSE
+
+MSE players (Shaka, hls.js, dash.js, Apple TV+'s and other services' own
+players) append fMP4 to SourceBuffers and do EME with `cenc` init data.
+Their samples can't be decrypted outside AVFoundation, and AVFoundation
+takes FairPlay keys only from AVPlayer playing HLS. So Compass gives AVPlayer
+the MSE stream as HLS: a playlist of fMP4 segments, rebuilt from the
+demuxer's samples (still encrypted) and served on 127.0.0.1.
+
+```
+renderer: ChunkDemuxer --DecoderBuffers--> AVFMseRenderer
+   --AVFMseSource.Append--> AVFoundation process: HlsSession (fMP4 + playlist)
+   <--HTTP 127.0.0.1-- AVPlayer --skd://<key ID>--> AVContentKeySession
+   --> AVFCdm --SPC--> page --license--> CKC
+```
+
+- **Choosing the renderer.** The pipeline waits for the CDM before it makes
+  the renderer for an encrypted stream. When the CDM is FairPlay's, it asks
+  for the embedder's renderer (`media::CdmRequiresEmbedderRenderer()`,
+  `patches/media-base-cdm_context.*.patch`,
+  `patches/media-base-pipeline_impl.cc.patch`, as Windows does for Media
+  Foundation's CDM). `AVFCdmFactory` registers its CDMs' ids for that, and
+  `AddRendererFactory()` (`media_factory.cc`'s patch) gives every player the
+  AVFoundation factory, which makes an `AVFMseRenderer` for anything but
+  native HLS.
+- **`AVFMseRenderer`** (renderer, media thread) reads the demuxer streams
+  and sends the samples (`AVFSample`: data, times, keyframe, the
+  `DecryptConfig`) to the utility process, 32 at a time, up to 20 s ahead of
+  AVPlayer. Each `StartPlayingFrom()` is a session (`AVFMseSource.
+  StartSession`): AVPlayer gets a new item, which the service seeks to the
+  start before replying. The picture is AVPlayer's layer through a video
+  hole, as for native HLS; times come back as media times.
+- **`HlsSession`** (`service/mse/`) undoes what Chromium's MP4 parser did:
+  H.264/HEVC from Annex B back to length-prefixed NAL units, with the
+  parameter sets it inserted moved into a rebuilt `avcC`/`hvcC`; AAC without
+  its ADTS header. Start codes are only looked for in clear bytes, and the
+  subsamples follow every change; encrypted bytes are never touched. It cuts
+  segments at video keyframes at least 2 s apart (or where the parameter
+  sets or the config change) once audio has caught up, muxing both tracks in
+  each segment. Decode times are the presentation times sorted (decoder
+  buffers carry none), with signed composition offsets (`trun` version 1).
+  The init segment has `cbcs` protection (`encv`, `sinf`, `tenc` with the
+  key ID, the pattern and the constant IV, or per-sample IVs if they vary),
+  and a new one comes when any of that changes. The playlist is an `EVENT`
+  playlist, `EXT-X-KEY` `skd://<key ID in hex>`, ending with `ENDLIST` once
+  both streams ended. AVPlayer starts at its live edge whatever
+  `EXT-X-START` says, so the service seeks it.
+- **`LoopbackServer`** (`mse/loopback_server.mm`, Network.framework): HTTP
+  on 127.0.0.1 and a random port, each session under a random path. The
+  segments are as encrypted as the page's were. The sandbox allows binding
+  and accepting on localhost.
+- **The CDM.** `cenc` init data (PSSH boxes) gives a session its key IDs; a
+  session whose init data names none takes the first key AVPlayer asks for.
+  AVPlayer asks for `skd://<key ID>`; the SPC's content identifier is the
+  raw key ID, as Safari's for MSE. Axinom's server accepts that. MSE
+  players' assets are recipients of the CDM's own `AVContentKeySession`, so
+  keys outlive players (a seek or a suspend needs no new license), and keys
+  the CDM loaded before any media are found by AVPlayer.
+- **Late MediaKeys.** The pipeline picks the renderer when it makes one; a
+  player already playing with Chromium's renderer when FairPlay's CDM
+  arrives (clear content first, MediaKeys set late) restarts its pipeline
+  (`WebMediaPlayerImpl::ScheduleRestart()`,
+  `patches/third_party-blink-renderer-platform-media-web_media_player_impl.cc.patch`).
+- **Clear lead.** Content that starts clear and turns encrypted gets a new
+  init segment and key after an `EXT-X-DISCONTINUITY`.
+- **Limits.** `cbcs` only (FairPlay is `cbcs`; `cenc` content fails with an
+  error); H.264, HEVC and AAC (no Dolby Vision, E-AC-3, VP9 or Opus); one
+  audio and one video stream. A GOP longer than 10 s makes a segment longer
+  than the `TARGETDURATION`. When Chromium suspends an idle paused player,
+  the next play makes a new player, which finds the keys in the CDM's key
+  session.
+- Feature `CompassFairPlayMse` (on, on macOS; needs `CompassFairPlay`).
+- **Checked:** Axinom's FairPlay test vector through MSE (its CMAF
+  segments appended by hand, EME from the `encrypted` event): SPC, license,
+  `usable`, playing at 1280×720; seeks forward and back; a 75 s pause.
+  Apple TV+ not yet.
+
+## Safari's FairPlay protocol
+
+Apple's own player (Apple TV+, hls.js everywhere, Safari included) doesn't
+use plain `cenc`: it speaks Safari's protocol over EME (`fps_protocol.h`),
+and waits for the SPCs before it loads any media.
+
+- **Init data:** a `pssh` with FairPlay's system ID whose data is a box tree,
+  `fpsd` { `fpsi` (scheme), `fpsk` per key { `fkri` (key ID), `fkai` (asset
+  ID), `fkcx`, `fkvl` (protocol versions) } }. Messages are JSON,
+  `[{"keyID": base64, "payload": base64}]`, the payload the SPC (from the
+  CDM) or the CKC (from the page); `update("renew")` asks for renewals. An
+  older hls.js format (binary `kreq`/`spcs`/`ckcs`) works too.
+- **The CDM requests the keys itself** (`processContentKeyRequestWithIdentifier`
+  on its key session, by `skd://<key ID>`) as soon as the session is made,
+  with the key's protocol versions (`AVContentKeyRequestProtocolVersionsKey`)
+  and its asset ID (else the key ID) as content identifier. MSE players find
+  the keys loaded. A request made from the page's `pssh` (as WebKit does) is
+  named by the raw key ID instead, and AVPlayer then asks for the key again
+  by its `skd://` URI, a second license pages don't give; a CKC can't answer
+  two SPCs (-12158); naming the key by a FairPlay `pssh` in the playlist
+  (`KEYFORMAT="urn:uuid:94ce86fb…"`) makes AVPlayer skip decryption.
+- **Widevine** isn't offered on pages presenting as Safari: Apple's player
+  ranks FairPlay < PlayReady < Widevine and takes Widevine whenever it's
+  there.
+- **Checked** locally against Axinom's license server with a page speaking
+  either format the way Apple's hls.js does (`fpsd` init data, one license
+  per key, licensed before any media): SPC, CKC, `usable`, MSE playing.
+- **Apple TV+ (2026-11-25):** with Present as Safari, Apple's player takes
+  FairPlay and the 4K HEVC stream, the CDM makes its SPCs, AVPlayer plays
+  the clear lead at 1920×1080 and 3840×1600 unobscured, but Apple's license
+  server answers `status -1002` (once `-1021`/`-42590`, before protocol
+  versions were sent). The same title didn't play in Safari for the same
+  account either, so that may be the account or the title, not Compass:
+  untried with a title Safari plays. Native HLS previews report
+  `outputObscuredDueToInsufficientExternalProtection` (HDCP) at 480×270.
 
 ## Present as Safari
 
@@ -204,17 +328,62 @@ for every site by default.
   user agent. Turning the switch on or off reloads the page.
 - **FairPlay as in Safari:** on such pages (any page whose tab overrides the
   user agent with Safari's: `AVFPlayerFactory.IsPresentingAsSafari`),
-  `com.apple.fps` also accepts `"cenc"` init data, as Safari's does,
-  because players probe it so. Elsewhere it stays `"skd"`-only.
+  `com.apple.fps` also accepts `"cenc"` init data and MP4, as Safari's
+  does, because players probe it so. With FairPlay for MSE every page gets
+  that.
 - **Limits:** only the user agent changes. `navigator.vendor`,
   `window.chrome`, `navigator.userAgentData` (present, with no brands) and
   the engine itself still differ from Safari, so a site that looks further
   may still tell; Cloudflare challenged bitmovin.com once on first visit.
-  Players on Safari's legacy prefixed API (`WebKitMediaKeys`,
-  `webkitneedkey`), which Chromium doesn't have, don't get FairPlay:
-  Bitmovin 8.285 now picks FairPlay and native HLS here, and AVPlayer
-  reports its key, but Bitmovin doesn't start a session; an implementation
-  of the legacy API over this EME would be next.
+
+### Legacy API
+
+Safari still has its older, prefixed EME, and some players use FairPlay
+only through it when it's there (Bitmovin: `window.WebKitMediaKeys ?` the
+legacy path `:` the standard one). Pages presenting as Safari get it too:
+`media/avf/renderer/legacy_eme.js`, built on the standard `com.apple.fps`
+above.
+
+- **Where:** `MaybeInjectLegacyEme()` (`legacy_eme.{h,cc}`), called from
+  `ChromeContentRendererClient::RunScriptsAtDocumentStart()`
+  (`patches/chrome-renderer-chrome_content_renderer_client.cc.patch`), runs
+  the script in the main world before the page's own, if FairPlay is on and
+  the frame's navigation committed with Safari's user agent
+  (`IsSafariUserAgent()`, shared with `IsPresentingAsSafari`). Embedded
+  with `build/embed_text.py`.
+- **What it adds**, as WebKit's `CDMSessionAVFoundationObjC`:
+  `WebKitMediaKeys` (`com.apple.fps` and `com.apple.fps.*`;
+  `isTypeSupported()`; `createSession(type, initData)`),
+  `WebKitMediaKeySession` (`update()`, `close()`, `sessionId`, `error`,
+  events `webkitkeymessage`, `webkitkeyadded`, `webkitkeyerror` and their
+  `on…` properties), `WebKitMediaKeyError`, and on media elements
+  `webkitSetMediaKeys()`, `webkitKeys` and `webkitneedkey`.
+- **How it maps:** an `encrypted` event with `skd` init data (a capturing
+  listener on `window`, so elements in the document) is also dispatched as
+  `webkitneedkey`, with Safari's init data: a u32 LE length, then the URI in
+  UTF-16. `createSession()`'s init data is that, then the content id and the
+  application certificate, each after its length; the session is
+  `setServerCertificate(certificate)` and `generateRequest('skd', URI)` on
+  `MediaKeys` the `WebKitMediaKeys` made, which `webkitSetMediaKeys()` sets
+  on the element. `message` becomes `webkitkeymessage` (`message`,
+  `destinationURL` empty); `update(ckc)` is `update()`; a `usable` key is
+  `webkitkeyadded`; `internal-error`, a refused update or bad init data are
+  `webkitkeyerror` (`MEDIA_KEYERR_UNKNOWN` or `_CLIENT`). The page's
+  originals (`requestMediaKeySystemAccess`, `setMediaKeys`,
+  `addEventListener`) are kept at start, so the page's wrappers don't see it.
+- **Differences from Safari:** the SPC's content identifier is the skd://
+  URI (as Safari's standard EME), not the content id the page put in the
+  init data; license servers that check it against something else would
+  refuse. Detached media elements get no `webkitneedkey`. Both `encrypted`
+  and `webkitneedkey` fire.
+- **Checked:** Bitmovin 8.285 on bitmovin.com (Present as Safari on) with
+  Axinom's FairPlay test vector: `webkitSetMediaKeys(com.apple.fps.1_0)`,
+  `createSession`, SPC, CKC, `webkitkeyadded`, playing at 1280×720. Axinom
+  wants the raw SPC and returns a raw CKC, so the source's `fairplay` config
+  needs `prepareMessage: (e) => e.message`, `licenseResponseType:
+  'arraybuffer'` and `prepareLicense: (l) => new Uint8Array(l)`; Bitmovin's
+  default is `spc=<base64>` form data, which Axinom refuses (as it would in
+  Safari).
 
 ## The sandbox
 
@@ -286,14 +455,20 @@ A crash during playback stops that player with an error.
    Left for later: tracks, DVR seeking, sniffed HLS.
 3. ~~FairPlay EME~~ (above). Checked against Axinom's FairPlay test vector
    with Apple's page pattern: SPC, CKC, `usable`, playing at 1280×720; a bad
-   CKC gives `internal-error`. Not yet: persistent sessions, HDCP policy
+   CKC gives `internal-error`. Apple TV+ (tv.apple.com) uses MSE outside
+   Safari: it played with Widevine at 864×432, then picked FairPlay once
+   `com.apple.fps` offered MP4, and failed until FairPlay for MSE. Not yet:
+   persistent sessions, HDCP policy
    checks (`getStatusForPolicy()` says `usable`; AVFoundation enforces the
    CKC's output rules itself).
-4. ~~"Present as Safari"~~ (above). Next: Safari's legacy prefixed EME
+4. ~~"Present as Safari"~~ (above), with Safari's legacy prefixed EME
    (`WebKitMediaKeys`) for the players that still use it there.
 5. ~~The sandbox, the fallback when the process crashes~~ (above).
-   Next: Safari's legacy prefixed EME (`WebKitMediaKeys`), tracks, DVR
-   seeking, sniffed HLS.
+6. ~~FairPlay for MSE~~, with Safari's FairPlay protocol (above). Next:
+   Apple TV+ with a title Safari plays, a fresh key request when a page asks
+   again for a key whose earlier request failed, more codecs (E-AC-3, Dolby
+   Vision), HDCP for native HLS.
+   Then: tracks, DVR seeking, sniffed HLS.
 
 ## Checking it
 
@@ -306,21 +481,34 @@ A crash during playback stops that player with an error.
 
 ## Tests
 
-- `compass_unittests`: `AVFFeaturesTest.*`, `ExternalLayerRegistryTest.*`,
-  `PresentAsSafariTest.*`.
+- `compass_unittests`: `AVFFeaturesTest.*` (with `SafariUserAgent`),
+  `ExternalLayerRegistryTest.*`, `PresentAsSafariTest.*`;
+  `FpsProtocolTest.*` (both formats, Apple TV+'s captured init data),
+  `SampleConversionTest.*` (Annex B back to length-prefixed NAL units, clear
+  and encrypted, a fake start code in encrypted bytes, `avcC`/`hvcC` from
+  x264's and x265's parameter sets, ADTS), `Mp4WriterTest.*` (init and media
+  segments read back with Chromium's MP4 parser), `HlsSessionTest.*`
+  (segments at keyframes, the playlist's map, key and end, a session
+  starting between keyframes, a clear lead, audio only, VP9 and `cenc`
+  refused).
 - `compass_browsertests` (macOS): `AVFHlsBrowserTest.PlaysHls` (AVPlayer
   fetches the stream, `X-Playback-Session-Id`, and the page gets its
   duration and size), `SendsFirstPartyCookies`,
   `AVFHlsBrowserTest.FallsBackAfterCrashes` (the process killed twice:
   relaunched, then Chromium's HLS player),
   `AVFHlsDisabledBrowserTest.UsesChromiumHls`, `FairPlayBrowserTest.
-  Configurations` (Safari's configurations work, `cenc`/`sinf` and
-  persistent licenses don't), `Sessions` (certificate first, skd:// URIs,
-  a session waiting for its key), `FairPlayDisabledBrowserTest.NotOffered`.
+  Configurations` (native HLS and MSE configurations work; VP9, `sinf` and
+  persistent licenses don't), `PlaysMse` (a clear MSE stream with
+  FairPlay's MediaKeys plays through AVPlayer to its end), `Sessions`
+  (certificate first, skd:// URIs, a session waiting for its key),
+  `FairPlayMseDisabledBrowserTest.NativeHlsOnly`,
+  `FairPlayDisabledBrowserTest.NotOffered`.
   `PresentAsSafariBrowserTest.SafariForTheUsersSites` (the page, its
   requests and AVPlayer's get Safari's user agent; other sites and the
   switch off don't), `SafariFairPlayConfigs` (`cenc` and `com.apple.fps.N_0`
-  on such a site, `skd` only elsewhere).
+  on such a site and, with FairPlay for MSE, elsewhere), `SafariLegacyEme`
+  (`WebKitMediaKeys` there and not elsewhere, `webkitneedkey`'s init data, a
+  session waiting for its key, bad init data as `webkitkeyerror`).
   Playing protected content needs a license server, so it's checked by hand
   (Axinom's test vector). The fixture in
   `media/avf/test/data/` is 6 s of Tears of Steel (CC BY 3.0).

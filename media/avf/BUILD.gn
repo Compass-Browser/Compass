@@ -28,26 +28,48 @@ component("common") {
   ]
 }
 
+# Safari's legacy EME, run in pages presenting as Safari
+# (renderer/legacy_eme.h).
+action("legacy_eme_js") {
+  script = "//compass/build/embed_text.py"
+  inputs = [ "renderer/legacy_eme.js" ]
+  outputs = [ "$target_gen_dir/renderer/legacy_eme_js.h" ]
+  args = [
+    "--out",
+    rebase_path(outputs[0], root_build_dir),
+    "--namespace",
+    "compass::avf::assets",
+    "kLegacyEmeJs=" + rebase_path(inputs[0], root_build_dir),
+  ]
+}
+
 source_set("renderer") {
   sources = [
     "renderer/avf_cdm_factory.cc",
     "renderer/avf_cdm_factory.h",
     "renderer/avf_demuxer.cc",
     "renderer/avf_demuxer.h",
+    "renderer/avf_mse_renderer.cc",
+    "renderer/avf_mse_renderer.h",
     "renderer/avf_renderer.cc",
     "renderer/avf_renderer.h",
     "renderer/avf_renderer_hooks.cc",
     "renderer/avf_renderer_hooks.h",
     "renderer/fairplay_key_system_info.cc",
     "renderer/fairplay_key_system_info.h",
+    "renderer/legacy_eme.cc",
+    "renderer/legacy_eme.h",
   ]
   public_deps = [ "//compass/media/avf/public/mojom" ]
   deps = [
     ":common",
+    ":legacy_eme_js",
     "//base",
     "//media",
     "//media/mojo/clients",
+    "//mojo/public/cpp/base",
     "//mojo/public/cpp/bindings",
+    "//third_party/blink/public:blink",
     "//ui/gfx/geometry",
     "//url",
   ]
@@ -68,6 +90,7 @@ source_set("browser") {
     "//components/embedder_support:user_agent",
     "//content/public/browser",
     "//content/public/common",
+    "//mojo/public/cpp/base",
     "//mojo/public/cpp/bindings",
     "//net",
     "//services/network/public/mojom",
@@ -83,15 +106,21 @@ if (is_mac) {
       "service/avf_cdm.mm",
       "service/avf_media_service.h",
       "service/avf_media_service.mm",
+      "service/avf_mse_source_impl.h",
+      "service/avf_mse_source_impl.mm",
       "service/avf_player_impl.h",
       "service/avf_player_impl.mm",
+      "service/mse/loopback_server.h",
+      "service/mse/loopback_server.mm",
     ]
     public_deps = [ "//compass/media/avf/public/mojom" ]
     deps = [
+      ":mse",
       "//base",
       "//compass/ui/external_layer",
       "//media",
-      "//mojo/public/cpp/bindings",
+      "//mojo/public/cpp/base",
+    "//mojo/public/cpp/bindings",
       "//net",
       "//ui/base",
       "//ui/gfx/geometry",
@@ -100,16 +129,45 @@ if (is_mac) {
     frameworks = [
       "AVFoundation.framework",
       "CoreMedia.framework",
+      "Network.framework",
       "QuartzCore.framework",
     ]
   }
 }
 
+# FairPlay for MSE's repackaging: demuxer samples to fMP4 and HLS
+# (docs/design/fairplay.md). Plain C++, tested on every platform.
+source_set("mse") {
+  sources = [
+    "service/fps_protocol.cc",
+    "service/fps_protocol.h",
+    "service/mse/hls_session.cc",
+    "service/mse/hls_session.h",
+    "service/mse/mp4_writer.cc",
+    "service/mse/mp4_writer.h",
+    "service/mse/sample_conversion.cc",
+    "service/mse/sample_conversion.h",
+  ]
+  deps = [
+    "//base",
+    "//media",
+    "//ui/gfx/geometry",
+  ]
+}
+
 source_set("unit_tests") {
   testonly = true
-  sources = [ "common/avf_features_unittest.cc" ]
+  sources = [
+    "common/avf_features_unittest.cc",
+    "service/fps_protocol_unittest.cc",
+    "service/mse/hls_session_unittest.cc",
+    "service/mse/mp4_writer_unittest.cc",
+    "service/mse/sample_conversion_unittest.cc",
+  ]
   deps = [
     ":common",
+    ":mse",
+    "//media",
     "//base/test:test_support",
     "//testing/gtest",
     "//url",

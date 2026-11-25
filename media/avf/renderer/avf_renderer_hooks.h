@@ -18,7 +18,12 @@ namespace media {
 class CdmFactory;
 class Demuxer;
 class RendererFactory;
+class RendererFactorySelector;
 }  // namespace media
+
+namespace base {
+class UnguessableToken;
+}
 
 // Called by content/renderer/media/media_factory.cc
 // (patches/content-renderer-media-media_factory.cc.patch) for each media
@@ -31,14 +36,25 @@ std::unique_ptr<media::Demuxer> MaybeCreateDemuxer(
     const GURL& url,
     base::FunctionRef<void(mojo::GenericPendingReceiver)> bind_interface);
 
-std::unique_ptr<media::RendererFactory> MaybeCreateRendererFactory(
-    const GURL& url);
+// Adds the AVFoundation renderer factory to a player's selector: for native
+// HLS, and for players whose CDM turns out to be FairPlay's (FairPlay for
+// MSE). Called by media_factory.cc's CreateRendererFactorySelector().
+void AddRendererFactory(
+    media::RendererFactorySelector* selector,
+    const GURL& url,
+    base::RepeatingCallback<void(mojo::GenericPendingReceiver)>
+        bind_interface);
 
 // False once AVFoundation turned out unavailable in this renderer process
 // (its service crashed): players then fall back to Chromium's HLS demuxer
 // and renderer. The condition of MaybeCreateRendererFactory()'s factory.
 bool IsAVFoundationUsable();
 void SetAVFoundationUnavailable();
+
+// The CDMs AVFCdmFactory made, by id: the pipeline gives their players the
+// AVFoundation renderer (media::SetCdmRequiresEmbedderRendererCB()).
+void RegisterFairPlayCdm(const base::UnguessableToken& cdm_id);
+bool IsFairPlayCdm(const base::UnguessableToken& cdm_id);
 
 // FairPlay (com.apple.fps). `WrapCdmFactory()` is called by media_factory.cc
 // for the frame's CDM factory, `WrapKeySystemsCallback()` by

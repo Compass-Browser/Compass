@@ -25,6 +25,14 @@ BASE_FEATURE(kFairPlay, "CompassFairPlay",
 #endif
 );
 
+BASE_FEATURE(kFairPlayMse, "CompassFairPlayMse",
+#if BUILDFLAG(IS_MAC)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
 bool IsFairPlayEnabled() {
 #if BUILDFLAG(IS_MAC)
   return base::FeatureList::IsEnabled(kAVFoundationHls) &&
@@ -45,6 +53,17 @@ bool ShouldUseAVFoundation(const GURL& url) {
 #else
   return false;
 #endif
+}
+
+bool IsFairPlayMseEnabled() {
+  return IsFairPlayEnabled() && base::FeatureList::IsEnabled(kFairPlayMse);
+}
+
+bool IsSafariUserAgent(std::string_view user_agent) {
+  return user_agent.find(" Safari/") != std::string_view::npos &&
+         user_agent.find(" Version/") != std::string_view::npos &&
+         user_agent.find("Chrome/") == std::string_view::npos &&
+         user_agent.find("Chromium/") == std::string_view::npos;
 }
 
 }  // namespace compass::avf

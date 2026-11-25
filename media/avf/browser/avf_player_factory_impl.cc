@@ -220,8 +220,33 @@ void AVFPlayerFactoryImpl::LaunchPlayer(
                      weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 
-void AVFPlayerFactoryImpl::OnPlayerCreated(CreatePlayerCallback callback,
-                                           uint32_t ca_context_id) {
+void AVFPlayerFactoryImpl::CreateMsePlayer(
+    mojo::PendingReceiver<mojom::AVFPlayer> player,
+    mojo::PendingReceiver<mojom::AVFMseSource> source,
+    mojo::PendingRemote<mojom::AVFPlayerClient> client,
+    CreateMsePlayerCallback callback) {
+  // Only for the FairPlay CDM's players (the renderer's pipeline asks for
+  // the AVFoundation renderer when the CDM is FairPlay's).
+  if (!IsFairPlayMseEnabled()) {
+    mojo::ReportBadMessage("AVFPlayerFactory: FairPlay for MSE is off");
+    return;
+  }
+  if (!IsMediaServiceUsable()) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+  // AVPlayer reads the stream from this utility process's loopback server:
+  // no cookies, user agent or referrer to pass.
+  GetMediaService().CreateMsePlayer(
+      std::move(player), std::move(source), std::move(client),
+      base::BindOnce(&AVFPlayerFactoryImpl::OnPlayerCreated,
+                     weak_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void AVFPlayerFactoryImpl::OnPlayerCreated(
+    base::OnceCallback<void(const std::optional<base::UnguessableToken>&)>
+        callback,
+    uint32_t ca_context_id) {
   if (!ca_context_id) {
     std::move(callback).Run(std::nullopt);
     return;
@@ -241,11 +266,8 @@ void AVFPlayerFactoryImpl::IsPresentingAsSafari(
                    : nullptr;
   bool safari = false;
   if (entry && entry->GetIsOverridingUserAgent()) {
-    const std::string& ua =
-        web_contents->GetUserAgentOverride().ua_string_override;
-    safari = ua.find(" Safari/") != std::string::npos &&
-             ua.find(" Version/") != std::string::npos &&
-             ua.find("Chrome/") == std::string::npos;
+    safari = IsSafariUserAgent(
+        web_contents->GetUserAgentOverride().ua_string_override);
   }
   std::move(callback).Run(safari);
 }

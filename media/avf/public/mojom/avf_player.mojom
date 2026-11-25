@@ -14,6 +14,8 @@
 module compass.mojom;
 
 import "media/mojo/mojom/content_decryption_module.mojom";
+import "media/mojo/mojom/media_types.mojom";
+import "mojo/public/mojom/base/big_buffer.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 import "sandbox/policy/mojom/sandbox.mojom";
@@ -70,6 +72,58 @@ interface AVFPlayerClient {
   OnEncrypted(array<uint8> init_data);
 };
 
+// FairPlay for MSE (docs/design/fairplay.md): the renderer's demuxer streams
+// go to the utility process, which repackages them as HLS for AVPlayer.
+struct AVFSubsample {
+  uint32 clear_bytes;
+  uint32 cypher_bytes;
+};
+
+// A sample's media::DecryptConfig.
+struct AVFSampleEncryption {
+  bool cbcs;
+  array<uint8> key_id;
+  array<uint8> iv;
+  array<AVFSubsample> subsamples;
+  bool has_pattern;
+  uint8 crypt_byte_block;
+  uint8 skip_byte_block;
+};
+
+// A DecoderBuffer from a demuxer stream, as Chromium's parser made it.
+struct AVFSample {
+  mojo_base.mojom.BigBuffer data;
+  mojo_base.mojom.TimeDelta timestamp;
+  mojo_base.mojom.TimeDelta duration;
+  bool is_key_frame;
+  AVFSampleEncryption? encryption;
+};
+
+enum AVFTrack {
+  kAudio,
+  kVideo,
+};
+
+// An MSE stream for one AVPlayer. Implemented in the utility process, called
+// from the renderer's AVFMseRenderer.
+interface AVFMseSource {
+  // A new session: the samples that follow are from the keyframes before
+  // `start` (the pipeline's StartPlayingFrom()). AVPlayer gets a new item;
+  // the reply comes once it's at `start` and ready to play, or failed.
+  // Time updates (AVFPlayerClient) are media times.
+  StartSession(mojo_base.mojom.TimeDelta start,
+               media.mojom.AudioDecoderConfig? audio,
+               media.mojom.VideoDecoderConfig? video)
+      => (bool success, string error);
+
+  // A config change: the next samples of that track use it.
+  SetAudioConfig(media.mojom.AudioDecoderConfig config);
+  SetVideoConfig(media.mojom.VideoDecoderConfig config);
+
+  Append(AVFTrack track, array<AVFSample> samples);
+  EndOfStream(AVFTrack track);
+};
+
 // Exposed by the browser to renderer frames.
 interface AVFPlayerFactory {
   // Creates a player for `url`. `overlay_plane_id` names the video-hole
@@ -77,6 +131,12 @@ interface AVFPlayerFactory {
   CreatePlayer(url.mojom.Url url,
                pending_receiver<AVFPlayer> player,
                pending_remote<AVFPlayerClient> client)
+      => (mojo_base.mojom.UnguessableToken? overlay_plane_id);
+
+  // A player for an MSE stream, fed through `source` (FairPlay for MSE).
+  CreateMsePlayer(pending_receiver<AVFPlayer> player,
+                  pending_receiver<AVFMseSource> source,
+                  pending_remote<AVFPlayerClient> client)
       => (mojo_base.mojom.UnguessableToken? overlay_plane_id);
 
   // Whether the document presents itself as Safari (its tab has a Safari
@@ -120,6 +180,13 @@ interface AVFMediaService {
                AVFPlayerOptions options,
                pending_receiver<AVFPlayer> player,
                pending_remote<AVFPlayerClient> client)
+      => (uint32 ca_context_id);
+
+  // A player for an MSE stream: AVPlayer reads it as HLS from a loopback
+  // server in this process.
+  CreateMsePlayer(pending_receiver<AVFPlayer> player,
+                  pending_receiver<AVFMseSource> source,
+                  pending_remote<AVFPlayerClient> client)
       => (uint32 ca_context_id);
 
   // A FairPlay CDM; `cdm_id` names it to AVFPlayer.SetCdm.

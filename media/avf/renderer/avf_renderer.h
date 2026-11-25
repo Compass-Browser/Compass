@@ -7,6 +7,8 @@
 
 #include <memory>
 
+#include "base/functional/callback.h"
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
@@ -16,6 +18,7 @@
 #include "media/base/buffering_state.h"
 #include "media/base/renderer.h"
 #include "media/base/renderer_factory.h"
+#include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 
 namespace media {
 class VideoRendererSink;
@@ -79,9 +82,14 @@ class AVFRenderer : public media::Renderer, public AVFPlaybackObserver {
   base::WeakPtrFactory<AVFRenderer> weak_factory_{this};
 };
 
+// AVFRenderer for native HLS, AVFMseRenderer for anything else (FairPlay for
+// MSE).
 class AVFRendererFactory : public media::RendererFactory {
  public:
-  AVFRendererFactory();
+  AVFRendererFactory(
+      bool hls,
+      base::RepeatingCallback<void(mojo::GenericPendingReceiver)>
+          bind_interface);
   ~AVFRendererFactory() override;
 
   std::unique_ptr<media::Renderer> CreateRenderer(
@@ -91,6 +99,10 @@ class AVFRendererFactory : public media::RendererFactory {
       media::VideoRendererSink* video_renderer_sink,
       media::RequestOverlayInfoCB request_overlay_info_cb,
       const gfx::ColorSpace& target_color_space) override;
+
+ private:
+  const bool hls_;
+  base::RepeatingCallback<void(mojo::GenericPendingReceiver)> bind_interface_;
 };
 
 }  // namespace compass::avf

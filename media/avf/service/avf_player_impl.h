@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
@@ -43,6 +44,7 @@ class CAContext;
 namespace compass::avf {
 
 class AVFCdm;
+class AVFMseSourceImpl;
 
 // One AVPlayer, in the AVFoundation utility process, on its main thread.
 // Its AVPlayerLayer is the root of a CAContext the GPU process hosts.
@@ -62,6 +64,19 @@ class AVFPlayerImpl : public mojom::AVFPlayer {
   ~AVFPlayerImpl() override;
 
   uint32_t ca_context_id() const;
+
+  // FairPlay for MSE: a player made with an empty `url` plays the HLS
+  // sessions its AVFMseSourceImpl makes, one AVPlayerItem each.
+  using MseItemCallback =
+      base::OnceCallback<void(bool success, const std::string& error)>;
+  void SetMseSource(std::unique_ptr<AVFMseSourceImpl> source);
+  // Plays `url`, whose time 0 is media time `time_offset`; `ready` runs once
+  // the item is ready to play or failed.
+  void LoadMseItem(const GURL& url,
+                   base::TimeDelta time_offset,
+                   MseItemCallback ready);
+  base::TimeDelta CurrentMediaTime() const;
+  void ReportError(const std::string& message);
 
   // mojom::AVFPlayer:
   void Load(LoadCallback callback) override;
@@ -88,14 +103,24 @@ class AVFPlayerImpl : public mojom::AVFPlayer {
   void OnPlayedToEnd();
   void OnFailedToPlayToEnd(const std::string& message);
   void OnPeriodicTime();
+  // Diagnostics, with --vmodule=avf_player_impl=1.
+  void OnAccessLogChanged();
+  void OnErrorLogChanged();
 
  private:
   void Disconnect();
+  void LogVariants();
   void ReplyToLoad(base::TimeDelta duration);
   void SendTimeUpdate();
   base::TimeDelta CurrentTime() const;
   double EffectiveRate() const;
   base::TimeDelta Duration() const;
+
+  const bool mse_;
+  // Media time of the item's 0 (MSE sessions start anywhere).
+  base::TimeDelta time_offset_;
+  MseItemCallback mse_ready_callback_;
+  std::unique_ptr<AVFMseSourceImpl> mse_source_;
 
   mojo::Receiver<mojom::AVFPlayer> receiver_;
   mojo::Remote<mojom::AVFPlayerClient> client_;
@@ -110,6 +135,8 @@ class AVFPlayerImpl : public mojom::AVFPlayer {
   // FairPlay: the asset's key requests go to this session; the page's CDM
   // (SetCdm()) answers them.
   AVContentKeySession* __strong key_session_;
+  // MSE: the session the current item's asset is a recipient of.
+  AVContentKeySession* __strong mse_key_session_;
   CompassAVFKeyDelegate* __strong key_delegate_;
   NSMutableArray* __strong key_requests_;
   // skd:// URIs the page got an "encrypted" event for (once each, as in

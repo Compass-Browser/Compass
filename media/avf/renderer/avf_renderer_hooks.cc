@@ -5,9 +5,15 @@
 #include "compass/media/avf/renderer/avf_renderer_hooks.h"
 
 #include <atomic>
+#include <set>
 
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
+#include "base/no_destructor.h"
+#include "base/synchronization/lock.h"
+#include "base/unguessable_token.h"
+#include "media/base/cdm_context.h"
+#include "media/base/renderer_factory_selector.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "compass/media/avf/common/avf_features.h"
 #include "compass/media/avf/renderer/avf_cdm_factory.h"
@@ -44,12 +50,52 @@ void SetAVFoundationUnavailable() {
   g_avfoundation_unavailable.store(true, std::memory_order_relaxed);
 }
 
-std::unique_ptr<media::RendererFactory> MaybeCreateRendererFactory(
-    const GURL& url) {
-  if (!ShouldUseAVFoundation(url)) {
-    return nullptr;
+void AddRendererFactory(
+    media::RendererFactorySelector* selector,
+    const GURL& url,
+    base::RepeatingCallback<void(mojo::GenericPendingReceiver)>
+        bind_interface) {
+  bool hls = ShouldUseAVFoundation(url);
+  if (!hls && !IsFairPlayMseEnabled()) {
+    return;
   }
-  return std::make_unique<AVFRendererFactory>();
+  // Native HLS picks it while AVFoundation works; any player gets it when the
+  // pipeline asks for it, which it does for FairPlay's CDM (FairPlay for
+  // MSE, media::CdmRequiresEmbedderRenderer()).
+  selector->AddConditionalFactory(
+      media::RendererType::kContentEmbedderDefined,
+      std::make_unique<AVFRendererFactory>(hls, std::move(bind_interface)),
+      base::BindRepeating(
+          [](bool hls) { return hls && IsAVFoundationUsable(); }, hls));
+}
+
+namespace {
+
+base::Lock& FairPlayCdmsLock() {
+  static base::NoDestructor<base::Lock> lock;
+  return *lock;
+}
+
+std::set<base::UnguessableToken>& FairPlayCdms() {
+  static base::NoDestructor<std::set<base::UnguessableToken>> cdms;
+  return *cdms;
+}
+
+bool CdmRequiresAVFRenderer(const base::UnguessableToken& cdm_id) {
+  return IsFairPlayMseEnabled() && IsAVFoundationUsable() &&
+         IsFairPlayCdm(cdm_id);
+}
+
+}  // namespace
+
+void RegisterFairPlayCdm(const base::UnguessableToken& cdm_id) {
+  base::AutoLock lock(FairPlayCdmsLock());
+  FairPlayCdms().insert(cdm_id);
+}
+
+bool IsFairPlayCdm(const base::UnguessableToken& cdm_id) {
+  base::AutoLock lock(FairPlayCdmsLock());
+  return FairPlayCdms().contains(cdm_id);
 }
 
 std::unique_ptr<media::CdmFactory> WrapCdmFactory(
@@ -57,6 +103,7 @@ std::unique_ptr<media::CdmFactory> WrapCdmFactory(
     base::RepeatingCallback<void(mojo::GenericPendingReceiver)>
         bind_interface) {
 #if BUILDFLAG(IS_MAC)
+  media::SetCdmRequiresEmbedderRendererCB(&CdmRequiresAVFRenderer);
   return std::make_unique<AVFCdmFactory>(std::move(factory),
                                          std::move(bind_interface));
 #else
@@ -109,6 +156,13 @@ class KeySystemsWithFairPlay : public base::RefCounted<KeySystemsWithFairPlay> {
   }
 
   void Run(media::KeySystemInfos key_systems) {
+    if (*safari_) {
+      // Safari has no Widevine; players that prefer it whenever it's there
+      // (Apple TV+'s) take FairPlay only without it.
+      std::erase_if(key_systems, [](const auto& info) {
+        return info->GetBaseKeySystemName() == "com.widevine.alpha";
+      });
+    }
     key_systems.push_back(std::make_unique<FairPlayKeySystemInfo>(*safari_));
     callback_.Run(std::move(key_systems));
   }

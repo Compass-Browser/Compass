@@ -36,6 +36,10 @@ class AVFPlayerFactoryImpl
                     mojo::PendingReceiver<mojom::AVFPlayer> player,
                     mojo::PendingRemote<mojom::AVFPlayerClient> client,
                     CreatePlayerCallback callback) override;
+  void CreateMsePlayer(mojo::PendingReceiver<mojom::AVFPlayer> player,
+                       mojo::PendingReceiver<mojom::AVFMseSource> source,
+                       mojo::PendingRemote<mojom::AVFPlayerClient> client,
+                       CreateMsePlayerCallback callback) override;
   void IsPresentingAsSafari(IsPresentingAsSafariCallback callback) override;
   void CreateCdm(CreateCdmCallback callback) override;
 
@@ -50,7 +54,10 @@ class AVFPlayerFactoryImpl
                     CreatePlayerCallback callback,
                     mojom::AVFPlayerOptionsPtr options,
                     const net::CookieAccessResultList& cookies);
-  void OnPlayerCreated(CreatePlayerCallback callback, uint32_t ca_context_id);
+  void OnPlayerCreated(
+      base::OnceCallback<void(const std::optional<base::UnguessableToken>&)>
+          callback,
+      uint32_t ca_context_id);
 
   std::vector<base::UnguessableToken> overlay_plane_ids_;
   base::WeakPtrFactory<AVFPlayerFactoryImpl> weak_factory_{this};

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "compass/media/avf/renderer/avf_mse_renderer.h"
 #include "base/logging.h"
 #include "media/base/cdm_context.h"
 #include "media/base/pipeline_status.h"
@@ -214,7 +215,10 @@ void AVFRenderer::SetBufferingState(media::BufferingState state) {
                                   media::BUFFERING_CHANGE_REASON_UNKNOWN);
 }
 
-AVFRendererFactory::AVFRendererFactory() = default;
+AVFRendererFactory::AVFRendererFactory(
+    bool hls,
+    base::RepeatingCallback<void(mojo::GenericPendingReceiver)> bind_interface)
+    : hls_(hls), bind_interface_(std::move(bind_interface)) {}
 AVFRendererFactory::~AVFRendererFactory() = default;
 
 std::unique_ptr<media::Renderer> AVFRendererFactory::CreateRenderer(
@@ -224,7 +228,14 @@ std::unique_ptr<media::Renderer> AVFRendererFactory::CreateRenderer(
     media::VideoRendererSink* video_renderer_sink,
     media::RequestOverlayInfoCB request_overlay_info_cb,
     const gfx::ColorSpace& target_color_space) {
-  return std::make_unique<AVFRenderer>(video_renderer_sink);
+  if (hls_) {
+    return std::make_unique<AVFRenderer>(video_renderer_sink);
+  }
+  // On the main thread: bind the factory here, use it on the media thread.
+  mojo::PendingRemote<mojom::AVFPlayerFactory> factory;
+  bind_interface_.Run(factory.InitWithNewPipeAndPassReceiver());
+  return std::make_unique<AVFMseRenderer>(video_renderer_sink,
+                                          std::move(factory));
 }
 
 }  // namespace compass::avf

@@ -13,9 +13,11 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/apple/foundation_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "compass/media/avf/service/avf_cdm.h"
+#include "compass/media/avf/service/avf_mse_source_impl.h"
 #include "compass/ui/external_layer/external_layer_constants.h"
 #include "media/base/timestamp_constants.h"
 #include "net/base/apple/url_conversions.h"
@@ -173,6 +175,23 @@ base::TimeDelta ToTimeDelta(CMTime time) {
                               [AVPlayerItemFailedToPlayToEndTimeErrorKey];
                           [weakSelf failedToPlayToEnd:error];
                         }]];
+    // Diagnostics (VLOG): rendition switches and playback errors.
+    [_notificationTokens
+        addObject:[center
+                      addObserverForName:AVPlayerItemNewAccessLogEntryNotification
+                                  object:item
+                                   queue:NSOperationQueue.mainQueue
+                              usingBlock:^(NSNotification*) {
+                                [weakSelf accessLogChanged];
+                              }]];
+    [_notificationTokens
+        addObject:[center
+                      addObserverForName:AVPlayerItemNewErrorLogEntryNotification
+                                  object:item
+                                   queue:NSOperationQueue.mainQueue
+                              usingBlock:^(NSNotification*) {
+                                [weakSelf errorLogChanged];
+                              }]];
     _timeObserver = [player
         addPeriodicTimeObserverForInterval:CMTimeMakeWithSeconds(0.25, 600)
                                      queue:dispatch_get_main_queue()
@@ -263,6 +282,18 @@ base::TimeDelta ToTimeDelta(CMTime time) {
   }
 }
 
+- (void)accessLogChanged {
+  if (auto* owner = _owner.get()) {
+    owner->OnAccessLogChanged();
+  }
+}
+
+- (void)errorLogChanged {
+  if (auto* owner = _owner.get()) {
+    owner->OnErrorLogChanged();
+  }
+}
+
 - (void)periodicTime {
   if (auto* owner = _owner.get()) {
     owner->OnPeriodicTime();
@@ -280,7 +311,8 @@ AVFPlayerImpl::AVFPlayerImpl(
     mojo::PendingRemote<mojom::AVFPlayerClient> client,
     base::OnceClosure on_disconnect,
     FindCdmCallback find_cdm)
-    : receiver_(this, std::move(receiver)),
+    : mse_(url.is_empty()),
+      receiver_(this, std::move(receiver)),
       client_(std::move(client)),
       on_disconnect_(std::move(on_disconnect)),
       find_cdm_(std::move(find_cdm)) {
@@ -326,9 +358,6 @@ AVFPlayerImpl::AVFPlayerImpl(
     asset_options[AVURLAssetHTTPCookiesKey] = cookies;
   }
 
-  AVURLAsset* asset = [AVURLAsset URLAssetWithURL:net::NSURLWithGURL(url)
-                                          options:asset_options];
-
   // FairPlay: the asset's key requests come to this session before AVPlayer
   // loads anything, whether or not the page ever sets a CDM.
   key_requests_ = [NSMutableArray array];
@@ -337,8 +366,13 @@ AVFPlayerImpl::AVFPlayerImpl(
   key_session_ = [AVContentKeySession
       contentKeySessionWithKeySystem:AVContentKeySystemFairPlayStreaming];
   [key_session_ setDelegate:key_delegate_ queue:dispatch_get_main_queue()];
-  [key_session_ addContentKeyRecipient:asset];
-  item_ = [AVPlayerItem playerItemWithAsset:asset];
+  if (!mse_) {
+    AVURLAsset* asset = [AVURLAsset URLAssetWithURL:net::NSURLWithGURL(url)
+                                            options:asset_options];
+    [key_session_ addContentKeyRecipient:asset];
+    item_ = [AVPlayerItem playerItemWithAsset:asset];
+  }
+  // MSE: no item until the first session (LoadMseItem()).
   player_ = [AVPlayer playerWithPlayerItem:item_];
   player_.automaticallyWaitsToMinimizeStalling = YES;
   // The page decides when to play.
@@ -358,13 +392,16 @@ AVFPlayerImpl::AVFPlayerImpl(
   context_.layer = layer_;
   [CATransaction commit];
 
-  observer_ = [[CompassAVFObserver alloc]
-      initWithPlayer:player_
-                item:item_
-               owner:weak_factory_.GetWeakPtr()];
+  if (item_) {
+    observer_ = [[CompassAVFObserver alloc]
+        initWithPlayer:player_
+                  item:item_
+                 owner:weak_factory_.GetWeakPtr()];
+  }
 }
 
 AVFPlayerImpl::~AVFPlayerImpl() {
+  mse_source_.reset();
   [key_session_ setDelegate:nil queue:nil];
   [observer_ stop];
   [player_ pause];
@@ -380,6 +417,45 @@ void AVFPlayerImpl::Disconnect() {
   if (on_disconnect_) {
     std::move(on_disconnect_).Run();  // Deletes `this`.
   }
+}
+
+void AVFPlayerImpl::SetMseSource(std::unique_ptr<AVFMseSourceImpl> source) {
+  mse_source_ = std::move(source);
+}
+
+void AVFPlayerImpl::LoadMseItem(const GURL& url,
+                                base::TimeDelta time_offset,
+                                MseItemCallback ready) {
+  DCHECK(mse_);
+  [observer_ stop];
+  observer_ = nil;
+  if (AVURLAsset* old_asset = base::apple::ObjCCast<AVURLAsset>(item_.asset)) {
+    [mse_key_session_ removeContentKeyRecipient:old_asset];
+  }
+  AVURLAsset* asset = [AVURLAsset URLAssetWithURL:net::NSURLWithGURL(url)
+                                          options:nil];
+  // The CDM's key session when there's a CDM: it has the keys the page
+  // already licensed (and they outlive this player). Keys a session already
+  // has stay usable for new assets: AVPlayer asks only for those it lacks.
+  mse_key_session_ = cdm_ ? cdm_->key_session() : key_session_;
+  [mse_key_session_ addContentKeyRecipient:asset];
+  item_ = [AVPlayerItem playerItemWithAsset:asset];
+  time_offset_ = time_offset;
+  ended_ = false;
+  mse_ready_callback_ = std::move(ready);
+  [player_ replaceCurrentItemWithPlayerItem:item_];
+  observer_ = [[CompassAVFObserver alloc] initWithPlayer:player_
+                                                   item:item_
+                                                  owner:weak_factory_.GetWeakPtr()];
+}
+
+base::TimeDelta AVFPlayerImpl::CurrentMediaTime() const {
+  return CurrentTime();
+}
+
+void AVFPlayerImpl::ReportError(const std::string& message) {
+  LOG(ERROR) << "FairPlay MSE: " << message;
+  client_->OnError(message);
 }
 
 void AVFPlayerImpl::Load(LoadCallback callback) {
@@ -414,6 +490,56 @@ void AVFPlayerImpl::OnAssetDurationLoaded() {
     return;  // The item's status reports the failure.
   }
   ReplyToLoad(ToTimeDelta(item_.asset.duration));
+  if (VLOG_IS_ON(1)) {
+    LogVariants();
+  }
+}
+
+void AVFPlayerImpl::LogVariants() {
+  if (@available(macOS 12, *)) {
+    AVURLAsset* asset = base::apple::ObjCCast<AVURLAsset>(item_.asset);
+    if (!asset) {
+      return;
+    }
+    [asset loadValuesAsynchronouslyForKeys:@[ @"variants" ]
+                         completionHandler:^{
+                           for (AVAssetVariant* variant in asset.variants) {
+                             CGSize size =
+                                 variant.videoAttributes.presentationSize;
+                             VLOG(1) << "AVF variant: " << size.width << "x"
+                                     << size.height << " peak "
+                                     << variant.peakBitRate << " avg "
+                                     << variant.averageBitRate;
+                           }
+                         }];
+  }
+}
+
+void AVFPlayerImpl::OnAccessLogChanged() {
+  AVPlayerItemAccessLogEvent* event = item_.accessLog.events.lastObject;
+  if (!event) {
+    return;
+  }
+  CGSize size = item_.presentationSize;
+  VLOG(1) << "AVF access log: indicated " << event.indicatedBitrate
+          << " observed " << event.observedBitrate << " switch "
+          << event.switchBitrate << " stalls " << event.numberOfStalls
+          << " presentation " << size.width << "x" << size.height
+          << " obscured(protection) "
+          << player_.outputObscuredDueToInsufficientExternalProtection
+          << " preferredMaxRes " << item_.preferredMaximumResolution.width
+          << "x" << item_.preferredMaximumResolution.height
+          << " preferredPeak " << item_.preferredPeakBitRate;
+}
+
+void AVFPlayerImpl::OnErrorLogChanged() {
+  AVPlayerItemErrorLogEvent* event = item_.errorLog.events.lastObject;
+  if (!event) {
+    return;
+  }
+  VLOG(1) << "AVF error log: " << event.errorStatusCode << " "
+          << base::SysNSStringToUTF8(event.errorDomain ?: @"") << " "
+          << base::SysNSStringToUTF8(event.errorComment ?: @"");
 }
 
 void AVFPlayerImpl::SetRate(double rate) {
@@ -429,7 +555,8 @@ void AVFPlayerImpl::SetRate(double rate) {
 
 void AVFPlayerImpl::Seek(base::TimeDelta time, SeekCallback callback) {
   ended_ = false;
-  CMTime target = CMTimeMakeWithSeconds(time.InSecondsF(), 90000);
+  CMTime target =
+      CMTimeMakeWithSeconds((time - time_offset_).InSecondsF(), 90000);
   __block SeekCallback block_callback = std::move(callback);
   auto weak = weak_factory_.GetWeakPtr();
   auto task_runner = base::SequencedTaskRunner::GetCurrentDefault();
@@ -484,7 +611,7 @@ void AVFPlayerImpl::OnKeyRequest(AVContentKeyRequest* request, bool renewal) {
     return;
   }
   // The page's "encrypted" event (skd), then its CDM, if it has one already.
-  if (!renewal && announced_keys_.insert(identifier).second) {
+  if (!mse_ && !renewal && announced_keys_.insert(identifier).second) {
     client_->OnEncrypted(
         std::vector<uint8_t>(identifier.begin(), identifier.end()));
   }
@@ -507,6 +634,9 @@ void AVFPlayerImpl::OnKeyRequestFailed(AVContentKeyRequest* request,
 }
 
 void AVFPlayerImpl::OnItemStatusChanged() {
+  if (!item_) {
+    return;
+  }
   switch (item_.status) {
     case AVPlayerItemStatusUnknown:
       return;
@@ -514,7 +644,9 @@ void AVFPlayerImpl::OnItemStatusChanged() {
       std::string message = base::SysNSStringToUTF8(
           item_.error.localizedDescription ?: @"AVPlayerItem failed");
       LOG(ERROR) << "AVFoundation HLS: " << message;
-      if (load_callback_) {
+      if (mse_ready_callback_) {
+        std::move(mse_ready_callback_).Run(false, message);
+      } else if (load_callback_) {
         std::move(load_callback_).Run(false, nullptr, message);
       } else {
         client_->OnError(message);
@@ -523,6 +655,14 @@ void AVFPlayerImpl::OnItemStatusChanged() {
     }
     case AVPlayerItemStatusReadyToPlay:
       break;
+  }
+  if (mse_) {
+    if (mse_ready_callback_) {
+      std::move(mse_ready_callback_).Run(true, std::string());
+    }
+    OnPresentationSizeChanged();
+    OnPlaybackStateChanged();
+    return;
   }
   if (!load_callback_) {
     // Loading finished before the item was ready (FairPlay, see Load()).
@@ -569,10 +709,16 @@ void AVFPlayerImpl::OnPresentationSizeChanged() {
     return;
   }
   natural_size_ = natural_size;
+  VLOG(1) << "AVF presentation size " << natural_size_.ToString()
+          << " obscured(protection) "
+          << player_.outputObscuredDueToInsufficientExternalProtection;
   client_->OnNaturalSizeChange(natural_size_);
 }
 
 void AVFPlayerImpl::OnLoadedRangesChanged() {
+  if (mse_) {
+    return;
+  }
   std::vector<mojom::AVFTimeRangePtr> ranges;
   for (NSValue* value in item_.loadedTimeRanges) {
     CMTimeRange range = value.CMTimeRangeValue;
@@ -583,13 +729,16 @@ void AVFPlayerImpl::OnLoadedRangesChanged() {
 }
 
 void AVFPlayerImpl::OnDurationChanged() {
+  if (mse_) {
+    return;
+  }
   client_->OnDurationChange(Duration());
 }
 
 void AVFPlayerImpl::OnPlaybackStateChanged() {
   // Enough data: AVPlayer is playing, or is paused and ready (it buffers by
   // itself once asked to play, and reports the wait as a stall then).
-  bool have_enough = item_.status == AVPlayerItemStatusReadyToPlay &&
+  bool have_enough = item_ && item_.status == AVPlayerItemStatusReadyToPlay &&
                      (requested_rate_ == 0 || ended_ ||
                       player_.timeControlStatus ==
                           AVPlayerTimeControlStatusPlaying);
@@ -629,8 +778,12 @@ void AVFPlayerImpl::SendTimeUpdate() {
 }
 
 base::TimeDelta AVFPlayerImpl::CurrentTime() const {
+  if (!item_) {
+    return time_offset_;
+  }
   base::TimeDelta time = ToTimeDelta(item_.currentTime);
-  return time == media::kInfiniteDuration ? base::TimeDelta() : time;
+  return (time == media::kInfiniteDuration ? base::TimeDelta() : time) +
+         time_offset_;
 }
 
 double AVFPlayerImpl::EffectiveRate() const {

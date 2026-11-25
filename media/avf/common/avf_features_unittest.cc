@@ -37,5 +37,16 @@ TEST(AVFFeaturesTest, OnlyOnMac) {
 
 #endif
 
+TEST(AVFFeaturesTest, SafariUserAgent) {
+  EXPECT_TRUE(IsSafariUserAgent(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
+      "(KHTML, like Gecko) Version/26.1 Safari/605.1.15"));
+  // Chrome's and Chromium-based browsers' say "Safari/" too.
+  EXPECT_FALSE(IsSafariUserAgent(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"));
+  EXPECT_FALSE(IsSafariUserAgent(""));
+}
+
 }  // namespace
 }  // namespace compass::avf

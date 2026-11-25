@@ -37,6 +37,10 @@ class AVFMediaService : public mojom::AVFMediaService {
                     mojo::PendingReceiver<mojom::AVFPlayer> player,
                     mojo::PendingRemote<mojom::AVFPlayerClient> client,
                     CreatePlayerCallback callback) override;
+  void CreateMsePlayer(mojo::PendingReceiver<mojom::AVFPlayer> player,
+                       mojo::PendingReceiver<mojom::AVFMseSource> source,
+                       mojo::PendingRemote<mojom::AVFPlayerClient> client,
+                       CreateMsePlayerCallback callback) override;
   void CreateCdm(
       mojo::PendingReceiver<media::mojom::ContentDecryptionModule> cdm,
       CreateCdmCallback callback) override;

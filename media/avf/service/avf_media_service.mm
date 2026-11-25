@@ -8,6 +8,7 @@
 
 #include "base/functional/bind.h"
 #include "compass/media/avf/service/avf_cdm.h"
+#include "compass/media/avf/service/avf_mse_source_impl.h"
 #include "compass/media/avf/service/avf_player_impl.h"
 
 namespace compass::avf {
@@ -34,6 +35,26 @@ void AVFMediaService::CreatePlayer(
       base::BindOnce(&AVFMediaService::DeletePlayer, base::Unretained(this),
                      id),
       base::BindRepeating(&AVFMediaService::FindCdm, base::Unretained(this)));
+  uint32_t context_id = impl->ca_context_id();
+  players_[id] = std::move(impl);
+  std::move(callback).Run(context_id);
+}
+
+void AVFMediaService::CreateMsePlayer(
+    mojo::PendingReceiver<mojom::AVFPlayer> player,
+    mojo::PendingReceiver<mojom::AVFMseSource> source,
+    mojo::PendingRemote<mojom::AVFPlayerClient> client,
+    CreateMsePlayerCallback callback) {
+  int id = next_id_++;
+  // An empty URL: the player plays what `source` makes.
+  auto impl = std::make_unique<AVFPlayerImpl>(
+      GURL(), mojom::AVFPlayerOptions::New(), std::move(player),
+      std::move(client),
+      base::BindOnce(&AVFMediaService::DeletePlayer, base::Unretained(this),
+                     id),
+      base::BindRepeating(&AVFMediaService::FindCdm, base::Unretained(this)));
+  impl->SetMseSource(
+      std::make_unique<AVFMseSourceImpl>(std::move(source), impl.get()));
   uint32_t context_id = impl->ca_context_id();
   players_[id] = std::move(impl);
   std::move(callback).Run(context_id);

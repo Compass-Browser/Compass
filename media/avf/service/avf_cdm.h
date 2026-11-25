@@ -20,6 +20,8 @@
 
 #if defined(__OBJC__)
 @class AVContentKeyRequest;
+@class AVContentKeySession;
+@class CompassAVFCdmKeyDelegate;
 @class NSMutableDictionary;
 @class NSError;
 #endif
@@ -49,7 +51,14 @@ class AVFCdm : public media::mojom::ContentDecryptionModule {
   base::WeakPtr<AVFCdm> GetWeakPtr() { return weak_factory_.GetWeakPtr(); }
 
 #if defined(__OBJC__)
-  // From AVFPlayerImpl's AVContentKeySession, on the main thread.
+  // The CDM's own key session (FairPlay for MSE): keys the page asks for
+  // before any media (Safari's protocol) are requested here, and MSE
+  // players' assets are its recipients, so they find the keys loaded and the
+  // keys outlive the players.
+  AVContentKeySession* key_session() const { return key_session_; }
+
+  // From AVFPlayerImpl's AVContentKeySession, or the CDM's own, on the main
+  // thread.
   void OnKeyRequest(AVContentKeyRequest* request, bool renewal);
   void OnKeyRequestSucceeded(AVContentKeyRequest* request);
   void OnKeyRequestFailed(AVContentKeyRequest* request, NSError* error);
@@ -89,6 +98,17 @@ class AVFCdm : public media::mojom::ContentDecryptionModule {
                             bool renewal,
                             std::vector<uint8_t> spc,
                             const std::string& error);
+  // Safari's FairPlay protocol (fps_protocol.h).
+  void UpdateFpsSession(const std::string& session_id,
+                        const std::vector<uint8_t>& message,
+                        UpdateSessionCallback callback);
+  void RequestFpsSpc(const std::string& session_id,
+                     const std::string& key_id,
+                     bool renewal);
+  void OnFpsSpc(const std::string& session_id,
+                const std::string& key_id,
+                bool renewal,
+                std::vector<uint8_t> spc);
   void SendKeyStatus(const std::string& session_id,
                      const std::string& identifier,
                      media::CdmKeyInformation::KeyStatus status);
@@ -104,6 +124,9 @@ class AVFCdm : public media::mojom::ContentDecryptionModule {
 
   // Key requests no session asked for yet, by skd:// URI.
   NSMutableDictionary* __strong pending_requests_;
+
+  AVContentKeySession* __strong key_session_;
+  CompassAVFCdmKeyDelegate* __strong key_delegate_;
 
   base::WeakPtrFactory<AVFCdm> weak_factory_{this};
 };

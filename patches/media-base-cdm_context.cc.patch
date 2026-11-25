@@ -1,0 +1,36 @@
+diff --git a/media/base/cdm_context.cc b/media/base/cdm_context.cc
+index 2a2d737bcb56f12f073a2a04d2b3f19d0a8519ba..3d69737ffa98bfe9f55cf898b9382a5369bb5f04 100644
+--- a/media/base/cdm_context.cc
++++ b/media/base/cdm_context.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "media/base/cdm_context.h"
+ 
++#include <atomic>
++
+ #include "build/build_config.h"
+ #include "media/base/callback_registry.h"
+ 
+@@ -59,4 +61,22 @@ chromeos::ChromeOsCdmContext* CdmContext::GetChromeOsCdmContext() {
+ }
+ #endif
+ 
++namespace {
++std::atomic<CdmRequiresEmbedderRendererCB> g_requires_embedder_renderer{
++    nullptr};
++}  // namespace
++
++void SetCdmRequiresEmbedderRendererCB(CdmRequiresEmbedderRendererCB callback) {
++  g_requires_embedder_renderer.store(callback);
++}
++
++bool CdmRequiresEmbedderRenderer(CdmContext* cdm_context) {
++  CdmRequiresEmbedderRendererCB callback = g_requires_embedder_renderer.load();
++  if (!callback || !cdm_context) {
++    return false;
++  }
++  std::optional<base::UnguessableToken> cdm_id = cdm_context->GetCdmId();
++  return cdm_id && callback(*cdm_id);
++}
++
+ }  // namespace media
