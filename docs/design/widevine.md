@@ -34,3 +34,8 @@ Getting VMP needs a production certificate. Two routes:
 2. castlabs EVS (free, made for Electron but signs any app with the Widevine
    VMP format): sign the app after `codesign`, before notarization, in
    `tools/compass sign`. Open item: try it on a Release build.
+
+## PlayReady
+
+On Windows 11, sites can also use PlayReady, which needs no signature:
+docs/design/playready.md.

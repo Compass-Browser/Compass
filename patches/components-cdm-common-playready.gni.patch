@@ -1,0 +1,14 @@
+diff --git a/components/cdm/common/playready.gni b/components/cdm/common/playready.gni
+index 52008cd45d57d1f3a9f88ce9cf4d2b6853f749e7..509f93c28d3360069aa048aff7d99dfa3565c252 100644
+--- a/components/cdm/common/playready.gni
++++ b/components/cdm/common/playready.gni
+@@ -6,7 +6,8 @@ import("//build/config/chrome_build.gni")
+ 
+ declare_args() {
+   # Enables PlayReady key system support.
+-  enable_playready = is_win && is_chrome_branded
++  # Compass: on in every Windows build, branded or not (docs/design/playready.md).
++  enable_playready = is_win
+ }
+ 
+ assert(!enable_playready || is_win, "PlayReady is only supported on Windows.")
