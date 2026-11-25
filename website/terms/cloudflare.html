@@ -78,6 +78,14 @@
   <li>The owner can remove you, and can delete the server, at any time. Your data stays on your devices, but what only the server had is then gone. Keep your recovery code, as with any sync server.</li>
 </ul>
 
+<h2>Phone notifications through our push relay</h2>
+<ul>
+  <li>So that tabs sent to a phone show at once, your server sends your devices' push tokens, and later requests to wake them, to our push relay (<code>push.compassbrowser.org</code>), which holds Compass's keys for Apple's and Google's push services. You choose whether to use it when you set up the server (Phone notifications). How it handles that data is in the Privacy Policy ("Our push relay").</li>
+  <li>The relay only sends Compass's two fixed notifications. It limits how many each device and each server can ask for, and we may refuse a server that sends too many or misuses it.</li>
+  <li>The relay is a free, best-effort service. We may change, limit or stop it at any time; your server keeps syncing without it, and tabs then arrive at each device's next sync.</li>
+  <li>You can turn it on or off later under Sync › People on your server › Phone notifications. Turning it off also deletes the tokens your server kept.</li>
+</ul>
+
 <h2>Updates</h2>
 <p>Compass doesn't change your server after setting it up. A later version of Compass may offer to update it with a newer server, which takes signing in to Cloudflare again.</p>
 

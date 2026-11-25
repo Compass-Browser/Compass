@@ -26,7 +26,7 @@
 <body>
 <main>
 <h1>Compass Browser Privacy Policy</h1>
-<p class="meta">Effective 17 November 2026</p>
+<p class="meta">Effective 24 November 2026</p>
 
 <div class="summary">
 <p><strong>In short:</strong> Compass Browser has no ads, no analytics and no tracking. What you browse stays on your iPhone, iPad or Android device. If you turn on sync, your data is encrypted on your devices before it leaves them, and the sync server can't read it.</p>
@@ -62,6 +62,8 @@
   <li><strong>What the server can see.</strong> To work, the server sees an identifier for your sync chain (derived from your key), the type, size and time of each stored item, and your devices' list entries. A device entry isn't encrypted: it holds the device name as iOS reports it (usually just "iPhone" or "iPad"), its model, the app's version and when it last synced, so your other devices can list it.</li>
   <li><strong>Server logs.</strong> The server logs requests that fail, with their time, path and the app's version. It doesn't log IP addresses. Logs are rotated and kept briefly.</li>
   <li><strong>Your own server.</strong> You can use your own sync server instead of ours; then this section's server is yours.</li>
+  <li><strong>Sent tabs and notifications.</strong> So a tab sent to your iPhone shows at once, the app gives the sync server the push token Apple's Push Notification service issues for it (on Android, Firebase Cloud Messaging's; see Compass for Android). When a tab is sent to it, or your spaces, passwords or extensions change on another device, the server has Apple wake the app with a notification that says only that a tab is waiting, or a silent one that has it sync. The tab itself comes by sync, encrypted. Leaving sync removes the token from the server.</li>
+  <li><strong>Our push relay.</strong> A sync server that Compass set up in your own Cloudflare account, or another server that uses our push relay, can't send these notifications itself. It sends your device's push token to our push relay (<code>push.compassbrowser.org</code>), which encrypts it so that only the relay can read it and gives it back for the server to keep. When there's something to tell your device, the server asks the relay, which sends one of two fixed notifications through Apple or Google: "New tab", or the silent one that has it sync. The relay never receives your tabs or other data, and doesn't receive your IP address (only the server talks to it). It keeps no tokens and no request logs; to limit abuse it keeps, for each device, how many notifications it sent in the last hour, under a one-way hash of the token, for two hours (thirty days for a device Apple or Google report as gone). It runs on Cloudflare, which processes these requests for us under its data processing terms; Apple and Google deliver the notifications. The server's owner chooses whether to use it when setting up the server, and can change it in Compass (Sync › People on your server › Phone notifications); without it, tabs arrive at the device's next sync.</li>
   <li><strong>Stopping.</strong> Settings → Leave Sync stops syncing on this device and keeps your data on it. Your encrypted data on the server stays readable only by your remaining devices.</li>
 </ul>
 
