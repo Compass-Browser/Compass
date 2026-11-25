@@ -651,6 +651,20 @@ void WindowFeatures::OnSpaceWillBeRemoved(SpaceModel& space) {
   // swapped away and is closing: it takes the space the list falls back to.
   if (&space == space_) {
     CHECK(swapped_away_ || is_parking_window_);
+    // Its nodes go without OnNodeWillBeRemoved(), and SpaceService only
+    // unregisters parked tabs: a window swapping away still holds the
+    // space's, whose entries would dangle until LeaveForSwap(), which then
+    // closes them for having no node.
+    if (swapped_away_) {
+      TabStripModel* strip = browser_->GetTabStripModel();
+      for (int i = 0; i < strip->count(); ++i) {
+        tabs::TabInterface* tab = strip->GetTabAtIndex(i);
+        if (SidebarNode* node = registry().GetNode(tab);
+            node && space.Contains(node)) {
+          registry().Unregister(tab);
+        }
+      }
+    }
     // A bridge on it would outlive it. The window shows its tabs until the
     // swap ends; nothing mirrors them any more.
     bridge_.reset();
