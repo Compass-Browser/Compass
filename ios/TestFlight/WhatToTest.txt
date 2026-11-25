@@ -1,4 +1,6 @@
-A fix for the sidebar at half height.
+Your own free sync server, on Cloudflare.
 
-- With the sidebar at half height, dragging it up to full height or down to close it no longer opens the tab or folder your finger started on.
-- Please report: taps in the sidebar that don't register, or drags that still open something.
+- Settings › Sync › "No Server? Set Up a Free One on Cloudflare": Compass sets up a sync server in your own Cloudflare account and starts sync on it. Sign in with Cloudflare (or paste an API token), and choose whether phones get notifications through Compass's push relay.
+- "I Have an Invite": paste an invite link a friend made to sync on their server.
+- If the server is yours, "People on Your Server" lists the friends you invited: make an invite link and share it, remove someone, revoke an unused invite, turn phone notifications on or off, and update the server when a newer version is ready.
+- Please report: sign-in pages that don't load or don't finish, setup errors (with the message shown), and invite links that don't work.
