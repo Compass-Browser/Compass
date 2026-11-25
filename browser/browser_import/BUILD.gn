@@ -6,10 +6,18 @@
 # and the mapping to spaces, without browser dependencies.
 source_set("browser_import") {
   sources = [
+    "app_sidebar.cc",
+    "app_sidebar.h",
+    "ardia_reader.cc",
+    "ardia_reader.h",
     "chromium_crypto.cc",
     "chromium_crypto.h",
     "chromium_reader.cc",
     "chromium_reader.h",
+    "cra_reader.cc",
+    "cra_reader.h",
+    "crest_reader.cc",
+    "crest_reader.h",
     "detect.cc",
     "detect.h",
     "firefox_reader.cc",
@@ -22,6 +30,8 @@ source_set("browser_import") {
     "source.h",
     "space_import.cc",
     "space_import.h",
+    "yab_reader.cc",
+    "yab_reader.h",
   ]
   deps = [
     "//components/sessions",
@@ -38,9 +48,11 @@ source_set("browser_import") {
   if (is_mac) {
     sources += [
       "chromium_crypto_mac.mm",
+      "detect_mac.mm",
       "safari_reader_mac.mm",
     ]
     frameworks = [
+      "AppKit.framework",
       "Foundation.framework",
       "Security.framework",
     ]
@@ -70,12 +82,17 @@ source_set("test_support") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "app_sidebar_unittest.cc",
+    "ardia_reader_unittest.cc",
     "chromium_crypto_unittest.cc",
     "chromium_reader_unittest.cc",
+    "cra_reader_unittest.cc",
+    "crest_reader_unittest.cc",
     "detect_unittest.cc",
     "firefox_reader_unittest.cc",
     "safari_reader_unittest.cc",
     "space_import_unittest.cc",
+    "yab_reader_unittest.cc",
   ]
   deps = [
     ":browser_import",

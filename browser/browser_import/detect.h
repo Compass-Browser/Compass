@@ -6,9 +6,11 @@
 #define COMPASS_BROWSER_BROWSER_IMPORT_DETECT_H_
 
 #include <optional>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
+#include "build/build_config.h"
 #include "compass/browser/browser_import/source.h"
 
 // Finding other browsers' profiles on this computer
@@ -44,6 +46,11 @@ std::optional<int> ChromiumMajorVersion(const base::FilePath& user_data);
 // Whether |profile|'s browser is running (it then has its files open: the
 // page asks to quit it first). Blocking.
 bool IsRunning(const SourceProfile& profile);
+
+#if BUILDFLAG(IS_MAC)
+// Whether an app with |bundle_id| is running.
+bool IsMacAppRunning(std::string_view bundle_id);
+#endif
 
 }  // namespace compass::browser_import
 

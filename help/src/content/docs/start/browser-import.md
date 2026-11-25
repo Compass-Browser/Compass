@@ -1,6 +1,6 @@
 ---
 title: Import from another browser
-description: Bring your bookmarks, open tabs, history and passwords from Chrome, Safari, Firefox, Edge, Brave and other browsers into Compass spaces.
+description: Bring your bookmarks, open tabs, history and passwords from Chrome, Safari, Firefox, Edge, Brave, Arc's successors and other browsers into Compass spaces.
 sidebar:
   order: 4
 ---
@@ -22,6 +22,16 @@ your sites: see [Coming from Arc](/start/coming-from-arc/).
 | Brave | Yes | Yes | Yes |
 | Vivaldi | Yes | Yes | Yes |
 | Dia | Yes | Yes | |
+| Ardia | Yes | Yes | Yes |
+| Cra | Yes | | |
+| Crest | Yes | | |
+| Yab | Yes | | |
+
+A Chrome, Edge, Brave, Vivaldi, Dia, Ardia, Cra or Crest profile can also
+become a Compass profile of its own, with its cookies, so you stay signed
+in to sites: choose **Add as a new profile**. A Yab profile can too, but
+only the sign-ins of sites Yab opened in Chromium come along. Crest's and
+Yab's profiles each show with the spaces that use them.
 | Firefox | Yes | Yes | Yes |
 | Zen | Yes | Yes | Yes |
 | Safari | Yes | | |
@@ -53,7 +63,7 @@ import from it". Quit it, then click **Check again**.
 
 :::note[On a Mac]
 - To import passwords from a Chromium-based browser (Chrome, Edge, Brave,
-  Vivaldi, Dia), macOS asks whether Compass may use that browser's "Safe
+  Vivaldi, Dia, Ardia, Cra), macOS asks whether Compass may use that browser's "Safe
   Storage" key. Choose **Allow** so Compass can read them.
 - To import from Safari, Compass needs Full Disk Access: in System
   Settings, go to **Privacy & Security**, **Full Disk Access**, and turn on
@@ -84,6 +94,14 @@ Some browsers have spaces of their own, and those become Compass spaces too:
   Zen's pinned tabs and folders go to Pinned, its essentials to your
   [Favorites](/guide/sidebar/), and its bookmarks to an extra "Zen" space.
 - **Dia's pinned tabs** go to Pinned.
+- **Ardia, Cra, Crest and Yab**, the browsers made to replace Arc: each of
+  their spaces (Ardia's profiles) becomes a Compass space, with its name,
+  icon and color. Pinned tabs and folders go to Pinned, at the page they
+  were pinned at; the icons at the top of a space (Ardia's Top Apps, Cra's
+  favorites, Crest's pinned tabs, Yab's pins) come first there. Open tabs
+  go to Today, split views stay split, and favorites or pins shared by
+  every space go to your [Favorites](/guide/sidebar/). Their bookmarks
+  (Ardia, Cra, Yab) go to an extra space named after the browser.
 
 ## What doesn't come over
 
@@ -93,7 +111,9 @@ Some browsers have spaces of their own, and those become Compass spaces too:
   [Extensions](/guide/extensions/).
 - Settings, autofill data, Firefox containers, and Zen's Boosts and Mods.
 - **Safari's passwords**, which live in your Mac's Keychain, and
-  **Firefox's and Zen's passwords on a Mac**.
+  **Firefox's and Zen's passwords on a Mac**. **Crest's and Yab's
+  passwords** stay behind too: export them from Crest (Settings,
+  Passwords) or Yab, then import the file in Compass's password settings.
 - Safari profiles other than the default one, except their tab groups.
 - On Windows, some newer Chrome passwords can only be opened by Chrome
   itself. On Linux, passwords a browser keeps in your desktop's keyring

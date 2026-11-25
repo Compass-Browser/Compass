@@ -23,6 +23,14 @@ std::u16string BrowserName(Browser browser) {
       return u"Vivaldi";
     case Browser::kDia:
       return u"Dia";
+    case Browser::kArdia:
+      return u"Ardia";
+    case Browser::kCra:
+      return u"Cra";
+    case Browser::kCrest:
+      return u"Crest";
+    case Browser::kYab:
+      return u"Yab";
     case Browser::kFirefox:
       return u"Firefox";
     case Browser::kZen:
@@ -44,6 +52,14 @@ std::string_view BrowserKey(Browser browser) {
       return "vivaldi";
     case Browser::kDia:
       return "dia";
+    case Browser::kArdia:
+      return "ardia";
+    case Browser::kCra:
+      return "cra";
+    case Browser::kCrest:
+      return "crest";
+    case Browser::kYab:
+      return "yab";
     case Browser::kFirefox:
       return "firefox";
     case Browser::kZen:
@@ -63,7 +79,8 @@ std::optional<Browser> BrowserFromKey(std::string_view key) {
 }
 
 bool CanImportAsProfile(Browser browser) {
-  return IsChromiumBased(browser);
+  return IsChromiumBased(browser) || browser == Browser::kCrest ||
+         browser == Browser::kYab;
 }
 
 bool IsChromiumBased(Browser browser) {
@@ -73,7 +90,11 @@ bool IsChromiumBased(Browser browser) {
     case Browser::kBrave:
     case Browser::kVivaldi:
     case Browser::kDia:
+    case Browser::kArdia:
+    case Browser::kCra:
       return true;
+    case Browser::kCrest:
+    case Browser::kYab:
     case Browser::kFirefox:
     case Browser::kZen:
     case Browser::kSafari:
@@ -89,6 +110,13 @@ SourceProfile::SourceProfile() = default;
 SourceProfile::SourceProfile(const SourceProfile&) = default;
 SourceProfile& SourceProfile::operator=(const SourceProfile&) = default;
 SourceProfile::~SourceProfile() = default;
+
+std::string_view SourceKey(const SourceProfile& profile) {
+  const std::string_view id = profile.id;
+  const size_t colon = id.find(':');
+  return colon == std::string_view::npos ? std::string_view()
+                                         : id.substr(colon + 1);
+}
 
 std::u16string SpaceNameFor(const SourceProfile& profile) {
   const std::u16string browser = BrowserName(profile.browser);

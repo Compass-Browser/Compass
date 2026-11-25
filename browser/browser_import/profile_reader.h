@@ -78,6 +78,10 @@ void FinishReadingProfile(ProfileData& data);
 // What Compass can import from |browser| on this platform.
 bool CanImportHistory(Browser browser);
 bool CanImportPasswords(Browser browser);
+// Whether |browser| keeps its history outside its Chromium profile folder
+// (Crest, Yab), so a copy of the folder (CanImportAsProfile()) leaves it
+// behind: it's read with ReadProfile() and written into the new profile.
+bool KeepsHistoryOutsideProfile(Browser browser);
 // Whether |browser|'s history and passwords go through Chromium's importer
 // (ExternalProcessImporterHost) rather than ReadProfile().
 bool ImportsHistoryThroughChromium(Browser browser);

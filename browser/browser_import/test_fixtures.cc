@@ -343,4 +343,35 @@ std::string MakeZenSessionsJson() {
 })json";
 }
 
+bool WriteCrestSession(
+    const base::FilePath& path,
+    std::string_view core,
+    const std::vector<std::pair<std::string, std::string>>& history) {
+  if (!base::CreateDirectory(path.DirName())) {
+    return false;
+  }
+  sql::Database db(sql::DatabaseOptions(), "Test");
+  if (!db.Open(path) ||
+      !db.Execute("CREATE TABLE checkpoint (part TEXT PRIMARY KEY, "
+                  "data BLOB NOT NULL)")) {
+    return false;
+  }
+  std::vector<std::pair<std::string, std::string>> rows = {
+      {"core", std::string(core)}, {"journal", "{}"}};
+  for (const auto& [space, json] : history) {
+    rows.emplace_back(base::StrCat({"history.", space}), json);
+  }
+  sql::Statement insert(
+      db.GetUniqueStatement("INSERT INTO checkpoint VALUES (?, ?)"));
+  for (const auto& [part, data] : rows) {
+    insert.Reset(true);
+    insert.BindString(0, part);
+    insert.BindBlob(1, base::as_byte_span(data));
+    if (!insert.Run()) {
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace compass::browser_import::test

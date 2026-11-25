@@ -678,6 +678,9 @@ struct BrowserImportProfile {
   string note;
   // It can become a Compass profile of its own (Chromium-based browsers).
   bool as_profile;
+  // What becoming one brings, when not all a Chromium profile has (Crest,
+  // Yab); empty otherwise.
+  string as_profile_brings;
   // The Compass profile it became before; empty if none.
   string imported_as_profile;
   // The Chromium version that last opened it, when newer than Compass's
@@ -713,6 +716,9 @@ struct BrowserImportSummary {
   int32 passwords_skipped;
   // The new Compass profile it became; empty if it went into this one.
   string profile;
+  // What came along into it, when not all a Chromium profile has (Crest,
+  // Yab); empty otherwise.
+  string brought;
   // Cookies that couldn't come along into the new profile.
   int32 cookies_dropped;
   array<string> problems;

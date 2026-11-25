@@ -10,11 +10,17 @@
 #include "base/files/file_util.h"
 #include "base/json/json_reader.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "build/build_config.h"
+#include "compass/browser/browser_import/app_sidebar.h"
+#include "compass/browser/browser_import/ardia_reader.h"
 #include "compass/browser/browser_import/chromium_crypto.h"
 #include "compass/browser/browser_import/chromium_reader.h"
+#include "compass/browser/browser_import/cra_reader.h"
+#include "compass/browser/browser_import/crest_reader.h"
 #include "compass/browser/browser_import/firefox_reader.h"
 #include "compass/browser/browser_import/safari_reader.h"
+#include "compass/browser/browser_import/yab_reader.h"
 
 namespace compass::browser_import {
 
@@ -33,12 +39,56 @@ std::optional<base::DictValue> ReadJsonDict(const base::FilePath& path) {
   return std::move(*value).TakeDict();
 }
 
+void ReadChromiumHistoryAndPasswords(const SourceProfile& profile,
+                                     const ReadOptions& options,
+                                     ProfileData& data);
+
+// Ardia's and Cra's sidebars, from their own files (ardia_reader.h,
+// cra_reader.h); nullopt for other browsers, or an Ardia from before its
+// session.json, whose Chromium session files are read instead.
+std::optional<ImportedSidebar> ReadAppSidebar(
+    const SourceProfile& profile,
+    const ReadOptions& options,
+    const std::optional<base::DictValue>& bookmarks) {
+  std::vector<base::FilePath> paths;
+  if (profile.browser == Browser::kArdia) {
+    paths = ArdiaSessionPaths(profile);
+  } else if (profile.browser == Browser::kCra) {
+    paths = {CraSidebarPath(profile.root)};
+  } else {
+    return std::nullopt;
+  }
+  for (const base::FilePath& path : paths) {
+    std::optional<base::Value> document = ReadJsonFile(path);
+    if (!document || !document->is_dict()) {
+      continue;
+    }
+    std::vector<arc::Item> pinned;
+    if (options.bookmarks && bookmarks) {
+      pinned = ParseChromiumBookmarks(*bookmarks,
+                                      base::StrCat({profile.id, ":"}));
+    }
+    return profile.browser == Browser::kArdia
+               ? ArdiaSidebar(profile, document->GetDict(), std::move(pinned),
+                              options.tabs)
+               : CraSidebar(profile, document->GetDict(), std::move(pinned),
+                            options.tabs);
+  }
+  return std::nullopt;
+}
+
 void ReadChromiumProfile(const SourceProfile& profile,
                          const ReadOptions& options,
                          ProfileData& data) {
   std::optional<base::DictValue> bookmarks;
   if (options.bookmarks) {
     bookmarks = ReadJsonDict(profile.path.AppendASCII("Bookmarks"));
+  }
+  if (std::optional<ImportedSidebar> sidebar =
+          ReadAppSidebar(profile, options, bookmarks)) {
+    data.sidebar = std::move(*sidebar);
+    ReadChromiumHistoryAndPasswords(profile, options, data);
+    return;
   }
   std::optional<base::DictValue> preferences;
   std::vector<std::vector<uint8_t>> session_files;
@@ -55,6 +105,12 @@ void ReadChromiumProfile(const SourceProfile& profile,
   unbuilt.bookmarks = std::move(bookmarks);
   unbuilt.preferences = std::move(preferences);
   unbuilt.session_files = std::move(session_files);
+  ReadChromiumHistoryAndPasswords(profile, options, data);
+}
+
+void ReadChromiumHistoryAndPasswords(const SourceProfile& profile,
+                                     const ReadOptions& options,
+                                     ProfileData& data) {
   if (options.history) {
     data.history = ReadChromiumHistory(profile.path.AppendASCII("History"),
                                        kMaxHistoryEntries);
@@ -94,6 +150,47 @@ void ReadFirefoxProfile(const SourceProfile& profile,
   }
   data.sidebar = FirefoxSidebar(profile, std::move(bookmarks),
                                 session ? &*session : nullptr, options.tabs);
+}
+
+void ReadCrestProfile(const SourceProfile& profile,
+                      const ReadOptions& options,
+                      ProfileData& data) {
+  // Its root is Crest's Chromium folder, inside Crest's own.
+  std::optional<CrestSession> session = ReadCrestSession(
+      CrestSessionPath(profile.root.DirName()), options.history);
+  if (!session) {
+    data.problems.push_back(
+        "Crest's spaces couldn't be read. Open Crest once, quit it, then "
+        "try again.");
+    return;
+  }
+  if (options.tabs) {
+    data.sidebar = CrestSidebar(profile, *session->core);
+  }
+  if (options.history) {
+    std::vector<HistoryEntry> all;
+    for (const std::string& space :
+         CrestSpaceIds(*session->core, SourceKey(profile))) {
+      const auto rows = session->history.find(base::ToUpperASCII(space));
+      if (rows == session->history.end()) {
+        continue;
+      }
+      std::vector<HistoryEntry> entries = ParseCrestHistory(rows->second);
+      all.insert(all.end(), std::make_move_iterator(entries.begin()),
+                 std::make_move_iterator(entries.end()));
+    }
+    data.history = MergeHistory(std::move(all), kMaxHistoryEntries);
+  }
+}
+
+void ReadYabProfile(const SourceProfile& profile,
+                    const ReadOptions& options,
+                    ProfileData& data) {
+  data.sidebar = ReadYabSidebar(profile, options.bookmarks, options.tabs);
+  if (options.history) {
+    data.history = ReadYabHistory(profile.root.DirName(), SourceKey(profile),
+                                  kMaxHistoryEntries);
+  }
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -190,6 +287,10 @@ ProfileData ReadProfile(const SourceProfile& profile,
     ReadChromiumProfile(profile, options, data);
   } else if (IsFirefoxBased(profile.browser)) {
     ReadFirefoxProfile(profile, options, data);
+  } else if (profile.browser == Browser::kCrest) {
+    ReadCrestProfile(profile, options, data);
+  } else if (profile.browser == Browser::kYab) {
+    ReadYabProfile(profile, options, data);
   }
 #if BUILDFLAG(IS_MAC)
   if (profile.browser == Browser::kSafari) {
@@ -214,8 +315,14 @@ bool CanImportPasswords(Browser browser) {
 #endif
   }
   // Safari's are in the Keychain (or iCloud Keychain), which Compass can't
-  // read; Safari exports them to a file instead.
+  // read; Safari exports them to a file instead. Crest's are in the
+  // Keychain under an access group only Crest has, Yab's in the Keychain
+  // item by item.
   return IsChromiumBased(browser);
+}
+
+bool KeepsHistoryOutsideProfile(Browser browser) {
+  return browser == Browser::kCrest || browser == Browser::kYab;
 }
 
 bool ImportsHistoryThroughChromium(Browser browser) {

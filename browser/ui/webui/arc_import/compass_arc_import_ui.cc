@@ -259,6 +259,7 @@ void ArcImportPageHandler::OnBrowsers(
     entry->passwords = profile.passwords;
     entry->note = profile.note;
     entry->as_profile = profile.as_profile;
+    entry->as_profile_brings = profile.as_profile_brings;
     entry->imported_as_profile = base::UTF16ToUTF8(profile.imported_as_profile);
     entry->newer_version = profile.newer_version;
     entries.push_back(std::move(entry));
@@ -302,6 +303,7 @@ void ArcImportPageHandler::OnBrowsersImported(
     entry->passwords = summary.passwords;
     entry->passwords_skipped = summary.passwords_skipped;
     entry->profile = base::UTF16ToUTF8(summary.profile);
+    entry->brought = summary.brought;
     entry->cookies_dropped = summary.cookies_dropped;
     entry->problems = summary.problems;
     summaries.push_back(std::move(entry));

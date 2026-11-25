@@ -22,6 +22,7 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "compass/browser/arc_import/arc_crypto.h"
 #include "compass/browser/browser_import/chromium_crypto.h"
+#include "compass/browser/browser_import/crest_reader.h"
 #include "compass/browser/browser_import/detect.h"
 #include "compass/browser/browser_import/test_fixtures.h"
 #include "compass/browser/prefs/compass_prefs.h"
@@ -238,6 +239,133 @@ IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, ImportsAsAProfile) {
   EXPECT_EQ(again_result.summaries[0].problems,
             std::vector<std::string>{"It was imported as a profile before."});
   EXPECT_EQ(manager->GetNumberOfProfiles(), profiles_before + 1);
+}
+
+// A Crest profile: its Chromium profile copied, its spaces from Crest's own
+// session and its history (not in the folder) written into it.
+IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, ImportsACrestProfile) {
+  const base::FilePath crest = dir_.GetPath().AppendASCII("Crest");
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    // The fixture's Chrome profile as Crest's Chromium profile P1.
+    const base::FilePath chromium = crest.AppendASCII("Chromium");
+    ASSERT_TRUE(base::CreateDirectory(chromium));
+    const base::FilePath folder = chromium.AppendASCII("Crest-P1");
+    ASSERT_TRUE(base::CopyDirectory(user_data_.AppendASCII("Default"), folder,
+                                    /*recursive=*/true));
+    ASSERT_TRUE(base::DeleteFile(folder.AppendASCII("History")));
+    ASSERT_TRUE(base::DeleteFile(folder.AppendASCII("Login Data")));
+    ASSERT_TRUE(test::WriteCrestSession(
+        CrestSessionPath(crest),
+        R"({"spaces": [{"id": {"rawValue": "S1"}, "profile": {"id": "P1"},
+            "name": "Work", "accent": "teal", "folders": [],
+            "tabs": [{"id": {"rawValue": "T1"}, "title": "Docs",
+                      "url": "https://docs.test/", "placement": "saved"},
+                     {"id": {"rawValue": "T2"}, "title": "News",
+                      "url": "https://news.test/", "placement": "current"}]}]})",
+        {{"S1", R"([{"url": "https://docs.test/", "title": "Docs",
+                     "visitCount": 3, "lastVisitedAt": 785000000}])"}}));
+  }
+  SetRootsForTesting(std::vector<BrowserRoot>{{Browser::kCrest, crest}});
+
+  base::test::TestFuture<std::vector<ProfileOverview>> overview;
+  GetBrowserImportOverview(browser()->GetProfile(), overview.GetCallback());
+  const std::vector<ProfileOverview> profiles = overview.Take();
+  ASSERT_EQ(profiles.size(), 1u);
+  EXPECT_EQ(profiles[0].source.id, "crest:P1");
+  EXPECT_TRUE(profiles[0].as_profile);
+  EXPECT_FALSE(profiles[0].passwords);
+  EXPECT_NE(profiles[0].as_profile_brings.find("Crest's passwords"),
+            std::string::npos);
+
+  ProfileManager* manager = g_browser_process->profile_manager();
+  const size_t profiles_before = manager->GetNumberOfProfiles();
+  BrowserImportChoice choice;
+  choice.id = "crest:P1";
+  choice.new_profile = true;
+  base::test::TestFuture<BrowserImportResult> future;
+  ImportFromBrowsers(browser()->GetProfile(), {choice}, future.GetCallback());
+  BrowserImportResult result = future.Take();
+  ASSERT_EQ(result.summaries.size(), 1u);
+  const BrowserImportSummary& summary = result.summaries[0];
+  EXPECT_TRUE(summary.problems.empty());
+  EXPECT_EQ(summary.profile, u"Crest");
+  EXPECT_EQ(summary.spaces, std::vector<std::u16string>{u"Work"});
+  EXPECT_EQ(summary.pinned, 1);
+  EXPECT_EQ(summary.today, 1);
+  EXPECT_EQ(summary.history, 1);
+  EXPECT_EQ(summary.passwords, 0);
+  EXPECT_EQ(summary.brought, "cookies, history and extensions");
+
+  EXPECT_EQ(manager->GetNumberOfProfiles(), profiles_before + 1);
+  ASSERT_TRUE(result.first_space_profile);
+  Profile* imported = result.first_space_profile.get();
+  EXPECT_EQ(imported->GetPrefs()->GetString(prefs::kBrowserImportProfile),
+            "crest:P1");
+  SpaceList& list = SpaceService::Get(imported)->space_list();
+  ASSERT_EQ(list.spaces().size(), 1u);
+  EXPECT_EQ(list.spaces()[0]->name(), u"Work");
+}
+
+// A Yab profile that never opened a site in Chromium: no folder to copy, a
+// new profile with its spaces and history.
+IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, ImportsAYabProfile) {
+  const base::FilePath yab = dir_.GetPath().AppendASCII("Yab");
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(base::CreateDirectory(yab));
+    ASSERT_TRUE(base::WriteFile(yab.AppendASCII("spaces.json"), R"([
+      {"id": "00000000-0000-0000-0000-000000000001", "name": "Personal"},
+      {"id": "AAAA", "name": "Work", "ownSignIns": true}])"));
+    ASSERT_TRUE(base::WriteFile(yab.AppendASCII("session-AAAA.json"), R"({
+      "tabs": [{"url": "https://work.test/", "title": "Work", "kept": true,
+                "id": "t1"},
+               {"url": "https://mail.test/", "title": "Mail", "id": "t2"}]})"));
+    ASSERT_TRUE(base::WriteFile(yab.AppendASCII("history-AAAA.json"), R"([
+      {"url": "https://work.test/", "title": "Work", "count": 2,
+       "last": 785000000},
+      {"url": "https://mail.test/", "title": "Mail", "count": 1,
+       "last": 785000000}])"));
+  }
+  SetRootsForTesting(std::vector<BrowserRoot>{{Browser::kYab, yab}});
+
+  base::test::TestFuture<std::vector<ProfileOverview>> overview;
+  GetBrowserImportOverview(browser()->GetProfile(), overview.GetCallback());
+  const std::vector<ProfileOverview> profiles = overview.Take();
+  ASSERT_EQ(profiles.size(), 2u);
+  EXPECT_EQ(profiles[1].source.id, "yab:AAAA");
+  EXPECT_TRUE(profiles[1].as_profile);
+
+  ProfileManager* manager = g_browser_process->profile_manager();
+  const size_t profiles_before = manager->GetNumberOfProfiles();
+  BrowserImportChoice choice;
+  choice.id = "yab:AAAA";
+  choice.new_profile = true;
+  base::test::TestFuture<BrowserImportResult> future;
+  ImportFromBrowsers(browser()->GetProfile(), {choice}, future.GetCallback());
+  BrowserImportResult result = future.Take();
+  ASSERT_EQ(result.summaries.size(), 1u);
+  const BrowserImportSummary& summary = result.summaries[0];
+  EXPECT_TRUE(summary.problems.empty());
+  EXPECT_EQ(summary.profile, u"Yab – Work");
+  EXPECT_EQ(summary.pinned, 1);
+  EXPECT_EQ(summary.today, 1);
+  EXPECT_EQ(summary.history, 2);
+
+  EXPECT_EQ(manager->GetNumberOfProfiles(), profiles_before + 1);
+  ASSERT_TRUE(result.first_space_profile);
+  Profile* imported = result.first_space_profile.get();
+  EXPECT_EQ(imported->GetPrefs()->GetString(prefs::kBrowserImportProfile),
+            "yab:AAAA");
+  SpaceList& list = SpaceService::Get(imported)->space_list();
+  ASSERT_EQ(list.spaces().size(), 1u);
+  EXPECT_EQ(list.spaces()[0]->name(), u"Work");
+
+  // Imported once.
+  base::test::TestFuture<BrowserImportResult> again;
+  ImportFromBrowsers(browser()->GetProfile(), {choice}, again.GetCallback());
+  EXPECT_EQ(again.Take().summaries[0].problems,
+            std::vector<std::string>{"It was imported as a profile before."});
 }
 
 // A profile a newer Chromium last opened is flagged: a copy may lose data.

@@ -1,7 +1,8 @@
 # Import from another browser
 
 Status: done for Chrome, Edge, Brave, Vivaldi, Dia, Firefox, Zen and
-Safari (macOS); not yet run against real installs of each browser on each
+Safari (macOS), and for Arc's open-source successors Ardia, Cra (macOS),
+Crest (macOS) and Yab (macOS); not yet run against real installs of each browser on each
 platform (the readers are tested with synthetic profiles written the way
 those browsers write them). Arc has its own import (arc-import.md), on the
 same page.
@@ -11,7 +12,8 @@ same page.
 Move to Compass from the browsers people use without losing their place:
 bookmarks, the tabs they have open, browsing history and saved passwords,
 and, for browsers with spaces of their own (Zen, Vivaldi's workspaces,
-Safari's tab groups), those spaces.
+Safari's tab groups, and Arc's successors: Ardia, Cra, Crest, Yab), those
+spaces.
 
 Decisions:
 
@@ -20,9 +22,11 @@ Decisions:
   to Today. One space per browser profile, named "Chrome", or "Chrome –
   Work" when the browser has several profiles.
 - **Or a profile of its own.** A Chromium-based browser's profile (Chrome,
-  Edge, Brave, Vivaldi, Dia) can instead become a new Compass profile,
-  cookies and all, as Arc's do, with its space in it (below, "As a
-  profile"). Firefox, Zen and Safari can't: their files aren't Chromium's.
+  Edge, Brave, Vivaldi, Dia, Ardia, Cra) can instead become a new Compass
+  profile, cookies and all, as Arc's do, with its space in it (below, "As
+  a profile"). So can a Crest or Yab profile (below, "Crest's and Yab's
+  profiles"). Firefox, Zen and Safari can't: their files aren't
+  Chromium's.
 - **Bookmarks as Pinned folders.** The bookmark tree becomes Pinned's tree;
   the bookmarks bar's entries come first, at the top level, then the
   browser's other roots ("Other bookmarks", "Bookmarks Menu"...) as folders.
@@ -50,6 +54,10 @@ place that exists counts for each browser.
 | Brave | `%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data` | `…/BraveSoftware/Brave-Browser` | `~/.config/BraveSoftware/Brave-Browser`, Flatpak |
 | Vivaldi | `%LOCALAPPDATA%\Vivaldi\User Data` | `…/Vivaldi` | `~/.config/vivaldi` |
 | Dia | `%LOCALAPPDATA%\Dia\User Data` or `…\TheBrowserCompany\Dia\User Data` (not verified) | `…/Dia/User Data` | — |
+| Ardia | `%LOCALAPPDATA%\Ardia WebUI\Chromium`, or the older shell's `…\Ardia\User Data` | `…/com.ardia.browser/Chromium` | `~/.config/ardia` |
+| Cra | — | `…/Cra/Chromium` | — |
+| Crest | — | `…/Crest` (its own folder; `ControlPlane/session.sqlite` must be there) | — |
+| Yab | — | `…/Yab`, or `…/Fast` from before October 2026 (`spaces.json` or `session.json` must be there) | — |
 | Firefox | `%APPDATA%\Mozilla\Firefox` | `…/Firefox` | `~/.mozilla/firefox`, `~/.config/mozilla/firefox`, Snap, Flatpak |
 | Zen | `%APPDATA%\zen` | `…/zen` | `~/.zen`, `~/.config/zen`, Flatpak `~/.var/app/app.zen_browser.zen/.zen` |
 | Safari | — | `~/Library/Safari` | — |
@@ -185,6 +193,79 @@ schema and queries and a Safari install's structure (no data); a filled
 tab group, and its pinned tabs and favorites in particular, haven't been
 checked against a real install yet.
 
+### Arc's successors: Ardia, Cra, Crest, Yab
+
+Open-source browsers made to replace Arc (which stops opening on 22
+December 2026), each with a sidebar of spaces, pinned tabs and folders it
+keeps in a file of its own. Read from their source code (Ardia 473eeff,
+Cra af459f8, Crest b36496c, Yab 31df560, all November 2026); not yet
+against real installs. Shared helpers: `app_sidebar.{h,cc}` (JSON, colors,
+icons, ISO 8601 times, `FolderTreeBuilder`, `MergeHistory()`, the
+bookmarks space).
+
+- **Ardia** (`ardia_reader.{h,cc}`): Chromium-based (Helium), its profiles
+  Chromium profiles in User Data, read as Chrome's for bookmarks, history
+  and passwords (Keychain item "Ardia Safe Storage"; Windows' DPAPI key;
+  Linux "v10"). The sidebar is in `session.json` beside User Data (Linux:
+  `<profile>/Ardia/linux-session.json`), version 11: `profiles` (Ardia
+  has no spaces apart from its profiles, as Dia), `windows` (`tabIds` in
+  sidebar order), `tabs` (`pin`: null, `{"as": "tile", "folder"}` for
+  Top Apps, `{"as": "row"}`; before version 5 `pinned`, `pinnedAsRow`,
+  `tileFolder`; `pinnedUrl`, `customTitle`, `lastActiveAt` in ms),
+  `groups` (`pinned`, `tabIds`, `parentId`), `splits` (`slots`),
+  `parkedPins` (the pins of a profile no window shows). An Ardia profile
+  is in the folder `Default` when its data ID (`dataId`, else its ID) is
+  "default", else `Profile <data ID>`; several may share one. Pins are
+  copied into every window showing their profile, linked by `pinKey`, and
+  read once. Chromium's session files aren't written for Ardia's windows;
+  without a session.json (an older Ardia), they're read as Chrome's.
+- **Cra** (`cra_reader.{h,cc}`, macOS): Chromium-based, User Data
+  `~/Library/Application Support/Cra/Chromium` (profiles `Default` and
+  `Profile <UUID>`), read as Chrome's. Keychain item "Cra Safe Storage",
+  used only once User Data has a file of that name; before it Cra's
+  Chromium runs with the mock Keychain, whose password is
+  "mock_password". The sidebar is `sidebar.json` beside User Data:
+  `spaces` (`spaceOrder`; `profileID`, null for Default; `emoji`,
+  `symbol`, `theme` with hex `accent`/`colors`, `intensity`, `noise`; a
+  `standaloneWindowID` space is a Blank Window's and is left out) and a
+  flat list of `items` (`children` give the tree and its order; `data` is
+  a Swift enum: `{"container": {"_0": {"favorites"|"pinned"|"today":
+  {"spaceID"}}}}`, `{"folder": {}}`, `{"tab": {"_0": {url, savedURL,
+  savedTitle, homeTitle, muted, timeLastActiveAt}}}`, `{"split": …}`).
+  A favorites container whose space is all zeros is shared by the
+  profile's spaces.
+- **Crest** (`crest_reader.{h,cc}`, macOS): Chromium for pages, one
+  Chromium profile per space (`Crest/Chromium/Crest-<profile UUID>`), but
+  the sidebar and history are Crest's own, in
+  `Crest/ControlPlane/session.sqlite` (table `checkpoint(part, data)`:
+  `core`, the session as JSON; `history.<space UUID>`, a space's history;
+  copied before it's read). `spaces` with `name`, `symbol` (SF Symbol),
+  `accent` (indigo, orange, teal, rose), `branding.colors`; `tabs` in
+  order, each with `placement` (`pinned`: the icon grid; `saved`;
+  `current`: open), `savedURL`, `folderID`, `splitGroupID`,
+  `lastActivatedAt` (seconds since 2001); `folders` (`parentID`,
+  `location`); IDs as `{"rawValue": "<UUID>"}`. A folder sits where its
+  first tab is. A profile per Crest profile, with its spaces ("As a
+  profile", below). Its passwords are in
+  the data-protection Keychain under Crest's access group, which no other
+  app can read (Crest exports them as CSV); its Chromium's password
+  manager is off.
+- **Yab** (`yab_reader.{h,cc}`, macOS): WebKit, with Chromium per tab on
+  request. Everything is JSON in `~/Library/Application Support/Yab`:
+  `spaces.json` (`id`, `name`, `icon`: emoji or SF Symbol, `paint` with
+  hex `color`/`colors`, `grain`), a session per space (`session.json` for
+  the first space, `00000000-…0001`; `session-<UUID>.json` for the
+  others; `{tabs, pairs}`: a tab with `pin` is a pin, `kept` a kept tab,
+  else today's; `home`/`homeTitle` the page it was kept at; `folder`,
+  `folderName` and `folderPath` the folders it's in; `seen` in Unix
+  seconds; `pairs` side by side), the pins every space shows
+  (`session-00000000-0000-0000-0000-000000000A11.json`, read when Yab's
+  defaults say `pins.everySpace`), `bookmarks.json` (a tree), and
+  `history.json` / `history-<UUID>.json` (`count`, `last` in seconds
+  since 2001, `typed`). Running: the app (`dev.serafim.fast`). Its
+  passwords are Keychain items, each of which macOS would ask about; not
+  imported.
+
 ### Dia
 
 Dia (The Browser Company's browser after Arc) is Chromium-based: its
@@ -220,6 +301,13 @@ Dia install lays them out (structure only).
 | Zen's other tabs | That space's Today (tab groups as folders) |
 | Zen essentials | Compass's Favorites (shared by every space), those already there left out |
 | Zen bookmarks | One more space, "Zen", when there are any |
+| Ardia profile, Cra space, Crest space, Yab space | A space of its own: name, emoji or symbol, color (Cra's theme, Crest's branding or accent, Yab's paint, Ardia's profile color) |
+| Their pinned tabs and folders (Ardia's pinned rows, Cra's Pinned, Crest's saved tabs, Yab's kept tabs) | That space's Pinned, folders nested, at the page they were pinned at, with the user's name for them |
+| Their per-space favorites (Ardia's Top Apps, Cra's own favorites, Crest's pinned icons, Yab's pins) | First in that space's Pinned (a Top Apps folder as a folder) |
+| Favorites shared by every space (Cra's shared favorites, Yab's "Pins in every space") | Compass's Favorites |
+| Their open tabs | That space's Today, groups and folders as folders, splits (Yab's side-by-side pairs) as splits |
+| Ardia's, Cra's and Yab's bookmarks | One more space, "<Browser>", when there are any |
+| Crest's and Yab's history | Compass's history, one entry per page across spaces |
 | History | Compass's history (`HistoryService::AddPagesWithDetails()` through `ProfileWriter`), visits marked imported |
 | Passwords | Compass's password store (`ProfileWriter::AddPasswordForm()`, type "imported") |
 
@@ -264,6 +352,26 @@ autofill, extensions, site settings and preferences.
    (`ForNewProfile()`), since space IDs are unique across profiles and the
    same browser profile may also be imported as a space elsewhere.
 
+**Crest's and Yab's profiles.** Both have profiles of their own, each a
+set of sign-ins some of their spaces share, kept in a Chromium profile:
+Crest's `Chromium/Crest-<profile UUID>` (a space's `profile.id`, or its
+group's `sharedProfileID`), Yab's `Chromium/space-<UUID>` (the folder
+`ChromiumProfiles/<profile UUID>-shared|named.json` records, else
+`space-<profile UUID>`; a space with `ownSignIns` has its own profile, or
+`signInWith`'s, the others the first space's). Each profile is one source
+(`crest:<UUID>`, `yab:<UUID>`, named after its spaces: "Crest – Work,
+Side"), with its spaces only; its `root` is the browser's Chromium folder,
+its `path` that profile's folder (`AddAppProfiles()`, `SourceKey()`). As a
+profile, the folder is copied as a Chromium-based browser's (Keychain items
+"Crest Safe Storage", "Yab Safe Storage"), then the history the browser
+keeps outside it (`KeepsHistoryOutsideProfile()`) is written in. A Yab
+profile that never opened a site in Chromium has no folder: the new
+profile starts empty, with its spaces and history. Yab's WebKit sign-ins
+(cookies in WebKit's own store) and both browsers' passwords stay behind,
+and the page and summary say what came (`as_profile_brings`, `brought`).
+Yab's pins shown in every space and its bookmarks go with its first
+profile.
+
 **Again is harmless:** a profile whose Preferences name the source profile
 marks it as imported as a profile (with the Compass profile's name), and
 the copy refuses it.
@@ -300,7 +408,8 @@ goes ahead.
   upstream's `ExternalProcessImporterHost` (headless, HISTORY and
   PASSWORDS) and waits for it, then lists the profile in `SpaceDirectory`.
   A choice with `new_profile` goes "As a profile" (above) instead.
-- **Running browsers.** Chromium-based: the User Data's singleton lock
+- **Running browsers.** Crest: its Chromium's lock, or the app
+  (`com.pauldavis.crest`); Yab: the app. Chromium-based: the User Data's singleton lock
   (`lockfile` held open on Windows, the `SingletonLock` link's process
   elsewhere). Firefox-based: `parent.lock` (Windows) or the fcntl lock on
   `.parentlock`. The page asks to quit them first (their databases are in
@@ -339,7 +448,11 @@ databases, places.sqlite, session stores and Zen's sidebar state as
 mozLz4, Safari's plists as values; SafariTabs.db is written in
 `safari_reader_unittest.cc`):
 `ChromiumReaderTest.*`, `ChromiumCryptoTest.*`, `DetectTest.*`,
-`FirefoxReaderTest.*`, `SafariReaderTest.*`, `SpaceImportTest.*`.
+`FirefoxReaderTest.*`, `SafariReaderTest.*`, `SpaceImportTest.*`, and for
+Arc's successors `AppSidebarTest.*`, `ArdiaReaderTest.*`,
+`CraReaderTest.*` (Cra's own recorded fixture, trimmed),
+`CrestReaderTest.*` (a session.sqlite written as Crest does) and
+`YabReaderTest.*`.
 
 Browser (`compass_browsertests`): `BrowserImporterBrowserTest.*` imports a
 fixture Chrome profile (its Login Data encrypted as Chrome does on each
@@ -353,6 +466,12 @@ and refused a second time).
 
 - Each browser on each platform against a real install.
 - Dia on Windows: its folder is a guess.
+- Ardia, Cra, Crest and Yab against real installs: their formats are read
+  from their source, and they change often. Ardia on Linux: which profile
+  holds `linux-session.json`, and whether release builds add a channel
+  suffix to `~/.config/ardia`; its keyring name. Crest's legacy sessions
+  (in its defaults, `crest.session.v2`) and archive aren't read, nor
+  Cra's `archive.json`.
 - Firefox's passwords on macOS: upstream's importer doesn't do them;
   reading `logins.json` with the profile's `key4.db` (NSS) would.
 - Safari's tab groups against a real install with filled groups: pinned

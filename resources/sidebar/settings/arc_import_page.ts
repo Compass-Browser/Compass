@@ -204,8 +204,9 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
       modes.className = 'modes';
       let profileDescription = profile.importedAsProfile ?
           `Imported already, as the profile ${profile.importedAsProfile}.` :
-          'A profile of its own, with its cookies, history, passwords, ' +
-              'extensions and settings: you stay signed in to sites.';
+          profile.asProfileBrings ||
+              'A profile of its own, with its cookies, history, passwords, ' +
+                  'extensions and settings: you stay signed in to sites.';
       if (asProfile && profile.newerVersion) {
         profileDescription += ` ${profile.browser} ${
             profile.newerVersion} is newer than Compass, so some of it ` +
@@ -310,7 +311,12 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
       parts.push(plural(summary.favorites, 'favorite', 'favorites'));
     }
     if (summary.profile) {
-      parts.push('cookies, history, passwords, extensions and settings');
+      parts.push(
+          summary.brought ||
+          'cookies, history, passwords, extensions and settings');
+      if (summary.brought && summary.history > 0) {
+        parts.push(plural(summary.history, 'history page', 'history pages'));
+      }
     } else {
       if (summary.history > 0) {
         parts.push(plural(summary.history, 'history page', 'history pages'));

@@ -39,6 +39,9 @@ struct ProfileOverview {
   bool imported = false;
   // It can become a Compass profile of its own (CanImportAsProfile()).
   bool as_profile = false;
+  // What "Add as a new profile" brings, when not all a Chromium profile
+  // has (Crest, Yab), in words for the page; empty otherwise.
+  std::string as_profile_brings;
   // The Compass profile it became before, if so (its name).
   std::u16string imported_as_profile;
   // The Chromium version that last opened it, when newer than Compass's: a
@@ -94,6 +97,9 @@ struct BrowserImportSummary {
   int passwords = 0;
   // Passwords that couldn't be decrypted.
   int passwords_skipped = 0;
+  // As a profile: what came along, when not all a Chromium profile has
+  // (Crest, Yab); empty otherwise.
+  std::string brought;
   // As a profile: cookies the browser's key couldn't decrypt, or that only
   // the browser itself can read (app-bound), left out.
   int cookies_dropped = 0;

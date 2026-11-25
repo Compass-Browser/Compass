@@ -71,6 +71,35 @@ scoped_refptr<base::SequencedTaskRunner> CopyRunner() {
 // The Compass profiles in |user_data_dir| copied from other browsers'
 // profiles, by source profile ID (prefs::kBrowserImportProfile in their
 // Preferences). Profiles deleted since may be among them. Blocking.
+// What "Add as a new profile" brings from |browser|, for the page, when it
+// isn't all a Chromium profile has; empty otherwise.
+std::string AsProfileBrings(Browser browser) {
+  switch (browser) {
+    case Browser::kCrest:
+      return "A profile of its own, with its cookies, history and "
+             "extensions: you stay signed in to sites. Crest's passwords "
+             "stay in Crest.";
+    case Browser::kYab:
+      return "A profile of its own, with its history, and the sign-ins of "
+             "sites Yab opened in Chromium. Sites it opened in WebKit need "
+             "you to sign in again.";
+    default:
+      return std::string();
+  }
+}
+
+// The same, for the summary after the import.
+std::string AsProfileBrought(Browser browser) {
+  switch (browser) {
+    case Browser::kCrest:
+      return "cookies, history and extensions";
+    case Browser::kYab:
+      return "history, and sign-ins from Yab's Chromium tabs";
+    default:
+      return std::string();
+  }
+}
+
 std::map<std::string, base::FilePath> FindProfilesImportedFromBrowsers(
     const base::FilePath& user_data_dir) {
   std::map<std::string, base::FilePath> imported;
@@ -132,6 +161,7 @@ std::vector<Found> FindProfiles(const base::FilePath& user_data_dir) {
     entry.overview.running = IsRunning(profile);
     if (CanImportAsProfile(profile.browser)) {
       entry.overview.as_profile = true;
+      entry.overview.as_profile_brings = AsProfileBrings(profile.browser);
       const std::optional<int> version = ChromiumMajorVersion(profile.root);
       if (version && *version > compass_version) {
         entry.overview.newer_version = *version;
@@ -254,6 +284,21 @@ ProfileCopy CopyAsProfile(const SourceProfile& profile,
     result.problem = "It was imported as a profile before.";
     return result;
   }
+  if (KeepsHistoryOutsideProfile(profile.browser) &&
+      !base::DirectoryExists(profile.path)) {
+    // A Yab profile that never opened a site in Chromium (or a Crest one
+    // never used): nothing to copy, a new profile with its spaces and
+    // history.
+    result.data = ReadProfile(profile, options);
+    result.copy.ok = base::CreateDirectory(to) &&
+                     arc::SignCopiedPreferences(
+                         to, prefs::kBrowserImportProfile, profile.id);
+    if (!result.copy.ok) {
+      base::DeletePathRecursively(to);
+      result.problem = "Its new profile couldn't be made.";
+    }
+    return result;
+  }
   PasswordDecryptor decrypt =
       ChromiumPasswordDecryptor(profile.browser, profile.root);
   if (!decrypt || !encryptor) {
@@ -374,6 +419,25 @@ class Importer : public importer::ImporterProgressObserver {
         base::BindOnce(&Importer::OnRead, weak_factory_.GetWeakPtr()));
   }
 
+  // Hands data_'s history to |writer|; returns how many pages.
+  int WriteHistory(ProfileWriter& writer, Browser browser) {
+    if (data_.history.empty()) {
+      return 0;
+    }
+    history::URLRows rows;
+    for (const HistoryEntry& entry : data_.history) {
+      history::URLRow row(entry.url);
+      row.set_title(entry.title);
+      row.set_visit_count(std::max(entry.visit_count, 1));
+      row.set_typed_count(entry.typed_count);
+      row.set_last_visit(entry.last_visit.is_null() ? base::Time::Now()
+                                                    : entry.last_visit);
+      rows.push_back(std::move(row));
+    }
+    writer.AddHistoryPage(rows, VisitSourceFor(browser));
+    return static_cast<int>(rows.size());
+  }
+
   void OnRead(ProfileData data) {
     if (!target_) {
       Next();
@@ -406,20 +470,7 @@ class Importer : public importer::ImporterProgressObserver {
     }
 
     auto writer = base::MakeRefCounted<ProfileWriter>(profile);
-    if (!data_.history.empty()) {
-      history::URLRows rows;
-      for (const HistoryEntry& entry : data_.history) {
-        history::URLRow row(entry.url);
-        row.set_title(entry.title);
-        row.set_visit_count(std::max(entry.visit_count, 1));
-        row.set_typed_count(entry.typed_count);
-        row.set_last_visit(entry.last_visit.is_null() ? base::Time::Now()
-                                                      : entry.last_visit);
-        rows.push_back(std::move(row));
-      }
-      writer->AddHistoryPage(rows, VisitSourceFor(job.profile.browser));
-      summary.history = static_cast<int>(rows.size());
-    }
+    summary.history = WriteHistory(*writer, job.profile.browser);
     for (const LoginEntry& login : data_.logins) {
       writer->AddPasswordForm(ToPasswordForm(login));
     }
@@ -516,6 +567,8 @@ class Importer : public importer::ImporterProgressObserver {
     ReadOptions options;
     options.bookmarks = job.choice.bookmarks;
     options.tabs = job.choice.tabs;
+    // Crest's and Yab's history isn't in the folder copied.
+    options.history = KeepsHistoryOutsideProfile(job.profile.browser);
     CopyRunner()->PostTaskAndReplyWithResult(
         FROM_HERE,
         base::BindOnce(&CopyAsProfile, job.profile, options, to,
@@ -561,6 +614,7 @@ class Importer : public importer::ImporterProgressObserver {
 
   void OnNewProfileSpacesLoaded(base::WeakPtr<Profile> profile,
                                 BrowserImportSummary summary) {
+    const Browser job_browser = jobs_[next_].profile.browser;
     if (!profile) {
       Finish(std::move(summary));
       return;
@@ -570,9 +624,16 @@ class Importer : public importer::ImporterProgressObserver {
         ForNewProfile(std::move(data_.sidebar)), base::Time::Now(),
         /*into_new_profile=*/true);
     Summarize(added, *profile, summary);
-    // They came with the copy, uncounted.
-    summary.history = -1;
-    summary.passwords = -1;
+    if (KeepsHistoryOutsideProfile(job_browser)) {
+      auto writer = base::MakeRefCounted<ProfileWriter>(profile.get());
+      summary.history = WriteHistory(*writer, job_browser);
+      summary.passwords = 0;
+      summary.brought = AsProfileBrought(job_browser);
+    } else {
+      // They came with the copy, uncounted.
+      summary.history = -1;
+      summary.passwords = -1;
+    }
     summary.problems.insert(summary.problems.end(), data_.problems.begin(),
                             data_.problems.end());
     // On disk before the page asks what was imported.

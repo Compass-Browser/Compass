@@ -60,6 +60,14 @@ std::string_view KeychainService(Browser browser) {
       return "Vivaldi Safe Storage";
     case Browser::kDia:
       return "Dia Safe Storage";
+    case Browser::kArdia:
+      return "Ardia Safe Storage";
+    case Browser::kCra:
+      return "Cra Safe Storage";
+    case Browser::kCrest:
+      return "Crest Safe Storage";
+    case Browser::kYab:
+      return "Yab Safe Storage";
     case Browser::kFirefox:
     case Browser::kZen:
     case Browser::kSafari:
@@ -128,6 +136,13 @@ PasswordDecryptor ChromiumPasswordDecryptor(Browser browser,
                                             const base::FilePath& user_data) {
 #if BUILDFLAG(IS_MAC)
   std::optional<std::string> password = KeyForTesting();
+  if (!password && browser == Browser::kCra &&
+      !base::PathExists(user_data.AppendASCII(KeychainService(browser)))) {
+    // Cra uses its Keychain item only once it has left a file named after
+    // it in User Data; before that (unsigned builds, older profiles) its
+    // Chromium runs with the mock Keychain, whose password is fixed.
+    password = "mock_password";
+  }
   if (!password) {
     password = ReadKeychainPassword(KeychainService(browser));
   }

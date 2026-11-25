@@ -18,8 +18,11 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
+#include "compass/browser/browser_import/app_sidebar.h"
 #include "compass/browser/browser_import/chromium_reader.h"
+#include "compass/browser/browser_import/crest_reader.h"
 #include "compass/browser/browser_import/firefox_reader.h"
+#include "compass/browser/browser_import/yab_reader.h"
 
 namespace compass::browser_import {
 
@@ -117,6 +120,48 @@ void AddSafariProfile(const base::FilePath& root,
   out.push_back(std::move(profile));
 }
 
+// Crest's and Yab's profiles, from their own folder |app|: one each, with
+// their Chromium profile folder (which holds their cookies) as its path and
+// their Chromium folder as its root.
+void AddAppProfiles(Browser browser,
+                    const base::FilePath& app,
+                    std::vector<SourceProfile>& out) {
+  std::vector<AppProfile> found;
+  if (browser == Browser::kCrest) {
+    const base::FilePath session = CrestSessionPath(app);
+    if (!base::PathExists(session)) {
+      return;
+    }
+    if (std::optional<CrestSession> read =
+            ReadCrestSession(session, /*with_history=*/false)) {
+      found = ParseCrestProfiles(*read->core);
+    }
+  } else {
+    if (!base::PathExists(app.AppendASCII("spaces.json")) &&
+        !base::PathExists(app.AppendASCII("session.json"))) {
+      return;
+    }
+    std::optional<base::Value> spaces =
+        ReadJsonFile(app.AppendASCII("spaces.json"));
+    found = ParseYabProfiles(spaces && spaces->is_list() ? &spaces->GetList()
+                                                         : nullptr);
+  }
+  const base::FilePath chromium = app.AppendASCII("Chromium");
+  for (const AppProfile& found_profile : found) {
+    SourceProfile profile;
+    profile.browser = browser;
+    profile.root = chromium;
+    profile.path =
+        browser == Browser::kCrest
+            ? chromium.AppendASCII(base::StrCat({"Crest-", found_profile.key}))
+            : YabChromiumFolder(app, found_profile.key);
+    profile.name = AppProfileName(found_profile.spaces);
+    profile.several = found.size() > 1;
+    profile.id = base::StrCat({BrowserKey(browser), ":", found_profile.key});
+    out.push_back(std::move(profile));
+  }
+}
+
 }  // namespace
 
 std::vector<BrowserRoot> CandidateRoots() {
@@ -138,6 +183,10 @@ std::vector<BrowserRoot> CandidateRoots() {
     roots.push_back({Browser::kDia, Join(local, {"Dia", "User Data"})});
     roots.push_back({Browser::kDia,
                      Join(local, {"TheBrowserCompany", "Dia", "User Data"})});
+    // Ardia's WebUI shell, then the shell before it.
+    roots.push_back(
+        {Browser::kArdia, Join(local, {"Ardia WebUI", "Chromium"})});
+    roots.push_back({Browser::kArdia, Join(local, {"Ardia", "User Data"})});
   }
   base::FilePath roaming;
   if (base::PathService::Get(base::DIR_ROAMING_APP_DATA, &roaming)) {
@@ -153,6 +202,13 @@ std::vector<BrowserRoot> CandidateRoots() {
         {Browser::kBrave, Join(support, {"BraveSoftware", "Brave-Browser"})});
     roots.push_back({Browser::kVivaldi, Join(support, {"Vivaldi"})});
     roots.push_back({Browser::kDia, Join(support, {"Dia", "User Data"})});
+    roots.push_back(
+        {Browser::kArdia, Join(support, {"com.ardia.browser", "Chromium"})});
+    roots.push_back({Browser::kCra, Join(support, {"Cra", "Chromium"})});
+    // Crest's and Yab's own folders (yab_reader.h; Yab's was "Fast").
+    roots.push_back({Browser::kCrest, Join(support, {"Crest"})});
+    roots.push_back({Browser::kYab, Join(support, {"Yab"})});
+    roots.push_back({Browser::kYab, Join(support, {"Fast"})});
     roots.push_back({Browser::kFirefox, Join(support, {"Firefox"})});
     roots.push_back({Browser::kZen, Join(support, {"zen"})});
   }
@@ -175,6 +231,7 @@ std::vector<BrowserRoot> CandidateRoots() {
        Join(home, {".var", "app", "com.brave.Browser", "config",
                    "BraveSoftware", "Brave-Browser"})});
   roots.push_back({Browser::kVivaldi, Join(config, {"vivaldi"})});
+  roots.push_back({Browser::kArdia, Join(config, {"ardia"})});
   roots.push_back({Browser::kFirefox, Join(home, {".mozilla", "firefox"})});
   roots.push_back({Browser::kFirefox, Join(config, {"mozilla", "firefox"})});
   roots.push_back(
@@ -209,6 +266,9 @@ std::vector<SourceProfile> DetectProfiles() {
       AddFirefoxProfiles(root.browser, root.root, profiles);
     } else if (root.browser == Browser::kSafari) {
       AddSafariProfile(root.root, profiles);
+    } else if (root.browser == Browser::kCrest ||
+               root.browser == Browser::kYab) {
+      AddAppProfiles(root.browser, root.root, profiles);
     }
     if (profiles.size() > before) {
       found.insert(root.browser);
@@ -241,6 +301,20 @@ bool IsRunning(const SourceProfile& profile) {
   if (IsFirefoxBased(profile.browser)) {
     return IsFirefoxProfileInUse(profile.path);
   }
+  if ((profile.browser == Browser::kCrest ||
+       profile.browser == Browser::kYab) &&
+      IsChromiumRunning(profile.root)) {
+    return true;
+  }
+#if BUILDFLAG(IS_MAC)
+  if (profile.browser == Browser::kCrest) {
+    return IsMacAppRunning("com.pauldavis.crest");
+  }
+  if (profile.browser == Browser::kYab) {
+    return IsMacAppRunning("dev.serafim.fast") ||
+           IsMacAppRunning("dev.serafim.fast.dev");
+  }
+#endif
   return false;
 }
 

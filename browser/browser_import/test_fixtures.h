@@ -7,6 +7,8 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -56,6 +58,14 @@ bool WriteChromiumUserData(const base::FilePath& user_data,
                            const std::vector<FixtureTab>& tabs,
                            const Encrypt& encrypt,
                            const std::string& local_state_os_crypt_key = "");
+
+// Crest's ControlPlane/session.sqlite at |path| (its folders made): the
+// "core" row |core|, and a "history.<space ID>" row for each of |history|
+// (space ID, JSON), as Crest writes them.
+bool WriteCrestSession(
+    const base::FilePath& path,
+    std::string_view core,
+    const std::vector<std::pair<std::string, std::string>>& history = {});
 
 // A places.sqlite at |path|: the toolbar has "Toolbar link"
 // (https://toolbar.test/) and a folder "News" with "Daily"

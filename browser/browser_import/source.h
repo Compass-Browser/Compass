@@ -29,6 +29,18 @@ enum class Browser {
   kVivaldi,
   // The Browser Company's, after Arc.
   kDia,
+  // Arc's open-source successors, Chromium-based: profiles in User Data,
+  // the sidebar in a file of their own beside it (ardia_reader.h,
+  // cra_reader.h).
+  kArdia,
+  // macOS only.
+  kCra,
+  // macOS only. Chromium-based, but a space per Chromium profile and its
+  // own store for the sidebar, history and passwords (crest_reader.h): it
+  // comes in as one source, not as Chromium profiles.
+  kCrest,
+  // macOS only. WebKit, with files of its own (yab_reader.h).
+  kYab,
   kFirefox,
   kZen,
   // macOS only.
@@ -36,9 +48,9 @@ enum class Browser {
 };
 
 inline constexpr Browser kAllBrowsers[] = {
-    Browser::kChrome,  Browser::kEdge,    Browser::kBrave,
-    Browser::kVivaldi, Browser::kDia,     Browser::kFirefox,
-    Browser::kZen,     Browser::kSafari,
+    Browser::kChrome, Browser::kEdge,    Browser::kBrave, Browser::kVivaldi,
+    Browser::kDia,    Browser::kArdia,   Browser::kCra,   Browser::kCrest,
+    Browser::kYab,    Browser::kFirefox, Browser::kZen,   Browser::kSafari,
 };
 
 // As the page and the spaces name it: "Chrome", "Edge", ...
@@ -48,10 +60,13 @@ std::string_view BrowserKey(Browser browser);
 std::optional<Browser> BrowserFromKey(std::string_view key);
 
 // Chromium-based: profiles in a "User Data" folder (chromium_reader.h).
+// Not Crest, whose Chromium profiles are its spaces (kCrest).
 bool IsChromiumBased(Browser browser);
 // Whether a profile of |browser| can become a Compass profile of its own,
 // copied with its cookies, history, passwords, extensions and settings
-// (docs/design/browser-import.md, "As a profile"): Chromium-based ones.
+// (docs/design/browser-import.md, "As a profile"): Chromium-based ones, and
+// Crest's and Yab's profiles, whose Chromium folders hold their cookies
+// (Yab's only for sites it opened in Chromium).
 bool CanImportAsProfile(Browser browser);
 // Firefox-based: profiles listed in profiles.ini (firefox_reader.h).
 bool IsFirefoxBased(Browser browser);
@@ -80,6 +95,10 @@ struct SourceProfile {
   // Stable, for the page and for IDs: "<browser key>:<folder name>".
   std::string id;
 };
+
+// What follows "<browser key>:" in |profile|'s ID: its folder, or for Crest
+// and Yab, its profile's UUID.
+std::string_view SourceKey(const SourceProfile& profile);
 
 // "<Browser>", or "<Browser> – <profile name>" for one of several.
 std::u16string SpaceNameFor(const SourceProfile& profile);
