@@ -63,6 +63,8 @@ build_webui("build") {
     "preview.ts",
     "settings/page_base.ts",
     "settings/standalone.ts",
+    "settings_window/about_pane.html.ts",
+    "settings_window/about_pane.ts",
     "settings_window/advanced_pane.html.ts",
     "settings_window/advanced_pane.ts",
     "settings_window/app.html.ts",

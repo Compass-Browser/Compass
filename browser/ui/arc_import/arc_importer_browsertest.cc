@@ -434,7 +434,8 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, NoSidebarNoImport) {
   EXPECT_TRUE(result.profiles.empty());
 }
 
-// The page lists Arc's profiles, imports the chosen ones, and says so.
+// The page lists Arc with the other browsers; its row opens Arc's
+// profiles, which imports the chosen ones, and says so.
 IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportPage) {
   ASSERT_NO_FATAL_FAILURE(WriteArcSidebar());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
@@ -447,6 +448,16 @@ IN_PROC_BROWSER_TEST_F(ArcImporterBrowserTest, ImportPage) {
                                  ".length")
                .ExtractInt() == 2;
   }));
+  EXPECT_EQ(false, content::EvalJs(
+                       page, "document.getElementById('arcGroup').hidden"));
+  EXPECT_EQ(content::EvalJs(page,
+                            "document.getElementById('arcDetail')"
+                            ".textContent"),
+            "2 profiles · 3 spaces");
+  ASSERT_TRUE(
+      content::ExecJs(page, "document.getElementById('arcRow').click();"));
+  EXPECT_EQ(false, content::EvalJs(
+                       page, "document.getElementById('arcView').hidden"));
   EXPECT_EQ(content::EvalJs(page,
                             "document.querySelector('#profiles .details')"
                             ".textContent"),

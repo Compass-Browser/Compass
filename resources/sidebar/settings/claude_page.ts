@@ -7,6 +7,8 @@ import type {Memory, Model, SettingsHandlerRemote, SettingsState} from
 import {AuthStyle, Backend, FilesAccess, SettingsHandler} from
     '../claude.mojom-webui.js';
 
+import '../settings_window/icon.js';
+
 import type {KnownModel} from '../claude_models.js';
 import {knownModels} from '../claude_models.js';
 
@@ -117,6 +119,8 @@ export class CompassClaudePageElement extends CompassSettingsPage {
   // Test connection listed the models (an OpenAI-compatible server's can
   // then be picked, not only typed).
   private modelsListed_ = false;
+  // How many memories Claude keeps, for the Memory row.
+  private memoryCount_ = 0;
 
   protected get pageTitle() {
     return 'Claude';
@@ -244,6 +248,8 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     });
     this.setUpMemory_();
     this.setUpFiles_();
+    // The main view's rows open the rest (claude_page.html, data-page-view).
+    this.setUpViews('AI');
     this.refresh_();
   }
 
@@ -352,6 +358,54 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     if (state.memorySupported) {
       await this.refreshMemories_();
     }
+    this.renderRows_(state);
+  }
+
+  // The main view's rows: what each view has, in a few words.
+  private renderRows_(state: SettingsState) {
+    const claudeCode = state.backend === Backend.kClaudeCode;
+    const provider =
+        state.providers.find(p => p.id === state.provider)?.displayName ||
+        state.provider;
+    const compatible = state.provider === 'compatible';
+    const model = compatible ?
+        state.model :
+        this.$<HTMLSelectElement>('model').selectedOptions[0]?.textContent ||
+            state.model;
+    const answers = claudeCode ? 'Claude Code on this computer' : provider;
+    const ready = claudeCode || state.setUp;
+    this.$('connectionRowDetail').textContent = ready ?
+        [answers, model].filter(part => part).join(' · ') :
+        `${answers} · Not set up yet`;
+
+    this.$('sidebarRow').hidden = !state.sidebarSupported;
+    const on = SIDEBAR_FEATURES.filter(f => f.enabled(state)).length;
+    const onDevice = state.onDeviceSupported && state.sidebarOnDevice;
+    this.$('sidebarRowDetail').textContent =
+        (on ? `${on} of ${SIDEBAR_FEATURES.length} on` : 'Off') +
+        (onDevice ? ' · Apple Intelligence' : '');
+
+    const files = this.$('filesRowDetail');
+    if (state.filesAccess === FilesAccess.kOff) {
+      files.textContent = 'Off';
+    } else if (state.filesAccess === FilesAccess.kSave) {
+      files.textContent = 'Saves new files';
+    } else {
+      files.textContent = state.filesFolder || 'No folder chosen';
+    }
+
+    this.$('memoryRow').hidden = !state.memorySupported;
+    this.renderMemoryRow_();
+  }
+
+  private renderMemoryRow_() {
+    const enabled = this.state_?.memoryEnabled;
+    const count = this.memoryCount_;
+    let detail = 'Off';
+    if (enabled) {
+      detail = count === 1 ? 'On · 1 memory' : `On · ${count} memories`;
+    }
+    this.$('memoryRowDetail').textContent = detail;
   }
 
   // The provider picker, and what follows it: Anthropic's own options
@@ -432,6 +486,8 @@ export class CompassClaudePageElement extends CompassSettingsPage {
 
   private async refreshMemories_() {
     const {memories} = await this.handler_.getMemories();
+    this.memoryCount_ = memories.length;
+    this.renderMemoryRow_();
     this.show('memoryEmpty', memories.length === 0);
     this.show('removeAllMemories', memories.length > 0);
     this.$('memoryList')

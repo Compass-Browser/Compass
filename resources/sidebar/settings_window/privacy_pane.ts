@@ -708,6 +708,9 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
         view === 'site'           ? `?site=${encodeURIComponent(this.site_)}` :
                                     `?view=${view}`;
     window.history.replaceState(null, '', '/privacy' + query);
+    // The window hides the pane's header while a view is shown (app.ts).
+    this.toggleAttribute('nested', view !== 'main');
+    this.dispatchEvent(new CustomEvent('settings-view', {bubbles: true}));
     this.closest('#scroller')?.scrollTo(0, 0);
   }
 

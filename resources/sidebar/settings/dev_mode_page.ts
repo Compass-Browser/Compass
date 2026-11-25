@@ -48,6 +48,13 @@ export class CompassDevModePageElement extends CompassSettingsPage {
     this.$('devModeHosts')
         .replaceChildren(...this.hosts_.map(host => this.renderHost_(host)));
     this.show('noDevModeHosts', this.hosts_.length === 0);
+    // Advanced's row: "2 sites · localhost, example.com".
+    const count = this.hosts_.length;
+    this.setSubpageDetail(
+        count === 0 ? 'No sites' :
+                      `${count} ${count === 1 ? 'site' : 'sites'} · ` +
+                `${this.hosts_.slice(0, 2).join(', ')}` +
+                (count > 2 ? ', …' : ''));
   }
 
   private renderHost_(host: string): HTMLElement {

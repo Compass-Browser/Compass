@@ -23,8 +23,8 @@ the window's, Chrome's included, and nothing shows upstream's settings page.
 - **Toolbar:** the panes as icon tabs under the title, which names the pane.
   ←/→ move between tabs, and the window opens at the pane shown last.
   - General
-  - Profiles: Sync, Import from Another Browser, the profile's name and
-    picture
+  - Profiles: the profile's name and picture, then rows for Sync and Import
+    from Another Browser, each opening a page of its own
   - Links: Links from Other Apps
   - Shortcuts
   - Boosts
@@ -32,7 +32,9 @@ the window's, Chrome's included, and nothing shows upstream's settings page.
   - AI: Claude's settings
   - Privacy
   - Passwords
-  - Advanced: Development Mode, performance, accessibility, reset, About
+  - Advanced: performance, accessibility, reset, and a row for Development
+    Mode
+  - About: Compass's icon, version, updates and update channel
 - **Search** (Cmd+F) is at the title row's right. It lists the matching
   sections and rows across panes, and picking one (or Enter for the first)
   goes there and highlights it.
@@ -133,7 +135,8 @@ sections, and never shown.
 - **Front end** (`resources/sidebar/settings_window/`):
   - `app.ts`/`app.html.ts`: `<compass-settings-window>` (Lit, rendered into
     the light DOM).
-  - `panes.ts`: the panes and their rows.
+  - `panes.ts`: the panes (with their header's color and blurb), their
+    sections and rows.
   - `icons.ts`: the line icons, `<compass-settings-icon>`.
   - `window.css`: a static stylesheet.
   - Compass's sections are the elements chrome://settings shows
@@ -146,6 +149,34 @@ sections, and never shown.
     `ResizeObserver`).
   - Esc clears the search, else closes the window when focus isn't in a
     section. Cmd+W closes it; Cmd+F focuses search.
+
+## Pages and views
+
+Long panes were split (2026-11-25) so a pane's main page holds its switches
+and short rows, and anything long or rarely used is one row away, behind a ›.
+
+- **A section's page** (the shell's, `app.ts`): a `PaneSection` with
+  `subpage` (`panes.ts`: its group's caption, label, tile icon and color)
+  isn't shown in the pane. The pane lists it as a row instead, after its own
+  groups (`#subpageRows`), and its path (`sync`, `importArc`, `devMode`, with
+  any query) shows it alone, under "‹ <pane>" and its name. Old paths keep
+  working: chrome://settings/importArc opens the Import page.
+  - All of a pane's sections are in the page, hidden but for those shown, so
+    a section with a page of its own can tell the pane its status: it
+    dispatches `subpage-detail` (bubbling, on itself) with a short string,
+    which becomes its row's detail ("On · 3 devices", "2 sites").
+- **A pane's views** (inside a section): Privacy (clear, permissions, sites,
+  safety, filter lists), General (search engines, languages, fonts),
+  Passwords (saved passwords, cards, addresses), AI (connection, Claude in
+  the sidebar, files, memory) and Import (a browser, Arc). Lit panes keep a
+  `view_` and draw their own "‹ back"; Compass's older sections use
+  `CompassSettingsPage.setUpViews()` (`settings/page_base.ts`), which shows
+  one `[data-page-view]` block at a time and adds its back link and title.
+  - Either way the path says the view (`?view=`) and the element has the
+    `nested` attribute while it shows one, announced with `settings-view`:
+    the window then hides the pane's header and its own back link.
+  - Search rows in a view name it (`SearchRow.path`, "general?view=fonts").
+- `settings-navigate` (detail: a path) asks the window to show a path.
 
 ## General and Profiles
 
@@ -367,12 +398,7 @@ sections, and never shown.
 
 ## Advanced
 
-- **The pane** (`<compass-settings-advanced-pane>`, `advanced_pane.ts`, then
-  Development Mode):
-  - About Compass: the version (Compass's, `compass::updates::
-    CompassVersion()`, and Chromium's), Check for Updates or Relaunch to
-    Update, the update channel (`compass.update_channel`: stable, beta,
-    canary; docs/design/updates.md), and the open-source licenses.
+- **The pane** (`<compass-settings-advanced-pane>`, `advanced_pane.ts`):
   - Performance: memory saver (`performance_tuning.high_efficiency_mode.
     state`, off or on) and energy saver (`…battery_saver_mode.state`: off,
     when the battery is low, when unplugged, always). Both are Local State's.
@@ -381,8 +407,16 @@ sections, and never shown.
   - Reset settings, confirmed in the row: upstream's `ProfileResetter` with
     every flag and the default brandcoded settings, as chrome://settings/
     reset does.
-- **Routing:** upstream's `performance`, `accessibility`, `reset` and `help`
-  are the pane (`advanced?focus=…`).
+  - Development Mode: a row with its sites, opening its page (`devMode`).
+- **About** (`<compass-settings-about-pane>`, `about_pane.ts`), the last pane:
+  Compass's icon (`chrome://theme/current-channel-logo@2x`), name, version
+  (Compass's, `compass::updates::CompassVersion()`, with the channel, and
+  Chromium's), the update row (Check for Updates or Relaunch to Update), the
+  update channel (`compass.update_channel`: stable, beta, canary;
+  docs/design/updates.md), and the open-source licenses. It draws its own
+  heading instead of the window's pane header.
+- **Routing:** upstream's `performance`, `accessibility` and `reset` are the
+  Advanced pane (`advanced?focus=…`); `help` is About.
 - **Browser side** (`settings_window_handler_advanced.cc`): the updater is
   `compass::updates::GetUpdater()` (Sparkle on macOS; none in builds that
   don't update), whose `CheckNow()` progress goes to the page
@@ -445,6 +479,22 @@ look read as a plain copy of System Settings).
     primary-colored bits follow.
 - **Icons:** line glyphs on a 24-unit grid at a 1.6 stroke, in the manner of
   the system's symbols.
+- **Tiles** (2026-11-25, after the panes read as aseptic): a row starts with
+  a 28 px rounded square in a topic's color with its glyph in white
+  (`.tile[data-color]`, `TileColor` in `panes.ts`: blue, indigo, purple, pink,
+  red, orange, yellow, green, teal, gray, slate). Colors go by topic, not by
+  row: green for saving and filling, purple for appearance, orange for AI,
+  red for resetting and clearing. The tile is always a row's first item, so a
+  group's tiles line up, and the row's control (switch, radio, popup, pill)
+  is at its end. With tiles, the hairline between rows starts at the text.
+  Another app's own icon (a browser, in Import) takes a tile's place, drawn
+  at 34 px to line up; a letter tile stands in when there's none.
+- **Pane header:** each pane's main page starts with its tile at 44 px, its
+  name and a line on what it's for (`Pane.color`, `Pane.blurb`), drawn by the
+  shell. It's hidden on a section's page and in a pane's views.
+- **Pages and views** start with "‹ <where you came from>" and the page's
+  name, both 14 px in, so the chevron and the title line up with the rows'
+  tiles below them.
 
 ## Not done
 

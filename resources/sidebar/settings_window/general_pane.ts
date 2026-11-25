@@ -28,7 +28,7 @@ export const PREF_SPELLCHECK = 'browser.enable_spellchecking';
 export const PREF_HARDWARE_ACCELERATION = 'hardware_acceleration_mode.enabled';
 export const PREF_PIP_ON_LEAVING_WINDOW = 'compass.pip.on_leaving_window';
 
-export type GeneralView = 'main'|'engines'|'languages';
+export type GeneralView = 'main'|'engines'|'languages'|'fonts';
 
 export interface FontPref {
   pref: string;
@@ -135,11 +135,12 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    // ?view=engines (chrome://settings/searchEngines), ?focus=<row>.
+    // ?view=engines (chrome://settings/searchEngines), ?view=fonts,
+    // ?focus=<row>.
     const params = new URLSearchParams(window.location.search);
     this.focus_ = params.get('focus') || '';
     const view = params.get('view');
-    if (view === 'engines' || view === 'languages') {
+    if (view === 'engines' || view === 'languages' || view === 'fonts') {
       this.setView_(view);
     }
     prefs.addListener(this.prefListener_);
@@ -349,10 +350,34 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
     this.setView_('main');
   }
 
+  // Fonts.
+
+  protected onFontsClick_() {
+    this.setView_('fonts');
+  }
+
+  protected onFontsBackClick_() {
+    this.setView_('main');
+  }
+
+  // The Fonts row's detail: the standard, sans-serif and fixed-width fonts'
+  // names ("Times · Helvetica · Courier").
+  protected getFontsSummary_(): string {
+    const names = [0, 2, 3].map(index => {
+      const pref = FONT_PREFS[index]!.pref;
+      const value = this.getString_(pref);
+      return this.fonts_.find(f => f[0] === value)?.[1] || value;
+    }).filter(name => name);
+    return names.join(' · ');
+  }
+
   private setView_(view: GeneralView) {
     this.view_ = view;
     window.history.replaceState(
         null, '', view === 'main' ? '/general' : `/general?view=${view}`);
+    // The window hides the pane's header while a view is shown (app.ts).
+    this.toggleAttribute('nested', view !== 'main');
+    this.dispatchEvent(new CustomEvent('settings-view', {bubbles: true}));
     this.closest('#scroller')?.scrollTo(0, 0);
   }
 

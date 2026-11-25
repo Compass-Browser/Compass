@@ -63,6 +63,7 @@ constexpr auto kWindowPaths = std::to_array<std::string_view>({
     "plugins",
     "advanced",
     "devMode",
+    "about",
 });
 
 base::flat_map<Profile*, SettingsWindow*>& Windows() {
@@ -141,10 +142,12 @@ std::optional<std::string> SettingsWindowPathFor(std::string_view sub_page) {
   if (path == "languages" || path.starts_with("languages/")) {
     return std::string("general?view=languages");
   }
+  if (path == "fonts") {
+    return std::string("general?view=fonts");
+  }
   if (path == "search" || path == "defaultBrowser" || path == "downloads" ||
-      path == "appearance" || path == "fonts") {
-    return base::StrCat(
-        {"general?focus=", path == "fonts" ? "fontSize" : path});
+      path == "appearance") {
+    return base::StrCat({"general?focus=", path});
   }
   // Upstream's privacy sections are the Privacy pane's (phase 3): its views
   // and parts, by query (privacy_pane.ts).
@@ -155,19 +158,20 @@ std::optional<std::string> SettingsWindowPathFor(std::string_view sub_page) {
   if (path == "performance" || path == "accessibility" || path == "reset") {
     return base::StrCat({"advanced?focus=", path});
   }
+  // Upstream's About page is the About pane.
   if (path == "help") {
-    return std::string("advanced?focus=about");
+    return std::string("about");
   }
   // And its passwords' (phase 4).
   if (path == "passwords") {
-    return std::string("passwords");
+    return std::string(sub_page.substr(sub_page.starts_with('/') ? 1 : 0));
   }
-  // And payments and addresses, which it edits (phase 5d).
+  // And payments and addresses, which it edits on pages of their own.
   if (path == "payments") {
-    return std::string("passwords?focus=saveCards");
+    return std::string("passwords?view=cards");
   }
   if (path == "autofill" || path == "contactInfo" || path == "addresses") {
-    return std::string("passwords?focus=saveAddresses");
+    return std::string("passwords?view=addresses");
   }
   if (path == "security" || path == "cookies") {
     return base::StrCat({"privacy?focus=", path});
@@ -222,7 +226,7 @@ std::optional<std::string> SettingsWindowPathFor(std::string_view sub_page) {
       {"autofill", "passwords"},
       {"accessibility", "advanced?focus=accessibility"},
       {"reset", "advanced?focus=reset"},
-      {"help", "advanced?focus=about"},
+      {"help", "about"},
       {"performance", "advanced?focus=performance"},
   };
   for (const Closest& closest : kClosest) {

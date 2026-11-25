@@ -527,7 +527,7 @@ compass-settings-icon {
   font-weight: 600;
 }
 
-#sections .compass-page button:not(.link, .keys) {
+#sections .compass-page button:not(.link, .keys, .back) {
   background: var(--accent);
   border: none;
   border-radius: var(--radius-control);
@@ -542,11 +542,11 @@ compass-settings-icon {
   padding: 3px 12px;
 }
 
-#sections .compass-page button:not(.link, .keys):hover {
+#sections .compass-page button:not(.link, .keys, .back):hover {
   filter: brightness(1.06);
 }
 
-#sections .compass-page button:not(.link, .keys):active {
+#sections .compass-page button:not(.link, .keys, .back):active {
   filter: brightness(0.92);
 }
 
@@ -790,7 +790,8 @@ input.field::placeholder {
   font: inherit;
   font-size: 13px;
   gap: 2px;
-  margin: -6px 0 12px -6px;
+  /* Its chevron lines up with the rows' tiles, 14px in from the groups. */
+  margin: -6px 0 12px 6px;
   padding: 3px 8px 3px 2px;
 }
 
@@ -801,6 +802,136 @@ input.field::placeholder {
 
 .back:hover {
   background: var(--tint);
+}
+
+/* Tiles, pane headers and pages ------------------------------------------- */
+
+/* A row's tile: a glyph, white on a colored square, as the system's settings
+ * rows. It's always a row's first item, so the tiles of a group line up;
+ * the row's control goes at its end. The colors are per topic, not per row
+ * (panes.ts, TileColor). */
+.tile {
+  --icon-size: 17px;
+  --icon-stroke: 1.9;
+  align-items: center;
+  background: var(--tile, #6b6f76);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.08),
+      0 1px 1.5px rgba(0, 0, 0, 0.12);
+  color: #fff;
+  display: inline-flex;
+  flex: none;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.tile[data-color='blue'] {
+  --tile: #1c7ed6;
+}
+
+.tile[data-color='indigo'] {
+  --tile: #4263eb;
+}
+
+.tile[data-color='purple'] {
+  --tile: #7048e8;
+}
+
+.tile[data-color='pink'] {
+  --tile: #d6336c;
+}
+
+.tile[data-color='red'] {
+  --tile: #e03131;
+}
+
+.tile[data-color='orange'] {
+  --tile: #e8590c;
+}
+
+.tile[data-color='yellow'] {
+  --tile: #e67700;
+}
+
+.tile[data-color='green'] {
+  --tile: #2f9e44;
+}
+
+.tile[data-color='teal'] {
+  --tile: #0c8599;
+}
+
+.tile[data-color='gray'] {
+  --tile: #6b6f76;
+}
+
+.tile[data-color='slate'] {
+  --tile: #495057;
+}
+
+/* A letter for something with no icon of its own (a browser, a site). */
+.tile.letter {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Another app's own icon in a tile's place: its artwork has margins, so
+ * it's drawn larger to line up with the tiles. */
+img.app-icon {
+  flex: none;
+  height: 34px;
+  margin: -3px;
+  width: 34px;
+}
+
+.tile.large {
+  --icon-size: 26px;
+  --icon-stroke: 1.7;
+  border-radius: 12px;
+  height: 44px;
+  width: 44px;
+}
+
+/* With a tile, the hairline between rows starts at the text. */
+.row:has(> .tile, > img.app-icon) + .row::before {
+  inset-inline-start: 54px;
+}
+
+/* A pane's header: its tile, its name and what it's for. */
+.pane-header {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  margin: 4px 0 22px 4px;
+}
+
+.pane-header-title {
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 24px;
+  margin: 0;
+}
+
+.pane-header-blurb {
+  color: var(--fg-dim);
+  font-size: 13px;
+  line-height: 17px;
+  margin: 2px 0 0;
+}
+
+/* A section's page, or a pane's view: its name, under the way back. */
+.subpage-title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 26px;
+  /* In line with the way back and the rows' tiles. */
+  margin: 0 0 16px 14px;
+}
+
+/* The rows that open sections' pages, after the pane's own groups. */
+#subpageRows:empty {
+  display: none;
 }
 
 /* Buttons under a group. */
@@ -1056,4 +1187,195 @@ button.pill.move {
 
 .space-theme-row compass-theme-editor {
   width: 260px;
+}
+
+/* About ---------------------------------------------------------------------
+ * Compass's icon, name and version, centered above its groups. */
+
+.about-header {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 26px;
+  text-align: center;
+  user-select: text;
+}
+
+.about-logo {
+  height: 88px;
+  margin-bottom: 6px;
+  width: 88px;
+}
+
+.about-name {
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 28px;
+  margin: 0;
+}
+
+.about-version {
+  color: var(--fg-dim);
+  font-size: 13px;
+}
+
+.about-chromium {
+  color: var(--fg-dim);
+  font-size: 12px;
+}
+
+/* AI, General and Passwords views ------------------------------------------ */
+
+/* A row's count, before its chevron (Passwords › Saved passwords). */
+.row-count {
+  color: var(--fg-dim);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* AI is one of Compass's sections (settings/claude_page.html) laid out as
+ * the window's own panes: its main view is the window's groups and rows, so
+ * its card is no group of its own, and its other views keep their form
+ * markup in a group (.legacy-group). The sections' rules above restyle
+ * .row and buttons; these win back the window's. */
+#sections compass-claude-page .compass-page > .compass-card {
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+#sections compass-claude-page .legacy-group {
+  background: var(--group);
+  border-radius: var(--radius-group);
+  box-shadow: var(--group-shadow);
+  padding: 14px 16px 16px;
+}
+
+#sections compass-claude-page .window-rows .row {
+  min-height: 48px;
+  padding: 9px 14px;
+  width: 100%;
+}
+
+#sections compass-claude-page .window-rows .row + .row::before {
+  content: '';
+}
+
+#sections compass-claude-page .window-rows .row:not(.control-row):hover {
+  background: var(--tint);
+}
+
+#sections compass-claude-page .window-rows button.row {
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+  color: inherit;
+  font-weight: normal;
+  line-height: inherit;
+}
+
+#sections compass-claude-page .window-rows button.row:hover {
+  background: var(--tint);
+  filter: none;
+}
+
+#sections compass-claude-page .window-rows button.row:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent-ring);
+}
+
+#sections compass-claude-page .window-rows :is(#mcpSetup, #mcpUnsupported) {
+  margin: 10px 14px 0;
+}
+
+/* The views' choices (Connect with, Answer with, Files) put the radio at
+ * the end of the row, as the window's controls are. */
+#sections compass-claude-page .claude-backend label {
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+#sections compass-claude-page .claude-backend label > span {
+  flex: 1;
+}
+
+/* Import page (settings/arc_import_page.html) -------------------------------
+ * Built of the window's rows and groups, inside a Compass section: undo the
+ * sections' own restyling (above) for them. */
+
+#sections compass-arc-import-page .compass-card:has(> .window-rows) {
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+#sections compass-arc-import-page .window-rows .row {
+  min-height: 48px;
+  padding: 9px 14px;
+  width: 100%;
+}
+
+#sections compass-arc-import-page .window-rows .row + .row::before {
+  content: '';
+}
+
+#sections compass-arc-import-page .window-rows .row:not(.control-row,
+    button):hover {
+  background: none;
+}
+
+#sections compass-arc-import-page .window-rows .group-title {
+  font-size: 12px;
+}
+
+#sections compass-arc-import-page .window-rows button.row {
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+  color: inherit;
+  font-size: inherit;
+  font-weight: normal;
+  line-height: inherit;
+}
+
+#sections compass-arc-import-page .window-rows button.row:hover {
+  background: var(--tint);
+  filter: none;
+}
+
+#sections compass-arc-import-page .window-rows button.row:active {
+  background: var(--press);
+  filter: none;
+}
+
+#sections compass-arc-import-page .window-rows button.row:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent-ring);
+}
+
+#sections compass-arc-import-page .window-rows button.pill {
+  background: var(--raised);
+  box-shadow: var(--control-shadow);
+  color: var(--fg);
+  padding: 3px 13px;
+}
+
+#sections compass-arc-import-page .window-rows button.pill.accent {
+  background: var(--accent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--accent) 40%, transparent),
+      inset 0 0.5px 0 rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+#sections compass-arc-import-page .window-rows button.back {
+  background: none;
+  box-shadow: none;
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: normal;
+  padding: 3px 8px 3px 2px;
+}
+
+#sections compass-arc-import-page .window-rows button.back:hover {
+  background: var(--tint);
+  filter: none;
 }

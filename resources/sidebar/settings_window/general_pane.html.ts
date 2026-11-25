@@ -16,11 +16,63 @@ ${this.isView_('engines') ? html`
 ${this.isView_('languages') ? html`
   <compass-settings-languages @close="${this.onLanguagesClose_}">
   </compass-settings-languages>` : nothing}
+${this.isView_('fonts') ? html`
+<button class="back" @click="${this.onFontsBackClick_}">
+  <compass-settings-icon name="back"></compass-settings-icon>
+  General
+</button>
+<h2 class="subpage-title">Fonts</h2>
+<section class="row-group">
+  <div class="group">
+    ${this.fontPrefs.map(font => html`
+      <div class="row control-row" data-row="${font.pref}">
+        <span class="tile" data-color="purple">
+          <compass-settings-icon name="font"></compass-settings-icon>
+        </span>
+        <span class="row-text">
+          <span class="row-label">${font.label}</span>
+        </span>
+        <select class="popup" aria-label="${font.label}"
+            data-pref="${font.pref}"
+            ?disabled="${this.isEnforced_(font.pref)}"
+            @change="${this.onFontChange_}">
+          ${this.getFontsFor_(font.pref).map(entry => html`
+            <option value="${entry[0]}"
+                ?selected="${entry[0] === this.getString_(font.pref)}">
+              ${entry[1]}
+            </option>`)}
+        </select>
+      </div>`)}
+    <div class="row control-row" data-row="minimumFontSize">
+      <span class="tile" data-color="purple">
+        <compass-settings-icon name="textsize"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Minimum font size</span>
+      </span>
+      <select class="popup" aria-label="Minimum font size"
+          data-pref="${PREF_MINIMUM_FONT_SIZE}"
+          ?disabled="${this.isEnforced_(PREF_MINIMUM_FONT_SIZE)}"
+          @change="${this.onNumberSelectChange_}">
+        ${this.minimumFontSizes.map(size => html`
+          <option value="${size.value}" ?selected="${
+              size.value === this.getNumber_(PREF_MINIMUM_FONT_SIZE)}">
+            ${size.label}
+          </option>`)}
+      </select>
+    </div>
+  </div>
+</section>
+
+` : nothing}
 <div ?hidden="${!this.isView_('main')}">
 <section class="row-group">
   <h2 class="group-title">Browser</h2>
   <div class="group">
     <div class="row control-row" data-row="defaultBrowser">
+      <span class="tile" data-color="blue">
+        <compass-settings-icon name="compass"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Default browser</span>
         <span class="row-detail">${this.getDefaultBrowserText_()}</span>
@@ -31,6 +83,9 @@ ${this.isView_('languages') ? html`
       </button>
     </div>
     <div class="row control-row" data-row="search">
+      <span class="tile" data-color="indigo">
+        <compass-settings-icon name="search"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Search engine</span>
         <span class="row-detail">What the command bar searches with.</span>
@@ -47,6 +102,9 @@ ${this.isView_('languages') ? html`
     </div>
     <button class="row" data-row="searchEngines"
         @click="${this.onManageEnginesClick_}">
+      <span class="tile" data-color="gray">
+        <compass-settings-icon name="search"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Manage search engines and site search</span>
       </span>
@@ -60,6 +118,9 @@ ${this.isView_('languages') ? html`
   <h2 class="group-title">Picture-in-picture</h2>
   <div class="group">
     <label class="row control-row" data-row="pipOnLeavingWindow">
+      <span class="tile" data-color="pink">
+        <compass-settings-icon name="pip"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Also when you leave the window</span>
         <span class="row-detail">
@@ -80,6 +141,9 @@ ${this.isView_('languages') ? html`
   <h2 class="group-title">Downloads</h2>
   <div class="group">
     <div class="row control-row" data-row="downloads">
+      <span class="tile" data-color="blue">
+        <compass-settings-icon name="download"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Location</span>
         <span class="row-detail path">${this.downloadLocation_}</span>
@@ -89,6 +153,9 @@ ${this.isView_('languages') ? html`
       </button>
     </div>
     <label class="row control-row" data-row="promptForDownload">
+      <span class="tile" data-color="teal">
+        <compass-settings-icon name="folder"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Ask where to save each file</span>
       </span>
@@ -105,6 +172,9 @@ ${this.isView_('languages') ? html`
   <h2 class="group-title">Appearance</h2>
   <div class="group">
     <div class="row control-row" data-row="fontSize">
+      <span class="tile" data-color="purple">
+        <compass-settings-icon name="textsize"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Font size</span>
       </span>
@@ -120,6 +190,9 @@ ${this.isView_('languages') ? html`
       </select>
     </div>
     <div class="row control-row" data-row="zoom">
+      <span class="tile" data-color="purple">
+        <compass-settings-icon name="zoom"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Page zoom</span>
         <span class="row-detail">For sites you haven't zoomed yourself.</span>
@@ -132,43 +205,17 @@ ${this.isView_('languages') ? html`
           </option>`)}
       </select>
     </div>
-  </div>
-</section>
-
-<section class="row-group">
-  <h2 class="group-title">Fonts</h2>
-  <div class="group">
-    ${this.fontPrefs.map(font => html`
-      <div class="row control-row" data-row="${font.pref}">
-        <span class="row-text">
-          <span class="row-label">${font.label}</span>
-        </span>
-        <select class="popup" aria-label="${font.label}"
-            data-pref="${font.pref}"
-            ?disabled="${this.isEnforced_(font.pref)}"
-            @change="${this.onFontChange_}">
-          ${this.getFontsFor_(font.pref).map(entry => html`
-            <option value="${entry[0]}"
-                ?selected="${entry[0] === this.getString_(font.pref)}">
-              ${entry[1]}
-            </option>`)}
-        </select>
-      </div>`)}
-    <div class="row control-row" data-row="minimumFontSize">
-      <span class="row-text">
-        <span class="row-label">Minimum font size</span>
+    <button class="row" data-row="fonts" @click="${this.onFontsClick_}">
+      <span class="tile" data-color="purple">
+        <compass-settings-icon name="font"></compass-settings-icon>
       </span>
-      <select class="popup" aria-label="Minimum font size"
-          data-pref="${PREF_MINIMUM_FONT_SIZE}"
-          ?disabled="${this.isEnforced_(PREF_MINIMUM_FONT_SIZE)}"
-          @change="${this.onNumberSelectChange_}">
-        ${this.minimumFontSizes.map(size => html`
-          <option value="${size.value}" ?selected="${
-              size.value === this.getNumber_(PREF_MINIMUM_FONT_SIZE)}">
-            ${size.label}
-          </option>`)}
-      </select>
-    </div>
+      <span class="row-text">
+        <span class="row-label">Fonts</span>
+        <span class="row-detail">${this.getFontsSummary_()}</span>
+      </span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
   </div>
 </section>
 
@@ -177,6 +224,9 @@ ${this.isView_('languages') ? html`
   <div class="group">
     <button class="row" data-row="languages"
         @click="${this.onManageLanguagesClick_}">
+      <span class="tile" data-color="teal">
+        <compass-settings-icon name="globe"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Preferred languages</span>
         <span class="row-detail">${this.getLanguagesText_()}</span>
@@ -185,6 +235,9 @@ ${this.isView_('languages') ? html`
       </compass-settings-icon>
     </button>
     <label class="row control-row" data-row="translate">
+      <span class="tile" data-color="teal">
+        <compass-settings-icon name="translate"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Offer to translate pages</span>
         <span class="row-detail">
@@ -198,6 +251,9 @@ ${this.isView_('languages') ? html`
           @change="${this.onSwitchChange_}">
     </label>
     <label class="row control-row" data-row="spellcheck">
+      <span class="tile" data-color="red">
+        <compass-settings-icon name="spell"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Check spelling as you type</span>
       </span>
@@ -213,6 +269,9 @@ ${this.isView_('languages') ? html`
   <h2 class="group-title">System</h2>
   <div class="group">
     <div class="row control-row" data-row="hardwareAcceleration">
+      <span class="tile" data-color="slate">
+        <compass-settings-icon name="chip"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Use graphics acceleration when available</span>
         <span class="row-detail" ?hidden="${!this.needsRelaunch_()}">
@@ -231,6 +290,9 @@ ${this.isView_('languages') ? html`
           @change="${this.onSwitchChange_}">
     </div>
     <button class="row" data-row="proxy" @click="${this.onProxyClick_}">
+      <span class="tile" data-color="gray">
+        <compass-settings-icon name="network"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Proxy settings</span>
         <span class="row-detail">In your computer's network settings.</span>

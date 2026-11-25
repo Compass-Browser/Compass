@@ -16,6 +16,9 @@ ${this.isView_('main') ? html`
   <div class="group">
     <button class="row" data-row="clearBrowserData" data-view="clear"
         @click="${this.onViewClick_}">
+      <span class="tile" data-color="red">
+        <compass-settings-icon name="trash"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Clear browsing data…</span>
         <span class="row-detail">
@@ -32,6 +35,9 @@ ${this.isView_('main') ? html`
   <h2 class="group-title">Cookies and tracking</h2>
   <div class="group">
     <div class="row control-row">
+      <span class="tile" data-color="orange">
+        <compass-settings-icon name="cookie"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Third-party cookies</span>
         <span class="row-detail">
@@ -49,6 +55,9 @@ ${this.isView_('main') ? html`
       </select>
     </div>
     <label class="row control-row" data-row="doNotTrack">
+      <span class="tile" data-color="slate">
+        <compass-settings-icon name="eyeoff"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Ask sites not to track you</span>
         <span class="row-detail">Sends Do Not Track; sites may ignore it.</span>
@@ -59,6 +68,9 @@ ${this.isView_('main') ? html`
           @change="${this.onSwitchChange_}">
     </label>
     <label class="row control-row" data-row="cleanLinks">
+      <span class="tile" data-color="teal">
+        <compass-settings-icon name="links"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Remove tracking from copied links</span>
         <span class="row-detail">
@@ -78,6 +90,9 @@ ${this.isView_('main') ? html`
   <h2 class="group-title">Ad blocker</h2>
   <div class="group">
     <label class="row control-row" data-row="adblockEnabled">
+      <span class="tile" data-color="red">
+        <compass-settings-icon name="privacy"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Block ads and trackers</span>
         <span class="row-detail">
@@ -92,6 +107,9 @@ ${this.isView_('main') ? html`
     </label>
     <button class="row" data-row="filterLists" data-view="adblock"
         @click="${this.onViewClick_}">
+      <span class="tile" data-color="gray">
+        <compass-settings-icon name="filter"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Filter lists</span>
         <span class="row-detail">${this.getFilterListsDetail_()}</span>
@@ -106,6 +124,9 @@ ${this.isView_('main') ? html`
   <h2 class="group-title">Security</h2>
   <div class="group">
     <div class="row control-row" data-row="safeBrowsing">
+      <span class="tile" data-color="blue">
+        <compass-settings-icon name="privacy"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Safe Browsing</span>
         <span class="row-detail">
@@ -123,6 +144,9 @@ ${this.isView_('main') ? html`
       </select>
     </div>
     <label class="row control-row" data-row="httpsOnly">
+      <span class="tile" data-color="green">
+        <compass-settings-icon name="lock"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Always use secure connections</span>
         <span class="row-detail">
@@ -135,6 +159,9 @@ ${this.isView_('main') ? html`
           @change="${this.onSwitchChange_}">
     </label>
     <label class="row control-row" data-row="secureDns">
+      <span class="tile" data-color="indigo">
+        <compass-settings-icon name="server"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Use secure DNS</span>
         <span class="row-detail">${this.getSecureDnsDetail_()}</span>
@@ -146,6 +173,9 @@ ${this.isView_('main') ? html`
     </label>
     <button class="row" data-row="certificates"
         @click="${this.onCertificatesClick_}">
+      <span class="tile" data-color="gray">
+        <compass-settings-icon name="doc"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Manage certificates</span>
       </span>
@@ -161,6 +191,9 @@ ${this.isView_('main') ? html`
   <div class="group">
     <button class="row" data-row="permissions" data-view="permissions"
         @click="${this.onViewClick_}">
+      <span class="tile" data-color="purple">
+        <compass-settings-icon name="advanced"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Permissions</span>
         <span class="row-detail">
@@ -172,6 +205,9 @@ ${this.isView_('main') ? html`
     </button>
     <button class="row" data-row="sites" data-view="sites"
         @click="${this.onViewClick_}">
+      <span class="tile" data-color="teal">
+        <compass-settings-icon name="globe"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Sites with their own permissions</span>
         <span class="row-detail">${this.getSitesDetail_()}</span>
@@ -181,6 +217,9 @@ ${this.isView_('main') ? html`
     </button>
     <button class="row" data-row="safetyCheck" data-view="safety"
         @click="${this.onViewClick_}">
+      <span class="tile" data-color="green">
+        <compass-settings-icon name="check"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Safety check</span>
         <span class="row-detail">

@@ -28,6 +28,8 @@ source_set("ui") {
     "arc_import/arc_easel_import.h",
     "arc_import/arc_importer.cc",
     "arc_import/arc_importer.h",
+    "browser_import/app_icon.cc",
+    "browser_import/app_icon.h",
     "browser_import/browser_importer.cc",
     "browser_import/browser_importer.h",
     "claude/claude_files_config.cc",
@@ -313,6 +315,8 @@ source_set("ui") {
     "//ui/base/mojom:ui_base_types",
     "//ui/events",
     "//ui/events:events_base",
+    "//ui/gfx",
+    "//ui/gfx/codec",
     "//ui/gfx/geometry",
     "//ui/menus",
     "//ui/shell_dialogs",
@@ -417,6 +421,7 @@ source_set("ui") {
   if (is_mac) {
     sources += [
       "arc_import/arc_importer_mac.mm",
+      "browser_import/app_icon_mac.mm",
       "cocoa/spaces_menu_mac.mm",
       "views/frame/browser_view_exchange_mac.mm",
       "views/frame/window_frame_mac.mm",
@@ -430,9 +435,15 @@ source_set("ui") {
       "//compass/browser/ui/cocoa:spaces_menu_hooks",
     ]
   } else if (is_win) {
-    sources += [ "arc_import/arc_importer_win.cc" ]
+    sources += [
+      "arc_import/arc_importer_win.cc",
+      "browser_import/app_icon_win.cc",
+    ]
   } else {
-    sources += [ "arc_import/arc_importer_other.cc" ]
+    sources += [
+      "arc_import/arc_importer_other.cc",
+      "browser_import/app_icon_other.cc",
+    ]
   }
 }
 

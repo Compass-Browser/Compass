@@ -259,10 +259,18 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, SyncSection) {
   EXPECT_EQ(WaitFor("!deepQuery('compass-sync-page #off')?.hidden"), true);
 }
 
-// compass://settings/importArc looks for Arc and says what it found.
+// compass://settings/importArc looks for other browsers and Arc, and says
+// what it found.
 IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ArcImportSection) {
   OpenSection("importArc");
   EXPECT_EQ(WaitFor("deepQuery('compass-arc-import-page #loading')?.hidden"),
+            true);
+  EXPECT_EQ(WaitFor("deepQuery('compass-arc-import-page #browsersLoading')"
+                    "?.hidden"),
+            true);
+  // The list first.
+  EXPECT_EQ(WaitFor("deepQuery('compass-arc-import-page #listView') && "
+                    "!deepQuery('compass-arc-import-page #listView').hidden"),
             true);
 }
 

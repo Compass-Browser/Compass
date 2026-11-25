@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import '../settings_window/icon.js';
+
 // Compass's settings sections, each an element shown in the settings window
 // (docs/design/settings-window.md, which re-skins them), and alone on its own
 // page (chrome://compass-sync, chrome://compass-settings/shortcuts.html,
@@ -76,5 +78,78 @@ export abstract class CompassSettingsPage extends HTMLElement {
 
   protected show(id: string, visible: boolean) {
     this.$(id).hidden = !visible;
+  }
+
+  // Views (docs/design/settings-window.md, "Pages and views"): the markup's
+  // blocks marked data-page-view="name" (one of them "main") are shown one at
+  // a time; a [data-open-view="name"] button opens one. Each view but main
+  // gets a "‹ |backLabel|" link and its data-title as a heading. The path's
+  // ?view= picks the first one, and showing one puts it in the path.
+  private view_ = 'main';
+
+  protected get view(): string {
+    return this.view_;
+  }
+
+  protected setUpViews(backLabel: string) {
+    for (const block of this.querySelectorAll<HTMLElement>(
+             '[data-page-view]')) {
+      if (block.dataset['pageView'] === 'main') {
+        continue;
+      }
+      const back = document.createElement('button');
+      back.className = 'back';
+      back.type = 'button';
+      back.dataset['back'] = '';
+      const icon = document.createElement('compass-settings-icon');
+      icon.setAttribute('name', 'back');
+      back.append(icon, backLabel);
+      back.addEventListener('click', () => this.setView('main'));
+      const title = document.createElement('h2');
+      title.className = 'subpage-title';
+      title.textContent = block.dataset['title'] || '';
+      block.prepend(back, title);
+    }
+    for (const button of this.querySelectorAll<HTMLElement>(
+             '[data-open-view]')) {
+      button.addEventListener(
+          'click', () => this.setView(button.dataset['openView']!));
+    }
+    const view = new URLSearchParams(window.location.search).get('view');
+    this.setView(view && this.querySelector(`[data-page-view="${view}"]`) ?
+                     view :
+                     'main',
+                 /*updatePath=*/ false);
+  }
+
+  protected setView(view: string, updatePath = true) {
+    this.view_ = view;
+    for (const block of this.querySelectorAll<HTMLElement>(
+             '[data-page-view]')) {
+      block.hidden = block.dataset['pageView'] !== view;
+    }
+    const nested = view !== 'main';
+    this.toggleAttribute('nested', nested);
+    this.dispatchEvent(new CustomEvent('settings-view', {bubbles: true}));
+    if (updatePath) {
+      const url = new URL(window.location.href);
+      if (nested) {
+        url.searchParams.set('view', view);
+      } else {
+        url.searchParams.delete('view');
+      }
+      window.history.replaceState(null, '', url.pathname + url.search);
+      const scroller = document.getElementById('scroller');
+      if (scroller) {
+        scroller.scrollTop = 0;
+      }
+    }
+  }
+
+  // Tells the settings window this section's status, for the row that opens
+  // its page (panes.ts, Subpage).
+  protected setSubpageDetail(detail: string) {
+    this.dispatchEvent(
+        new CustomEvent('subpage-detail', {bubbles: true, detail}));
   }
 }

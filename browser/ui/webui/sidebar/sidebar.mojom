@@ -651,6 +651,8 @@ struct ArcImportState {
   // Arc is open (its databases are in use; it must be quit first).
   bool arc_running;
   array<ArcImportProfile> profiles;
+  // Arc's own app icon, as a PNG data: URL; empty if there's none.
+  string icon_data_url;
 };
 
 // A profile of another browser chrome://compass-import offers
@@ -686,6 +688,9 @@ struct BrowserImportProfile {
   // The Chromium version that last opened it, when newer than Compass's
   // (a copy may lose data); 0 otherwise.
   int32 newer_version;
+  // Its browser's own app icon, read from the installed app, as a PNG
+  // data: URL; empty if there's none (the page shows a letter).
+  string icon_data_url;
 };
 
 // What to bring from one profile.

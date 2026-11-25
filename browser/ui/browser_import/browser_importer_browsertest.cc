@@ -382,7 +382,8 @@ IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, FlagsANewerChromium) {
   EXPECT_EQ(profiles[0].newer_version, 999);
 }
 
-// The page lists the profile, imports it and sums up.
+// The page lists the profile; its row opens its choices, which import it
+// and sum up (docs/design/browser-import.md, "The page").
 IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, ImportPage) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("chrome://compass-import/")));
@@ -391,20 +392,32 @@ IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, ImportPage) {
   ASSERT_TRUE(content::WaitForLoadStop(page));
   ASSERT_TRUE(base::test::RunUntil([&] {
     return content::EvalJs(page,
-                           "document.querySelectorAll('#browsers li.browser')"
+                           "document.querySelectorAll('#browsers .browser')"
                            ".length")
                .ExtractInt() == 1;
   }));
   EXPECT_EQ(content::EvalJs(page,
-                            "document.querySelector('#browsers .name')"
+                            "document.querySelector('#browsers .row-label')"
                             ".textContent"),
-            "Chrome – Person 1");
+            "Chrome · Person 1");
   EXPECT_EQ(content::EvalJs(page,
-                            "document.querySelector('#browsers .details')"
+                            "document.querySelector('#browsers .row-detail')"
                             ".textContent"),
             "3 bookmarks · 3 open tabs");
+
+  // Its row opens its choices.
+  ASSERT_TRUE(content::ExecJs(
+      page, "document.querySelector('#browsers button.browser').click();"));
+  EXPECT_EQ(false, content::EvalJs(
+                       page, "document.getElementById('browserView').hidden"));
+  EXPECT_EQ(true, content::EvalJs(
+                      page, "document.getElementById('listView').hidden"));
   EXPECT_EQ(content::EvalJs(page,
-                            "document.querySelectorAll('#browsers "
+                            "document.getElementById('browserTitle')"
+                            ".textContent"),
+            "Chrome · Person 1");
+  EXPECT_EQ(content::EvalJs(page,
+                            "document.querySelectorAll('#options "
                             ".option-check').length"),
             4);
   // Chrome can also become a profile; a space here is the default.
@@ -424,11 +437,45 @@ IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, ImportPage) {
   }));
   EXPECT_EQ(content::EvalJs(page,
                             "document.querySelector('#browsersSummary "
-                            ".details').textContent"),
+                            ".row-detail').textContent"),
             "Space Chrome · 3 tabs in Pinned · 3 tabs in Today "
             "· 2 history pages");
   EXPECT_EQ(false, content::EvalJs(
                        page, "document.getElementById('openBrowsers').hidden"));
+
+  // "Import Another Browser" goes back to the list.
+  ASSERT_TRUE(content::ExecJs(
+      page, "document.getElementById('browsersAgain').click();"));
+  EXPECT_EQ(false, content::EvalJs(
+                       page, "document.getElementById('listView').hidden"));
+}
+
+// A browser's row shows its app's own icon, or the first letter of its name
+// where its app isn't on this computer (app_icon.h).
+IN_PROC_BROWSER_TEST_F(BrowserImporterBrowserTest, ImportPageShowsAnIcon) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("chrome://compass-import/")));
+  content::WebContents* page =
+      browser()->GetTabStripModel()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(page));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(page,
+                           "document.querySelectorAll('#browsers .browser')"
+                           ".length")
+               .ExtractInt() == 1;
+  }));
+  EXPECT_EQ(true, content::EvalJs(
+                      page,
+                      "(() => {"
+                      "  const row = document.querySelector("
+                      "      '#browsers .browser');"
+                      "  const icon = row.querySelector('img.app-icon');"
+                      "  if (icon) {"
+                      "    return icon.src.startsWith('data:image/png;');"
+                      "  }"
+                      "  return row.querySelector('.tile.letter')"
+                      "      ?.textContent === 'C';"
+                      "})()"));
 }
 
 }  // namespace

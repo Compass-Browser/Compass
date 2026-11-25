@@ -417,23 +417,59 @@ goes ahead.
 
 ## Page
 
-"Import from Another Browser" (compass://settings/importArc, the section
-the Arc import used; chrome://compass-import alone), opened from the
-command bar, Settings, and on the first run (below). It lists the browser
-profiles found, each with a checkbox and what to bring: "Bookmarks to
-Pinned", "Open tabs to Today", "History", "Passwords" (the last two where
-they work on this platform). Chromium-based profiles also choose between
-"Add as a space here" and "Add as a new profile"; the latter hides
-History and Passwords (they come with the copy) and warns when the
-browser is a newer Chromium. A running browser's profile is greyed out
-with "Quit it to import", and "Check again" looks again; one imported
-before shows as imported. After the import a summary says, per profile,
-the new profile if one was made, the spaces made and how many tabs went
-to Pinned and Today, history pages, passwords, and what didn't work
-(passwords that couldn't be decrypted, cookies left behind, Safari
-without Full Disk Access). "Open my spaces" shows the first new
-space. Arc's section follows when Arc is there (macOS,
-Windows).
+"Import from Another Browser" (compass://settings/importArc, a page of its
+own in the settings window: Profiles › "Import from another browser", whose
+row says what was found, "Chrome, Firefox and Arc found"; chrome://compass-import
+alone), opened from the command bar, Settings, and on the first run
+(below). It's built of the settings window's rows
+(`settings_window/window.css`, which chrome://compass-import loads too), one
+view at a time, one browser at a time:
+
+- **The list.** A row per browser profile found ("Chrome · Work"), with
+  its browser's own icon (below), its counts or why some of it can't be
+  read, and a chevron. A running browser's profile says "Quit it to
+  import" and doesn't open, and "Check Again" under the list looks again;
+  one imported before says so. Arc has a group of its own when it's there
+  (macOS, Windows), its row with its profiles and spaces.
+- **A profile's choices** (`?browser=<id>`, "‹ Browsers" back to the
+  list): its icon and name as the heading; for Chromium-based ones, "Bring
+  it in as" a space in this profile or a new profile (radios at the rows'
+  end; the latter hides History and Passwords, which come with the copy,
+  and warns when the browser is a newer Chromium); "What to import",
+  switches for Bookmarks (to Pinned), Open tabs (to Today), History and
+  Passwords (the last two where they work on this platform); the Keychain
+  note on macOS; Cancel and Import. After the import, a row says what came:
+  the new profile if one was made, the spaces and how many tabs went to
+  Pinned and Today, history pages, passwords, and what didn't work
+  (passwords that couldn't be decrypted, cookies left behind, Safari
+  without Full Disk Access). "Open My Spaces" shows the first new space;
+  "Import Another Browser" goes back to the list.
+- **Arc's profiles** (`?view=arc`): arc-import.md's choices, as before.
+
+While a profile's or Arc's view shows, the element has the `nested`
+attribute (settings-window.md, "Pages and views"), so the window hides its
+own "‹ Profiles" and heading for the view's.
+
+**Icons.** Each row shows the browser app's own icon, read from the app
+installed on this computer when the page lists the profiles
+(`browser/ui/browser_import/app_icon.h`, `BrowserAppIcon()`, on the
+overview's blocking thread, once per browser), so Compass ships no other
+browser's logo. It goes to the page as a PNG data: URL, 72 px (the row
+shows it at 34 CSS pixels, the view's heading at 52), in
+`BrowserImportProfile.icon_data_url` (Arc's in `ArcImportState`):
+
+- macOS: the app by its bundle ID (`NSWorkspace
+  URLForApplicationWithBundleIdentifier:`), else the `.app` a Firefox-based
+  profile's `app_path` is in, else `/Applications/<name>.app`;
+  `iconForFile:`, drawn at 72 px.
+- Windows: the browser's executable (next to a Chromium-based profile's
+  User Data, in a Firefox-based profile's `app_path`, or under Program
+  Files or %LOCALAPPDATA%), its icon by `SHDefExtractIcon`. Arc, an MSIX
+  package, has none.
+- Linux: none yet (the icon theme would say, through the `.desktop` file's
+  `Icon=`).
+
+Without an icon, the row shows the browser's first letter on a color.
 
 **First run:** the first window opens the page if Arc's sidebar is there
 and wasn't imported (arc-import.md), or if any other browser has a
@@ -460,7 +496,10 @@ platform, with a DPAPI-wrapped key on Windows) and checks the space, its
 Pinned and Today, the history, the passwords' count, importing again, and
 the page; and imports it as a profile (a new profile named after it, its
 space in place of the empty one, its source recorded, listed as imported
-and refused a second time).
+and refused a second time). `ImportPage` drives the page: the list, a
+profile's row opening its choices, the import and its summary, and back
+to the list; `ImportPageShowsAnIcon` checks the row has the app's icon or
+its letter.
 
 ## Open questions
 

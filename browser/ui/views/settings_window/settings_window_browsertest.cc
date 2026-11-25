@@ -109,9 +109,14 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PathsTheWindowHas) {
   EXPECT_EQ(SettingsWindowPathFor("people"), "profiles");
   EXPECT_EQ(SettingsWindowPathFor("syncSetup/advanced"), "sync");
   EXPECT_EQ(SettingsWindowPathFor("noSuchSection"), "");
-  EXPECT_EQ(SettingsWindowPathFor("payments"), "passwords?focus=saveCards");
+  EXPECT_EQ(SettingsWindowPathFor("payments"), "passwords?view=cards");
+  EXPECT_EQ(SettingsWindowPathFor("addresses"), "passwords?view=addresses");
+  EXPECT_EQ(SettingsWindowPathFor("fonts"), "general?view=fonts");
+  EXPECT_EQ(SettingsWindowPathFor("about"), "about");
   EXPECT_EQ(SettingsWindowPathFor("passwords"), "passwords");
-  EXPECT_EQ(SettingsWindowPathFor("help"), "advanced?focus=about");
+  EXPECT_EQ(SettingsWindowPathFor("passwords?view=cards"),
+            "passwords?view=cards");
+  EXPECT_EQ(SettingsWindowPathFor("help"), "about");
   EXPECT_EQ(SettingsWindowPathFor("reset"), "advanced?focus=reset");
   // Upstream's privacy sections are the Privacy pane's.
   EXPECT_EQ(SettingsWindowPathFor("privacy"), "privacy");
@@ -134,7 +139,7 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, ShowSettingsOpensTheWindow) {
   ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
   EXPECT_EQ(WaitFor("document.querySelector('#tabs .tab') && "
                     "document.querySelectorAll('#tabs .tab').length"),
-            11);
+            12);
   // They fit in the toolbar.
   EXPECT_EQ(content::EvalJs(window()->web_contents(),
                             "(() => { const tabs = document.querySelector("
@@ -648,23 +653,45 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PasswordsPane) {
   chrome::ShowSettingsSubPage(browser(), "passwords");
   ASSERT_TRUE(window());
   ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  // The main view counts the passwords; the list is a view of its own.
+  EXPECT_EQ(WaitFor("document.querySelector("
+                    "'[data-row=\"savedPasswords\"] .row-count')"
+                    "?.textContent === '1'"),
+            true);
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "document.querySelector('button[data-row=\"savedPasswords\"]')"
+      ".click();"));
   EXPECT_EQ(WaitFor("document.querySelector('.password-row .row-detail')"
                     "?.textContent"),
             "ada");
+  EXPECT_EQ(content::EvalJs(window()->web_contents(), "location.search"),
+            "?view=passwords");
   // The page has no password until the user asks (and authenticates).
   EXPECT_EQ(content::EvalJs(window()->web_contents(),
                             "document.body.textContent.includes("
                             "'correct horse')"),
             false);
-  EXPECT_EQ(WaitFor("[...document.querySelectorAll('.row-label')].some("
-                    "l => l.textContent === 'Ada Lovelace')"),
-            true);
 
   ASSERT_TRUE(content::ExecJs(
       window()->web_contents(),
       "document.querySelector('[aria-label=\"Remove example.com\"]')"
       ".click();"));
   EXPECT_EQ(WaitFor("!document.querySelector('.password-row')"), true);
+
+  // Back, then the addresses' view.
+  ASSERT_TRUE(content::ExecJs(window()->web_contents(),
+                              "document.querySelector('#sections .back')"
+                              ".click();"));
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "new Promise(resolve => setTimeout(() => {"
+      "  document.querySelector('button[data-row=\"addresses\"]').click();"
+      "  resolve(true);"
+      "}, 50))"));
+  EXPECT_EQ(WaitFor("[...document.querySelectorAll('.row-label')].some("
+                    "l => l.textContent === 'Ada Lovelace')"),
+            true);
 
   ASSERT_TRUE(content::ExecJs(window()->web_contents(), R"(
       [...document.querySelectorAll('.control-row')].find(
@@ -673,6 +700,13 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PasswordsPane) {
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return data->address_data_manager().GetProfiles().empty(); }));
 
+  // The switches are on the main view.
+  ASSERT_TRUE(content::ExecJs(window()->web_contents(),
+                              "document.querySelector('#sections .back')"
+                              ".click();"));
+  ASSERT_TRUE(WaitFor("!!document.querySelector("
+                      "'input[data-pref=\"credentials_enable_service\"]')")
+                  .ExtractBool());
   PrefService* prefs = profile()->GetPrefs();
   const bool offer =
       prefs->GetBoolean(password_manager::prefs::kCredentialsEnableService);
@@ -687,12 +721,13 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PasswordsPane) {
 }
 
 // Advanced (phase 5): memory saver writes Local State's pref, a channel that
-// isn't one is refused, and Reset puts upstream's settings back.
+// isn't one is refused, and Reset puts upstream's settings back. The version
+// is About's now.
 IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, AdvancedPane) {
   PrefService* local_state = g_browser_process->local_state();
   local_state->SetInteger(
       performance_manager::user_tuning::prefs::kMemorySaverModeState, 0);
-  HostContentSettingsMap* map =
+  HostContentSettingsMap *map =
       HostContentSettingsMapFactory::GetForProfile(profile());
   const ContentSetting popups =
       map->GetDefaultContentSetting(ContentSettingsType::POPUPS);
@@ -701,13 +736,18 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, AdvancedPane) {
                                     ? CONTENT_SETTING_BLOCK
                                     : CONTENT_SETTING_ALLOW);
 
-  chrome::ShowSettingsSubPage(browser(), "help");
+  chrome::ShowSettingsSubPage(browser(), "performance");
   ASSERT_TRUE(window());
   ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
-  EXPECT_EQ(WaitFor("document.querySelector('compass-settings-advanced-pane "
-                    "[data-row=\"updates\"] .row-label')?.textContent"
-                    ".startsWith('Version')"),
-            true);
+  ASSERT_TRUE(
+      WaitFor("!!document.querySelector("
+              "'compass-settings-advanced-pane [data-row=\"memorySaver\"]')")
+          .ExtractBool());
+  EXPECT_EQ(content::EvalJs(window()->web_contents(),
+                            "!!document.querySelector("
+                            "'compass-settings-advanced-pane "
+                            "[data-row=\"updates\"]')"),
+            false);
 
   ASSERT_TRUE(content::ExecJs(
       window()->web_contents(),
@@ -892,7 +932,8 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, LanguagesEditor) {
 IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, CardAndAddressEditors) {
   autofill::PersonalDataManager* data =
       autofill::PersonalDataManagerFactory::GetForBrowserContext(profile());
-  chrome::ShowSettingsSubPage(browser(), "passwords");
+  // Upstream's payments section is the cards' view.
+  chrome::ShowSettingsSubPage(browser(), "payments");
   ASSERT_TRUE(window());
   ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
   content::WebContents* page = window()->web_contents();
@@ -934,6 +975,19 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, CardAndAddressEditors) {
   EXPECT_EQ(data->payments_data_manager().GetCreditCards()[0]->LastFourDigits(),
             u"1111");
 
+  // The addresses' view, from the main one.
+  ASSERT_TRUE(
+      content::ExecJs(page, "document.querySelector('#sections .back')"
+                            ".click();"));
+  ASSERT_TRUE(WaitFor("!!document.querySelector("
+                      "'button[data-row=\"addresses\"]')")
+                  .ExtractBool());
+  ASSERT_TRUE(content::ExecJs(
+      page,
+      "document.querySelector('button[data-row=\"addresses\"]').click();"));
+  ASSERT_TRUE(WaitFor("[...document.querySelectorAll('button.pill')].some("
+                      "b => b.textContent.trim() === 'Add Address…')")
+                  .ExtractBool());
   ASSERT_TRUE(content::ExecJs(page, "(" + click + ")('Add Address…');"));
   ASSERT_TRUE(content::ExecJs(
       page, "(" + fill_and_save +
@@ -965,6 +1019,107 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, CardAndAddressEditors) {
   }));
 }
 
+// AI, General and Passwords views (docs/design/settings-window.md, "Pages
+// and views"): each opens from its path with a way back, and hides the
+// pane's header while shown.
+
+// General › Fonts: the font menus are a view of their own.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, GeneralFontsView) {
+  chrome::ShowSettingsSubPage(browser(), "fonts");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  content::WebContents* page = window()->web_contents();
+  EXPECT_EQ(WaitFor("document.querySelector("
+                    "'select[data-pref=\"webkit.webprefs.fonts.standard.Zyyy"
+                    "\"]') && document.querySelector('.subpage-title')"
+                    "?.textContent"),
+            "Fonts");
+  EXPECT_EQ(content::EvalJs(page, "!!document.querySelector('.pane-header')"),
+            false);
+
+  ASSERT_TRUE(content::ExecJs(
+      page, "document.querySelector('#sections .back').click();"));
+  EXPECT_EQ(WaitFor("!!document.querySelector('button[data-row=\"fonts\"]') "
+                    "&& !!document.querySelector('.pane-header') && "
+                    "location.search === ''"),
+            true);
+  EXPECT_EQ(content::EvalJs(
+                page,
+                "!!document.querySelector('[data-row=\"minimumFontSize\"]')"),
+            false);
+}
+
+// Search finds a row in a view, and opens the view.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SearchOpensAView) {
+  chrome::ShowSettings(browser());
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  ASSERT_TRUE(
+      WaitFor("!!document.querySelector('#searchInput')").ExtractBool());
+  ASSERT_TRUE(content::ExecJs(window()->web_contents(), R"(
+      const input = document.querySelector('#searchInput');
+      input.value = 'Minimum font size';
+      input.dispatchEvent(new Event('input'));)"));
+  ASSERT_TRUE(WaitFor("!!document.querySelector('#results .row')")
+                  .ExtractBool());
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "document.querySelector('#results .row').click();"));
+  EXPECT_EQ(WaitFor("document.querySelector("
+                    "'[data-row=\"minimumFontSize\"]') && "
+                    "location.pathname + location.search"),
+            "/general?view=fonts");
+}
+
+// Passwords › Cards: the cards' view, from upstream's payments section.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, PasswordsCardsView) {
+  chrome::ShowSettingsSubPage(browser(), "payments");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  EXPECT_EQ(WaitFor("document.querySelector('[data-row=\"addCard\"]') && "
+                    "document.querySelector('.subpage-title')?.textContent"),
+            "Cards");
+  EXPECT_EQ(content::EvalJs(window()->web_contents(),
+                            "!!document.querySelector('[data-row=\"saveCards"
+                            "\"]')"),
+            false);
+}
+
+// AI › Connection: who answers is a view of the AI pane; its rows say what
+// each view has.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, AIConnectionView) {
+  chrome::ShowSettingsSubPage(browser(), "claude?view=connection");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  content::WebContents* page = window()->web_contents();
+  EXPECT_EQ(WaitFor("(() => {"
+                    "  const view = document.querySelector("
+                    "      'compass-claude-page [data-page-view=\"connection"
+                    "\"]');"
+                    "  return view && !view.hidden && "
+                    "      view.querySelector('.subpage-title').textContent;"
+                    "})()"),
+            "Connection");
+  EXPECT_EQ(content::EvalJs(page,
+                            "document.querySelector('compass-claude-page "
+                            "[data-page-view=\"main\"]').hidden"),
+            true);
+  EXPECT_EQ(content::EvalJs(page, "!!document.querySelector('.pane-header')"),
+            false);
+
+  ASSERT_TRUE(content::ExecJs(
+      page,
+      "document.querySelector('compass-claude-page [data-page-view="
+      "\"connection\"] .back').click();"));
+  EXPECT_EQ(WaitFor("document.querySelector('#connectionRowDetail')"
+                    "?.textContent.length > 0"),
+            true);
+  EXPECT_EQ(WaitFor("!document.querySelector('compass-claude-page "
+                    "[data-page-view=\"main\"]').hidden && "
+                    "location.search === ''"),
+            true);
+}
+
 // Privacy › Safety check (phase 5e): Safe Browsing off is flagged and
 // turned on there; with no extensions, there are none to flag.
 IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SafetyCheck) {
@@ -992,4 +1147,74 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SafetyCheck) {
 }
 
 }  // namespace
+// About: chrome://settings/help shows Compass's version and its update
+// channel, in the last pane, without a pane header of the window's.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, AboutPane) {
+  chrome::ShowSettingsSubPage(browser(), "help");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  EXPECT_EQ(WaitFor("document.querySelector('compass-settings-about-pane "
+                    "#version')?.textContent.endsWith('· Stable')"),
+            true);
+  EXPECT_EQ(content::EvalJs(window()->web_contents(),
+                            "location.pathname + ' ' + "
+                            "!!document.querySelector('.pane-header') + ' ' + "
+                            "!!document.querySelector('[data-row=\"channel\"] "
+                            "select')"),
+            "/about false true");
+}
+
+// Pages of their own (docs/design/settings-window.md, "Pages and views"):
+// Profiles lists Sync and Import as rows; a row opens its section alone, with
+// the way back to the pane, and Development mode's row says how many sites
+// it has.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SubpageRows) {
+  chrome::ShowSettingsSubPage(browser(), "profiles");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  ASSERT_TRUE(WaitFor("!!document.querySelector("
+                      "'#subpageRows [data-path=\"importArc\"]')")
+                  .ExtractBool());
+  // On the pane, the sections with pages of their own are hidden.
+  EXPECT_EQ(content::EvalJs(window()->web_contents(),
+                            "document.querySelector('compass-arc-import-page')"
+                            ".hidden && !!document.querySelector("
+                            "'.pane-header')"),
+            true);
+
+  ASSERT_TRUE(content::ExecJs(window()->web_contents(),
+                              "document.querySelector('#subpageRows "
+                              "[data-path=\"importArc\"]').click();"));
+  EXPECT_EQ(WaitFor("location.pathname === '/importArc' && "
+                    "!document.querySelector('compass-arc-import-page')"
+                    ".hidden && document.querySelector('compass-sync-page')"
+                    ".hidden && !document.querySelector('.pane-header')"),
+            true);
+  EXPECT_EQ(content::EvalJs(window()->web_contents(),
+                            "document.querySelector('.subpage-title')"
+                            ".textContent.trim()"),
+            "Import from another browser");
+
+  ASSERT_TRUE(
+      content::ExecJs(window()->web_contents(),
+                      "document.querySelector('#subpageBack').click();"));
+  EXPECT_EQ(WaitFor("location.pathname === '/profiles' && "
+                    "document.querySelector('compass-arc-import-page').hidden"),
+            true);
+
+  // A path names the page: Development mode, whose row tells its sites.
+  chrome::ShowSettingsSubPage(browser(), "advanced");
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  EXPECT_EQ(WaitFor("/^(No sites|\\d+ sites? · )/.test(document.querySelector("
+                    "'#subpageRows [data-path=\"devMode\"] .row-detail')"
+                    "?.textContent.trim())"),
+            true);
+  chrome::ShowSettingsSubPage(browser(), "devMode");
+  EXPECT_EQ(
+      WaitFor("!document.querySelector('compass-dev-mode-page').hidden "
+              "&& document.querySelector('compass-settings-advanced-pane')"
+              ".hidden"),
+      true);
+}
+
 }  // namespace compass

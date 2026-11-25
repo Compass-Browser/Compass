@@ -39,6 +39,7 @@
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/arc_import/arc_importer.h"
+#include "compass/browser/ui/browser_import/app_icon.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "components/history/core/browser/history_types.h"
@@ -156,8 +157,14 @@ std::vector<Found> FindProfiles(const base::FilePath& user_data_dir) {
   const std::map<std::string, base::FilePath> as_profiles =
       FindProfilesImportedFromBrowsers(user_data_dir);
   const int compass_version = version_info::GetMajorVersionNumberAsInt();
+  // Each browser's icon, read once for all its profiles.
+  std::map<Browser, std::string> icons;
   for (SourceProfile& profile : DetectProfiles()) {
     Found entry;
+    if (!icons.contains(profile.browser)) {
+      icons[profile.browser] = BrowserAppIcon(profile);
+    }
+    entry.overview.icon = icons[profile.browser];
     entry.overview.running = IsRunning(profile);
     if (CanImportAsProfile(profile.browser)) {
       entry.overview.as_profile = true;

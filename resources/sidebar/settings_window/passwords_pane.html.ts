@@ -10,10 +10,14 @@ import {PREF_AUTO_SIGN_IN, PREF_OFFER_TO_SAVE, PREF_SAVE_ADDRESSES, PREF_SAVE_CA
 export function getHtml(this: CompassSettingsPasswordsPaneElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
+${this.isView_('main') ? html`
 <section class="row-group">
   <h2 class="group-title">Passwords</h2>
   <div class="group">
     <label class="row control-row" data-row="offerToSave">
+      <span class="tile" data-color="green">
+        <compass-settings-icon name="passwords"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Offer to save passwords and passkeys</span>
       </span>
@@ -23,6 +27,9 @@ export function getHtml(this: CompassSettingsPasswordsPaneElement) {
           @change="${this.onSwitchChange_}">
     </label>
     <label class="row control-row" data-row="autoSignIn">
+      <span class="tile" data-color="blue">
+        <compass-settings-icon name="signin"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Sign in automatically</span>
         <span class="row-detail">
@@ -34,8 +41,23 @@ export function getHtml(this: CompassSettingsPasswordsPaneElement) {
           ?disabled="${this.isEnforced_(PREF_AUTO_SIGN_IN)}"
           @change="${this.onSwitchChange_}">
     </label>
+    <button class="row" data-row="savedPasswords" data-view="passwords"
+        @click="${this.onViewClick_}">
+      <span class="tile" data-color="gray">
+        <compass-settings-icon name="lock"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Saved passwords</span>
+      </span>
+      <span class="row-count">${this.passwords_.length}</span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
     <button class="row" data-row="passwordManager"
         @click="${this.onPasswordManagerClick_}">
+      <span class="tile" data-color="indigo">
+        <compass-settings-icon name="privacy"></compass-settings-icon>
+      </span>
       <span class="row-text">
         <span class="row-label">Password Manager</span>
         <span class="row-detail">
@@ -49,9 +71,74 @@ export function getHtml(this: CompassSettingsPasswordsPaneElement) {
   </div>
 </section>
 
+<section class="row-group">
+  <h2 class="group-title">Payment methods</h2>
+  <div class="group">
+    <label class="row control-row" data-row="saveCards">
+      <span class="tile" data-color="green">
+        <compass-settings-icon name="card"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Save and fill payment methods</span>
+      </span>
+      <input type="checkbox" class="switch" data-pref="${PREF_SAVE_CARDS}"
+          .checked="${this.getBool_(PREF_SAVE_CARDS)}"
+          ?disabled="${this.isEnforced_(PREF_SAVE_CARDS)}"
+          @change="${this.onSwitchChange_}">
+    </label>
+    <button class="row" data-row="cards" data-view="cards"
+        @click="${this.onViewClick_}">
+      <span class="tile" data-color="indigo">
+        <compass-settings-icon name="card"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Cards</span>
+      </span>
+      <span class="row-count">${this.cards_.length}</span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
+  </div>
+</section>
+
+<section class="row-group">
+  <h2 class="group-title">Addresses</h2>
+  <div class="group">
+    <label class="row control-row" data-row="saveAddresses">
+      <span class="tile" data-color="green">
+        <compass-settings-icon name="home"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Save and fill addresses</span>
+      </span>
+      <input type="checkbox" class="switch" data-pref="${PREF_SAVE_ADDRESSES}"
+          .checked="${this.getBool_(PREF_SAVE_ADDRESSES)}"
+          ?disabled="${this.isEnforced_(PREF_SAVE_ADDRESSES)}"
+          @change="${this.onSwitchChange_}">
+    </label>
+    <button class="row" data-row="addresses" data-view="addresses"
+        @click="${this.onViewClick_}">
+      <span class="tile" data-color="orange">
+        <compass-settings-icon name="home"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Addresses</span>
+      </span>
+      <span class="row-count">${this.addresses_.length}</span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
+  </div>
+</section>` : nothing}
+${this.isView_('passwords') ? html`
+<button class="back" @click="${this.onBackClick_}">
+  <compass-settings-icon name="back"></compass-settings-icon>
+  Passwords
+</button>
+<h2 class="subpage-title">Saved passwords</h2>
 <section class="row-group" data-row="savedPasswords">
   <div class="group-header">
-    <h2 class="group-title">Saved passwords · ${this.getPasswordsDetail_()}</h2>
+    <h2 class="group-title">${this.getPasswordsTitle_()}</h2>
     <input class="field filter" type="search" placeholder="Filter"
         aria-label="Filter saved passwords" spellcheck="false"
         .value="${this.filter_}" @input="${this.onFilterInput_}">
@@ -59,6 +146,10 @@ export function getHtml(this: CompassSettingsPasswordsPaneElement) {
   <div class="group">
     ${this.getShownPasswords_().map(password => html`
       <div class="row control-row password-row">
+        <span class="tile letter"
+            data-color="${this.getSiteColor_(password.site)}">
+          ${this.getSiteInitial_(password.site)}
+        </span>
         <span class="row-text">
           <span class="row-label">${password.site}</span>
           <span class="row-detail">${password.username}</span>
@@ -84,22 +175,20 @@ export function getHtml(this: CompassSettingsPasswordsPaneElement) {
       No saved passwords.
     </p>
   </div>
-</section>
-
+</section>` : nothing}
+${this.isView_('cards') ? html`
+<button class="back" @click="${this.onBackClick_}">
+  <compass-settings-icon name="back"></compass-settings-icon>
+  Passwords
+</button>
+<h2 class="subpage-title">Cards</h2>
 <section class="row-group">
-  <h2 class="group-title">Payment methods</h2>
   <div class="group">
-    <label class="row control-row" data-row="saveCards">
-      <span class="row-text">
-        <span class="row-label">Save and fill payment methods</span>
-      </span>
-      <input type="checkbox" class="switch" data-pref="${PREF_SAVE_CARDS}"
-          .checked="${this.getBool_(PREF_SAVE_CARDS)}"
-          ?disabled="${this.isEnforced_(PREF_SAVE_CARDS)}"
-          @change="${this.onSwitchChange_}">
-    </label>
     ${this.cards_.map(card => html`
       <div class="row control-row">
+        <span class="tile" data-color="indigo">
+          <compass-settings-icon name="card"></compass-settings-icon>
+        </span>
         <span class="row-text">
           <span class="row-label">${this.getCardText_(card)}</span>
           <span class="row-detail">Expires ${card.expiration}</span>
@@ -113,9 +202,13 @@ export function getHtml(this: CompassSettingsPasswordsPaneElement) {
           Remove
         </button>
       </div>`)}
+    <p class="empty" ?hidden="${this.cards_.length > 0}">No saved cards.</p>
   </div>
   <div class="actions" ?hidden="${!!this.cardDraft_}">
-    <button class="pill" @click="${this.onAddCardClick_}">Add Card…</button>
+    <button class="pill" data-row="addCard"
+        @click="${this.onAddCardClick_}">
+      Add Card…
+    </button>
   </div>
   ${this.cardDraft_ ? html`
   <h2 class="group-title draft-title">${this.getCardDraftTitle_()}</h2>
@@ -166,22 +259,20 @@ export function getHtml(this: CompassSettingsPasswordsPaneElement) {
     <button class="pill" @click="${this.onCancelDraftClick_}">Cancel</button>
     <button class="pill accent" @click="${this.onSaveCardClick_}">Save</button>
   </div>` : nothing}
-</section>
-
+</section>` : nothing}
+${this.isView_('addresses') ? html`
+<button class="back" @click="${this.onBackClick_}">
+  <compass-settings-icon name="back"></compass-settings-icon>
+  Passwords
+</button>
+<h2 class="subpage-title">Addresses</h2>
 <section class="row-group">
-  <h2 class="group-title">Addresses</h2>
   <div class="group">
-    <label class="row control-row" data-row="saveAddresses">
-      <span class="row-text">
-        <span class="row-label">Save and fill addresses</span>
-      </span>
-      <input type="checkbox" class="switch" data-pref="${PREF_SAVE_ADDRESSES}"
-          .checked="${this.getBool_(PREF_SAVE_ADDRESSES)}"
-          ?disabled="${this.isEnforced_(PREF_SAVE_ADDRESSES)}"
-          @change="${this.onSwitchChange_}">
-    </label>
     ${this.addresses_.map(address => html`
       <div class="row control-row">
+        <span class="tile" data-color="orange">
+          <compass-settings-icon name="home"></compass-settings-icon>
+        </span>
         <span class="row-text">
           <span class="row-label">${address.name}</span>
           <span class="row-detail">${address.summary}</span>
@@ -195,9 +286,13 @@ export function getHtml(this: CompassSettingsPasswordsPaneElement) {
           Remove
         </button>
       </div>`)}
+    <p class="empty" ?hidden="${this.addresses_.length > 0}">
+      No saved addresses.
+    </p>
   </div>
   <div class="actions" ?hidden="${!!this.addressDraft_}">
-    <button class="pill" @click="${this.onAddAddressClick_}">
+    <button class="pill" data-row="addAddress"
+        @click="${this.onAddAddressClick_}">
       Add Address…
     </button>
   </div>
@@ -273,7 +368,7 @@ export function getHtml(this: CompassSettingsPasswordsPaneElement) {
       Save
     </button>
   </div>` : nothing}
-</section>
+</section>` : nothing}
 <!--_html_template_end_-->`;
   // clang-format on
 }

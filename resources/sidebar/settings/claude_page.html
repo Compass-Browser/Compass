@@ -89,7 +89,7 @@
     margin: 14px 0 0;
   }
 
-  .compass-page button {
+  .compass-page button:not(.back) {
     background: var(--color-sys-primary,
         var(--cr-fallback-color-primary, #0b57d0));
     border: none;
@@ -245,6 +245,162 @@
   }
 </style>
 
+<!-- The main view (docs/design/settings-window.md, "Pages and views"):
+     who answers, what Claude may do, and rows for the rest, each on a
+     view of its own. -->
+<div class="window-rows" data-page-view="main">
+<section class="row-group">
+  <h2 class="group-title">Model</h2>
+  <div class="group">
+    <button class="row" id="connectionRow" data-row="connectionRow"
+        data-open-view="connection">
+      <span class="tile" data-color="orange">
+        <compass-settings-icon name="ai"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Connection</span>
+        <span class="row-detail" id="connectionRowDetail"></span>
+      </span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
+  </div>
+</section>
+
+<section class="row-group">
+  <h2 class="group-title">What Claude can do</h2>
+  <div class="group">
+    <label class="row control-row" data-row="browserScope">
+      <span class="tile" data-color="blue">
+        <compass-settings-icon name="globe"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Use the whole browser</span>
+        <span class="row-detail">
+          List, open and use your other tabs and windows, signed in as you.
+        </span>
+      </span>
+      <input type="checkbox" class="switch" id="browserScope">
+    </label>
+    <label class="row control-row" data-row="devtools">
+      <span class="tile" data-color="slate">
+        <compass-settings-icon name="code"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Use developer tools</span>
+        <span class="row-detail">
+          Inspect the network, styles, cookies, storage and performance of the
+          tab it works on.
+        </span>
+      </span>
+      <input type="checkbox" class="switch" id="devtools">
+    </label>
+    <label class="row control-row" data-row="boosts">
+      <span class="tile" data-color="pink">
+        <compass-settings-icon name="boosts"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Make Boosts</span>
+        <span class="row-detail">
+          Add CSS and JavaScript to sites you ask it to change, on all your
+          devices.
+        </span>
+      </span>
+      <input type="checkbox" class="switch" id="boosts">
+    </label>
+    <label class="row control-row" data-row="plugins">
+      <span class="tile" data-color="purple">
+        <compass-settings-icon name="plugins"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Make plugins</span>
+        <span class="row-detail">
+          Write plugins for live folders and tab previews, and save them on
+          this computer.
+        </span>
+      </span>
+      <input type="checkbox" class="switch" id="plugins">
+    </label>
+  </div>
+  <p class="group-footer">Claude asks before JavaScript it adds, plugins it
+    saves and cookies it changes. Web pages can try to give Claude
+    instructions of their own; it's told to ignore them, but only turn
+    these on for tasks you watch and pages you trust.</p>
+</section>
+
+<section class="row-group">
+  <h2 class="group-title">More</h2>
+  <div class="group">
+    <button class="row" id="sidebarRow" data-row="sidebarRow"
+        data-open-view="sidebar">
+      <span class="tile" data-color="teal">
+        <compass-settings-icon name="sidebar"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Claude in the sidebar</span>
+        <span class="row-detail" id="sidebarRowDetail"></span>
+      </span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
+    <button class="row" id="filesRow" data-row="filesRow"
+        data-open-view="files">
+      <span class="tile" data-color="blue">
+        <compass-settings-icon name="folder"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Files</span>
+        <span class="row-detail" id="filesRowDetail"></span>
+      </span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
+    <button class="row" id="memoryRow" data-row="memoryRow"
+        data-open-view="memory" hidden>
+      <span class="tile" data-color="yellow">
+        <compass-settings-icon name="bookmark"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Memory</span>
+        <span class="row-detail" id="memoryRowDetail"></span>
+      </span>
+      <compass-settings-icon class="row-trail" name="chevron">
+      </compass-settings-icon>
+    </button>
+    <label class="row control-row" id="mcp" data-row="mcpEnabled">
+      <span class="tile" data-color="gray">
+        <compass-settings-icon name="plug"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">Allow MCP clients</span>
+        <span class="row-detail">
+          Let Claude Code, Claude Desktop and other MCP apps on this computer
+          use Compass, signed in as you. Compass asks before each new app.
+        </span>
+      </span>
+      <input type="checkbox" class="switch" id="mcpEnabled">
+    </label>
+  </div>
+  <div id="mcpSetup" hidden>
+    <p class="hint">To add Compass to Claude Code, run:</p>
+    <div class="mcp-command">
+      <code id="mcpCommand"></code>
+      <button id="copyMcpCommand" class="secondary">Copy</button>
+    </div>
+    <p class="hint">Other clients: run <code id="mcpBinary"></code> as a
+      stdio MCP server.</p>
+    <div id="mcpClients" hidden>
+      <p class="hint">Always allowed:</p>
+      <ul id="mcpClientList" class="mcp-clients"></ul>
+    </div>
+  </div>
+  <p class="hint" id="mcpUnsupported" hidden>MCP clients aren't supported on
+  this system yet.</p>
+</section>
+</div>
+
+<div data-page-view="connection" data-title="Connection" hidden>
+<div class="legacy-group">
 <p class="lead">Chat with Claude about the page you're on. Claude can read it,
   its JavaScript console, and click and type in it. Compass ships no key: use
   your own API key from console.anthropic.com, or a gateway's, or your own
@@ -270,7 +426,7 @@
 </section>
 
 <!-- Claude Code is Claude's: Anthropic only. -->
-<section id="backendSection">
+<section id="backendSection" data-row="backend">
 <div class="field">Connect with</div>
 <div class="claude-backend" role="radiogroup">
   <label>
@@ -325,7 +481,7 @@
     While you're signed in, the key below isn't used.</p>
   <p class="note" id="chatgptNote" hidden></p>
 </div>
-<label class="field" for="apiKey">API key</label>
+<label class="field" for="apiKey" data-row="apiKey">API key</label>
 <div class="claude-key-row" id="keyEntry">
   <input id="apiKey" type="password" autocomplete="off" spellcheck="false"
       placeholder="sk-ant-…">
@@ -356,7 +512,8 @@
 </label>
 </section>
 
-<label class="field" for="model" id="modelLabel">Model</label>
+<label class="field" for="model" id="modelLabel" data-row="model">
+  Model</label>
 <div class="claude-inline">
   <!-- An OpenAI-compatible server's model is typed; once Test connection
        lists its models, they can be picked too. -->
@@ -390,60 +547,12 @@
   </div>
   <p class="note" id="endpointNote" hidden></p>
 </details>
+</div>
+</div>
 
-<label class="claude-scope">
-  <input type="checkbox" id="browserScope">
-  <span>
-    <span class="name">Let Claude use the whole browser</span>
-    <span class="hint block">Off, Claude only reads and acts
-      on the tab you chat about. On, it can also list, open and use your other
-      tabs and windows, signed in as you. Web pages can try to give Claude
-      instructions of their own; it's told to ignore them, but only turn this
-      on for tasks you watch.</span>
-  </span>
-</label>
-
-<label class="claude-scope">
-  <input type="checkbox" id="devtools">
-  <span>
-    <span class="name">Let Claude use developer tools</span>
-    <span class="hint block">On, Claude can inspect the tab it works on
-      like the browser's developer tools: its network requests and
-      responses, styles, cookies and storage, and performance, and it can
-      emulate other devices. Values that look like passwords or tokens stay
-      hidden unless you ask for them, and Claude asks before it changes
-      cookies or storage. Web pages can try to give Claude instructions of
-      their own, so only turn this on for pages you trust.</span>
-  </span>
-</label>
-
-<label class="claude-scope">
-  <input type="checkbox" id="boosts">
-  <span>
-    <span class="name">Let Claude make Boosts</span>
-    <span class="hint block">On, Claude can add CSS and JavaScript to the
-      sites you ask it to change, for good, on all your devices. It asks you
-      before any JavaScript it adds or changes; style changes save at once,
-      and you can undo them in the chat. You see and edit every Boost in
-      Settings, Boosts.</span>
-  </span>
-</label>
-
-<label class="claude-scope">
-  <input type="checkbox" id="plugins">
-  <span>
-    <span class="name">Let Claude make plugins</span>
-    <span class="hint block">On, Claude can write plugins that fill live
-      folders or show what's new when you hover a tab, test them on your
-      tabs, and save them on this computer. It asks you before it saves or
-      deletes one, and before a test uses your session on a site; you can
-      undo saves in the chat. You see and remove every plugin in Settings,
-      Plugins.</span>
-  </span>
-</label>
-
+<div data-page-view="sidebar" data-title="Claude in the sidebar" hidden>
+<div class="legacy-group">
 <section id="sidebarFeatures">
-  <h3 class="claude-heading">Claude in the sidebar</h3>
   <p class="hint">Small tasks Claude does in the sidebar, each with its own
     switch and model. Only tabs' titles and sites are sent, to the endpoint
     above, never what pages contain; incognito windows never. At most 30
@@ -479,9 +588,12 @@
        the model it asks. -->
   <div id="sidebarFeatureRows"></div>
 </section>
+</div>
+</div>
 
+<div data-page-view="files" data-title="Files" hidden>
+<div class="legacy-group">
 <section id="files">
-  <h3 class="claude-heading">Files</h3>
   <div class="claude-backend" role="radiogroup" aria-label="Files">
     <label>
       <input type="radio" name="files" id="filesOff">
@@ -529,7 +641,11 @@
     </span>
   </label>
 </section>
+</div>
+</div>
 
+<div data-page-view="memory" data-title="Memory" hidden>
+<div class="legacy-group">
 <section id="memory" hidden>
   <label class="claude-scope">
     <input type="checkbox" id="memoryEnabled">
@@ -565,31 +681,5 @@
     </div>
   </div>
 </section>
-
-<section id="mcp">
-  <label class="claude-scope">
-    <input type="checkbox" id="mcpEnabled">
-    <span>
-      <span class="name">Allow MCP clients</span>
-      <span class="hint block">Lets apps on this computer that speak MCP, like
-        Claude Code and Claude Desktop, use Claude's tools in Compass: read and
-        act in your tabs, signed in as you. Compass asks before each new app.
-        They bring their own model, so no API key is needed.</span>
-    </span>
-  </label>
-  <div id="mcpSetup" hidden>
-    <p class="hint">To add Compass to Claude Code, run:</p>
-    <div class="mcp-command">
-      <code id="mcpCommand"></code>
-      <button id="copyMcpCommand" class="secondary">Copy</button>
-    </div>
-    <p class="hint">Other clients: run <code id="mcpBinary"></code> as a
-      stdio MCP server.</p>
-    <div id="mcpClients" hidden>
-      <p class="hint">Always allowed:</p>
-      <ul id="mcpClientList" class="mcp-clients"></ul>
-    </div>
-  </div>
-</section>
-<p class="hint" id="mcpUnsupported" hidden>MCP clients aren't supported on
-  this system yet.</p>
+</div>
+</div>

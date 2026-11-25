@@ -51,10 +51,55 @@ export function getHtml(this: CompassSettingsWindowAppElement) {
           No settings match “${this.getQuery_()}”.
         </p>
       </div>` : nothing}
+    ${this.showsHeader_() ? html`
+      <header class="pane-header">
+        <span class="tile large" data-color="${this.pane_.color}">
+          <compass-settings-icon name="${this.pane_.id}">
+          </compass-settings-icon>
+        </span>
+        <div class="pane-header-text">
+          <h2 class="pane-header-title">${this.pane_.label}</h2>
+          <p class="pane-header-blurb">${this.pane_.blurb}</p>
+        </div>
+      </header>` : nothing}
+    ${this.showsSubpageHeader_() ? html`
+      <button class="back" id="subpageBack" @click="${this.onBackClick_}">
+        <compass-settings-icon name="back"></compass-settings-icon>
+        ${this.pane_.label}
+      </button>
+      <h2 class="subpage-title">${this.subpage_!.subpage!.label}</h2>` :
+      nothing}
     <div id="sections" ?hidden="${this.isSearching_()}"
         ?data-single="${this.isSinglePane_()}">
     </div>
-    <div id="groups" ?hidden="${this.isSearching_()}">
+    <div id="subpageRows"
+        ?hidden="${this.isSearching_() || !!this.subpage_}">
+      ${this.getSubpageGroups_().map(group => html`
+        <section class="row-group">
+          <h2 class="group-title">${group.title}</h2>
+          <div class="group">
+            ${group.rows.map(row => html`
+              <button class="row" data-path="${row.section.path}"
+                  data-row="${row.section.path}"
+                  @click="${this.onSubpageRowClick_}">
+                <span class="tile" data-color="${row.subpage.color}">
+                  <compass-settings-icon name="${row.subpage.icon}">
+                  </compass-settings-icon>
+                </span>
+                <span class="row-text">
+                  <span class="row-label">${row.subpage.label}</span>
+                  <span class="row-detail"
+                      ?hidden="${!this.getSubpageDetail_(row.section)}">
+                    ${this.getSubpageDetail_(row.section)}
+                  </span>
+                </span>
+                <compass-settings-icon class="row-trail" name="chevron">
+                </compass-settings-icon>
+              </button>`)}
+          </div>
+        </section>`)}
+    </div>
+    <div id="groups" ?hidden="${this.isSearching_() || !!this.subpage_}">
       ${this.pane_.groups.map(group => html`
         <section class="row-group">
           <h2 class="group-title">${group.title}</h2>

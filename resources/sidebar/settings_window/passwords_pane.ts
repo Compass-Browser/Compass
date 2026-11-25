@@ -59,6 +59,15 @@ function defaultCountry(): string {
       'US';
 }
 
+// The pane's views: its main one, and each list on a page of its own
+// (?view=passwords, cards, addresses).
+export type PasswordsView = 'main'|'passwords'|'cards'|'addresses';
+const VIEWS: PasswordsView[] = ['main', 'passwords', 'cards', 'addresses'];
+
+// The colors of the sites' letter tiles (window.css, .tile), picked by site.
+const SITE_COLORS = ['blue', 'green', 'orange', 'purple', 'pink', 'teal',
+                     'indigo'];
+
 // How long a revealed password stays shown.
 const REVEAL_MILLISECONDS = 30000;
 
@@ -88,6 +97,7 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
       cardDraft_: {type: Object},
       addressDraft_: {type: Object},
       draftError_: {type: String},
+      view_: {type: String},
     };
   }
 
@@ -104,6 +114,7 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
   protected accessor cardDraft_: CardDraft|null = null;
   protected accessor addressDraft_: AddressDraft|null = null;
   protected accessor draftError_: string = '';
+  protected accessor view_: PasswordsView = 'main';
 
   protected readonly countries = listCountries();
   protected readonly months = Array.from({length: 12}, (_, i) => i + 1);
@@ -123,7 +134,12 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    this.focus_ = new URLSearchParams(window.location.search).get('focus') || '';
+    const params = new URLSearchParams(window.location.search);
+    this.focus_ = params.get('focus') || '';
+    const view = params.get('view') as PasswordsView|null;
+    if (view && VIEWS.includes(view)) {
+      this.setView_(view);
+    }
     prefs.addListener(this.prefListener_);
     prefs.load([
            PREF_OFFER_TO_SAVE,
@@ -164,6 +180,22 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
 
   // Template helpers.
 
+  protected isView_(view: PasswordsView): boolean {
+    return this.view_ === view;
+  }
+
+  protected getSiteInitial_(site: string): string {
+    return (site.replace(/^www\./, '')[0] || '?').toUpperCase();
+  }
+
+  protected getSiteColor_(site: string): string {
+    let hash = 0;
+    for (const char of site) {
+      hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+    }
+    return SITE_COLORS[hash % SITE_COLORS.length]!;
+  }
+
   protected getBool_(name: string): boolean {
     return prefs.get(name)?.value === true;
   }
@@ -185,6 +217,12 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
 
   protected getPasswordsDetail_(): string {
     return String(this.passwords_.length);
+  }
+
+  // The list's caption: "57 passwords", "1 password".
+  protected getPasswordsTitle_(): string {
+    const count = this.passwords_.length;
+    return count === 1 ? '1 password' : `${count} passwords`;
   }
 
   protected isRevealed_(password: SavedPassword): boolean {
@@ -421,6 +459,31 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
         [this.handler_.getCards(), this.handler_.getAddresses()]);
     this.cards_ = cards;
     this.addresses_ = addresses;
+  }
+
+  // Views.
+
+  protected onViewClick_(e: Event) {
+    this.setView_(
+        (e.currentTarget as HTMLElement).dataset['view'] as PasswordsView);
+  }
+
+  protected onBackClick_() {
+    this.setView_('main');
+  }
+
+  private setView_(view: PasswordsView) {
+    this.view_ = view;
+    // An editor doesn't stay open on another view.
+    this.cardDraft_ = null;
+    this.addressDraft_ = null;
+    this.draftError_ = '';
+    window.history.replaceState(
+        null, '', view === 'main' ? '/passwords' : `/passwords?view=${view}`);
+    // The window hides the pane's header while a view is shown (app.ts).
+    this.toggleAttribute('nested', view !== 'main');
+    this.dispatchEvent(new CustomEvent('settings-view', {bubbles: true}));
+    this.closest('#scroller')?.scrollTo(0, 0);
   }
 }
 

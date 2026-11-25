@@ -1,37 +1,99 @@
 <style>
+  /* The page is built of the settings window's rows and groups
+   * (settings_window/window.css, which chrome://compass-import loads too):
+   * the browsers, then one browser's choices, one view at a time. Arc's
+   * view keeps its own lists, styled here. */
+
   .compass-page .lead {
-    margin: 0 0 20px;
+    margin: 0 14px 20px;
     opacity: 0.75;
   }
 
-  .compass-page .notice {
-    background: color-mix(in srgb, currentColor 8%, transparent);
-    border-radius: 12px;
-    margin: 0 0 20px;
-    padding: 12px 16px;
+  .compass-page .import-note {
+    color: var(--fg-dim, inherit);
+    font-size: 12.5px;
+    line-height: 16px;
+    margin: 10px 14px 0;
   }
 
-  .compass-page .notice.warning {
+  /* A browser's view: its icon and name, as a page heading. */
+  .compass-page .import-head {
+    align-items: center;
+    display: flex;
+    gap: 14px;
+    margin: 0 0 20px 14px;
+  }
+
+  .compass-page .import-head .subpage-title {
+    margin: 0;
+  }
+
+  .compass-page .import-head img.app-icon {
+    height: 52px;
+    margin: -4px;
+    width: 52px;
+  }
+
+  .compass-page #browsersRunning {
     align-items: center;
     display: flex;
     gap: 12px;
     justify-content: space-between;
   }
 
-  .compass-page ul {
+  .compass-page .row.unavailable .row-label {
+    opacity: 0.6;
+  }
+
+  .compass-page .row-detail.warning {
+    color: #a5520a;
+  }
+
+  .compass-page .row-detail + .row-detail {
+    margin-top: 2px;
+  }
+
+  .compass-page input.radio {
+    accent-color: var(--accent, #0a6cdf);
+    flex: none;
+    height: 16px;
+    margin: 0;
+    width: 16px;
+  }
+
+  .compass-page .import-status {
+    color: var(--fg-dim, inherit);
+    margin: 0 4px 20px;
+  }
+
+  /* Arc's view: its profiles, each with its spaces. */
+  #arcView .notice {
+    background: color-mix(in srgb, currentColor 8%, transparent);
+    border-radius: 12px;
+    margin: 0 0 20px;
+    padding: 12px 16px;
+  }
+
+  #arcView .notice.warning {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+  }
+
+  #arcView ul {
     list-style: none;
     margin: 0 0 20px;
     padding: 0;
   }
 
-  /* Rows with separators, as upstream's settings rows. */
-  .compass-page li + li {
+  #arcView li + li {
     border-top: var(--cr-separator-line,
         1px solid var(--color-sys-divider,
         var(--cr-fallback-color-neutral-outline, #dadce0)));
   }
 
-  .compass-page label {
+  #arcView label {
     align-items: flex-start;
     cursor: pointer;
     display: flex;
@@ -39,223 +101,193 @@
     padding: 12px 0;
   }
 
-  .compass-page li.imported > label {
+  #arcView li.imported > label {
     cursor: default;
     opacity: 0.6;
   }
 
   /* A profile's spaces, indented under it. */
-  .compass-page ul.spaces {
+  #arcView ul.spaces {
     margin: -4px 0 8px 28px;
   }
 
-  .compass-page ul.spaces li + li {
+  #arcView ul.spaces li + li {
     border-top: none;
   }
 
-  .compass-page ul.spaces label {
+  #arcView ul.spaces label {
     align-items: baseline;
     padding: 4px 0;
   }
 
-  .compass-page ul.spaces input[type=checkbox] {
+  #arcView ul.spaces input[type=checkbox] {
     align-self: center;
     margin: 0;
   }
 
-  .compass-page .space-name {
+  #arcView .space-name {
     flex: 1;
   }
 
-  .compass-page input:disabled + .space-name,
-  .compass-page input:disabled + .space-name + .details {
+  #arcView input:disabled + .space-name,
+  #arcView input:disabled + .space-name + .details {
     opacity: 0.6;
   }
 
-  .compass-page input[type=checkbox] {
+  #arcView input[type=checkbox] {
     margin: 3px 0 0;
   }
 
-  .compass-page .name {
+  #arcView .name {
     font-weight: 500;
   }
 
-  .compass-page .details {
+  #arcView .details {
     font-size: 12px;
     margin-top: 2px;
     opacity: 0.7;
   }
 
-  .compass-page ul.spaces .details {
+  #arcView ul.spaces .details {
     margin-top: 0;
   }
 
-  .compass-page button {
-    background: var(--color-sys-primary,
-        var(--cr-fallback-color-primary, #0b57d0));
-    border: none;
-    border-radius: 18px;
-    color: var(--color-sys-on-primary,
-        var(--cr-fallback-color-on-primary, #fff));
-    cursor: pointer;
-    font: inherit;
-    font-weight: 500;
-    padding: 8px 20px;
-  }
-
-  .compass-page button.secondary {
-    background: none;
-    border: 1px solid var(--color-sys-outline,
-        var(--cr-fallback-color-outline, #747775));
-    color: inherit;
-  }
-
-  .compass-page h3 {
-    font-size: 14px;
-    font-weight: 500;
-    margin: 24px 0 8px;
-  }
-
-  .compass-page h3:first-of-type {
-    margin-top: 0;
-  }
-
-  /* A browser profile's choices, indented under it. */
-  .compass-page ul.options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 20px;
-    margin: -4px 0 8px 28px;
-  }
-
-  .compass-page ul.options li + li {
-    border-top: none;
-  }
-
-  .compass-page ul.options label {
-    align-items: center;
-    padding: 2px 0;
-  }
-
-  .compass-page ul.options input[type=checkbox] {
-    margin: 0;
-  }
-
-  /* Space here or a profile of its own (Chromium-based browsers). */
-  .compass-page ul.modes {
-    margin: -4px 0 8px 28px;
-  }
-
-  .compass-page ul.modes li + li {
-    border-top: none;
-  }
-
-  .compass-page ul.modes label {
-    align-items: flex-start;
-    padding: 2px 0;
-  }
-
-  .compass-page ul.modes input[type=radio] {
-    margin: 2px 0 0;
-  }
-
-  .compass-page ul.modes input:disabled + div {
-    opacity: 0.6;
-  }
-
-  .compass-page li.unavailable > label {
-    cursor: default;
-  }
-
-  .compass-page li.unavailable .name {
-    opacity: 0.6;
-  }
-
-  .compass-page ul.summary li {
-    padding: 8px 0;
-  }
-
-  .compass-page .actions {
-    display: flex;
-    gap: 8px;
-  }
-
-  .compass-page button:disabled {
-    cursor: default;
-    opacity: 0.4;
+  #arcView .arc-card {
+    background: var(--group, transparent);
+    border-radius: var(--radius-group, 12px);
+    box-shadow: var(--group-shadow, none);
+    padding: 4px 16px 16px;
   }
 </style>
-<p class="lead">
-  Bring what you have in another browser to Compass. Each browser profile
-  becomes a space: its bookmarks go to Pinned, with the bookmarks bar
-  first, and its open tabs to Today. History and passwords can come along
-  too. A Chrome, Edge, Brave, Vivaldi, Dia, Ardia, Cra, Crest or Yab
-  profile can also become a Compass profile of its own, with its cookies,
-  extensions and settings, so you stay signed in to sites.
-</p>
+<div class="window-rows">
 
-<h3>Browsers on this computer</h3>
-<p id="browsersLoading">Looking for browsers…</p>
-<p id="browsersNone" hidden>No other browser was found on this
-  computer.</p>
-<div id="browsersChooser" hidden>
-  <div id="browsersRunning" class="notice warning" hidden>
-    <span>Some browsers are open. Quit them to import from them: their
-      files are in use while they run.</span>
-    <button id="browsersRefresh" class="secondary">Check again</button>
-  </div>
-  <ul id="browsers"></ul>
-  <p id="keychainNotice" class="notice" hidden>
-    For passwords, and for a profile of its own, macOS asks whether Compass
-    may use each browser's "Safe Storage" key. Choose <b>Allow</b> so
-    Compass can read them.
+<!-- The browsers on this computer, and Arc. -->
+<div id="listView">
+  <p class="lead">
+    Bring bookmarks, open tabs, history and passwords into Compass. Choose
+    a browser to see what can come over.
   </p>
-  <button id="importBrowsers" disabled>Import</button>
+  <section class="row-group">
+    <h3 class="group-title">Browsers on this computer</h3>
+    <div class="group">
+      <p id="browsersLoading" class="empty">Looking for browsers…</p>
+      <p id="browsersNone" class="empty" hidden>
+        No other browser was found on this computer.
+      </p>
+      <div id="browsers"></div>
+    </div>
+    <div id="browsersRunning" class="group-footer" hidden>
+      <span>Some browsers are open. Quit them to import from them: their
+        files are in use while they run.</span>
+      <button id="browsersRefresh" class="pill small">Check Again</button>
+    </div>
+  </section>
+  <section id="arcGroup" class="row-group" hidden>
+    <h3 class="group-title">Arc</h3>
+    <div class="group">
+      <button id="arcRow" class="row">
+        <span id="arcIcon"></span>
+        <span class="row-text">
+          <span class="row-label">Arc</span>
+          <span id="arcDetail" class="row-detail"></span>
+        </span>
+        <compass-settings-icon class="row-trail" name="chevron">
+        </compass-settings-icon>
+      </button>
+    </div>
+  </section>
 </div>
-<p id="browsersImporting" hidden>Importing… This takes a moment for
-  each profile.</p>
-<div id="browsersDone" hidden>
-  <ul id="browsersSummary" class="summary"></ul>
-  <div class="actions">
-    <button id="openBrowsers">Open my spaces</button>
-    <button id="browsersAgain" class="secondary">Import more</button>
+
+<!-- One browser profile's choices, the import, and what it did. -->
+<div id="browserView" hidden>
+  <button class="back" id="browserBack">
+    <compass-settings-icon name="back"></compass-settings-icon>Browsers
+  </button>
+  <div class="import-head">
+    <span id="browserIcon"></span>
+    <div class="row-text">
+      <h2 id="browserTitle" class="subpage-title"></h2>
+      <span id="browserDetail" class="row-detail"></span>
+    </div>
+  </div>
+  <div id="browsersChooser">
+    <section id="modeGroup" class="row-group" hidden>
+      <h3 class="group-title">Bring it in as</h3>
+      <div id="modes" class="group" role="radiogroup"
+          aria-label="Bring it in as"></div>
+    </section>
+    <section class="row-group">
+      <h3 class="group-title">What to import</h3>
+      <div id="options" class="group"></div>
+      <p id="keychainNotice" class="import-note" hidden>
+        macOS asks whether Compass may use this browser's "Safe Storage" key,
+        for its passwords and for a profile of its own. Choose
+        <b>Allow</b> so Compass can read them.
+      </p>
+    </section>
+    <div class="actions">
+      <button id="browserCancel" class="pill">Cancel</button>
+      <button id="importBrowsers" class="pill accent" disabled>Import</button>
+    </div>
+  </div>
+  <p id="browsersImporting" class="import-status" hidden>Importing… This
+    takes a moment.</p>
+  <div id="browsersDone" hidden>
+    <div id="browsersSummary" class="group"></div>
+    <div class="actions">
+      <button id="browsersAgain" class="pill">Import Another Browser</button>
+      <button id="openBrowsers" class="pill accent">Open My Spaces</button>
+    </div>
   </div>
 </div>
 
-<div id="arcSection" hidden>
-<h3>Arc</h3>
-<p class="lead">
-  Bring your Arc profiles to Compass: you stay signed in to your sites,
-  and your history, passwords, extensions and settings come along, with
-  your spaces, pinned tabs and favorites.
-</p>
-
-<p id="loading">Looking for Arc…</p>
-<p id="notFound" hidden>Arc wasn't found on this computer.</p>
-
-<div id="chooser" hidden>
-  <div id="arcRunning" class="notice warning" hidden>
-    <span>Arc is open. Quit it to import: its data is in use while it
-      runs.</span>
-    <button id="quitArc" class="secondary">Quit Arc</button>
-  </div>
-  <ul id="profiles"></ul>
-  <p id="arcKeychainNotice" class="notice" hidden>
-    macOS will ask whether Compass may use "Arc Safe Storage", the key
-    Arc encrypts your cookies and passwords with. Choose
-    <b>Always Allow</b> (or Allow) so Compass can bring them over.
+<!-- Arc's profiles (docs/design/arc-import.md). -->
+<div id="arcView" hidden>
+  <button class="back" id="arcBack">
+    <compass-settings-icon name="back"></compass-settings-icon>Browsers
+  </button>
+  <h2 class="subpage-title">Arc</h2>
+  <p class="lead">
+    Bring your Arc profiles to Compass: you stay signed in to your sites,
+    and your history, passwords, extensions and settings come along, with
+    your spaces, pinned tabs and favorites.
   </p>
-  <button id="import" disabled>Import</button>
+
+  <div class="arc-card">
+    <p id="loading">Looking for Arc…</p>
+    <p id="notFound" hidden>Arc wasn't found on this computer.</p>
+
+    <div id="chooser" hidden>
+      <div id="arcRunning" class="notice warning" hidden>
+        <span>Arc is open. Quit it to import: its data is in use while it
+          runs.</span>
+        <button id="quitArc" class="pill">Quit Arc</button>
+      </div>
+      <ul id="profiles"></ul>
+      <p id="arcKeychainNotice" class="notice" hidden>
+        macOS will ask whether Compass may use "Arc Safe Storage", the key
+        Arc encrypts your cookies and passwords with. Choose
+        <b>Always Allow</b> (or Allow) so Compass can bring them over.
+      </p>
+      <div class="actions">
+        <button id="import" class="pill accent" disabled>Import</button>
+      </div>
+    </div>
+
+    <p id="importing" hidden>Importing… This takes a moment for each
+      profile.</p>
+
+    <div id="done" hidden>
+      <p id="doneText"></p>
+      <p id="failedText" class="notice" hidden></p>
+      <p id="easelsText" class="notice" hidden></p>
+      <div class="actions">
+        <button id="importEasels" class="pill" hidden>Import Easels
+          Again</button>
+        <button id="open" class="pill accent">Open My Spaces</button>
+      </div>
+    </div>
+  </div>
 </div>
 
-<p id="importing" hidden>Importing… This takes a moment for each
-  profile.</p>
-
-<div id="done" hidden>
-  <p id="doneText"></p>
-  <p id="failedText" class="notice" hidden></p>
-  <p id="easelsText" class="notice" hidden></p>
-  <button id="open">Open my spaces</button>
-  <button id="importEasels" class="secondary" hidden>Import Easels Again</button>
-</div>
 </div>

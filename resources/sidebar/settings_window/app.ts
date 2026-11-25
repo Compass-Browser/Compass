@@ -10,6 +10,7 @@ import '../settings/links_page.js';
 import '../settings/plugins_page.js';
 import '../settings/shortcuts_page.js';
 import '../settings/sync_page.js';
+import './about_pane.js';
 import './advanced_pane.js';
 import './general_pane.js';
 import './icon.js';
@@ -25,7 +26,7 @@ import type {SpaceColor} from '../sidebar.mojom-webui.js';
 
 import {getHtml} from './app.html.js';
 import {SettingsWindowBrowserProxy} from './browser_proxy.js';
-import type {LinkRow, Pane, PaneSection} from './panes.js';
+import type {LinkRow, Pane, PaneSection, Subpage} from './panes.js';
 import {PANES, resolvePath} from './panes.js';
 
 // The toolbar's height (window.css, #toolbar), which the window adds to the
@@ -45,6 +46,25 @@ export interface SearchResult {
   // The row to highlight there, if a row.
   rowId: string;
 }
+
+// A pane's rows that open its sections' pages, by group.
+export interface SubpageGroup {
+  title: string;
+  rows: Array<{section: PaneSection, subpage: Subpage}>;
+}
+
+// What a section element can tell the window (docs/design/settings-window.md,
+// "Pages and views"):
+// - `subpage-detail` (detail: string): its status, the detail of the row that
+//   opens its page ("On · 3 devices").
+// - `settings-view`: it showed one of its own views, or went back to its
+//   main one. It marks itself with the `nested` attribute while in a view;
+//   the window then hides the pane's header and its own way back (the
+//   element draws a "‹ back" of its own).
+// - `settings-navigate` (detail: string): show that path ("devMode").
+const SUBPAGE_DETAIL_EVENT = 'subpage-detail';
+const VIEW_EVENT = 'settings-view';
+const NAVIGATE_EVENT = 'settings-navigate';
 
 function readLastPane(): string {
   try {
@@ -79,12 +99,21 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
   static override get properties() {
     return {
       pane_: {type: Object},
+      subpage_: {type: Object},
+      subpageDetails_: {type: Object},
+      nested_: {type: Boolean},
       query_: {type: String},
       results_: {type: Array},
     };
   }
 
   protected accessor pane_: Pane = PANES[0]!;
+  // The section whose page is shown, if one is.
+  protected accessor subpage_: PaneSection|null = null;
+  // The sections' statuses, by tag (`subpage-detail`).
+  protected accessor subpageDetails_: Record<string, string> = {};
+  // Whether a shown section is in one of its own views.
+  protected accessor nested_: boolean = false;
   protected accessor query_: string = '';
   protected accessor results_: SearchResult[] = [];
 
@@ -114,9 +143,44 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
     return !this.isSearching_() && pane === this.pane_;
   }
 
-  // A pane of one section and no rows: its heading is the title row's.
+  // A pane of one section and no rows, or a section's page: the section's
+  // own heading is hidden (the pane's header, or the page's, names it).
   protected isSinglePane_(): boolean {
-    return this.pane_.sections.length === 1 && !this.pane_.groups.length;
+    return !!this.subpage_ ||
+        (this.pane_.sections.filter(s => !s.subpage).length === 1 &&
+         !this.pane_.groups.length && !this.getSubpageGroups_().length);
+  }
+
+  // The pane's header: on its main page, unless it draws its own.
+  protected showsHeader_(): boolean {
+    return !this.isSearching_() && !this.subpage_ && !this.nested_ &&
+        !!this.pane_.blurb;
+  }
+
+  // A section's page: its heading and the way back to the pane.
+  protected showsSubpageHeader_(): boolean {
+    return !this.isSearching_() && !!this.subpage_ && !this.nested_;
+  }
+
+  protected getSubpageGroups_(): SubpageGroup[] {
+    const groups: SubpageGroup[] = [];
+    for (const section of this.pane_.sections) {
+      const subpage = section.subpage;
+      if (!subpage) {
+        continue;
+      }
+      let group = groups.find(g => g.title === subpage.group);
+      if (!group) {
+        group = {title: subpage.group, rows: []};
+        groups.push(group);
+      }
+      group.rows.push({section, subpage});
+    }
+    return groups;
+  }
+
+  protected getSubpageDetail_(section: PaneSection): string {
+    return this.subpageDetails_[section.tag] || '';
   }
 
   protected getQuery_(): string {
@@ -133,6 +197,18 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
     this.proxy_.handler.getAccent().then(
         ({color}: {color: SpaceColor|null}) => this.setAccent_(color));
     document.addEventListener('keydown', e => this.onKeyDown_(e));
+    this.addEventListener(SUBPAGE_DETAIL_EVENT, e => {
+      const tag = (e.target as HTMLElement).localName;
+      this.subpageDetails_ = {
+        ...this.subpageDetails_,
+        [tag]: (e as CustomEvent<string>).detail,
+      };
+    });
+    this.addEventListener(VIEW_EVENT, () => this.updateNested_());
+    this.addEventListener(NAVIGATE_EVENT, e => {
+      e.stopPropagation();
+      this.showPath_((e as CustomEvent<string>).detail);
+    });
     this.showPath_(
         window.location.pathname.replace(/^\//, '') + window.location.search);
   }
@@ -183,6 +259,7 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
       path = resolved.pane.id;
     }
     const {pane, section} = resolved;
+    const subpage = section && section.subpage ? section : null;
     // A path with a query is for the section to act on ("?add=", "?edit=",
     // "?import="): it reads it as it's made, so it's made again.
     if (path.includes('?')) {
@@ -195,10 +272,13 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
     this.query_ = '';
     this.results_ = [];
     this.pane_ = pane;
+    this.subpage_ = subpage;
     await this.updateComplete;
     this.mountSections_(pane);
+    this.updateNested_();
+    await this.updateComplete;
     const scroller = this.querySelector<HTMLElement>('#scroller')!;
-    if (section) {
+    if (section && !subpage) {
       this.sections_.get(section.tag)?.scrollIntoView({block: 'start'});
     } else {
       scroller.scrollTop = 0;
@@ -206,9 +286,33 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
     this.reportHeight_();
   }
 
+  // All of the pane's sections are in the page, so that those on pages of
+  // their own report their status for their rows; only the shown ones are
+  // visible.
   private mountSections_(pane: Pane) {
     const container = this.querySelector<HTMLElement>('#sections')!;
-    container.replaceChildren(...pane.sections.map(s => this.sectionFor_(s)));
+    const elements = pane.sections.map(section => {
+      const element = this.sectionFor_(section);
+      element.hidden = this.subpage_ ? section !== this.subpage_ :
+                                       !!section.subpage;
+      return element;
+    });
+    container.replaceChildren(...elements);
+  }
+
+  private updateNested_() {
+    this.nested_ = this.pane_.sections.some(section => {
+      const element = this.sections_.get(section.tag);
+      return element && !element.hidden && element.hasAttribute('nested');
+    });
+  }
+
+  protected onSubpageRowClick_(e: Event) {
+    this.showPath_((e.currentTarget as HTMLElement).dataset['path']!);
+  }
+
+  protected onBackClick_() {
+    this.showPath_(this.pane_.id);
   }
 
   private sectionFor_(section: PaneSection): HTMLElement {
@@ -334,7 +438,7 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
               pane,
               label: row.label,
               detail: pane.label,
-              path: section.path,
+              path: row.path || section.path,
               rowId: row.id,
             });
           }
@@ -344,7 +448,8 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
           continue;
         }
         const element = this.sections_.get(section.tag);
-        const title = element?.querySelector('.compass-title')?.textContent ||
+        const title = section.subpage?.label ||
+            element?.querySelector('.compass-title')?.textContent ||
             pane.label;
         const text = [title, pane.label, section.keywords,
                       element?.textContent || ''].join(' ');

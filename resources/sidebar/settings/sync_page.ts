@@ -58,6 +58,31 @@ function stateName(state: State): string {
   }
 }
 
+// The settings window's row for Sync says this (settings_window/panes.ts).
+function rowDetail(status: Status, details: Details): string {
+  if (status.deviceRemoved) {
+    return 'This device was removed';
+  }
+  switch (status.state) {
+    case State.kOn: {
+      const count = details.devices.length;
+      return count === 1 ? 'On \u00b7 1 device' :
+          count > 1      ? `On \u00b7 ${count} devices` :
+                           'On';
+    }
+    case State.kStarting:
+      return 'Starting…';
+    case State.kNeedsRestart:
+      return 'Restart Compass to finish';
+    case State.kError:
+      return 'On \u00b7 Something went wrong';
+    case State.kLoginRequired:
+      return 'Sign in to go on syncing';
+    default:
+      return 'Off';
+  }
+}
+
 // "Active now", "5 minutes ago", "yesterday"...
 function lastSeen(ms: number): string {
   if (!ms) {
@@ -568,6 +593,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     this.$('statusDot').dataset['state'] = stateName(status.state);
     this.$('status').textContent = status.message ||
         (status.state === State.kOff ? 'Sync is off.' : '');
+    this.setSubpageDetail(rowDetail(status, details));
     if (this.showingWords_) {
       return;
     }

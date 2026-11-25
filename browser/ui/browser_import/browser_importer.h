@@ -52,6 +52,9 @@ struct ProfileOverview {
   bool passwords = false;
   // Why some of it can't be read, if so (Safari without Full Disk Access).
   std::string note;
+  // Its browser's own app icon, as a PNG data: URL (app_icon.h); empty if
+  // it wasn't found.
+  std::string icon;
 };
 
 // The profiles of other browsers on this computer, for |target| (whose

@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/thread_pool.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
@@ -21,6 +22,7 @@
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/arc_import/arc_importer.h"
+#include "compass/browser/ui/browser_import/app_icon.h"
 #include "compass/browser/ui/browser_import/browser_importer.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/tab_strip_bridge.h"
@@ -123,7 +125,21 @@ void ArcImportPageHandler::OnOverview(GetStateCallback callback,
       state->profiles.push_back(std::move(entry));
     }
   }
-  std::move(callback).Run(std::move(state));
+  if (!state->found) {
+    std::move(callback).Run(std::move(state));
+    return;
+  }
+  // Arc's own icon, for its row (browser_import/app_icon.h).
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&browser_import::ArcAppIcon),
+      base::BindOnce(
+          [](GetStateCallback callback,
+             sidebar::mojom::ArcImportStatePtr state, std::string icon) {
+            state->icon_data_url = std::move(icon);
+            std::move(callback).Run(std::move(state));
+          },
+          std::move(callback), std::move(state)));
 }
 
 void ArcImportPageHandler::QuitArc(QuitArcCallback callback) {
@@ -262,6 +278,7 @@ void ArcImportPageHandler::OnBrowsers(
     entry->as_profile_brings = profile.as_profile_brings;
     entry->imported_as_profile = base::UTF16ToUTF8(profile.imported_as_profile);
     entry->newer_version = profile.newer_version;
+    entry->icon_data_url = profile.icon;
     entries.push_back(std::move(entry));
   }
   std::move(callback).Run(std::move(entries));
