@@ -80,6 +80,14 @@ targets:
       - path: ../plugins/builtin
         type: folder
         buildPhase: resources
+      # The sync server Compass sets up in the user's Cloudflare account,
+      # and its version, shared with the desktop (docs/design/sync.md, "A
+      # free server on Cloudflare"; docs/design/ios.md, "A server on
+      # Cloudflare").
+      - path: ../server/cloudflare/dist/compass-sync.js
+        buildPhase: resources
+      - path: ../server/cloudflare/dist/compass-sync.version
+        buildPhase: resources
     entitlements:
       path: App/Compass.entitlements
       properties:

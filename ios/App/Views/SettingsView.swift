@@ -24,6 +24,8 @@ struct SettingsView: View {
   /// The server "Start Sync" uses (the join form's default).
   @State private var startServer = SyncController.defaultServer?.absoluteString ?? ""
   @State private var startError: String?
+  /// The screens pushed by value (SettingsRoute).
+  @State private var path: [SettingsRoute] = []
   @AppStorage(SearchEngine.key) private var searchEngine = SearchEngine.google.rawValue
   @AppStorage(Spotlight.enabledKey) private var spotlight = true
   @AppStorage(AutoPiP.enabledKey) private var autoPiP = true
@@ -36,7 +38,7 @@ struct SettingsView: View {
   private var shareOpensLittleWindow = false
 
   var body: some View {
-    NavigationStack {
+    NavigationStack(path: $path) {
       ScrollViewReader { scroller in
       Form {
         Section {
@@ -205,6 +207,9 @@ struct SettingsView: View {
       .navigationDestination(for: SettingsRoute.self) { route in
         switch route {
         case .join: JoinView()
+        case .invite: InviteJoinView()
+        case .cloudflare: CloudflareSetupView()
+        case .people: ServerPeopleView()
         }
       }
       // Every sheet and dialog is here, on the Form, none on a row or a
@@ -212,6 +217,9 @@ struct SettingsView: View {
       // section; Face ID makes the app inactive and active again, which
       // starts one), and a presentation attached to one closed with it,
       // taking the Settings sheet along.
+      // The owner's people and server update (ServerPeopleView), as the
+      // server changes.
+      .task(id: app.sync.serverURL) { await app.sync.refreshServerPeople() }
       .sheet(item: sheet) { sheet in
         switch sheet {
         case .recovery: RecoveryCodeView(words: app.sync.recoveryWords, dismissTitle: "Hide")
@@ -251,7 +259,9 @@ struct SettingsView: View {
         //   -CompassSyncScreen start: "Start Sync" (on -CompassServer's server);
         //   add: "Add a Device"; recovery: the words (no Face ID asked);
         //   auth: the words behind Face ID, as Show Recovery Code;
-        //   remove: Remove's confirmation for the first other device.
+        //   remove: Remove's confirmation for the first other device;
+        //   cloudflare, invite: setting up a server, joining with an
+        //   invite; people: the people on the server this chain owns.
         .task {
           guard let screen = UserDefaults.standard.string(forKey: "CompassSyncScreen") else { return }
           try? await Task.sleep(for: .milliseconds(800))
@@ -271,6 +281,15 @@ struct SettingsView: View {
               try? await Task.sleep(for: .milliseconds(200))
             }
             removing = app.sync.devices.first { !$0.isThisDevice }
+          // A server on Cloudflare: the setup and invite forms, the owner's
+          // people (once the server answered).
+          case "cloudflare" where !app.sync.isOn: path = [.cloudflare]
+          case "invite" where !app.sync.isOn: path = [.invite]
+          case "people" where app.sync.isOn:
+            for _ in 0..<50 where app.sync.serverPeople == nil {
+              try? await Task.sleep(for: .milliseconds(200))
+            }
+            path = [.people]
           default: break
           }
         }
@@ -286,6 +305,8 @@ struct SettingsView: View {
       get: {
         if app.showingJoinSummary { return .joinSummary }
         if app.sync.pairing.step != .none { return .addDevice }
+        // A chain started by setting up a server or joining with an invite.
+        if let words = app.sync.newChainWords { return .newWords(words) }
         return presented
       },
       set: { new in
@@ -297,6 +318,8 @@ struct SettingsView: View {
           app.showingJoinSummary = false
         } else if app.sync.pairing.step != .none {
           app.sync.cancelPairing()
+        } else if app.sync.newChainWords != nil {
+          app.sync.newChainWords = nil
         } else {
           presented = nil
         }
@@ -332,6 +355,11 @@ struct SettingsView: View {
         .disabled(startServer.trimmingCharacters(in: .whitespaces).isEmpty)
       // A value: the stack owns the pushed form, not this row.
       NavigationLink("I Have Another Device", value: SettingsRoute.join)
+      // docs/design/ios.md, "A server on Cloudflare".
+      NavigationLink("I Have an Invite", value: SettingsRoute.invite)
+        .accessibilityIdentifier("SyncInvite")
+      NavigationLink("No Server? Set Up a Free One on Cloudflare", value: SettingsRoute.cloudflare)
+        .accessibilityIdentifier("SyncCloudflare")
     } header: {
       Text("Sync")
     } footer: {
@@ -419,6 +447,24 @@ struct SettingsView: View {
       Button("Add a Device") { app.sync.addDevice() }
         .disabled(!canAddDevice)
     }
+    // Only for the owners of a server with an access list (a Cloudflare
+    // server Compass set up): friends, invites, the update.
+    if app.sync.serverPeople != nil && !isRemoved {
+      Section {
+        NavigationLink(value: SettingsRoute.people) {
+          LabeledContent("People on Your Server") {
+            if app.sync.serverUpdate != nil {
+              Text("Update Ready")
+            } else if let people = app.sync.serverPeople, !people.members.isEmpty {
+              Text("\(people.members.count)")
+            }
+          }
+        }
+        .accessibilityIdentifier("SyncPeople")
+      } footer: {
+        Text("Invite friends to sync on your server. Their data is encrypted on their devices.")
+      }
+    }
     // Sharing with other people (App/Rooms).
     Section("Sharing") { SharingNameRow() }
     Section {
@@ -465,6 +511,12 @@ struct SettingsView: View {
 /// A screen Settings pushes by value.
 enum SettingsRoute: Hashable {
   case join
+  /// Joining a friend's server with their invite link.
+  case invite
+  /// Setting up a server on Cloudflare.
+  case cloudflare
+  /// The people on the server this chain owns.
+  case people
 }
 
 /// What Settings presents, all from the Form (SettingsView's `sheet`).

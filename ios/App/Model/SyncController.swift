@@ -125,6 +125,18 @@ final class SyncController {
   /// Profile accounts this run linked to the home's sign-in.
   @ObservationIgnored private var linkedProfiles: Set<String> = []
 
+  // A server on Cloudflare and the people on it (SyncController+Cloudflare).
+  /// While a server is set up, updated or joined: the step under way.
+  var serverSetup: String?
+  /// The 12 words of a chain just started by setting up a server or
+  /// joining one with an invite: Settings shows them once.
+  var newChainWords: [String]?
+  /// The friends and open invites of the server this chain owns; nil on a
+  /// server without an access list, or one the chain was invited to.
+  var serverPeople: ServerPeople?
+  /// A newer version of the owner's Cloudflare server is ready.
+  var serverUpdate: ServerUpdate?
+
   private let store: SpaceStore
   let history: HistoryStore
   private let directory: URL
@@ -349,13 +361,15 @@ final class SyncController {
     signedInUser = nil
     loginMessage = nil
     linkedProfiles = []
+    serverPeople = nil
+    serverUpdate = nil
     passwords.removeBridges()
     RoomsModel.shared.syncStopped()
     state = .off
     store.onLocalChange = nil
   }
 
-  private func save(chain: Chain, server: URL) {
+  func save(chain: Chain, server: URL) {
     Keychain.set(chain.seed, "seed")
     Keychain.set(server.dataRepresentation, "server")
   }
@@ -369,7 +383,7 @@ final class SyncController {
     return folder.appendingPathComponent(name)
   }
 
-  private func start(chain: Chain, server: URL, pairingProfiles: [ChainProfile] = []) {
+  func start(chain: Chain, server: URL, pairingProfiles: [ChainProfile] = []) {
     self.chain = chain
     serverURL = server
     let spaceDirectory = SpaceDirectory(store: store)

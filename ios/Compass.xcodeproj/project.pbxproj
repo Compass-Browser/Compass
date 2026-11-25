@@ -34,9 +34,11 @@
 		1C967DE91A01640B9FCEDB3D /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 6E5F45F164FB346FCC2A5E35 /* manifest.json */; };
 		20C733E6D24771768DED90B4 /* page_agent.js in Resources */ = {isa = PBXBuildFile; fileRef = 33B0E3A0660070B96A0848A2 /* page_agent.js */; };
 		20FC5390B0E23578AE53F568 /* SearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6794D1252E649F6B927EAEF2 /* SearchEngine.swift */; };
+		22CD3DAD46948F787CE98EBC /* CompassRooms in Frameworks */ = {isa = PBXBuildFile; productRef = 258EBBC162B5B522E0E5917D /* CompassRooms */; };
 		23141F90C369B5DC02D45FD7 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = C1F5E18C01FE8E9B53C5726A /* CompassSync */; };
+		24E40BBE7B497BB5B32FFFCF /* compass-sync.js in Resources */ = {isa = PBXBuildFile; fileRef = 54766CC135CD4027B4B800FE /* compass-sync.js */; };
 		25374AD619591E0A785F35A3 /* BoostShareTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E79C7A3A8E519D0FED01CB /* BoostShareTests.swift */; };
-		260F78091B521A8355230F80 /* CompassBoosts in Frameworks */ = {isa = PBXBuildFile; productRef = 1980E8CE8C789AC0100CEC88 /* CompassBoosts */; };
+		260F78091B521A8355230F80 /* CompassLiveFolders in Frameworks */ = {isa = PBXBuildFile; productRef = 1302CE07862EFEBA75B9AFB7 /* CompassLiveFolders */; };
 		2827204F714A0D874CE9DB14 /* Peek.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27B64020D5018ABB32C63EBF /* Peek.swift */; };
 		28AE9D978D1FCDFAE4CE06BC /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ECB8BB8BB7B8645F265BCE1 /* ShareViewController.swift */; };
 		290326B391F0C01C47F6673A /* EaselLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9368A0772C67BCC14AC29785 /* EaselLibrary.swift */; };
@@ -44,7 +46,7 @@
 		2C5574A13A87E56973CDD495 /* ContentBlocking.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0C1FC09E0D4CAFE243D278C /* ContentBlocking.swift */; };
 		2D7DD330D12048A9E3C15504 /* CompassWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F778B3B5C9943AAABC5724 /* CompassWidgets.swift */; };
 		2E827AA08323300213F18A0C /* EaselObjectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F91BE86C95862C781EEB6B5B /* EaselObjectView.swift */; };
-		3234A062A7A49C79603CF768 /* CompassEasels in Frameworks */ = {isa = PBXBuildFile; productRef = CF238BA3C44C00A2F24A8CED /* CompassEasels */; };
+		3234A062A7A49C79603CF768 /* CompassBoosts in Frameworks */ = {isa = PBXBuildFile; productRef = 1980E8CE8C789AC0100CEC88 /* CompassBoosts */; };
 		32AE2DD435900084FFC93291 /* DownloadActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA6BBB62A731CFB983B3B3B /* DownloadActivityWidget.swift */; };
 		32D1028950616C4F9FE0BB50 /* SettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47141F9CD5FDA9B4F747F56B /* SettingsTests.swift */; };
 		32DB94151B1160360BF2FDCB /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 71E0DA10C9C7101FC286EA17 /* SwiftUI.framework */; };
@@ -68,7 +70,7 @@
 		549B4B7B3DB4F37CEEC7E7AC /* popup.css in Resources */ = {isa = PBXBuildFile; fileRef = BFD9AB04219FDCF10F4B4639 /* popup.css */; };
 		5587E7C3A13BDEE5D9B5C8DD /* QuickWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C26E8DD20C168CA5D31BE92 /* QuickWidgets.swift */; };
 		55CCFCFB356C9AEA4E95409B /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E455C53F4AADF06D3632F37 /* QRScannerView.swift */; };
-		56693BE136F75240E2345545 /* CompassLiveFolders in Frameworks */ = {isa = PBXBuildFile; productRef = 1302CE07862EFEBA75B9AFB7 /* CompassLiveFolders */; };
+		56693BE136F75240E2345545 /* CompassOnDevice in Frameworks */ = {isa = PBXBuildFile; productRef = F5AE783A042F8FB5AF37BEEE /* CompassOnDevice */; };
 		57E092971E889A00ECDBDDFF /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B660A02532A9FB9A9CD50958 /* SafariWebExtensionHandler.swift */; };
 		5AC1A706D95C031010B18D6F /* ExtensionTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C7C2CE759024ABE5EFDE30 /* ExtensionTabs.swift */; };
 		5C1A2684F17613EDAE0D2C03 /* ClaudeTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422BACAC56A4986C56AD585E /* ClaudeTools.swift */; };
@@ -107,6 +109,7 @@
 		91D855F27AF48E31EE21A8D2 /* Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C104F34AF154CFDADE0CE18 /* Downloads.swift */; };
 		92E78CB5FCC5B40329F43E09 /* CredentialProviderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 267808AC37F91C895DB746C9 /* CredentialProviderViewController.swift */; };
 		97922B1F9BE84B0020DE69F1 /* tools.json in Resources */ = {isa = PBXBuildFile; fileRef = 425E0D7BAB7BF73F8C4C4BED /* tools.json */; };
+		97F8CA7D9347F36905BB59FB /* compass-sync.version in Resources */ = {isa = PBXBuildFile; fileRef = 2CD2143429C188594682E7F4 /* compass-sync.version */; };
 		99DE5D012961E0FCE316F54B /* builtin in Resources */ = {isa = PBXBuildFile; fileRef = 83B4F27BCD2607B29E252EDD /* builtin */; };
 		9EB20D3AD4B8C20E1BD528E7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = EEB08CFB23C13239E6F2400C /* PrivacyInfo.xcprivacy */; };
 		A035DC301CF07BB150374FD4 /* CompassShared in Frameworks */ = {isa = PBXBuildFile; productRef = 804956549F3FF1171C330610 /* CompassShared */; };
@@ -131,6 +134,7 @@
 		BA7C6B8B4A54982738CAA1E8 /* LiveFolderViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8BB49FB7D90C6FB1CC5ECC8 /* LiveFolderViews.swift */; };
 		BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98F12601AB2AF4C69845C13 /* CompassApp.swift */; };
 		BC4149FED3CDEE2BAD4F8D46 /* DesktopViewport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44957DA68D5128D0EA074A29 /* DesktopViewport.swift */; };
+		BF7956CD61F277BAB08F5317 /* SyncController+Cloudflare.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81325BEBE05319BFF2022E4 /* SyncController+Cloudflare.swift */; };
 		C0BD671E658A7208DC60961E /* Compass.icon in Resources */ = {isa = PBXBuildFile; fileRef = 5BEABA7BC320887A692FA4D5 /* Compass.icon */; };
 		C1495ED7DCCFC3B6C7173330 /* AutoPiPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0DDC37D80E42A05260EDEF /* AutoPiPTests.swift */; };
 		C50098134F965E6A549044FE /* CompassShared in Frameworks */ = {isa = PBXBuildFile; productRef = 97027B5518478021CC8B3BF5 /* CompassShared */; };
@@ -143,6 +147,7 @@
 		D1B5344AA99F62BAB9237694 /* DevModeBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34CDC0A0103008C3D8F55371 /* DevModeBar.swift */; };
 		D4B8E15F68B8C746C443EA7C /* CompassClaude in Frameworks */ = {isa = PBXBuildFile; productRef = 24FEC5B35F68102FF9D4F4D3 /* CompassClaude */; };
 		D4D41D0A674BE84B26C94009 /* AppLinksUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B2F18EB9330372B8926E97 /* AppLinksUITests.swift */; };
+		D59D110F086F2AB829D97E75 /* CloudflareViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8804941572C42DBEA67AD7AA /* CloudflareViews.swift */; };
 		D9D8815C4107DF4474DC2FD4 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = 15AEEA8D528A69A946C7E01B /* CompassSync */; };
 		DC7CC89BA34E3FCF8F18A976 /* KeyboardShortcutsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E5E4C521DD74CEBD175150 /* KeyboardShortcutsTests.swift */; };
 		DF5A2FEAA7314FD697E62C7A /* ClaudeChatSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 950B2D1C1AF0CBC338C181A6 /* ClaudeChatSheet.swift */; };
@@ -151,7 +156,7 @@
 		E7DA38301889CC7FB624865F /* SwipeUpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */; };
 		E960631CBDED4865888BC99D /* DownloadActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 217A2B9DD3B37AE3A8F454AC /* DownloadActivityAttributes.swift */; };
 		E9A339DE6AE74295D11878F5 /* SiteSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFF877C7E8E7C2C1C9767DEF /* SiteSettings.swift */; };
-		EA113997A31A4342A59BCA42 /* CompassRooms in Frameworks */ = {isa = PBXBuildFile; productRef = 258EBBC162B5B522E0E5917D /* CompassRooms */; };
+		EA113997A31A4342A59BCA42 /* CompassEasels in Frameworks */ = {isa = PBXBuildFile; productRef = CF238BA3C44C00A2F24A8CED /* CompassEasels */; };
 		ED3133643D8AD5BE28B0DE8A /* HomeQuickActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 219581ADF6A5C9ECE3159093 /* HomeQuickActions.swift */; };
 		EF878A901726400229527CA0 /* AutoFill.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7E7EB3C486245AA52EAADF2F /* AutoFill.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F0892A9FD4DD224B6B58B454 /* CompassModel in Frameworks */ = {isa = PBXBuildFile; productRef = 8529FEBC80A94CC60F3F9BC7 /* CompassModel */; };
@@ -258,6 +263,7 @@
 		2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeUpTests.swift; sourceTree = "<group>"; };
 		2C104F34AF154CFDADE0CE18 /* Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Downloads.swift; sourceTree = "<group>"; };
 		2CB99DFF6092C31970BA2AD3 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = popup.html; sourceTree = "<group>"; };
+		2CD2143429C188594682E7F4 /* compass-sync.version */ = {isa = PBXFileReference; path = "compass-sync.version"; sourceTree = "<group>"; };
 		2D3EB960E888BD1E4A320952 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		2E5E05E467281432E7022D1F /* IncognitoLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncognitoLockView.swift; sourceTree = "<group>"; };
 		32AD0FC2A4DD49EA6D182F11 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
@@ -281,6 +287,7 @@
 		4949F9FC0F1970A1F889D517 /* ShortcutsActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsActions.swift; sourceTree = "<group>"; };
 		4D6DFD0447538D43874857BE /* SidebarPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarPanel.swift; sourceTree = "<group>"; };
 		4E455C53F4AADF06D3632F37 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		54766CC135CD4027B4B800FE /* compass-sync.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "compass-sync.js"; sourceTree = "<group>"; };
 		5503B813A562DF2DFAA58581 /* CommandBarCommandsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBarCommandsTests.swift; sourceTree = "<group>"; };
 		56591060B5711506971F138C /* CommandBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBar.swift; sourceTree = "<group>"; };
 		5732C1BC2590C031707516DE /* call_pip.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = call_pip.js; sourceTree = "<group>"; };
@@ -314,6 +321,7 @@
 		83B4F27BCD2607B29E252EDD /* builtin */ = {isa = PBXFileReference; lastKnownFileType = folder; name = builtin; path = ../plugins/builtin; sourceTree = SOURCE_ROOT; };
 		83B8330DEB6EB26B4DBFA4BF /* ExtensionPackage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionPackage.swift; sourceTree = "<group>"; };
 		86F0182977981D5DDCAFCD94 /* WidgetSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSupport.swift; sourceTree = "<group>"; };
+		8804941572C42DBEA67AD7AA /* CloudflareViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudflareViews.swift; sourceTree = "<group>"; };
 		8F05C20E3A1003FF687C4007 /* DownloadActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadActivity.swift; sourceTree = "<group>"; };
 		915B9B83F1CFEE0E3C555292 /* reader.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = reader.html; sourceTree = "<group>"; };
 		9368A0772C67BCC14AC29785 /* EaselLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EaselLibrary.swift; sourceTree = "<group>"; };
@@ -366,6 +374,7 @@
 		E43A59BA0D9BDFC193DE3DB9 /* reader.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = reader.css; sourceTree = "<group>"; };
 		E58BE0BDD0E3F4C261658827 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		E5E5D0E82329024CAFA3BBC2 /* EaselEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EaselEditor.swift; sourceTree = "<group>"; };
+		E81325BEBE05319BFF2022E4 /* SyncController+Cloudflare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncController+Cloudflare.swift"; sourceTree = "<group>"; };
 		EA3438EC7E6B5940AF3A43DE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		EC526E605F5D79F085B33F05 /* Readability.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Readability.js; sourceTree = "<group>"; };
 		EDC160A2F8C9A864C250F339 /* _locales */ = {isa = PBXFileReference; lastKnownFileType = folder; name = _locales; path = SafariOpen/Resources/_locales; sourceTree = SOURCE_ROOT; };
@@ -421,10 +430,11 @@
 				D9D8815C4107DF4474DC2FD4 /* CompassSync in Frameworks */,
 				F0892A9FD4DD224B6B58B454 /* CompassModel in Frameworks */,
 				D4B8E15F68B8C746C443EA7C /* CompassClaude in Frameworks */,
-				56693BE136F75240E2345545 /* CompassLiveFolders in Frameworks */,
-				260F78091B521A8355230F80 /* CompassBoosts in Frameworks */,
-				3234A062A7A49C79603CF768 /* CompassEasels in Frameworks */,
-				EA113997A31A4342A59BCA42 /* CompassRooms in Frameworks */,
+				56693BE136F75240E2345545 /* CompassOnDevice in Frameworks */,
+				260F78091B521A8355230F80 /* CompassLiveFolders in Frameworks */,
+				3234A062A7A49C79603CF768 /* CompassBoosts in Frameworks */,
+				EA113997A31A4342A59BCA42 /* CompassEasels in Frameworks */,
+				22CD3DAD46948F787CE98EBC /* CompassRooms in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -453,6 +463,7 @@
 				6CEAA10D12A16F57BDBB4C52 /* assets */,
 				4F0C5B3D82248C2BC7C58226 /* common */,
 				61D4EF5379B94238FE356564 /* plugins */,
+				EA7B78CBC4A2AA54A49CABC7 /* server */,
 				026AAACA47BA5C14447BEA9C /* third_party */,
 			);
 			name = compass;
@@ -546,6 +557,7 @@
 		545F210D9F92AE4122D22825 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				8804941572C42DBEA67AD7AA /* CloudflareViews.swift */,
 				56591060B5711506971F138C /* CommandBar.swift */,
 				A41B59BC81621FE63D557277 /* DataViews.swift */,
 				4367DBA86D6AB84004F4075F /* DevModeSettingsView.swift */,
@@ -691,6 +703,23 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		BB96A0A7378899DED2392108 /* cloudflare */ = {
+			isa = PBXGroup;
+			children = (
+				C052E976AF73D4269AC03873 /* dist */,
+			);
+			path = cloudflare;
+			sourceTree = "<group>";
+		};
+		C052E976AF73D4269AC03873 /* dist */ = {
+			isa = PBXGroup;
+			children = (
+				54766CC135CD4027B4B800FE /* compass-sync.js */,
+				2CD2143429C188594682E7F4 /* compass-sync.version */,
+			);
+			path = dist;
+			sourceTree = "<group>";
+		};
 		C6DD3C1D2CFB12FABAF3C401 = {
 			isa = PBXGroup;
 			children = (
@@ -761,6 +790,7 @@
 				6794D1252E649F6B927EAEF2 /* SearchEngine.swift */,
 				EFF877C7E8E7C2C1C9767DEF /* SiteSettings.swift */,
 				29EEA337DD801A959B39B43F /* SyncController.swift */,
+				E81325BEBE05319BFF2022E4 /* SyncController+Cloudflare.swift */,
 				BEC2CC0BF44F21272D32F82C /* TabManager.swift */,
 			);
 			path = Model;
@@ -824,6 +854,14 @@
 				28ED2A5ADAB247E317BB1F68 /* popup.js */,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		EA7B78CBC4A2AA54A49CABC7 /* server */ = {
+			isa = PBXGroup;
+			children = (
+				BB96A0A7378899DED2392108 /* cloudflare */,
+			);
+			path = server;
 			sourceTree = "<group>";
 		};
 		ED545D28385CE83413F73736 /* System */ = {
@@ -929,6 +967,7 @@
 				15AEEA8D528A69A946C7E01B /* CompassSync */,
 				8529FEBC80A94CC60F3F9BC7 /* CompassModel */,
 				24FEC5B35F68102FF9D4F4D3 /* CompassClaude */,
+				F5AE783A042F8FB5AF37BEEE /* CompassOnDevice */,
 				1302CE07862EFEBA75B9AFB7 /* CompassLiveFolders */,
 				1980E8CE8C789AC0100CEC88 /* CompassBoosts */,
 				CF238BA3C44C00A2F24A8CED /* CompassEasels */,
@@ -1116,6 +1155,8 @@
 				16A0AF7ADF125EA1425EE0D6 /* Readability.js in Resources */,
 				99DE5D012961E0FCE316F54B /* builtin in Resources */,
 				A8BCFC55EB0526B1CFD64478 /* call_pip.js in Resources */,
+				24E40BBE7B497BB5B32FFFCF /* compass-sync.js in Resources */,
+				97F8CA7D9347F36905BB59FB /* compass-sync.version in Resources */,
 				20C733E6D24771768DED90B4 /* page_agent.js in Resources */,
 				B41D0D587E6016C40EA07D2C /* reader.css in Resources */,
 				43A24F1DC062D13FB5E9E349 /* reader.html in Resources */,
@@ -1154,6 +1195,7 @@
 				0B0677B675C2C7D395C3700F /* ClaudeSettings.swift in Sources */,
 				C56A4F87EBD3E7FEA87D2AD0 /* ClaudeSettingsView.swift in Sources */,
 				5C1A2684F17613EDAE0D2C03 /* ClaudeTools.swift in Sources */,
+				D59D110F086F2AB829D97E75 /* CloudflareViews.swift in Sources */,
 				4968D00362621422D48BCA8B /* CommandBar.swift in Sources */,
 				BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */,
 				2C5574A13A87E56973CDD495 /* ContentBlocking.swift in Sources */,
@@ -1206,6 +1248,7 @@
 				E9A339DE6AE74295D11878F5 /* SiteSettings.swift in Sources */,
 				86BE32EE9DABB442ECFD8C3B /* SiteSettingsView.swift in Sources */,
 				0D7788B085065A3908C438B2 /* Spotlight.swift in Sources */,
+				BF7956CD61F277BAB08F5317 /* SyncController+Cloudflare.swift in Sources */,
 				86F9E9B9B581BE4BEFDF5E8C /* SyncController.swift in Sources */,
 				B36EBEC54E877CBB5562C9BB /* SystemBridge.swift in Sources */,
 				AF89E53001D58CBCE4F6FBC5 /* TabManager.swift in Sources */,
@@ -1839,6 +1882,10 @@
 		CF238BA3C44C00A2F24A8CED /* CompassEasels */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CompassEasels;
+		};
+		F5AE783A042F8FB5AF37BEEE /* CompassOnDevice */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CompassOnDevice;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
