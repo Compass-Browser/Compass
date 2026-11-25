@@ -1237,12 +1237,18 @@ every profile's bridge.
 
 **Per profile or device-wide.**
 
-- **Switches are per profile**: `compass.sync.disabled_types` is a profile
-  pref and each profile's page shows and sets its own, the way Chromium
-  keeps sync settings per profile. A profile enrolled or created by sync
-  starts with every switch on. The chain's profile list rides on the home
-  profile's `COMPASS_SPACES`, so with the home's Spaces switch off the list
-  neither goes up nor comes down.
+- **Switches are device-wide** (since 2026-11-25): sync is the browser's,
+  not a profile's, so `compass.sync.disabled_types` is a Local State pref
+  (registered by `compass::RegisterCompassLocalStatePrefs()`), and every
+  profile's page shows and sets the same switches. Each profile's
+  `CompassSyncService` follows the pref (`OnSwitchesChanged()`), so a switch
+  turned off on any page stops that type in every profile. They don't sync
+  between devices: each device keeps its own. Before, each profile kept its
+  own, as Chromium does; the first profile to load with its own moves them
+  to Local State (`MigrateSwitches()`) and the others' are dropped. A
+  profile enrolled or created by sync gets the device's switches. The
+  chain's profile list rides on the home profile's `COMPASS_SPACES`, so with
+  the Spaces switch off the list neither goes up nor comes down.
 - **Leave** leaves with every profile of the device (each profile's seed
   and account flag go; their data stays).
 - **Reset** is device-wide, like Leave: `ResetChain()` from any profile's

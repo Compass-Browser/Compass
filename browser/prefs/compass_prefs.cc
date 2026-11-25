@@ -31,6 +31,14 @@ void RegisterCompassProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref("compass.rooms.display_name", std::string());
 }
 
+void RegisterCompassLocalStatePrefs(PrefRegistrySimple *registry) {
+  // Sync's switches, for every profile of this device
+  // (compass::sync::prefs::kDisabledTypes, components/sync/pref_names.h;
+  // docs/design/sync.md, "Per profile or device-wide"). By name here: this
+  // target stays clear of sync's.
+  registry->RegisterListPref("compass.sync.disabled_types");
+}
+
 void MigrateCompassProfilePrefs(PrefService* prefs) {
   // Other AI providers' settings (docs/design/ai-providers.md, "Settings").
   claude::prefs::MigrateProviderPrefs(prefs);

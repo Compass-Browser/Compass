@@ -289,17 +289,25 @@ CompassSyncService::PendingJoin& CompassSyncService::PendingJoin::operator=(
 CompassSyncService::PendingJoin::~PendingJoin() = default;
 
 CompassSyncService::CompassSyncService(
-    Profile* profile,
-    syncer::SyncService* sync_service,
-    os_crypt_async::OSCryptAsync* os_crypt_async)
-    : profile_(profile),
-      prefs_(profile->GetPrefs()),
+    Profile *profile, syncer::SyncService *sync_service,
+    os_crypt_async::OSCryptAsync *os_crypt_async)
+    : profile_(profile), prefs_(profile->GetPrefs()),
+      local_state_(g_browser_process ? g_browser_process->local_state()
+                                     : nullptr),
       sync_service_(sync_service),
       device_info_(sync_service
                        ? DeviceInfoSyncServiceFactory::GetForProfile(profile)
                        : nullptr),
       os_crypt_async_(os_crypt_async),
       credentials_(SyncCredentials::ForPrefs(profile->GetPrefs())) {
+  MigrateSwitches();
+  if (local_state_) {
+    switches_registrar_.Init(local_state_);
+    switches_registrar_.Add(
+        prefs::kDisabledTypes,
+        base::BindRepeating(&CompassSyncService::OnSwitchesChanged,
+                            base::Unretained(this)));
+  }
   if (sync_service_) {
     sync_observation_.Observe(sync_service_);
   }
@@ -376,10 +384,13 @@ void CompassSyncService::RegisterProfilePrefs(
   registry->RegisterBooleanPref(prefs::kDeviceRemoved, false);
   registry->RegisterListPref(prefs::kLoginLinksPending);
   registry->RegisterDictionaryPref(prefs::kCloudflare);
+  // Only to read a profile's own switches from before they were the
+  // device's (MigrateSwitches()).
   RegisterSyncSettingsPrefs(registry);
 }
 
 void CompassSyncService::Shutdown() {
+  switches_registrar_.RemoveAll();
   starting_timer_.Stop();
   link_retry_timer_.Stop();
   account_linker_.reset();
@@ -440,8 +451,8 @@ GURL CompassSyncService::GetServerUrl() const {
 }
 
 bool CompassSyncService::AreDataTypesReleased() const {
-  return AreTypesSelected() &&
-         !GetDisabledSyncDataTypes(prefs_).contains(SyncDataType::kSpaces);
+  return AreTypesSelected() && !GetDisabledSyncDataTypes(switches_prefs())
+                                    .contains(SyncDataType::kSpaces);
 }
 
 bool CompassSyncService::AreTypesSelected() const {
@@ -1090,7 +1101,7 @@ void CompassSyncService::HoldTypes() {
 
 void CompassSyncService::SelectTypes() {
   SelectSelectableTypes(sync_service_->GetUserSettings(),
-                        GetDisabledSyncDataTypes(prefs_));
+                        GetDisabledSyncDataTypes(switches_prefs()));
   sync_service_->DataTypePreconditionChanged(syncer::COMPASS_SPACES);
 }
 
@@ -1799,7 +1810,7 @@ void CompassSyncService::OnDeviceRemovalResult(const std::string& guid,
 }
 
 std::vector<SyncDataTypeState> CompassSyncService::GetDataTypes() const {
-  const SyncDataTypeSet disabled = GetDisabledSyncDataTypes(prefs_);
+  const SyncDataTypeSet disabled = GetDisabledSyncDataTypes(switches_prefs());
   std::vector<SyncDataTypeState> types;
   for (SyncDataType type : kAllSyncDataTypes) {
     types.push_back({type, !disabled.contains(type)});
@@ -1808,13 +1819,38 @@ std::vector<SyncDataTypeState> CompassSyncService::GetDataTypes() const {
 }
 
 void CompassSyncService::SetDataTypeEnabled(SyncDataType type, bool enabled) {
-  SetSyncDataTypeEnabled(prefs_, type, enabled);
+  // The device's switch: every profile's service follows the pref
+  // (OnSwitchesChanged()), this one included.
+  SetSyncDataTypeEnabled(switches_prefs(), type, enabled);
+  if (!local_state_) {
+    OnSwitchesChanged();
+  }
+}
+
+PrefService *CompassSyncService::switches_prefs() const {
+  return local_state_ ? local_state_.get() : prefs_.get();
+}
+
+void CompassSyncService::MigrateSwitches() {
+  if (!local_state_ || !prefs_->HasPrefPath(prefs::kDisabledTypes)) {
+    return;
+  }
+  // The first profile to load with switches of its own gives them to the
+  // device; later ones' are dropped (docs/design/sync.md, "Per profile or
+  // device-wide").
+  if (!local_state_->HasPrefPath(prefs::kDisabledTypes)) {
+    local_state_->SetList(prefs::kDisabledTypes,
+                          prefs_->GetList(prefs::kDisabledTypes).Clone());
+  }
+  prefs_->ClearPref(prefs::kDisabledTypes);
+}
+
+void CompassSyncService::OnSwitchesChanged() {
   // While the types are held (no passphrase yet), the choice only waits in
   // the pref: SelectTypes() reads it when they're released.
   if (sync_service_ && IsChainRunning()) {
-    if (type == SyncDataType::kSpaces) {
-      sync_service_->DataTypePreconditionChanged(syncer::COMPASS_SPACES);
-    } else if (AreTypesSelected()) {
+    sync_service_->DataTypePreconditionChanged(syncer::COMPASS_SPACES);
+    if (AreTypesSelected()) {
       SelectTypes();
     }
   }

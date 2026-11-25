@@ -35,6 +35,9 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/sync/compass_sync_service.h"
+#include "compass/browser/sync/compass_sync_service_factory.h"
+#include "compass/browser/sync/sync_settings.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
@@ -1215,6 +1218,40 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SubpageRows) {
               "&& document.querySelector('compass-settings-advanced-pane')"
               ".hidden"),
       true);
+}
+
+// Sync's switches are the device's, not a profile's (docs/design/sync.md,
+// "Per profile or device-wide"): one turned off from a profile's page is off
+// in every profile, and kept in Local State.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SyncSwitchesAreTheDevices) {
+  ProfileManager *profile_manager = g_browser_process->profile_manager();
+  Profile &other = profiles::testing::CreateProfileSync(
+      profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+  sync::CompassSyncService *here =
+      sync::CompassSyncServiceFactory::GetForProfile(profile());
+  sync::CompassSyncService *there =
+      sync::CompassSyncServiceFactory::GetForProfile(&other);
+  ASSERT_TRUE(here);
+  ASSERT_TRUE(there);
+  const auto history_on = [](sync::CompassSyncService *service) {
+    for (const sync::SyncDataTypeState &type : service->GetDataTypes()) {
+      if (type.type == sync::SyncDataType::kHistory) {
+        return type.enabled;
+      }
+    }
+    return false;
+  };
+  ASSERT_TRUE(history_on(here));
+  ASSERT_TRUE(history_on(there));
+
+  here->SetDataTypeEnabled(sync::SyncDataType::kHistory, false);
+  EXPECT_FALSE(history_on(here));
+  EXPECT_FALSE(history_on(there));
+  EXPECT_TRUE(sync::GetDisabledSyncDataTypes(g_browser_process->local_state())
+                  .contains(sync::SyncDataType::kHistory));
+
+  there->SetDataTypeEnabled(sync::SyncDataType::kHistory, true);
+  EXPECT_TRUE(history_on(here));
 }
 
 }  // namespace compass

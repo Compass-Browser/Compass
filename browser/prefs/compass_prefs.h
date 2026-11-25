@@ -69,6 +69,11 @@ inline constexpr char kTabPreviewPlugins[] = "compass.tab_previews.plugins";
 
 }  // namespace prefs
 
+// Compass's own Local State prefs that have no home of their own nearer
+// upstream's registration. Called by upstream's RegisterLocalState()
+// (patches/chrome-browser-prefs-browser_prefs.cc.patch).
+void RegisterCompassLocalStatePrefs(PrefRegistrySimple *registry);
+
 // Compass's own profile prefs. Called by upstream's RegisterProfilePrefs()
 // (patches/chrome-browser-prefs-browser_prefs.cc.patch).
 void RegisterCompassProfilePrefs(PrefRegistrySimple* registry);

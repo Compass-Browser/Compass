@@ -594,6 +594,7 @@ source_set("browser_tests") {
     "//compass/browser/prefs",
     "//compass/browser/shortcuts",
     "//compass/browser/sidebar",
+    "//compass/browser/sync",
     "//compass/browser/window_sync",
     "//components/constrained_window",
     "//components/content_settings/core/browser",

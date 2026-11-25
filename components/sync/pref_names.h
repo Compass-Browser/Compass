@@ -5,7 +5,7 @@
 #ifndef COMPASS_COMPONENTS_SYNC_PREF_NAMES_H_
 #define COMPASS_COMPONENTS_SYNC_PREF_NAMES_H_
 
-// Profile prefs of Compass sync, registered by
+// Prefs of Compass sync: profile prefs, but for kDisabledTypes, registered by
 // compass::sync::CompassSyncServiceFactory.
 namespace compass::sync::prefs {
 
@@ -18,8 +18,12 @@ inline constexpr char kServerUrl[] = "compass.sync.server_url";
 // profile isn't in a chain.
 inline constexpr char kSeed[] = "compass.sync.seed";
 
-// The chrome://compass-sync switches turned off, by name
-// (compass/browser/sync/sync_settings.h). Kept across leaving and joining.
+// The sync switches turned off, by name (compass/browser/sync/sync_settings.h):
+// a Local State pref, the same for every profile of this device (registered
+// by compass::RegisterCompassLocalStatePrefs()). Kept across leaving and
+// joining. Profiles kept their own until 2026-11-25; the first profile to
+// load with one moves it to Local State (CompassSyncService), and the others'
+// are dropped.
 inline constexpr char kDisabledTypes[] = "compass.sync.disabled_types";
 
 // "Reset sync" replaced the chain: until this device has put the new chain's

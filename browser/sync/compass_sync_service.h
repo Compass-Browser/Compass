@@ -23,6 +23,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_attributes_storage_observer.h"
+#include "components/prefs/pref_change_registrar.h"
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/application_status_listener.h"
 #else
@@ -365,9 +366,20 @@ class CompassSyncService : public KeyedService,
   void LinkAccount(const Seed& seed, base::OnceClosure done);
   // The server started or stopped refusing this account (401).
   void OnRefusedChanged();
+  // Where the sync switches are: Local State, the same for every profile of
+  // the device (or the profile's prefs, in tests without a browser process).
+  PrefService *switches_prefs() const;
+  // Moves a profile's own switches from before they were the device's.
+  void MigrateSwitches();
+  // The switches changed, from any profile's page: this profile's data types
+  // follow.
+  void OnSwitchesChanged();
 
   const raw_ptr<Profile> profile_;
   const raw_ptr<PrefService> prefs_;
+  // Local State, where the switches are; null without a browser process.
+  const raw_ptr<PrefService> local_state_;
+  PrefChangeRegistrar switches_registrar_;
   raw_ptr<syncer::SyncService> sync_service_;
   raw_ptr<syncer::DeviceInfoSyncService> device_info_;
   const raw_ptr<os_crypt_async::OSCryptAsync> os_crypt_async_;
