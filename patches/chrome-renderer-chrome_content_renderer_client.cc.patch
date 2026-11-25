@@ -1,18 +1,16 @@
 diff --git a/chrome/renderer/chrome_content_renderer_client.cc b/chrome/renderer/chrome_content_renderer_client.cc
-index f209aa840543e393a79896230df2069f50c584d4..195a912455452cd1e96dac1f512c7c69e0180c83 100644
+index f209aa840543e393a79896230df2069f50c584d4..28c377bc7572f86226a922db8580312696329ebd 100644
 --- a/chrome/renderer/chrome_content_renderer_client.cc
 +++ b/chrome/renderer/chrome_content_renderer_client.cc
-@@ -122,6 +122,9 @@
+@@ -122,6 +122,7 @@
  #include "components/spellcheck/spellcheck_buildflags.h"
  #include "components/subresource_filter/content/renderer/subresource_filter_agent.h"
  #include "components/subresource_filter/content/renderer/unverified_ruleset_dealer.h"
 +#include "compass/renderer/adblock/cosmetic_filter_agent.h"
-+#include "compass/media/avf/renderer/avf_renderer_hooks.h"
-+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
  #include "components/subresource_filter/core/common/common_features.h"
  #include "components/surface_embed/common/features.h"
  #include "components/surface_embed/renderer/create_plugin.h"
-@@ -792,6 +795,9 @@ void ChromeContentRendererClient::RenderFrameCreated(
+@@ -792,6 +793,9 @@ void ChromeContentRendererClient::RenderFrameCreated(
          new subresource_filter::SubresourceFilterAgent(
              render_frame, subresource_filter_ruleset_dealer_.get());
      subresource_filter_agent->Initialize();
@@ -22,19 +20,3 @@ index f209aa840543e393a79896230df2069f50c584d4..195a912455452cd1e96dac1f512c7c69
    }
  
  #if BUILDFLAG(ENABLE_WEBUI_NTP)
-@@ -1460,7 +1466,14 @@ ChromeContentRendererClient::GetSupportedKeySystems(
-     content::RenderFrame* render_frame,
-     media::GetSupportedKeySystemsCB cb) {
- #if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
--  return GetChromeKeySystems(render_frame, std::move(cb));
-+  // Compass: adds FairPlay (com.apple.fps) on macOS (docs/design/fairplay.md).
-+  return GetChromeKeySystems(
-+      render_frame,
-+      compass::avf::WrapKeySystemsCallback(
-+          std::move(cb), [render_frame](mojo::GenericPendingReceiver receiver) {
-+            render_frame->GetBrowserInterfaceBroker().GetInterface(
-+                std::move(receiver));
-+          }));
- #else
-   std::move(cb).Run({});
-   return nullptr;
