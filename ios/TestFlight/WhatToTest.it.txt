@@ -1,6 +1,6 @@
 Il tuo server di sincronizzazione gratuito, su Cloudflare.
 
-- Impostazioni › Sincronizzazione › "Nessun server? Creane uno gratis su Cloudflare": Compass crea un server di sincronizzazione nel tuo account Cloudflare e avvia la sincronizzazione. Accedi con Cloudflare (o incolla un token API) e scegli se i telefoni ricevono le notifiche tramite il relay push di Compass.
-- "Ho un invito": incolla il link di invito di un amico per sincronizzare sul suo server.
-- Se il server è tuo, "Persone sul tuo server" elenca gli amici che hai invitato: crea un link di invito e condividilo, rimuovi qualcuno, revoca un invito non usato, attiva o disattiva le notifiche sui telefoni e aggiorna il server quando c'è una versione nuova.
+- Settings › Sync › "No Server? Set Up a Free One on Cloudflare": Compass crea un server di sincronizzazione nel tuo account Cloudflare e avvia la sincronizzazione. Accedi con Cloudflare (o incolla un token API) e scegli se i telefoni ricevono le notifiche tramite il relay push di Compass.
+- "I Have an Invite": incolla il link di invito di un amico per sincronizzare sul suo server.
+- Se il server è tuo, "People on Your Server" elenca gli amici che hai invitato: crea un link di invito e condividilo, rimuovi qualcuno, revoca un invito non usato, attiva o disattiva le notifiche sui telefoni e aggiorna il server quando c'è una versione nuova.
 - Segnalaci: pagine di accesso che non si caricano o non finiscono, errori durante la creazione (con il messaggio mostrato) e link di invito che non funzionano.
