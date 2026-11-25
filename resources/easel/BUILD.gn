@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//ui/webui/resources/tools/build_webui.gni")
+import("//ui/webui/resources/tools/generate_grd.gni")
 
 # chrome://easel (docs/design/easels.md, "Editor"): the Easels list and a
 # board's editor. Its own pak, unlike the sidebar's pages, because Android
@@ -40,4 +41,27 @@ build_webui("build") {
       [ "//compass/browser/ui/webui/easel:mojo_bindings_ts__generator" ]
   mojo_files =
       [ "$root_gen_dir/compass/browser/ui/webui/easel/easel.mojom-webui.ts" ]
+
+  if (is_android) {
+    # The sync server for Cloudflare, which the desktop has in the sidebar's
+    # pak (resources/sidebar/BUILD.gn, build_sync_worker_grdp). Android ships
+    # only this Compass pak, so it comes here: CompassSyncService reads it
+    # by its path when the user sets up or updates a free server
+    # (docs/design/android.md, "Sync and push").
+    extra_grdp_deps = [ ":build_sync_worker_grdp" ]
+    extra_grdp_files = [ "$target_gen_dir/sync_worker.grdp" ]
+  }
+}
+
+if (is_android) {
+  generate_grd("build_sync_worker_grdp") {
+    grd_prefix = "compass_sync_worker"
+    out_grd = "$target_gen_dir/sync_worker.grdp"
+    input_files_base_dir = rebase_path("//compass/server/cloudflare/dist", "//")
+    resource_path_prefix = "sync_worker"
+    input_files = [
+      "compass-sync.js",
+      "compass-sync.version",
+    ]
+  }
 }

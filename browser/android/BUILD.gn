@@ -132,6 +132,9 @@ source_set("sync_bridge") {
     "//chrome/browser/profiles:profile",
     "//compass/android:jni_headers",
     "//compass/browser/sync",
+    "//compass/browser/sync:settings",
+    "//compass/components/sync:notifier",
+    "//url",
   ]
 }
 

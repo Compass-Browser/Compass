@@ -25,6 +25,13 @@ public class SyncBridge {
         void open(String url);
 
         void close();
+
+        /**
+         * "Sign in with Cloudflare" (docs/design/sync.md, "A free server on Cloudflare"): the
+         * service opened Cloudflare's sign-in in a Compass tab ({@code open} true) and catches its
+         * redirect there; the screen steps aside until the tab closes ({@code open} false).
+         */
+        void cloudflareSignIn(boolean open);
     }
 
     private long mNativeSyncBridge;
@@ -56,6 +63,11 @@ public class SyncBridge {
     @CalledByNative
     private void closeLoginPage() {
         mLoginPages.close();
+    }
+
+    @CalledByNative
+    private void cloudflareSignIn(boolean open) {
+        mLoginPages.cloudflareSignIn(open);
     }
 
     public String snapshot() {
@@ -126,6 +138,45 @@ public class SyncBridge {
         SyncBridgeJni.get().clearNewWords(mNativeSyncBridge);
     }
 
+    /** Sets up a free server on Cloudflare with an API token (the snapshot shows how it goes). */
+    public void startOnCloudflare(String token, boolean pushRelay) {
+        SyncBridgeJni.get().startOnCloudflare(mNativeSyncBridge, token, pushRelay);
+    }
+
+    /** As {@link #startOnCloudflare}, after "Sign in with Cloudflare" in a tab. */
+    public void startOnCloudflareSignIn(boolean pushRelay) {
+        SyncBridgeJni.get().startOnCloudflareSignIn(mNativeSyncBridge, pushRelay);
+    }
+
+    /** "I have an invite": https://<server>/invite#<code>. */
+    public void joinWithInvite(String link) {
+        SyncBridgeJni.get().joinWithInvite(mNativeSyncBridge, link);
+    }
+
+    /** Asks the server again for its people and an update (the owner's). */
+    public void loadPeople() {
+        if (mNativeSyncBridge == 0) return;
+        SyncBridgeJni.get().loadPeople(mNativeSyncBridge);
+    }
+
+    public void inviteFriend(String name) {
+        SyncBridgeJni.get().inviteFriend(mNativeSyncBridge, name);
+    }
+
+    /** Removes a friend (their chain) or revokes an invite (its code). */
+    public void removeFromServer(String target) {
+        SyncBridgeJni.get().removeFromServer(mNativeSyncBridge, target);
+    }
+
+    public void setServerPushRelay(boolean on) {
+        SyncBridgeJni.get().setServerPushRelay(mNativeSyncBridge, on);
+    }
+
+    /** Updates the server: with an API token, or (empty) after signing in with Cloudflare. */
+    public void updateServer(String token) {
+        SyncBridgeJni.get().updateServer(mNativeSyncBridge, token);
+    }
+
     @NativeMethods
     interface Natives {
         long init(SyncBridge caller, @JniType("Profile*") Profile profile);
@@ -169,5 +220,22 @@ public class SyncBridge {
         String[] getRecoveryCode(long nativeSyncBridge);
 
         void clearNewWords(long nativeSyncBridge);
+
+        void startOnCloudflare(
+                long nativeSyncBridge, @JniType("std::string") String token, boolean pushRelay);
+
+        void startOnCloudflareSignIn(long nativeSyncBridge, boolean pushRelay);
+
+        void joinWithInvite(long nativeSyncBridge, @JniType("std::string") String link);
+
+        void loadPeople(long nativeSyncBridge);
+
+        void inviteFriend(long nativeSyncBridge, @JniType("std::string") String name);
+
+        void removeFromServer(long nativeSyncBridge, @JniType("std::string") String target);
+
+        void setServerPushRelay(long nativeSyncBridge, boolean on);
+
+        void updateServer(long nativeSyncBridge, @JniType("std::string") String token);
     }
 }

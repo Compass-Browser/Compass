@@ -8,6 +8,8 @@
 # drives it through SyncController.
 source_set("sync") {
   sources = [
+    "cloudflare_sign_in.cc",
+    "cloudflare_sign_in.h",
     "compass_profile_creator.h",
     "compass_spaces_sync.h",
     "compass_sync_service.cc",
@@ -38,8 +40,6 @@ source_set("sync") {
     ]
   } else {
     sources += [
-      "cloudflare_sign_in.cc",
-      "cloudflare_sign_in.h",
       "compass_profile_creator.cc",
       "compass_spaces_sync.cc",
     ]
@@ -78,9 +78,11 @@ source_set("sync") {
     "//components/sync/base",
     "//components/sync/model",
     "//components/sync_device_info",
+    "//components/tabs:public",
     "//content/public/browser",
     "//google_apis",
     "//services/network/public/cpp",
+    "//ui/base",
     "//ui/gfx",
   ]
 
@@ -102,6 +104,9 @@ source_set("sync") {
     deps += [
       "//chrome/browser/gcm",
       "//compass/browser/android:spaces",
+      # The sync server Compass sets up on Cloudflare (StartOnCloudflare()),
+      # in chrome://easel's pak, the Compass pak Android ships.
+      "//compass/resources/easel:resources",
       "//components/gcm_driver",
       "//components/gcm_driver/instance_id",
       "//net",
@@ -110,11 +115,9 @@ source_set("sync") {
     deps += [
       # The sync server Compass sets up on Cloudflare (StartOnCloudflare()).
       "//compass/resources/sidebar:resources",
-      "//ui/base",
       "//chrome/browser/ui:browser_manager_service",
       "//chrome/browser/ui/navigator",
       "//chrome/browser/ui/tabs:tab_strip",
-      "//components/tabs:public",
     ]
   }
 }

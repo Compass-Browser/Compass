@@ -487,6 +487,7 @@ robolectric_binary("compass_junit_tests") {
     "junit/src/it/cipi1965/compass/shell/MarkdownParserTest.java",
     "junit/src/it/cipi1965/compass/shell/OnLaunchTest.java",
     "junit/src/it/cipi1965/compass/shell/SidebarStateTest.java",
+    "junit/src/it/cipi1965/compass/shell/SyncScreenStateTest.java",
   ]
   deps = [
     ":base_java",

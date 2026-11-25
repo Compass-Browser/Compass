@@ -157,7 +157,6 @@ class CompassSyncService : public KeyedService,
   PairingStatus GetPairingStatus() const override;
   void StartNewChain(const std::string& server_url,
                      StartCallback callback) override;
-#if !BUILDFLAG(IS_ANDROID)
   void StartOnCloudflare(const std::string& access_token,
                          bool push_relay,
                          StartCallback callback) override;
@@ -166,7 +165,6 @@ class CompassSyncService : public KeyedService,
   void GetServerUpdate(ServerUpdateCallback callback) override;
   void UpdateServer(const std::string& access_token,
                     DoneCallback callback) override;
-#endif
   void JoinWithInvite(const std::string& invite_link,
                       StartCallback callback) override;
   void GetServerPeople(PeopleCallback callback) override;
@@ -515,11 +513,9 @@ class CompassSyncService : public KeyedService,
   void ResetChainWithSeed(const GURL& server_url,
                           const Seed& seed,
                           StartCallback callback);
-#if !BUILDFLAG(IS_ANDROID)
   // UpdateServer() with a token.
   void UpdateServerWithToken(const std::string& access_token,
                              DoneCallback callback);
-#endif
   // StartNewChain() with a seed made already (StartOnCloudflare() deploys
   // the server for its chain first).
   void StartNewChainWithSeed(const GURL& url,
@@ -558,10 +554,9 @@ class CompassSyncService : public KeyedService,
 
   // StartOnCloudflare(): the deploy that runs, and its progress line.
   std::unique_ptr<CloudflareDeployer> deployer_;
-#if !BUILDFLAG(IS_ANDROID)
-  // StartOnCloudflareSignIn(): the sign-in tab, until it gives a token.
+  // StartOnCloudflareSignIn() and UpdateServer(): the sign-in tab, until it
+  // gives a token.
   std::unique_ptr<CloudflareSignIn> cloudflare_sign_in_;
-#endif
   // ResetChain() on a server Compass set up: the old chain links the new.
   std::unique_ptr<AccountLinker> reset_linker_;
   // The running chain's server's access list (invites), and the one a

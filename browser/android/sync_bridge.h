@@ -7,6 +7,7 @@
 
 #include <jni.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -60,6 +61,30 @@ class SyncBridge : public sync::SyncController::Observer {
   // "I saved it": a new chain's words are shown once.
   void ClearNewWords(JNIEnv* env);
 
+  // A free server on Cloudflare (docs/design/sync.md, "A free server on
+  // Cloudflare"): with a pasted API token, or "Sign in with Cloudflare",
+  // whose tab the service opens (the screen steps aside meanwhile: Java's
+  // cloudflareSignIn()). Progress shows in the snapshot's "server_setup",
+  // then as StartNewChain()'s.
+  void StartOnCloudflare(JNIEnv* env,
+                         const std::string& token,
+                         bool push_relay);
+  void StartOnCloudflareSignIn(JNIEnv* env, bool push_relay);
+  // "I have an invite" (docs/design/sync.md, "Inviting friends").
+  void JoinWithInvite(JNIEnv* env, const std::string& link);
+  // The owner's "People on your server": asks the server again for its
+  // people, then for an update (the snapshot's "people" and
+  // "server_update"). Also when sync comes on for a server.
+  void LoadPeople(JNIEnv* env);
+  // A single-use invite link (the snapshot's "invite_link").
+  void InviteFriend(JNIEnv* env, const std::string& name);
+  // Removes a friend (their chain) or revokes an open invite (its code).
+  void RemoveFromServer(JNIEnv* env, const std::string& target);
+  void SetServerPushRelay(JNIEnv* env, bool on);
+  // "A newer version of your server is ready": with a token, or "Update
+  // with Cloudflare" (an empty one) after signing in in a tab.
+  void UpdateServer(JNIEnv* env, const std::string& token);
+
   // sync::SyncController::Observer:
   void OnSyncControllerChanged() override;
 
@@ -67,6 +92,17 @@ class SyncBridge : public sync::SyncController::Observer {
   void OnDone(bool ok, std::string error);
   void OnStarted(bool ok, std::string error, std::vector<std::string> words);
   void OnDeviceRemoved(bool ok, std::string error);
+  // Asks for the people (and then an update) if sync is on.
+  void LoadPeopleNow();
+  // Sync came on for a server the people weren't asked for: they are.
+  void MaybeLoadPeople();
+  void OnPeople(int generation, std::optional<sync::ServerPeople> people);
+  void OnServerUpdate(int generation,
+                      std::optional<sync::SyncController::ServerUpdate> update);
+  void OnInvite(bool ok, std::string error, std::string link);
+  void OnPeopleDone(bool ok, std::string error);
+  void OnPushRelaySet(bool ok, std::string error);
+  void OnServerUpdated(bool ok, std::string error);
 
   base::android::ScopedJavaGlobalRef<jobject> java_object_;
   raw_ptr<sync::SyncController> controller_;
@@ -80,6 +116,23 @@ class SyncBridge : public sync::SyncController::Observer {
   // page it opened.
   bool opens_login_ = false;
   std::string opened_login_url_;
+  // "Sign in with Cloudflare" from this screen: its tab is open (the
+  // service's status says so), so the screen stepped aside.
+  bool opens_cloudflare_ = false;
+  bool cloudflare_open_ = false;
+  // People on the server (an owner's; nullopt: none to show), for the
+  // server |people_for_|; a newer load wins (|people_generation_|).
+  std::optional<sync::ServerPeople> people_;
+  std::optional<sync::SyncController::ServerUpdate> server_update_;
+  std::string people_for_;
+  int people_generation_ = 0;
+  // The last people action's error, the last invite link made (until sync
+  // is off), whether the push switch waits for the server, and the last
+  // update's error.
+  std::string people_error_;
+  std::string invite_link_;
+  bool people_busy_ = false;
+  std::string update_error_;
   base::ScopedObservation<sync::SyncController,
                           sync::SyncController::Observer>
       observation_{this};

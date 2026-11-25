@@ -8,16 +8,25 @@
 
 #include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
-#include "chrome/browser/ui/navigator/browser_navigator.h"
-#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
+#if BUILDFLAG(IS_ANDROID)
+// Chrome's tab models; their headers come with //chrome/browser, which
+// this links into (as //compass/browser/android's ClaudeTabsAndroid).
+#include "chrome/browser/android/tab_android.h"  // nogncheck
+#include "chrome/browser/ui/android/tab_model/tab_model.h"  // nogncheck
+#include "chrome/browser/ui/android/tab_model/tab_model_list.h"  // nogncheck
+#else
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"  // nogncheck
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"  // nogncheck
+#include "chrome/browser/ui/navigator/browser_navigator.h"  // nogncheck
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"  // nogncheck
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
+#endif
 
 namespace compass::sync {
 
@@ -37,6 +46,33 @@ CloudflareSignIn::~CloudflareSignIn() {
 void CloudflareSignIn::Start(Callback callback) {
   callback_ = std::move(callback);
   request_ = MakeCloudflareAuthRequest();
+#if BUILDFLAG(IS_ANDROID)
+  // A Compass tab, not a Custom Tab: only a tab of Compass's own lets it
+  // see the redirect to an https URI (docs/design/android.md, "Sync and
+  // push"). In this profile's regular tabs, the window on screen first.
+  TabModel* model = nullptr;
+  for (TabModel* candidate : TabModelList::models()) {
+    if (candidate->IsOffTheRecord() ||
+        candidate->GetProfile() != profile_.get()) {
+      continue;
+    }
+    if (!model || candidate->IsActiveModel()) {
+      model = candidate;
+    }
+  }
+  if (!model) {
+    Finish(std::nullopt, "Open a Compass window and try again.");
+    return;
+  }
+  tabs::TabInterface* tab = model->OpenTab(request_.url, model->GetTabCount(),
+                                           /*foreground=*/true);
+  content::WebContents* contents = tab ? tab->GetContents() : nullptr;
+  if (!contents) {
+    Finish(std::nullopt, "Couldn't open Cloudflare's sign-in page.");
+    return;
+  }
+  Observe(contents);
+#else
   // This profile's window, else any normal one.
   BrowserWindowInterface* window = nullptr;
   BrowserWindowInterface* any = nullptr;
@@ -69,6 +105,7 @@ void CloudflareSignIn::Start(Callback callback) {
     return;
   }
   Observe(params.navigated_or_inserted_contents);
+#endif
 }
 
 void CloudflareSignIn::DidStartNavigation(
@@ -139,10 +176,18 @@ void CloudflareSignIn::CloseTab() {
   if (!contents) {
     return;
   }
+#if BUILDFLAG(IS_ANDROID)
+  if (TabAndroid* tab = TabAndroid::FromWebContents(contents)) {
+    if (TabModel* model = TabModelList::GetTabModelForTabAndroid(tab)) {
+      model->CloseTab(tab->GetHandle());
+    }
+  }
+#else
   if (tabs::TabInterface* tab =
           tabs::TabInterface::MaybeGetFromContents(contents)) {
     tab->Close();
   }
+#endif
 }
 
 void CloudflareSignIn::Finish(std::optional<std::string> token,

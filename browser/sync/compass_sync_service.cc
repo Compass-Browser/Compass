@@ -42,10 +42,14 @@
 #include "compass/browser/sync/compass_spaces_sync.h"
 #include "compass/browser/sync/compass_sync_service_factory.h"
 #include "compass/browser/sync/sync_settings.h"
-#if !BUILDFLAG(IS_ANDROID)
 #include "compass/browser/sync/cloudflare_sign_in.h"
-#include "compass/grit/compass_sidebar_resources_map.h"
 #include "ui/base/resource/resource_bundle.h"
+// The sync server's script, in a pak that ships here: the sidebar's on the
+// desktop, chrome://easel's on Android (resources/easel/BUILD.gn).
+#if BUILDFLAG(IS_ANDROID)
+#include "compass/grit/compass_easel_resources_map.h"  // nogncheck
+#else
+#include "compass/grit/compass_sidebar_resources_map.h"  // nogncheck
 #endif
 #include "compass/components/sync/compass_sync_notifier.h"
 #include "compass/components/sync/login_client.h"
@@ -390,9 +394,7 @@ void CompassSyncService::Shutdown() {
   login_client_.reset();
   setup_client_.reset();
   deployer_.reset();
-#if !BUILDFLAG(IS_ANDROID)
   cloudflare_sign_in_.reset();
-#endif
   reset_linker_.reset();
   access_client_.reset();
   invite_client_.reset();
@@ -466,6 +468,7 @@ SyncStatus CompassSyncService::GetStatus() const {
   SyncStatus status;
   status.server_url = prefs_->GetString(prefs::kServerUrl);
   status.server_setup = server_setup_;
+  status.cloudflare_sign_in = !!cloudflare_sign_in_;
   // Company sign-in. A profile account's sign-in runs in its home profile.
   const CompassSyncService* home = IsProfileAccount() ? FindHome() : nullptr;
   const LoginFlow* flow =
@@ -2774,17 +2777,22 @@ void CompassSyncService::OnAuthErrorHint() {
   RefreshLogin(/*force=*/false);
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 namespace {
 
 // The server Compass uploads, and its version (resources/sidebar/BUILD.gn,
-// build_sync_worker_grdp; server/cloudflare/src/version.ts).
+// build_sync_worker_grdp, and resources/easel/BUILD.gn's on Android;
+// server/cloudflare/src/version.ts).
 constexpr std::string_view kSyncWorkerPath = "sync_worker/compass-sync.js";
 constexpr std::string_view kSyncWorkerVersionPath =
     "sync_worker/compass-sync.version";
 
 std::string LoadSyncWorkerResource(std::string_view path) {
-  for (const webui::ResourcePath& resource : kCompassSidebarResources) {
+#if BUILDFLAG(IS_ANDROID)
+  const auto& resources = kCompassEaselResources;
+#else
+  const auto& resources = kCompassSidebarResources;
+#endif
+  for (const webui::ResourcePath& resource : resources) {
     if (resource.path == path) {
       return ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
           resource.id);
@@ -3056,7 +3064,6 @@ void CompassSyncService::UpdateServerWithToken(const std::string& access_token,
           },
           weak_factory_.GetWeakPtr(), std::move(callback)));
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 void CompassSyncService::JoinWithInvite(const std::string& invite_link,
                                         StartCallback callback) {

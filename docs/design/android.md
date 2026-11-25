@@ -1100,6 +1100,55 @@ controls that count are the bottom ones, where Compass's bar is
   sign-in (`SyncScreen.open()`, a new tab over the screen), once per page,
   and closes it when the sign-in ends if it still shows the server's
   origin, then shows the sync screen again.
+- **A free server on Cloudflare** (sync.md, "A free server on Cloudflare",
+  "Updating a server", "Push on a Cloudflare server", "Inviting friends").
+  The C++ is the desktop's: `CompassSyncService`'s `StartOnCloudflare()`,
+  `StartOnCloudflareSignIn()`, `GetServerUpdate()` and `UpdateServer()` run
+  on Android too, with `CloudflareDeployer`, `CloudflareOAuth` and
+  `AccessClient`.
+  - *The server's script.* Android ships no sidebar pak, so the bundled
+    Worker (`server/cloudflare/dist/compass-sync.{js,version}`) goes in
+    chrome://easel's pak there, the Compass pak Android has
+    (`resources/easel/BUILD.gn`, an Android-only `build_sync_worker_grdp`
+    under the same `sync_worker/` paths); the service reads it from
+    `kCompassEaselResources` on Android and `kCompassSidebarResources` on
+    the desktop.
+  - *Sign in with Cloudflare.* As on the desktop, `CloudflareSignIn` opens
+    Cloudflare's consent page in a regular Compass tab, watches that tab's
+    navigations for the redirect to `https://compassbrowser.org/oauth/cloudflare`
+    (it never loads), checks its state and trades the code (PKCE) for a
+    token, then closes the tab. On Android the tab comes from the
+    profile's tab model (`TabModelList`, the window on screen first,
+    `TabModel::OpenTab()`) and closes with `TabModel::CloseTab()`. Not a
+    Custom Tab, which can't hand an https redirect back without App Links,
+    and not a WebView, which would share no sign-in with the browser.
+    `SyncStatus::cloudflare_sign_in` is true while the tab is open (and
+    the code is being traded); `SyncBridge` tells the Java screen that
+    started it (`SyncBridge.LoginPages.cloudflareSignIn()`), which steps
+    aside for the tab and comes back when it closes, signed in or not.
+    "Update with Cloudflare" signs in the same way. Pasting an API token
+    (Use an API token instead) skips the tab.
+  - *The sync screen.* When sync is off, under Start a new chain: "I have an
+    invite" (Invite link, Join and start sync) and "No server? Set up a free
+    one on Cloudflare" (the Phone notifications switch, on by default and
+    passed as `push_relay`; Sign in with Cloudflare; Use an API token
+    instead, with a button opening Cloudflare's API Tokens page in a tab).
+    The setup's progress (`server_setup`) shows under it, the buttons off
+    meanwhile, and a new chain's words follow as for Start a new chain.
+    When sync is on and the chain owns the server's access list, "People
+    on your server": the update card ("A newer version of your server is
+    ready.", what it adds, Update with Cloudflare or a token), friends
+    (Remove, behind an `AlertDialog`) and open invites (Revoke), the Phone
+    notifications switch (only on a server that has the setting and a
+    relay), Invite a friend (a name; Make an invite link; the link with
+    Share and Copy link). The wording is the desktop page's
+    (`sync_page.{html,ts}`).
+  - *The bridge.* `SyncBridge` asks for the people (then for an update)
+    once per server when sync comes on, again each time the screen opens
+    and after each change, and keeps them in the snapshot (`people`,
+    `server_update`, `invite_link`, `people_error`, `people_busy`,
+    `update_error`); the push switch moves at once and settles on the
+    server's answer.
 
 - **Sharing** (sync.md, "Rooms: clients"). The desktop's `RoomService`
   runs on Android too (created with the COMPASS_SPACES holder,
@@ -1217,7 +1266,8 @@ Store.
 - **Unit tests.** The C++ sync and model unit tests run in the Android
   build as well. The shell's state and logic have junit/Robolectric tests
   on the host's JVM (`//compass/android:compass_junit_tests`, `android/junit/`:
-  the sidebar's snapshot, drops, On Launch, the Claude sheet's state;
+  the sidebar's snapshot, drops, On Launch, the Claude sheet's state, the
+  sync screen's Cloudflare setup and people (`SyncScreenStateTest`);
   `out/<dir>/bin/run_compass_junit_tests`). Compose instrumentation tests
   are still to come.
 - **End to end:**

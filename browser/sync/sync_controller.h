@@ -80,6 +80,10 @@ struct SyncStatus {
   // Off: while StartOnCloudflare() runs, what it's doing ("Uploading the
   // sync server…"). Empty otherwise.
   std::string server_setup;
+  // "Sign in with Cloudflare" runs (StartOnCloudflareSignIn(), or
+  // UpdateServer() without a token): its tab is open, or its code is being
+  // traded for a token. Android's sync screen steps aside meanwhile.
+  bool cloudflare_sign_in = false;
 };
 
 enum class PairingStep {

@@ -5,6 +5,10 @@
 package it.cipi1965.compass.shell;
 
 import android.app.KeyguardManager;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.content.Intent;
 import android.hardware.biometrics.BiometricManager;
 import android.hardware.biometrics.BiometricPrompt;
 import android.os.Build;
@@ -81,6 +85,8 @@ public class SyncScreen implements SyncScreenUi.Listener, SyncBridge.LoginPages 
 
     public void show() {
         refresh();
+        // An owner's people may have changed elsewhere: asked again each time.
+        mBridge.loadPeople();
         mView.setVisibility(View.VISIBLE);
         mView.bringToFront();
         mState.setOpen(true);
@@ -329,6 +335,84 @@ public class SyncScreen implements SyncScreenUi.Listener, SyncBridge.LoginPages 
                         TabClosureParams.closeTab(tab).allowUndo(false).build(),
                         /* allowDialog= */ false);
         show();
+    }
+
+    /**
+     * SyncBridge.LoginPages: "Sign in with Cloudflare" opened Cloudflare's sign-in in a Compass
+     * tab (CloudflareSignIn, which catches the redirect there and closes the tab): this screen
+     * steps aside for it, and comes back when the tab closes, to show the setup going on.
+     */
+    @Override
+    public void cloudflareSignIn(boolean open) {
+        if (open) {
+            onDismiss();
+        } else {
+            show();
+        }
+    }
+
+    @Override
+    public void onStartOnCloudflare(String token, boolean pushRelay) {
+        mBridge.startOnCloudflare(token, pushRelay);
+    }
+
+    @Override
+    public void onStartOnCloudflareSignIn(boolean pushRelay) {
+        mBridge.startOnCloudflareSignIn(pushRelay);
+    }
+
+    @Override
+    public void onJoinWithInvite(String link) {
+        mBridge.joinWithInvite(link);
+    }
+
+    @Override
+    public void onInviteFriend(String name) {
+        mBridge.inviteFriend(name);
+    }
+
+    @Override
+    public void onRemoveFromServer(String target) {
+        mBridge.removeFromServer(target);
+    }
+
+    @Override
+    public void onSetServerPushRelay(boolean on) {
+        mBridge.setServerPushRelay(on);
+    }
+
+    @Override
+    public void onCopyInviteLink(String link) {
+        ClipboardManager clipboard =
+                (ClipboardManager) mActivity.getSystemService(Context.CLIPBOARD_SERVICE);
+        // Android 13 on shows that it was copied.
+        clipboard.setPrimaryClip(ClipData.newPlainText("Compass invite link", link));
+    }
+
+    @Override
+    public void onShareInviteLink(String link) {
+        Intent send =
+                new Intent(Intent.ACTION_SEND)
+                        .setType("text/plain")
+                        .putExtra(Intent.EXTRA_TEXT, link);
+        mActivity.startActivity(Intent.createChooser(send, null));
+    }
+
+    @Override
+    public void onUpdateServer(String token) {
+        mBridge.updateServer(token);
+    }
+
+    /** Cloudflare's API Tokens page, in a new tab over this screen. */
+    @Override
+    public void onOpenPage(String url) {
+        mActivity
+                .getTabCreator(false)
+                .createNewTab(
+                        new LoadUrlParams(url, PageTransition.LINK),
+                        TabLaunchType.FROM_CHROME_UI,
+                        mActivity.getActivityTab());
+        onDismiss();
     }
 
     @Override

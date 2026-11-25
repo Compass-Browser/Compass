@@ -5,6 +5,7 @@
 package it.cipi1965.compass.shell
 
 import android.content.Context
+import android.text.format.DateFormat
 import android.view.View
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.compose.BackHandler
@@ -21,11 +22,16 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -39,6 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,6 +56,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import java.util.Date
 
 /** The sync screen: join a chain, pair devices, see what syncs (docs/design/sync.md). */
 object SyncScreenUi {
@@ -85,6 +94,37 @@ object SyncScreenUi {
         fun onStartLogin()
 
         fun onCancelLogin()
+
+        // A free server on Cloudflare (docs/design/sync.md, "A free server on Cloudflare").
+
+        /** Sets up a server with a pasted API token; [pushRelay] is the Phone notifications switch. */
+        fun onStartOnCloudflare(token: String, pushRelay: Boolean)
+
+        /** "Sign in with Cloudflare": the sign-in opens in a tab, then the setup goes on here. */
+        fun onStartOnCloudflareSignIn(pushRelay: Boolean)
+
+        /** "I have an invite" (docs/design/sync.md, "Inviting friends"). */
+        fun onJoinWithInvite(link: String)
+
+        // The owner's "People on your server".
+
+        fun onInviteFriend(name: String)
+
+        /** Removes a friend (their chain ID) or revokes an open invite (its code). */
+        fun onRemoveFromServer(target: String)
+
+        fun onSetServerPushRelay(on: Boolean)
+
+        /** Copies or shares the invite link made last. */
+        fun onCopyInviteLink(link: String)
+
+        fun onShareInviteLink(link: String)
+
+        /** Updates the server: with an API token, or (empty) after signing in with Cloudflare. */
+        fun onUpdateServer(token: String)
+
+        /** Opens a help page (Cloudflare's API Tokens) in a new tab. */
+        fun onOpenPage(url: String)
 
         fun onDismiss()
     }
@@ -295,6 +335,132 @@ private fun Join(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     TextButton(onClick = { listener.onStartNewChain(server) }, enabled = server.isNotEmpty()) {
         Text("Start a new chain")
     }
+    HorizontalDivider()
+    JoinWithInvite(state, listener)
+    HorizontalDivider()
+    Cloudflare(state, listener)
+}
+
+// docs/design/sync.md, "Inviting friends": a friend's server, a chain of one's own on it.
+@Composable
+private fun JoinWithInvite(state: SyncScreenState, listener: SyncScreenUi.Listener) {
+    var shown by remember { mutableStateOf(false) }
+    if (!shown) {
+        TextButton(onClick = { shown = true }) { Text("I have an invite") }
+        return
+    }
+    val linkField = rememberTextFieldState()
+    val link = linkField.text.toString().trim()
+    Text("Join with an invite", style = MaterialTheme.typography.titleMedium)
+    OutlinedTextField(
+        state = linkField,
+        label = { Text("Invite link") },
+        placeholder = { Text("https://compass-sync.example.workers.dev/invite#…") },
+        lineLimits = TextFieldLineLimits.SingleLine,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Text(
+        "A friend who runs a Compass sync server sent it. You get a sync chain of your own on " +
+            "their server; they can't read your data."
+    )
+    Button(
+        onClick = { listener.onJoinWithInvite(link) },
+        enabled = link.isNotEmpty() && state.serverSetup.isEmpty(),
+    ) {
+        Text("Join and start sync")
+    }
+}
+
+// docs/design/sync.md, "A free server on Cloudflare": Compass sets one up in the user's own
+// account, signing in in a Compass tab (or with a pasted API token).
+@Composable
+private fun Cloudflare(state: SyncScreenState, listener: SyncScreenUi.Listener) {
+    var shown by remember { mutableStateOf(false) }
+    var showToken by remember { mutableStateOf(false) }
+    // docs/design/sync.md, "Push on a Cloudflare server": on by default, as the desktop's.
+    var pushRelay by remember { mutableStateOf(true) }
+    val settingUp = state.serverSetup.isNotEmpty()
+    if (!shown && !settingUp) {
+        TextButton(onClick = { shown = true }) { Text("No server? Set up a free one on Cloudflare") }
+        return
+    }
+    val tokenField = rememberTextFieldState()
+    val token = tokenField.text.toString().trim()
+    Text("A free server on Cloudflare", style = MaterialTheme.typography.titleMedium)
+    Text(
+        "Compass sets up a sync server in your own Cloudflare account. It's free, and only " +
+            "your devices, and friends you invite, can use it."
+    )
+    SwitchRow(
+        title = "Phone notifications",
+        details = SETUP_PUSH_RELAY_TEXT,
+        checked = pushRelay,
+        enabled = !settingUp,
+        onCheckedChange = { pushRelay = it },
+    )
+    Button(onClick = { listener.onStartOnCloudflareSignIn(pushRelay) }, enabled = !settingUp) {
+        Text("Sign in with Cloudflare")
+    }
+    Text(
+        "No Cloudflare account? You can make a free one on the sign-in page. Compass uses the " +
+            "access only to set up the server, and doesn't keep it."
+    )
+    if (!showToken) {
+        TextButton(onClick = { showToken = true }, enabled = !settingUp) {
+            Text("Use an API token instead")
+        }
+    } else {
+        Text("1. Open API Tokens, choose Create Token, and use the template Edit Cloudflare Workers.")
+        TextButton(onClick = { listener.onOpenPage(CLOUDFLARE_TOKENS_URL) }) {
+            Text("Open API Tokens")
+        }
+        Text("2. Paste the token here.")
+        OutlinedSecureTextField(
+            state = tokenField,
+            label = { Text("Cloudflare API token") },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Button(
+            onClick = {
+                listener.onStartOnCloudflare(token, pushRelay)
+                tokenField.clearText()
+            },
+            enabled = token.isNotEmpty() && !settingUp,
+        ) {
+            Text("Set up and start sync")
+        }
+    }
+    if (settingUp) Text(state.serverSetup)
+}
+
+private const val CLOUDFLARE_TOKENS_URL = "https://dash.cloudflare.com/profile/api-tokens"
+
+private const val SETUP_PUSH_RELAY_TEXT =
+    "When a tab is sent to an iPhone or Android phone, Compass's push relay " +
+        "(push.compassbrowser.org) tells it at once. It gets each phone's notification token, " +
+        "never your tabs or data. Off, sent tabs arrive when the phone next syncs. You can " +
+        "change this later."
+
+@Composable
+private fun SwitchRow(
+    title: String,
+    details: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(title)
+            Text(
+                details,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+    }
 }
 
 @Composable
@@ -344,6 +510,10 @@ private fun Chain(state: SyncScreenState, listener: SyncScreenUi.Listener) {
         )
     }
     Button(onClick = { listener.onAddDevice() }) { Text("Add a device") }
+    if (state.peopleAvailable) {
+        HorizontalDivider()
+        People(state, listener)
+    }
     HorizontalDivider()
     Text("What syncs", style = MaterialTheme.typography.titleMedium)
     for (type in state.types) {
@@ -357,6 +527,161 @@ private fun Chain(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     HorizontalDivider()
     OutlinedButton(onClick = { listener.onLeave() }) { Text("Leave the chain") }
 }
+
+// docs/design/sync.md, "Inviting friends": the friends and open invites of the server this chain
+// owns (only on a server with an access list), its update and its phone notifications.
+@Composable
+private fun People(state: SyncScreenState, listener: SyncScreenUi.Listener) {
+    val context = LocalContext.current
+    val dateFormat = remember { DateFormat.getMediumDateFormat(context) }
+    Text("People on your server", style = MaterialTheme.typography.titleMedium)
+    if (state.updateAvailable) ServerUpdate(state, listener)
+    Text(
+        "Only your devices and the friends you invite can sync on your server. Their data is " +
+            "encrypted on their devices: you can't read it."
+    )
+    // The friend the Remove dialog asks about.
+    var removing by remember { mutableStateOf<SyncScreenState.Member?>(null) }
+    for (member in state.members) {
+        PersonRow(
+            title = member.name.ifEmpty { "Friend" },
+            details = SyncScreenState.memberDetails(dateFormat.format(Date(member.addedMs)), member.linked),
+            action = "Remove",
+            onClick = { removing = member },
+        )
+    }
+    for (invite in state.invites) {
+        PersonRow(
+            title = if (invite.name.isEmpty()) "Invite" else "Invite for ${invite.name}",
+            details = "Not used yet · expires ${dateFormat.format(Date(invite.expiresMs))}",
+            action = "Revoke",
+            onClick = { listener.onRemoveFromServer(invite.code) },
+        )
+    }
+    if (state.members.isEmpty() && state.invites.isEmpty()) Text("No one else yet.")
+    removing?.let { member ->
+        val title = member.name.ifEmpty { "Friend" }
+        AlertDialog(
+            onDismissRequest = { removing = null },
+            title = { Text("Remove $title?") },
+            text = { Text(REMOVE_FRIEND_TEXT) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        removing = null
+                        listener.onRemoveFromServer(member.chain)
+                    }
+                ) {
+                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } },
+        )
+    }
+    // docs/design/sync.md, "Push on a Cloudflare server": a server from before version 3 has no
+    // such setting, and one with push off for good can't turn it on.
+    if (state.pushRelayAvailable) {
+        SwitchRow(
+            title = "Phone notifications",
+            details = SyncScreenState.pushRelayDetails(state.pushRelayHost),
+            checked = state.pushRelay,
+            enabled = !state.peopleBusy,
+            onCheckedChange = { listener.onSetServerPushRelay(it) },
+        )
+    }
+    val nameField = rememberTextFieldState()
+    OutlinedTextField(
+        state = nameField,
+        label = { Text("Invite a friend") },
+        placeholder = { Text("Their name (only you see it)") },
+        lineLimits = TextFieldLineLimits.SingleLine,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedButton(
+        onClick = {
+            listener.onInviteFriend(nameField.text.toString().trim())
+            nameField.clearText()
+        }
+    ) {
+        Text("Make an invite link")
+    }
+    if (state.inviteLink.isNotEmpty()) {
+        Text(
+            "Send this link to your friend. It works once, within 7 days. In Compass, they " +
+                "choose Sync, then I have an invite."
+        )
+        SelectionContainer { Text(state.inviteLink, fontFamily = FontFamily.Monospace) }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(onClick = { listener.onShareInviteLink(state.inviteLink) }) { Text("Share") }
+            OutlinedButton(onClick = { listener.onCopyInviteLink(state.inviteLink) }) {
+                Text("Copy link")
+            }
+        }
+    }
+    if (state.peopleError.isNotEmpty()) Text(state.peopleError, color = MaterialTheme.colorScheme.error)
+}
+
+@Composable
+private fun PersonRow(title: String, details: String, action: String, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title)
+            Text(
+                details,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TextButton(onClick = onClick) { Text(action) }
+    }
+}
+
+// docs/design/sync.md, "Updating a server": a server Compass set up on Cloudflare, older than the
+// one this Compass ships.
+@Composable
+private fun ServerUpdate(state: SyncScreenState, listener: SyncScreenUi.Listener) {
+    var showToken by remember { mutableStateOf(false) }
+    val tokenField = rememberTextFieldState()
+    val token = tokenField.text.toString().trim()
+    val updating = state.serverSetup.isNotEmpty()
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("A newer version of your server is ready.", fontWeight = FontWeight.SemiBold)
+            Text(SyncScreenState.updateNote(state.updateCurrent, state.updateLatest))
+            Button(onClick = { listener.onUpdateServer("") }, enabled = !updating) {
+                Text("Update with Cloudflare")
+            }
+            if (!showToken) {
+                TextButton(onClick = { showToken = true }, enabled = !updating) {
+                    Text("Use an API token instead")
+                }
+            } else {
+                OutlinedSecureTextField(
+                    state = tokenField,
+                    label = { Text("Cloudflare API token") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedButton(
+                    onClick = {
+                        listener.onUpdateServer(token)
+                        tokenField.clearText()
+                    },
+                    enabled = token.isNotEmpty() && !updating,
+                ) {
+                    Text("Update")
+                }
+            }
+            if (updating) Text(state.serverSetup)
+            if (state.updateError.isNotEmpty()) {
+                Text(state.updateError, color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+private const val REMOVE_FRIEND_TEXT =
+    "They stop syncing on your server within a minute. Their data stays on their devices. " +
+        "You can invite them again."
 
 private const val REMOVE_DEVICE_TEXT =
     "It stops syncing and disappears from your devices. What's on it stays there, " +

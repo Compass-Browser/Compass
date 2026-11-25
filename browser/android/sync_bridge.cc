@@ -10,6 +10,8 @@
 #include "base/json/json_writer.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/components/sync/access_client.h"
+#include "url/gurl.h"
 #include "compass/browser/sync/compass_sync_service.h"
 #include "compass/browser/sync/compass_sync_service_factory.h"
 
@@ -128,6 +130,50 @@ std::string SyncBridge::Snapshot(JNIEnv* env) {
     words.Append(word);
   }
   snapshot.Set("new_words", std::move(words));
+  // A free server on Cloudflare, being set up or updated.
+  snapshot.Set("server_setup", status.server_setup);
+  snapshot.Set("cloudflare_sign_in", status.cloudflare_sign_in);
+  // The owner's people (docs/design/sync.md, "Inviting friends"), as the
+  // desktop's page shows them.
+  if (people_) {
+    base::DictValue people;
+    base::ListValue members;
+    for (const sync::ServerMember& member : people_->members) {
+      members.Append(
+          base::DictValue()
+              .Set("chain", member.chain)
+              .Set("name", member.name)
+              .Set("added_ms", member.added.InMillisecondsFSinceUnixEpoch())
+              .Set("linked", member.linked));
+    }
+    people.Set("members", std::move(members));
+    base::ListValue invites;
+    for (const sync::ServerInvite& invite : people_->invites) {
+      invites.Append(
+          base::DictValue()
+              .Set("code", invite.code)
+              .Set("name", invite.name)
+              .Set("expires_ms",
+                   invite.expires.InMillisecondsFSinceUnixEpoch()));
+    }
+    people.Set("invites", std::move(invites));
+    // A server from before version 3 has no such setting, and one with
+    // push off for good has no relay: no switch.
+    people.Set("push_relay_available", people_->push_relay.has_value());
+    people.Set("push_relay", people_->push_relay.value_or(false));
+    people.Set("push_relay_host", GURL(people_->push_relay_url).host());
+    snapshot.Set("people", std::move(people));
+  }
+  if (server_update_) {
+    snapshot.Set("server_update",
+                 base::DictValue()
+                     .Set("current", server_update_->current)
+                     .Set("latest", server_update_->latest));
+  }
+  snapshot.Set("people_error", people_error_);
+  snapshot.Set("invite_link", invite_link_);
+  snapshot.Set("people_busy", people_busy_);
+  snapshot.Set("update_error", update_error_);
   return base::WriteJson(snapshot).value_or("{}");
 }
 
@@ -248,8 +294,204 @@ void SyncBridge::ClearNewWords(JNIEnv* env) {
   new_words_.clear();
 }
 
+void SyncBridge::StartOnCloudflare(JNIEnv* env,
+                                   const std::string& token,
+                                   bool push_relay) {
+  if (!controller_) {
+    return;
+  }
+  error_.clear();
+  controller_->StartOnCloudflare(
+      token, push_relay,
+      base::BindOnce(&SyncBridge::OnStarted, weak_factory_.GetWeakPtr()));
+}
+
+void SyncBridge::StartOnCloudflareSignIn(JNIEnv* env, bool push_relay) {
+  if (!controller_) {
+    return;
+  }
+  error_.clear();
+  // Before the call: the service says its tab opens as it starts.
+  opens_cloudflare_ = true;
+  controller_->StartOnCloudflareSignIn(
+      push_relay,
+      base::BindOnce(&SyncBridge::OnStarted, weak_factory_.GetWeakPtr()));
+}
+
+void SyncBridge::JoinWithInvite(JNIEnv* env, const std::string& link) {
+  if (!controller_) {
+    return;
+  }
+  error_.clear();
+  opens_login_ = true;
+  controller_->JoinWithInvite(
+      link, base::BindOnce(&SyncBridge::OnStarted, weak_factory_.GetWeakPtr()));
+}
+
+void SyncBridge::LoadPeople(JNIEnv* env) {
+  LoadPeopleNow();
+}
+
+void SyncBridge::LoadPeopleNow() {
+  if (!controller_) {
+    return;
+  }
+  const sync::SyncStatus status = controller_->GetStatus();
+  if (status.state != sync::SyncState::kOn || status.device_removed) {
+    return;
+  }
+  people_for_ = status.server_url;
+  const int generation = ++people_generation_;
+  controller_->GetServerPeople(base::BindOnce(
+      &SyncBridge::OnPeople, weak_factory_.GetWeakPtr(), generation));
+}
+
+void SyncBridge::MaybeLoadPeople() {
+  const sync::SyncStatus status = controller_->GetStatus();
+  if (status.state == sync::SyncState::kOn && !status.device_removed) {
+    if (people_for_ != status.server_url) {
+      LoadPeopleNow();
+    }
+    return;
+  }
+  // Off (left, reset) or removed: nothing to show, and they're asked again
+  // when sync is on. (Starting and errors keep what was shown.)
+  if (status.state == sync::SyncState::kOff || status.device_removed) {
+    people_for_.clear();
+    people_.reset();
+    server_update_.reset();
+    ++people_generation_;
+    invite_link_.clear();
+    people_error_.clear();
+    update_error_.clear();
+  }
+}
+
+void SyncBridge::OnPeople(int generation,
+                          std::optional<sync::ServerPeople> people) {
+  if (generation != people_generation_) {
+    return;
+  }
+  people_ = std::move(people);
+  if (!people_) {
+    server_update_.reset();
+    OnSyncControllerChanged();
+    return;
+  }
+  // The owner's offer to update a server Compass set up on Cloudflare.
+  controller_->GetServerUpdate(base::BindOnce(
+      &SyncBridge::OnServerUpdate, weak_factory_.GetWeakPtr(), generation));
+  OnSyncControllerChanged();
+}
+
+void SyncBridge::OnServerUpdate(
+    int generation,
+    std::optional<sync::SyncController::ServerUpdate> update) {
+  if (generation != people_generation_) {
+    return;
+  }
+  server_update_ = std::move(update);
+  OnSyncControllerChanged();
+}
+
+void SyncBridge::InviteFriend(JNIEnv* env, const std::string& name) {
+  if (!controller_) {
+    return;
+  }
+  people_error_.clear();
+  invite_link_.clear();
+  controller_->InviteFriend(
+      name, base::BindOnce(&SyncBridge::OnInvite, weak_factory_.GetWeakPtr()));
+}
+
+void SyncBridge::OnInvite(bool ok, std::string error, std::string link) {
+  if (ok) {
+    invite_link_ = std::move(link);
+  } else {
+    people_error_ = std::move(error);
+  }
+  // The new invite shows in the list.
+  LoadPeopleNow();
+  OnSyncControllerChanged();
+}
+
+void SyncBridge::RemoveFromServer(JNIEnv* env, const std::string& target) {
+  if (!controller_) {
+    return;
+  }
+  people_error_.clear();
+  controller_->RemoveFromServer(
+      target,
+      base::BindOnce(&SyncBridge::OnPeopleDone, weak_factory_.GetWeakPtr()));
+}
+
+void SyncBridge::OnPeopleDone(bool ok, std::string error) {
+  people_error_ = ok ? std::string() : std::move(error);
+  LoadPeopleNow();
+  OnSyncControllerChanged();
+}
+
+void SyncBridge::SetServerPushRelay(JNIEnv* env, bool on) {
+  if (!controller_ || people_busy_) {
+    return;
+  }
+  people_error_.clear();
+  people_busy_ = true;
+  // The switch moves at once; the server's answer settles it.
+  if (people_) {
+    people_->push_relay = on;
+  }
+  OnSyncControllerChanged();
+  controller_->SetServerPushRelay(
+      on,
+      base::BindOnce(&SyncBridge::OnPushRelaySet, weak_factory_.GetWeakPtr()));
+}
+
+void SyncBridge::OnPushRelaySet(bool ok, std::string error) {
+  people_busy_ = false;
+  people_error_ = ok ? std::string() : std::move(error);
+  // What the server has now (the switch goes back if it failed).
+  LoadPeopleNow();
+  OnSyncControllerChanged();
+}
+
+void SyncBridge::UpdateServer(JNIEnv* env, const std::string& token) {
+  if (!controller_) {
+    return;
+  }
+  update_error_.clear();
+  // Without a token, the service opens Cloudflare's sign-in first.
+  opens_cloudflare_ = token.empty();
+  controller_->UpdateServer(token,
+                            base::BindOnce(&SyncBridge::OnServerUpdated,
+                                           weak_factory_.GetWeakPtr()));
+}
+
+void SyncBridge::OnServerUpdated(bool ok, std::string error) {
+  update_error_ = ok ? std::string() : std::move(error);
+  // Updated: the offer goes (the server reports its new version).
+  LoadPeopleNow();
+  OnSyncControllerChanged();
+}
+
 void SyncBridge::OnSyncControllerChanged() {
   JNIEnv* env = jni_zero::AttachCurrentThread();
+  if (controller_) {
+    // "Sign in with Cloudflare" from this screen: it steps aside while the
+    // tab is open, and comes back when it closes (signed in or not).
+    const bool signing_in = controller_->GetStatus().cloudflare_sign_in;
+    if (signing_in && opens_cloudflare_ && !cloudflare_open_) {
+      cloudflare_open_ = true;
+      Java_SyncBridge_cloudflareSignIn(env, java_object_, true);
+    } else if (!signing_in && cloudflare_open_) {
+      cloudflare_open_ = false;
+      opens_cloudflare_ = false;
+      Java_SyncBridge_cloudflareSignIn(env, java_object_, false);
+    } else if (!signing_in) {
+      opens_cloudflare_ = false;
+    }
+    MaybeLoadPeople();
+  }
   // Company sign-in: the screen that started it opens the server's page in
   // a tab, once per page, and closes it when the sign-in ends (the service
   // opens it itself on the desktop).
