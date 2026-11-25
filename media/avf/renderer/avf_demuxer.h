@@ -17,6 +17,7 @@
 #include "compass/media/avf/public/mojom/avf_player.mojom.h"
 #include "media/base/demuxer.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/timestamp_constants.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -63,6 +64,13 @@ class AVFDemuxer : public media::Demuxer, public mojom::AVFPlayerClient {
   }
   const gfx::Size& natural_size() const { return natural_size_; }
   base::TimeDelta duration() const { return duration_; }
+  bool is_live() const {
+    return duration_.is_zero() || duration_ == media::kInfiniteDuration;
+  }
+  // The AVPlayer's last reported state. A renderer made after a pipeline
+  // suspend and resume starts from it, as the AVPlayer only reports changes.
+  bool have_enough() const { return have_enough_; }
+  base::TimeDelta last_time() const { return last_time_; }
   void SetObserver(AVFPlaybackObserver* observer);
 
   // media::Demuxer:
@@ -123,6 +131,8 @@ class AVFDemuxer : public media::Demuxer, public mojom::AVFPlayerClient {
   base::UnguessableToken overlay_plane_id_;
   gfx::Size natural_size_;
   base::TimeDelta duration_;
+  bool have_enough_ = false;
+  base::TimeDelta last_time_;
   std::vector<std::unique_ptr<PlaceholderStream>> streams_;
 
   base::WeakPtrFactory<AVFDemuxer> weak_factory_{this};

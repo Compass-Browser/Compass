@@ -204,7 +204,8 @@ void AVFDemuxer::Seek(base::TimeDelta time,
 }
 
 bool AVFDemuxer::IsSeekable() const {
-  return true;
+  // Live streams aren't (no DVR window yet), as with Chromium's HLS demuxer.
+  return !is_live();
 }
 
 void AVFDemuxer::Stop() {
@@ -248,12 +249,14 @@ void AVFDemuxer::OnTracksChanged(media::DemuxerStream::Type track_type,
 void AVFDemuxer::SetPlaybackRate(double rate) {}
 
 void AVFDemuxer::OnTimeUpdate(base::TimeDelta media_time, double rate) {
+  last_time_ = media_time;
   if (observer_) {
     observer_->OnTimeUpdate(media_time, rate);
   }
 }
 
 void AVFDemuxer::OnBufferingStateChange(bool have_enough) {
+  have_enough_ = have_enough;
   if (observer_) {
     observer_->OnBufferingStateChange(have_enough);
   }

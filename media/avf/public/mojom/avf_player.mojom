@@ -71,9 +71,24 @@ interface AVFPlayerFactory {
       => (mojo_base.mojom.UnguessableToken? overlay_plane_id);
 };
 
+// A cookie AVPlayer sends with its requests (AVURLAssetHTTPCookiesKey).
+struct AVFCookie {
+  string name;
+  string value;
+  string domain;
+  string path;
+  bool secure;
+  bool http_only;
+  mojo_base.mojom.Time? expiry;
+};
+
 struct AVFPlayerOptions {
+  // The page's user agent (its override, if the tab has one).
   string user_agent;
   url.mojom.Url? referrer;
+  // The profile's cookies for the stream's URL, when the stream is
+  // first-party to the frame and cookies are allowed there.
+  array<AVFCookie> cookies;
 };
 
 // The utility process. Not sandboxed yet: AVPlayer needs the network, audio

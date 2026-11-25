@@ -1,5 +1,5 @@
 diff --git a/media/filters/demuxer_manager.cc b/media/filters/demuxer_manager.cc
-index bf5624040dd6730c0d975f0336e49a8855880461..914c7f616a0cb56acaae66d8d9c1b702abfaec9c 100644
+index bf5624040dd6730c0d975f0336e49a8855880461..05c6eafb10c650923d035f45914e99da510ba728 100644
 --- a/media/filters/demuxer_manager.cc
 +++ b/media/filters/demuxer_manager.cc
 @@ -249,7 +249,9 @@ PipelineStatus DemuxerManager::CreateDemuxer(
@@ -13,3 +13,15 @@ index bf5624040dd6730c0d975f0336e49a8855880461..914c7f616a0cb56acaae66d8d9c1b702
      std::unique_ptr<Demuxer> demuxer;
      std::tie(data_source_info_, demuxer) = CreateHlsDemuxer();
      SetDemuxer(std::move(demuxer));
+@@ -381,6 +383,11 @@ bool DemuxerManager::IsLiveContent() const {
+   if (GetDemuxerType() == DemuxerType::kManifestDemuxer) {
+     return !demuxer_->IsSeekable();
+   }
++  // Compass: so does AVFoundation's (//compass/media/avf, a demuxer override
++  // of this type).
++  if (GetDemuxerType() == DemuxerType::kStreamProviderDemuxer) {
++    return !demuxer_->IsSeekable();
++  }
+   return false;
+ }
+ 

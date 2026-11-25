@@ -245,6 +245,29 @@ AVFPlayerImpl::AVFPlayerImpl(
     };
   }
 
+  if (!options->cookies.empty()) {
+    NSMutableArray<NSHTTPCookie*>* cookies = [NSMutableArray array];
+    for (const auto& cookie : options->cookies) {
+      NSMutableDictionary* properties = [NSMutableDictionary dictionary];
+      properties[NSHTTPCookieName] = base::SysUTF8ToNSString(cookie->name);
+      properties[NSHTTPCookieValue] = base::SysUTF8ToNSString(cookie->value);
+      properties[NSHTTPCookieDomain] = base::SysUTF8ToNSString(cookie->domain);
+      properties[NSHTTPCookiePath] =
+          base::SysUTF8ToNSString(cookie->path.empty() ? "/" : cookie->path);
+      if (cookie->secure) {
+        properties[NSHTTPCookieSecure] = @"TRUE";
+      }
+      if (cookie->expiry) {
+        properties[NSHTTPCookieExpires] = cookie->expiry->ToNSDate();
+      }
+      if (NSHTTPCookie* ns_cookie =
+              [NSHTTPCookie cookieWithProperties:properties]) {
+        [cookies addObject:ns_cookie];
+      }
+    }
+    asset_options[AVURLAssetHTTPCookiesKey] = cookies;
+  }
+
   AVURLAsset* asset = [AVURLAsset URLAssetWithURL:net::NSURLWithGURL(url)
                                           options:asset_options];
   item_ = [AVPlayerItem playerItemWithAsset:asset];

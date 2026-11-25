@@ -5,9 +5,10 @@ AVFoundation's AVPlayer instead of Chromium's HLS demuxer, as Safari does.
 This is the groundwork for FairPlay Streaming (`com.apple.fps`), which only
 works through AVFoundation.
 
-Status: milestone 1 (clear HLS through AVPlayer, shown in the page) is in.
-FairPlay EME, media element polish, the "Present as Safari" site setting and
-the sandbox are still to come (see Plan).
+Status: milestones 1 and 2 are in: clear HLS (VOD and live) plays through
+AVPlayer, shown in the page, with the page's cookies and user agent. FairPlay
+EME, the "Present as Safari" site setting and the sandbox are still to come
+(see Plan).
 
 ## Why AVPlayer, and not a Chromium renderer
 
@@ -62,13 +63,29 @@ GPU process
   media time between updates, maps AVPlayer's stalls to buffering states, and
   paints a video-hole frame (`VideoFrame::CreateVideoHoleFrame`) with the
   player's overlay plane id.
+  - The pipeline destroys its renderer when it suspends (a paused or
+    background player) and makes a new one on resume, while the AVPlayer
+    lives on in the demuxer. A new renderer starts from the demuxer's copy of
+    the AVPlayer's last state (enough data, time), since AVPlayer reports
+    only changes; a renderer destroyed while playing pauses the AVPlayer.
+  - **Live streams** (an infinite duration): not seekable, as with
+    Chromium's HLS demuxer (`patches/media-filters-demuxer_manager.cc.patch`
+    lets `IsLiveContent()` ask this demuxer), and the pipeline's start "from
+    0" doesn't seek, so AVPlayer stays near the live edge.
 - **AVFPlayerFactoryImpl** (`media/avf/browser/`, bound per document by
   `patches/chrome-browser-chrome_browser_interface_binders.cc.patch`)
   launches one AVFoundation utility process for all players, passes the
-  user agent and the page's origin as referrer, and gives each player a new
+  user agent (the tab's override, if it has one) and the page's origin as
+  referrer, and gives each player a new
   unguessable plane id, registered with the GPU process together with the
   player's CoreAnimation context id. Renderers only ever see the plane id, so
   a compromised renderer can't make the GPU process host another context.
+  - **Cookies:** the profile's cookies for the stream's URL
+    (`GetCookieList()`, the SameSite context of a subresource of the frame),
+    when the stream is first-party to the frame and `CookieSettings` allows
+    full cookie access there; AVPlayer sends them with every request
+    (`AVURLAssetHTTPCookiesKey`). Cookies set by AVPlayer's responses don't
+    come back to the profile.
 - **AVFMediaService** (`media/avf/service/`, registered in
   `patches/chrome-utility-services.cc.patch`) runs AVPlayer on the utility
   process's main thread, which gets an NSApplication run loop
@@ -84,26 +101,38 @@ GPU process
   (`patches/ui-accelerated_widget_mac-ca_renderer_layer_tree.mm.patch`). It
   sits in the page's own layer tree, so HTML drawn above the video (player
   controls) stays above it.
+- **When the frame can't be all CA layers** (any quad CoreAnimation can't
+  take, e.g. a rotating clipped layer, which Compass's own UI has), viz
+  composites the frame itself. The video hole then goes beneath it as an
+  underlay, like protected video
+  (`CALayerOverlayProcessor::PutForcedOverlayContentIntoUnderlays()`), with a
+  hole punched in the frame; a frame with a video hole gets an alpha format
+  for that (`patches/components-viz-service-display-direct_renderer.cc.patch`).
+  HTML above the video still draws above it.
 
-## Known gaps (milestone 1)
+## Known gaps
 
-- **Only in CoreAnimation overlay mode.** When viz composites the frame
-  itself (e.g. some filters, too many layers, or a DevTools/CDP screenshot),
-  the video hole draws nothing.
+- **A video hole inside a nested render pass** (the video under a CSS filter
+  or an opacity animation, for example) shows nothing when the frame isn't
+  all CA layers: the underlay only works for the root pass. DevTools/CDP
+  screenshots and `drawImage(video)` never show the video.
 - **Network outside Chromium.** AVPlayer fetches the playlists and segments
-  with its own `NSURLSession`: no cookies yet, and the ad blocker, DevTools,
-  service workers and Chromium's proxy settings don't see the requests.
+  with its own `NSURLSession`: the ad blocker, DevTools, service workers and
+  Chromium's proxy settings don't see the requests, and a third-party stream
+  gets no cookies.
 - **Not sandboxed** (`kNoSandbox`, like the macOS notification service):
   AVPlayer needs network, audio and the FairPlay system services.
 - No audio/text track selection; HLS subtitles render inside AVPlayer only if
   at all. HLS URLs without `.m3u8` (detected by content sniffing) still use
-  Chromium's HLS demuxer.
+  Chromium's HLS demuxer. No seeking in a live stream's DVR window.
 
 ## Plan
 
 1. ~~Clear HLS through AVPlayer, visible in the page.~~
-2. Media element integration: cookies, seeking edge cases, tracks,
-   picture-in-picture and fullscreen, the sniffed-HLS fallback.
+2. ~~Media element integration: cookies and the user agent, suspend and
+   resume, live streams, the underlay when the frame isn't all CA layers.~~
+   Checked: seeking (exact), rates, pause, ended, loop, picture-in-picture.
+   Left for later: tracks, DVR seeking, sniffed HLS.
 3. FairPlay EME: `com.apple.fps` with `skd` init data only (so hls.js, Shaka
    and video.js, which ask for `cenc`/`sinf` on MSE, keep using Widevine),
    an `AVContentKeySession` CDM in the utility process, `encrypted` events
@@ -125,3 +154,8 @@ GPU process
 ## Tests
 
 - `compass_unittests`: `AVFFeaturesTest.*`, `ExternalLayerRegistryTest.*`.
+- `compass_browsertests` (macOS): `AVFHlsBrowserTest.PlaysHls` (AVPlayer
+  fetches the stream, `X-Playback-Session-Id`, and the page gets its
+  duration and size), `SendsFirstPartyCookies`,
+  `AVFHlsDisabledBrowserTest.UsesChromiumHls`. The fixture in
+  `media/avf/test/data/` is 6 s of Tears of Steel (CC BY 3.0).

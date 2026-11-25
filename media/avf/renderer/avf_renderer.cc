@@ -22,6 +22,11 @@ AVFRenderer::AVFRenderer(media::VideoRendererSink* video_renderer_sink)
 
 AVFRenderer::~AVFRenderer() {
   if (demuxer_) {
+    // The pipeline destroys its renderer when it suspends (e.g. a paused or
+    // background player); the AVPlayer lives on in the demuxer, so stop it.
+    if (playing_ && demuxer_->player()) {
+      demuxer_->player()->SetRate(0);
+    }
     demuxer_->SetObserver(nullptr);
   }
 }
@@ -37,9 +42,13 @@ void AVFRenderer::Initialize(media::MediaResource* media_resource,
     return;
   }
   demuxer_->SetObserver(this);
+  // After a pipeline suspend and resume this is a new renderer for an
+  // AVPlayer that has been playing: start from its last state.
+  have_enough_ = demuxer_->have_enough();
   {
     base::AutoLock lock(time_lock_);
     duration_ = demuxer_->duration();
+    base_time_ = demuxer_->last_time();
   }
   if (!demuxer_->natural_size().IsEmpty()) {
     PaintHoleFrame(demuxer_->natural_size());
@@ -69,6 +78,20 @@ void AVFRenderer::Flush(base::OnceClosure flush_cb) {
 
 void AVFRenderer::StartPlayingFrom(base::TimeDelta time) {
   playing_ = true;
+  // A live stream can't be seeked; the pipeline still starts it "from 0",
+  // which would send AVPlayer to the start of the live window. Stay where
+  // AVPlayer is (near the live edge).
+  if (demuxer_->is_live()) {
+    {
+      base::AutoLock lock(time_lock_);
+      base_time_ = demuxer_->last_time();
+      base_ticks_ = base::TimeTicks::Now();
+      time_rate_ = 0;
+    }
+    seeking_ = false;
+    OnSeekDone();
+    return;
+  }
   seeking_ = true;
   {
     base::AutoLock lock(time_lock_);

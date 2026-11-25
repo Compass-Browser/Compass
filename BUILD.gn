@@ -66,6 +66,9 @@ test("compass_browsertests") {
     "//compass/browser/web_store:browser_tests",
   ]
   if (is_mac) {
+    deps += [ "//compass/media/avf:browser_tests" ]
+  }
+  if (is_mac) {
     # Headless runs don't take the user's focus.
     sources = [ "test/headless_no_activation_mac.mm" ]
     frameworks = [ "AppKit.framework" ]

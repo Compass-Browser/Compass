@@ -1,5 +1,5 @@
 diff --git a/components/viz/service/display/ca_layer_overlay.cc b/components/viz/service/display/ca_layer_overlay.cc
-index 1b7157b1d5a9cf517d0f65393e89ba46dbcd3201..7a8602e23330b7aa95aa930b028ac1eb95d34191 100644
+index 1b7157b1d5a9cf517d0f65393e89ba46dbcd3201..d4e10448490d0d93daa3e9a378b356881bc354d6 100644
 --- a/components/viz/service/display/ca_layer_overlay.cc
 +++ b/components/viz/service/display/ca_layer_overlay.cc
 @@ -17,6 +17,7 @@
@@ -28,3 +28,18 @@ index 1b7157b1d5a9cf517d0f65393e89ba46dbcd3201..7a8602e23330b7aa95aa930b028ac1eb
        default:
          break;
      }
+@@ -403,6 +415,14 @@ void CALayerOverlayProcessor::PutForcedOverlayContentIntoUnderlays(
+       }
+     }
+ 
++#if BUILDFLAG(IS_MAC)
++    // Compass: AVPlayer's layer (a video hole) has no content to composite;
++    // put it beneath the composited frame, which gets a hole punched in it.
++    if (quad->material == DrawQuad::Material::kVideoHole) {
++      force_quad_to_overlay = true;
++    }
++#endif
++
+     if (force_quad_to_overlay) {
+       if (!PutQuadInSeparateOverlay(it, resource_provider, render_pass,
+                                     display_rect, quad, protected_video_type,

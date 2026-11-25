@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>AVFoundation HLS test</title>
+<video id="v" muted playsinline style="width:320px"></video>
+<script>
+// Used by AVFHlsBrowserTest: play(src) resolves once the video has played
+// half a second, or rejects with what went wrong.
+window.play = (src) => new Promise((resolve, reject) => {
+  const v = document.getElementById('v');
+  v.addEventListener('error', () => reject('error ' + v.error.code + ' ' + v.error.message));
+  v.addEventListener('timeupdate', () => {
+    if (v.currentTime > 0.5) resolve(JSON.stringify({duration: v.duration, width: v.videoWidth, height: v.videoHeight}));
+  });
+  v.src = src;
+  v.play().catch((e) => reject('play() ' + e.name));
+});
+</script>
