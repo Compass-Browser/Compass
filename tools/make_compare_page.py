@@ -20,7 +20,7 @@ HEAD = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Compass compared with Arc, Dia and other browsers</title>
-<meta name="description" content="How Compass Browser compares with Arc, Dia, Crest, Zen, Vivaldi, Edge, Orion and the other browsers people move to from Arc.">
+<meta name="description" content="How Compass Browser compares with Arc, Dia, Crest, Ardia, Cra, Zen, Vivaldi, Edge, Orion and the other browsers people move to from Arc.">
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="/compass.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/changelog/changelog.css">

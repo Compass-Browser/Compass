@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Compass compared with Arc, Dia and other browsers</title>
-<meta name="description" content="How Compass Browser compares with Arc, Dia, Crest, Zen, Vivaldi, Edge, Orion and the other browsers people move to from Arc.">
+<meta name="description" content="How Compass Browser compares with Arc, Dia, Crest, Ardia, Cra, Zen, Vivaldi, Edge, Orion and the other browsers people move to from Arc.">
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="/compass.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/changelog/changelog.css">
@@ -41,8 +41,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <main>
 <p class="back"><a href="/">Compass Browser</a></p>
 <h1>Compass compared with other browsers</h1>
-<p>How Compass compares with Arc, its successor Dia, and the browsers people move to from Arc. Written on 10 November 2026; the other columns checked on 14 November 2026, and the Compass column updated on 24 November 2026. Other browsers change quickly, so check their sites before relying on a cell.</p>
-<ul><li>The Compass column comes from this repository's code (<code>main</code>).</li><li>The Crest column comes from its site, changelog and repository.</li><li>The other columns come from public reviews and the vendors' sites.</li></ul>
+<p>How Compass compares with Arc, its successor Dia, and the browsers people move to from Arc. Written on 10 November 2026; the other columns checked on 14 November 2026, the Ardia and Cra columns added and the Compass column updated on 25 November 2026. Other browsers change quickly, so check their sites before relying on a cell.</p>
+<ul><li>The Compass column comes from this repository's code (<code>main</code>).</li><li>The Crest column comes from its site, changelog and repository; the Ardia and Cra columns from their repositories (25 November 2026).</li><li>The other columns come from public reviews and the vendors' sites.</li></ul>
 <p class="legend">✅ yes · ~ partial or different · ❌ no · ? not confirmed by any source found · — not applicable</p>
 <h2>Arc's status</h2>
 <p>The Browser Company announced on 22 October 2026 that Arc <strong>stops working on 22 December 2026</strong>: no updates, and all accounts deactivated. New Arc accounts are already blocked, Arc Search loses its AI features, sign-in and tab sync on 23 November, account data requests close on 15 December, and Arc Search for Android leaves Google Play on 22 December. Personal data is deleted within 30 days of the shutdown. The team's successor is Dia, on Mac and, since October 2026, Windows (The Browser Company is part of Atlassian since October 2025).</p>
@@ -68,6 +68,20 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>macOS 26.1+ (Apple silicon), iPhone, iPad</td>
 <td>MPL-2.0, free</td>
 <td>Early access (0.9.x)</td>
+</tr>
+<tr>
+<td><strong>Ardia</strong></td>
+<td>Chromium (Helium's patches); WebKit for streaming sites on the Mac</td>
+<td>macOS 14+ (Apple silicon), Linux; iPhone (TestFlight), Android (APK); Windows not released</td>
+<td>GPL-3.0 (its own code Apache-2.0), free</td>
+<td>Active (0.2.48)</td>
+</tr>
+<tr>
+<td><strong>Cra</strong></td>
+<td>Chromium; WebKit for DRM pages on the Mac, and on iPhone/iPad</td>
+<td>macOS 14+ (Apple silicon and Intel), iPhone and iPad (App Store, iOS 17+)</td>
+<td>MIT, free</td>
+<td>Early (0.1.56)</td>
 </tr>
 <tr>
 <td><strong>Arc</strong></td>
@@ -139,6 +153,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <th>Feature</th>
 <th class="compass">Compass</th>
 <th>Crest</th>
+<th>Ardia</th>
+<th>Cra</th>
 <th>Arc</th>
 <th>Dia</th>
 <th>Phi</th>
@@ -149,11 +165,13 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <th>Lilo</th>
 <th>Orion</th>
 </tr></thead><tbody>
-<tr class="group"><td colspan="12"><span><strong>Sidebar and tabs</strong></span></td></tr>
+<tr class="group"><td colspan="14"><span><strong>Sidebar and tabs</strong></span></td></tr>
 <tr>
 <td>Spaces with themes</td>
 <td class="compass">✅ colors, gradients, grain, icons</td>
 <td>✅ Crest Studio emblems, gradients</td>
+<td>✅ gradients, grain, blur</td>
+<td>✅ emoji or symbol, accent colors, noise</td>
 <td>✅</td>
 <td>~</td>
 <td>✅</td>
@@ -168,6 +186,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Separate profile / cookies per space</td>
 <td class="compass">✅ switched in the same window</td>
 <td>✅ plus Sub-Spaces that share sign-ins</td>
+<td>✅ spaces are profiles; profiles can share data</td>
+<td>✅ spaces sit on profiles</td>
 <td>✅</td>
 <td>?</td>
 <td>✅</td>
@@ -182,6 +202,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Locked private spaces</td>
 <td class="compass">~ incognito lock on iOS and Android</td>
 <td>✅ Face ID / Touch ID</td>
+<td>?</td>
+<td>❌</td>
 <td>❌</td>
 <td>?</td>
 <td>?</td>
@@ -196,6 +218,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Favorites shared across spaces</td>
 <td class="compass">✅</td>
 <td>~ a Sub-Space group's pinned tabs</td>
+<td>~ Top Apps, between profiles that share data</td>
+<td>✅ per profile</td>
 <td>✅</td>
 <td>?</td>
 <td>?</td>
@@ -210,6 +234,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Pinned tabs in nested folders</td>
 <td class="compass">✅ in Pinned and Today</td>
 <td>✅</td>
+<td>✅ nested groups; folders in Top Apps</td>
+<td>✅ in Pinned and Today</td>
 <td>✅</td>
 <td>✅ nested groups, 8 levels</td>
 <td>✅ groups</td>
@@ -224,6 +250,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Auto-archive of unused tabs</td>
 <td class="compass">✅ Today, 12 h default</td>
 <td>✅ Space cleanup, 12 h–30 days</td>
+<td>✅ 12 h–30 days or custom</td>
+<td>✅ Today, 12 h–180 days</td>
 <td>✅</td>
 <td>~ Clean Up Tabs on Windows</td>
 <td>?</td>
@@ -239,6 +267,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td class="compass">✅</td>
 <td>~ rename, mute</td>
 <td>✅</td>
+<td>✅</td>
+<td>✅</td>
 <td>~ rename</td>
 <td>?</td>
 <td>✅</td>
@@ -252,6 +282,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Split view</td>
 <td class="compass">✅ up to 4 panes, side by side or stacked</td>
 <td>✅ 2–4 panes</td>
+<td>✅ up to 3, side by side or stacked</td>
+<td>✅ up to 4, side by side or stacked</td>
 <td>✅ up to 4</td>
 <td>✅</td>
 <td>✅ up to 4, side by side or stacked</td>
@@ -266,6 +298,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Tree-style tabs</td>
 <td class="compass">~ nested folders, made by hand</td>
 <td>~</td>
+<td>~ ⌘-click groups a link with its opener</td>
+<td>~ nested folders, made by hand</td>
 <td>~</td>
 <td>~ nested groups, made by hand</td>
 <td>❌</td>
@@ -279,6 +313,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <tr>
 <td>Custom shortcuts</td>
 <td class="compass">✅</td>
+<td>✅</td>
+<td>✅ mouse buttons too</td>
 <td>✅</td>
 <td>✅</td>
 <td>✅</td>
@@ -294,6 +330,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Ctrl+Tab in recently used order</td>
 <td class="compass">✅ with cards of each tab's preview; W closes one; can be turned off</td>
 <td>?</td>
+<td>✅ an option</td>
+<td>✅ with cards; across spaces with ⌃⌥Tab</td>
 <td>✅ tab switcher</td>
 <td>?</td>
 <td>?</td>
@@ -304,10 +342,12 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>?</td>
 <td>?</td>
 </tr>
-<tr class="group"><td colspan="12"><span><strong>Arc-style extras</strong></span></td></tr>
+<tr class="group"><td colspan="14"><span><strong>Arc-style extras</strong></span></td></tr>
 <tr>
 <td>Command bar, no toolbar</td>
 <td class="compass">✅</td>
+<td>✅</td>
+<td>✅</td>
 <td>✅</td>
 <td>✅</td>
 <td>~</td>
@@ -324,6 +364,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td class="compass">✅</td>
 <td>✅</td>
 <td>✅</td>
+<td>✅</td>
+<td>✅</td>
 <td>?</td>
 <td>✅ Peek View</td>
 <td>✅ Glance</td>
@@ -337,6 +379,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Small windows for links from other apps</td>
 <td class="compass">✅ macOS, Windows, Linux</td>
 <td>✅ Quick Window</td>
+<td>✅ Little Ardia</td>
+<td>✅ Little Window</td>
 <td>✅ Little Arc</td>
 <td>?</td>
 <td>✅ Kiosk</td>
@@ -352,6 +396,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td class="compass">✅ links from other apps, by domain</td>
 <td>✅</td>
 <td>✅</td>
+<td>✅</td>
+<td>✅</td>
 <td>✅ Link Rules to profiles</td>
 <td>✅ URL Rules</td>
 <td>✅ Space Routing</td>
@@ -365,6 +411,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Auto picture-in-picture</td>
 <td class="compass">✅ including Teams, Meet and Zoom calls; iPhone and iPad on leaving the app</td>
 <td>✅</td>
+<td>✅ Meet, YouTube</td>
+<td>✅ including Meet</td>
 <td>✅</td>
 <td>✅ Meet</td>
 <td>?</td>
@@ -379,6 +427,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Live folders</td>
 <td class="compass">✅ JavaScript plugins (RSS, GitHub, web list, calendar); plugins also show a tab's content in its hover card (Google Calendar's next events, GitHub's notifications) and unread counts on tabs; Claude can write them</td>
 <td>?</td>
+<td>✅ GitHub and Bitbucket pull requests, Notion, Confluence, Drive, meetings; plugins</td>
+<td>✅ JavaScript plugins (GitHub, GitLab, Jira, Azure DevOps), your own as a ZIP</td>
 <td>✅</td>
 <td>❌</td>
 <td>❌</td>
@@ -393,6 +443,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Per-site CSS/JS (Boosts)</td>
 <td class="compass">✅ by hand or by Claude, synced; Zap elements from the command bar; desktop and iOS</td>
 <td>❌</td>
+<td>~ TypeScript userscripts</td>
+<td>✅ Zap, share links, a gallery</td>
 <td>✅</td>
 <td>❌</td>
 <td>❌</td>
@@ -407,6 +459,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Share spaces and folders with other people</td>
 <td class="compass">✅ spaces, folders and easels; invite links or email; end-to-end encrypted</td>
 <td>?</td>
+<td>~ folders through a shared iCloud Drive or Dropbox folder</td>
+<td>~ a link to a copy of a folder</td>
 <td>✅</td>
 <td>?</td>
 <td>?</td>
@@ -421,6 +475,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Development mode for a site</td>
 <td class="compass">✅ no cache on reload, full address bar, DevTools buttons; on for localhost by default; desktop and iOS</td>
 <td>?</td>
+<td>❌ removed in 0.2.47, to return as a plugin</td>
+<td>✅</td>
 <td>✅</td>
 <td>?</td>
 <td>?</td>
@@ -435,6 +491,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Screenshots of a region or the full page</td>
 <td class="compass">✅ copied or saved; desktop</td>
 <td>?</td>
+<td>? only through its command line</td>
+<td>✅</td>
 <td>✅</td>
 <td>?</td>
 <td>?</td>
@@ -449,6 +507,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Notes / canvas (Easels)</td>
 <td class="compass">✅ text, shapes, drawing, images, links, page captures (refreshed while a board is open, desktop); synced; imported from Arc; desktop, Android and iOS</td>
 <td>❌</td>
+<td>❌</td>
+<td>✅ Easels, Mac</td>
 <td>✅</td>
 <td>❌</td>
 <td>❌</td>
@@ -464,6 +524,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td class="compass">❌</td>
 <td>✅ Ultra Thin to Ultra Thick</td>
 <td>✅</td>
+<td>✅ an option</td>
+<td>✅</td>
 <td>?</td>
 <td>?</td>
 <td>✅ blur, transparency</td>
@@ -473,10 +535,12 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>?</td>
 <td>?</td>
 </tr>
-<tr class="group"><td colspan="12"><span><strong>Web content</strong></span></td></tr>
+<tr class="group"><td colspan="14"><span><strong>Web content</strong></span></td></tr>
 <tr>
 <td>Chrome extensions, desktop / phone</td>
 <td class="compass">✅ / ✅</td>
+<td>✅ / ❌</td>
+<td>✅ / ❌</td>
 <td>✅ / ❌</td>
 <td>✅ / ❌</td>
 <td>✅ / ❌</td>
@@ -492,6 +556,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Built-in ad blocker</td>
 <td class="compass">✅ EasyList, EasyPrivacy and cookie banners on desktop, Android and iPhone; your own lists on desktop and Android (docs/design/ad-blocker.md)</td>
 <td>✅ both engines, Mac, iPhone, iPad</td>
+<td>✅ uBlock Origin, cookie banners, your own lists</td>
+<td>✅ cookie banners, your own lists; Mac and iPhone</td>
 <td>❌</td>
 <td>❌</td>
 <td>✅ per profile</td>
@@ -506,6 +572,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Reader mode, on-device translation</td>
 <td class="compass">~ Reader mode; translation not yet</td>
 <td>✅ Reader on WebKit pages, translation in both engines</td>
+<td>✅ translation on macOS 26</td>
+<td>~ Google translation on the Mac; Reader and on-device translation on iPhone</td>
 <td>❌</td>
 <td>?</td>
 <td>~ Reader View</td>
@@ -520,6 +588,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Full-quality DRM video</td>
 <td class="compass">❌ no Widevine VMP</td>
 <td>✅ FairPlay through WebKit</td>
+<td>~ FairPlay through WebKit for streaming sites</td>
+<td>✅ FairPlay through WebKit when Widevine fails</td>
 <td>✅</td>
 <td>✅</td>
 <td>~ Widevine since 2.13</td>
@@ -535,6 +605,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td class="compass">❌</td>
 <td>❌</td>
 <td>❌</td>
+<td>~ preview cards on favorites (Gmail, Outlook, Google Calendar…)</td>
+<td>❌</td>
 <td>❌</td>
 <td>❌</td>
 <td>❌</td>
@@ -544,11 +616,13 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>❌</td>
 <td>?</td>
 </tr>
-<tr class="group"><td colspan="12"><span><strong>AI</strong></span></td></tr>
+<tr class="group"><td colspan="14"><span><strong>AI</strong></span></td></tr>
 <tr>
 <td>AI chat panel that reads and acts on the page</td>
 <td class="compass">✅ Claude, with developer tools (network, elements, storage, performance) when allowed</td>
 <td>❌</td>
+<td>❌ on desktop, by choice; summaries on the phone</td>
+<td>~ Ask on Page reads it, Apple Intelligence</td>
 <td>~ Arc Max</td>
 <td>✅</td>
 <td>✅</td>
@@ -562,6 +636,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <tr>
 <td>Agent across tabs and windows</td>
 <td class="compass">✅ desktop, iPhone and iPad; off by default</td>
+<td>❌</td>
+<td>~ outside agents through its command line</td>
 <td>❌</td>
 <td>❌</td>
 <td>✅</td>
@@ -577,6 +653,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>MCP server for coding agents</td>
 <td class="compass">✅ macOS and Windows</td>
 <td>✅ Mac, per chosen space</td>
+<td>~ a command line and agent skill instead, macOS and Linux</td>
+<td>✅ Mac, added to each agent's settings</td>
 <td>❌</td>
 <td>?</td>
 <td>✅</td>
@@ -591,6 +669,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Own API key, Bedrock/Vertex, or Claude subscription via Claude Code</td>
 <td class="compass">✅</td>
 <td>—</td>
+<td>~ ChatGPT plan or Gemini Nano, phone only</td>
+<td>❌ Apple Intelligence only</td>
 <td>❌</td>
 <td>❌</td>
 <td>~ local models (Ollama, LM Studio)</td>
@@ -606,6 +686,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td class="compass">✅ desktop, iPhone and iPad, synced end-to-end encrypted, each save shown with Undo</td>
 <td>❌</td>
 <td>❌</td>
+<td>❌</td>
+<td>❌</td>
 <td>✅</td>
 <td>✅ kept on the Mac</td>
 <td>❌</td>
@@ -615,11 +697,13 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>❌</td>
 <td>?</td>
 </tr>
-<tr class="group"><td colspan="12"><span><strong>Sync and devices</strong></span></td></tr>
+<tr class="group"><td colspan="14"><span><strong>Sync and devices</strong></span></td></tr>
 <tr>
 <td>Sync</td>
 <td class="compass">✅ no account, end-to-end encrypted, self-hostable (with company sign-in, OIDC); a space can stay on one device</td>
 <td>✅ iCloud; passwords through iCloud Keychain</td>
+<td>✅ no account, end-to-end encrypted, through a synced folder (iCloud Drive, Dropbox, NAS)</td>
+<td>✅ no account, through iCloud Drive or a synced folder; sidebar and settings only</td>
 <td>Arc account</td>
 <td>account</td>
 <td>Phi account, experimental</td>
@@ -634,6 +718,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Send tab to phone</td>
 <td class="compass">✅</td>
 <td>?</td>
+<td>✅</td>
+<td>~ Handoff</td>
 <td>❌</td>
 <td>?</td>
 <td>?</td>
@@ -648,6 +734,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Phone app with the same spaces</td>
 <td class="compass">✅ iPhone and iPad (beta), Android (beta, Google Play testing)</td>
 <td>✅ iPhone and iPad (App Store)</td>
+<td>~ iPhone (TestFlight) and Android (APK), synced tabs</td>
+<td>~ iPhone and iPad (App Store), Arc Search-style; the Mac's spaces read-only</td>
 <td>~ Arc Search is separate</td>
 <td>in progress</td>
 <td>❌</td>
@@ -658,11 +746,13 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>❌</td>
 <td>✅ iPhone and iPad</td>
 </tr>
-<tr class="group"><td colspan="12"><span><strong>Moving in</strong></span></td></tr>
+<tr class="group"><td colspan="14"><span><strong>Moving in</strong></span></td></tr>
 <tr>
 <td>Import</td>
-<td class="compass">Arc (macOS, Windows): profiles, cookies, sidebar, archive; Chrome, Edge, Brave, Vivaldi, Dia: also as a whole new profile, cookies included; Chrome, Edge, Brave, Vivaldi, Dia, Firefox, Zen, Safari (macOS): bookmarks, open tabs, history, passwords, Zen and Vivaldi spaces, Safari tab groups</td>
+<td class="compass">Arc (macOS, Windows): profiles, cookies, sidebar, archive; Chrome, Edge, Brave, Vivaldi, Dia, Ardia, Cra, Crest, Yab: also as a whole new profile, cookies included (Yab's Chromium ones); Chrome, Edge, Brave, Vivaldi, Dia, Ardia, Firefox, Zen, Safari, Cra, Crest, Yab (the last four macOS): bookmarks, open tabs, history, passwords, Zen, Vivaldi, Ardia, Cra, Crest and Yab spaces, Safari tab groups</td>
 <td>Arc, Zen, Chrome, Safari, Firefox, Brave, Edge, Vivaldi, Opera, Dia, Comet and more</td>
+<td>Arc spaces, splits and rules; Dia's sidebar; Zen spaces; Chrome, Edge, Brave, Opera, Vivaldi, Helium, Firefox, Safari and more: bookmarks, history, tabs, passwords, cookies, extensions</td>
+<td>Arc, Ardia and Yab spaces and sign-ins; Zen spaces; Dia, Chrome, Brave, Edge, Opera, Vivaldi, Helium: tabs, bookmarks, history, passwords, sign-ins; Firefox; Safari's export file</td>
 <td>—</td>
 <td>Arc, Chrome</td>
 <td>Arc, Zen, Chrome</td>
@@ -677,6 +767,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <td>Export spaces</td>
 <td class="compass">✅ a bookmarks file any browser imports (desktop); plain-text tab lists on iPhone and iPad</td>
 <td>?</td>
+<td>~ a bookmarks file</td>
+<td>✅ a bookmarks file (Mac); tab lists on iPhone</td>
 <td>?</td>
 <td>?</td>
 <td>?</td>
@@ -690,6 +782,8 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <tr>
 <td>Open source</td>
 <td class="compass">✅</td>
+<td>✅</td>
+<td>✅</td>
 <td>✅</td>
 <td>❌</td>
 <td>❌</td>
@@ -721,12 +815,12 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 </tr></thead><tbody>
 <tr>
 <td>On-device translation</td>
-<td>Crest, Orion, Zen, Vivaldi, Edge, Lilo</td>
+<td>Crest, Ardia, Orion, Zen, Vivaldi, Edge, Lilo</td>
 <td class="compass">Not started. Reader mode is done, desktop and iOS (docs/design/reader-mode.md)</td>
 </tr>
 <tr>
 <td>Full-quality DRM video</td>
-<td>Chrome, Edge, Arc, Dia, Crest</td>
+<td>Chrome, Edge, Arc, Dia, Crest, Cra (Ardia for streaming sites)</td>
 <td class="compass">Blocked: no Widevine VMP signature (docs/design/widevine.md)</td>
 </tr>
 <tr>
@@ -736,7 +830,7 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 </tr>
 <tr>
 <td>Translucent sidebar</td>
-<td>Arc, Crest, Zen</td>
+<td>Arc, Crest, Ardia, Cra, Zen</td>
 <td class="compass">Arc's gradients import; translucency and vibrancy don't (docs/design/arc-import.md)</td>
 </tr>
 <tr>
@@ -746,7 +840,7 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 </tr>
 </tbody></table></div>
 <h2>Sources</h2>
-<ul><li>Arc: <a href="https://arc.net/">farewell page</a>, <a href="https://techcrunch.com/2026/10/22/arc-browser-sunsets-december-22-as-the-browser-company-doubles-down-on-dia/">TechCrunch</a>, <a href="https://www.androidauthority.com/arc-browser-shutting-down-december-2026-3726900/">Android Authority</a>, <a href="https://cyberinsider.com/arc-browser-to-stop-working-on-december-22-as-team-shifts-to-dia/">CyberInsider</a>, <a href="https://en.wikipedia.org/wiki/Arc_(web_browser">Wikipedia</a>)</li><li>Dia: <a href="https://www.diabrowser.com/updates">release log</a>, <a href="https://en.wikipedia.org/wiki/Dia_(web_browser">Wikipedia</a>), <a href="https://techcrunch.com/2025/11/03/dias-ai-browser-starts-adding-arcs-greatest-hits-to-its-feature-set">TechCrunch</a></li><li>Crest: <a href="https://crestbrowser.com/">crestbrowser.com</a>, <a href="https://crestbrowser.com/guides/engines/">engines</a>, <a href="https://crestbrowser.com/guides/sync-across-devices/">sync</a>, <a href="https://github.com/pauljoda/Crest">repository</a>, <a href="https://github.com/pauljoda/Crest/blob/main/CHANGELOG.md">changelog</a></li><li>Phi: <a href="https://phibrowser.com/">phibrowser.com</a>, <a href="https://phibrowser.com/help/layouts/">layouts</a>, <a href="https://phibrowser.com/release-note/2.8.0">2.8.0</a>, <a href="https://phibrowser.com/release-note/2.10.0">2.10.0</a>, <a href="https://phibrowser.com/release-note/2.12.0">2.12.0</a>, <a href="https://phibrowser.com/release-note/2.13.0">2.13.0</a>, <a href="https://phibrowser.com/release-note/2.14.0">2.14.0</a>, <a href="https://phibrowser.com/release-note/2.17.0">2.17.0</a></li><li>Zen: <a href="https://zen-browser.app/release-notes">release notes</a>, <a href="https://alternativeto.net/news/2026/6/zen-browser-1-21b-adds-space-routing-and-updates-to-firefox-151-0-4/">Space Routing in 1.21b</a></li><li>Lilo: <a href="https://getlilo.app/">getlilo.app</a></li><li>Orion: <a href="https://orionbrowser.com/">orionbrowser.com</a>, <a href="https://orionbrowser.com/platforms/macos">macOS features</a>, <a href="https://orionbrowser.com/platforms/ios">iOS features</a>, <a href="https://orionbrowser.com/orionplus">Orion+</a>, <a href="https://blog.kagi.com/update-orion-linux-windows">Linux and Windows update</a>, <a href="https://alternativeto.net/news/2026/6/orion-1-1-brings-multi-account-containers-page-translation-redesigned-settings-and-more/">1.1 release</a>, <a href="https://fossforce.com/2026/08/no-ads-no-telemetry-no-ai-agent-orion-browser-does-linux/">FOSS Force</a></li><li>Vivaldi, SigmaOS and others: <a href="https://www.opensourcealternatives.to/alternative-to/arc">Open Source Alternatives</a>, <a href="https://go.tabbit.com/browsers-with-workspaces-like-arc">Tabbit migration guide</a></li></ul>
+<ul><li>Arc: <a href="https://arc.net/">farewell page</a>, <a href="https://techcrunch.com/2026/10/22/arc-browser-sunsets-december-22-as-the-browser-company-doubles-down-on-dia/">TechCrunch</a>, <a href="https://www.androidauthority.com/arc-browser-shutting-down-december-2026-3726900/">Android Authority</a>, <a href="https://cyberinsider.com/arc-browser-to-stop-working-on-december-22-as-team-shifts-to-dia/">CyberInsider</a>, <a href="https://en.wikipedia.org/wiki/Arc_(web_browser">Wikipedia</a>)</li><li>Dia: <a href="https://www.diabrowser.com/updates">release log</a>, <a href="https://en.wikipedia.org/wiki/Dia_(web_browser">Wikipedia</a>), <a href="https://techcrunch.com/2025/11/03/dias-ai-browser-starts-adding-arcs-greatest-hits-to-its-feature-set">TechCrunch</a></li><li>Crest: <a href="https://crestbrowser.com/">crestbrowser.com</a>, <a href="https://crestbrowser.com/guides/engines/">engines</a>, <a href="https://crestbrowser.com/guides/sync-across-devices/">sync</a>, <a href="https://github.com/pauljoda/Crest">repository</a>, <a href="https://github.com/pauljoda/Crest/blob/main/CHANGELOG.md">changelog</a></li><li>Ardia: <a href="https://ardia.dev">ardia.dev</a>, <a href="https://ardia.dev/release-notes">release notes</a>, <a href="https://github.com/ardia-browser/ardia">repository</a>, <a href="https://github.com/ardia-browser/plugins">plugins</a>, <a href="https://github.com/ardia-browser/ardia/blob/main/docs/dia-feature-parity.md">Dia feature parity</a></li><li>Cra: <a href="https://crabrowser.app">crabrowser.app</a>, <a href="https://crabrowser.app/release-notes">release notes</a>, <a href="https://github.com/VictorKildahl/cra">repository</a>, <a href="https://github.com/VictorKildahl/cra/releases">releases</a>, <a href="https://apps.apple.com/app/id6834101298">App Store</a></li><li>Phi: <a href="https://phibrowser.com/">phibrowser.com</a>, <a href="https://phibrowser.com/help/layouts/">layouts</a>, <a href="https://phibrowser.com/release-note/2.8.0">2.8.0</a>, <a href="https://phibrowser.com/release-note/2.10.0">2.10.0</a>, <a href="https://phibrowser.com/release-note/2.12.0">2.12.0</a>, <a href="https://phibrowser.com/release-note/2.13.0">2.13.0</a>, <a href="https://phibrowser.com/release-note/2.14.0">2.14.0</a>, <a href="https://phibrowser.com/release-note/2.17.0">2.17.0</a></li><li>Zen: <a href="https://zen-browser.app/release-notes">release notes</a>, <a href="https://alternativeto.net/news/2026/6/zen-browser-1-21b-adds-space-routing-and-updates-to-firefox-151-0-4/">Space Routing in 1.21b</a></li><li>Lilo: <a href="https://getlilo.app/">getlilo.app</a></li><li>Orion: <a href="https://orionbrowser.com/">orionbrowser.com</a>, <a href="https://orionbrowser.com/platforms/macos">macOS features</a>, <a href="https://orionbrowser.com/platforms/ios">iOS features</a>, <a href="https://orionbrowser.com/orionplus">Orion+</a>, <a href="https://blog.kagi.com/update-orion-linux-windows">Linux and Windows update</a>, <a href="https://alternativeto.net/news/2026/6/orion-1-1-brings-multi-account-containers-page-translation-redesigned-settings-and-more/">1.1 release</a>, <a href="https://fossforce.com/2026/08/no-ads-no-telemetry-no-ai-agent-orion-browser-does-linux/">FOSS Force</a></li><li>Vivaldi, SigmaOS and others: <a href="https://www.opensourcealternatives.to/alternative-to/arc">Open Source Alternatives</a>, <a href="https://go.tabbit.com/browsers-with-workspaces-like-arc">Tabbit migration guide</a></li></ul>
 <p class="legend">From <a href="https://github.com/Compass-Browser/Compass/blob/main/COMPARE.md">COMPARE.md</a> in the source code.</p>
 </main>
 </body>
