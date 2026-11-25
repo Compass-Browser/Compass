@@ -13,8 +13,8 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
+#include "chrome/browser/ui/views/controls/rich_controls_container_view.h"
 #include "compass/browser/adblock/adblock_prefs.h"
 #include "compass/browser/adblock/page_activation_throttle.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -27,13 +27,13 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/color/color_id.h"
+#include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/views/accessibility/view_accessibility.h"
-#include "ui/views/border.h"
 #include "ui/views/controls/button/toggle_button.h"
-#include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
-#include "ui/views/layout/box_layout.h"
-#include "ui/views/style/typography.h"
+#include "ui/views/layout/layout_provider.h"
+#include "ui/views/view_class_properties.h"
 #include "url/gurl.h"
 
 namespace compass {
@@ -42,10 +42,10 @@ namespace {
 
 constexpr int kIconSize = 20;
 
-// "Ad blocker" with a switch, laid out as the popup's other rows
-// (RichHoverButton) and development mode's: icon, title over a subtitle,
-// the control at the end. Turning it off allows ads on the site (its Ads
-// site setting) and reloads the page.
+// "Ad blocker" with a switch, laid out as the popup's permission rows
+// (RichControlsContainerView) and development mode's: icon, title over a
+// subtitle, the control at the end. Turning it off allows ads on the site (its
+// Ads site setting) and reloads the page.
 class AdBlockPageInfoRow : public views::View {
   METADATA_HEADER(AdBlockPageInfoRow, views::View)
 
@@ -54,38 +54,27 @@ class AdBlockPageInfoRow : public views::View {
                      HostContentSettingsMap* settings,
                      const GURL& url)
       : contents_(contents->GetWeakPtr()), settings_(settings), url_(url) {
-    ChromeLayoutProvider* layout = ChromeLayoutProvider::Get();
-    SetBorder(views::CreateEmptyBorder(
-        layout->GetInsetsMetric(INSETS_PAGE_INFO_HOVER_BUTTON)));
-    auto* box = SetLayoutManager(std::make_unique<views::BoxLayout>(
-        views::BoxLayout::Orientation::kHorizontal, gfx::Insets(),
-        layout->GetDistanceMetric(DISTANCE_RICH_HOVER_BUTTON_ICON_HORIZONTAL)));
-    box->set_cross_axis_alignment(
-        views::BoxLayout::CrossAxisAlignment::kCenter);
+    // RichControlsContainerView, as the permission switches use: it measures
+    // the subtitle at the width left beside the icon and the switch, so a
+    // subtitle that wraps grows the popup instead of cropping its bottom.
+    SetUseDefaultFillLayout(true);
+    auto* row = AddChildView(std::make_unique<RichControlsContainerView>());
+    row->SetIcon(ui::ImageModel::FromVectorIcon(vector_icons::kAdOffIcon,
+                                                ui::kColorIcon, kIconSize));
+    row->SetTitle(u"Ad blocker");
+    subtitle_ = row->AddSecondaryLabel(std::u16string());
 
-    AddChildView(std::make_unique<views::ImageView>(
-        ui::ImageModel::FromVectorIcon(vector_icons::kAdOffIcon,
-                                       ui::kColorIcon, kIconSize)));
-
-    auto* labels = AddChildView(std::make_unique<views::View>());
-    labels->SetLayoutManager(std::make_unique<views::BoxLayout>(
-        views::BoxLayout::Orientation::kVertical));
-    box->SetFlexForView(labels, 1);
-    auto* title = labels->AddChildView(std::make_unique<views::Label>(
-        u"Ad blocker", views::style::CONTEXT_LABEL,
-        views::style::STYLE_BODY_3_MEDIUM));
-    title->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-    title->SetEnabledColor(kColorPageInfoForeground);
-    subtitle_ = labels->AddChildView(std::make_unique<views::Label>(
-        std::u16string(), views::style::CONTEXT_LABEL,
-        views::style::STYLE_BODY_4));
-    subtitle_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-    subtitle_->SetEnabledColor(kColorPageInfoSubtitleForeground);
-    subtitle_->SetMultiLine(true);
-
-    toggle_ = AddChildView(std::make_unique<views::ToggleButton>(
-        base::BindRepeating(&AdBlockPageInfoRow::OnToggled,
-                            base::Unretained(this))));
+    auto toggle = std::make_unique<views::ToggleButton>(base::BindRepeating(
+        &AdBlockPageInfoRow::OnToggled, base::Unretained(this)));
+    toggle->SetPreferredSize(gfx::Size(toggle->GetPreferredSize().width(),
+                                       row->GetFirstLineHeight()));
+    toggle->SetProperty(
+        views::kMarginsKey,
+        gfx::Insets::TLBR(0,
+                          ChromeLayoutProvider::Get()->GetDistanceMetric(
+                              views::DISTANCE_RELATED_LABEL_HORIZONTAL),
+                          0, 0));
+    toggle_ = row->AddControl(std::move(toggle));
     toggle_->GetViewAccessibility().SetName(u"Ad blocker");
     Update();
   }
@@ -127,8 +116,7 @@ void AddAdBlockPageInfoRow(views::View* container,
   }
   const GURL& url = contents->GetLastCommittedURL();
   if (!url.SchemeIsHTTPOrHTTPS() ||
-      !g_browser_process->local_state()->GetBoolean(
-          adblock::prefs::kEnabled)) {
+      !g_browser_process->local_state()->GetBoolean(adblock::prefs::kEnabled)) {
     return;
   }
   HostContentSettingsMap* settings =
