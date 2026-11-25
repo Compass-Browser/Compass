@@ -1,49 +1,90 @@
-:root {
-  --bg: #f6f7fa; --surface: #ffffff; --text: #16181d; --muted: #5d6370;
-  --line: #e2e5eb; --blue: #2f6bff; --chip: #eef1f6; --accent: #f23d57;
-  color-scheme: light;
+/* Every page but the homepage: the changelogs, compare, privacy, terms and
+   the small pages (boost, join, oauth). Their layout; colors, fonts, the top
+   bar, buttons and footer come from /site.css, linked first. */
+main { max-width: 820px; margin: 0 auto; padding: 72px 24px 32px; }
+main.wide { max-width: 1140px; }
+
+/* The page's heading: an eyebrow (.eyebrow, site.css), the title, then an
+   intro, the platform switcher or the date. */
+.page-head { margin: 0 0 48px; }
+.page-head .eyebrow { margin: 0 0 14px; }
+h1 {
+  font-size: clamp(40px, 6.4vw, 64px); line-height: 1.02; margin: 0 0 18px;
+  letter-spacing: -0.045em; font-weight: 600; overflow-wrap: anywhere;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f1115; --surface: #181b21; --text: #eceef3; --muted: #9aa1ae;
-    --line: #2a2e37; --blue: #7aa2ff; --chip: #232731; --accent: #ff5d70;
-    color-scheme: dark;
-  }
+.intro, .page-head > p { color: var(--muted); font-size: 18px; line-height: 1.55; margin: 0 0 16px; max-width: 680px; }
+.page-head > p:last-child { margin-bottom: 0; }
+.meta { color: var(--muted); font: 12.5px/1.5 var(--mono); margin: 4px 0 12px; }
+.page-head > .meta { font-size: 13px; }
+
+/* The changelogs' platforms, as a segmented control. */
+.platforms {
+  display: inline-flex; gap: 4px; margin: 6px 0 22px; padding: 4px;
+  border-radius: 999px; background: var(--chip);
+  /* One row; on a phone it scrolls sideways instead of wrapping. */
+  max-width: 100%; overflow-x: auto; scrollbar-width: none; white-space: nowrap;
 }
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0; background: var(--bg); color: var(--text);
-  font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-}
-a { color: var(--blue); }
-main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
-.back { margin: 0 0 24px; font-size: 14px; }
-.back a { color: var(--muted); text-decoration: none; }
-.back a::before { content: "‹ "; }
-h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.15; margin: 0 0 16px; letter-spacing: -0.02em; }
-.platforms { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.platforms::-webkit-scrollbar { display: none; }
 .platforms a {
-  padding: 6px 14px; border-radius: 999px; background: var(--chip);
-  color: var(--text); text-decoration: none; font-size: 14px; font-weight: 500;
+  padding: 7px 16px; border-radius: 999px; color: var(--muted);
+  text-decoration: none; font-size: 14px; font-weight: 500;
 }
-.platforms a[aria-current="page"] { background: var(--text); color: var(--bg); }
-.intro { color: var(--muted); margin: 0 0 28px; }
-article {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
-  padding: 20px 22px; margin: 0 0 16px;
+.platforms a:hover { color: var(--text); }
+.platforms a[aria-current="page"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
+
+/* A release: its version, badge and date on the left, what changed on the
+   right; one column on narrow screens. */
+article { padding: 36px 0; border-top: 1px solid var(--line); }
+article > h2 { font-size: 21px; letter-spacing: -0.02em; margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--mono); font-weight: 500; }
+article > .meta { margin: 6px 0 16px; }
+@media (min-width: 900px) {
+  main:has(> article) { max-width: 1040px; }
+  /* Floats stack the version, its badge and the date in the left column
+     whatever their height; the notes flow beside them. */
+  article { display: flow-root; }
+  article > h2, article > .meta { float: left; clear: left; width: 220px; }
+  article > h2 { flex-direction: column; align-items: flex-start; gap: 8px; }
+  article > :not(h2):not(.meta) { margin-left: 268px; }
 }
-h2 { font-size: 20px; margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.meta { color: var(--muted); font-size: 14px; margin: 2px 0 12px; }
-ul { margin: 0; padding-left: 20px; }
-li { margin: 0 0 6px; }
+ul, ol { margin: 0 0 12px; padding-left: 20px; }
+li { margin: 0 0 8px; line-height: 1.6; }
 li:last-child { margin-bottom: 0; }
-p.lead { margin: 0 0 10px; font-weight: 600; }
-code { font-size: 14px; }
+li::marker { color: var(--muted); }
+p.lead { margin: 0 0 14px; font-weight: 600; line-height: 1.55; }
+code { font-size: .88em; background: var(--chip); padding: 1px 5px; border-radius: 5px; }
 .badge {
-  font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
-  background: var(--chip); color: var(--muted);
+  font: 500 11px var(--mono); padding: 3px 9px; border-radius: 999px;
+  background: var(--chip); color: var(--muted); letter-spacing: 0;
 }
-.badge.stable { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
-.badge.canary { background: color-mix(in srgb, #e8a400 18%, transparent); color: #b57f00; }
-@media (prefers-color-scheme: dark) { .badge.canary { color: #f2c14e; } }
+.badge.stable { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent-ink); }
+.badge.canary { background: color-mix(in srgb, #e8a400 18%, transparent); color: #8a5f00; }
+
+/* Documents (privacy, terms): sections under rules, "In short" as a card. */
+.doc { font-size: 17px; line-height: 1.65; }
+.doc h2 { font-size: 24px; letter-spacing: -0.025em; margin: 48px 0 12px; padding-top: 28px; border-top: 1px solid var(--line); }
+.doc p, .doc li { margin: 0 0 12px; }
+.summary {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+  padding: 22px 26px; font-size: 17px;
+}
+.summary p:last-child { margin-bottom: 0; }
+
+/* The small pages' cards and buttons (boost, join, oauth). */
+.open {
+  background: color-mix(in srgb, var(--blue) 7%, var(--surface)); border: 1px solid var(--line);
+  border-radius: 20px; padding: 22px 26px; margin: 0 0 20px;
+}
+.open p { margin: 0 0 10px; }
+.open p:last-child { margin: 0; }
+main > article:not(:has(> h2)), .card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+  padding: 22px 26px; margin: 0 0 20px; display: block;
+}
+.note { color: var(--muted); font-size: 14px; }
+.buttons, .downloads { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.buttons a, .buttons button, .downloads a {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 999px;
+  background: var(--chip); border: 0; color: var(--text); text-decoration: none;
+  font: 500 14px var(--sans); cursor: pointer;
+}
+.buttons .primary, .downloads a:first-child { background: var(--accent); color: var(--accent-text); font-weight: 600; }

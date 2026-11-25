@@ -9,21 +9,10 @@
 <meta name="description" content="A Boost someone shared: CSS and JavaScript that Compass Browser adds to a site.">
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="/compass.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/changelog/changelog.css">
 <style>
   .boost-site { color: var(--muted); margin: -8px 0 20px; font-size: 18px; overflow-wrap: anywhere; }
-  .open {
-    background: color-mix(in srgb, var(--blue) 10%, transparent);
-    border-radius: 18px; padding: 18px 22px; margin: 0 0 16px;
-  }
-  .open p { margin: 0 0 10px; }
-  .open p:last-child { margin: 0; }
-  .downloads { display: flex; flex-wrap: wrap; gap: 8px; }
-  .downloads a {
-    padding: 6px 14px; border-radius: 999px; background: var(--surface);
-    border: 1px solid var(--line); color: var(--text); text-decoration: none;
-    font-size: 14px; font-weight: 500;
-  }
   .warning {
     background: color-mix(in srgb, var(--accent) 12%, transparent);
     border-radius: 12px; padding: 12px 16px; margin: 0 0 16px;
@@ -41,10 +30,25 @@
 <script type="module" src="/boost-page.js"></script>
 </head>
 <body>
+<header class="site-nav">
+  <nav class="wrap" aria-label="Main">
+    <a class="brand" href="/"><img src="/compass.svg" alt="" width="30" height="30">Compass</a>
+    <div class="links">
+      <a href="/#features">Features</a>
+      <a href="/#mobile">Mobile</a>
+      <a href="/#privacy">Privacy</a>
+      <a href="/compare">Compare</a>
+      <a href="/changelog/mac">Changelog</a>
+    </div>
+    <div class="end">
+      <a href="https://github.com/Compass-Browser/Compass">GitHub</a>
+      <a class="button small" href="/#download">Download</a>
+    </div>
+  </nav>
+</header>
 <main>
-<p class="back"><a href="/">Compass Browser</a></p>
-
 <div id="boost" hidden>
+  <p class="eyebrow">Shared Boost</p>
   <h1 id="name"></h1>
   <p class="boost-site">for <span id="site"></span></p>
   <div class="open">
@@ -66,6 +70,7 @@
 </div>
 
 <div id="about">
+  <p class="eyebrow">Shared Boost</p>
   <h1>Boosts</h1>
   <p id="error" class="error" hidden></p>
   <p class="intro">A Boost changes how a site looks or works: CSS and JavaScript that Compass Browser adds to every page of that site. Make one in Compass (Settings &rarr; Boosts, or &ldquo;Boost this site&rdquo; in the command bar), or ask Claude to make one. Share a Boost from its Share button, and whoever opens the link in Compass can add it.</p>
@@ -73,5 +78,15 @@
   <p class="downloads"><a href="/#download">Download Compass</a></p>
 </div>
 </main>
+<footer class="site-footer">
+  <div>
+    <span class="name">Compass Browser</span>
+    <a href="https://github.com/Compass-Browser/Compass">Source code</a>
+    <a href="/compare">Compare</a>
+    <a href="/changelog/mac">Changelog</a>
+    <a href="/privacy">Privacy</a>
+    <span class="note">No cookies. No trackers.</span>
+  </div>
+</footer>
 </body>
 </html>

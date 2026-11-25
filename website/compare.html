@@ -7,12 +7,15 @@
 <meta name="description" content="How Compass Browser compares with Arc, Dia, Crest, Ardia, Cra, Zen, Vivaldi, Edge, Orion and the other browsers people move to from Arc.">
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="/compass.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/changelog/changelog.css">
 <style>
 main { max-width: 1100px; }
 main > p, main > ul, main > h2, main > h3 { max-width: 720px; }
-h2 { margin: 36px 0 12px; }
-h3 { margin: 24px 0 8px; font-size: 17px; }
+h2 { font-size: 26px; letter-spacing: -0.025em; font-weight: 600; margin: 56px 0 14px; }
+h3 { margin: 28px 0 8px; font-size: 18px; letter-spacing: -0.01em; }
+.table { margin: 0 0 20px; border-radius: 18px; }
+thead th { font-family: var(--mono); font-weight: 500; font-size: 12.5px; }
 .table {
   overflow-x: auto; margin: 0 0 16px; border: 1px solid var(--line);
   border-radius: 14px; background: var(--surface);
@@ -38,10 +41,28 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 </style>
 </head>
 <body>
+<header class="site-nav">
+  <nav class="wrap" aria-label="Main">
+    <a class="brand" href="/"><img src="/compass.svg" alt="" width="30" height="30">Compass</a>
+    <div class="links">
+      <a href="/#features">Features</a>
+      <a href="/#mobile">Mobile</a>
+      <a href="/#privacy">Privacy</a>
+      <a href="/compare" aria-current="page">Compare</a>
+      <a href="/changelog/mac">Changelog</a>
+    </div>
+    <div class="end">
+      <a href="https://github.com/Compass-Browser/Compass">GitHub</a>
+      <a class="button small" href="/#download">Download</a>
+    </div>
+  </nav>
+</header>
 <main>
-<p class="back"><a href="/">Compass Browser</a></p>
+<header class="page-head">
+<p class="eyebrow">Compare</p>
 <h1>Compass compared with other browsers</h1>
 <p>How Compass compares with Arc, its successor Dia, and the browsers people move to from Arc. Written on 10 November 2026; the other columns checked on 14 November 2026, the Ardia and Cra columns added and the Compass column updated on 25 November 2026. Other browsers change quickly, so check their sites before relying on a cell.</p>
+</header>
 <ul><li>The Compass column comes from this repository's code (<code>main</code>).</li><li>The Crest column comes from its site, changelog and repository; the Ardia and Cra columns from their repositories (25 November 2026).</li><li>The other columns come from public reviews and the vendors' sites.</li></ul>
 <p class="legend">✅ yes · ~ partial or different · ❌ no · ? not confirmed by any source found · — not applicable</p>
 <h2>Arc's status</h2>
@@ -843,5 +864,15 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 <ul><li>Arc: <a href="https://arc.net/">farewell page</a>, <a href="https://techcrunch.com/2026/10/22/arc-browser-sunsets-december-22-as-the-browser-company-doubles-down-on-dia/">TechCrunch</a>, <a href="https://www.androidauthority.com/arc-browser-shutting-down-december-2026-3726900/">Android Authority</a>, <a href="https://cyberinsider.com/arc-browser-to-stop-working-on-december-22-as-team-shifts-to-dia/">CyberInsider</a>, <a href="https://en.wikipedia.org/wiki/Arc_(web_browser">Wikipedia</a>)</li><li>Dia: <a href="https://www.diabrowser.com/updates">release log</a>, <a href="https://en.wikipedia.org/wiki/Dia_(web_browser">Wikipedia</a>), <a href="https://techcrunch.com/2025/11/03/dias-ai-browser-starts-adding-arcs-greatest-hits-to-its-feature-set">TechCrunch</a></li><li>Crest: <a href="https://crestbrowser.com/">crestbrowser.com</a>, <a href="https://crestbrowser.com/guides/engines/">engines</a>, <a href="https://crestbrowser.com/guides/sync-across-devices/">sync</a>, <a href="https://github.com/pauljoda/Crest">repository</a>, <a href="https://github.com/pauljoda/Crest/blob/main/CHANGELOG.md">changelog</a></li><li>Ardia: <a href="https://ardia.dev">ardia.dev</a>, <a href="https://ardia.dev/release-notes">release notes</a>, <a href="https://github.com/ardia-browser/ardia">repository</a>, <a href="https://github.com/ardia-browser/plugins">plugins</a>, <a href="https://github.com/ardia-browser/ardia/blob/main/docs/dia-feature-parity.md">Dia feature parity</a></li><li>Cra: <a href="https://crabrowser.app">crabrowser.app</a>, <a href="https://crabrowser.app/release-notes">release notes</a>, <a href="https://github.com/VictorKildahl/cra">repository</a>, <a href="https://github.com/VictorKildahl/cra/releases">releases</a>, <a href="https://apps.apple.com/app/id6834101298">App Store</a></li><li>Phi: <a href="https://phibrowser.com/">phibrowser.com</a>, <a href="https://phibrowser.com/help/layouts/">layouts</a>, <a href="https://phibrowser.com/release-note/2.8.0">2.8.0</a>, <a href="https://phibrowser.com/release-note/2.10.0">2.10.0</a>, <a href="https://phibrowser.com/release-note/2.12.0">2.12.0</a>, <a href="https://phibrowser.com/release-note/2.13.0">2.13.0</a>, <a href="https://phibrowser.com/release-note/2.14.0">2.14.0</a>, <a href="https://phibrowser.com/release-note/2.17.0">2.17.0</a></li><li>Zen: <a href="https://zen-browser.app/release-notes">release notes</a>, <a href="https://alternativeto.net/news/2026/6/zen-browser-1-21b-adds-space-routing-and-updates-to-firefox-151-0-4/">Space Routing in 1.21b</a></li><li>Lilo: <a href="https://getlilo.app/">getlilo.app</a></li><li>Orion: <a href="https://orionbrowser.com/">orionbrowser.com</a>, <a href="https://orionbrowser.com/platforms/macos">macOS features</a>, <a href="https://orionbrowser.com/platforms/ios">iOS features</a>, <a href="https://orionbrowser.com/orionplus">Orion+</a>, <a href="https://blog.kagi.com/update-orion-linux-windows">Linux and Windows update</a>, <a href="https://alternativeto.net/news/2026/6/orion-1-1-brings-multi-account-containers-page-translation-redesigned-settings-and-more/">1.1 release</a>, <a href="https://fossforce.com/2026/08/no-ads-no-telemetry-no-ai-agent-orion-browser-does-linux/">FOSS Force</a></li><li>Vivaldi, SigmaOS and others: <a href="https://www.opensourcealternatives.to/alternative-to/arc">Open Source Alternatives</a>, <a href="https://go.tabbit.com/browsers-with-workspaces-like-arc">Tabbit migration guide</a></li></ul>
 <p class="legend">From <a href="https://github.com/Compass-Browser/Compass/blob/main/COMPARE.md">COMPARE.md</a> in the source code.</p>
 </main>
+<footer class="site-footer">
+  <div>
+    <span class="name">Compass Browser</span>
+    <a href="https://github.com/Compass-Browser/Compass">Source code</a>
+    <a href="/compare">Compare</a>
+    <a href="/changelog/mac">Changelog</a>
+    <a href="/privacy">Privacy</a>
+    <span class="note">No cookies. No trackers.</span>
+  </div>
+</footer>
 </body>
 </html>

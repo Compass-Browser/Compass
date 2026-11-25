@@ -1,0 +1,201 @@
+{
+ "version": 2,
+ "active": "0626f605-77f5-5fcf-bc4f-14d1c5da1548",
+ "spaces": [
+  {
+   "id": "0626f605-77f5-5fcf-bc4f-14d1c5da1548",
+   "name": "Personal",
+   "color": "blue",
+   "archive_after_hours": 0,
+   "pinned": [
+    {
+     "id": "2b9c3c5f-8621-508e-b663-3973782bed6b",
+     "type": "folder",
+     "title": "Trip to Lisbon",
+     "children": [
+      {
+       "id": "77243c76-e9c1-513b-a0e3-fcdd7b74ceca",
+       "type": "tab",
+       "title": "Lisbon",
+       "url": "https://en.wikipedia.org/wiki/Lisbon"
+      },
+      {
+       "id": "fdd4d920-aec6-558b-8983-7173daa02ec3",
+       "type": "tab",
+       "title": "Belém Tower",
+       "url": "https://en.wikipedia.org/wiki/Bel%C3%A9m_Tower"
+      },
+      {
+       "id": "28f3d984-2011-5cd2-9f0f-51d83d4648cf",
+       "type": "tab",
+       "title": "Sintra",
+       "url": "https://en.wikipedia.org/wiki/Sintra"
+      }
+     ]
+    },
+    {
+     "id": "890223e7-4725-5acf-9caa-6049f2c2d78c",
+     "type": "tab",
+     "title": "iPhone",
+     "url": "https://www.apple.com/iphone/"
+    },
+    {
+     "id": "fb1cc455-a563-55af-9014-6407f96205c8",
+     "type": "tab",
+     "title": "Compass Browser",
+     "url": "https://compassbrowser.org"
+    }
+   ],
+   "today": [
+    {
+     "id": "0e75c996-2b6b-5f12-95b9-68a890d840bc",
+     "type": "tab",
+     "title": "Lisbon - Wikipedia",
+     "url": "https://en.wikipedia.org/wiki/Lisbon"
+    },
+    {
+     "id": "7eb24d4c-799b-55e6-b02b-eb97d19b9dc2",
+     "type": "tab",
+     "title": "Tram 28",
+     "url": "https://en.wikipedia.org/wiki/Tram_28"
+    },
+    {
+     "id": "f01912e0-a129-51bd-8ee6-a70b557e109b",
+     "type": "tab",
+     "title": "Fado",
+     "url": "https://en.wikipedia.org/wiki/Fado"
+    },
+    {
+     "id": "af0b7f45-303f-51c4-b14e-5dfe11fb041b",
+     "type": "tab",
+     "title": "Pastel de nata",
+     "url": "https://en.wikipedia.org/wiki/Pastel_de_nata"
+    }
+   ],
+   "archive": []
+  },
+  {
+   "id": "2fb2e3f9-0da2-5171-985f-da95c0b3edc6",
+   "name": "Work",
+   "color": "purple",
+   "archive_after_hours": 0,
+   "pinned": [
+    {
+     "id": "52c76247-3fa0-5102-be54-4f8fabb2f2bb",
+     "type": "folder",
+     "title": "Compass",
+     "children": [
+      {
+       "id": "4cff6965-1c1c-526d-bf9a-e66b327fe90d",
+       "type": "tab",
+       "title": "Compass-Browser/Compass",
+       "url": "https://github.com/Compass-Browser/Compass"
+      },
+      {
+       "id": "b3fc09ea-c30d-5879-bde5-40275dcde2b7",
+       "type": "tab",
+       "title": "Compare browsers",
+       "url": "https://compassbrowser.org/compare"
+      }
+     ]
+    },
+    {
+     "id": "5cd2eaa8-69b3-57c3-bb8e-c2765fbb6a48",
+     "type": "tab",
+     "title": "WebKit",
+     "url": "https://developer.apple.com/documentation/webkit"
+    },
+    {
+     "id": "1daee5a4-5835-5940-9b44-394e5b3a4043",
+     "type": "tab",
+     "title": "Swift.org",
+     "url": "https://www.swift.org"
+    }
+   ],
+   "today": [
+    {
+     "id": "4a59e101-c34b-5bc3-bb41-552fcd0e29af",
+     "type": "split",
+     "title": "",
+     "children": [
+      {
+       "id": "3b27d3e5-d4be-5dee-a2d6-e4f888204b99",
+       "type": "tab",
+       "title": "WebKit Blog",
+       "url": "https://webkit.org/blog/"
+      },
+      {
+       "id": "7e09a473-e6a1-53f0-9076-cd9ac9c8b0da",
+       "type": "tab",
+       "title": "CSS | MDN",
+       "url": "https://developer.mozilla.org/en-US/docs/Web/CSS"
+      }
+     ]
+    },
+    {
+     "id": "3b27d3e5-d4be-5dee-a2d6-e4f888204b99",
+     "type": "tab",
+     "title": "WebKit Blog",
+     "url": "https://webkit.org/blog/"
+    },
+    {
+     "id": "7e09a473-e6a1-53f0-9076-cd9ac9c8b0da",
+     "type": "tab",
+     "title": "CSS | MDN",
+     "url": "https://developer.mozilla.org/en-US/docs/Web/CSS"
+    }
+   ],
+   "archive": []
+  },
+  {
+   "id": "4e89d174-1415-5f8b-ad4d-766957aa22d1",
+   "name": "Reading",
+   "color": "green",
+   "archive_after_hours": 0,
+   "pinned": [
+    {
+     "id": "dc744ace-42f2-5e6f-80f7-63e1d7445e7d",
+     "type": "tab",
+     "title": "Compass",
+     "url": "https://en.wikipedia.org/wiki/Compass"
+    }
+   ],
+   "today": [
+    {
+     "id": "65182a7f-eee3-55ef-8c36-77dfbc5feebb",
+     "type": "tab",
+     "title": "Age of Discovery",
+     "url": "https://en.wikipedia.org/wiki/Age_of_Discovery"
+    }
+   ],
+   "archive": []
+  }
+ ],
+ "favorites": [
+  {
+   "id": "b7589d9a-bc4c-5301-b2ec-1c2e962bafa4",
+   "type": "tab",
+   "title": "Wikipedia",
+   "url": "https://en.wikipedia.org/wiki/Main_Page"
+  },
+  {
+   "id": "2cf35edd-489b-5067-b7cd-53376d4ac8d7",
+   "type": "tab",
+   "title": "GitHub",
+   "url": "https://github.com"
+  },
+  {
+   "id": "96cce1b8-14d0-54dd-b65c-8b1b557cc001",
+   "type": "tab",
+   "title": "Apple Developer",
+   "url": "https://developer.apple.com"
+  },
+  {
+   "id": "af8246c9-177d-50b1-9a11-5f174279f387",
+   "type": "tab",
+   "title": "Hacker News",
+   "url": "https://news.ycombinator.com"
+  }
+ ],
+ "link_rules": []
+}

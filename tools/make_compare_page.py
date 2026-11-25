@@ -23,12 +23,15 @@ HEAD = """<!doctype html>
 <meta name="description" content="How Compass Browser compares with Arc, Dia, Crest, Ardia, Cra, Zen, Vivaldi, Edge, Orion and the other browsers people move to from Arc.">
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="/compass.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/changelog/changelog.css">
 <style>
 main { max-width: 1100px; }
 main > p, main > ul, main > h2, main > h3 { max-width: 720px; }
-h2 { margin: 36px 0 12px; }
-h3 { margin: 24px 0 8px; font-size: 17px; }
+h2 { font-size: 26px; letter-spacing: -0.025em; font-weight: 600; margin: 56px 0 14px; }
+h3 { margin: 28px 0 8px; font-size: 18px; letter-spacing: -0.01em; }
+.table { margin: 0 0 20px; border-radius: 18px; }
+thead th { font-family: var(--mono); font-weight: 500; font-size: 12.5px; }
 .table {
   overflow-x: auto; margin: 0 0 16px; border: 1px solid var(--line);
   border-radius: 14px; background: var(--surface);
@@ -54,12 +57,37 @@ tr.group span { display: inline-block; position: sticky; left: 10px; }
 </style>
 </head>
 <body>
+<header class="site-nav">
+  <nav class="wrap" aria-label="Main">
+    <a class="brand" href="/"><img src="/compass.svg" alt="" width="30" height="30">Compass</a>
+    <div class="links">
+      <a href="/#features">Features</a>
+      <a href="/#mobile">Mobile</a>
+      <a href="/#privacy">Privacy</a>
+      <a href="/compare" aria-current="page">Compare</a>
+      <a href="/changelog/mac">Changelog</a>
+    </div>
+    <div class="end">
+      <a href="https://github.com/Compass-Browser/Compass">GitHub</a>
+      <a class="button small" href="/#download">Download</a>
+    </div>
+  </nav>
+</header>
 <main>
-<p class="back"><a href="/">Compass Browser</a></p>
 """
 
 TAIL = """<p class="legend">From <a href="https://github.com/Compass-Browser/Compass/blob/main/COMPARE.md">COMPARE.md</a> in the source code.</p>
 </main>
+<footer class="site-footer">
+  <div>
+    <span class="name">Compass Browser</span>
+    <a href="https://github.com/Compass-Browser/Compass">Source code</a>
+    <a href="/compare">Compare</a>
+    <a href="/changelog/mac">Changelog</a>
+    <a href="/privacy">Privacy</a>
+    <span class="note">No cookies. No trackers.</span>
+  </div>
+</footer>
 </body>
 </html>
 """
@@ -163,6 +191,11 @@ def main() -> None:
   body = convert(md)
   # The legend paragraph reads better smaller.
   body = body.replace('<p>✅ yes', '<p class="legend">✅ yes', 1)
+  # The title and the first paragraph under an eyebrow, as the other pages.
+  start = body.index('<h1>')
+  end = body.index('</p>', start) + len('</p>')
+  body = (body[:start] + '<header class="page-head">\n<p class="eyebrow">Compare</p>\n'
+          + body[start:end] + '\n</header>' + body[end:])
   (ROOT / 'website' / 'compare.html').write_text(HEAD + body + '\n' + TAIL)
 
 

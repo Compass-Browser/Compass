@@ -4,29 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Compass Browser Privacy Policy</title>
-<style>
-  :root { --bg: #ffffff; --fg: #1d1d1f; --muted: #6e6e73; --rule: #e5e5ea; --accent: #2f6fe4; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #111113; --fg: #f2f2f7; --muted: #a1a1a6; --rule: #2c2c2e; --accent: #6ea0ff; }
-  }
-  body { margin: 0; background: var(--bg); color: var(--fg);
-    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
-  main { max-width: 720px; margin: 0 auto; padding: 40px 20px 64px; }
-  h1 { font-size: 32px; line-height: 1.2; margin: 0 0 4px; }
-  h2 { font-size: 21px; margin: 36px 0 8px; padding-top: 20px; border-top: 1px solid var(--rule); }
-  p, li { margin: 0 0 10px; }
-  ul { padding-left: 22px; }
-  .meta { color: var(--muted); margin-bottom: 28px; }
-  .summary { background: color-mix(in srgb, var(--accent) 9%, transparent); border-radius: 14px; padding: 16px 20px; }
-  .summary p:last-child { margin-bottom: 0; }
-  a { color: var(--accent); }
-  code { font-size: 15px; }
-</style>
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="/compass.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/changelog/changelog.css">
 </head>
 <body>
-<main>
+<header class="site-nav">
+  <nav class="wrap" aria-label="Main">
+    <a class="brand" href="/"><img src="/compass.svg" alt="" width="30" height="30">Compass</a>
+    <div class="links">
+      <a href="/#features">Features</a>
+      <a href="/#mobile">Mobile</a>
+      <a href="/#privacy">Privacy</a>
+      <a href="/compare">Compare</a>
+      <a href="/changelog/mac">Changelog</a>
+    </div>
+    <div class="end">
+      <a href="https://github.com/Compass-Browser/Compass">GitHub</a>
+      <a class="button small" href="/#download">Download</a>
+    </div>
+  </nav>
+</header>
+<main class="doc">
+<header class="page-head">
+<p class="eyebrow">Privacy policy</p>
 <h1>Compass Browser Privacy Policy</h1>
 <p class="meta">Effective 24 November 2026</p>
+</header>
 
 <div class="summary">
 <p><strong>In short:</strong> Compass Browser has no ads, no analytics and no tracking. What you browse stays on your iPhone, iPad or Android device. If you turn on sync, your data is encrypted on your devices before it leaves them, and the sync server can't read it.</p>
@@ -108,5 +113,15 @@
 <h2>Contact</h2>
 <p>Questions about privacy: on iPhone or iPad, send feedback from the app through TestFlight (take a screenshot, then Share Beta Feedback). On Android, write to the contact email on Compass Browser's Google Play page.</p>
 </main>
+<footer class="site-footer">
+  <div>
+    <span class="name">Compass Browser</span>
+    <a href="https://github.com/Compass-Browser/Compass">Source code</a>
+    <a href="/compare">Compare</a>
+    <a href="/changelog/mac">Changelog</a>
+    <a href="/privacy">Privacy</a>
+    <span class="note">No cookies. No trackers.</span>
+  </div>
+</footer>
 </body>
 </html>

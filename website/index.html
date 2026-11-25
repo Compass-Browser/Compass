@@ -4,122 +4,408 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Compass Browser</title>
-<meta name="description" content="Compass is an open-source Arc alternative built on Chromium, with a sidebar of spaces, pinned tabs and folders, and sync without an account. Download it for Mac, Windows, Linux, iPhone and iPad.">
+<meta name="description" content="Compass is an open-source Arc alternative built on Chromium, with a sidebar of spaces, pinned tabs and folders, and sync without an account. Download it for Mac, Windows, Linux, iPhone, iPad and Android.">
+<meta name="theme-color" content="#fbfaf7">
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="compass.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="compass-256.png">
+<link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/site.css">
 <meta property="og:title" content="Compass Browser">
 <meta property="og:description" content="An open-source Arc alternative built on Chromium, with spaces, pinned tabs and private sync.">
 <meta property="og:image" content="https://compassbrowser.org/compass-256.png">
 <style>
-:root {
-  --bg: #f6f7fa;
-  --surface: #ffffff;
-  --text: #16181d;
-  --muted: #5d6370;
-  --line: #e2e5eb;
-  --accent: #f23d57;
-  --accent-text: #ffffff;
-  --blue: #2f6bff;
-  --chip: #eef1f6;
-  color-scheme: light;
+/* Hero */
+.hero { padding-top: 88px; text-align: center; }
+.pill {
+  display: inline-flex; align-items: center; gap: 10px; font: 13px var(--mono);
+  text-decoration: none; padding: 7px 14px 7px 8px; border-radius: 999px;
+  background: var(--chip); color: var(--text);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f1115;
-    --surface: #181b21;
-    --text: #eceef3;
-    --muted: #9aa1ae;
-    --line: #2a2e37;
-    --accent: #ff5d70;
-    --accent-text: #16181d;
-    --blue: #7aa2ff;
-    --chip: #232731;
-    color-scheme: dark;
-  }
+.pill b { background: var(--accent); color: var(--accent-text); border-radius: 999px; padding: 2px 9px; font-size: 11px; font-weight: 500; }
+h1 {
+  font-size: clamp(46px, 8.4vw, 104px); line-height: .96; letter-spacing: -0.055em;
+  font-weight: 600; margin: 28px auto 22px; max-width: 980px;
 }
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-}
-a { color: var(--blue); }
-main { max-width: 980px; margin: 0 auto; padding: 0 16px; }
-header.hero { text-align: center; padding: 72px 0 40px; }
-header.hero img { width: 112px; height: 112px; border-radius: 26px; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
-h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.1; margin: 24px 0 12px; letter-spacing: -0.02em; }
-.lede { font-size: clamp(17px, 2.4vw, 20px); color: var(--muted); max-width: 620px; margin: 0 auto; }
-.hero .primary { margin-top: 28px; }
-.button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 12px 22px; border-radius: 999px; border: 0;
-  background: var(--accent); color: var(--accent-text);
-  font-weight: 600; font-size: 16px; text-decoration: none;
-}
-.button:hover { filter: brightness(1.05); }
-.button.secondary { background: var(--chip); color: var(--text); }
-.button[aria-disabled="true"] { opacity: .5; pointer-events: none; }
-.hint { color: var(--muted); font-size: 14px; margin-top: 10px; min-height: 1.4em; }
+h1 .serif { color: var(--accent-ink); }
+.lede { font-size: clamp(17px, 2.2vw, 21px); line-height: 1.55; color: var(--muted); max-width: 640px; margin: 0 auto; }
+.cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 34px; }
+.hint { font: 12.5px var(--mono); color: var(--muted); margin: 16px 0 0; min-height: 1.5em; }
+.strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 34px; margin-top: 28px; font: 13px var(--mono); color: var(--muted); }
 
-h2 { font-size: 26px; margin: 56px 0 20px; letter-spacing: -0.01em; }
+/* The product shots. The phones show captured screenshots (img/, made by
+   tools/website/capture_*.sh), as do the Mac windows. */
+.wall {
+  position: relative; margin-top: 64px; border-radius: 32px; padding: 64px 200px 120px 64px; overflow: hidden;
+  background:
+    radial-gradient(60% 70% at 10% 8%, #ffc4cc 0, transparent 70%),
+    radial-gradient(55% 65% at 92% 18%, #c6ccff 0, transparent 70%),
+    radial-gradient(60% 60% at 50% 110%, #ffd9b8 0, transparent 70%),
+    #f6f0ea;
+}
+[data-theme="dark"] .wall {
+  background:
+    radial-gradient(60% 70% at 12% 10%, #5a1a2c 0, transparent 70%),
+    radial-gradient(55% 65% at 92% 20%, #1e2a7a 0, transparent 70%),
+    radial-gradient(60% 60% at 50% 110%, #3b1650 0, transparent 70%),
+    #12131a;
+}
+.win {
+  background: var(--side); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; text-align: left;
+  box-shadow: 0 40px 90px -30px var(--shadow), 0 12px 30px -12px var(--shadow);
+}
+.side { width: 224px; flex: none; padding: 14px 10px; display: flex; flex-direction: column; gap: 8px; }
+.dots { display: flex; gap: 7px; padding: 2px 6px 6px; }
+.dots i { width: 11px; height: 11px; border-radius: 50%; }
+.dots i:nth-child(1) { background: #ff5f57; } .dots i:nth-child(2) { background: #febc2e; } .dots i:nth-child(3) { background: #28c840; }
+.url { height: 30px; border-radius: 8px; background: var(--side-chip); display: flex; align-items: center; padding: 0 10px; font-size: 12px; color: var(--muted); }
+.pins { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.pin { height: 34px; border-radius: 8px; background: var(--side-chip); display: flex; align-items: center; justify-content: center; }
+.fav { width: 16px; height: 16px; border-radius: 4px; color: #fff; font-size: 9px; font-weight: 700; line-height: 16px; text-align: center; flex: none; }
+.tab { height: 30px; border-radius: 7px; display: flex; align-items: center; gap: 8px; padding: 0 8px; font-size: 12.5px; white-space: nowrap; overflow: hidden; }
+.tab.on { background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+.tab.in1 { padding-left: 26px; } .tab.in2 { padding-left: 46px; }
+.tab svg { width: 14px; height: 14px; flex: none; }
+.lbl { font-size: 11px; color: var(--muted); padding: 8px 8px 0; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.sq { width: 8px; height: 8px; border-radius: 3px; }
+.spacebar { margin-top: auto; display: flex; gap: 8px; justify-content: center; padding-top: 10px; }
+.spacebar i { width: 7px; height: 7px; border-radius: 50%; background: var(--skel); }
+.pane { flex: 1; min-width: 0; margin: 8px 8px 8px 0; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); padding: 28px; display: flex; flex-direction: column; gap: 12px; }
+.pane .title { font-size: 26px; font-weight: 600; letter-spacing: -0.03em; }
+.bar { height: 9px; border-radius: 5px; background: var(--skel); }
+.block { border-radius: 10px; }
+.kicker { font: 11px var(--mono); color: var(--muted); }
+/* iPhone: proportions of an iPhone 18 Pro's screen (402 x 874 pt), so the
+   simulator's shots (1206 x 2622) fit without cropping: corner radius about
+   14% of the width, the Dynamic Island 126 x 37 pt, 11 pt from the top. */
+.phone {
+  width: 266px; height: 562px; border-radius: 42px; background: #050507; padding: 7px; flex: none; position: relative;
+  box-shadow: 0 40px 80px -30px var(--shadow), inset 0 0 0 1px #2a2a30;
+}
+/* Android: a Pixel-like frame, thinner bezels and tighter corners, its screen
+   20:9 like the emulator's shots (1080 x 2400), so nothing is cropped; the
+   punch-hole camera sits in the status bar. */
+.phone.droid { width: 264px; height: 572px; padding: 6px; border-radius: 26px; }
+.phone.droid::after { content: ""; position: absolute; right: -3px; top: 22%; width: 3px; height: 44px; border-radius: 0 2px 2px 0; background: #2a2a30; }
+.screen { width: 100%; height: 100%; border-radius: 35px; background: var(--surface); overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.droid .screen { border-radius: 20px; }
+.screen > img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.screen .island, .screen .cam { z-index: 1; }
+.island { position: absolute; top: 7px; left: 50%; translate: -50% 0; width: 79px; height: 23px; border-radius: 12px; background: #050507; }
+.phone:not(.droid)::after { content: ""; position: absolute; right: -3px; top: 26%; width: 3px; height: 56px; border-radius: 0 2px 2px 0; background: #2a2a30; }
+.phone:not(.droid)::before { content: ""; position: absolute; left: -3px; top: 20%; width: 3px; height: 36px; border-radius: 2px 0 0 2px; background: #2a2a30; box-shadow: 0 48px 0 #2a2a30; }
+.cam { position: absolute; top: 12px; left: 50%; translate: -50% 0; width: 14px; height: 14px; border-radius: 50%; background: #050507; }
+.droid .cam { top: 4px; width: 8px; height: 8px; }
+.mbar { margin: auto 10px 12px; height: 46px; border-radius: 23px; background: var(--side); border: 1px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 0 14px; font-size: 13px; }
+.droid .mbar { border-radius: 16px; }
+.count { margin-left: auto; font: 11px var(--mono); border: 1.5px solid var(--text); border-radius: 5px; padding: 0 5px; }
+.phone .content { padding: 62px 20px 0; display: flex; flex-direction: column; gap: 10px; }
+.droid .content { padding-top: 50px; }
+/* The small phones over the hero window's corners. */
+.hero-phone { position: absolute; bottom: 28px; width: 198px; height: 416px; border-radius: 32px; padding: 6px; }
+.hero-phone .screen { border-radius: 26px; }
+.hero-phone.droid { width: 192px; height: 415px; padding: 5px; border-radius: 22px; }
+.hero-phone.droid .screen { border-radius: 16px; }
+.hero-phone.droid .cam { width: 6px; height: 6px; top: 3px; }
+.hero-phone.droid::after { height: 32px; }
+.hero-phone .island { width: 58px; height: 17px; top: 5px; border-radius: 9px; }
+.hero-phone:not(.droid)::after { height: 42px; }
+.hero-phone:not(.droid)::before { height: 27px; box-shadow: 0 36px 0 #2a2a30; }
+.hero-phone .content { padding: 46px 16px 0; gap: 9px; }
+.hero-phone.droid .content { padding-top: 40px; }
+.hero-phone .bar { height: 7px; }
+.hero-phone .mbar { height: 36px; font-size: 11px; margin: auto 8px 10px; padding: 0 10px; gap: 7px; }
+.hero-phone .fav { width: 13px; height: 13px; font-size: 8px; line-height: 13px; }
+.hero-phone .count { font-size: 10px; border-radius: 4px; padding: 0 4px; }
+/* Both phones over the page side of the window, so its sidebar shows. */
+.hero-phone.left { right: 236px; bottom: 28px; } .hero-phone.right { right: 44px; bottom: 72px; }
+
+/* Sections */
+.h2 { font-size: clamp(34px, 4.6vw, 56px); line-height: 1.02; letter-spacing: -0.04em; font-weight: 600; margin: 14px 0 16px; }
+.body { font-size: 18px; line-height: 1.55; color: var(--muted); margin: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 24px; }
+
+.import { margin-top: 96px; }
+.import .card { border-radius: 24px; padding: 28px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px 32px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { font: 12px var(--mono); padding: 6px 12px; border-radius: 999px; background: var(--chip); color: var(--muted); }
+.import p { margin: 0; flex: 1 1 320px; font-size: 18px; letter-spacing: -0.01em; }
+.import p span { color: var(--muted); }
+
+.features { margin-top: 140px; display: flex; flex-direction: column; gap: 140px; }
+.fx { display: flex; flex-wrap: wrap; align-items: center; gap: 56px; }
+.fx.flip { flex-direction: row-reverse; }
+.fx-text { flex: 1 1 340px; min-width: 0; }
+.fx-vis { flex: 1.6 1 520px; min-width: 0; border-radius: 28px; padding: 48px; display: flex; align-items: center; justify-content: center; gap: 18px; min-height: 440px; overflow: hidden; position: relative; }
+/* 01: three spaces, each with its own colors. */
+/* Captured Mac windows (img/mac-*, tools/website/capture_mac.sh): the
+   window's own rounded corners are in the image, so the shadow follows them. */
+.mac-shot { display: block; width: 100%; height: auto; filter: drop-shadow(0 30px 40px rgba(40, 24, 60, .28)) drop-shadow(0 8px 14px rgba(40, 24, 60, .14)); }
+/* A window's sidebar, cut out: its top, with the favorites, the space's name,
+   Pinned and Today. */
+.side-shot { width: 168px; height: 430px; object-fit: cover; object-position: top left; border-radius: 12px; flex: none; box-shadow: 0 24px 50px -20px var(--shadow), 0 0 0 1px rgba(0,0,0,.06); }
+.side-shot:nth-child(2) { margin-top: -40px; }
+/* Part of a captured window (the top right of mac-claude): rounded like a
+   window, its cut edges included. */
+.crop-shot { display: block; width: 100%; max-width: 560px; height: auto; border-radius: 12px; box-shadow: 0 30px 60px -24px var(--shadow), 0 0 0 1px rgba(0,0,0,.06); }
+.side-shot.large { width: 300px; height: 440px; margin-top: 0; }
+.palette { width: 100%; max-width: 480px; padding: 10px; box-shadow: 0 40px 80px -30px var(--shadow); }
+.palette .q { display: flex; align-items: center; gap: 10px; padding: 12px 12px 14px; border-bottom: 1px solid var(--line); font-size: 17px; }
+.palette .q span { color: var(--muted); }
+.palette ul { list-style: none; margin: 0; padding: 8px 0 0; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.palette li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; }
+.palette li.on { background: var(--chip); }
+.palette li em { margin-left: auto; font: normal 12px var(--mono); color: var(--muted); }
+.palette svg { width: 16px; height: 16px; flex: none; }
+
+.mobile { margin-top: 160px; background: var(--bg2); padding: 120px 0; }
+.mobile .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 64px; }
+.mobile .text { flex: 1 1 360px; min-width: 0; }
+.mobile .phones { flex: 1.2 1 480px; min-width: 0; display: flex; justify-content: center; gap: 28px; flex-wrap: wrap; }
+.pair { margin-top: 32px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.pair .code { font: 500 40px/1.2 var(--mono); letter-spacing: .08em; }
+.pair p { flex: 1 1 180px; margin: 0; font-size: 14px; color: var(--muted); }
+.buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
+
+.privacy { margin-top: 140px; display: flex; flex-wrap: wrap; gap: 56px; align-items: flex-start; }
+.privacy .text { flex: 1 1 340px; min-width: 0; }
+.privacy .more { margin: 20px 0 0; font-size: 15px; }
+.privacy .more a { color: var(--accent-ink); font-weight: 500; }
+.privacy .card { flex: 1.3 1 460px; min-width: 0; padding: 10px 28px; }
+.point { display: flex; gap: 16px; align-items: flex-start; padding: 18px 0; border-top: 1px solid var(--line); }
+.point:first-child { border-top: 0; }
+.point h3 { margin: 0; font-size: 16px; }
+.point p { margin: 2px 0 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.check { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-text); display: flex; align-items: center; justify-content: center; flex: none; }
+
+#download { margin-top: 160px; scroll-margin-top: 80px; }
+#download header { text-align: center; max-width: 720px; margin: 0 auto 48px; }
 /* Three cards to a row, the last row's centered; two, then one, on narrower screens. */
 .platforms { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
-.platforms > .card { flex: 0 1 calc((100% - 32px) / 3); min-width: 0; }
-@media (max-width: 860px) { .platforms > .card { flex-basis: calc((100% - 16px) / 2); } }
-@media (max-width: 560px) { .platforms > .card { flex-basis: 100%; } }
-.card {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
-  padding: 22px; display: flex; flex-direction: column; gap: 10px;
-}
-.card h3 { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 10px; }
-.card h3 svg { width: 22px; height: 22px; fill: currentColor; flex: none; }
-.card .req { color: var(--muted); font-size: 14px; margin: 0; }
-/* Pinned to the card's bottom, so the download buttons line up across cards;
-   from the bottom: the download, the beta, the checksums. */
-.card .actions { display: flex; flex-direction: column; gap: 10px; margin-top: auto; padding-top: 12px; }
-.card .actions .button { width: 100%; }
-.meta { font-size: 13px; color: var(--muted); margin: 0; }
-.badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); vertical-align: middle; }
+.platforms .card { display: flex; flex-direction: column; gap: 10px; min-width: 0; flex: 0 1 calc((100% - 32px) / 3); }
+@media (max-width: 900px) { .platforms .card { flex-basis: calc((100% - 16px) / 2); } }
+@media (max-width: 600px) { .platforms .card { flex-basis: 100%; } }
+.platforms h3 { margin: 0; font-size: 19px; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.platforms h3 svg { width: 22px; height: 22px; fill: currentColor; flex: none; }
+.badge { font: 500 11px var(--mono); padding: 3px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); }
+.req { font-size: 14px; color: var(--muted); margin: 0; line-height: 1.5; }
+.meta { font: 12px/1.5 var(--mono); color: var(--muted); margin: 0; }
+.meta a, .platforms details a { color: var(--muted); }
+/* Pinned to the card's bottom, so the download buttons line up across cards. */
+.actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 12px; }
+.actions .button { width: 100%; white-space: normal; text-align: center; line-height: 1.25; padding-block: 10px; }
 details { font-size: 13px; color: var(--muted); }
-details code { font-size: 11.5px; word-break: break-all; }
+details summary { cursor: pointer; font-family: var(--mono); font-size: 12px; padding: 4px 0; }
+details code { font-size: 11.5px; word-break: break-all; color: var(--text); }
+details p { margin: 6px 0; }
 
-.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 16px; }
-.feature { padding: 4px 0; }
-.feature h3 { margin: 0 0 4px; font-size: 17px; }
-.feature p { margin: 0; color: var(--muted); font-size: 15px; }
+.about { margin-top: 140px; }
+.about > div { border-top: 1px solid var(--line); padding-top: 48px; display: flex; flex-wrap: wrap; gap: 24px 64px; }
+.about .eyebrow { flex: 0 0 220px; }
+.about .body { flex: 1 1 420px; font-size: 16px; }
 
-.compare { margin: 24px 0 0; text-align: center; }
-.about { color: var(--muted); font-size: 15px; max-width: 720px; margin: 0 0 16px; }
-.about-h3 { margin: 24px 0 8px; font-size: 17px; }
-footer { max-width: 980px; margin: 64px auto 0; padding: 24px 16px 48px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 20px; }
-footer a { color: inherit; }
+/* Sections ease in as they scroll into view, unless motion is reduced. */
+@media (prefers-reduced-motion: no-preference) {
+  .js .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
+  .js .reveal.in { opacity: 1; transform: none; }
+}
+
+@media (max-width: 760px) {
+  .hero { padding-top: 56px; }
+  .hero-phone { display: none; }
+  .wall { padding: 28px 16px; margin-top: 44px; border-radius: 24px; }
+  .side { width: 140px; }
+  .side .pins { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pane { padding: 16px; }
+  .pane .title { font-size: 20px; }
+  .fx-vis { padding: 20px; min-height: 0; }
+  .side-shot { width: 130px; height: 340px; }
+  .side-shot:nth-child(3) { display: none; }
+  .side-shot.large { width: 240px; height: 360px; }
+  .features { gap: 96px; margin-top: 96px; }
+  .mobile { padding: 80px 0; margin-top: 112px; }
+  .phone { width: 240px; height: 505px; }
+  .phone.droid { width: 240px; height: 519px; }
+}
 </style>
 </head>
 <body>
-<main>
-  <header class="hero">
-    <img src="compass.svg" alt="" width="112" height="112">
-    <h1>Compass Browser</h1>
-    <p class="lede">An open-source Arc alternative, built on Chromium: a sidebar of spaces, pinned tabs and folders, and sync that never needs an account.</p>
-    <div class="primary">
-      <a class="button" id="hero-download" href="#download" aria-disabled="false">Download</a>
-      <div class="hint" id="hero-hint"></div>
+<header class="site-nav">
+  <nav class="wrap" aria-label="Main">
+    <a class="brand" href="/"><img src="compass.svg" alt="" width="30" height="30">Compass</a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#mobile">Mobile</a>
+      <a href="#privacy">Privacy</a>
+      <a href="/compare">Compare</a>
+      <a href="/changelog/mac">Changelog</a>
     </div>
-  </header>
+    <div class="end">
+      <a href="https://github.com/Compass-Browser/Compass">GitHub</a>
+      <a class="button small" href="#download">Download</a>
+    </div>
+  </nav>
+</header>
 
-  <section id="download">
-    <h2>Download</h2>
+<main>
+  <section class="hero wrap">
+    <a class="pill" href="#import"><b>NEW</b>Bring your spaces from Arc, Ardia, Cra, Crest and Yab →</a>
+    <h1>Your tabs, <span class="serif">in order.</span><br>On every screen.</h1>
+    <p class="lede">An open-source Arc alternative built on Chromium: a sidebar of spaces, pinned tabs and folders, and sync that never needs an account.</p>
+    <div class="cta">
+      <a class="button large" id="hero-download" href="#download" aria-disabled="false">Download</a>
+      <a class="button large secondary" href="#download">All platforms</a>
+    </div>
+    <p class="hint" id="hero-hint">Free and open source</p>
+
+    <div class="wall" role="img" aria-label="Compass on a Mac, with the sidebar of spaces, pinned tabs and folders, and on an iPhone and an Android phone">
+      <img class="mac-shot" src="img/mac-personal.webp" alt="" width="2000" height="1250" decoding="async">
+      <div class="phone hero-phone left"><div class="screen">
+        <img src="img/ios-page.webp" alt="" width="600" height="1305" decoding="async">
+        <div class="island"></div>
+      </div></div>
+      <div class="phone droid hero-phone right"><div class="screen">
+        <img src="img/android-page.webp" alt="" width="600" height="1334" decoding="async">
+        <div class="cam"></div>
+      </div></div>
+    </div>
+
+    <div class="strip"><span>macOS</span><span>Windows</span><span>Linux</span><span>iPhone and iPad</span><span>Android</span></div>
+  </section>
+
+  <section class="import wrap reveal" id="import">
+    <div class="card">
+      <div class="chips"><span class="chip">Arc</span><span class="chip">Ardia</span><span class="chip">Cra</span><span class="chip">Crest</span><span class="chip">Yab</span></div>
+      <p><strong>Moving in?</strong> <span>Import your spaces, pinned tabs and profiles in one step.</span></p>
+      <a class="button small secondary" href="/compare">Compare browsers →</a>
+    </div>
+  </section>
+
+  <section class="features wrap" id="features">
+    <div class="fx reveal">
+      <div class="fx-text">
+        <div class="eyebrow">01 · Spaces</div>
+        <h2 class="h2">A space for <span class="serif">each</span> part of your day.</h2>
+        <p class="body">Separate sets of tabs for work, home and everything else, each with its own colors, in a sidebar.</p>
+      </div>
+      <div class="fx-vis" style="background: var(--tint1)" role="img" aria-label="The sidebars of three spaces, Personal, Work and Reading, each in its own color">
+        <img class="side-shot" src="img/mac-personal-sidebar.webp" alt="" width="470" height="1800" loading="lazy" decoding="async">
+        <img class="side-shot" src="img/mac-work-sidebar.webp" alt="" width="470" height="1800" loading="lazy" decoding="async">
+        <img class="side-shot" src="img/mac-reading-sidebar.webp" alt="" width="470" height="1800" loading="lazy" decoding="async">
+      </div>
+    </div>
+
+    <div class="fx flip reveal">
+      <div class="fx-text">
+        <div class="eyebrow">02 · Pinned tabs and folders</div>
+        <h2 class="h2">Pin the sites you <span class="serif">live</span> in.</h2>
+        <p class="body">Keep them pinned, nested in folders, and come back to them as you left them.</p>
+      </div>
+      <div class="fx-vis" style="background: var(--tint2)" role="img" aria-label="The Personal space's sidebar: favorites, then pinned tabs with the Trip to Lisbon folder, then Today">
+        <img class="side-shot large" src="img/mac-personal-sidebar.webp" alt="" width="470" height="1800" loading="lazy" decoding="async">
+      </div>
+    </div>
+
+    <div class="fx reveal">
+      <div class="fx-text">
+        <div class="eyebrow">03 · Split view</div>
+        <h2 class="h2">Two tabs, <span class="serif">one</span> window.</h2>
+        <p class="body">Put two tabs side by side. The pair stays together in the sidebar, as one entry.</p>
+      </div>
+      <div class="fx-vis" style="background: var(--tint3)" role="img" aria-label="WebKit's blog and MDN's CSS page side by side in one window, shown as one entry in the Work space's Today">
+        <img class="mac-shot" src="img/mac-split.webp" alt="" width="2000" height="1250" loading="lazy" decoding="async">
+      </div>
+    </div>
+
+    <div class="fx flip reveal">
+      <div class="fx-text">
+        <div class="eyebrow">04 · Command bar</div>
+        <h2 class="h2">One bar for <span class="serif">everything.</span></h2>
+        <p class="body">Search, jump to an open tab, run a command or ask a question, from the same place.</p>
+      </div>
+      <div class="fx-vis" style="background: var(--tint4)" role="img" aria-label="The command bar, offering a command, an open tab, a question for Claude and a search">
+        <div class="card palette">
+          <div class="q"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>split<span>|</span></div>
+          <ul>
+            <li class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg>Split with Release checklist<em>↵</em></li>
+            <li><span class="fav" style="background: #6d28d9">D</span>Launch plan: draft 3<em>Switch to tab</em></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z"/></svg>Ask Claude: “split this doc into tasks”<em>Ask</em></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>split view keyboard shortcut<em>Search</em></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="fx reveal">
+      <div class="fx-text">
+        <div class="eyebrow">05 · Claude, built in</div>
+        <h2 class="h2">A second pair of <span class="serif">eyes</span> on every page.</h2>
+        <p class="body">A side panel that reads the page with you. It also names your folders, shortens tab titles and tidies Today.</p>
+      </div>
+      <div class="fx-vis" style="background: var(--tint5)" role="img" aria-label="The Claude panel beside the Lisbon page in Wikipedia, answering “What should I see in Lisbon in one day?” with a plan for the day">
+        <img class="crop-shot" src="img/mac-claude-panel.webp" alt="" width="1380" height="1200" loading="lazy" decoding="async">
+      </div>
+    </div>
+  </section>
+
+  <section class="mobile" id="mobile">
+    <div class="wrap reveal">
+      <div class="text">
+        <div class="eyebrow">iPhone · iPad · Android</div>
+        <h2 class="h2">Your spaces, <span class="serif">in your pocket.</span></h2>
+        <p class="body">The same spaces, tabs, history and passwords as on your computer, end-to-end encrypted. Pair a device with a 6-digit code. No account needed.</p>
+        <div class="card pair">
+          <div><div class="kicker">PAIRING CODE</div><div class="code">482 913</div></div>
+          <p>Exchanged through SPAKE2. The code never reaches the server.</p>
+        </div>
+        <div class="buttons">
+          <a class="button small" href="https://testflight.apple.com/join/SE4bmbk1">iPhone and iPad beta</a>
+          <a class="button small secondary" href="#android">Android beta</a>
+        </div>
+      </div>
+      <div class="phones" role="img" aria-label="The Personal space's sidebar in Compass on an iPhone and on an Android phone">
+        <div class="phone"><div class="screen">
+        <img src="img/ios-sidebar.webp" alt="" width="600" height="1305" loading="lazy" decoding="async">
+        <div class="island"></div>
+      </div></div>
+        <div class="phone droid" style="margin-top: 48px"><div class="screen">
+        <img src="img/android-sidebar.webp" alt="" width="600" height="1334" loading="lazy" decoding="async">
+        <div class="cam"></div>
+      </div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="privacy wrap reveal" id="privacy">
+    <div class="text">
+      <div class="eyebrow">Sync and privacy</div>
+      <h2 class="h2">Sync that <span class="serif">can't</span> read your tabs.</h2>
+      <p class="body">Everything is encrypted on your devices before it's uploaded. The server sees data types, sizes, times and the device list, but never the content.</p>
+      <p class="more"><a href="https://github.com/Compass-Browser/Compass/blob/main/docs/design/sync.md">Read the full sync design →</a></p>
+    </div>
+    <div class="card">
+      <div class="point"><span class="check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span><div><h3>No account</h3><p>A random 128-bit seed, shared by your devices, gives each one an Ed25519 key for the server.</p></div></div>
+      <div class="point"><span class="check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span><div><h3>Encrypted on the device</h3><p>Chromium's sync encryption, with a passphrase from the seed, applied before anything is uploaded.</p></div></div>
+      <div class="point"><span class="check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span><div><h3>Pairing over SPAKE2</h3><p>Devices pair with a 6-digit code that never reaches the server.</p></div></div>
+      <div class="point"><span class="check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span><div><h3>Recovery with 12 words</h3><p>A BIP39 phrase brings everything back on a new device.</p></div></div>
+      <div class="point"><span class="check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span><div><h3>Run your own server</h3><p>The sync server is open source too. Host it yourself, or set up a free one on Cloudflare.</p></div></div>
+    </div>
+  </section>
+
+  <section class="wrap" id="download">
+    <header class="reveal">
+      <div class="eyebrow">Download</div>
+      <h2 class="h2">Pick your <span class="serif">platform.</span></h2>
+      <p class="body">Free, open source and updated automatically.</p>
+    </header>
     <div class="platforms">
       <article class="card" data-platform="mac">
-        <h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.37 12.6c-.02-2.1 1.72-3.12 1.8-3.17-0.98-1.43-2.5-1.63-3.04-1.65-1.29-.13-2.52.76-3.18.76-.66 0-1.67-.74-2.75-.72-1.41.02-2.72.82-3.44 2.09-1.47 2.55-.38 6.32 1.05 8.39.7 1.01 1.53 2.15 2.62 2.11 1.05-.04 1.45-.68 2.72-.68 1.27 0 1.63.68 2.74.66 1.13-.02 1.85-1.03 2.54-2.05.8-1.17 1.13-2.31 1.15-2.37-.03-.01-2.2-.84-2.21-3.37zM14.29 6.42c.58-.7.97-1.68.86-2.65-.83.03-1.84.55-2.44 1.25-.53.62-1 1.61-.88 2.56.93.07 1.88-.47 2.46-1.16z"/></svg>macOS</h3>
+        <h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.37 12.6c-.02-2.1 1.72-3.12 1.8-3.17-.98-1.43-2.5-1.63-3.04-1.65-1.29-.13-2.52.76-3.18.76-.66 0-1.67-.74-2.75-.72-1.41.02-2.72.82-3.44 2.09-1.47 2.55-.38 6.32 1.05 8.39.7 1.01 1.53 2.15 2.62 2.11 1.05-.04 1.45-.68 2.72-.68 1.27 0 1.63.68 2.74.66 1.13-.02 1.85-1.03 2.54-2.05.8-1.17 1.13-2.31 1.15-2.37-.03-.01-2.2-.84-2.21-3.37zM14.29 6.42c.58-.7.97-1.68.86-2.65-.83.03-1.84.55-2.44 1.25-.53.62-1 1.61-.88 2.56.93.07 1.88-.47 2.46-1.16z"/></svg>macOS</h3>
         <p class="req">macOS 13 Ventura or later.</p>
         <p class="meta" data-meta="stable">Loading the latest version…</p>
         <p class="meta"><a href="/changelog/mac">What's new</a></p>
         <div class="actions">
-          <details><summary>Install with Homebrew</summary><code>brew install --cask compass-browser/tap/compass</code><br>The newest (canary) build. It updates itself.</details>
+          <details><summary>Install with Homebrew</summary><p><code>brew install --cask compass-browser/tap/compass</code></p><p>The newest (canary) build. It updates itself.</p></details>
           <details data-sums><summary>SHA-256</summary></details>
           <a class="button secondary" data-link="beta" aria-disabled="true" href="#">Download beta</a>
           <a class="button" data-link="stable" aria-disabled="true" href="#">Download for Mac</a>
@@ -143,7 +429,7 @@ footer a { color: inherit; }
         <p class="meta" data-meta="linux">Version 20261124.1123</p>
         <p class="meta"><a href="/changelog/linux">What's new</a></p>
         <div class="actions">
-          <details><summary>Install from a terminal</summary><code>flatpak install --user https://raw.githubusercontent.com/Compass-Browser/Compass/flatpak/compass-stable.flatpakref</code></details>
+          <details><summary>Install from a terminal</summary><p><code>flatpak install --user https://raw.githubusercontent.com/Compass-Browser/Compass/flatpak/compass-stable.flatpakref</code></p></details>
           <details data-sums><summary>SHA-256</summary></details>
           <a class="button secondary" data-link="tarball" href="https://github.com/Compass-Browser/Compass/releases/download/v20261124.1123/Compass-20261124.1123-linux-x64.tar.xz">Download tarball</a>
           <a class="button" data-link="flatpakref" href="https://raw.githubusercontent.com/Compass-Browser/Compass/flatpak/compass-stable.flatpakref">Install with Flatpak</a>
@@ -152,20 +438,19 @@ footer a { color: inherit; }
 
       <article class="card" data-platform="ios">
         <h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H8a3 3 0 0 0-3 3v16a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V4a3 3 0 0 0-3-3zm1 19a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h1.2l.4 1h4.8l.4-1H16a1 1 0 0 1 1 1v16z"/></svg>iPhone and iPad <span class="badge">Beta</span></h3>
-        <p class="req">iPhone and iPad, through Apple's TestFlight app.</p>
-        <p class="meta">Your spaces, tabs, history and passwords from Compass on your Mac, end-to-end encrypted.</p>
+        <p class="req">Through Apple's TestFlight app.</p>
+        <p class="meta">Your spaces, tabs, history and passwords from Compass on your computer, end-to-end encrypted.</p>
         <p class="meta"><a href="/changelog/ios">What's new</a></p>
         <div class="actions">
           <a class="button" href="https://testflight.apple.com/join/SE4bmbk1">Join the beta on TestFlight</a>
         </div>
       </article>
 
-      <article class="card" data-platform="android">
+      <article class="card" data-platform="android" id="android">
         <h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.6 9.48l1.84-3.18a.38.38 0 0 0-.66-.38l-1.86 3.22A11.4 11.4 0 0 0 12 8.2c-1.8 0-3.5.38-4.92.94L5.22 5.92a.38.38 0 0 0-.66.38L6.4 9.48A10.8 10.8 0 0 0 1 18h22a10.8 10.8 0 0 0-5.4-8.52zM7 15.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm10 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z"/></svg>Android <span class="badge">Beta</span></h3>
-        <p class="req">Android phones and tablets (64-bit ARM), through Google Play's testing program.</p>
-        <p class="meta">The same Chromium engine as on your computer, with your spaces, tabs, history and passwords, end-to-end encrypted.</p>
-        <p class="meta"><a href="/changelog/android">What's new</a></p>
+        <p class="req">Phones and tablets (64-bit ARM), through Google Play's testing program.</p>
         <p class="meta" data-meta="android">To join: first join the <a href="https://groups.google.com/g/compass-browser-android">testers group</a> with your Google account, then open the <a href="https://play.google.com/apps/testing/it.cipi1965.compass">test page on Google Play</a>, tap Become a tester, and install Compass from Play. It updates itself.</p>
+        <p class="meta"><a href="/changelog/android">What's new</a></p>
         <div class="actions">
           <details data-sums><summary>SHA-256</summary></details>
           <a class="button secondary" data-link="apk" aria-disabled="true" href="#">Download APK</a>
@@ -173,37 +458,42 @@ footer a { color: inherit; }
         </div>
       </article>
     </div>
-    <noscript><p class="meta">The download links need JavaScript to find the latest version.</p></noscript>
+    <noscript><p class="meta" style="text-align: center; margin-top: 16px">The download links need JavaScript to find the latest version.</p></noscript>
   </section>
 
-  <section>
-    <h2>What's in it</h2>
-    <div class="features">
-      <div class="feature"><h3>Spaces</h3><p>Separate sets of tabs for work, home and everything else, each with its own colors, in a sidebar.</p></div>
-      <div class="feature"><h3>Pinned tabs and folders</h3><p>Keep the sites you live in pinned, nested in folders, and come back to them as you left them.</p></div>
-      <div class="feature"><h3>Split view</h3><p>Two tabs side by side in one window.</p></div>
-      <div class="feature"><h3>Sync without an account</h3><p>Pair devices with a short code. Everything is encrypted on your devices; the server can't read it.</p></div>
-      <div class="feature"><h3>Chromium inside</h3><p>The web as Chrome sees it, with its extensions, and automatic updates.</p></div>
-      <div class="feature"><h3>Open source</h3><p>The browser and the sync server, which you can also run yourself.</p></div>
+  <section class="about wrap">
+    <div>
+      <div class="eyebrow">A personal project</div>
+      <p class="body">Compass is a personal project, built mostly with AI coding tools, with me directing and reviewing the work. I share it in case it's useful to you too, but it comes with no guarantee: it may have bugs, break after an update, or stop being maintained. Use it at your own risk.</p>
     </div>
-    <p class="compare"><a class="button secondary" href="/compare">Compare with Arc, Dia and other browsers</a></p>
-  </section>
-
-  <section>
-    <h2>A personal project</h2>
-    <p class="about">Compass is a personal project, built mostly with AI coding tools, with me directing and reviewing the work. I share it in case it's useful to you too, but it comes with no guarantee: it may have bugs, break after an update, or stop being maintained. Use it at your own risk.</p>
-    <h3 class="about-h3">How sync security works</h3>
-    <p class="about">No accounts. A random 128-bit seed, shared by your devices, gives each one an Ed25519 key for the server and the passphrase for Chromium's sync encryption, applied on the device before upload. The server sees data types, sizes, times and the device list, but not the content. Devices pair with a 6-digit code through SPAKE2; the code never reaches the server. Recovery: 12 BIP39 words. <a href="https://github.com/Compass-Browser/Compass/blob/main/docs/design/sync.md">Full design</a>.</p>
   </section>
 </main>
 
-<footer>
-  <span>Compass Browser</span>
-  <a href="https://github.com/Compass-Browser/Compass">Source code</a>
-  <a href="/compare">Compare</a>
-  <a href="https://compassbrowser.org/privacy">Privacy</a>
+<footer class="site-footer">
+  <div>
+    <span class="name">Compass Browser</span>
+    <a href="https://github.com/Compass-Browser/Compass">Source code</a>
+    <a href="/compare">Compare</a>
+    <a href="/changelog/mac">Changelog</a>
+    <a href="/privacy">Privacy</a>
+    <span class="note">No cookies. No trackers.</span>
+  </div>
 </footer>
 
+<script>
+// Sections ease in as they scroll into view (site.css skips it when motion
+// is reduced; without JavaScript they're simply there).
+(() => {
+  if (!('IntersectionObserver' in window)) return;
+  document.documentElement.classList.add('js');
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+    }
+  }, { rootMargin: '0px 0px -10% 0px' });
+  document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+})();
+</script>
 <script>
 (() => {
   const FEEDS = 'https://updates.compassbrowser.org/';
@@ -358,7 +648,8 @@ footer a { color: inherit; }
       enable(hero, { url: 'https://testflight.apple.com/join/SE4bmbk1' }, 'Join the iPhone and iPad beta');
       hint.textContent = 'Compass for iPhone and iPad is in beta on TestFlight.';
     } else if (here === 'android') {
-      hint.textContent = 'Compass for Android is coming soon.';
+      enable(hero, { url: '#android' }, 'Join the Android beta');
+      hint.textContent = 'Compass for Android is in beta on Google Play.';
     }
   });
 })();
