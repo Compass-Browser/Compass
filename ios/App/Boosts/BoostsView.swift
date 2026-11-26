@@ -96,7 +96,7 @@ private struct BoostRow: View {
             Text(boost.match)
             if !boost.css.isEmpty { Text("CSS") }
             if !boost.js.isEmpty { Text(boost.jsWorld == .main ? "JS (page)" : "JS") }
-            if boost.author == .claude { Label("Claude", systemImage: "sparkles") }
+            if boost.author == .claude { Label("AI", systemImage: "sparkles") }
             if boost.author == .shared { Label("Shared", systemImage: "person.2") }
           }
           .font(.caption)
@@ -185,7 +185,7 @@ struct BoostEditor: View {
       if let original {
         Section {
           if original.author == .claude {
-            Label("Made by Claude", systemImage: "sparkles").foregroundStyle(.secondary)
+            Label("Made by AI", systemImage: "sparkles").foregroundStyle(.secondary)
           }
           if original.author == .shared {
             Label("Shared", systemImage: "person.2").foregroundStyle(.secondary)

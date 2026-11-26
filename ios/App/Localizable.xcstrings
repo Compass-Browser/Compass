@@ -758,6 +758,16 @@
         }
       }
     },
+    "AI Settings" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impostazioni AI"
+          }
+        }
+      }
+    },
     "AI in the Sidebar" : {
       "localizations" : {
         "it" : {
@@ -1279,6 +1289,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rispondi con"
+          }
+        }
+      }
+    },
+    "Answering…" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Risposta in corso…"
           }
         }
       }
@@ -1939,117 +1959,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cerchio"
-          }
-        }
-      }
-    },
-    "Claude" : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude"
-          }
-        }
-      }
-    },
-    "Claude Settings" : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impostazioni di Claude"
-          }
-        }
-      }
-    },
-    "Claude declined to answer this." : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude ha rifiutato di rispondere."
-          }
-        }
-      }
-    },
-    "Claude doesn't read or act on Incognito tabs. Open a normal tab to ask about it." : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude non legge e non agisce sulle schede in incognito. Apri una scheda normale per chiedere qualcosa."
-          }
-        }
-      }
-    },
-    "Claude gets the page's text with your message. Page content is treated as data, never as instructions." : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude riceve il testo della pagina insieme al tuo messaggio. Il contenuto della pagina è trattato come dati, mai come istruzioni."
-          }
-        }
-      }
-    },
-    "Claude groups Today's loose tabs into named folders" : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude raggruppa in cartelle con un nome le schede sparse di Oggi"
-          }
-        }
-      }
-    },
-    "Claude is grouping Today's tabs" : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude sta raggruppando le schede di Oggi"
-          }
-        }
-      }
-    },
-    "Claude is thinking…" : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude sta pensando…"
-          }
-        }
-      }
-    },
-    "Claude is working…" : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude è al lavoro…"
-          }
-        }
-      }
-    },
-    "Claude needs an Anthropic API key, or a compatible endpoint. Compass doesn't come with one." : {
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude ha bisogno di una chiave API di Anthropic o di un endpoint compatibile. Compass non ne include una."
-          }
-        }
-      }
-    },
-    "Claude stopped after %lld steps." : {
-      "comment" : "Claude chat: error under a reply that used too many tool steps; the argument is the limit.",
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude si è fermato dopo %lld passaggi."
           }
         }
       }
@@ -4798,12 +4707,12 @@
         }
       }
     },
-    "Made by Claude" : {
+    "Made by AI" : {
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Creato da Claude"
+            "value" : "Creato dall’AI"
           }
         }
       }
@@ -5007,12 +4916,12 @@
         }
       }
     },
-    "Named by Claude" : {
+    "Named by AI" : {
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nome dato da Claude"
+            "value" : "Nome dato dall’AI"
           }
         }
       }
@@ -5829,12 +5738,12 @@
         }
       }
     },
-    "Open Claude Settings" : {
+    "Open AI Settings" : {
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apri le impostazioni di Claude"
+            "value" : "Apri le impostazioni AI"
           }
         }
       }
@@ -8533,6 +8442,66 @@
         }
       }
     },
+    "The AI declined to answer this." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’AI ha scelto di non rispondere."
+          }
+        }
+      }
+    },
+    "The AI doesn't read or act on Incognito tabs. Open a normal tab to ask about it." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’AI non legge e non agisce sulle schede in incognito. Apri una scheda normale per chiedere qualcosa."
+          }
+        }
+      }
+    },
+    "The AI gets the page's text with your message. Page content is treated as data, never as instructions." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’AI riceve il testo della pagina insieme al tuo messaggio. Il contenuto della pagina è trattato come dati, mai come istruzioni."
+          }
+        }
+      }
+    },
+    "The AI groups Today's loose tabs into named folders" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’AI raggruppa in cartelle con un nome le schede sparse di Oggi"
+          }
+        }
+      }
+    },
+    "The AI is grouping Today's tabs" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’AI sta raggruppando le schede di Oggi"
+          }
+        }
+      }
+    },
+    "The AI is working…" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’AI è al lavoro…"
+          }
+        }
+      }
+    },
     "The AI keeps short facts about you, like how you like answers, and starts each new chat with them. Each save shows in the chat, with Undo. Memories sync with your spaces, end-to-end encrypted." : {
       "localizations" : {
         "it" : {
@@ -8550,6 +8519,27 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "L’AI dà un nome alle cartelle che raccolgono i link di una pagina, in base ai titoli e ai siti delle schede, e i menu delle cartelle offrono “Suggerisci un nome”. Ogni nuovo nome si può annullare dal menu della cartella."
+          }
+        }
+      }
+    },
+    "The AI needs an API key, or a compatible server. Compass doesn't come with one." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’AI ha bisogno di una chiave API o di un server compatibile. Compass non ne include una."
+          }
+        }
+      }
+    },
+    "The AI stopped after %lld steps." : {
+      "comment" : "Claude chat: error under a reply that used too many tool steps; the argument is the limit.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’AI si è fermata dopo %lld passaggi."
           }
         }
       }

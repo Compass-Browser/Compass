@@ -281,7 +281,7 @@ struct CommandBar: View {
             .font(.footnote)
             .foregroundStyle(.red)
         case .asking where asker.answer.isEmpty:
-          Text("Claude is thinking…").font(.callout).foregroundStyle(.secondary)
+          Text("Answering…").font(.callout).foregroundStyle(.secondary)
         default:
           answerText
         }

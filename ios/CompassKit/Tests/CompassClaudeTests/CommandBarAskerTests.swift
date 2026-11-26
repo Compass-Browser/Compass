@@ -183,7 +183,7 @@ struct CommandBarAskerTests {
     s.fake.error = nil
     s.asker.ask("why is the sky blue", page: nil, incognito: false)
     await s.settle()
-    #expect(s.asker.state == .failed("Claude didn't answer."))
+    #expect(s.asker.state == .failed("No answer came."))
 
     // Cancelled while streaming: late events drop.
     s.fake.events = [FakeStream.delta("A"), FakeStream.delta("B"), FakeStream.delta("C")]
@@ -199,7 +199,7 @@ struct CommandBarAskerTests {
     s.fake.delay = .milliseconds(80)
     s.asker.ask("why is the sky blue", page: nil, incognito: false)
     try? await Task.sleep(for: .milliseconds(200))
-    #expect(s.asker.state == .failed("Claude took too long.") && s.asker.answer == "A")
+    #expect(s.asker.state == .failed("The AI took too long.") && s.asker.answer == "A")
     await s.settle()
     #expect(s.asker.answer == "A")
     s.asker.timeout = .seconds(60)

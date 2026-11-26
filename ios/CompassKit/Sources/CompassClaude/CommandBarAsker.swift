@@ -122,7 +122,7 @@ public final class CommandBarAsker {
       if let error {
         self.state = .failed(error)
       } else if self.answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-        self.state = .failed(String(localized: "Claude didn't answer.", bundle: .module, comment: "Command bar: the question's answer came back empty."))
+        self.state = .failed(String(localized: "No answer came.", bundle: .module, comment: "Command bar: the question's answer came back empty."))
       } else {
         self.state = .answered
       }
@@ -135,7 +135,7 @@ public final class CommandBarAsker {
       self.generation += 1
       stream.cancel()
       self.task = nil
-      self.state = .failed(String(localized: "Claude took too long.", bundle: .module, comment: "Command bar: the question's answer timed out."))
+      self.state = .failed(String(localized: "The AI took too long.", bundle: .module, comment: "Command bar: the question's answer timed out."))
     }
   }
 

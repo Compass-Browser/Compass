@@ -153,10 +153,10 @@ public final class TodayTidier {
     case .success(let value): reply = value
     // Turned off meanwhile: nothing to say.
     case .failure(.off): return nil
-    case .failure(.notSetUp): return .failed(String(localized: "Couldn't tidy Today: Claude isn't set up.", bundle: .module, comment: "Sidebar toast after Tidy Today (Today = the sidebar's section of today's tabs)."))
-    case .failure(.timeout): return .failed(String(localized: "Couldn't tidy Today: Claude took too long.", bundle: .module, comment: "Sidebar toast after Tidy Today timed out."))
+    case .failure(.notSetUp): return .failed(String(localized: "Couldn't tidy Today: the AI isn't set up.", bundle: .module, comment: "Sidebar toast after Tidy Today (Today = the sidebar's section of today's tabs)."))
+    case .failure(.timeout): return .failed(String(localized: "Couldn't tidy Today: the AI took too long.", bundle: .module, comment: "Sidebar toast after Tidy Today timed out."))
     case .failure(.failed), .failure(.rateLimited), .failure(.backingOff):
-      return .failed(String(localized: "Couldn't tidy Today: Claude couldn't be reached.", bundle: .module, comment: "Sidebar toast after Tidy Today failed to connect."))
+      return .failed(String(localized: "Couldn't tidy Today: the AI couldn't be reached.", bundle: .module, comment: "Sidebar toast after Tidy Today failed to connect."))
     case .failure(.refused), .failure(.badReply): return .failed(String(localized: "Couldn't tidy Today.", bundle: .module, comment: "Sidebar toast after Tidy Today failed."))
     }
     // Turned off while Claude thought: nothing changes.
@@ -172,7 +172,7 @@ public final class TodayTidier {
       SpaceStore.TidyGroup(name: folder.name, entries: folder.entries.compactMap { Int($0).map { ids[$0 - 1] } })
     }
     let tidy = store.tidyToday(in: space, groups: groups)
-    guard !tidy.folders.isEmpty else { return .failed(String(localized: "Claude found nothing to group.", bundle: .module, comment: "Sidebar toast: Tidy Today made no folders.")) }
+    guard !tidy.folders.isEmpty else { return .failed(String(localized: "The AI found nothing to group.", bundle: .module, comment: "Sidebar toast: Tidy Today made no folders.")) }
     let id = nextUndoID
     nextUndoID += 1
     undos.append((id, tidy))

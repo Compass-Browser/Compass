@@ -89,28 +89,6 @@
         }
       }
     },
-    "Claude didn't answer." : {
-      "comment" : "Command bar: the question's answer came back empty.",
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude non ha risposto."
-          }
-        }
-      }
-    },
-    "Claude found nothing to group." : {
-      "comment" : "Sidebar toast: Tidy Today made no folders.",
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude non ha trovato niente da raggruppare."
-          }
-        }
-      }
-    },
     "Claude is overloaded (529). Try again in a moment." : {
       "comment" : "AI request error: HTTP 529 from Anthropic.",
       "localizations" : {
@@ -118,17 +96,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Claude è sovraccarico (529). Riprova tra un momento."
-          }
-        }
-      }
-    },
-    "Claude took too long." : {
-      "comment" : "Command bar: the question's answer timed out.",
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude ci ha messo troppo."
           }
         }
       }
@@ -155,35 +122,35 @@
         }
       }
     },
-    "Couldn't tidy Today: Claude couldn't be reached." : {
+    "Couldn't tidy Today: the AI couldn't be reached." : {
       "comment" : "Sidebar toast after Tidy Today failed to connect.",
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Impossibile riordinare Oggi: Claude non è raggiungibile."
+            "value" : "Impossibile riordinare Oggi: l’AI non è raggiungibile."
           }
         }
       }
     },
-    "Couldn't tidy Today: Claude isn't set up." : {
+    "Couldn't tidy Today: the AI isn't set up." : {
       "comment" : "Sidebar toast after Tidy Today (Today = the sidebar's section of today's tabs).",
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Impossibile riordinare Oggi: Claude non è configurato."
+            "value" : "Impossibile riordinare Oggi: l’AI non è configurata."
           }
         }
       }
     },
-    "Couldn't tidy Today: Claude took too long." : {
+    "Couldn't tidy Today: the AI took too long." : {
       "comment" : "Sidebar toast after Tidy Today timed out.",
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Impossibile riordinare Oggi: Claude ci ha messo troppo."
+            "value" : "Impossibile riordinare Oggi: l’AI ci ha messo troppo."
           }
         }
       }
@@ -195,6 +162,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chiave (se il server la richiede)"
+          }
+        }
+      }
+    },
+    "No answer came." : {
+      "comment" : "Command bar: the question's answer came back empty.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna risposta."
           }
         }
       }
@@ -217,6 +195,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Altro (compatibile con OpenAI)"
+          }
+        }
+      }
+    },
+    "The AI found nothing to group." : {
+      "comment" : "Sidebar toast: Tidy Today made no folders.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’AI non ha trovato niente da raggruppare."
+          }
+        }
+      }
+    },
+    "The AI took too long." : {
+      "comment" : "Command bar: the question's answer timed out.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’AI ci ha messo troppo."
           }
         }
       }

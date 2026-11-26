@@ -288,7 +288,7 @@ final class ClaudeChat {
         closeOpenTools("Not run: Claude used many steps; the user may ask to go on.")
         conversation.failLastReply(
           String(
-            localized: "Claude stopped after \(Self.maxToolRounds) steps.",
+            localized: "The AI stopped after \(Self.maxToolRounds) steps.",
             comment: "Claude chat: error under a reply that used too many tool steps; the argument is the limit."))
         break
       }

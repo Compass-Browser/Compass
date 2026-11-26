@@ -235,14 +235,14 @@ struct TodayTidierTests {
     let s = Setup()
     let before = s.today
     await s.harness.fake.set(reply: #"{"folders": [{"name": "Lonely", "entries": ["1"]}]}"#)
-    #expect(await s.tidier.tidy(s.space) == .failed("Claude found nothing to group."))
+    #expect(await s.tidier.tidy(s.space) == .failed("The AI found nothing to group."))
     await s.harness.fake.set(reply: "Sure! Here are your folders.")
     #expect(await s.tidier.tidy(s.space) == .failed("Couldn't tidy Today."))
     await s.harness.fake.set(status: 500)
-    #expect(await s.tidier.tidy(s.space) == .failed("Couldn't tidy Today: Claude couldn't be reached."))
+    #expect(await s.tidier.tidy(s.space) == .failed("Couldn't tidy Today: the AI couldn't be reached."))
     s.harness.quick.timeout = 0.05
     await s.harness.fake.set(status: 200, delay: .milliseconds(500))
-    #expect(await s.tidier.tidy(s.space) == .failed("Couldn't tidy Today: Claude took too long."))
+    #expect(await s.tidier.tidy(s.space) == .failed("Couldn't tidy Today: the AI took too long."))
     #expect(s.today == before)
   }
 

@@ -476,7 +476,7 @@ struct RootView: View {
         if app.claude.streaming && !app.showingClaude {
           HStack(spacing: 10) {
             Button { app.showingClaude = true } label: {
-              Label("Claude is working…", systemImage: "sparkles").font(.footnote.weight(.medium))
+              Label("The AI is working…", systemImage: "sparkles").font(.footnote.weight(.medium))
             }
             Button("Stop") { app.claude.stop() }.font(.footnote.weight(.semibold))
           }

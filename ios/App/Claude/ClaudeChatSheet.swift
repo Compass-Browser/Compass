@@ -24,7 +24,7 @@ struct ClaudeChatSheet: View {
         if app.shownTab.map({ app.tabs.isIncognito($0.id) }) == true {
           ContentUnavailableView(
             "Not in Incognito", systemImage: "eyeglasses",
-            description: Text("Claude doesn't read or act on Incognito tabs. Open a normal tab to ask about it."))
+            description: Text("The AI doesn't read or act on Incognito tabs. Open a normal tab to ask about it."))
         } else if !settings.hasKey {
           noKey
         } else if chat.isEmpty {
@@ -48,7 +48,7 @@ struct ClaudeChatSheet: View {
             Picker("Model", selection: Binding(get: { settings.model }, set: { settings.model = $0 })) {
               ForEach(settings.pickerModels) { Text($0.displayName).tag($0.id) }
             }
-            Button("Claude Settings", systemImage: "gear") { showingSettings = true }
+            Button("AI Settings", systemImage: "gear") { showingSettings = true }
           } label: {
             Image(systemName: "ellipsis.circle")
           }
@@ -68,9 +68,9 @@ struct ClaudeChatSheet: View {
     ContentUnavailableView {
       Label("Add an API Key", systemImage: "key")
     } description: {
-      Text("Claude needs an Anthropic API key, or a compatible endpoint. Compass doesn't come with one.")
+      Text("The AI needs an API key, or a compatible server. Compass doesn't come with one.")
     } actions: {
-      Button("Open Claude Settings") { showingSettings = true }.buttonStyle(.borderedProminent)
+      Button("Open AI Settings") { showingSettings = true }.buttonStyle(.borderedProminent)
     }
   }
 
@@ -78,7 +78,7 @@ struct ClaudeChatSheet: View {
     ContentUnavailableView {
       Label("Ask about this page", systemImage: "sparkles")
     } description: {
-      Text("Claude gets the page's text with your message. Page content is treated as data, never as instructions.")
+      Text("The AI gets the page's text with your message. Page content is treated as data, never as instructions.")
     }
   }
 
@@ -306,7 +306,7 @@ private struct TurnView: View {
           ProgressView().controlSize(.small)
         }
         switch turn.stopReason {
-        case "refusal": notice("Claude declined to answer this.")
+        case "refusal": notice("The AI declined to answer this.")
         case "max_tokens": notice("The answer was cut off at its length limit.")
         default: EmptyView()
         }

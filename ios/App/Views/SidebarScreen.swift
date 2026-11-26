@@ -229,7 +229,7 @@ struct SpacePage: View {
             .disabled(!enabled)
             .padding(.trailing, 8)
             .accessibilityIdentifier("TidyToday")
-            .accessibilityHint(busy ? "Claude is grouping Today's tabs" : enabled ? "Claude groups Today's loose tabs into named folders" : "Needs 5 loose tabs in Today")
+            .accessibilityHint(busy ? "The AI is grouping Today's tabs" : enabled ? "The AI groups Today's loose tabs into named folders" : "Needs 5 loose tabs in Today")
           }
           if !space.today.children.phoneVisible.isEmpty {
             Button("Clear") {
@@ -618,7 +618,7 @@ struct NodeRow: View {
                     .symbolEffect(.pulse)
                     .offset(x: 7, y: -6)
                     .transition(.scale.combined(with: .opacity))
-                    .accessibilityLabel("Named by Claude")
+                    .accessibilityLabel("Named by AI")
                 }
               }
               .animation(.spring(duration: 0.35), value: app.namer.sparkling.contains(item.id))
