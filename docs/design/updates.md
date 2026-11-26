@@ -367,10 +367,15 @@ on its GitHub prerelease, and the image's index, manifest and config on the
 repository's `flatpak` branch, which is an OCI Flatpak remote
 (`oci+https://raw.githubusercontent.com/Compass-Browser/Compass/flatpak/`;
 docs/building.md, "Linux releases"). The channel is the Flatpak's branch
-(`canary` now). Installed copies update with `flatpak update` or their
+(`canary`, `beta` and, since 20261125.2215, `stable`; each has its
+`compass-<channel>.flatpakref`). A release goes to a branch by being packaged
+for it (`package --channel`), then published; the same build can go to two
+branches one after the other (repackage without `--build`), the second
+upload replacing the release's tarball and bundle. Installed copies update with `flatpak update` or their
 software center, and take the new version at the next start.
 
-- **Not done:** promoting a Linux release (a stable branch), OCI deltas
+- **Not done:** `release promote` for Linux (a branch is filled by
+  packaging and publishing for it), OCI deltas
   (each update downloads the whole layer), and a "Restart to update" prompt.
   Flatpak's portal can tell a running app an update is installed
   (`org.freedesktop.portal.Flatpak.CreateUpdateMonitor`, signal
