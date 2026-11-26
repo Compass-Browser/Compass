@@ -586,7 +586,7 @@
     New Live Folder…
   </message>
   <message name="IDS_COMPASS_SIDEBAR_MENU_DESCRIBE_LIVE_FOLDER" desc="Sidebar context menu: ask Claude, the AI assistant, to make a live folder plugin.">
-    Describe a Live Folder to Claude…
+    Describe a Live Folder to the AI…
   </message>
   <message name="IDS_COMPASS_SIDEBAR_MENU_UNDO_NAME" desc="Sidebar context menu: go back to the name the item had before Claude renamed it.">
     Undo Name
@@ -928,10 +928,10 @@
     There's no Claude Code at that path.
   </message>
   <message name="IDS_COMPASS_CLAUDE_CODE_NOT_INSTALLED_SETTINGS" desc="Error in the chat with Claude: the Claude Code command-line tool wasn&#x27;t found.">
-    Claude Code isn't installed where Compass looks. Install it (claude.com/claude-code), or set its path in Compass's Claude settings.
+    Claude Code isn't installed where Compass looks. Install it (claude.com/claude-code), or set its path in Compass's AI settings.
   </message>
   <message name="IDS_COMPASS_CLAUDE_CODE_NOT_AT_SETTINGS_PATH" desc="Error in the chat with Claude: the Claude Code path set in Settings has no Claude Code.">
-    Claude Code isn't at the path set in Compass's Claude settings.
+    Claude Code isn't at the path set in Compass's AI settings.
   </message>
   <message name="IDS_COMPASS_CLAUDE_CODE_NOT_STARTED" desc="Error in the chat with Claude: the Claude Code program couldn&#x27;t be started. PATH is the program&#x27;s path.">
     Claude Code couldn't start (<ph name="PATH">$1<ex>/usr/local/bin/claude</ex></ph>).
@@ -940,7 +940,7 @@
     Apple Intelligence isn't available here.
   </message>
   <message name="IDS_COMPASS_CLAUDE_FOLDER_DIALOG_TITLE" desc="Title of the dialog that picks a folder Claude can read and write files in.">
-    Choose a folder for Claude
+    Choose a folder for the AI
   </message>
   <message name="IDS_COMPASS_CLAUDE_MEMORY_UNAVAILABLE" desc="Error in Settings: Claude&#x27;s memory can&#x27;t be used in this profile.">
     Memory isn't available in this profile.
@@ -1084,7 +1084,7 @@
     The server answered, but not with a list of models. Check the endpoint URL.
   </message>
   <message name="IDS_COMPASS_AI_ERROR_STOPPED" desc="Error in the chat: Claude&#x27;s reply stopped with an error that has no description.">
-    Claude stopped with an error.
+    The AI stopped with an error.
   </message>
   <message name="IDS_COMPASS_AI_ENTER_URL" desc="Error when testing an AI server without its address.">
     Enter the server's URL first.
@@ -1249,7 +1249,7 @@
     The answer was cut off at its length limit.
   </message>
   <message name="IDS_COMPASS_AI_NOTICE_REFUSAL" desc="Notice in the chat: Claude refused to answer.">
-    Claude declined to answer this.
+    The AI declined to answer this.
   </message>
   <message name="IDS_COMPASS_AI_BASE_URL_INVALID" desc="On Android, error testing an AI server&#x27;s address.">
     That URL isn't usable: it must be https (http only to this device), without a query.
@@ -1267,7 +1267,7 @@
     Enter the server's model ID in Settings first.
   </message>
   <message name="IDS_COMPASS_AI_TOO_MANY_TOOL_ROUNDS" desc="Error in the chat: Claude kept using tools for too many rounds.">
-    Claude used tools for too long; ask again to go on.
+    The AI used tools for too long; ask again to go on.
   </message>
   <message name="IDS_COMPASS_AI_MEMORY_NOT_ADDED" desc="On Android, error adding a fact to Claude&#x27;s memory.">
     Couldn't add the memory.

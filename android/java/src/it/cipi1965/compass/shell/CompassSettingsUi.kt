@@ -409,7 +409,7 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                     ) {
                         open(CompassSettingsUi.Row.AUTOFILL_APPS)
                     }
-                    SettingsRow("Claude", R.drawable.compass_sym_auto_awesome) {
+                    SettingsRow(stringResource(R.string.compass_ai), R.drawable.compass_sym_auto_awesome) {
                         open(CompassSettingsUi.Row.CLAUDE)
                     }
                     SettingsRow(stringResource(R.string.compass_settings_extensions), R.drawable.compass_sym_extension_fill) {

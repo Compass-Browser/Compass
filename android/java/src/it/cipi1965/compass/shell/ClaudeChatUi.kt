@@ -378,7 +378,8 @@ private fun Header(
             SymIcon(R.drawable.compass_sym_auto_awesome, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
         }
         Column(Modifier.weight(1f)) {
-            Text("Claude", style = MaterialTheme.typography.titleLarge)
+            // Who answers: Claude, GPT, Gemini, or AI for a server with no name of its own.
+            Text(AiNames.assistantName(state.provider).ifEmpty { "AI" }, style = MaterialTheme.typography.titleLarge)
             if (state.setUp) ModelMenu(state, listener)
         }
         if (state.messages.isNotEmpty()) {

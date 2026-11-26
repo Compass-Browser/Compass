@@ -11,7 +11,7 @@
     New chat
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_NO_KEY_LEAD" desc="Claude chat, before an API key is set: what the chat does.">
-    Chat with Claude about the page you're on.
+    Chat with an AI about the page you're on.
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_NO_KEY" desc="Claude chat, before an API key is set.">
     Compass ships no key: add your own Anthropic API key in settings.
@@ -23,7 +23,7 @@
     Ask about the page you're on, or anything else.
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_USING_TOOLTIP" desc="Claude chat: tooltip of the chip showing the tab Claude is working in.">
-    Claude reads and acts in this tab
+    The AI reads and acts in this tab
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_USING" desc="Claude chat: chip showing the tab Claude is working in.">
     Using <ph name="TAB_TITLE">$1<ex>Inbox</ex></ph>
@@ -56,7 +56,7 @@
     Ask AI…
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_MESSAGE" desc="Claude chat: accessible name of the message field.">
-    Message to Claude
+    Message to the AI
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_QUEUE_TOOLTIP" desc="Claude chat: tooltip of the button that queues a message, with its shortcut.">
     Send after this reply (Enter)
@@ -86,19 +86,19 @@
     Explain this page simply
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_ATTACH_ON" desc="Claude chat: tooltip of the page chip when the page goes with the message.">
-    Claude gets this page's text with your message
+    The AI gets this page's text with your message
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_ATTACH_OFF" desc="Claude chat: tooltip of the page chip when the page doesn't go with the message.">
     Not sent
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_TOO_MANY_STEPS" desc="Claude chat: error when Claude took too many steps. &quot;go on&quot; is what the user can type; translate it.">
-    Claude stopped after <ph name="COUNT">$1<ex>50</ex></ph> steps. Send "go on" to let it continue.
+    The AI stopped after <ph name="COUNT">$1<ex>50</ex></ph> steps. Send "go on" to let it continue.
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_UNDONE" desc="Claude chat: a memory or Boost change the user undid.">
     Undone
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_SCREENSHOT" desc="Claude chat: alt text of a screenshot Claude took.">
-    Screenshot Claude took
+    Screenshot the AI took
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_THINKING" desc="Claude chat: heading of Claude's reasoning while it thinks.">
     Thinking…
@@ -107,10 +107,10 @@
     Thought
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_ANSWERING" desc="Claude chat: accessible name of the dots shown while Claude answers.">
-    Claude is answering
+    Answering
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_REFUSED" desc="Claude chat: Claude refused to answer.">
-    Claude declined to answer this.
+    The AI declined to answer this.
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_CUT_OFF" desc="Claude chat: Claude's answer hit its length limit.">
     The answer was cut off at its length limit.
@@ -866,10 +866,10 @@
     Today
   </message>
   <message name="IDS_COMPASS_SIDEBAR_TIDYING_TOOLTIP" desc="Tooltip of the Tidy button while Claude (an AI assistant) groups the tabs.">
-    Claude is tidying Today
+    The AI is tidying Today
   </message>
   <message name="IDS_COMPASS_SIDEBAR_TIDY_TOOLTIP" desc="Tooltip of the Tidy button.">
-    Group Today's tabs into folders with Claude
+    Group Today's tabs into folders with AI
   </message>
   <message name="IDS_COMPASS_SIDEBAR_TIDYING" desc="The Tidy button while Claude groups the tabs.">
     Tidying…

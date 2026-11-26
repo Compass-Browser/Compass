@@ -253,7 +253,7 @@
     <ph name="APP_NAME">$1<ex>Claude Code</ex></ph> wants to control Compass in <ph name="PROFILE_NAME">$2<ex>Work</ex></ph>
   </message>
   <message name="IDS_COMPASS_MCP_DIALOG_BODY" desc="Body of the dialog that asks whether an app on the computer (an MCP client) may control Compass: what it could do if allowed.">
-    <ph name="APP_NAME">$1<ex>Claude Code</ex></ph> is an app on this computer that uses Claude's tools in Compass. Allowed, it can read your tabs, take screenshots, read their consoles, run JavaScript, and click and type in them, signed in as you. Allow only apps you trust.
+    <ph name="APP_NAME">$1<ex>Claude Code</ex></ph> is an app on this computer that uses Compass's AI tools. Allowed, it can read your tabs, take screenshots, read their consoles, run JavaScript, and click and type in them, signed in as you. Allow only apps you trust.
   </message>
   <message name="IDS_COMPASS_MCP_DIALOG_ALWAYS_ALLOW" desc="Checkbox of the dialog that asks whether an app may control Compass: allow it from now on without asking.">
     Always allow <ph name="APP_NAME">$1<ex>Claude Code</ex></ph>
@@ -270,19 +270,19 @@
 
   <!-- Tidy Today (Claude groups the loose tabs of the sidebar's Today section into folders) -->
   <message name="IDS_COMPASS_TIDY_TODAY_NOT_SET_UP" desc="Error in the sidebar when Claude couldn&#x27;t tidy Today (group its loose tabs into folders) because Claude isn&#x27;t set up. &quot;Today&quot; is the name of a section of the sidebar.">
-    Couldn't tidy Today: Claude isn't set up.
+    Couldn't tidy Today: the AI isn't set up.
   </message>
   <message name="IDS_COMPASS_TIDY_TODAY_TIMEOUT" desc="Error in the sidebar when Claude couldn&#x27;t tidy Today because it took too long to answer. &quot;Today&quot; is the name of a section of the sidebar.">
-    Couldn't tidy Today: Claude took too long.
+    Couldn't tidy Today: the AI took too long.
   </message>
   <message name="IDS_COMPASS_TIDY_TODAY_UNREACHABLE" desc="Error in the sidebar when Claude couldn&#x27;t tidy Today because it couldn&#x27;t be reached. &quot;Today&quot; is the name of a section of the sidebar.">
-    Couldn't tidy Today: Claude couldn't be reached.
+    Couldn't tidy Today: the AI couldn't be reached.
   </message>
   <message name="IDS_COMPASS_TIDY_TODAY_FAILED" desc="Error in the sidebar when Claude couldn&#x27;t tidy Today for another reason. &quot;Today&quot; is the name of a section of the sidebar.">
     Couldn't tidy Today.
   </message>
   <message name="IDS_COMPASS_TIDY_TODAY_NOTHING" desc="Shown in the sidebar when Claude, asked to tidy Today, found no tabs to group into folders.">
-    Claude found nothing to group.
+    The AI found nothing to group.
   </message>
 
   <!-- Importing from other browsers (settings, Import) -->

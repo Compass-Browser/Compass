@@ -858,7 +858,7 @@ TEST_F(SidebarPageHandlerTest, TidyToday) {
                 JsonDict(R"({"folders": []})"));
   Settle();
   EXPECT_THAT(page_.TakeToasts(),
-              ElementsAre("Claude found nothing to group."));
+              ElementsAre("The AI found nothing to group."));
   EXPECT_EQ(TodayOutline(space_model()), before);
 
   // Off again: hidden.

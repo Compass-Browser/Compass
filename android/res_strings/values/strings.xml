@@ -39,7 +39,7 @@
 
   <!-- Claude -->
   <!-- ClaudeChatUi.kt: the Claude sheet. Boost is a feature name (invariable in Italian). -->
-  <string name="compass_claude_working">Claude is working…</string>
+  <string name="compass_claude_working">The AI is working…</string>
   <string name="compass_claude_stop">Stop</string>
   <string name="compass_claude_same_as_chat">Same as chat</string>
   <string name="compass_claude_new_chat">New Chat</string>
@@ -47,7 +47,7 @@
   <string name="compass_claude_larger">Larger</string>
   <string name="compass_claude_memory">Memory</string>
   <string name="compass_claude_boosts">Boosts</string>
-  <string name="compass_claude_in_sidebar">Claude in the Sidebar</string>
+  <string name="compass_claude_in_sidebar">AI in the Sidebar</string>
   <string name="compass_claude_change_key">Change Key</string>
   <string name="compass_claude_back_to_chat">Back to the chat</string>
   <string name="compass_claude_feature_name_link_folders">Name Link Folders</string>
@@ -62,14 +62,14 @@
   <string name="compass_claude_sidebar_set_up_first">Set up %1$s in Settings first.</string>
   <string name="compass_claude_model_label">Model: %1$s</string>
   <string name="compass_claude_use_memory">Use memory</string>
-  <string name="compass_claude_use_memory_about">What Claude remembers goes with each new chat.</string>
-  <string name="compass_claude_save_memories">Let Claude save memories</string>
-  <string name="compass_claude_what_claude_remembers">What Claude remembers</string>
-  <string name="compass_claude_memories_empty">Claude saves facts about you here as you chat: preferences, what you work on. You see each save, and can undo it.</string>
+  <string name="compass_claude_use_memory_about">What the AI remembers goes with each new chat.</string>
+  <string name="compass_claude_save_memories">Let the AI save memories</string>
+  <string name="compass_claude_what_claude_remembers">What the AI remembers</string>
+  <string name="compass_claude_memories_empty">The AI saves facts about you here as you chat: preferences, what you work on. You see each save, and can undo it.</string>
   <string name="compass_claude_delete_all_memories">Delete All Memories</string>
-  <string name="compass_claude_memory_placeholder">Something Claude should know</string>
+  <string name="compass_claude_memory_placeholder">Something the AI should know</string>
   <string name="compass_claude_delete_all_memories_title">Delete all memories?</string>
-  <string name="compass_claude_delete_all_memories_text">Claude forgets everything it saved about you, on every device that syncs.</string>
+  <string name="compass_claude_delete_all_memories_text">The AI forgets everything it saved about you, on every device that syncs.</string>
   <string name="compass_claude_delete_all">Delete All</string>
   <string name="compass_claude_provider">Provider</string>
   <string name="compass_claude_server">Server</string>
@@ -95,20 +95,20 @@
   <string name="compass_claude_test_connection">Test Connection</string>
   <string name="compass_claude_files">Files</string>
   <string name="compass_claude_files_off">Off</string>
-  <string name="compass_claude_files_off_about">Claude can\'t save or read files.</string>
+  <string name="compass_claude_files_off_about">The AI can\'t save or read files.</string>
   <string name="compass_claude_files_save">Save Files</string>
-  <string name="compass_claude_files_save_about">Claude can save new files in Downloads.</string>
+  <string name="compass_claude_files_save_about">The AI can save new files in Downloads.</string>
   <string name="compass_claude_files_folder">Use a Folder</string>
-  <string name="compass_claude_files_folder_about">Claude can list, read and write files in a folder of Downloads.</string>
+  <string name="compass_claude_files_folder_about">The AI can list, read and write files in a folder of Downloads.</string>
   <string name="compass_claude_folder_in_downloads">Folder in Downloads</string>
   <string name="compass_claude_use">Use</string>
-  <string name="compass_claude_files_note">You approve each file Claude saves or writes before it happens.</string>
+  <string name="compass_claude_files_note">You approve each file the AI saves or writes before it happens.</string>
   <string name="compass_claude_advanced">Advanced</string>
-  <string name="compass_claude_devtools">Let Claude use developer tools</string>
-  <string name="compass_claude_devtools_about">Claude can inspect the tab it works on as a web developer would: its network requests, styles, storage and performance, and emulate other devices. Pages can try to give Claude instructions; you approve each change to cookies or storage.</string>
+  <string name="compass_claude_devtools">Let the AI use developer tools</string>
+  <string name="compass_claude_devtools_about">The AI can inspect the tab it works on as a web developer would: its network requests, styles, storage and performance, and emulate other devices. Pages can try to give the AI instructions; you approve each change to cookies or storage.</string>
   <string name="compass_claude_token_risks">Accept the risks of subscription tokens</string>
   <string name="compass_claude_token_risks_about">Lets the key be a token from claude setup-token (sk-ant-oat…), which uses your Claude subscription. Compass then sends it as Claude Code does, saying it\'s Claude Code. Anthropic doesn\'t offer these tokens for other apps: they can stop working at any time, and using them this way may go against the terms of your subscription. Off, such a token is refused.</string>
-  <string name="compass_claude_boosts_allow">Let Claude make Boosts</string>
+  <string name="compass_claude_boosts_allow">Let the AI make Boosts</string>
   <string name="compass_claude_boosts_allow_about">A Boost changes how a site looks or works on all your devices. You approve every Boost with JavaScript; CSS-only ones save at once, with Undo.</string>
   <string name="compass_claude_your_boosts">Your Boosts</string>
   <string name="compass_claude_no_boosts">No Boosts yet.</string>
@@ -130,7 +130,7 @@
   <string name="compass_claude_suggest_key_points">What are the key points?</string>
   <string name="compass_claude_suggest_explain">Explain it simply</string>
   <string name="compass_claude_ask_about_page">Ask about this page</string>
-  <string name="compass_claude_empty_about">A summary, an explanation, what it says about something. With the whole browser on, Claude can also work with your tabs and spaces.</string>
+  <string name="compass_claude_empty_about">A summary, an explanation, what it says about something. With the whole browser on, the AI can also work with your tabs and spaces.</string>
   <string name="compass_claude_this_page">This page</string>
   <string name="compass_claude_whole_browser">Whole browser</string>
   <string name="compass_claude_send_after_reply">Send after this reply</string>
@@ -745,7 +745,10 @@
   <string name="compass_widget_nothing_in_today">Nothing in Today</string>
   <string name="compass_widget_search_hint">Search or type URL</string>
   <string name="compass_widget_incognito">Incognito</string>
-  <string name="compass_widget_claude" translatable="false">Claude</string>
+  <!-- The actions widget's chat button: it can't know who answers, so "AI" (the same in Italian). -->
+  <string name="compass_widget_claude" translatable="false">AI</string>
+  <!-- Settings' row for the AI's screen; "AI" in Italian too. -->
+  <string name="compass_ai" translatable="false">AI</string>
   <string name="compass_widget_sidebar">Sidebar</string>
   <!-- AndroidManifest.xml -->
   <string name="compass_extras_new_tab_tile">New tab</string>

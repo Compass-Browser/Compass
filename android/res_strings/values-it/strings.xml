@@ -37,7 +37,7 @@
 
   <!-- Claude -->
   <!-- ClaudeChatUi.kt -->
-  <string name="compass_claude_working">Claude sta lavorando…</string>
+  <string name="compass_claude_working">L’AI sta lavorando…</string>
   <string name="compass_claude_stop">Interrompi</string>
   <string name="compass_claude_same_as_chat">Come la chat</string>
   <string name="compass_claude_new_chat">Nuova chat</string>
@@ -45,7 +45,7 @@
   <string name="compass_claude_larger">Espandi</string>
   <string name="compass_claude_memory">Memoria</string>
   <string name="compass_claude_boosts">Boost</string>
-  <string name="compass_claude_in_sidebar">Claude nella barra laterale</string>
+  <string name="compass_claude_in_sidebar">AI nella barra laterale</string>
   <string name="compass_claude_change_key">Cambia chiave</string>
   <string name="compass_claude_back_to_chat">Torna alla chat</string>
   <string name="compass_claude_feature_name_link_folders">Nomi delle cartelle di link</string>
@@ -60,14 +60,14 @@
   <string name="compass_claude_sidebar_set_up_first">Prima configura %1$s nelle Impostazioni.</string>
   <string name="compass_claude_model_label">Modello: %1$s</string>
   <string name="compass_claude_use_memory">Usa la memoria</string>
-  <string name="compass_claude_use_memory_about">Ciò che Claude ricorda viene incluso in ogni nuova chat.</string>
-  <string name="compass_claude_save_memories">Consenti a Claude di salvare ricordi</string>
-  <string name="compass_claude_what_claude_remembers">Cosa ricorda Claude</string>
-  <string name="compass_claude_memories_empty">Mentre chatti, Claude salva qui informazioni su di te: preferenze, ciò su cui lavori. Vedi ogni salvataggio e puoi annullarlo.</string>
+  <string name="compass_claude_use_memory_about">Ciò che l’AI ricorda viene incluso in ogni nuova chat.</string>
+  <string name="compass_claude_save_memories">Consenti all’AI di salvare ricordi</string>
+  <string name="compass_claude_what_claude_remembers">Cosa ricorda l’AI</string>
+  <string name="compass_claude_memories_empty">Mentre chatti, l’AI salva qui informazioni su di te: preferenze, ciò su cui lavori. Vedi ogni salvataggio e puoi annullarlo.</string>
   <string name="compass_claude_delete_all_memories">Elimina tutti i ricordi</string>
-  <string name="compass_claude_memory_placeholder">Qualcosa che Claude dovrebbe sapere</string>
+  <string name="compass_claude_memory_placeholder">Qualcosa che l’AI dovrebbe sapere</string>
   <string name="compass_claude_delete_all_memories_title">Eliminare tutti i ricordi?</string>
-  <string name="compass_claude_delete_all_memories_text">Claude dimentica tutto ciò che ha salvato su di te, su ogni dispositivo sincronizzato.</string>
+  <string name="compass_claude_delete_all_memories_text">L’AI dimentica tutto ciò che ha salvato su di te, su ogni dispositivo sincronizzato.</string>
   <string name="compass_claude_delete_all">Elimina tutto</string>
   <string name="compass_claude_provider">Fornitore</string>
   <string name="compass_claude_server">Server</string>
@@ -93,20 +93,20 @@
   <string name="compass_claude_test_connection">Verifica connessione</string>
   <string name="compass_claude_files">File</string>
   <string name="compass_claude_files_off">Disattivati</string>
-  <string name="compass_claude_files_off_about">Claude non può salvare né leggere file.</string>
+  <string name="compass_claude_files_off_about">L’AI non può salvare né leggere file.</string>
   <string name="compass_claude_files_save">Salva file</string>
-  <string name="compass_claude_files_save_about">Claude può salvare nuovi file in Download.</string>
+  <string name="compass_claude_files_save_about">L’AI può salvare nuovi file in Download.</string>
   <string name="compass_claude_files_folder">Usa una cartella</string>
-  <string name="compass_claude_files_folder_about">Claude può elencare, leggere e scrivere file in una cartella di Download.</string>
+  <string name="compass_claude_files_folder_about">L’AI può elencare, leggere e scrivere file in una cartella di Download.</string>
   <string name="compass_claude_folder_in_downloads">Cartella in Download</string>
   <string name="compass_claude_use">Usa</string>
-  <string name="compass_claude_files_note">Approvi ogni file che Claude salva o scrive prima che lo faccia.</string>
+  <string name="compass_claude_files_note">Approvi ogni file che l’AI salva o scrive prima che lo faccia.</string>
   <string name="compass_claude_advanced">Avanzate</string>
-  <string name="compass_claude_devtools">Consenti a Claude di usare gli strumenti per sviluppatori</string>
-  <string name="compass_claude_devtools_about">Claude può ispezionare la scheda su cui lavora come farebbe uno sviluppatore web: richieste di rete, stili, archiviazione e prestazioni, ed emulare altri dispositivi. Le pagine possono tentare di dare istruzioni a Claude; approvi ogni modifica ai cookie o all\'archiviazione.</string>
+  <string name="compass_claude_devtools">Consenti all’AI di usare gli strumenti per sviluppatori</string>
+  <string name="compass_claude_devtools_about">L’AI può ispezionare la scheda su cui lavora come farebbe uno sviluppatore web: richieste di rete, stili, archiviazione e prestazioni, ed emulare altri dispositivi. Le pagine possono tentare di dare istruzioni all’AI; approvi ogni modifica ai cookie o all\'archiviazione.</string>
   <string name="compass_claude_token_risks">Accetta i rischi dei token di abbonamento</string>
   <string name="compass_claude_token_risks_about">Consente di usare come chiave un token di claude setup-token (sk-ant-oat…), che usa il tuo abbonamento a Claude. Compass lo invia come fa Claude Code, presentandosi come Claude Code. Anthropic non offre questi token per altre app: possono smettere di funzionare in qualsiasi momento e usarli in questo modo potrebbe violare i termini del tuo abbonamento. Se l\'opzione è disattivata, questi token vengono rifiutati.</string>
-  <string name="compass_claude_boosts_allow">Consenti a Claude di creare Boost</string>
+  <string name="compass_claude_boosts_allow">Consenti all’AI di creare Boost</string>
   <string name="compass_claude_boosts_allow_about">Un Boost cambia l\'aspetto o il funzionamento di un sito su tutti i tuoi dispositivi. Approvi ogni Boost con JavaScript; quelli solo CSS vengono salvati subito, e si possono annullare.</string>
   <string name="compass_claude_your_boosts">I tuoi Boost</string>
   <string name="compass_claude_no_boosts">Ancora nessun Boost.</string>
@@ -128,7 +128,7 @@
   <string name="compass_claude_suggest_key_points">Quali sono i punti chiave?</string>
   <string name="compass_claude_suggest_explain">Spiegala in modo semplice</string>
   <string name="compass_claude_ask_about_page">Chiedi qualcosa su questa pagina</string>
-  <string name="compass_claude_empty_about">Un riassunto, una spiegazione, cosa dice su un argomento. Con l\'intero browser attivo, Claude può anche lavorare con le tue schede e i tuoi spazi.</string>
+  <string name="compass_claude_empty_about">Un riassunto, una spiegazione, cosa dice su un argomento. Con l\'intero browser attivo, l’AI può anche lavorare con le tue schede e i tuoi spazi.</string>
   <string name="compass_claude_this_page">Questa pagina</string>
   <string name="compass_claude_whole_browser">Intero browser</string>
   <string name="compass_claude_send_after_reply">Invia dopo questa risposta</string>
