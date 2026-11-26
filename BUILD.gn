@@ -37,6 +37,9 @@ test("compass_unittests") {
     "//compass/components/sync/rooms:unit_tests",
     "//compass/renderer/adblock:unit_tests",
   ]
+  if (is_mac || is_win || is_linux) {
+    deps += [ "//compass/browser/downloads_folder:unit_tests" ]
+  }
   if (is_mac) {
     deps += [ "//compass/components/os_crypt:unit_tests" ]
   }

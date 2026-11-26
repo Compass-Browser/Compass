@@ -224,7 +224,7 @@ window.__compassEasel = window.__compassEasel || (() => {
       copy.addEventListener('click', (e) => {
         if (e.isTrusted) pickAction('copy');
       });
-      const save = el('button', '', 'Save to Downloads');
+      const save = el('button', '', 'Save to Screenshots');
       save.addEventListener('click', (e) => {
         if (e.isTrusted) pickAction('save');
       });

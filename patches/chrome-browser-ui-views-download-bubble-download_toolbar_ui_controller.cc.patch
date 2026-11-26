@@ -1,0 +1,23 @@
+diff --git a/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc b/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc
+index 10b7682418b0d6084a65a5fa40b7f96ad3191557..47beff70bb58c881cc40a1d494f1c2f8759d2b78 100644
+--- a/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc
++++ b/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc
+@@ -40,6 +40,7 @@ DEFINE_USER_DATA(DownloadToolbarUIController);
+ #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+ #include "chrome/grit/generated_resources.h"
++#include "compass/browser/ui/views/downloads_bubble/downloads_bubble_hooks.h"
+ #include "components/autofill/content/browser/content_autofill_client.h"
+ #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
+ #include "components/feature_engagement/public/feature_constants.h"
+@@ -491,6 +492,10 @@ void DownloadToolbarUIController::InvokeUI() {
+   if (!bubble_delegate_ && !bubble_controller_->GetMainView().empty()) {
+     button_click_time_ = base::TimeTicks::Now();
+     ShowBubble(DownloadBubbleMode::kComplete);
++  } else if (!bubble_delegate_ &&
++             compass::downloads_bubble::ShowWithoutRecentDownloads(
++                 browser_view_)) {
++    // Compass: the folders' files, with no recent downloads.
+   } else {
+     chrome::ShowDownloads(browser_view_->browser());
+   }

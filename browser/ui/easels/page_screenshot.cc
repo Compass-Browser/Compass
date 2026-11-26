@@ -19,8 +19,8 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/values.h"
-#include "chrome/browser/download/download_prefs.h"
 #include "compass/browser/claude/devtools_session.h"
+#include "compass/browser/downloads_folder/folder_files.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
@@ -32,39 +32,40 @@ namespace {
 
 using Result = base::expected<std::string, std::string>;
 
-// Writes |png| to a free name in |folder|; the name written, or none.
-std::optional<base::FilePath> WritePng(const base::FilePath& folder,
-                                       base::FilePath name,
+// Writes |png| to a free name in the screenshot folder (the system's, where
+// its own screenshots go, so the downloads bubble's Screenshots tab lists
+// both), marked as a screenshot as the system marks its own; the path
+// written, or none.
+std::optional<base::FilePath> WritePng(base::FilePath name,
                                        std::vector<uint8_t> png) {
-  if (!base::CreateDirectory(folder)) {
+  const base::FilePath folder = downloads_folder::ScreenshotFolder();
+  if (folder.empty() || !base::CreateDirectory(folder)) {
     return std::nullopt;
   }
   const base::FilePath path = base::GetUniquePath(folder.Append(name));
   if (path.empty() || !base::WriteFile(path, png)) {
     return std::nullopt;
   }
+  downloads_folder::MarkAsScreenCapture(path);
   return path;
 }
 
-void SavePng(content::WebContents* contents,
-             std::vector<uint8_t> png,
-             ScreenshotCallback done) {
-  const base::FilePath folder =
-      DownloadPrefs::FromBrowserContext(contents->GetBrowserContext())
-          ->DownloadPath();
+void SavePng(std::vector<uint8_t> png, ScreenshotCallback done) {
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce(&WritePng, folder, ScreenshotFileName(base::Time::Now()),
+      base::BindOnce(&WritePng, ScreenshotFileName(base::Time::Now()),
                      std::move(png)),
       base::BindOnce(
           [](ScreenshotCallback done, std::optional<base::FilePath> path) {
             if (!path) {
-              std::move(done).Run(base::unexpected(
-                  "The screenshot couldn't be saved to Downloads."));
+              std::move(done).Run(
+                  base::unexpected("The screenshot couldn't be saved."));
               return;
             }
+            // "Saved to Desktop as Screenshot …".
             std::move(done).Run(base::ok(base::StrCat(
-                {"Saved to Downloads as ", path->BaseName().AsUTF8Unsafe()})));
+                {"Saved to ", path->DirName().BaseName().AsUTF8Unsafe(),
+                 " as ", path->BaseName().AsUTF8Unsafe()})));
           },
           std::move(done)));
 }
@@ -142,7 +143,7 @@ class FullPageCapture {
         },
         clipped_, std::move(done_));
     if (action_ == ScreenshotAction::kSave) {
-      SavePng(contents_.get(), std::move(*png), std::move(done));
+      SavePng(std::move(*png), std::move(done));
     } else {
       SkBitmap bitmap = gfx::PNGCodec::Decode(*png);
       if (bitmap.drawsNothing()) {
@@ -189,7 +190,7 @@ void FinishScreenshot(content::WebContents* contents,
     std::move(done).Run(base::unexpected("The screenshot couldn't be saved."));
     return;
   }
-  SavePng(contents, std::move(*png), std::move(done));
+  SavePng(std::move(*png), std::move(done));
 }
 
 void CaptureFullPage(content::WebContents* contents,

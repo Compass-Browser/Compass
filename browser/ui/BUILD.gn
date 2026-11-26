@@ -62,6 +62,11 @@ source_set("ui") {
     "views/claude/claude_panel.h",
     "views/command_bar/command_bar.cc",
     "views/command_bar/command_bar.h",
+    "views/downloads_bubble/downloads_bubble.cc",
+    "views/downloads_bubble/downloads_library_view.cc",
+    "views/downloads_bubble/downloads_library_view.h",
+    "views/downloads_bubble/file_thumbnails.cc",
+    "views/downloads_bubble/file_thumbnails.h",
     "views/dev_mode/dev_mode_bar.cc",
     "views/dev_mode/dev_mode_bar.h",
     "views/dev_mode/dev_mode_controller.cc",
@@ -169,6 +174,7 @@ source_set("ui") {
   ]
   public_deps = [
     ":app_menu_hooks",
+    ":downloads_bubble_hooks",
     ":page_info_hooks",
     "//chrome/browser:browser_public_dependencies",
     "//compass/browser/sync",
@@ -218,6 +224,14 @@ source_set("ui") {
 
     # The site information popup's ad blocker and development mode rows.
     "//chrome/browser/ui/views/controls",
+
+    # The downloads bubble's tabs (views/downloads_bubble/): upstream's rows,
+    # the folders' files, their icons and previews.
+    "//chrome/browser:icon_manager",
+    "//chrome/browser/ui/views/download",
+    "//compass/browser/downloads_folder",
+    "//services/data_decoder/public/cpp",
+    "//services/data_decoder/public/mojom",
 
     # Development mode's bar opens DevTools (views/dev_mode/dev_mode_bar.cc).
     "//chrome/browser/devtools",
@@ -414,9 +428,16 @@ source_set("ui") {
     deps += [ "//build/config/linux/dbus:buildflags" ]
   }
   if (is_mac) {
-    sources += [ "views/tab_switcher/switcher_keys_mac.mm" ]
+    sources += [
+      "views/downloads_bubble/file_thumbnails_mac.mm",
+      "views/tab_switcher/switcher_keys_mac.mm",
+    ]
+    frameworks = [ "QuickLookThumbnailing.framework" ]
   } else {
-    sources += [ "views/tab_switcher/switcher_keys_aura.cc" ]
+    sources += [
+      "views/downloads_bubble/file_thumbnails_aura.cc",
+      "views/tab_switcher/switcher_keys_aura.cc",
+    ]
   }
   if (is_mac) {
     sources += [
@@ -457,6 +478,13 @@ source_set("app_menu_hooks") {
     "settings_window_hooks.h",
   ]
   public_deps = [ "//chrome/app:command_ids" ]
+}
+
+# What upstream's downloads bubble calls (see
+# patches/chrome-browser-ui-views-download-bubble-download_dialog_view.cc.patch
+# and download_toolbar_ui_controller.cc.patch); defined in :ui.
+source_set("downloads_bubble_hooks") {
+  public = [ "views/downloads_bubble/downloads_bubble_hooks.h" ]
 }
 
 # The site information popup's development mode switch, which upstream's
@@ -532,6 +560,7 @@ source_set("browser_tests") {
     "views/command_bar/command_bar_ask_browsertest.cc",
     "views/command_bar/command_bar_browsertest.cc",
     "views/dev_mode/dev_mode_browsertest.cc",
+    "views/downloads_bubble/downloads_bubble_browsertest.cc",
     "views/find_bar/find_bar_browsertest.cc",
     "views/frame/profile_switch_browsertest.cc",
     "views/little_window/little_window_browsertest.cc",
@@ -561,6 +590,10 @@ source_set("browser_tests") {
     "//base/test:test_support",
     "//chrome/app:command_ids",
     "//chrome/browser",
+    "//chrome/browser/download",
+    "//chrome/browser/ui/views/download",
+    "//chrome/browser/ui/views/toolbar",
+    "//compass/browser/downloads_folder",
     "//chrome/browser/autocomplete",
     "//chrome/browser/devtools:test_support",
     "//chrome/browser/extensions:test_support",

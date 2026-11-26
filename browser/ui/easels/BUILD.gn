@@ -133,6 +133,9 @@ if (!is_android) {
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/tabs:tab_strip",
       "//compass/browser/claude:devtools_session",
+
+      # Screenshots go where the system's do (docs/design/screenshots.md).
+      "//compass/browser/downloads_folder",
       "//compass/browser/easels:store",
       "//compass/browser/sidebar",
       "//compass/browser/window_sync",
@@ -183,6 +186,7 @@ if (!is_android) {
       "//chrome/browser/profiles:profile",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
+      "//compass/browser/downloads_folder",
       "//compass/browser/easels:store",
       "//compass/browser/sidebar",
       "//compass/browser/window_sync",
