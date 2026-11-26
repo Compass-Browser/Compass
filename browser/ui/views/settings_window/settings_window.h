@@ -62,7 +62,7 @@ class SettingsWindow : public content::WebContentsDelegate,
  public:
   // The page's toolbar height, which the traffic lights center on (macOS).
   static constexpr int kToolbarHeight = 78;
-  static constexpr int kWidth = 760;
+  static constexpr int kWidth = 840;
 
   // Opens |profile|'s settings window at |path| (SettingsWindowPathFor()),
   // or brings it to the front and shows |path| there.
