@@ -371,6 +371,61 @@ theme editor sets them (below). Arc:
 `ArcSidebarTest.GradientsComeFromTheirBaseColors`,
 `PlainColorsKeepTheirIntensity`, browser test `TintPaintsAGradient`.
 
+### Translucency
+
+Like Arc's translucent sidebars, a space can let what's behind the window
+show through the sidebar and the frame around the page, blurred:
+`SpaceModel::translucency()`, 0 (opaque, the default) to 1, clamped, NaN
+ignored, for any space, grey too. Saved as `"translucency"` only when above
+0; mojo `Space.translucency`, `SetSpaceTranslucency()`; synced
+(sync.md, "Space themes"); kept when the space moves to another profile.
+
+- The backdrop is the system's: macOS's sidebar material
+  (`NSVisualEffectView`, `NSVisualEffectMaterialSidebar`, blended behind the
+  window, gray while the window is inactive, as Finder's), and Windows 11's
+  Acrylic (`DWMSBT_TRANSIENTWINDOW`; upstream already gives windows without
+  a redirection bitmap Mica, `DWMSBT_MAINWINDOW`, which only shows the
+  wallpaper's color). Both in the window's mode, which the space can set
+  apart from the system's (`NSAppearance`, `DWMWA_USE_IMMERSIVE_DARK_MODE`).
+  `SetWindowBackdrop()` (window_frame_mac.mm, window_frame_win.cc) adds it
+  and makes the window and its compositor non-opaque.
+- The frame's tint (the browser view's `SidebarTint`) paints the frame
+  color at 1 − translucency, and the space's colors and grain over it as
+  strong as before: at 1, only the tint lies over the material.
+- The rest stops painting the frame color while the frame is translucent
+  (`IsFrameTranslucent()`, a property on the browser view): upstream's
+  layout clears the region's background and the card's corners as its own
+  glass frame does (`frame_color.opacity` 0, layout patch), so the region's
+  tint, scaled by its background's opacity, paints nothing and the frame's
+  shows through; the sidebar shown on hover over the page is opaque again,
+  as upstream's expand-on-hover makes it. The macOS frame view skips its
+  fill, and the Windows one its title bar's; on Windows the browser's
+  window tree host asks the compositor to clear to transparent
+  (`ShouldWindowContentsBeTransparent()`).
+- The amount is part of the tint's look, so it fades with the colors on a
+  space switch and follows a swipe. The window turns translucent as soon
+  as it paints or fades toward any, and opaque once it's at 0: the frame is
+  painted opaque first, and the backdrop goes once that frame is on screen
+  (`RequestSuccessfulPresentationTimeForNextFrame()`), or the window would
+  show what's behind it for a frame.
+- Not in fullscreen, off the record, or under an extension theme
+  (`CanBeTranslucent()`), and not on Linux, or on Windows before 11 22H2 or
+  without DirectComposition (`IsWindowBackdropSupported()`): the space's
+  value is kept and shows on the devices that can.
+- Text keeps its mode from the frame color under the tint
+  (`GetTintTextMode()`), as if opaque; the material is about as light.
+
+The theme editor sets it (below). Arc stores `isVibrant` and
+`translucencyStyle` in a theme, but every theme in the file we have says
+`true`/`"light"` whatever the window looked like, so imports leave
+translucency at 0. The phones keep the value as received.
+
+**Tests:** `SpaceModelTest.TranslucencyStaysInRange`,
+`SidebarSerializerTest.RoundTripsTranslucency`,
+`CompassSpacesSyncBridgeTest.SpaceThemesRoundTrip`,
+`SidebarPageHandlerTest.SetsSpaceIntensityAndGrain`, browser test
+`TranslucentSpaceShowsTheBackdrop`.
+
 ### Empty pane
 
 As in Arc, the empty pane (chrome://compass-empty, what a window with
@@ -426,7 +481,9 @@ editor. From the top:
   A palette color replaces the gradient.
 - The wave (intensity): a wave up to the thumb, growing with the value,
   flat after it; and the dial (grain): ticks lit up to the value, dragged
-  up or right. Both are `role=slider` with arrow, Page and Home/End keys.
+  up or right. Under them, translucency: a pane over another and a bar
+  that fades as it fills. All three are `role=slider` with arrow, Page and
+  Home/End keys.
 
 What's dragged shows at once (the editor's own copy until the browser's
 space matches, or 600 ms after letting go) and goes to the browser every

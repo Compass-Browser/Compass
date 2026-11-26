@@ -52,6 +52,15 @@ gfx::Insets GetPopupContentFrameInsets(const views::View* browser_view);
 // (see patches/). Defined with the bar, in //compass/browser/ui.
 int GetContentsTopBarHeight(const views::View* container);
 
+// Whether the frame of |browser_view|'s window is translucent now
+// (docs/design/spaces.md, "Translucency"): the frame view, the region's
+// background (unless it shows on hover over the page) and the card's corners
+// don't paint the frame color, the window and its compositor aren't opaque,
+// and the frame's tint paints the frame color only partly over the window's
+// backdrop. Not in fullscreen. Upstream's layout and frame views ask (see
+// patches/); defined with the window frame, in //compass/browser/ui.
+bool IsFrameTranslucent(const views::View* browser_view);
+
 }  // namespace compass
 
 #endif  // COMPASS_BROWSER_UI_VIEWS_FRAME_CONTENT_FRAME_H_

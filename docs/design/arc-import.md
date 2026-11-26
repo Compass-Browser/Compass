@@ -365,7 +365,7 @@ Features Arc has that the import would otherwise drop:
 | Arc | In Compass | Needed for |
 |---|---|---|
 | Space icon (`customInfo.iconType`: emoji or symbol) | Done (spaces.md "Space icons"; symbols mapped to Compass's) | Spaces looking as in Arc |
-| Theme gradients (`windowTheme`) | Done: base colors, intensity, grain (spaces.md "Gradients", "Intensity and grain"); not overlayColors, wheel, translucency, vibrancy | Gradient sidebars |
+| Theme gradients (`windowTheme`) | Done: base colors, intensity, grain (spaces.md "Gradients", "Intensity and grain"); not overlayColors, wheel, translucency, vibrancy (spaces.md, "Translucency": Arc's `isVibrant`/`translucencyStyle` don't say how translucent a window was) | Gradient sidebars |
 | Tab mute status (`savedMuteStatus`) | Done (sidebar.md "Muted entries"); imported | Muted entries staying muted |
 | Archive (`StorableArchiveItems.json`) | Yes (per space); imported (newest 100 per space) | Importing it |
 | Link routing (`StorableLinkRouting.json`, Air Traffic Control) | No (little-window.md "Not done") | Links from other apps going to the right space |

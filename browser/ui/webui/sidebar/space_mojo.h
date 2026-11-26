@@ -52,6 +52,7 @@ void SetSpaceGradient(SpaceModel& space,
                       const std::vector<sidebar::mojom::SpaceColorPtr>& colors);
 void SetSpaceIntensity(SpaceModel& space, double intensity);
 void SetSpaceGrain(SpaceModel& space, double grain);
+void SetSpaceTranslucency(SpaceModel& space, double translucency);
 void SetSpaceAppearance(SpaceModel& space,
                         sidebar::mojom::SpaceAppearance appearance);
 void SetSpaceIcon(SpaceModel& space, const sidebar::mojom::SpaceIconPtr& icon);

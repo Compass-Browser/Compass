@@ -474,7 +474,9 @@ source_set("ui") {
     sources += [
       "arc_import/arc_importer_win.cc",
       "browser_import/app_icon_win.cc",
+      "views/frame/window_frame_win.cc",
     ]
+    libs = [ "dwmapi.lib" ]
   } else {
     sources += [
       "arc_import/arc_importer_other.cc",

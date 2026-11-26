@@ -51,13 +51,15 @@ export interface ThemeEditorHandler {
   setSpaceGradient(id: string, gradient: SpaceColor[]): void;
   setSpaceIntensity(id: string, intensity: number): void;
   setSpaceGrain(id: string, grain: number): void;
+  setSpaceTranslucency(id: string, translucency: number): void;
   setSpaceAppearance(id: string, appearance: SpaceAppearance): void;
 }
 
 // Edits a space's theme (docs/design/spaces.md, "Theme editor"): light or
 // dark mode, its colors as dots on a hue and saturation pad (the big one is
 // its color, the small ones its gradient), a palette of colors and
-// gradients, the tint's intensity (the wave) and its grain (the dial).
+// gradients, the tint's intensity (the wave), its grain (the dial) and how
+// translucent the sidebar is (the bar under them).
 // Changes go to the browser as they're made; dragging sends one every
 // CUSTOM_COLOR_MS.
 export class CompassThemeEditorElement extends CrLitElement {
@@ -80,6 +82,7 @@ export class CompassThemeEditorElement extends CrLitElement {
       dragColors_: {type: Array},
       dragIntensity_: {type: Number},
       dragGrain_: {type: Number},
+      dragTranslucency_: {type: Number},
     };
   }
 
@@ -93,6 +96,7 @@ export class CompassThemeEditorElement extends CrLitElement {
   protected accessor dragColors_: SpaceColor[]|null = null;
   protected accessor dragIntensity_: number|null = null;
   protected accessor dragGrain_: number|null = null;
+  protected accessor dragTranslucency_: number|null = null;
 
   protected readonly modes_: ModeOption[] = MODES;
   protected readonly paletteColors_: PaletteColor[] = SPACE_COLORS;
@@ -135,6 +139,10 @@ export class CompassThemeEditorElement extends CrLitElement {
 
   protected getGrain_(): number {
     return this.dragGrain_ ?? this.space?.grain ?? 0;
+  }
+
+  protected getTranslucency_(): number {
+    return this.dragTranslucency_ ?? this.space?.translucency ?? 0;
   }
 
   protected isMode_(mode: ModeOption): boolean {
@@ -511,6 +519,57 @@ export class CompassThemeEditorElement extends CrLitElement {
     }
   }
 
+  // The bar fills up to the thumb, fading out as the sidebar does.
+  protected getTranslucencyFillStyle_(): string {
+    return `width: ${this.getTranslucency_() * 100}%`;
+  }
+
+  protected getTranslucencyThumbStyle_(): string {
+    return `left: ${this.getTranslucency_() * 100}%`;
+  }
+
+  protected getTranslucencyPercent_(): number {
+    return Math.round(this.getTranslucency_() * 100);
+  }
+
+  protected onTranslucencyPointerdown_(e: PointerEvent) {
+    if (e.button !== 0) {
+      return;
+    }
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    this.dialStart_ = {value: this.getTranslucency_(), x: 0, y: 0};
+    this.onTranslucencyPointermove_(e);
+  }
+
+  protected onTranslucencyPointermove_(e: PointerEvent) {
+    if (!this.dialStart_) {
+      return;
+    }
+    const track = this.shadowRoot.querySelector<HTMLElement>(
+        '#translucencyTrack')!;
+    const box = track.getBoundingClientRect();
+    this.setTranslucency_((e.clientX - box.left) / box.width);
+  }
+
+  protected onTranslucencyKeydown_(e: KeyboardEvent) {
+    const value = this.stepValue_(this.getTranslucency_(), e);
+    if (value !== null) {
+      this.setTranslucency_(value);
+      this.flushSend_();
+      this.settleSoon_();
+    }
+  }
+
+  private setTranslucency_(value: number) {
+    const translucency = Math.min(1, Math.max(0, value));
+    this.dragTranslucency_ = translucency;
+    const id = this.space?.id;
+    if (id) {
+      this.sendSoon_(
+          () => this.getHandler_().setSpaceTranslucency(id, translucency));
+    }
+  }
+
   // A slider's keys: arrows by 2%, Page Up/Down by 10%, Home and End.
   private stepValue_(value: number, e: KeyboardEvent): number|null {
     const steps: Record<string, number> = {
@@ -584,13 +643,16 @@ export class CompassThemeEditorElement extends CrLitElement {
         (this.dragIntensity_ === null ||
          Math.abs(this.dragIntensity_ - space.intensity) < 1e-6) &&
         (this.dragGrain_ === null ||
-         Math.abs(this.dragGrain_ - space.grain) < 1e-6);
+         Math.abs(this.dragGrain_ - space.grain) < 1e-6) &&
+        (this.dragTranslucency_ === null ||
+         Math.abs(this.dragTranslucency_ - space.translucency) < 1e-6);
   }
 
   private clearDrag_() {
     this.dragColors_ = null;
     this.dragIntensity_ = null;
     this.dragGrain_ = null;
+    this.dragTranslucency_ = null;
   }
 }
 

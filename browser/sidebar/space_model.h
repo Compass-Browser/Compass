@@ -298,6 +298,13 @@ class SpaceModel {
   double grain() const { return grain_; }
   void SetGrain(double grain);
 
+  // How much of what's behind the window shows through the sidebar and the
+  // frame, blurred, 0 (opaque) to 1 (no frame color left, only the tint over
+  // the system's material); clamped, NaN ignored. Any space can have it,
+  // grey too. See docs/design/spaces.md, "Translucency".
+  double translucency() const { return translucency_; }
+  void SetTranslucency(double translucency);
+
   SpaceAppearance appearance() const { return appearance_; }
   void SetAppearance(SpaceAppearance appearance);
 
@@ -600,6 +607,7 @@ class SpaceModel {
   std::vector<SpaceColor> gradient_;
   double intensity_ = kDefaultSpaceIntensity;
   double grain_ = 0;
+  double translucency_ = 0;
   SpaceAppearance appearance_ = SpaceAppearance::kAuto;
   SpaceIcon icon_;
   base::TimeDelta archive_after_ = kDefaultArchiveAfter;

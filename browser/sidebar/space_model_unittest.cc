@@ -471,6 +471,21 @@ TEST_F(SpaceModelTest, IntensityAndGrainStayInRange) {
   model_.RemoveObserver(&observer);
 }
 
+TEST_F(SpaceModelTest, TranslucencyStaysInRange) {
+  EXPECT_EQ(model_.translucency(), 0);
+  RecordingObserver observer;
+  model_.AddObserver(&observer);
+
+  model_.SetTranslucency(0.4);
+  model_.SetTranslucency(0.4);
+  model_.SetTranslucency(std::nan(""));
+  model_.SetTranslucency(3);
+
+  EXPECT_EQ(model_.translucency(), 1);
+  EXPECT_THAT(observer.events, ElementsAre("space", "space"));
+  model_.RemoveObserver(&observer);
+}
+
 TEST(SpaceIconTest, AcceptsEmojiAndSymbolNamesOnly) {
   EXPECT_EQ(SpaceIcon::Emoji("🚑")->value(), "🚑");
   // A whole sequence: family, flag.

@@ -37,8 +37,8 @@ std::optional<LiveSource> LiveSourceFromProto(const sync_pb::CompassNode& node);
 std::optional<syncer::UniquePosition> ValidPosition(
     const sync_pb::UniquePosition& proto);
 
-// A space's theme (color, gradient, intensity, grain, appearance, icon) to
-// and from its entity.
+// A space's theme (color, gradient, intensity, grain, translucency,
+// appearance, icon) to and from its entity.
 void ThemeToProto(const SpaceModel& model, sync_pb::CompassSpace& space);
 void ThemeFromProto(const sync_pb::CompassSpace& space, SpaceModel& model);
 

@@ -166,6 +166,13 @@ void SpaceEditorPageHandler::SetSpaceGrain(const std::string& id,
   }
 }
 
+void SpaceEditorPageHandler::SetSpaceTranslucency(const std::string& id,
+                                                  double translucency) {
+  if (SpaceModel* space = FindEditableSpace(id)) {
+    compass::SetSpaceTranslucency(*space, translucency);
+  }
+}
+
 void SpaceEditorPageHandler::SetSpaceAppearance(
     const std::string& id,
     sidebar::mojom::SpaceAppearance appearance) {

@@ -596,6 +596,23 @@ TEST(SidebarSerializerTest, RoundTripsIntensityAndGrain) {
   EXPECT_EQ(restored.active_space().grain(), 0.5);
 }
 
+// Opaque, the default, is left out; any space can be translucent, grey too.
+TEST(SidebarSerializerTest, RoundTripsTranslucency) {
+  SpaceList list;
+  list.active_space().SetTranslucency(0.6);
+  list.AddSpace(1, u"Work");
+
+  const base::DictValue data = SerializeSpaceList(list);
+  const base::ListValue& spaces = *data.FindList("spaces");
+  EXPECT_EQ(spaces[0].GetDict().FindDouble("translucency"), 0.6);
+  EXPECT_FALSE(spaces[1].GetDict().Find("translucency"));
+
+  SpaceList restored;
+  DeserializeSpaceList(data, restored);
+  EXPECT_EQ(restored.spaces()[0]->translucency(), 0.6);
+  EXPECT_EQ(restored.spaces()[1]->translucency(), 0);
+}
+
 TEST(SidebarSerializerTest, RoundTripsAppearance) {
   SpaceList list;
   SpaceModel* work = list.AddSpace(1, u"Work");

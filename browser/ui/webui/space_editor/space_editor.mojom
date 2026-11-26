@@ -29,6 +29,7 @@ interface PageHandler {
   SetSpaceGradient(string id, array<compass.sidebar.mojom.SpaceColor> gradient);
   SetSpaceIntensity(string id, double intensity);
   SetSpaceGrain(string id, double grain);
+  SetSpaceTranslucency(string id, double translucency);
   SetSpaceAppearance(string id, compass.sidebar.mojom.SpaceAppearance appearance);
   // Null for no icon (its name's first letter).
   SetSpaceIcon(string id, compass.sidebar.mojom.SpaceIcon? icon);

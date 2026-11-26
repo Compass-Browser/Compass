@@ -116,6 +116,25 @@ export function getHtml(this: CompassThemeEditorElement) {
     <div id="knob" style="${this.getKnobStyle_()}"></div>
   </div>
 </div>
+<div id="translucency" role="slider" tabindex="0" aria-label="Translucency"
+    title="Translucency" aria-valuemin="0" aria-valuemax="100"
+    aria-valuenow="${this.getTranslucencyPercent_()}"
+    @pointerdown="${this.onTranslucencyPointerdown_}"
+    @pointermove="${this.onTranslucencyPointermove_}"
+    @pointerup="${this.onSliderPointerup_}"
+    @pointercancel="${this.onSliderPointercancel_}"
+    @keydown="${this.onTranslucencyKeydown_}">
+  <svg class="pane" viewBox="0 0 24 24" aria-hidden="true">
+    <rect class="behind" x="3" y="3" width="12" height="12" rx="3"></rect>
+    <rect class="front" x="9" y="9" width="12" height="12" rx="3"></rect>
+  </svg>
+  <div id="translucencyTrack">
+    <div id="translucencyFill"
+        style="${this.getTranslucencyFillStyle_()}"></div>
+    <div id="translucencyThumb"
+        style="${this.getTranslucencyThumbStyle_()}"></div>
+  </div>
+</div>
 <!--_html_template_end_-->`;
   // clang-format on
 }

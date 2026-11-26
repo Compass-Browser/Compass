@@ -1,8 +1,27 @@
 diff --git a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
-index bf13db120fc1e011f2562c7e9a9e8074c81cc0b0..622e866984a6d45a3656b4b8c0e8416f4f5cada3 100644
+index bf13db120fc1e011f2562c7e9a9e8074c81cc0b0..f061e3e9a6edaa6ca4206e895e059c010bd7e92f 100644
 --- a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
 +++ b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
-@@ -628,6 +628,10 @@ SkBitmap GetBadgedIconBitmapForProfile(Profile* profile) {
+@@ -37,6 +37,7 @@
+ #include "chrome/browser/win/app_icon.h"
+ #include "chrome/browser/win/titlebar_config.h"
+ #include "chrome/common/chrome_constants.h"
++#include "compass/browser/ui/views/frame/content_frame.h"
+ #include "components/policy/core/common/policy_pref_names.h"
+ #include "components/prefs/pref_service.h"
+ #include "content/public/browser/browser_thread.h"
+@@ -538,7 +539,9 @@ bool BrowserDesktopWindowTreeHostWin::ShouldUseNativeFrame() const {
+ bool BrowserDesktopWindowTreeHostWin::ShouldWindowContentsBeTransparent()
+     const {
+   CHECK(browser_view_);
+-  return false;
++  // Compass: a translucent frame lets DWM's backdrop show where the browser
++  // paints nothing.
++  return compass::IsFrameTranslucent(browser_view_);
+ }
+ 
+ void BrowserDesktopWindowTreeHostWin::ClientDestroyedWidget() {
+@@ -628,6 +631,10 @@ SkBitmap GetBadgedIconBitmapForProfile(Profile* profile) {
  }
  
  void BrowserDesktopWindowTreeHostWin::SetWindowIcon(bool badged) {

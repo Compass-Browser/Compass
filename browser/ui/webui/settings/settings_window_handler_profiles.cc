@@ -276,6 +276,13 @@ void SettingsWindowHandler::SetSpaceGrain(const std::string& id, double grain) {
   }
 }
 
+void SettingsWindowHandler::SetSpaceTranslucency(const std::string& id,
+                                                 double translucency) {
+  if (SpaceModel* space = FindEditableSpace(id)) {
+    compass::SetSpaceTranslucency(*space, translucency);
+  }
+}
+
 void SettingsWindowHandler::SetSpaceAppearance(
     const std::string& id,
     sidebar::mojom::SpaceAppearance appearance) {
