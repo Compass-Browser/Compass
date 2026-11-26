@@ -16,7 +16,7 @@ overlay on the page (easels.md, "Captures") in its screenshot mode
 (`__compassEasel.start([], {screenshot: true})`):
 
 - **Drag** over a region, then pick **Copy** (focused, so Enter takes it)
-  or **Save to Downloads**;
+  or **Save to Screenshots**;
 - **Full Page** (a button in the overlay's hint) takes the whole page,
   then the same choice;
 - **Esc** cancels.
@@ -35,9 +35,15 @@ it polls the page script, and on a screenshot pick calls
   cut);
 - **Copy** writes the image to the clipboard
   (`ui::ScopedClipboardWriter::WriteImage()`);
-- **Save** writes a PNG, off the UI thread, to the profile's download
-  folder as "Screenshot 2026-11-23 at 14.05.09.png" (local time; a number
-  is added if the name is taken).
+- **Save** writes a PNG, off the UI thread, to the system's screenshot
+  folder (`downloads_folder::ScreenshotFolder()`: on macOS the one chosen
+  in Screenshot.app, else the Desktop; Pictures\Screenshots on Windows;
+  Pictures/Screenshots on Linux) as "Screenshot 2026-11-23 at
+  14.05.09.png" (local time; a number is added if the name is taken). On
+  macOS it gets the mark macOS gives its own screenshots
+  (`kMDItemIsScreenCapture`), so the downloads bubble's Screenshots tab
+  lists both (downloads-bubble.md). The toast names the folder: "Saved to
+  Desktop as …".
 
 A toast on the page says what happened ("Copied to the clipboard", "Saved
 to Downloads as …", or why not).
@@ -46,8 +52,6 @@ to Downloads as …", or why not).
 
 - A keyboard shortcut (Arc's is Cmd+Shift+2); the shortcuts table has none
   yet.
-- Screenshots in a Library: saved screenshots are plain files in the
-  download folder, and the downloads bubble doesn't list them.
 - Picking a page element instead of dragging.
 - Android and iOS.
 

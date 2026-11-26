@@ -1,0 +1,36 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# What the downloads bubble's tabs list: the download folder's files and
+# the system's screenshots (docs/design/downloads-bubble.md). Desktop.
+
+assert(is_mac || is_win || is_linux)
+
+source_set("downloads_folder") {
+  sources = [
+    "folder_files.cc",
+    "folder_files.h",
+  ]
+  public_deps = [ "//base" ]
+  if (is_mac) {
+    sources += [ "folder_files_mac.mm" ]
+    frameworks = [ "Foundation.framework" ]
+  } else if (is_win) {
+    sources += [ "folder_files_win.cc" ]
+    libs = [ "shell32.lib" ]
+  } else {
+    sources += [ "folder_files_linux.cc" ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "folder_files_unittest.cc" ]
+  deps = [
+    ":downloads_folder",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gtest",
+  ]
+}

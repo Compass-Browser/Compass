@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/ui/views/download/BUILD.gn b/chrome/browser/ui/views/download/BUILD.gn
+index 8135562ac6876b102eec35bcfa3b3e4c01aab972..5729df3e44cb7d7940969f633763d28123c88e69 100644
+--- a/chrome/browser/ui/views/download/BUILD.gn
++++ b/chrome/browser/ui/views/download/BUILD.gn
+@@ -96,6 +96,9 @@ source_set("download") {
+       "//chrome/browser/ui/tabs:tab_strip",
+       "//chrome/browser/ui/views/controls",
+       "//chrome/browser/ui/views/toolbar",
++
++      # Compass: the downloads bubble's tabs.
++      "//compass/browser/ui:downloads_bubble_hooks",
+       "//components/autofill/content/browser",
+       "//components/constrained_window",
+       "//components/feature_engagement/public:feature_constants",

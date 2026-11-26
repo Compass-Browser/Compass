@@ -29,8 +29,8 @@ enum class ScreenshotAction { kCopy, kSave };
 using ScreenshotCallback =
     base::OnceCallback<void(base::expected<std::string, std::string>)>;
 
-// Copies |bitmap| to the clipboard, or saves it as a PNG in |contents|'
-// profile's download folder.
+// Copies |bitmap| to the clipboard, or saves it as a PNG in the system's
+// screenshot folder (downloads_folder::ScreenshotFolder()).
 void FinishScreenshot(content::WebContents* contents,
                       ScreenshotAction action,
                       SkBitmap bitmap,

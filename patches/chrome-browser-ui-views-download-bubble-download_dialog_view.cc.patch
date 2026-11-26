@@ -1,0 +1,26 @@
+diff --git a/chrome/browser/ui/views/download/bubble/download_dialog_view.cc b/chrome/browser/ui/views/download/bubble/download_dialog_view.cc
+index 1ce2bbbe2c3c8a662a9bf623506fdab16779be9d..a448565191722bfc75d892c6ae75fc8bec151272 100644
+--- a/chrome/browser/ui/views/download/bubble/download_dialog_view.cc
++++ b/chrome/browser/ui/views/download/bubble/download_dialog_view.cc
+@@ -19,6 +19,7 @@
+ #include "chrome/browser/ui/views/download/bubble/download_bubble_navigation_handler.h"
+ #include "chrome/browser/ui/views/download/bubble/download_bubble_row_list_view.h"
+ #include "chrome/grit/generated_resources.h"
++#include "compass/browser/ui/views/downloads_bubble/downloads_bubble_hooks.h"
+ #include "components/safe_browsing/core/common/features.h"
+ #include "components/vector_icons/vector_icons.h"
+ #include "ui/base/l10n/l10n_util.h"
+@@ -182,8 +183,12 @@ DownloadDialogView::DownloadDialogView(
+   AddHeader();
+   MaybeAddOtrInfoRow(browser_);
+   BuildAndAddScrollView(browser_, std::move(bubble_controller),
+-                        navigation_handler_, info, DefaultPreferredWidth());
++                        navigation_handler_, info,
++                        compass::downloads_bubble::DialogWidth());
+   AddFooter();
++  // Compass: the Downloads and Screenshots tabs.
++  compass::downloads_bubble::ExtendDownloadDialog(
++      this, scroll_view_for_testing(), browser_);
+ }
+ 
+ DownloadDialogView::~DownloadDialogView() = default;

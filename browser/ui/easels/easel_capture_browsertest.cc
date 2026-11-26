@@ -22,7 +22,6 @@
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
-#include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -33,6 +32,7 @@
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/easels/easel_capture_core.h"
 #include "compass/browser/ui/easels/easel_refresh.h"
+#include "compass/browser/downloads_folder/folder_files.h"
 #include "compass/browser/ui/easels/page_screenshot.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -332,19 +332,21 @@ IN_PROC_BROWSER_TEST_F(EaselCaptureBrowserTest, ScreenshotCopiesARegion) {
   EXPECT_TRUE(IsColor(copied.getColor(10, 10), SK_ColorRED));
 }
 
-// Full Page saves all of the 3000-pixel page to the download folder, not
+// Full Page saves all of the 3000-pixel page to the screenshot folder, not
 // only what the window shows.
 IN_PROC_BROWSER_TEST_F(EaselCaptureBrowserTest, ScreenshotSavesTheFullPage) {
   base::ScopedAllowBlockingForTesting allow_blocking;
   base::ScopedTempDir downloads;
   ASSERT_TRUE(downloads.CreateUniqueTempDir());
-  DownloadPrefs::FromBrowserContext(browser()->GetProfile())
-      ->SetDownloadPath(downloads.GetPath());
+  downloads_folder::SetScreenshotFolderForTesting(downloads.GetPath());
 
   base::test::TestFuture<base::expected<std::string, std::string>> done;
   CaptureFullPage(tab(), ScreenshotAction::kSave, done.GetCallback());
   ASSERT_TRUE(done.Get().has_value()) << done.Get().error();
-  EXPECT_TRUE(done.Get()->starts_with("Saved to Downloads as Screenshot "));
+  EXPECT_TRUE(done.Get()->starts_with(
+      "Saved to " + downloads.GetPath().BaseName().AsUTF8Unsafe() +
+      " as Screenshot "));
+  downloads_folder::SetScreenshotFolderForTesting(base::FilePath());
 
   base::FileEnumerator files(downloads.GetPath(), false,
                              base::FileEnumerator::FILES,
