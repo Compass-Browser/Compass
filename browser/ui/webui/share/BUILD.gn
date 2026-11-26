@@ -6,5 +6,6 @@ import("//mojo/public/tools/bindings/mojom.gni")
 
 mojom("mojo_bindings") {
   sources = [ "share.mojom" ]
+  public_deps = [ "//compass/browser/ui/webui/bubble:mojo_bindings" ]
   webui_module_path = "/"
 }

@@ -1,0 +1,22 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// What Compass's WebUI bubbles (the share sheet, the space editor) share
+// (browser/ui/views/compass_bubble.h).
+module compass.bubble.mojom;
+
+// The bubble's colors (compass::BubbleLook), as CSS colors: the window's
+// space's tint over the dialog's background, and translucent white on it.
+// The page sets them on itself, so it matches the bubble's frame.
+struct Look {
+  string background;
+  string card;
+  string pill;
+  string track;
+  string hairline;
+  string text;
+  string text_dim;
+  string accent;
+  bool dark;
+};

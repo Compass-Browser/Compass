@@ -38,6 +38,7 @@ void SidebarContextMenu::Show(std::unique_ptr<ui::MenuModel> model,
                               const gfx::Point& point) {
   runner_.reset();
   model_ = std::move(model);
+  last_point_ = point;
   if (const ShowCallback& callback = GetShowCallbackForTesting()) {
     callback.Run(model_.get(), point);
     return;
@@ -55,6 +56,12 @@ void SidebarContextMenu::Show(std::unique_ptr<ui::MenuModel> model,
                      gfx::Rect(screen_point, gfx::Size()),
                      views::MenuAnchorPosition::kTopLeft,
                      ui::mojom::MenuSourceType::kMouse);
+}
+
+gfx::Rect SidebarContextMenu::ToScreen(const gfx::Rect& rect) const {
+  gfx::Rect screen_rect = rect;
+  views::View::ConvertRectToScreen(sidebar_, &screen_rect);
+  return screen_rect;
 }
 
 // static

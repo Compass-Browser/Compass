@@ -1,0 +1,54 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// chrome://compass-space-editor/?id=<space>: a space's name, theme, icon,
+// archiving, profile, sync, sharing and deletion, in a bubble beside the
+// sidebar (docs/design/spaces.md, "UI"). The edits take the space's ID, as
+// the sidebar's do, so the theme editor (theme_editor.ts) can send them
+// here.
+module compass.space_editor.mojom;
+
+import "compass/browser/ui/webui/bubble/bubble.mojom";
+import "compass/browser/ui/webui/sidebar/sidebar.mojom";
+
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};
+
+interface PageHandler {
+  // The space, null if it's gone; the profiles it can be assigned to (empty
+  // when there's only the one); whether it can be deleted (not the last).
+  GetSpace() => (compass.sidebar.mojom.Space? space,
+                 array<compass.sidebar.mojom.ProfileOption> profiles,
+                 bool can_delete);
+
+  RenameSpace(string id, string name);
+  SetSpaceColor(string id, compass.sidebar.mojom.SpaceColor? color);
+  SetSpaceGradient(string id, array<compass.sidebar.mojom.SpaceColor> gradient);
+  SetSpaceIntensity(string id, double intensity);
+  SetSpaceGrain(string id, double grain);
+  SetSpaceAppearance(string id, compass.sidebar.mojom.SpaceAppearance appearance);
+  // Null for no icon (its name's first letter).
+  SetSpaceIcon(string id, compass.sidebar.mojom.SpaceIcon? icon);
+  SetArchiveAfter(string id, uint32 hours);
+  // Null: a new profile.
+  SetSpaceProfile(string id, string? profile_id);
+  SetSpaceSynced(string id, bool synced);
+  DeleteSpace(string id);
+  // Closes the bubble and opens the space's share bubble in its place.
+  ShareSpace(string id);
+
+  GetLook() => (compass.bubble.mojom.Look look);
+  // The editor is drawn: the bubble shows (it's hidden until then).
+  ShowUI();
+  // Closes the bubble.
+  Close();
+};
+
+interface Page {
+  // The space changed (elsewhere too: the settings window, another
+  // device): the page asks for it again.
+  SpaceChanged();
+};

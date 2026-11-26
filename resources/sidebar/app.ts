@@ -8,20 +8,17 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
-import {colorToCss} from './colors.js';
 import {getFaviconUrl} from './favicon.js';
 import './node.js';
 import './now_playing.js';
 import type {CompassSidebarPreviewElement} from './preview.js';
 import './preview.js';
 import type {SpaceSymbol} from './space_icons.js';
-import './emoji_picker.js';
-import './theme_editor.js';
 import './live_folders/editor.js';
 import type {LiveNode} from './node.js';
-import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from './space_icons.js';
+import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX} from './space_icons.js';
 import {ARCHIVE_DELAYS} from './space_options.js';
-import type {ArchivedEntry, ArchivedTab, LiveFolder, LiveFolderState, Node, NowPlaying, ProfileOption, RoomNotice, Space, Tree} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, ArchivedTab, LiveFolder, LiveFolderState, Node, NowPlaying, RoomNotice, Space, Tree} from './sidebar.mojom-webui.js';
 import {AudioState, NodeType, SwipePhase} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
@@ -176,13 +173,7 @@ export class CompassSidebarAppElement extends CrLitElement {
       today_: {type: Object},
       activeId_: {type: String},
       spaces_: {type: Array},
-      profiles_: {type: Array},
       activeSpaceId_: {type: String},
-      menuSpaceId_: {type: String},
-      confirmingDelete_: {type: Boolean},
-      confirmingUnsync_: {type: Boolean},
-      themeOpen_: {type: Boolean},
-      emojiOpen_: {type: Boolean},
       archive_: {type: Array},
       nowPlaying_: {type: Array},
       archiveOpen_: {type: Boolean},
@@ -216,21 +207,7 @@ export class CompassSidebarAppElement extends CrLitElement {
   protected accessor today_: Node|null = null;
   protected accessor activeId_: string|null = null;
   protected accessor spaces_: Space[] = [];
-  // The profiles a space can be assigned to; none off the record.
-  protected accessor profiles_: ProfileOption[] = [];
   protected accessor activeSpaceId_: string = '';
-  // The space whose menu is open, if any.
-  protected accessor menuSpaceId_: string|null = null;
-  // Delete asks to be clicked twice.
-  protected accessor confirmingDelete_: boolean = false;
-  // So does turning sync off, which removes the space from the other
-  // devices.
-  protected accessor confirmingUnsync_: boolean = false;
-  // The space menu shows the theme editor, or the emoji picker, instead.
-  protected accessor themeOpen_: boolean = false;
-  protected accessor emojiOpen_: boolean = false;
-  protected readonly spaceSymbols_: SpaceSymbol[] = SPACE_SYMBOLS;
-  protected readonly archiveDelays_ = ARCHIVE_DELAYS;
   protected accessor archive_: ArchivedEntry[] = [];
   // The now playing widgets above the spaces (docs/design/sidebar.md, "Now
   // playing").
@@ -427,104 +404,33 @@ export class CompassSidebarAppElement extends CrLitElement {
     return this.spaces_.find(space => this.isActiveSpace_(space))?.name ?? '';
   }
 
-  protected getMenuSpace_(): Space|null {
-    return this.spaces_.find(space => space.id === this.menuSpaceId_) ?? null;
-  }
-
-  // The theme chip's colors: the space's gradient's three stops, all its
-  // color for a plain one, as the sidebar's tint samples them
-  // (sidebar_tint.cc).
-  protected getSpaceStyle_(space: Space): string {
-    const colors = [space.color, ...space.gradient];
-    const stop = (at: number) => {
-      const index = Math.round(at * (colors.length - 1));
-      return colorToCss(colors[index] ?? null);
-    };
-    return `--space-color: ${stop(0)}; --space-color-2: ${stop(0.5)}; ` +
-        `--space-color-3: ${stop(1)}`;
-  }
-
-  protected canShareMenuSpace_(): boolean {
-    const space = this.getMenuSpace_();
-    return !!space && space.ownProfile && space.canShare;
-  }
-
-  protected getShareSpaceLabel_(): string {
-    return this.getMenuSpace_()?.shared ? 'Sharing\u2026' : 'Share space\u2026';
-  }
-
-  protected onShareSpaceClick_() {
-    if (this.menuSpaceId_) {
-      this.browserProxy_.handler.shareSpace(this.menuSpaceId_);
-    }
-    this.closeSpaceMenu_();
-  }
-
   protected onDismissRoomNoticeClick_(e: Event) {
     const id = (e.currentTarget as HTMLElement).dataset['roomId']!;
     this.browserProxy_.handler.dismissRoomNotice(id);
     this.roomNotices_ = this.roomNotices_.filter(n => n.roomId !== id);
   }
 
-  protected canDeleteSpace_(): boolean {
-    return this.spaces_.length > 1;
-  }
-
-  protected getDeleteLabel_(): string {
-    return this.confirmingDelete_ ? 'Click again to delete' : 'Delete space';
-  }
-
-  private openSpaceMenu_(id: string) {
-    this.menuSpaceId_ = id;
-    this.confirmingDelete_ = false;
-    this.confirmingUnsync_ = false;
-    this.updateComplete.then(() => {
-      this.shadowRoot.querySelector<HTMLInputElement>('#spaceNameInput')
-          ?.select();
-    });
-  }
-
-  private closeSpaceMenu_() {
-    this.menuSpaceId_ = null;
-    this.confirmingDelete_ = false;
-    this.confirmingUnsync_ = false;
-    this.themeOpen_ = false;
-    this.emojiOpen_ = false;
-  }
-
-  protected onEditThemeClick_() {
-    this.themeOpen_ = true;
-  }
-
-  // Esc too: back to the menu.
-  protected onThemeBackClick_() {
-    this.themeOpen_ = false;
-  }
-
-  protected onEmojiButtonClick_() {
-    this.emojiOpen_ = true;
-  }
-
-  // Esc too (after clearing the search): back to the menu.
-  protected onEmojiBackClick_() {
-    this.emojiOpen_ = false;
-  }
-
+  // The space's editor opens in a bubble beside the sidebar, pointing at
+  // what was clicked (docs/design/spaces.md, "UI").
   protected onSpaceContextmenu_(e: MouseEvent) {
     e.preventDefault();
-    this.openSpaceMenu_((e.currentTarget as HTMLElement).dataset['spaceId']!);
+    const button = e.currentTarget as HTMLElement;
+    this.editSpace_(button.dataset['spaceId']!, button);
   }
 
-  protected onSpaceNameDblclick_() {
-    this.openSpaceMenu_(this.activeSpaceId_);
+  protected onSpaceNameDblclick_(e: MouseEvent) {
+    this.editSpace_(this.activeSpaceId_, e.currentTarget as HTMLElement);
+  }
+
+  private editSpace_(id: string, anchor: HTMLElement) {
+    const rect = anchor.getBoundingClientRect();
+    this.browserProxy_.handler.editSpace(
+        id, Math.round(rect.left), Math.round(rect.top),
+        Math.round(rect.width), Math.round(rect.height));
   }
 
   private onDocumentPointerdown_ = (e: PointerEvent) => {
     const path = e.composedPath();
-    const menu = this.shadowRoot.querySelector('#spaceMenu');
-    if (menu && !path.includes(menu)) {
-      this.closeSpaceMenu_();
-    }
     // The archive button toggles the panel itself.
     const archive = this.shadowRoot.querySelector('#archive');
     const archiveButton = this.shadowRoot.querySelector('#archiveButton');
@@ -533,17 +439,6 @@ export class CompassSidebarAppElement extends CrLitElement {
       this.archiveOpen_ = false;
     }
   };
-
-  protected isMenuSpaceArchiveDelay_(hours: number): boolean {
-    return this.getMenuSpace_()?.archiveAfterHours === hours;
-  }
-
-  protected onArchiveDelayChange_(e: Event) {
-    const hours = Number((e.target as HTMLSelectElement).value);
-    if (this.menuSpaceId_) {
-      this.browserProxy_.handler.setArchiveAfter(this.menuSpaceId_, hours);
-    }
-  }
 
   protected isArchiveEmpty_(): boolean {
     return this.archive_.length === 0;
@@ -619,76 +514,6 @@ export class CompassSidebarAppElement extends CrLitElement {
     this.browserProxy_.handler.clearArchive();
   }
 
-  protected onSpaceMenuKeydown_(e: KeyboardEvent) {
-    if (e.key !== 'Escape') {
-      return;
-    }
-    if (this.themeOpen_ || this.emojiOpen_) {
-      this.themeOpen_ = false;
-      this.emojiOpen_ = false;
-    } else {
-      this.closeSpaceMenu_();
-    }
-  }
-
-  protected onSpaceNameKeydown_(e: KeyboardEvent) {
-    if (e.key === 'Enter') {
-      this.renameMenuSpace_(e.target as HTMLInputElement);
-      this.closeSpaceMenu_();
-    }
-  }
-
-  protected onSpaceNameChange_(e: Event) {
-    this.renameMenuSpace_(e.target as HTMLInputElement);
-  }
-
-  private renameMenuSpace_(input: HTMLInputElement) {
-    const space = this.getMenuSpace_();
-    const name = input.value.trim();
-    if (space && name && name !== space.name) {
-      this.browserProxy_.handler.renameSpace(space.id, name);
-    }
-  }
-
-  // "Sync to your other devices": shown while the profile's spaces sync, or
-  // for a space already kept on this device (docs/design/sync.md, "Spaces
-  // that don't sync").
-  protected canChangeSpaceSync_(): boolean {
-    const space = this.getMenuSpace_();
-    return !!space && (space.syncOn || !space.synced);
-  }
-
-  protected getSpaceSyncLabel_(): string {
-    if (this.confirmingUnsync_) {
-      return 'Click again to remove it from your other devices';
-    }
-    return 'Sync to your other devices';
-  }
-
-  protected onSpaceSyncClick_() {
-    const space = this.getMenuSpace_();
-    if (!space) {
-      return;
-    }
-    if (space.synced && !this.confirmingUnsync_) {
-      this.confirmingUnsync_ = true;
-      return;
-    }
-    this.confirmingUnsync_ = false;
-    this.browserProxy_.handler.setSpaceSynced(space.id, !space.synced);
-  }
-
-  protected onDeleteSpaceClick_() {
-    if (!this.confirmingDelete_) {
-      this.confirmingDelete_ = true;
-      return;
-    }
-    if (this.menuSpaceId_) {
-      this.browserProxy_.handler.deleteSpace(this.menuSpaceId_);
-    }
-    this.closeSpaceMenu_();
-  }
-
   protected isActiveSpace_(space: Space): boolean {
     return space.id === this.activeSpaceId_;
   }
@@ -704,21 +529,6 @@ export class CompassSidebarAppElement extends CrLitElement {
         `${space.name} · ${space.profileName}` :
         space.name;
     return space.synced ? name : `${name} · On this device only`;
-  }
-
-  protected isMenuSpaceProfile_(profile: ProfileOption): boolean {
-    return this.getMenuSpace_()?.profileId === profile.id;
-  }
-
-  // Assigns the menu's space to the chosen profile, or a new one ('').
-  protected onSpaceProfileChange_(e: Event) {
-    const space = this.getMenuSpace_();
-    const id = (e.target as HTMLSelectElement).value;
-    if (!space || id === space.profileId) {
-      return;
-    }
-    this.browserProxy_.handler.setSpaceProfile(space.id, id || null);
-    this.closeSpaceMenu_();
   }
 
   protected getSpaceInitial_(space: Space): string {
@@ -742,29 +552,6 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   protected getSpaceIconClass_(space: Space): string {
     return space.icon?.emoji ? 'space-emoji' : 'space-initial';
-  }
-
-  // |symbol| '' stands for no icon.
-  protected isMenuSpaceIcon_(symbol: string): boolean {
-    const icon = this.getMenuSpace_()?.icon;
-    return symbol ? icon?.symbol === symbol : !icon;
-  }
-
-  protected onSymbolClick_(e: Event) {
-    const name = (e.currentTarget as HTMLElement).dataset['symbol'];
-    if (this.menuSpaceId_) {
-      this.browserProxy_.handler.setSpaceIcon(
-          this.menuSpaceId_, name ? {symbol: name} : null);
-    }
-  }
-
-  // Sets the emoji and goes back to the menu.
-  protected onEmojiPick_(e: CustomEvent<{emoji: string}>) {
-    if (this.menuSpaceId_) {
-      this.browserProxy_.handler.setSpaceIcon(
-          this.menuSpaceId_, {emoji: e.detail.emoji});
-    }
-    this.emojiOpen_ = false;
   }
 
   // Slides the space's preview in at once, as a swipe would, rather than
@@ -1634,7 +1421,7 @@ export class CompassSidebarAppElement extends CrLitElement {
         if (this.slide_?.switched && this.slide_.hasTree) {
           this.endSlide_();
         }
-        if (this.slide_ || this.menuSpaceId_ || this.archiveOpen_ ||
+        if (this.slide_ || this.archiveOpen_ ||
             this.draggingId_) {
           this.wheelAxis_ = 'done';
         } else {
@@ -1948,8 +1735,9 @@ export class CompassSidebarAppElement extends CrLitElement {
     setTimeout(doSwitch, 50);
   }
 
-  private onSetSpaces_(
-      spaces: Space[], activeId: string, profiles: ProfileOption[]) {
+  // The profiles a space can be assigned to, which come too, are the space
+  // editor's (space_editor/).
+  private onSetSpaces_(spaces: Space[], activeId: string) {
     this.browserProxy_.handler.getRoomNotices().then(
         ({notices}) => this.roomNotices_ = notices);
     const previousId = this.activeSpaceId_;
@@ -1963,7 +1751,6 @@ export class CompassSidebarAppElement extends CrLitElement {
       this.prepareFlip_();
     }
     this.spaces_ = spaces;
-    this.profiles_ = profiles;
     this.activeSpaceId_ = activeId;
     this.refreshPreviews_();
   }

@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// chrome://compass-share: the share sheet of a space, folder or easel, and
-// the join page of an invite link (docs/design/sync.md, "Rooms: clients").
+// chrome://compass-share: the share sheet of a space, folder or easel, in a
+// bubble, and the join page of an invite link, in a tab (docs/design/sync.md,
+// "Rooms: clients").
 module compass.share.mojom;
+
+import "compass/browser/ui/webui/bubble/bubble.mojom";
 
 struct Member {
   string client_id;
@@ -98,7 +101,10 @@ interface PageHandler {
   GetDisplayName() => (string name);
   SetDisplayName(string name);
 
-  // Closes the sheet's window.
+  GetLook() => (compass.bubble.mojom.Look look);
+  // The sheet is drawn: the bubble shows (it's hidden until then).
+  ShowUI();
+  // Closes the bubble (the join page: its tab).
   Close();
 };
 

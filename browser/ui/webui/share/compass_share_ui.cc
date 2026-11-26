@@ -11,12 +11,11 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/navigator/browser_navigator.h"
-#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "compass/browser/easels/easel_store.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/ui/webui/bubble/bubble_look_mojo.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/grit/compass_sidebar_resources.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
@@ -27,17 +26,11 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
-#include "ui/base/page_transition_types.h"
-#include "ui/base/window_open_disposition.h"
 #include "ui/webui/webui_util.h"
 
 namespace compass {
 
 namespace {
-
-// The sheet's window.
-constexpr int kSheetWidth = 440;
-constexpr int kSheetHeight = 620;
 
 std::string NameOf(Profile* profile,
                    const std::string& kind,
@@ -77,22 +70,17 @@ GURL JoinPageUrl(const std::string& fragment) {
                             "/#join=", fragment}));
 }
 
-void OpenShareSheet(Profile* profile,
-                    const std::string& kind,
-                    const std::string& id) {
-  NavigateParams params(profile, ShareSheetUrl(kind, id),
-                        ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-  params.disposition = WindowOpenDisposition::NEW_POPUP;
-  params.window_features.bounds = gfx::Rect(kSheetWidth, kSheetHeight);
-  params.window_action = NavigateParams::WindowAction::kShowWindow;
-  Navigate(&params);
+CompassShareUIConfig::CompassShareUIConfig()
+    : DefaultTopChromeWebUIConfig(content::kChromeUIScheme,
+                                  kCompassShareHost) {}
+
+bool CompassShareUIConfig::ShouldAutoResizeHost() {
+  // The bubble grows and shrinks with the sheet.
+  return true;
 }
 
-CompassShareUIConfig::CompassShareUIConfig()
-    : DefaultWebUIConfig(content::kChromeUIScheme, kCompassShareHost) {}
-
 CompassShareUI::CompassShareUI(content::WebUI* web_ui)
-    : ui::MojoWebUIController(web_ui) {
+    : TopChromeWebUIController(web_ui) {
   Profile* profile = Profile::FromWebUI(web_ui);
   content::WebUIDataSource* source =
       content::WebUIDataSource::CreateAndAdd(profile, kCompassShareHost);
@@ -119,7 +107,7 @@ void CompassShareUI::CreatePageHandler(
     return;
   }
   handler_ = std::make_unique<SharePageHandler>(
-      std::move(receiver), std::move(page), web_ui(), rooms);
+      std::move(receiver), std::move(page), this, rooms);
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(CompassShareUI)
@@ -127,11 +115,12 @@ WEB_UI_CONTROLLER_TYPE_IMPL(CompassShareUI)
 SharePageHandler::SharePageHandler(
     mojo::PendingReceiver<share::mojom::PageHandler> receiver,
     mojo::PendingRemote<share::mojom::Page> page,
-    content::WebUI* web_ui,
+    CompassShareUI* controller,
     rooms::RoomService* rooms)
     : receiver_(this, std::move(receiver)),
       page_(std::move(page)),
-      web_ui_(web_ui),
+      controller_(controller),
+      web_ui_(controller->web_ui()),
       rooms_(rooms) {
   observation_.Observe(rooms);
 }
@@ -293,8 +282,23 @@ void SharePageHandler::SetDisplayName(const std::string& name) {
   rooms_->SetDisplayName(name);
 }
 
+void SharePageHandler::GetLook(GetLookCallback callback) {
+  std::move(callback).Run(GetBubbleLookFor(web_ui_->GetWebContents()));
+}
+
+void SharePageHandler::ShowUI() {
+  if (controller_->embedder()) {
+    controller_->embedder()->ShowUI();
+  }
+}
+
 void SharePageHandler::Close() {
-  web_ui_->GetWebContents()->ClosePage();
+  // The bubble, or the join page's tab.
+  if (controller_->embedder()) {
+    controller_->embedder()->CloseUI();
+  } else {
+    web_ui_->GetWebContents()->ClosePage();
+  }
 }
 
 void SharePageHandler::OnRoomsChanged() {

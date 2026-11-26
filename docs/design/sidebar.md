@@ -591,7 +591,7 @@ in the foreground (a split opens its first pane).
 
 **UI.** Today gets a header with an archive button. It opens a panel over the
 sections with the archived entries, their age, a × to drop one and Clear.
-The space menu gets "Archive Today tabs after": 12 hours, 24 hours, 7 days,
+The space editor (spaces.md, "UI") has "Archive Today tabs after": 12 hours, 24 hours, 7 days,
 30 days or never. The file stores it as `"archive_after_hours"` (0 for never).
 
 Mojo: `Space.archive_after_hours`; `PageHandler.SetArchiveAfter(space_id,
@@ -1276,8 +1276,8 @@ Diffs within one frame animate together. A change mid-animation starts from
 where the entry got to (the first measurement includes transforms). Nothing
 animates while spaces slide (spaces.md, "Swiping") or with
 `prefers-reduced-motion`, which also turns off the CSS transitions (row
-hover and active backgrounds, a slight press scale, the space menu and the
-archive popping in).
+hover and active backgrounds, a slight press scale, the archive popping
+in).
 
 ## Incognito
 

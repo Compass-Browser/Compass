@@ -29,6 +29,7 @@
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
+#include "compass/browser/ui/views/bubble_look.h"
 #include "compass/browser/ui/views/downloads_bubble/downloads_bubble_hooks.h"
 #include "components/vector_icons/vector_icons.h"
 #include "services/data_decoder/public/cpp/decode_image.h"
@@ -112,50 +113,7 @@ constexpr base::TimeDelta kRefreshDelay = base::Milliseconds(250);
 
 enum Command { kOpen = 1, kShowInFolder, kCopy, kTrash };
 
-// The bubble's colors, from the dialog's background and the window's space
-// tint: as the settings window, the tint washes the background, and what
-// sits on it is translucent white.
-struct Look {
-  SkColor background = SK_ColorWHITE;
-  SkColor card = SK_ColorWHITE;
-  SkColor pill = SK_ColorWHITE;
-  SkColor track = SK_ColorWHITE;
-  SkColor hairline = SK_ColorBLACK;
-  SkColor text = SK_ColorBLACK;
-  SkColor text_dim = SK_ColorBLACK;
-  SkColor accent = SK_ColorBLUE;
-  bool dark = false;
-};
-
-Look ComputeLook(const ui::ColorProvider* provider,
-                 std::optional<SkColor> tint) {
-  Look look;
-  const SkColor base = provider->GetColor(ui::kColorDialogBackground);
-  look.dark = color_utils::IsDark(base);
-  // The window's own near-black (near-white), not the theme's: the
-  // background follows the system (settings-window.md, "Tokens").
-  const SkColor fg = look.dark ? SkColorSetRGB(0xEC, 0xEC, 0xEE)
-                               : SkColorSetRGB(0x1D, 0x1D, 0x1F);
-  look.background =
-      tint ? color_utils::AlphaBlend(*tint, base, look.dark ? 0.16f : 0.14f)
-           : base;
-  look.card = color_utils::AlphaBlend(SK_ColorWHITE, look.background,
-                                      look.dark ? 0.06f : 0.72f);
-  look.pill = color_utils::AlphaBlend(SK_ColorWHITE, look.background,
-                                      look.dark ? 0.15f : 0.94f);
-  look.track = color_utils::AlphaBlend(fg, look.background, 0.07f);
-  look.hairline = color_utils::AlphaBlend(fg, look.card, 0.10f);
-  look.text = fg;
-  look.text_dim = color_utils::AlphaBlend(fg, look.background, 0.62f);
-  // The space's color, lighter in dark mode so a deep one stays readable;
-  // a grey space gets the system's blue.
-  look.accent =
-      tint ? (look.dark ? color_utils::AlphaBlend(SK_ColorWHITE, *tint, 0.35f)
-                        : *tint)
-           : (look.dark ? SkColorSetRGB(0x0A, 0x84, 0xFF)
-                        : SkColorSetRGB(0x00, 0x7A, 0xFF));
-  return look;
-}
+using Look = BubbleLook;
 
 // A rounded rectangle with a soft shadow: the selected tab, the pill
 // buttons.
@@ -693,7 +651,7 @@ class TabStrip : public views::BoxLayoutView {
     if (!GetColorProvider()) {
       return;
     }
-    const Look look = ComputeLook(GetColorProvider(), tint_);
+    const Look look = ComputeBubbleLook(GetColorProvider(), tint_);
     SetBackground(views::CreateRoundedRectBackground(ui::ColorVariant(look.track),
                                                      kTrackRadius));
     Style(downloads_, vector_icons::kDownloadIcon,
@@ -925,7 +883,7 @@ void DownloadsLibraryView::ApplyLook() {
   if (!GetColorProvider()) {
     return;
   }
-  const Look look = ComputeLook(GetColorProvider(), tint_);
+  const Look look = ComputeBubbleLook(GetColorProvider(), tint_);
   SetBackground(views::CreateSolidBackground(look.background));
   // Scrolling contents paint on a layer that must be opaque.
   downloads_scroll_->SetBackgroundColor(ui::ColorVariant(look.background));

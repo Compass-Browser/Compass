@@ -2,12 +2,14 @@ diff --git a/tools/metrics/histograms/metadata/page/histograms.xml b/tools/metri
 index d8a25e1c14c6c516715a46f4c8ef46a4afbcc376..9e80fbbab64d4f9f51f979ed867a24e79f288a03 100644
 --- a/tools/metrics/histograms/metadata/page/histograms.xml
 +++ b/tools/metrics/histograms/metadata/page/histograms.xml
-@@ -1098,6 +1098,8 @@ chromium-metrics-reviews@google.com.
+@@ -1098,6 +1098,10 @@ chromium-metrics-reviews@google.com.
    <variant name=".ReadingList"/>
    <variant name=".ReloadButtonUI"/>
    <variant name=".ShoppingInsightsSidePanel"/>
 +  <variant name=".CompassCommandBar"/>
 +  <variant name=".CompassClaude"/>
++  <variant name=".CompassShare"/>
++  <variant name=".CompassSpaceEditor"/>
    <variant name=".TabSearch"/>
    <variant name=".UserEducation"/>
  </variants>

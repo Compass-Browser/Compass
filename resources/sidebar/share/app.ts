@@ -2,18 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// chrome://compass-share: the share sheet (?kind=&id=) and the join page
-// (#join=<an invite link's fragment>). docs/design/sync.md, "Rooms:
-// clients"; the wording matches iOS and Android.
+// chrome://compass-share: the share sheet (?kind=&id=), in a bubble, and the
+// join page (#join=<an invite link's fragment>), in a tab.
+// docs/design/sync.md, "Rooms: clients"; the wording matches iOS and
+// Android.
 
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 
+import {applyBubbleLook} from '../bubble_look.js';
 import type {Item, Member, Room} from '../share.mojom-webui.js';
 
 import {ShareBrowserProxy} from './browser_proxy.js';
 
 const proxy = ShareBrowserProxy.getInstance();
 const app = document.querySelector<HTMLElement>('#app')!;
+const title = document.querySelector<HTMLElement>('#title')!;
 
 function el<K extends keyof HTMLElementTagNameMap>(
     tag: K, props: Partial<HTMLElementTagNameMap[K]> = {},
@@ -53,6 +56,44 @@ function showError(where: HTMLElement, error: string) {
   where.hidden = !error;
 }
 
+// A captioned group: the caption, then a card for its rows.
+function group(caption: string, ...rows: HTMLElement[]): HTMLElement {
+  const card = el('div', {className: 'card'}, ...rows);
+  app.append(el('div', {className: 'caption'}, caption), card);
+  return card;
+}
+
+// Asks |question| under |row| in place of a dialog (a bubble has none):
+// |action| runs on the confirming button. Asking again replaces the
+// question.
+function confirmInline(
+    row: HTMLElement, question: string, action: string,
+    onConfirm: () => void) {
+  row.querySelector('.confirm')?.remove();
+  const cancel = el('button', {}, 'Cancel');
+  const yes = el('button', {className: 'danger primary'}, action);
+  const box = el(
+      'div', {className: 'confirm'}, el('p', {}, question),
+      el('div', {className: 'row'}, cancel, yes));
+  cancel.onclick = () => box.remove();
+  yes.onclick = () => {
+    box.remove();
+    onConfirm();
+  };
+  row.append(box);
+  yes.focus();
+}
+
+// The bubble shows once the sheet is drawn, at its size.
+let shown = false;
+
+function showUI() {
+  if (!shown) {
+    shown = true;
+    proxy.handler.showUI();
+  }
+}
+
 // The share sheet --------------------------------------------------------
 
 let currentKind = '';
@@ -63,10 +104,11 @@ async function renderSheet() {
   const {item} = await proxy.handler.getItem(currentKind, currentId);
   app.replaceChildren();
   if (!item) {
+    title.textContent = 'Share';
     app.append(el('p', {className: 'sub'}, 'This item is no longer here.'));
     return;
   }
-  app.append(el('h1', {}, `Share “${item.name || 'Untitled'}”`));
+  title.textContent = `Share “${item.name || 'Untitled'}”`;
   if (!item.roomId) {
     renderNotShared(item);
     return;
@@ -96,7 +138,7 @@ function renderNotShared(item: Item) {
     currentRoomId = roomId;
     await renderSheet();
   };
-  app.append(el('div', {className: 'row'}, share), error);
+  app.append(el('div', {className: 'row actions'}, share), error);
   if (!item.canShare) {
     app.append(el(
         'p', {className: 'note'},
@@ -106,12 +148,11 @@ function renderNotShared(item: Item) {
 
 async function renderRoom() {
   const {room, error} = await proxy.handler.getRoom(currentRoomId);
-  // Keep the title.
-  const title = app.querySelector('h1');
+  // Read before the sheet is emptied, so the redraw happens at once.
+  const {name} = await proxy.handler.getDisplayName();
+  // Keep the scroll position across redraws.
+  const scroll = app.scrollTop;
   app.replaceChildren();
-  if (title) {
-    app.append(title);
-  }
   if (!room) {
     app.append(el('p', {className: 'error'}, error));
     return;
@@ -132,16 +173,21 @@ async function renderRoom() {
   if (owner) {
     renderInvites(room);
   }
-  await renderName();
+  renderName(name);
   renderLeave(room);
+  app.scrollTop = scroll;
 }
 
-function renderInviteLink(room: Room) {
-  app.append(el('h2', {}, 'Invite with a link'));
+function roleSelect(): HTMLSelectElement {
   const role = el('select', {});
   role.append(
       el('option', {value: 'editor'}, 'Can edit'),
       el('option', {value: 'viewer'}, 'Can view'));
+  return role;
+}
+
+function renderInviteLink(room: Room) {
+  const role = roleSelect();
   const expiry = el('select', {});
   expiry.append(
       el('option', {value: '7'}, 'Expires in 7 days'),
@@ -155,7 +201,6 @@ function renderInviteLink(room: Room) {
       el('option', {value: '25'}, 'Up to 25 people'));
   const link = el('input', {
     type: 'text',
-    className: 'link',
     readOnly: true,
     placeholder: 'No link yet',
   });
@@ -176,20 +221,18 @@ function renderInviteLink(room: Room) {
     copy.textContent = 'Copied';
     setTimeout(() => copy.textContent = 'Copy invite link', 2000);
   };
-  app.append(
-      el('div', {className: 'row'}, role, expiry, uses),
-      el('div', {className: 'row'}, link, copy), error,
-      el('p', {className: 'note'},
-         'Anyone with the link can join until it expires or you revoke it.'));
+  group(
+      'Invite with a link',
+      el('div', {className: 'row options'}, role, expiry, uses),
+      el('div', {className: 'row'}, link, copy, error));
+  app.append(el(
+      'p', {className: 'note'},
+      'Anyone with the link can join until it expires or you revoke it.'));
 }
 
 function renderEmailInvite(room: Room) {
-  app.append(el('h2', {}, 'Invite by email'));
   const email = el('input', {type: 'email', placeholder: 'name@company.com'});
-  const role = el('select', {});
-  role.append(
-      el('option', {value: 'editor'}, 'Can edit'),
-      el('option', {value: 'viewer'}, 'Can view'));
+  const role = roleSelect();
   const invite = el('button', {}, 'Invite');
   const error = el('p', {className: 'error', hidden: true});
   invite.onclick = async () => {
@@ -203,7 +246,9 @@ function renderEmailInvite(room: Room) {
       await renderRoom();
     }
   };
-  app.append(el('div', {className: 'row'}, email, role, invite), error);
+  group(
+      'Invite by email',
+      el('div', {className: 'row'}, email, role, invite, error));
 }
 
 function memberName(member: Member): string {
@@ -212,8 +257,8 @@ function memberName(member: Member): string {
 }
 
 function renderMembers(room: Room) {
-  app.append(el('h2', {}, `People (${room.members.length})`));
   const owner = room.role === 'owner';
+  const rows: HTMLElement[] = [];
   for (const member of room.members) {
     const who = el(
         'div', {className: 'who'},
@@ -222,41 +267,44 @@ function renderMembers(room: Room) {
     if (member.email && member.name) {
       who.append(el('div', {className: 'email'}, member.email));
     }
-    const row = el('div', {className: 'row member'}, who);
+    const row = el('div', {className: 'row'}, who);
     if (owner && member.role !== 'owner') {
-      const role = el('select', {});
-      role.append(
-          el('option', {value: 'editor'}, 'Can edit'),
-          el('option', {value: 'viewer'}, 'Can view'));
+      const error = el('p', {className: 'error', hidden: true});
+      const role = roleSelect();
       role.value = member.role;
       role.onchange = async () => {
-        const {error} = await proxy.handler.changeRole(
+        const result = await proxy.handler.changeRole(
             room.roomId, member.clientId, role.value);
-        if (error) {
-          alert(error);
+        if (result.error) {
+          role.value = member.role;
+          showError(error, result.error);
+          return;
         }
         await renderRoom();
       };
       const remove = el('button', {className: 'danger'}, 'Remove');
-      remove.onclick = async () => {
-        if (!confirm(`Remove ${memberName(member)}? They keep a copy of ` +
-                     'what was shared, but won’t see new changes.')) {
-          return;
-        }
-        remove.disabled = true;
-        const {error} =
-            await proxy.handler.removeMember(room.roomId, member.clientId);
-        if (error) {
-          alert(error);
-        }
-        await renderRoom();
-      };
-      row.append(role, remove);
+      remove.onclick = () => confirmInline(
+          row,
+          `Remove ${memberName(member)}? They keep a copy of what was ` +
+              'shared, but won’t see new changes.',
+          'Remove', async () => {
+            remove.disabled = true;
+            const result =
+                await proxy.handler.removeMember(room.roomId, member.clientId);
+            if (result.error) {
+              remove.disabled = false;
+              showError(error, result.error);
+              return;
+            }
+            await renderRoom();
+          });
+      row.append(role, remove, error);
     } else {
       row.append(el('span', {className: 'note'}, roleName(member.role)));
     }
-    app.append(row);
+    rows.push(row);
   }
+  group(`People (${room.members.length})`, ...rows);
 }
 
 function renderInvites(room: Room) {
@@ -266,8 +314,7 @@ function renderInvites(room: Room) {
   if (!open.length) {
     return;
   }
-  app.append(el('h2', {}, 'Invite links'));
-  for (const invite of open) {
+  const rows = open.map(invite => {
     const expires = Number(invite.expires) ?
         `expires ${new Date(Number(invite.expires)).toLocaleDateString()}` :
         'never expires';
@@ -278,52 +325,49 @@ function renderInvites(room: Room) {
       await proxy.handler.revokeInvite(room.roomId, invite.id);
       await renderRoom();
     };
-    app.append(el(
-        'div', {className: 'row member'},
+    return el(
+        'div', {className: 'row'},
         el('div', {className: 'who'},
            `${roleName(invite.role)} · ${expires}${uses}`),
-        revoke));
-  }
+        revoke);
+  });
+  group('Invite links', ...rows);
 }
 
-async function renderName() {
-  app.append(el('h2', {}, 'Your name for sharing'));
-  const {name} = await proxy.handler.getDisplayName();
+function renderName(name: string) {
   const input = el('input', {type: 'text', value: name});
   input.onchange = () => proxy.handler.setDisplayName(input.value);
-  app.append(
-      el('div', {className: 'row'}, input),
-      el('p', {className: 'note'},
-         'What the people you share with see, unless your company’s ' +
-             'sign-in gives your name.'));
+  group('Your name for sharing', el('div', {className: 'row'}, input));
+  app.append(el(
+      'p', {className: 'note'},
+      'What the people you share with see, unless your company’s ' +
+          'sign-in gives your name.'));
 }
 
 function renderLeave(room: Room) {
   const owner = room.role === 'owner';
-  const button = el(
-      'button', {className: 'danger'},
-      owner ? 'Delete for everyone' : 'Leave');
+  const label = owner ? 'Delete for everyone' : 'Leave';
+  const button = el('button', {className: 'danger'}, label);
   const error = el('p', {className: 'error', hidden: true});
-  button.onclick = async () => {
-    const question = owner ?
-        `Stop sharing this ${kindName(room.kind)} and remove it from ` +
-            'everyone else? You keep it.' :
-        `Leave this ${kindName(room.kind)}? You keep a copy, but won’t ` +
-            'see new changes.';
-    if (!confirm(question)) {
-      return;
-    }
-    button.disabled = true;
-    const result = owner ? await proxy.handler.deleteRoom(room.roomId) :
-                           await proxy.handler.leave(room.roomId);
-    if (result.error) {
-      showError(error, result.error);
-      button.disabled = false;
-      return;
-    }
-    proxy.handler.close();
-  };
-  app.append(el('h2', {}, ''), el('div', {className: 'row'}, button), error);
+  const row = el('div', {className: 'row actions'}, button);
+  button.onclick = () => confirmInline(
+      row,
+      owner ? `Stop sharing this ${kindName(room.kind)} and remove it ` +
+              'from everyone else? You keep it.' :
+              `Leave this ${kindName(room.kind)}? You keep a copy, but ` +
+              'won’t see new changes.',
+      label, async () => {
+        button.disabled = true;
+        const result = owner ? await proxy.handler.deleteRoom(room.roomId) :
+                               await proxy.handler.leave(room.roomId);
+        if (result.error) {
+          showError(error, result.error);
+          button.disabled = false;
+          return;
+        }
+        proxy.handler.close();
+      });
+  app.append(row, error);
 }
 
 // The join page ----------------------------------------------------------
@@ -333,21 +377,21 @@ async function renderJoin(fragment: string) {
   const {preview} = await proxy.handler.previewJoin(link);
   app.replaceChildren();
   if (!preview) {
-    app.append(
-        el('h1', {}, 'This invite link doesn’t work'),
-        el('p', {className: 'sub'},
-           'It may have been copied only in part. Ask for a new one.'));
+    title.textContent = 'This invite link doesn’t work';
+    app.append(el(
+        'p', {className: 'sub'},
+        'It may have been copied only in part. Ask for a new one.'));
     return;
   }
   const kind = kindName(preview.kind);
-  app.append(
-      el('h1', {}, `Join “${preview.name || 'Untitled'}”`),
-      el('p', {className: 'sub'},
-         `You’ve been invited to a shared ${kind} on ` +
-             `${preview.server}. The person who shared it decides whether ` +
-             'you can edit it or only view it.'));
+  title.textContent = `Join “${preview.name || 'Untitled'}”`;
+  app.append(el(
+      'p', {className: 'sub'},
+      `You’ve been invited to a shared ${kind} on ` +
+          `${preview.server}. The person who shared it decides whether ` +
+          'you can edit it or only view it.'));
   if (preview.alreadyJoined) {
-    app.append(el('p', {}, 'You’ve already joined it.'));
+    app.append(el('p', {className: 'sub'}, 'You’ve already joined it.'));
     return;
   }
   const space = el('select', {});
@@ -358,8 +402,9 @@ async function renderJoin(fragment: string) {
       node.selected = option.active;
       space.append(node);
     }
-    app.append(el(
-        'div', {className: 'row'}, el('span', {}, 'Put it in'), space));
+    group(
+        'Put it in',
+        el('div', {className: 'row options'}, space));
   }
   const join = el('button', {className: 'primary'}, 'Join');
   const error = el('p', {className: 'error', hidden: true});
@@ -373,29 +418,39 @@ async function renderJoin(fragment: string) {
       join.textContent = 'Join';
       return;
     }
-    app.replaceChildren(
-        el('h1', {}, 'Joined'),
-        el('p', {className: 'sub'},
-           `“${preview.name}” is in your sidebar.`));
+    title.textContent = 'Joined';
+    app.replaceChildren(el(
+        'p', {className: 'sub'}, `“${preview.name}” is in your sidebar.`));
   };
-  app.append(el('div', {className: 'row'}, join), error);
-  await renderName();
+  const {name} = await proxy.handler.getDisplayName();
+  renderName(name);
+  app.append(el('div', {className: 'row actions'}, join), error);
 }
 
 // ------------------------------------------------------------------------
 
+// The colors: the browser's, as the bubble's frame has them.
+async function applyLook() {
+  const {look} = await proxy.handler.getLook();
+  applyBubbleLook(look);
+}
+
 ColorChangeUpdater.forDocument().start();
+window.matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change', applyLook);
+
 // A change elsewhere (someone joined, a role changed) redraws the sheet,
-// but never under the user's hands: an open menu or a half-typed field
-// would vanish. It waits until focus leaves them, and redraws are never
-// stacked.
+// but never under the user's hands: an open menu, a half-typed field or a
+// question would vanish. It waits until focus leaves them, and redraws are
+// never stacked.
 let refreshing = false;
 let refreshWanted = false;
 
 function busy(): boolean {
   const active = document.activeElement;
   return active instanceof HTMLSelectElement ||
-      (active instanceof HTMLInputElement && !active.readOnly);
+      (active instanceof HTMLInputElement && !active.readOnly) ||
+      !!app.querySelector('.confirm');
 }
 
 async function refresh() {
@@ -425,15 +480,31 @@ document.addEventListener('focusout', () => {
     setTimeout(refresh, 0);
   }
 });
+document.addEventListener('click', () => {
+  if (refreshWanted) {
+    // A question answered or dismissed.
+    setTimeout(refresh, 0);
+  }
+});
+document.querySelector<HTMLElement>('#close')!.onclick = () =>
+    proxy.handler.close();
 
-const params = new URLSearchParams(location.search);
-const hash = location.hash.startsWith('#join=') ? location.hash.slice(6) : '';
-// The link stays out of the history and the address bar.
-if (hash) {
-  history.replaceState(null, '', location.pathname);
-  renderJoin(hash);
-} else {
-  currentKind = params.get('kind') || '';
-  currentId = params.get('id') || '';
-  renderSheet();
+async function main() {
+  const params = new URLSearchParams(location.search);
+  const hash =
+      location.hash.startsWith('#join=') ? location.hash.slice(6) : '';
+  await applyLook();
+  // The link stays out of the history and the address bar.
+  if (hash) {
+    document.documentElement.toggleAttribute('tab', true);
+    history.replaceState(null, '', location.pathname);
+    await renderJoin(hash);
+  } else {
+    currentKind = params.get('kind') || '';
+    currentId = params.get('id') || '';
+    await renderSheet();
+  }
+  showUI();
 }
+
+main();

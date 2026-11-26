@@ -29,11 +29,13 @@ build_webui("build") {
     "settings_window/window.css",
     "shortcuts.html",
     "share.html",
+    "space_editor.html",
   ]
   ts_files = [
     "app.html.ts",
     "app.ts",
     "browser_proxy.ts",
+    "bubble_look.ts",
     "claude_chat/app.html.ts",
     "claude_chat/app.ts",
     "claude_chat/browser_proxy.ts",
@@ -93,6 +95,9 @@ build_webui("build") {
     "settings_window/spaces_pane.ts",
     "share/app.ts",
     "share/browser_proxy.ts",
+    "space_editor/app.html.ts",
+    "space_editor/app.ts",
+    "space_editor/browser_proxy.ts",
     "space_icons.ts",
     "space_options.ts",
     "speaker_icon.ts",
@@ -122,6 +127,7 @@ build_webui("build") {
     "find_bar/app.css",
     "now_playing.css",
     "preview.css",
+    "space_editor/app.css",
     "theme_editor.css",
   ]
 
@@ -137,6 +143,7 @@ build_webui("build") {
   ]
 
   mojo_files_deps = [
+    "//compass/browser/ui/webui/bubble:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/claude:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/command_bar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/find_bar:mojo_bindings_ts__generator",
@@ -144,8 +151,10 @@ build_webui("build") {
     "//compass/browser/ui/webui/sidebar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/sync:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/share:mojo_bindings_ts__generator",
+    "//compass/browser/ui/webui/space_editor:mojo_bindings_ts__generator",
   ]
   mojo_files = [
+    "$root_gen_dir/compass/browser/ui/webui/bubble/bubble.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/claude/chat.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/claude/claude.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/command_bar/command_bar.mojom-webui.ts",
@@ -154,6 +163,7 @@ build_webui("build") {
     "$root_gen_dir/compass/browser/ui/webui/sidebar/sidebar.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/sync/compass_sync.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/share/share.mojom-webui.ts",
+    "$root_gen_dir/compass/browser/ui/webui/space_editor/space_editor.mojom-webui.ts",
   ]
 
   # chrome-untrusted://live-folders/: the plugin SDK, runtime and built-in

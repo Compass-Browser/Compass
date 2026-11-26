@@ -211,7 +211,11 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
                     double progress) override;
   void SetArchiveAfter(const std::string& space_id, uint32_t hours) override;
   void SetSpaceSynced(const std::string& space_id, bool synced) override;
-  void ShareSpace(const std::string& space_id) override;
+  void EditSpace(const std::string& space_id,
+                  int32_t x,
+                  int32_t y,
+                  int32_t width,
+                  int32_t height) override;
   void GetRoomNotices(GetRoomNoticesCallback callback) override;
   void DismissRoomNotice(const std::string& room_id) override;
 

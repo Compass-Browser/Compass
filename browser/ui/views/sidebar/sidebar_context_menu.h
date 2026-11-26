@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace ui {
 class MenuModel;
@@ -43,6 +44,12 @@ class SidebarContextMenu
   // Shows |model| at |point| in the sidebar, closing a menu that's up.
   void Show(std::unique_ptr<ui::MenuModel> model, const gfx::Point& point);
 
+  // Where the last menu was shown, in the sidebar.
+  const gfx::Point& last_point() const { return last_point_; }
+
+  // |rect| in the sidebar, in screen coordinates.
+  gfx::Rect ToScreen(const gfx::Rect& rect) const;
+
   static void SetShowCallbackForTesting(ShowCallback callback);
 
  private:
@@ -52,6 +59,7 @@ class SidebarContextMenu
   SidebarContextMenu(content::WebContents* contents, views::View* sidebar);
 
   const raw_ptr<views::View> sidebar_;
+  gfx::Point last_point_;
   // The runner goes first: it may still use the model.
   std::unique_ptr<ui::MenuModel> model_;
   std::unique_ptr<views::MenuRunner> runner_;

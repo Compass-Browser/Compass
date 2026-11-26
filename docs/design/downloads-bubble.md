@@ -31,7 +31,8 @@ Downloads.
 ### Look
 
 The settings window's (settings-window.md, "Visual design"), in views
-(`Look`, `ComputeLook()`):
+(`compass::BubbleLook`, `ComputeBubbleLook()`, `browser/ui/views/
+bubble_look.h`, which the share bubble uses too: sync.md, "UI (desktop)"):
 
 - The bubble's background, its frame too, is the dialog's background with
   the window's space's tint over it (`ToTintColor(…, kPane)`, 14 %, 16 % in

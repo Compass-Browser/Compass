@@ -53,9 +53,10 @@
 #include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/little_window/little_window.h"
+#include "compass/browser/ui/views/share_bubble/share_bubble.h"
+#include "compass/browser/ui/views/space_editor_bubble/space_editor_bubble.h"
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
-#include "compass/browser/ui/webui/share/compass_share_ui.h"
 #include "compass/browser/ui/webui/sidebar/live_plugin_mojo.h"
 #include "compass/browser/ui/webui/sidebar/now_playing_tracker.h"
 #include "compass/browser/ui/webui/sidebar/space_mojo.h"
@@ -83,10 +84,15 @@
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace compass {
 
 namespace {
+
+// The share bubble opened from a row's menu points at the row: this far
+// above and below where the menu was opened (a row is 32 high).
+constexpr int kShareAnchorHalfHeight = 16;
 
 sidebar::mojom::LiveFolderPtr ToMojoLiveFolder(const SidebarNode& node) {
   if (!node.is_live_folder()) {
@@ -1157,11 +1163,20 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
   }
   if (command == kShare) {
     // A folder, or an easel's tab (docs/design/sync.md, "Rooms: clients").
+    // The bubble points at the row the menu was opened on.
+    SidebarContextMenu* menu = context_menu();
+    if (!menu) {
+      return;
+    }
+    const gfx::Rect row = menu->ToScreen(
+        gfx::Rect(0, menu->last_point().y() - kShareAnchorHalfHeight,
+                  page_contents_->GetContainerBounds().width(),
+                  2 * kShareAnchorHalfHeight));
     if (node->type() == SidebarNode::Type::kFolder) {
-      OpenShareSheet(browser_->GetProfile(), "folder",
-                     node->id().AsLowercaseString());
+      ShowShareBubble(browser_, "folder", node->id().AsLowercaseString(),
+                      row);
     } else if (std::string easel = rooms::EaselOfTab(*node); !easel.empty()) {
-      OpenShareSheet(browser_->GetProfile(), "easel", easel);
+      ShowShareBubble(browser_, "easel", easel, row);
     }
     return;
   }
@@ -2083,12 +2098,17 @@ void SidebarPageHandler::CloseTabNode(SidebarNode* tab_node, bool recorded) {
   model.Remove(tab_node);
 }
 
-void SidebarPageHandler::ShareSpace(const std::string& space_id) {
-  if (FindSpace(space_id) && CanShare()) {
-    OpenShareSheet(browser_->GetProfile(), "space", space_id);
+void SidebarPageHandler::EditSpace(const std::string& space_id,
+                                   int32_t x,
+                                   int32_t y,
+                                   int32_t width,
+                                   int32_t height) {
+  SidebarContextMenu* menu = context_menu();
+  if (FindAnySpace(space_id).space && menu) {
+    ShowSpaceEditorBubble(browser_, space_id,
+                          menu->ToScreen(gfx::Rect(x, y, width, height)));
   }
 }
-
 void SidebarPageHandler::GetRoomNotices(GetRoomNoticesCallback callback) {
   std::vector<sidebar::mojom::RoomNoticePtr> notices;
   if (rooms::RoomService* rooms =

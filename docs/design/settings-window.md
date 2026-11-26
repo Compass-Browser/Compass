@@ -237,7 +237,7 @@ and short rows, and anything long or rarely used is one row away, behind a ›.
   each group with "New space" (`AddSpaceToProfile()`, which loads the
   profile and brings it into the switcher if it wasn't). A space's row
   edits its name and moves it up or down among its profile's spaces (in
-  the switcher's order); Edit… opens what the sidebar's space menu has:
+  the switcher's order); Edit… opens what the sidebar's space editor bubble has:
   the icon, the theme (`<compass-theme-editor>`, given the window's handler),
   the profile (or a new one), the archive delay, sync (turning it off
   asks), Export… (that space as a bookmarks file) and Delete (asks). A

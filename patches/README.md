@@ -116,7 +116,7 @@ nothing else.
 | `chrome-chrome_paks.gni.patch` | Ships `compass_sidebar_resources.pak` (not on Android) and `compass_easel_resources.pak` (chrome://easel, on Android too) |
 | `third_party-lit-v3_0-BUILD.gn.patch` | Allows `//compass/*` to depend on Lit |
 | `tools-gritsettings-resource_ids.spec.patch` | Reserves resource IDs for the sidebar's and the Easels page's grit files |
-| `tools-metrics-histograms-metadata-page-histograms.xml.patch` | Adds the `.CompassCommandBar` WebUIName variant, required by `WebUIContentsWrapperT`'s static_assert |
+| `tools-metrics-histograms-metadata-page-histograms.xml.patch` | Adds the `.CompassCommandBar`, `.CompassClaude`, `.CompassShare` and `.CompassSpaceEditor` WebUIName variants, required by `WebUIContentsWrapperT`'s static_assert |
 | `chrome-browser-profiles-keep_alive-profile_keep_alive_types.h.patch` | Adds the `kCompassSpaces` keep-alive origin: `compass::SpaceDirectory` keeps profiles whose spaces show in the switcher loaded (D17) |
 | `chrome-browser-profiles-keep_alive-profile_keep_alive_types.cc.patch` | Prints `kCompassSpaces` |
 | `tools-metrics-histograms-metadata-profile-enums.xml.patch` | Adds `kCompassSpaces` to the `ProfileKeepAliveOrigin` histogram enum |

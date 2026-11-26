@@ -19,6 +19,7 @@
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
+#include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/test/bind.h"
@@ -85,6 +86,7 @@
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "compass/browser/ui/views/sidebar/tab_preview_view.h"
+#include "compass/browser/ui/views/space_editor_bubble/space_editor_bubble.h"
 #include "compass/browser/live_folders/live_plugin_package.h"
 #include "compass/browser/ui/live_folders/live_folder_service.h"
 #include "compass/browser/ui/live_folders/live_plugin_registry.h"
@@ -156,6 +158,69 @@ constexpr char kWaitForTabRows[] = R"(
     }
     return [...rows()].map(r => r.title);
   })($1))";
+
+// Runs |script| in the open space editor's page (the bubble's, which
+// ShowSpaceEditorBubble() opened), with |root|, its element's shadow root,
+// and |until|. Its value is the script's.
+content::EvalJsResult InSpaceEditor(std::string_view script) {
+  content::WebContents* editor = GetSpaceEditorContentsForTesting();
+  CHECK(editor);
+  return content::EvalJs(editor, base::StrCat({R"(
+    (async () => {
+      const until = async (f) => {
+        while (!f()) await new Promise(r => setTimeout(r, 20));
+        return f();
+      };
+      const root = await until(() => document.querySelector(
+          'compass-space-editor-app')?.shadowRoot);
+      )", script, R"(
+    })())"}));
+}
+
+// Opens the space editor with |open|, a script on the sidebar's page (a
+// right-click on a space's button, a double-click on the name), and waits
+// for its page. One that's open closes first, so its page isn't taken for
+// the new one.
+[[nodiscard]] bool OpenSpaceEditor(content::WebContents* sidebar,
+                                   std::string_view open) {
+  if (content::WebContents* editor = GetSpaceEditorContentsForTesting()) {
+    content::ExecuteScriptAsync(
+        editor,
+        "document.dispatchEvent(new KeyboardEvent('keydown', "
+        "{key: 'Escape'}));");
+    if (!base::test::RunUntil(
+            [] { return !GetSpaceEditorContentsForTesting(); })) {
+      return false;
+    }
+  }
+  if (!content::ExecJs(sidebar, base::StrCat({R"(
+        (async () => {
+          const root =
+              document.querySelector('compass-sidebar-app').shadowRoot;
+          )", open, R"(
+        })())"}))) {
+    return false;
+  }
+  return base::test::RunUntil(
+             [] { return !!GetSpaceEditorContentsForTesting(); }) &&
+         content::WaitForLoadStop(GetSpaceEditorContentsForTesting());
+}
+
+// |open| for OpenSpaceEditor(): a right-click on the |index|th space's
+// button, once there is one.
+std::string RightClickSpace(int index) {
+  return base::StringPrintf(R"(
+      while (!root.querySelectorAll('.space')[%d]) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      root.querySelectorAll('.space')[%d].dispatchEvent(new MouseEvent(
+          'contextmenu', {bubbles: true, cancelable: true, composed: true}));)",
+                            index, index);
+}
+
+constexpr char kDoubleClickSpaceName[] = R"(
+      root.querySelector('#spaceName').dispatchEvent(new MouseEvent(
+          'dblclick', {bubbles: true, composed: true}));)";
 
 class CompassSidebarBrowserTest : public InProcessBrowserTest {
  protected:
@@ -541,7 +606,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, UndockedDevToolsIsNoTab) {
 
 // A space that stays on this device (docs/design/sync.md, "Spaces that
 // don't sync"): its tabs are left out of session sync, the switcher marks it,
-// and its menu turns sync back on in one click.
+// and its editor turns sync back on in one click.
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, LocalSpace) {
   SpaceModel& space = WindowFeatures::From(browser())->space_model();
   // A page, so the tab is an entry.
@@ -557,23 +622,18 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, LocalSpace) {
   ASSERT_EQ(true, content::EvalJs(contents, R"(
     (async () => {
       const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      const until = async (f) => {
-        while (!f()) await new Promise(r => setTimeout(r, 20));
-        return f();
-      };
-      const button = await until(
-          () => root.querySelector('.space[local-only]'));
-      if (!button.title.endsWith('On this device only')) return false;
-      root.querySelector('#spaceName').dispatchEvent(new MouseEvent(
-          'dblclick', {bubbles: true, composed: true}));
-      const toggle = await until(() => {
-        const t = root.querySelector('#spaceSync');
-        return t && !t.hidden ? t : null;
-      });
+      while (!root.querySelector('.space[local-only]')) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return root.querySelector('.space[local-only]').title
+          .endsWith('On this device only');
+    })())"));
+  ASSERT_TRUE(OpenSpaceEditor(contents, kDoubleClickSpaceName));
+  ASSERT_EQ(true, InSpaceEditor(R"(
+      const toggle = await until(() => root.querySelector('#sync'));
       if (toggle.getAttribute('aria-checked') !== 'false') return false;
       toggle.click();
-      return true;
-    })())"));
+      return true;)"));
   ASSERT_TRUE(base::test::RunUntil([&] { return space.synced(); }));
   EXPECT_FALSE(IsInUnsyncedSpace(tab));
   EXPECT_EQ(true, content::EvalJs(contents, R"(
@@ -1623,29 +1683,27 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
       shown, GURL("data:text/html,<title>After</title>")));
 }
 
-// Assigning the window's space to another profile from the space menu, as in
+// Assigning the window's space to another profile from its editor, as in
 // Arc: the window swaps to that profile and reloads the page it showed.
-IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuAssignsAProfile) {
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceEditorAssignsAProfile) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<title>One</title>")));
   ProfileManager* profile_manager = g_browser_process->profile_manager();
   Profile& other = profiles::testing::CreateProfileSync(
       profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
-  content::WebContents* contents = sidebar_contents();
-
+  ASSERT_TRUE(OpenSpaceEditor(sidebar_contents(), RightClickSpace(0)));
   ASSERT_TRUE(content::ExecJs(
-      contents,
+      GetSpaceEditorContentsForTesting(),
       content::JsReplace(R"(
         (async (id) => {
-          const root = document.querySelector('compass-sidebar-app').shadowRoot;
           const until = async (f) => {
             while (!f()) await new Promise(r => setTimeout(r, 20));
             return f();
           };
-          root.querySelector('.space').dispatchEvent(new MouseEvent(
-              'contextmenu', {bubbles: true, cancelable: true, composed: true}));
+          const root = await until(() => document.querySelector(
+              'compass-space-editor-app')?.shadowRoot);
           const select = await until(() =>
-              [...root.querySelectorAll('#spaceProfile option')]
+              [...root.querySelectorAll('#profile option')]
                   .find(option => option.value === id)?.parentElement);
           select.value = id;
           select.dispatchEvent(new Event('change'));
@@ -2042,7 +2100,10 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DraggingASpaceReordersThem) {
   EXPECT_EQ(&features->space_model(), play);
 }
 
-IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesSetsIconsDeletes) {
+// A space's button opens its editor in a bubble: the name, a symbol, an
+// emoji from the picker, and Delete (which asks first).
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
+                       SpaceEditorRenamesSetsIconsDeletes) {
   WindowFeatures* features = WindowFeatures::From(browser());
   SpaceModel* home = &features->space_model();
   content::WebContents* contents = sidebar_contents();
@@ -2054,44 +2115,23 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesSetsIconsDelet
       [&] { return &features->space_model() != home; }));
   SpaceModel* added = &features->space_model();
 
-  ASSERT_EQ(true, content::EvalJs(contents, R"(
-    (async () => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      const until = async (f) => {
-        while (!f()) await new Promise(r => setTimeout(r, 20));
-        return f();
-      };
-      const button = await until(() => root.querySelectorAll('.space')[1]);
-      button.dispatchEvent(new MouseEvent(
-          'contextmenu', {bubbles: true, cancelable: true, composed: true}));
-      const input = await until(() => root.querySelector('#spaceNameInput'));
+  ASSERT_TRUE(OpenSpaceEditor(contents, RightClickSpace(1)));
+  ASSERT_EQ(true, InSpaceEditor(R"(
+      const input = await until(() => root.querySelector('#name'));
       input.value = 'Work';
       input.dispatchEvent(new Event('change'));
-      return true;
-    })())"));
+      return true;)"));
   ASSERT_TRUE(base::test::RunUntil([&] { return added->name() == u"Work"; }));
 
   // A symbol, then an emoji from the picker (found by searching), as the
   // switcher's button shows them.
-  ASSERT_EQ(true, content::EvalJs(contents, R"(
-    (() => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+  ASSERT_EQ(true, InSpaceEditor(R"(
       root.querySelector('.icon-choice[title="Travel"]').click();
-      return true;
-    })())"));
+      return true;)"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return added->icon() == *SpaceIcon::Symbol("travel"); }));
-  EXPECT_EQ(true, content::EvalJs(contents, R"(
-    (async () => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      while (!root.querySelectorAll('.space')[1].querySelector('svg path')) {
-        await new Promise(r => setTimeout(r, 20));
-      }
+  EXPECT_EQ(true, InSpaceEditor(R"(
       root.querySelector('#emojiButton').click();
-      const until = async (f) => {
-        while (!f()) await new Promise(r => setTimeout(r, 20));
-        return f();
-      };
       const picker = await until(
           () => root.querySelector('compass-emoji-picker')?.shadowRoot);
       await until(() => picker.querySelector('.emoji'));
@@ -2101,24 +2141,17 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesSetsIconsDelet
       const rocket = await until(
           () => picker.querySelector('.emoji[data-emoji="🚀"]'));
       rocket.click();
-      // Back to the menu, whose button shows it.
+      // Back to the editor, whose button shows it.
       const button = await until(() => {
         const button = root.querySelector('#emojiButton');
         return button?.textContent.trim() === '🚀' && button;
       });
-      return button.hasAttribute('selected');
-    })())"));
+      return button.hasAttribute('selected');)"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return added->icon() == *SpaceIcon::Emoji("🚀"); }));
   // An emoji typed in the search (as the system's picker does) is picked
   // with Enter: only its first character.
-  EXPECT_EQ(true, content::EvalJs(contents, R"(
-    (async () => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      const until = async (f) => {
-        while (!f()) await new Promise(r => setTimeout(r, 20));
-        return f();
-      };
+  EXPECT_EQ(true, InSpaceEditor(R"(
       root.querySelector('#emojiButton').click();
       const picker = await until(
           () => root.querySelector('compass-emoji-picker')?.shadowRoot);
@@ -2128,8 +2161,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesSetsIconsDelet
       await until(() => picker.querySelector('.emoji[data-emoji="🎉"]'));
       search.dispatchEvent(new KeyboardEvent(
           'keydown', {key: 'Enter', bubbles: true, composed: true}));
-      return true;
-    })())"));
+      return true;)"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return added->icon() == *SpaceIcon::Emoji("🎉"); }));
   EXPECT_EQ(true, content::EvalJs(contents, R"(
@@ -2143,44 +2175,39 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesSetsIconsDelet
       return true;
     })())"));
 
-  // Delete wants a second click. The window goes back to Home.
-  ASSERT_EQ(true, content::EvalJs(contents, R"(
-    (async () => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      const until = async (f) => {
-        while (!f()) await new Promise(r => setTimeout(r, 20));
-        return f();
-      };
-      // Reopened from the name, which also starts over.
-      root.querySelector('#spaceName').dispatchEvent(new MouseEvent(
-          'dblclick', {bubbles: true, composed: true}));
-      const remove = await until(() => root.querySelector('#deleteSpace'));
-      remove.click();
-      await until(() => remove.hasAttribute('confirming'));
-      remove.click();
-      return true;
-    })())"));
+  // Reopened from the name: Delete asks first. The window goes back to
+  // Home, and the bubble closes.
+  ASSERT_TRUE(OpenSpaceEditor(contents, kDoubleClickSpaceName));
+  ASSERT_EQ(true, InSpaceEditor(R"(
+      (await until(() => root.querySelector('#delete'))).click();
+      (await until(() => root.querySelector('#confirmDelete'))).click();
+      return true;)"));
   ASSERT_TRUE(base::test::RunUntil([&] {
     return features->service().space_list().spaces().size() == 1u;
   }));
   EXPECT_EQ(&features->space_model(), home);
+  ASSERT_TRUE(
+      base::test::RunUntil([] { return !GetSpaceEditorContentsForTesting(); }));
 }
 
-// The space menu's "Edit theme" opens the editor in its place: the palette
+// The space editor's Theme opens the theme editor in its place: the palette
 // (colors, then gradients and any color), the pad's dots and their count,
-// the intensity wave, the grain dial and the mode; Esc goes back.
+// the intensity wave, the grain dial and the mode; Esc goes back, then
+// closes the bubble.
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ThemeEditorEditsTheSpace) {
   SpaceModel& space = WindowFeatures::From(browser())->space_model();
-  content::WebContents* contents = sidebar_contents();
+  ASSERT_TRUE(OpenSpaceEditor(sidebar_contents(), RightClickSpace(0)));
+  content::WebContents* contents = GetSpaceEditorContentsForTesting();
   // |action| runs in the editor's shadow root, |editor|.
   auto in_editor = [&](std::string_view action) {
     return content::EvalJs(contents, base::StrCat({R"(
       (async () => {
-        const root = document.querySelector('compass-sidebar-app').shadowRoot;
         const until = async (f) => {
           while (!f()) await new Promise(r => setTimeout(r, 20));
           return f();
         };
+        const root = await until(() => document.querySelector(
+            'compass-space-editor-app')?.shadowRoot);
         const host = await until(
             () => root.querySelector('compass-theme-editor'));
         await host.updateComplete;
@@ -2189,17 +2216,9 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ThemeEditorEditsTheSpace) {
         return true;
       })())"}));
   };
-  ASSERT_EQ(true, content::EvalJs(contents, R"(
-    (async () => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      root.querySelector('.space').dispatchEvent(new MouseEvent(
-          'contextmenu', {bubbles: true, cancelable: true, composed: true}));
-      while (!root.querySelector('#editTheme')) {
-        await new Promise(r => setTimeout(r, 20));
-      }
-      root.querySelector('#editTheme').click();
-      return true;
-    })())"));
+  ASSERT_EQ(true, InSpaceEditor(R"(
+      (await until(() => root.querySelector('#theme'))).click();
+      return true;)"));
 
   ASSERT_EQ(true, in_editor("editor.querySelector('.swatch[title=Blue]').click();"));
   ASSERT_TRUE(base::test::RunUntil(
@@ -2263,17 +2282,21 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ThemeEditorEditsTheSpace) {
   EXPECT_EQ(browser_view()->GetWidget()->color_mode_override(),
             GetTintTextMode(space, SK_ColorBLACK));
 
-  // Esc goes back to the menu.
+  // Esc goes back to the editor, then closes the bubble.
   ASSERT_EQ(true, content::EvalJs(contents, R"(
     (async () => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      root.querySelector('#spaceMenu').dispatchEvent(
-          new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
-      while (!root.querySelector('#spaceNameInput')) {
+      const root =
+          document.querySelector('compass-space-editor-app').shadowRoot;
+      document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+      while (!root.querySelector('#name')) {
         await new Promise(r => setTimeout(r, 20));
       }
       return !root.querySelector('compass-theme-editor');
     })())"));
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));)"));
+  ASSERT_TRUE(
+      base::test::RunUntil([] { return !GetSpaceEditorContentsForTesting(); }));
   // Automatic: at full intensity the tint picks the text's mode, at the
   // default the system does.
   space.SetAppearance(SpaceAppearance::kAuto);

@@ -467,8 +467,10 @@ interface PageHandler {
   // it off removes it from them). See docs/design/sync.md, "Spaces that
   // don't sync".
   SetSpaceSynced(string space_id, bool synced);
-  // Opens the space's share sheet.
-  ShareSpace(string space_id);
+  // Opens the space's editor in a bubble (ShowSpaceEditorBubble()),
+  // pointing at the given rectangle of the page: the switcher's button or
+  // the space's name.
+  EditSpace(string space_id, int32 x, int32 y, int32 width, int32 height);
   // The banners of shared items this profile lost; the page asks again
   // with each SetSpaces(), which a change of rooms also sends.
   GetRoomNotices() => (array<RoomNotice> notices);

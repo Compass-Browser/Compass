@@ -213,9 +213,25 @@ tree and when the list changes; `PageHandler.SwitchSpace(id)` and
 model and sends a fresh tree.
 
 Right-clicking a space button, or double-clicking the space name, opens the
-space's menu: its name, "Edit theme" (the theme editor, below), its icon,
-the Today archive delay, its profile (slice 3) and "Delete space" (click
-twice). The color (`SpaceColor`, saved as
+space's editor in a bubble beside the sidebar, pointing at what was clicked
+(upwards from the switcher, downwards from the name):
+`chrome://compass-space-editor/?id=<space>` (`ShowSpaceEditorBubble()`,
+`browser/ui/views/space_editor_bubble/`, `browser/ui/webui/space_editor/`,
+`resources/sidebar/space_editor/`; `PageHandler.EditSpace(id, rect)`). It
+has the downloads bubble's look, as the share bubble does (sync.md, "UI
+(desktop)"; `ShowCompassBubble()`, `compass::BubbleLook`): the window's
+space's tint, captioned cards, 320 wide. From the top: the name (the
+bubble's title; Enter renames and closes), Theme (with a chip of the
+space's colors; the theme editor, below), Icon, then a Space card with
+"Archive Today tabs after", Profile (slice 3) and "Sync to your other
+devices" (sync.md), then Share… and Delete space. Delete and turning sync
+off ask inline (a bubble has no dialogs); the last space can't be deleted.
+Esc goes back from the theme editor or the emoji picker, else closes the
+bubble. Its handler (`SpaceEditorPageHandler`) edits through the same
+helpers as the sidebar's and the settings window's (`space_mojo.h`), and
+follows the space through the same observers as the switcher
+(2026-11-26; before that, a menu in the sidebar page, over the bottom of
+the sidebar). The color (`SpaceColor`, saved as
 `"color"` in the file, see below) tints the sidebar's background and the
 space's button. Grey, the default, doesn't
 tint. `SpaceList` relays name and color changes of any space
@@ -272,7 +288,7 @@ stop by stop, so a gradient fades into a plain color or another gradient. The
 gradient is dithered: at 14% it spans only a few levels of each channel
 across the window, and without dithering each level showed as a band 50-100
 DIP wide.
-The little window's frame keeps the space's color only. The space menu's
+The little window's frame keeps the space's color only. The space editor's
 theme chip shows the same three stops, diagonally (`--space-color`,
 `--space-color-2`, `--space-color-3`). The switcher's buttons show no color
 (no circle or background): just the icon,
@@ -379,10 +395,11 @@ The little window's pills keep the location bar's color.
 
 ### Theme editor
 
-The space menu's "Edit theme" row (with a chip of the space's colors)
-opens the theme editor in the menu's place (laid out after Arc's):
-`<compass-theme-editor>` (`resources/sidebar/theme_editor.{ts,html.ts,css}`).
-"‹ <name>" or Esc goes back to the menu. From the top:
+The space editor's Theme row (with a chip of the space's colors)
+opens the theme editor in the bubble's place (laid out after Arc's):
+`<compass-theme-editor>` (`resources/sidebar/theme_editor.{ts,html.ts,css}`),
+which sends its edits to the editor's handler. "‹" or Esc goes back to the
+editor. From the top:
 
 - Mode: automatic (sparkles), light (sun), dark (moon), hand-drawn
   glyphs. `SpaceModel::appearance()` (`SpaceAppearance`), saved as
@@ -424,11 +441,11 @@ the wave, the dial and dark mode, Esc),
 ### Space icons
 
 A space can have an icon (as in Arc), which its switcher button
-shows instead of the name's first letter: an emoji or a symbol. The menu
-lists them under "Edit theme": "no icon" (the letter), 28 symbols and an
+shows instead of the name's first letter: an emoji or a symbol. The space
+editor lists them under Theme: "no icon" (the letter), 28 symbols and an
 emoji button (the space's emoji, or a smiley) that opens the emoji picker
-in the menu's place, as "Edit theme" does; the settings window's Spaces
-pane opens it below the icons.
+in the bubble's place, as Theme does; the settings window's Spaces pane
+opens it below the icons.
 
 The emoji picker (`<compass-emoji-picker>`, `resources/sidebar/
 emoji_picker.ts`) has a search field, the groups as tabs (smileys, people,
@@ -480,7 +497,7 @@ in the picker; names and keywords in other languages than English.
 `SidebarSerializerTest.RoundTripsIcons`, `UnreadableIconsAreLeftOut`,
 `SidebarPageHandlerTest.SetsSpaceIcons`, `ArcSidebarTest.SpaceIcons`,
 `CommandBarPageHandlerTest.SpacesCarryTheirIcons`;
-`SpaceMenuRenamesSetsIconsDeletes` picks a symbol and an emoji (searched
+`SpaceEditorRenamesSetsIconsDeletes` picks a symbol and an emoji (searched
 for, and typed in the search), `SpacesPaneEditsAnyProfile` one in the
 settings window; `tools/tests/test_update_emoji_data.py`.
 
@@ -638,7 +655,7 @@ swaps the window.
 
 ### Assigning a profile
 
-The space menu has a Profile picker: every profile upstream's profile menu
+The space editor has a Profile picker: every profile upstream's profile menu
 lists, and "New profile…", which creates one
 (`ProfileManager::CreateMultiProfileAsync()`). `AssignSpaceToProfile()`
 waits for the profile and its sidebar file to load, then
@@ -807,7 +824,7 @@ deleting a profile's last space, deleting the shown space swapping to its
 neighbor, off-the-record windows, swapping and back, parked tabs outliving
 their profile's last window), page handler tests (listing, previews, entries
 kept from other profiles, swapping, assigning a profile), and the
-`AnotherProfilesSpaceSwapsTheWindow` and `SpaceMenuAssignsAProfile` browser
+`AnotherProfilesSpaceSwapsTheWindow` and `SpaceEditorAssignsAProfile` browser
 tests.
 
 Export: `SpaceExportTest` (folders, splits, saved URLs, escaping, the

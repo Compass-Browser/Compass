@@ -7,21 +7,19 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "compass/browser/rooms/room_service.h"
 #include "compass/browser/ui/webui/share/share.mojom.h"
-#include "content/public/browser/webui_config.h"
+#include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
+#include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "ui/webui/mojo_web_ui_controller.h"
 #include "url/gurl.h"
-
-class Browser;
-class Profile;
 
 namespace content {
 class WebContents;
@@ -31,25 +29,24 @@ class WebUI;
 namespace compass {
 
 // chrome://compass-share (compass://share): the share sheet of a space,
-// folder or easel (?kind=folder&id=<uuid>), and the join page of an invite
-// link (#join=<the link's fragment>). docs/design/sync.md, "Rooms: clients".
+// folder or easel (?kind=folder&id=<uuid>), in a bubble (ShowShareBubble()),
+// and the join page of an invite link (#join=<the link's fragment>), in a
+// tab. docs/design/sync.md, "Rooms: clients".
 inline constexpr char kCompassShareHost[] = "compass-share";
 
 // The share sheet's URL for an item.
 GURL ShareSheetUrl(const std::string& kind, const std::string& id);
 // The join page's URL for an invite link's fragment (base64url).
 GURL JoinPageUrl(const std::string& fragment);
-// Opens the share sheet in a small window of |profile|.
-void OpenShareSheet(Profile* profile,
-                    const std::string& kind,
-                    const std::string& id);
-
 class CompassShareUI;
 
 class CompassShareUIConfig
-    : public content::DefaultWebUIConfig<CompassShareUI> {
+    : public DefaultTopChromeWebUIConfig<CompassShareUI> {
  public:
   CompassShareUIConfig();
+
+  // DefaultTopChromeWebUIConfig:
+  bool ShouldAutoResizeHost() override;
 };
 
 class SharePageHandler : public share::mojom::PageHandler,
@@ -57,7 +54,7 @@ class SharePageHandler : public share::mojom::PageHandler,
  public:
   SharePageHandler(mojo::PendingReceiver<share::mojom::PageHandler> receiver,
                    mojo::PendingRemote<share::mojom::Page> page,
-                   content::WebUI* web_ui,
+                   CompassShareUI* controller,
                    rooms::RoomService* rooms);
   SharePageHandler(const SharePageHandler&) = delete;
   SharePageHandler& operator=(const SharePageHandler&) = delete;
@@ -102,6 +99,8 @@ class SharePageHandler : public share::mojom::PageHandler,
             JoinCallback callback) override;
   void GetDisplayName(GetDisplayNameCallback callback) override;
   void SetDisplayName(const std::string& name) override;
+  void GetLook(GetLookCallback callback) override;
+  void ShowUI() override;
   void Close() override;
 
   // rooms::RoomService::Observer:
@@ -110,13 +109,14 @@ class SharePageHandler : public share::mojom::PageHandler,
  private:
   mojo::Receiver<share::mojom::PageHandler> receiver_;
   mojo::Remote<share::mojom::Page> page_;
+  const raw_ptr<CompassShareUI> controller_;
   const raw_ptr<content::WebUI> web_ui_;
   const raw_ptr<rooms::RoomService> rooms_;
   base::ScopedObservation<rooms::RoomService, rooms::RoomService::Observer>
       observation_{this};
 };
 
-class CompassShareUI : public ui::MojoWebUIController,
+class CompassShareUI : public TopChromeWebUIController,
                        public share::mojom::PageHandlerFactory {
  public:
   explicit CompassShareUI(content::WebUI* web_ui);
@@ -126,6 +126,8 @@ class CompassShareUI : public ui::MojoWebUIController,
 
   void BindInterface(
       mojo::PendingReceiver<share::mojom::PageHandlerFactory> receiver);
+
+  static constexpr std::string_view GetWebUIName() { return "CompassShare"; }
 
  private:
   // share::mojom::PageHandlerFactory:

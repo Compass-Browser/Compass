@@ -872,7 +872,7 @@ children); position and last-active time stay as they were.
   a younger one is removed. Clocks a few minutes apart can remove, on the
   slower Mac, an entry that was about to expire anyway.
 - **Debugging**: `--compass-archive-hour-seconds=N` makes an "hour" of the
-  space menu's delay N seconds and runs the archiver every N seconds
+  space editor's delay N seconds and runs the archiver every N seconds
   (`GetArchiveHour()`, `space_service.h`); for end-to-end runs only. A
   short delay saved to the file rounds to 0 hours ("never") on restart.
 
@@ -1029,9 +1029,9 @@ flag itself never syncs, so there's no proto field.
 - **Moving to another profile** keeps the flag.
 - **Favicons**: hosts of a local space's entries aren't offered, and an
   icon only a local space uses is collected (`GetEntryUrlsByHost()`).
-- **UI**: the space menu's "Sync to your other devices" (a check; turning it
-  off wants a second click) shows while the profile's spaces sync, or for a
-  space already kept here. The switcher shows a small dot on the space's
+- **UI**: the space editor's "Sync to your other devices" (a switch;
+  turning it off asks first, inline) shows while the profile's spaces sync,
+  or for a space already kept here (spaces.md, "UI"). The switcher shows a small dot on the space's
   button, and its tooltip says "On this device only".
 - **Platforms**:
   - Desktop (macOS, Windows, Linux): all of the above.
@@ -2666,17 +2666,29 @@ identity key, and every epoch's key sealed to it. The mounts then go up to
 the new chain with the rest.
 
 **UI (desktop).** Share… in a pinned folder's context menu, Share Easel… in
-an easel tab's, Share space… in the space menu: `chrome://compass-share/
-?kind=&id=` in a small popup window (Start sharing; Invite with a link with
-role, expiry and uses, Copy invite link; Invite by email on company sign-in
-servers; People with role menus and Remove; open invite links with Revoke;
-Your name for sharing; Leave or Delete for everyone). A people badge with
+an easel tab's, Share… in the space editor (which it replaces):
+`chrome://compass-share/?kind=&id=` in a bubble beside the sidebar,
+pointing at the row (or the space's button or name) it was opened from
+(`ShowShareBubble()`, `browser/ui/views/share_bubble/`, through
+`ShowCompassBubble()`, `browser/ui/views/compass_bubble.h`: a
+`WebUIBubbleDialogView` that owns its page; one at a time; 2026-11-26,
+before that a small popup window). It has
+the downloads bubble's look (downloads-bubble.md, "Look";
+`compass::BubbleLook`, which the page gets from `GetLook()`
+(`bubble.mojom`, `bubble_look.ts`) so it matches
+the frame): the window's space's tint, captioned cards, pill buttons in the
+space's color, 420 wide, scrolling past 600 high. It shows once the page has
+drawn (`ShowUI()`). Start sharing; Invite with a link with role, expiry and
+uses, Copy invite link; Invite by email on company sign-in servers; People
+with role menus and Remove; open invite links with Revoke; Your name for
+sharing; Leave or Delete for everyone. A bubble has no JavaScript dialogs,
+so Remove, Leave and Delete for everyone ask inline, under their row. A people badge with
 the members in its tooltip on shared items (`Node.shared`,
 `shared_tooltip`, `view_only`; `Space.shared`, `view_only`, `can_share`).
 `RoomLinkInterceptor` sends a tab opening `https://compassbrowser.org/join#…`
 or `compass://join#…` to `chrome://compass-share/#join=<fragment>` (the
-website never loads), whose page shows what's shared and on which server,
-asks for the space, and joins.
+website never loads), whose page (the same, in a tab, in the same look)
+shows what's shared and on which server, asks for the space, and joins.
 
 **UI (Android).** The same through `RoomsBridge`: Share… in a pinned
 folder's menu, Share Easel… in an easel tab's, Share Space… in the space's ⋯

@@ -24,10 +24,9 @@
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
 #include "chrome/grit/generated_resources.h"
+#include "compass/browser/ui/views/bubble_look.h"
 #include "compass/browser/ui/views/downloads_bubble/downloads_bubble_hooks.h"
 #include "compass/browser/ui/views/downloads_bubble/downloads_library_view.h"
-#include "compass/browser/ui/views/sidebar/sidebar_tint.h"
-#include "compass/browser/window_sync/window_features.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/class_property.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -103,23 +102,6 @@ void OnBubbleClosed(views::ViewTracker* browser_view_tracker,
             delegate.reset();
           },
           std::move(state->widget), std::move(state->delegate)));
-}
-
-// The window's space's color, which the bubble takes: none for a grey
-// space, or off the record (as the sidebar's tint).
-std::optional<SkColor> SpaceTint(BrowserWindowInterface* browser) {
-  if (browser->GetProfile()->IsOffTheRecord()) {
-    return std::nullopt;
-  }
-  WindowFeatures* features = WindowFeatures::From(browser);
-  if (!features) {
-    return std::nullopt;
-  }
-  std::optional<SkColor> tint = features->space_model().color().tint();
-  if (!tint) {
-    return std::nullopt;
-  }
-  return ToTintColor(*tint, TintSurface::kPane);
 }
 
 // The files upstream's rows show.
@@ -213,7 +195,7 @@ void ShowBubble(views::ViewTracker* browser_view_tracker,
   header->SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
   header->SetBorder(views::CreateEmptyBorder(kHeaderInsets));
   auto* library = contents->AddChildView(std::make_unique<DownloadsLibraryView>(
-      browser->GetProfile(), SpaceTint(browser), /*browser_rows=*/nullptr,
+      browser->GetProfile(), GetBubbleTint(browser), /*browser_rows=*/nullptr,
       DownloadsLibraryView::RowPathsCallback(),
       MakeShowAllDownloadsButton(browser)));
   views::View* strip = header->AddChildView(library->CreateTabStrip());
@@ -284,7 +266,7 @@ void ExtendDownloadDialog(views::View* dialog,
   std::unique_ptr<views::View> owned_rows = dialog->RemoveChildViewT(rows);
   std::unique_ptr<views::View> owned_footer = dialog->RemoveChildViewT(footer);
   auto* library = dialog->AddChildView(std::make_unique<DownloadsLibraryView>(
-      browser->GetProfile(), SpaceTint(browser), std::move(owned_rows),
+      browser->GetProfile(), GetBubbleTint(browser), std::move(owned_rows),
       std::move(row_paths),
       std::move(owned_footer)));
   AddTabStrip(header, library);

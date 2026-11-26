@@ -5,10 +5,8 @@
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {CompassSidebarAppElement, Preview} from './app.js';
-import type {ArchiveDelay} from './space_options.js';
-import type {SpaceSymbol} from './space_icons.js';
 import {speakerIcon} from './speaker_icon.js';
-import type {ArchivedEntry, Node, ProfileOption, RoomNotice, Space} from './sidebar.mojom-webui.js';
+import type {ArchivedEntry, Node, RoomNotice, Space} from './sidebar.mojom-webui.js';
 
 export function getHtml(this: CompassSidebarAppElement) {
   // clang-format off
@@ -180,113 +178,6 @@ ${this.liveEditor_ ? html`
       .folderId="${this.liveEditor_.folderId}"
       @close="${this.onLiveEditorClose_}">
   </compass-live-folder-editor>` : nothing}
-${this.getMenuSpace_() && this.themeOpen_ ? html`
-  <div id="spaceMenu" class="theme" role="dialog" aria-label="Theme"
-      @keydown="${this.onSpaceMenuKeydown_}">
-    <button id="themeBack" class="menu-back" title="Back" aria-label="Back"
-        @click="${this.onThemeBackClick_}">‹ ${this.getMenuSpace_()!.name}</button>
-    <compass-theme-editor .space="${this.getMenuSpace_()}">
-    </compass-theme-editor>
-  </div>` : nothing}
-${this.getMenuSpace_() && this.emojiOpen_ ? html`
-  <div id="spaceMenu" class="emoji" role="dialog" aria-label="Emoji"
-      @keydown="${this.onSpaceMenuKeydown_}">
-    <button id="emojiBack" class="menu-back" title="Back" aria-label="Back"
-        @click="${this.onEmojiBackClick_}">‹ ${this.getMenuSpace_()!.name}</button>
-    <compass-emoji-picker
-        .selected="${this.getMenuSpace_()!.icon?.emoji ?? ''}"
-        @emoji-pick="${this.onEmojiPick_}">
-    </compass-emoji-picker>
-  </div>` : nothing}
-${this.getMenuSpace_() && !this.themeOpen_ && !this.emojiOpen_ ? html`
-  <div id="spaceMenu" role="menu" aria-label="Space"
-      @keydown="${this.onSpaceMenuKeydown_}">
-    <input id="spaceNameInput" aria-label="Space name" spellcheck="false"
-        autocomplete="off"
-        .value="${this.getMenuSpace_()!.name}"
-        @keydown="${this.onSpaceNameKeydown_}"
-        @change="${this.onSpaceNameChange_}">
-    <button id="editTheme" role="menuitem" @click="${this.onEditThemeClick_}">
-      <span>Edit theme</span>
-      <span id="themeChip" style="${this.getSpaceStyle_(this.getMenuSpace_()!)}">
-      </span>
-    </button>
-    <div id="icons" role="group" aria-label="Icon">
-      <button class="icon-choice" role="menuitemradio" data-symbol=""
-          title="No icon" aria-label="No icon"
-          aria-checked="${this.isMenuSpaceIcon_('')}"
-          ?selected="${this.isMenuSpaceIcon_('')}"
-          @click="${this.onSymbolClick_}">
-        ${this.getSpaceInitial_(this.getMenuSpace_()!)}
-      </button>
-      ${this.spaceSymbols_.map((symbol: SpaceSymbol) => html`
-        <button class="icon-choice" role="menuitemradio"
-            data-symbol="${symbol.name}" title="${symbol.label}"
-            aria-label="${symbol.label}"
-            aria-checked="${this.isMenuSpaceIcon_(symbol.name)}"
-            ?selected="${this.isMenuSpaceIcon_(symbol.name)}"
-            @click="${this.onSymbolClick_}">
-          <svg viewBox="${this.getSymbolViewBox_()}" aria-hidden="true">
-            <path d="${symbol.path}"></path>
-          </svg>
-        </button>`)}
-      <button id="emojiButton" class="icon-choice" role="menuitem"
-          title="Emoji" aria-label="Emoji" aria-haspopup="dialog"
-          ?selected="${!!this.getMenuSpace_()!.icon?.emoji}"
-          @click="${this.onEmojiButtonClick_}">
-        ${this.getMenuSpace_()!.icon?.emoji ?? html`
-          <svg class="emoji-add" viewBox="0 0 16 16" aria-hidden="true">
-            <circle cx="8" cy="8" r="6.25"></circle>
-            <path d="M5.6 9.6c.6.9 1.4 1.3 2.4 1.3s1.8-.4 2.4-1.3"></path>
-            <circle class="eye" cx="6" cy="6.6" r=".9"></circle>
-            <circle class="eye" cx="10" cy="6.6" r=".9"></circle>
-          </svg>`}
-      </button>
-    </div>
-    <label id="archiveDelay">
-      Archive Today tabs after
-      <select @change="${this.onArchiveDelayChange_}">
-        ${this.archiveDelays_.map((delay: ArchiveDelay) => html`
-          <option value="${delay.hours}"
-              ?selected="${this.isMenuSpaceArchiveDelay_(delay.hours)}">
-            ${delay.label}
-          </option>`)}
-      </select>
-    </label>
-    <label id="spaceProfile" ?hidden="${this.profiles_.length === 0}">
-      Profile
-      <select @change="${this.onSpaceProfileChange_}">
-        ${this.profiles_.map((profile: ProfileOption) => html`
-          <option value="${profile.id}"
-              ?selected="${this.isMenuSpaceProfile_(profile)}">
-            ${profile.name}
-          </option>`)}
-        <option value="">New profile…</option>
-      </select>
-    </label>
-    <button id="spaceSync" role="menuitemcheckbox"
-        ?hidden="${!this.canChangeSpaceSync_()}"
-        aria-checked="${this.getMenuSpace_()!.synced}"
-        ?checked="${this.getMenuSpace_()!.synced}"
-        ?confirming="${this.confirmingUnsync_}"
-        @click="${this.onSpaceSyncClick_}">
-      <span>${this.getSpaceSyncLabel_()}</span>
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M3.5 8.5l3 3 6-7"></path>
-      </svg>
-    </button>
-    <button id="shareSpace" role="menuitem"
-        ?hidden="${!this.canShareMenuSpace_()}"
-        @click="${this.onShareSpaceClick_}">
-      ${this.getShareSpaceLabel_()}
-    </button>
-    <button id="deleteSpace" role="menuitem"
-        ?disabled="${!this.canDeleteSpace_()}"
-        ?confirming="${this.confirmingDelete_}"
-        @click="${this.onDeleteSpaceClick_}">
-      ${this.getDeleteLabel_()}
-    </button>
-  </div>` : nothing}
 ${this.archiveOpen_ ? html`
   <div id="archive" role="dialog" aria-label="Archived tabs"
       @keydown="${this.onArchiveKeydown_}">
