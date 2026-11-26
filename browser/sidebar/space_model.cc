@@ -214,6 +214,20 @@ void SpaceModel::SetGrain(double grain) {
   }
 }
 
+void SpaceModel::SetTranslucency(double translucency) {
+  if (std::isnan(translucency)) {
+    return;
+  }
+  translucency = std::clamp(translucency, 0.0, 1.0);
+  if (translucency_ == translucency) {
+    return;
+  }
+  translucency_ = translucency;
+  for (Observer& observer : observers_) {
+    observer.OnSpaceChanged(*this);
+  }
+}
+
 void SpaceModel::SetAppearance(SpaceAppearance appearance) {
   if (appearance_ == appearance) {
     return;

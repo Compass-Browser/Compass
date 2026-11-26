@@ -49,6 +49,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
+#include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
@@ -585,6 +586,49 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TintPaintsAGradient) {
   home.SetColor(SpaceColor::kGrey);
   EXPECT_TRUE(home.gradient().empty());
   EXPECT_FALSE(tint->GetTintForTesting());
+}
+
+// A translucent space: the frame's tint leaves out that much of the frame
+// color over the window's backdrop, the docked region's background clears so
+// the frame's tint shows through it, and a swipe blends the amount. Back to
+// opaque, the region paints the frame color again.
+IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, TranslucentSpaceShowsTheBackdrop) {
+  if (!IsWindowBackdropSupported()) {
+    GTEST_SKIP() << "no window backdrop on this system";
+  }
+  auto* region = FindDescendant<VerticalTabStripRegionView>(browser_view());
+  ASSERT_TRUE(region);
+  auto* frame_tint =
+      views::AsViewClass<SidebarTint>(browser_view()->children().front());
+  ASSERT_TRUE(frame_tint);
+  auto region_opacity = [&] {
+    views::test::RunScheduledLayout(browser_view());
+    return region->background()
+        ->AsA<CustomCornersBackground>()
+        ->primary_color()
+        .opacity;
+  };
+  WindowFeatures* features = WindowFeatures::From(browser());
+  SpaceModel& home = features->space_model();
+  home.SetColor(SpaceColor::kBlue);
+  EXPECT_FALSE(IsFrameTranslucent(browser_view()));
+  EXPECT_EQ(region_opacity(), 1.f);
+
+  home.SetTranslucency(0.6);
+  EXPECT_FLOAT_EQ(frame_tint->GetTranslucencyForTesting(), 0.6f);
+  EXPECT_TRUE(IsFrameTranslucent(browser_view()));
+  EXPECT_EQ(region_opacity(), 0.f);
+
+  // Halfway to an opaque space.
+  SpaceModel* work = features->service().space_list().AddSpace(1, u"Work");
+  features->SetSpacePreview(work, 0.5);
+  EXPECT_FLOAT_EQ(frame_tint->GetTranslucencyForTesting(), 0.3f);
+  features->SetSpacePreview(nullptr, 0);
+
+  home.SetTranslucency(0);
+  EXPECT_FLOAT_EQ(frame_tint->GetTranslucencyForTesting(), 0.f);
+  EXPECT_FALSE(IsFrameTranslucent(browser_view()));
+  EXPECT_EQ(region_opacity(), 1.f);
 }
 
 // The space color seeds the window's theme: its frame color follows the

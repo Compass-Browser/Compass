@@ -1,0 +1,25 @@
+diff --git a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+index 09c735790df77a0ce13dbf21add6115ed5ff23c5..956082765e0682c933290c39e383c8a0562960ad 100644
+--- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
++++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
+@@ -47,6 +47,7 @@
+ #include "chrome/browser/web_applications/web_app_provider.h"
+ #include "chrome/common/chrome_switches.h"
+ #include "chrome/common/pref_names.h"
++#include "compass/browser/ui/views/frame/content_frame.h"
+ #include "components/prefs/pref_service.h"
+ #include "components/remote_cocoa/common/native_widget_ns_window.mojom.h"
+ #include "ui/base/hit_test.h"
+@@ -507,6 +508,12 @@ void BrowserFrameViewMac::OnPaint(gfx::Canvas* canvas) {
+     return;
+   }
+ 
++  // Compass: a translucent frame shows the window's backdrop; its tint paints
++  // the frame color, partly.
++  if (compass::IsFrameTranslucent(GetBrowserView())) {
++    return;
++  }
++
+   const SkColor frame_color =
+       GetFrameColor(BrowserFrameActiveState::kUseCurrent);
+   canvas->DrawColor(frame_color);

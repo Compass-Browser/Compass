@@ -964,7 +964,7 @@ the icon a device got from a loaded page goes through sync, as
 
 `SpaceColor` is a class (grey, or any opaque RGB tint; the palette is
 `kSpaceColorPalette`) and spaces have a theme: gradient, intensity, grain,
-appearance and icon (docs/design/spaces.md). All of it syncs, in
+translucency, appearance and icon (docs/design/spaces.md). All of it syncs, in
 `CompassSpace`:
 
 - `color = 3` is the palette index, 1 grey ... 8 green. A color off the
@@ -978,7 +978,9 @@ appearance and icon (docs/design/spaces.md). All of it syncs, in
   = 2}`: rgb when set, else the palette index (1 is grey, which the model
   drops from gradients).
 - `double intensity = 10` (absent = 0.31, the default), `double grain = 11`
-  (absent = 0), `int32 appearance = 12` (1 or absent auto, 2 light, 3 dark).
+  (absent = 0), `int32 appearance = 12` (1 or absent auto, 2 light, 3 dark),
+  `double translucency = 13` (absent = 0; desktop only, the phones keep it
+  as received).
 - `string icon = 4`: `emoji:<emoji>` or `symbol:<name>`, empty or absent
   for none.
 

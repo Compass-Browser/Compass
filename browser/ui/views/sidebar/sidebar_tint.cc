@@ -24,9 +24,11 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/themed_background.h"
+#include "compass/browser/ui/views/frame/window_frame.h"
 #include "compass/browser/window_sync/live_tab_registry.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "components/tabs/public/tab_interface.h"
+#include "components/viz/common/frame_timing_details.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkMatrix.h"
@@ -35,6 +37,7 @@
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/color/color_provider_manager.h"
+#include "ui/compositor/compositor.h"
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect_conversions.h"
@@ -261,9 +264,11 @@ SidebarTint::~SidebarTint() = default;
 
 // static
 SidebarTint* SidebarTint::Install(views::View* host,
-                                  BrowserWindowInterface* browser) {
+                                  BrowserWindowInterface* browser,
+                                  bool window_frame) {
   auto* tint =
       host->AddChildViewAt(std::make_unique<SidebarTint>(browser), 0);
+  tint->window_frame_ = window_frame;
   tint->region_observation_.Observe(host);
   tint->SetBoundsRect(host->GetLocalBounds());
   return tint;
@@ -277,6 +282,7 @@ SidebarTint::Look SidebarTint::ToLook(const SpaceModel& space) {
   Look look;
   look.stops = GetSpaceTintLook(space, TintSurface::kFrame).stops;
   look.grain = space.color().is_grey() ? 0 : space.grain();
+  look.translucency = space.translucency();
   return look;
 }
 
@@ -290,6 +296,8 @@ SidebarTint::Look SidebarTint::Blend(double progress,
         gfx::Tween::ColorValueBetween(progress, from.stops[i], to.stops[i]);
   }
   look.grain = gfx::Tween::FloatValueBetween(progress, from.grain, to.grain);
+  look.translucency = gfx::Tween::FloatValueBetween(progress, from.translucency,
+                                                    to.translucency);
   if (from.base && to.base) {
     look.base = gfx::Tween::ColorValueBetween(progress, *from.base, *to.base);
   }
@@ -314,29 +322,38 @@ void SidebarTint::OnPaint(gfx::Canvas* canvas) {
   const views::Background* background = parent()->background();
   const auto* corners =
       background ? background->AsA<CustomCornersBackground>() : nullptr;
+  // A translucent frame paints the frame color only partly, over the
+  // window's backdrop; the space's colors stay as strong.
+  const float frame_opacity = corners ? 1.f : 1.f - look_.translucency;
   if (!corners) {
     if (BrowserView* browser_view =
             BrowserView::GetBrowserViewForBrowser(browser_)) {
+      if (frame_opacity < 1.f) {
+        canvas->SaveLayerAlpha(base::ClampRound<uint8_t>(frame_opacity * 255));
+      }
       ThemedBackground::PaintBackground(canvas, this, browser_view,
                                         ThemedBackground::kFrameTheme);
+      if (frame_opacity < 1.f) {
+        canvas->Restore();
+      }
     }
   }
   // As opaque as the region's background: where it lets the frame show
-  // through (the glass frame), the frame's tint shows too, and a second one
-  // would double it.
+  // through (the glass frame, a translucent frame), the frame's tint shows
+  // too, and a second one would double it.
   const float opacity = corners ? corners->primary_color().opacity : 1.f;
   if (corners) {
     const SkPath path = corners->GetBackgroundPath();
     PaintBackdrop(canvas, &path, opacity);
   } else {
-    PaintBackdrop(canvas, nullptr, opacity);
+    PaintBackdrop(canvas, nullptr, opacity * frame_opacity);
   }
   if (look_.base) {
     // Between two spaces' frame colors (GetTargetLook()).
     cc::PaintFlags base;
     base.setAntiAlias(true);
     SkColor4f color = SkColor4f::FromColor(*look_.base);
-    color.fA *= opacity;
+    color.fA *= opacity * frame_opacity;
     base.setColor(color);
     if (corners) {
       canvas->DrawPath(corners->GetBackgroundPath(), base);
@@ -445,6 +462,11 @@ void SidebarTint::AddedToWidget() {
   paint_as_active_subscription_ =
       GetWidget()->RegisterPaintAsActiveChangedCallback(base::BindRepeating(
           &SidebarTint::SchedulePaint, base::Unretained(this)));
+  // Another window (a profile switch moves the browser view): its backdrop.
+  if (translucent_) {
+    SetWindowBackdrop(GetWidget(), true);
+  }
+  UpdateTranslucency(GetTargetLook().translucency);
 }
 
 void SidebarTint::RemovedFromWidget() {
@@ -474,6 +496,7 @@ void SidebarTint::AnimationProgressed(const gfx::Animation* animation) {
     return;
   }
   look_ = look;
+  UpdateTranslucency(target.translucency);
   SchedulePaint();
 }
 
@@ -523,6 +546,56 @@ void SidebarTint::OnSpaceUpdated(const SpaceModel& space) {
 }
 
 SidebarTint::Look SidebarTint::GetTargetLook() const {
+  Look look = GetTargetLookOfSpaces();
+  if (!CanBeTranslucent()) {
+    look.translucency = 0;
+  }
+  return look;
+}
+
+bool SidebarTint::CanBeTranslucent() const {
+  if (!IsWindowBackdropSupported()) {
+    return false;
+  }
+  Profile* profile = browser_->GetProfile();
+  const ThemeService* theme_service =
+      ThemeServiceFactory::GetForProfile(profile);
+  return !profile->IsOffTheRecord() &&
+         !(theme_service && theme_service->UsingExtensionTheme());
+}
+
+void SidebarTint::UpdateTranslucency(float target) {
+  views::Widget* widget = GetWidget();
+  if (!window_frame_ || !widget || !parent()) {
+    return;
+  }
+  const bool translucent = look_.translucency > 0 || target > 0;
+  if (translucent == translucent_) {
+    return;
+  }
+  translucent_ = translucent;
+  SetFrameTranslucent(parent(), translucent);
+  if (!translucent) {
+    // The backdrop stays until the opaque frame is on screen, or the window
+    // would show what's behind it for a frame.
+    if (ui::Compositor* compositor = widget->GetCompositor()) {
+      compositor->RequestSuccessfulPresentationTimeForNextFrame(
+          base::BindOnce(&SidebarTint::OnOpaqueFramePresented,
+                         weak_factory_.GetWeakPtr()));
+    } else {
+      RemoveWindowBackdrop(widget);
+    }
+  }
+}
+
+void SidebarTint::OnOpaqueFramePresented(
+    const viz::FrameTimingDetails& details) {
+  if (!translucent_ && GetWidget()) {
+    RemoveWindowBackdrop(GetWidget());
+  }
+}
+
+SidebarTint::Look SidebarTint::GetTargetLookOfSpaces() const {
   if (!features_) {
     return Look();
   }
@@ -578,6 +651,8 @@ void SidebarTint::UpdateColor(bool animate) {
     from_ = look_;
     animation_.Stop();
     animation_.Start();
+    // Translucent from the fade's start when it goes toward some.
+    UpdateTranslucency(target.translucency);
     return;
   }
   const bool was_animating = animation_.is_animating();
@@ -588,6 +663,7 @@ void SidebarTint::UpdateColor(bool animate) {
     return;
   }
   look_ = target;
+  UpdateTranslucency(target.translucency);
   SchedulePaint();
 }
 
@@ -643,6 +719,10 @@ void SidebarTint::UpdateWindowTheme() {
     }
   }
   widget->SetColorModeOverride(text_mode);
+  // The backdrop's material in the window's mode.
+  if (window_frame_ && translucent_) {
+    SetWindowBackdrop(widget, true);
+  }
   if (backdrop_key_ != old_backdrop) {
     SchedulePaint();
   }

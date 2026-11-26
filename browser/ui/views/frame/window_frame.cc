@@ -30,6 +30,9 @@ namespace {
 
 DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(WindowFrame, kWindowFrameKey)
 
+// On the browser view while its frame is translucent.
+DEFINE_UI_CLASS_PROPERTY_KEY(bool, kFrameTranslucentKey, false)
+
 #if BUILDFLAG(IS_WIN)
 void InvalidateCaptionButtons(views::View* view) {
   switch (view->GetID()) {
@@ -71,7 +74,7 @@ WindowFrame::WindowFrame(views::View* region, BrowserWindowInterface* browser)
   // The browser view holds the region and the page; under both, the tint
   // colors the frame as the region's colors the sidebar.
   CHECK(region->parent());
-  SidebarTint::Install(region->parent(), browser);
+  SidebarTint::Install(region->parent(), browser, /*window_frame=*/true);
   // The page's load progress, in the frame above it.
   LoadBar::Install(region->parent(), browser);
   // Cmd+F, over the page's top trailing corner.
@@ -173,6 +176,46 @@ bool IsOnWindowFrame(views::View* browser_view, const gfx::Point& point) {
 
 #if !BUILDFLAG(IS_MAC)
 void SetCaptionButtonsOpacity(views::Widget* widget, float opacity) {}
+#endif
+
+bool IsFrameTranslucent(const views::View* browser_view) {
+  return browser_view && browser_view->GetProperty(kFrameTranslucentKey) &&
+         browser_view->GetWidget() &&
+         !browser_view->GetWidget()->IsFullscreen();
+}
+
+void SetFrameTranslucent(views::View* browser_view, bool translucent) {
+  views::Widget* widget = browser_view->GetWidget();
+  if (!widget || browser_view->GetProperty(kFrameTranslucentKey) ==
+                     translucent) {
+    return;
+  }
+  browser_view->SetProperty(kFrameTranslucentKey, translucent);
+  // After the property: on Windows, the compositor asks whether to clear to
+  // transparent.
+  if (translucent) {
+    SetWindowBackdrop(widget, true);
+  }
+  // Upstream's layout picks the region's and the card's corners' frame color
+  // (patches/...browser_view_tabbed_layout_impl.cc.patch), and the frame view
+  // paints the frame color or not.
+  browser_view->InvalidateLayout();
+  browser_view->SchedulePaint();
+  if (widget->non_client_view() && widget->non_client_view()->frame_view()) {
+    widget->non_client_view()->frame_view()->SchedulePaint();
+  }
+}
+
+void RemoveWindowBackdrop(views::Widget* widget) {
+  SetWindowBackdrop(widget, false);
+}
+
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN)
+bool IsWindowBackdropSupported() {
+  return false;
+}
+
+void SetWindowBackdrop(views::Widget* widget, bool on) {}
 #endif
 
 }  // namespace compass

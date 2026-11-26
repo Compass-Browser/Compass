@@ -79,6 +79,8 @@ class SpaceEditorPageHandler : public space_editor::mojom::PageHandler,
       std::vector<sidebar::mojom::SpaceColorPtr> gradient) override;
   void SetSpaceIntensity(const std::string& id, double intensity) override;
   void SetSpaceGrain(const std::string& id, double grain) override;
+  void SetSpaceTranslucency(const std::string& id,
+                            double translucency) override;
   void SetSpaceAppearance(const std::string& id,
                           sidebar::mojom::SpaceAppearance appearance) override;
   void SetSpaceIcon(const std::string& id,

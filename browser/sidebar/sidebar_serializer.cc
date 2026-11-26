@@ -46,6 +46,7 @@ constexpr char kIconKey[] = "icon";
 constexpr char kGradientKey[] = "gradient";
 constexpr char kIntensityKey[] = "intensity";
 constexpr char kGrainKey[] = "grain";
+constexpr char kTranslucencyKey[] = "translucency";
 constexpr char kAppearanceKey[] = "appearance";
 constexpr char kEmojiKey[] = "emoji";
 constexpr char kSymbolKey[] = "symbol";
@@ -536,6 +537,9 @@ base::DictValue SerializeSpace(const SpaceModel& model) {
   if (model.grain() > 0) {
     data.Set(kGrainKey, model.grain());
   }
+  if (model.translucency() > 0) {
+    data.Set(kTranslucencyKey, model.translucency());
+  }
   if (model.appearance() != SpaceAppearance::kAuto) {
     data.Set(kAppearanceKey, model.appearance() == SpaceAppearance::kLight
                                  ? "light"
@@ -679,6 +683,10 @@ size_t DeserializeSpaceList(const base::DictValue& data, SpaceList& list) {
     }
     if (std::optional<double> grain = saved[i]->FindDouble(kGrainKey)) {
       space->SetGrain(*grain);
+    }
+    if (std::optional<double> translucency =
+            saved[i]->FindDouble(kTranslucencyKey)) {
+      space->SetTranslucency(*translucency);
     }
     // Anything else (from a later version) is auto.
     if (const std::string* appearance = saved[i]->FindString(kAppearanceKey)) {

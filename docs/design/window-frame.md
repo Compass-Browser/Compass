@@ -125,7 +125,9 @@ background's opacity: with upstream's glass frame, the region's background
 is transparent until it shows on hover, and the frame's tint shows through
 it, so a full second tint would double it. Both tints fade and follow
 swipes together; the window theme seed still comes from the space color
-(spaces.md, "Window theme").
+(spaces.md, "Window theme"). A translucent space paints the frame color
+only partly, over the system's blurred backdrop (spaces.md,
+"Translucency").
 
 ## Load bar
 

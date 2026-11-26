@@ -862,6 +862,7 @@ void MoveSpaceToProfile(Profile* from,
   moved.SetGradient(space.gradient());
   moved.SetIntensity(space.intensity());
   moved.SetGrain(space.grain());
+  moved.SetTranslucency(space.translucency());
   moved.SetAppearance(space.appearance());
   moved.SetIcon(space.icon());
   moved.SetArchiveAfter(space.archive_after());

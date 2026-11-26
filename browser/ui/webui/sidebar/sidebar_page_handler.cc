@@ -765,6 +765,13 @@ void SidebarPageHandler::SetSpaceGrain(const std::string& id, double grain) {
   }
 }
 
+void SidebarPageHandler::SetSpaceTranslucency(const std::string& id,
+                                              double translucency) {
+  if (SpaceModel* space = FindEditableSpace(id)) {
+    compass::SetSpaceTranslucency(*space, translucency);
+  }
+}
+
 void SidebarPageHandler::SetSpaceAppearance(
     const std::string& id,
     sidebar::mojom::SpaceAppearance appearance) {

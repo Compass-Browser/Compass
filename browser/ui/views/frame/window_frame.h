@@ -108,6 +108,28 @@ bool IsOnWindowFrame(views::View* browser_view, const gfx::Point& point);
 // Sets |widget|'s caption buttons' opacity, hidden at 0. Only macOS has any.
 void SetCaptionButtonsOpacity(views::Widget* widget, float opacity);
 
+// Translucency (docs/design/spaces.md, "Translucency"): where the window
+// paints nothing, the system shows what's behind it, blurred (macOS's sidebar
+// material, Windows 11's Acrylic backdrop).
+
+// Whether this system can: macOS; Windows 11 22H2 and later, where the window
+// has no redirection bitmap and DWM draws a system backdrop under it. Not
+// Linux.
+bool IsWindowBackdropSupported();
+
+// IsFrameTranslucent() is in content_frame.h, for upstream's layout.
+
+// Makes |browser_view|'s frame translucent or opaque. Turning it on shows the
+// backdrop at once; turning it off has the frame painted opaque, and
+// RemoveWindowBackdrop() then takes the backdrop away once that frame is on
+// screen, so the window doesn't flash what's behind it.
+void SetFrameTranslucent(views::View* browser_view, bool translucent);
+void RemoveWindowBackdrop(views::Widget* widget);
+
+// The platform's half: the backdrop under |widget|'s window, and the window
+// and compositor not opaque, or back to opaque.
+void SetWindowBackdrop(views::Widget* widget, bool on);
+
 }  // namespace compass
 
 #endif  // COMPASS_BROWSER_UI_VIEWS_FRAME_WINDOW_FRAME_H_

@@ -992,10 +992,12 @@ TEST_F(SidebarPageHandlerTest, SetsSpaceIntensityAndGrain) {
 
   handler_remote_->SetSpaceIntensity(id, 0.6);
   handler_remote_->SetSpaceGrain(id, 5);
+  handler_remote_->SetSpaceTranslucency(id, 0.45);
   Settle();
 
   EXPECT_EQ(home.intensity(), 0.6);
   EXPECT_EQ(home.grain(), 1);
+  EXPECT_EQ(home.translucency(), 0.45);
 
   handler_remote_->SetSpaceAppearance(id,
                                       sidebar::mojom::SpaceAppearance::kDark);

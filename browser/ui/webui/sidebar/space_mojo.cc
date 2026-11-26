@@ -65,6 +65,7 @@ sidebar::mojom::SpacePtr ToMojoSpace(const SpaceDirectory::Entry& entry,
   }
   mojo_space->intensity = space->intensity();
   mojo_space->grain = space->grain();
+  mojo_space->translucency = space->translucency();
   mojo_space->appearance =
       static_cast<sidebar::mojom::SpaceAppearance>(space->appearance());
   mojo_space->icon = ToMojoIcon(space->icon());
@@ -156,6 +157,10 @@ void SetSpaceIntensity(SpaceModel& space, double intensity) {
 
 void SetSpaceGrain(SpaceModel& space, double grain) {
   space.SetGrain(grain);
+}
+
+void SetSpaceTranslucency(SpaceModel& space, double translucency) {
+  space.SetTranslucency(translucency);
 }
 
 void SetSpaceAppearance(SpaceModel& space,

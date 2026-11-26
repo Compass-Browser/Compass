@@ -570,6 +570,15 @@ void ThemeToProto(const SpaceModel& model, sync_pb::CompassSpace& space) {
       space.set_grain(model.grain());
     }
   }
+  const double translucency =
+      space.has_translucency() ? space.translucency() : 0;
+  if (translucency != model.translucency()) {
+    if (model.translucency() == 0) {
+      space.clear_translucency();
+    } else {
+      space.set_translucency(model.translucency());
+    }
+  }
 
   // A value this version doesn't know was applied as auto, and stays until
   // the appearance changes here; the same for icons.
@@ -604,6 +613,7 @@ void ThemeFromProto(const sync_pb::CompassSpace& space, SpaceModel& model) {
   model.SetIntensity(space.has_intensity() ? space.intensity()
                                            : kDefaultSpaceIntensity);
   model.SetGrain(space.has_grain() ? space.grain() : 0);
+  model.SetTranslucency(space.has_translucency() ? space.translucency() : 0);
   model.SetAppearance(
       AppearanceFromProto(space.appearance()).value_or(SpaceAppearance::kAuto));
   model.SetIcon(IconFromProto(space.icon()).value_or(SpaceIcon()));

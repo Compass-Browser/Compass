@@ -71,7 +71,7 @@ since October 2025).
 | Development mode for a site | ✅ no cache on reload, full address bar, DevTools buttons; on for localhost by default; desktop and iOS | ? | ❌ removed in 0.2.47, to return as a plugin | ✅ | ✅ | ? | ? | ? | ? | ? | ? | ? | ? |
 | Screenshots of a region or the full page | ✅ copied or saved; desktop | ? | ? only through its command line | ✅ | ✅ | ? | ? | ✅ | ✅ | ✅ | ? | ? | ? |
 | Notes / canvas (Easels) | ✅ text, shapes, drawing, images, links, page captures (refreshed while a board is open, desktop); synced; imported from Arc; desktop, Android and iOS | ❌ | ❌ | ✅ Easels, Mac | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ? |
-| Translucent sidebar | ❌ | ✅ Ultra Thin to Ultra Thick | ✅ | ✅ an option | ✅ | ? | ? | ✅ blur, transparency | ❌ | ❌ | ? | ? | ? |
+| Translucent sidebar | ✅ per space, macOS and Windows 11 | ✅ Ultra Thin to Ultra Thick | ✅ | ✅ an option | ✅ | ? | ? | ✅ blur, transparency | ❌ | ❌ | ? | ? | ? |
 | **Web content** | | | | | | | | | | | | | |
 | Chrome extensions, desktop / phone | ✅ / ✅ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ❌ Firefox add-ons | ✅ / ❌ | ✅ / ❌ | ~ / ❌ | ✅ / ❌ | ✅ / ✅ also Firefox add-ons |
 | Built-in ad blocker | ✅ EasyList, EasyPrivacy and cookie banners on desktop, Android and iPhone; your own lists on desktop and Android (docs/design/ad-blocker.md) | ✅ both engines, Mac, iPhone, iPad | ✅ uBlock Origin, cookie banners, your own lists | ✅ cookie banners, your own lists; Mac and iPhone | ❌ | ❌ | ✅ per profile | ❌ | ✅ | ~ | ✅ | ✅ | ✅ |
@@ -115,7 +115,6 @@ Crest has, Compass doesn't:
 
 - A WebKit engine per site: full-quality DRM video on those pages.
 - On-device page translation.
-- A translucent sidebar.
 - Import from a few more browsers (Opera, Comet and others).
 - Private Spaces locked with Face ID or Touch ID, and Sub-Spaces.
 - An App Store release for iPhone and iPad, and a Homebrew cask.
@@ -141,7 +140,6 @@ Features other browsers have that Compass doesn't, checked against the code:
 | On-device translation | Crest, Ardia, Orion, Zen, Vivaldi, Edge, Lilo | Not started. Reader mode is done, desktop and iOS (docs/design/reader-mode.md) |
 | Full-quality DRM video | Chrome, Edge, Arc, Dia, Crest, Cra (Ardia for streaming sites) | Blocked: no Widevine VMP signature (docs/design/widevine.md) |
 | Tree-style tabs | Orion, Vivaldi, Floorp | Partial: folders nest in Pinned and Today, but a new tab doesn't go under the tab that opened it |
-| Translucent sidebar | Arc, Crest, Ardia, Cra, Zen | Arc's gradients import; translucency and vibrancy don't (docs/design/arc-import.md) |
 | Android release | Vivaldi, Edge | In closed testing on Google Play (beta); production needs 12 testers for 14 days first |
 
 ## Sources

@@ -10,6 +10,7 @@
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -27,6 +28,10 @@
 #include "ui/views/widget/widget_observer.h"
 
 class BrowserWindowInterface;
+
+namespace viz {
+class FrameTimingDetails;
+}  // namespace viz
 
 namespace compass {
 
@@ -98,6 +103,13 @@ ui::ColorProviderKey::ColorMode GetTintTextMode(const SpaceModel& space,
 // region leaves off. Fades and swipes blend the gradients stop by stop. See
 // docs/design/spaces.md, "Gradients".
 //
+// A translucent space (SpaceModel::translucency()) has the frame's tint paint
+// the frame color only partly, over the window's backdrop (what's behind the
+// window, blurred; SetFrameTranslucent()), and the region's background clear
+// while it's docked, so the frame's tint shows through it. The amount fades
+// and follows swipes with the colors. See docs/design/spaces.md,
+// "Translucency".
+//
 // It also themes the window: the space color is the window's theme seed
 // (Widget::SetUserColorOverride()), so the frame, the page's margins, menus,
 // bubbles and WebUI take colors from it, as from a profile's theme color.
@@ -122,9 +134,11 @@ class SidebarTint : public views::View,
   ~SidebarTint() override;
 
   // Adds a tint to |host|, behind its other children: the region, or the
-  // browser view for the window frame around the page (WindowFrame).
+  // browser view for the window frame around the page (WindowFrame,
+  // |window_frame|), which also makes the window translucent.
   static SidebarTint* Install(views::View* host,
-                              BrowserWindowInterface* browser);
+                              BrowserWindowInterface* browser,
+                              bool window_frame = false);
 
   // The color painted now, if any.
   // Fades from what |other| paints now to this one's color: the window that
@@ -141,6 +155,8 @@ class SidebarTint : public views::View,
   // The grain's strength now, 0 to 1.
   float GetGrainForTesting() const { return look_.grain; }
   bool IsAnimatingForTesting() const { return animation_.is_animating(); }
+  // How translucent the frame is now, 0 to 1.
+  float GetTranslucencyForTesting() const { return look_.translucency; }
 
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
@@ -174,6 +190,9 @@ class SidebarTint : public views::View,
   struct Look {
     Stops stops{};
     float grain = 0;
+    // How much of the frame color is left out (SpaceModel::translucency()):
+    // 0 where the window can't be translucent.
+    float translucency = 0;
     // The frame color under the tint, while it blends from one space's to
     // another's (a swipe, and the fade after a switch). Otherwise the
     // window's theme paints it.
@@ -185,6 +204,17 @@ class SidebarTint : public views::View,
 
   // The window's space's look, blended toward the swiped-in space's.
   Look GetTargetLook() const;
+  // GetTargetLook(), whether or not the window can be translucent.
+  Look GetTargetLookOfSpaces() const;
+  // Whether the window can be translucent: the system has a backdrop
+  // (IsWindowBackdropSupported()), and the window takes its space's theme
+  // (not off the record or under an extension theme).
+  bool CanBeTranslucent() const;
+  // The frame's tint: makes the window translucent while it paints or fades
+  // toward any translucency, opaque once it doesn't.
+  void UpdateTranslucency(float target);
+  // The opaque frame is on screen: the backdrop can go.
+  void OnOpaqueFramePresented(const viz::FrameTimingDetails& details);
   // The frame color the window's theme gives |space| (UpdateWindowTheme()),
   // or nullopt where the window keeps its own theme (off the record, an
   // extension theme).
@@ -202,6 +232,10 @@ class SidebarTint : public views::View,
 
   const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<WindowFeatures> features_;
+  // The browser view's tint, around the page, rather than the region's.
+  bool window_frame_ = false;
+  // The frame is translucent (SetFrameTranslucent()).
+  bool translucent_ = false;
   // The window's colors in the space's mode, whose frame color lies under
   // the tint, when the window's mode differs.
   std::optional<ui::ColorProviderKey> backdrop_key_;
@@ -225,6 +259,7 @@ class SidebarTint : public views::View,
   // The system's mode, which a space in automatic mode follows.
   base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
       native_theme_observation_{this};
+  base::WeakPtrFactory<SidebarTint> weak_factory_{this};
 };
 
 }  // namespace compass

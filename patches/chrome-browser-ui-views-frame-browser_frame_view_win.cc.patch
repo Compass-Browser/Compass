@@ -1,16 +1,29 @@
 diff --git a/chrome/browser/ui/views/frame/browser_frame_view_win.cc b/chrome/browser/ui/views/frame/browser_frame_view_win.cc
-index 5b7aa7203114f12765c3f71c2a2d7b33265db2e3..dcfa8a3a1bc59d5a454fd79e5c40475c098cd9a3 100644
+index 5b7aa7203114f12765c3f71c2a2d7b33265db2e3..c788879e72280663f3abbed30cc5faae766e30df 100644
 --- a/chrome/browser/ui/views/frame/browser_frame_view_win.cc
 +++ b/chrome/browser/ui/views/frame/browser_frame_view_win.cc
-@@ -36,6 +36,7 @@
+@@ -36,6 +36,8 @@
  #include "chrome/browser/web_applications/web_app_icon_manager.h"
  #include "chrome/browser/web_applications/web_app_provider.h"
  #include "chrome/browser/win/titlebar_config.h"
++#include "compass/browser/ui/views/frame/content_frame.h"
 +#include "compass/browser/ui/views/frame/window_frame.h"
  #include "content/public/browser/web_contents.h"
  #include "skia/ext/image_operations.h"
  #include "ui/base/l10n/l10n_util.h"
-@@ -734,10 +735,16 @@ void BrowserFrameViewWin::LayoutCaptionButtons() {
+@@ -654,6 +656,11 @@ void BrowserFrameViewWin::PaintTitlebar(gfx::Canvas* canvas) const {
+                TopAreaHeight(false) + info.tabstrip_preferred_height);
+   const gfx::Rect titlebar_rect = gfx::ToEnclosingRect(
+       gfx::RectF(0, y, width() * scale, titlebar_height * scale - y));
++  // Compass: a translucent frame shows the window's backdrop there; the
++  // frame's tint paints the frame color, partly.
++  if (compass::IsFrameTranslucent(GetBrowserView())) {
++    return;
++  }
+   // Paint the titlebar first so we have a background if an area isn't covered
+   // by the theme image.
+   flags.setColor(titlebar_color);
+@@ -734,10 +741,16 @@ void BrowserFrameViewWin::LayoutCaptionButtons() {
    const gfx::Size preferred_size =
        caption_button_container_->GetPreferredSize();
  

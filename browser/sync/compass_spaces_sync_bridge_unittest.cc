@@ -1079,7 +1079,8 @@ TEST_F(CompassSpacesSyncBridgeTest, KeepsFieldsItDoesntKnow) {
 }
 
 // Main's space themes: color (off the palette too), gradient, intensity,
-// grain, appearance and icon go to other devices, and don't come back.
+// grain, translucency, appearance and icon go to other devices, and don't
+// come back.
 TEST_F(CompassSpacesSyncBridgeTest, SpaceThemesRoundTrip) {
   std::unique_ptr<Device> a = MakeDevice();
   Populate(*a);
@@ -1095,6 +1096,7 @@ TEST_F(CompassSpacesSyncBridgeTest, SpaceThemesRoundTrip) {
   space.SetGradient({SpaceColor::kPink, custom_stop});
   space.SetIntensity(0.8);
   space.SetGrain(0.25);
+  space.SetTranslucency(0.7);
   space.SetAppearance(SpaceAppearance::kDark);
   space.SetIcon(*SpaceIcon::Emoji("\U0001F9ED"));
   EXPECT_EQ(a->Push(), 1u);
@@ -1108,6 +1110,7 @@ TEST_F(CompassSpacesSyncBridgeTest, SpaceThemesRoundTrip) {
   EXPECT_EQ(synced.gradient(1).rgb(), 0x010203u);
   EXPECT_DOUBLE_EQ(synced.intensity(), 0.8);
   EXPECT_DOUBLE_EQ(synced.grain(), 0.25);
+  EXPECT_DOUBLE_EQ(synced.translucency(), 0.7);
   EXPECT_EQ(synced.appearance(), 3);
   EXPECT_EQ(synced.icon(), "emoji:\U0001F9ED");
 
@@ -1118,6 +1121,7 @@ TEST_F(CompassSpacesSyncBridgeTest, SpaceThemesRoundTrip) {
             (std::vector<SpaceColor>{SpaceColor::kPink, custom_stop}));
   EXPECT_DOUBLE_EQ(space_b.intensity(), 0.8);
   EXPECT_DOUBLE_EQ(space_b.grain(), 0.25);
+  EXPECT_DOUBLE_EQ(space_b.translucency(), 0.7);
   EXPECT_EQ(space_b.appearance(), SpaceAppearance::kDark);
   EXPECT_EQ(space_b.icon(), *SpaceIcon::Emoji("\U0001F9ED"));
   EXPECT_EQ(b->last_push(), 0u);
@@ -1127,6 +1131,7 @@ TEST_F(CompassSpacesSyncBridgeTest, SpaceThemesRoundTrip) {
   space_b.SetColor(SpaceColor::kGrey);
   space_b.SetIntensity(kDefaultSpaceIntensity);
   space_b.SetGrain(0);
+  space_b.SetTranslucency(0);
   space_b.SetAppearance(SpaceAppearance::kAuto);
   space_b.SetIcon(*SpaceIcon::Symbol("star"));
   EXPECT_EQ(b->Push(), 1u);
@@ -1137,6 +1142,7 @@ TEST_F(CompassSpacesSyncBridgeTest, SpaceThemesRoundTrip) {
   EXPECT_EQ(reset.gradient_size(), 0);
   EXPECT_FALSE(reset.has_intensity());
   EXPECT_FALSE(reset.has_grain());
+  EXPECT_FALSE(reset.has_translucency());
   EXPECT_FALSE(reset.has_appearance());
   EXPECT_EQ(reset.icon(), "symbol:star");
   a->Pull();
@@ -1144,6 +1150,7 @@ TEST_F(CompassSpacesSyncBridgeTest, SpaceThemesRoundTrip) {
   EXPECT_TRUE(space.gradient().empty());
   EXPECT_EQ(space.intensity(), kDefaultSpaceIntensity);
   EXPECT_EQ(space.grain(), 0);
+  EXPECT_EQ(space.translucency(), 0);
   EXPECT_EQ(space.appearance(), SpaceAppearance::kAuto);
   EXPECT_EQ(space.icon(), *SpaceIcon::Symbol("star"));
   EXPECT_EQ(a->last_push(), 0u);

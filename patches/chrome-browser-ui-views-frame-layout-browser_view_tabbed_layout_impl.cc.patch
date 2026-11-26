@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-index 7764d4a4728973dc075efb308daa3d67ba2e10b6..7164b3f9cb7f7bad55a71b64706b5c47b0cdbb09 100644
+index 7764d4a4728973dc075efb308daa3d67ba2e10b6..dfb801fd709fd7f4444eb973db5d835a2344b2cd 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 @@ -4,6 +4,8 @@
@@ -113,7 +113,23 @@ index 7764d4a4728973dc075efb308daa3d67ba2e10b6..7164b3f9cb7f7bad55a71b64706b5c47
  
    // Want to cut the vertical tabstrip and its decorations out of the top
    // container in transparency mode.
-@@ -1681,6 +1710,8 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
+@@ -1637,6 +1666,15 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
+           (1.0 - flyover_background_base_opacity) * frame_color.opacity +
+           flyover_background_base_opacity * flyover_panel_opacity);
+       vertical_tabs_background->SetPrimaryColor(vertical_tabs_background_color);
++    } else if (compass::IsFrameTranslucent(views().browser_view)) {
++      // Compass: a translucent frame, as glass: the region and the card's
++      // corners clear, so the frame's tint and the window's backdrop show,
++      // but the region opaque again as it shows on hover over the page.
++      frame_color.opacity = 0.0f;
++      auto vertical_tabs_background_color = frame_color;
++      vertical_tabs_background_color.opacity = static_cast<float>(
++          layout_data_->vertical_tabs_background_base_opacity());
++      vertical_tabs_background->SetPrimaryColor(vertical_tabs_background_color);
+     } else {
+       vertical_tabs_background->SetPrimaryColor(frame_color);
+     }
+@@ -1681,6 +1719,8 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
            vertical_tabs_bottom_corner_size;
      }
  
@@ -122,7 +138,7 @@ index 7764d4a4728973dc075efb308daa3d67ba2e10b6..7164b3f9cb7f7bad55a71b64706b5c47
      vertical_tabs_background->SetCorners(vertical_tabs_corners);
  
      // Apply shadow for expand-on-hover.
-@@ -1716,6 +1747,10 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
+@@ -1716,6 +1756,10 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
      if (animation.expand_on_hover_width > 0.0) {
        vertical_tabs_outline.bottom = true;
      }

@@ -312,6 +312,9 @@ struct Space {
   // How strong the tint is and how much grain it has, 0 to 1.
   double intensity;
   double grain;
+  // How much of what's behind the window shows through, 0 to 1
+  // (compass::SpaceModel::translucency()).
+  double translucency;
   SpaceAppearance appearance;
   SpaceIcon? icon;
   // How long a Today entry may go unseen before it's archived; 0 for never.
@@ -437,6 +440,7 @@ interface PageHandler {
   // 0 to 1, clamped.
   SetSpaceIntensity(string id, double intensity);
   SetSpaceGrain(string id, double grain);
+  SetSpaceTranslucency(string id, double translucency);
   SetSpaceAppearance(string id, SpaceAppearance appearance);
   // Null removes it. Invalid ones (compass::SpaceIcon) are ignored.
   SetSpaceIcon(string id, SpaceIcon? icon);
@@ -1288,6 +1292,7 @@ interface SettingsWindowHandler {
   SetSpaceGradient(string id, array<SpaceColor> gradient);
   SetSpaceIntensity(string id, double intensity);
   SetSpaceGrain(string id, double grain);
+  SetSpaceTranslucency(string id, double translucency);
   SetSpaceAppearance(string id, SpaceAppearance appearance);
   SetSpaceIcon(string id, SpaceIcon? icon);
   // To another profile, or a new one (null).
