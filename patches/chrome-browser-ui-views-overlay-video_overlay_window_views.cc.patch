@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
-index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..258eda36bccb1ebc5f586bad861b73cbb919233f 100644
+index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..b0861f1d8efca47bc8f30e96d2b95703041c437e 100644
 --- a/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
 +++ b/chrome/browser/ui/views/overlay/video_overlay_window_views.cc
 @@ -4,6 +4,11 @@
@@ -75,16 +75,26 @@ index 0afdeb691c3eebf4f9acf92214e4d9ed25ae6314..258eda36bccb1ebc5f586bad861b73cb
    controls_container_view_->SetSize(GetBounds().size());
  
    // Adding an extra pixel to width/height makes sure the scrim covers the
-@@ -1744,6 +1768,17 @@ void VideoOverlayWindowViews::ShowInactive() {
- #endif
+@@ -1730,6 +1754,15 @@ void VideoOverlayWindowViews::Close() {
+ }
  
-   views::Widget::SetVisibleOnAllWorkspaces(true);
+ void VideoOverlayWindowViews::ShowInactive() {
 +#if BUILDFLAG(IS_MAC)
 +  // Compass: float over other apps' fullscreen spaces too, and take clicks
-+  // without activating the browser, as glic's floating window does.
++  // without activating the browser, as glic's floating window does. Before
++  // the window is ordered in: since macOS 27.2 the window server takes a
++  // non-activating window only as it orders the window in, and without it
++  // the window stays out of other apps' fullscreen spaces.
 +  views::Widget::SetActivationIndependence(true);
 +  views::Widget::SetCanAppearInExistingFullscreenSpaces(true);
 +#endif
+ // Fade in animation is disabled for Document and Video Picture-in-Picture on
+ // Windows. On Windows, resizable windows can not be translucent. See
+ // crbug.com/425711450.
+@@ -1744,6 +1777,11 @@ void VideoOverlayWindowViews::ShowInactive() {
+ #endif
+ 
+   views::Widget::SetVisibleOnAllWorkspaces(true);
 +#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 +  // Compass: click-through (Ctrl+Option+Cmd+P, Shift+Alt+P on Windows),
 +  // gestures, corners.
