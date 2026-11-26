@@ -101,15 +101,32 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
                       <path d="${symbol.path}"></path>
                     </svg>
                   </button>`)}
-                <input class="field emoji-input" aria-label="Emoji"
-                    placeholder="Emoji" spellcheck="false" autocomplete="off"
-                    data-space-id="${space.id}"
+                <button class="icon-choice emoji-choice"
+                    title="Emoji" aria-label="Emoji"
+                    aria-expanded="${this.isEmojiOpen_(space)}"
                     ?selected="${!!space.icon?.emoji}"
                     ?disabled="${space.viewOnly}"
-                    .value="${space.icon?.emoji ?? ''}"
-                    @input="${this.onEmojiInput_}">
+                    @click="${this.onEmojiButtonClick_}">
+                  ${space.icon?.emoji ?? html`
+                    <svg class="emoji-add" viewBox="0 0 16 16"
+                        aria-hidden="true">
+                      <circle cx="8" cy="8" r="6.25"></circle>
+                      <path d="M5.6 9.6c.6.9 1.4 1.3 2.4 1.3s1.8-.4 2.4-1.3">
+                      </path>
+                      <circle class="eye" cx="6" cy="6.6" r=".9"></circle>
+                      <circle class="eye" cx="10" cy="6.6" r=".9"></circle>
+                    </svg>`}
+                </button>
               </div>
             </div>
+            ${this.isEmojiOpen_(space) ? html`
+              <div class="row space-emoji-row">
+                <compass-emoji-picker data-space-id="${space.id}"
+                    .selected="${space.icon?.emoji ?? ''}"
+                    @emoji-pick="${this.onEmojiPick_}"
+                    @keydown="${this.onEmojiKeydown_}">
+                </compass-emoji-picker>
+              </div>` : nothing}
             <div class="row control-row space-detail-row">
               <span class="row-text"><span class="row-label">Theme</span></span>
               <span class="theme-chip" style="${this.getSpaceStyle_(space)}">

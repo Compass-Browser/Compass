@@ -47,6 +47,9 @@ build_webui("build") {
     "command_bar/app.ts",
     "command_bar/browser_proxy.ts",
     "command_bar/command_icons.ts",
+    "emoji_data.ts",
+    "emoji_picker.html.ts",
+    "emoji_picker.ts",
     "empty.ts",
     "favicon.ts",
     "live_folders/editor.html.ts",
@@ -115,6 +118,7 @@ build_webui("build") {
     "claude_chat/app.css",
     "claude_chat/turn.css",
     "command_bar/app.css",
+    "emoji_picker.css",
     "find_bar/app.css",
     "now_playing.css",
     "preview.css",
@@ -176,6 +180,7 @@ action("licenses_page") {
   inputs = [
     "//compass/third_party/strip_on_share/MPL2/LICENSE",
     "//compass/third_party/strip_on_share/LGPL/LICENSE",
+    "//compass/third_party/unicode_emoji/LICENSE",
   ]
   outputs = [ "$target_gen_dir/licenses/licenses.html" ]
   _source = "https://github.com/mozilla-firefox/firefox/tree/main/toolkit/components/antitracking/StripOnShareLists"
@@ -186,6 +191,8 @@ action("licenses_page") {
         rebase_path(inputs[0], root_build_dir),
     "Firefox's strip-on-share list, from ClearURLs|More tracking parameters for Remove tracking from copied links.|$_source|GNU Lesser General Public License 3.0|" +
         rebase_path(inputs[1], root_build_dir),
+    "Unicode emoji and CLDR annotations|The emoji, names and keywords of the space emoji picker.|https://unicode.org/emoji/|Unicode License V3|" +
+        rebase_path(inputs[2], root_build_dir),
   ]
 }
 

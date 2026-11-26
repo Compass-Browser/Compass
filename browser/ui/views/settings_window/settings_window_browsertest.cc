@@ -467,6 +467,30 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SpacesPaneEditsAnyProfile) {
       "[data-space-id=\"' + $1 + '\"]')",
       home_id);
   ASSERT_TRUE(content::ExecJs(page, edit + ".click()"));
+
+  // Give Errands an emoji from the picker, found by a keyword.
+  const std::string emoji = "document.querySelector('.space-details "
+                            ".emoji-choice')";
+  ASSERT_TRUE(WaitFor(emoji).is_ok());
+  ASSERT_TRUE(content::ExecJs(page, emoji + ".click()"));
+  const std::string picker =
+      "document.querySelector('compass-emoji-picker')?.shadowRoot";
+  ASSERT_TRUE(WaitFor(picker + "?.querySelector('.emoji')").is_ok());
+  ASSERT_TRUE(content::ExecJs(
+      page, "const search = " + picker + ".querySelector('#search');" +
+                "search.value = 'laundry';" +
+                "search.dispatchEvent(new Event('input'));"));
+  const std::string basket =
+      picker + "?.querySelector('.emoji[data-emoji=\"🧺\"]')";
+  ASSERT_TRUE(WaitFor(basket).is_ok());
+  ASSERT_TRUE(content::ExecJs(page, basket + ".click()"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return home.icon() == *SpaceIcon::Emoji("🧺"); }));
+  // The picker closes; the button shows it.
+  EXPECT_EQ(WaitFor("!" + picker + " && " + emoji +
+                    ".textContent.trim() === '🧺'"),
+            true);
+
   const std::string ask = content::JsReplace(
       "document.querySelector('.space-details .space-detail-row "
       "button.danger[data-space-id=\"' + $1 + '\"]')",
