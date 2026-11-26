@@ -1,0 +1,4 @@
+- Compass ora è in italiano.
+- Crea il tuo server di sincronizzazione gratuito su Cloudflare da Impostazioni > Sincronizzazione: accedi a Cloudflare e Compass fa il resto.
+- Invita gli amici sul tuo server con un link, e vedi o rimuovi chi lo usa.
+- Unisciti al server di un amico dal suo link di invito.

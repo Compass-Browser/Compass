@@ -345,7 +345,7 @@ version=$(date +%Y%m%d.%H%M)
 tools/compass gen release --cpu android-arm64
 tools/compass play prepare --version $version    # the versionCode, in args.gn
 tools/compass build -c release --cpu android-arm64 compass_bundle compass_apk
-# update android/play/whatsnew-en-US.txt, then:
+# update android/play/whatsnew-en-US.txt and whatsnew-it-IT.txt, then:
 
 # A canary build: Play's internal testing, and a GitHub prerelease.
 tools/compass play upload --version $version
@@ -435,8 +435,10 @@ tools/compass play status    # every track and its releases
     track's testers. An app that has never been published only takes
     `--status draft`; roll that one out in Play Console.
   - Release notes come from `android/play/whatsnew-<language>.txt`
-    (`whatsnew-en-US.txt`; 500 characters each). Update it for every
-    release.
+    (`whatsnew-en-US.txt` and `whatsnew-it-IT.txt`; 500 characters
+    each). Update both for every release. The Italian store listing
+    (`listing-it-IT.md`) is entered in Play Console by hand, as the
+    English one.
   - `--dry-run` prints the requests and sends nothing; `--validate-only`
     uploads and validates, then throws the edit away.
   - The key is read from `~/Library/Application Support/Compass Release/android/play-service-account.json`
