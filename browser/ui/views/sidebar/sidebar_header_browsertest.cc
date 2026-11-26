@@ -25,6 +25,7 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
@@ -59,6 +60,7 @@
 #include "compass/browser/ui/views/bubble_look.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/frame/window_frame.h"
+#include "compass/browser/ui/views/settings_window/settings_window.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/metrics_proto/omnibox_input_type.pb.h"
@@ -455,6 +457,65 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, SiteInfoOpensPageInfo) {
     });
   }));
   EXPECT_FALSE(page->children()[0]->GetBackground());
+}
+
+// The popup's Site settings row shows the site in the settings window, and
+// nothing else: chrome::ShowSiteSettings() used to open a tab for the
+// navigation throttle to cancel and close, which stayed behind when the
+// window was already open.
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, PageInfoSiteSettings) {
+  Profile* profile = browser()->GetProfile();
+  SettingsWindow::Show(profile, "general");
+  ASSERT_TRUE(
+      content::WaitForLoadStop(SettingsWindow::FromProfile(profile)->web_contents()));
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("a.test", "/title1.html")));
+  views::ImageButton* site_info = header()->site_info_button_for_testing();
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return site_info->IsDrawn(); }));
+  Click(site_info);
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return PageInfoBubbleViewBase::GetPageInfoBubbleForTesting();
+  }));
+  views::View* row =
+      PageInfoBubbleViewBase::GetPageInfoBubbleForTesting()->GetViewByID(
+          PageInfoViewFactory::VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_SITE_SETTINGS);
+  ASSERT_TRUE(row);
+  auto count_windows = [] {
+    int count = 0;
+    GlobalBrowserCollection::GetInstance()->ForEach(
+        [&](BrowserWindowInterface*) {
+          ++count;
+          return true;
+        });
+    return count;
+  };
+  const int windows = count_windows();
+  const int tabs = browser()->tab_strip_model()->count();
+  Click(views::AsViewClass<views::Button>(row));
+  EXPECT_EQ(browser()->tab_strip_model()->count(), tabs);
+  EXPECT_EQ(count_windows(), windows);
+
+  // The site's permissions (privacy_pane.ts's site view).
+  content::WebContents* window =
+      SettingsWindow::FromProfile(profile)->web_contents();
+  EXPECT_EQ(true, content::EvalJs(window, R"(
+    (async () => {
+      const find = (root) => {
+        for (const element of root.querySelectorAll('*')) {
+          if (element.matches('select[data-type="media-stream-camera"]')) {
+            return element;
+          }
+          const found = element.shadowRoot && find(element.shadowRoot);
+          if (found) return found;
+        }
+        return null;
+      };
+      while (!find(document)) await new Promise(r => setTimeout(r, 20));
+      return location.search.startsWith('?site=');
+    })())"));
+  EXPECT_EQ(browser()->tab_strip_model()->count(), tabs);
+  EXPECT_EQ(count_windows(), windows);
 }
 
 // A space's color tints the site information popup.

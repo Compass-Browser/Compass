@@ -318,8 +318,11 @@ and short rows, and anything long or rarely used is one row away, behind a ›.
   `privacy?site=<origin>`, `privacy?focus=security|cookies`. Upstream's
   sub-pages map to them (`SettingsWindowPathFor()`): `privacy`, `security`,
   `cookies`, `clearBrowserData`, `safetyCheck`, `content`, `content/<permission>`,
-  `content/all` and `content/siteDetails?site=`. Page info's "Site settings",
-  which opens a tab at the last, lands on the site (the throttle).
+  `content/all` and `content/siteDetails?site=`. Page info's "Site settings"
+  (`chrome::ShowSiteSettings()`) lands on the site: the `chrome_pages.cc`
+  patch asks `MaybeShowSettingsWindow()` before it navigates a tab
+  (2026-11-26; it used to open a tab for the throttle to cancel and close,
+  which stayed behind, empty, when the window was already open).
 - **Browser side** (`settings_window_handler_privacy.cc`), as upstream's
   `SiteSettingsHandler` and `ClearBrowsingDataHandler`:
   - The permissions are `site_settings::GetVisiblePermissionCategories()`

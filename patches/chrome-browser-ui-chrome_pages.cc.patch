@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/chrome_pages.cc b/chrome/browser/ui/chrome_pages.cc
-index 3f270ac926d1f76db66a3ee5bf41799b726f3293..2ce1a16c9b7af3bbcb51995e8eae7c62523e9581 100644
+index 3f270ac926d1f76db66a3ee5bf41799b726f3293..bf40cc12bd17a51423d9c695aaefc34e11a0232d 100644
 --- a/chrome/browser/ui/chrome_pages.cc
 +++ b/chrome/browser/ui/chrome_pages.cc
 @@ -51,6 +51,7 @@
@@ -10,7 +10,31 @@ index 3f270ac926d1f76db66a3ee5bf41799b726f3293..2ce1a16c9b7af3bbcb51995e8eae7c62
  #include "components/autofill/core/common/autofill_features.h"
  #include "components/bookmarks/browser/bookmark_model.h"
  #include "components/bookmarks/browser/bookmark_node.h"
-@@ -486,6 +487,10 @@ void ShowSettingsSubPageForProfile(Profile* profile,
+@@ -277,6 +278,11 @@ void ShowSiteSettingsImpl(BrowserWindowInterface* browser,
+     link_destination = net::AppendQueryParameter(
+         GetSettingsUrl(chrome::kSiteDetailsSubpage), kParamRequest, url_string);
+   }
++  // Compass: its settings window, without a tab for the throttle to close.
++  if (compass::MaybeShowSettingsWindow(profile,
++                                       link_destination.PathForRequest())) {
++    return;
++  }
+   NavigateParams params(profile, link_destination, ui::PAGE_TRANSITION_TYPED);
+   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+   params.browser = browser;
+@@ -303,6 +309,11 @@ void ShowSiteSettingsFileSystemImpl(BrowserWindowInterface* browser,
+     link_destination = net::AppendQueryParameter(link_destination,
+                                                  kParamRequest, origin_string);
+   }
++  // Compass: its settings window, without a tab for the throttle to close.
++  if (compass::MaybeShowSettingsWindow(profile,
++                                       link_destination.PathForRequest())) {
++    return;
++  }
+   NavigateParams params(profile, link_destination, ui::PAGE_TRANSITION_TYPED);
+   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+   params.browser = browser;
+@@ -486,6 +497,10 @@ void ShowSettingsSubPageForProfile(Profile* profile,
  
  void ShowSettingsSubPageInTabbedBrowser(BrowserWindowInterface* browser,
                                          std::string_view sub_page) {
