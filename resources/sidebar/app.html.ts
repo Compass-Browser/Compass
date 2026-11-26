@@ -183,12 +183,22 @@ ${this.liveEditor_ ? html`
 ${this.getMenuSpace_() && this.themeOpen_ ? html`
   <div id="spaceMenu" class="theme" role="dialog" aria-label="Theme"
       @keydown="${this.onSpaceMenuKeydown_}">
-    <button id="themeBack" title="Back" aria-label="Back"
+    <button id="themeBack" class="menu-back" title="Back" aria-label="Back"
         @click="${this.onThemeBackClick_}">‹ ${this.getMenuSpace_()!.name}</button>
     <compass-theme-editor .space="${this.getMenuSpace_()}">
     </compass-theme-editor>
   </div>` : nothing}
-${this.getMenuSpace_() && !this.themeOpen_ ? html`
+${this.getMenuSpace_() && this.emojiOpen_ ? html`
+  <div id="spaceMenu" class="emoji" role="dialog" aria-label="Emoji"
+      @keydown="${this.onSpaceMenuKeydown_}">
+    <button id="emojiBack" class="menu-back" title="Back" aria-label="Back"
+        @click="${this.onEmojiBackClick_}">‹ ${this.getMenuSpace_()!.name}</button>
+    <compass-emoji-picker
+        .selected="${this.getMenuSpace_()!.icon?.emoji ?? ''}"
+        @emoji-pick="${this.onEmojiPick_}">
+    </compass-emoji-picker>
+  </div>` : nothing}
+${this.getMenuSpace_() && !this.themeOpen_ && !this.emojiOpen_ ? html`
   <div id="spaceMenu" role="menu" aria-label="Space"
       @keydown="${this.onSpaceMenuKeydown_}">
     <input id="spaceNameInput" aria-label="Space name" spellcheck="false"
@@ -220,12 +230,18 @@ ${this.getMenuSpace_() && !this.themeOpen_ ? html`
             <path d="${symbol.path}"></path>
           </svg>
         </button>`)}
-      <input id="emojiInput" aria-label="Emoji" placeholder="Emoji"
-          spellcheck="false" autocomplete="off"
-          title="Emoji (Fn E opens the picker)"
+      <button id="emojiButton" class="icon-choice" role="menuitem"
+          title="Emoji" aria-label="Emoji" aria-haspopup="dialog"
           ?selected="${!!this.getMenuSpace_()!.icon?.emoji}"
-          .value="${this.getMenuSpace_()!.icon?.emoji ?? ''}"
-          @input="${this.onEmojiInput_}">
+          @click="${this.onEmojiButtonClick_}">
+        ${this.getMenuSpace_()!.icon?.emoji ?? html`
+          <svg class="emoji-add" viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.25"></circle>
+            <path d="M5.6 9.6c.6.9 1.4 1.3 2.4 1.3s1.8-.4 2.4-1.3"></path>
+            <circle class="eye" cx="6" cy="6.6" r=".9"></circle>
+            <circle class="eye" cx="10" cy="6.6" r=".9"></circle>
+          </svg>`}
+      </button>
     </div>
     <label id="archiveDelay">
       Archive Today tabs after

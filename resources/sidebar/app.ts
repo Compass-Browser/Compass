@@ -15,11 +15,12 @@ import './now_playing.js';
 import type {CompassSidebarPreviewElement} from './preview.js';
 import './preview.js';
 import type {SpaceSymbol} from './space_icons.js';
+import './emoji_picker.js';
 import './theme_editor.js';
 import './live_folders/editor.js';
 import type {LiveNode} from './node.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from './space_icons.js';
-import {ARCHIVE_DELAYS, firstGrapheme} from './space_options.js';
+import {ARCHIVE_DELAYS} from './space_options.js';
 import type {ArchivedEntry, ArchivedTab, LiveFolder, LiveFolderState, Node, NowPlaying, ProfileOption, RoomNotice, Space, Tree} from './sidebar.mojom-webui.js';
 import {AudioState, NodeType, SwipePhase} from './sidebar.mojom-webui.js';
 
@@ -181,6 +182,7 @@ export class CompassSidebarAppElement extends CrLitElement {
       confirmingDelete_: {type: Boolean},
       confirmingUnsync_: {type: Boolean},
       themeOpen_: {type: Boolean},
+      emojiOpen_: {type: Boolean},
       archive_: {type: Array},
       nowPlaying_: {type: Array},
       archiveOpen_: {type: Boolean},
@@ -224,8 +226,9 @@ export class CompassSidebarAppElement extends CrLitElement {
   // So does turning sync off, which removes the space from the other
   // devices.
   protected accessor confirmingUnsync_: boolean = false;
-  // The space menu shows the theme editor instead.
+  // The space menu shows the theme editor, or the emoji picker, instead.
   protected accessor themeOpen_: boolean = false;
+  protected accessor emojiOpen_: boolean = false;
   protected readonly spaceSymbols_: SpaceSymbol[] = SPACE_SYMBOLS;
   protected readonly archiveDelays_ = ARCHIVE_DELAYS;
   protected accessor archive_: ArchivedEntry[] = [];
@@ -486,6 +489,7 @@ export class CompassSidebarAppElement extends CrLitElement {
     this.confirmingDelete_ = false;
     this.confirmingUnsync_ = false;
     this.themeOpen_ = false;
+    this.emojiOpen_ = false;
   }
 
   protected onEditThemeClick_() {
@@ -495,6 +499,15 @@ export class CompassSidebarAppElement extends CrLitElement {
   // Esc too: back to the menu.
   protected onThemeBackClick_() {
     this.themeOpen_ = false;
+  }
+
+  protected onEmojiButtonClick_() {
+    this.emojiOpen_ = true;
+  }
+
+  // Esc too (after clearing the search): back to the menu.
+  protected onEmojiBackClick_() {
+    this.emojiOpen_ = false;
   }
 
   protected onSpaceContextmenu_(e: MouseEvent) {
@@ -610,8 +623,9 @@ export class CompassSidebarAppElement extends CrLitElement {
     if (e.key !== 'Escape') {
       return;
     }
-    if (this.themeOpen_) {
+    if (this.themeOpen_ || this.emojiOpen_) {
       this.themeOpen_ = false;
+      this.emojiOpen_ = false;
     } else {
       this.closeSpaceMenu_();
     }
@@ -744,14 +758,13 @@ export class CompassSidebarAppElement extends CrLitElement {
     }
   }
 
-  // Keeps the first character typed or picked (a whole emoji sequence).
-  protected onEmojiInput_(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const first = firstGrapheme(input.value.trim());
-    input.value = first;
-    if (first && this.menuSpaceId_) {
-      this.browserProxy_.handler.setSpaceIcon(this.menuSpaceId_, {emoji: first});
+  // Sets the emoji and goes back to the menu.
+  protected onEmojiPick_(e: CustomEvent<{emoji: string}>) {
+    if (this.menuSpaceId_) {
+      this.browserProxy_.handler.setSpaceIcon(
+          this.menuSpaceId_, {emoji: e.detail.emoji});
     }
+    this.emojiOpen_ = false;
   }
 
   // Slides the space's preview in at once, as a swipe would, rather than

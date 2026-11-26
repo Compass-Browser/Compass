@@ -9,7 +9,8 @@ import type {ProfileOption, Space} from '../sidebar.mojom-webui.js';
 import type {SpaceSymbol} from '../space_icons.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from '../space_icons.js';
 import type {ArchiveDelay} from '../space_options.js';
-import {ARCHIVE_DELAYS, firstGrapheme} from '../space_options.js';
+import {ARCHIVE_DELAYS} from '../space_options.js';
+import '../emoji_picker.js';
 import '../theme_editor.js';
 import type {ThemeEditorHandler} from '../theme_editor.js';
 
@@ -41,6 +42,7 @@ export class CompassSettingsSpacesPaneElement extends CrLitElement {
       profiles_: {type: Array},
       expandedId_: {type: String},
       themeOpen_: {type: Boolean},
+      emojiOpen_: {type: Boolean},
       confirmingDeleteId_: {type: String},
       confirmingUnsyncId_: {type: String},
     };
@@ -50,9 +52,11 @@ export class CompassSettingsSpacesPaneElement extends CrLitElement {
   protected accessor spaces_: Space[] = [];
   // The profiles a space can be assigned to; none without the directory.
   protected accessor profiles_: ProfileOption[] = [];
-  // The space whose details are open, and whether its theme editor is.
+  // The space whose details are open, and whether its theme editor and its
+  // emoji picker are.
   protected accessor expandedId_: string|null = null;
   protected accessor themeOpen_: boolean = false;
+  protected accessor emojiOpen_: boolean = false;
   protected accessor confirmingDeleteId_: string|null = null;
   protected accessor confirmingUnsyncId_: string|null = null;
 
@@ -197,6 +201,10 @@ export class CompassSettingsSpacesPaneElement extends CrLitElement {
     return this.isExpanded_(space) && this.themeOpen_;
   }
 
+  protected isEmojiOpen_(space: Space): boolean {
+    return this.isExpanded_(space) && this.emojiOpen_;
+  }
+
   // Where the theme editor sends its edits.
   protected getHandler_(): ThemeEditorHandler {
     return this.handler_;
@@ -206,6 +214,7 @@ export class CompassSettingsSpacesPaneElement extends CrLitElement {
     const id = this.getSpaceId_(e);
     this.expandedId_ = this.expandedId_ === id ? null : id;
     this.themeOpen_ = false;
+    this.emojiOpen_ = false;
   }
 
   protected onThemeClick_() {
@@ -247,13 +256,22 @@ export class CompassSettingsSpacesPaneElement extends CrLitElement {
         target.dataset['spaceId']!, name ? {symbol: name} : null);
   }
 
-  // Keeps the first character typed or picked (a whole emoji sequence).
-  protected onEmojiInput_(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const first = firstGrapheme(input.value.trim());
-    input.value = first;
-    if (first) {
-      this.handler_.setSpaceIcon(input.dataset['spaceId']!, {emoji: first});
+  protected onEmojiButtonClick_() {
+    this.emojiOpen_ = !this.emojiOpen_;
+  }
+
+  // Sets the emoji and closes the picker.
+  protected onEmojiPick_(e: CustomEvent<{emoji: string}>) {
+    const id = (e.currentTarget as HTMLElement).dataset['spaceId']!;
+    this.handler_.setSpaceIcon(id, {emoji: e.detail.emoji});
+    this.emojiOpen_ = false;
+  }
+
+  // Esc in the picker (after clearing its search) closes it.
+  protected onEmojiKeydown_(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      this.emojiOpen_ = false;
     }
   }
 

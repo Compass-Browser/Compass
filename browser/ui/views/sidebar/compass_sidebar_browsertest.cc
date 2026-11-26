@@ -2071,7 +2071,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesSetsIconsDelet
     })())"));
   ASSERT_TRUE(base::test::RunUntil([&] { return added->name() == u"Work"; }));
 
-  // A symbol, then an emoji (only its first character is kept), as the
+  // A symbol, then an emoji from the picker (found by searching), as the
   // switcher's button shows them.
   ASSERT_EQ(true, content::EvalJs(contents, R"(
     (() => {
@@ -2087,20 +2087,60 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SpaceMenuRenamesSetsIconsDelet
       while (!root.querySelectorAll('.space')[1].querySelector('svg path')) {
         await new Promise(r => setTimeout(r, 20));
       }
-      const input = root.querySelector('#emojiInput');
-      input.value = '🚀✨';
-      input.dispatchEvent(new Event('input', {bubbles: true}));
-      return input.value === '🚀';
+      root.querySelector('#emojiButton').click();
+      const until = async (f) => {
+        while (!f()) await new Promise(r => setTimeout(r, 20));
+        return f();
+      };
+      const picker = await until(
+          () => root.querySelector('compass-emoji-picker')?.shadowRoot);
+      await until(() => picker.querySelector('.emoji'));
+      const search = picker.querySelector('#search');
+      search.value = 'rock';
+      search.dispatchEvent(new Event('input', {bubbles: true}));
+      const rocket = await until(
+          () => picker.querySelector('.emoji[data-emoji="🚀"]'));
+      rocket.click();
+      // Back to the menu, whose button shows it.
+      const button = await until(() => {
+        const button = root.querySelector('#emojiButton');
+        return button?.textContent.trim() === '🚀' && button;
+      });
+      return button.hasAttribute('selected');
     })())"));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return added->icon() == *SpaceIcon::Emoji("🚀"); }));
+  // An emoji typed in the search (as the system's picker does) is picked
+  // with Enter: only its first character.
+  EXPECT_EQ(true, content::EvalJs(contents, R"(
+    (async () => {
+      const root = document.querySelector('compass-sidebar-app').shadowRoot;
+      const until = async (f) => {
+        while (!f()) await new Promise(r => setTimeout(r, 20));
+        return f();
+      };
+      root.querySelector('#emojiButton').click();
+      const picker = await until(
+          () => root.querySelector('compass-emoji-picker')?.shadowRoot);
+      const search = picker.querySelector('#search');
+      search.value = '🎉✨';
+      search.dispatchEvent(new Event('input', {bubbles: true}));
+      await until(() => picker.querySelector('.emoji[data-emoji="🎉"]'));
+      search.dispatchEvent(new KeyboardEvent(
+          'keydown', {key: 'Enter', bubbles: true, composed: true}));
+      return true;
+    })())"));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return added->icon() == *SpaceIcon::Emoji("🎉"); }));
   EXPECT_EQ(true, content::EvalJs(contents, R"(
     (async () => {
       const root = document.querySelector('compass-sidebar-app').shadowRoot;
       const emoji = () =>
           root.querySelectorAll('.space')[1].querySelector('.space-emoji');
-      while (!emoji()) await new Promise(r => setTimeout(r, 20));
-      return emoji().textContent === '🚀';
+      while (emoji()?.textContent !== '🎉') {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return true;
     })())"));
 
   // Delete wants a second click. The window goes back to Home.

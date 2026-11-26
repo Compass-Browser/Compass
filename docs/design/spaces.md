@@ -426,9 +426,32 @@ the wave, the dial and dark mode, Esc),
 A space can have an icon (as in Arc), which its switcher button
 shows instead of the name's first letter: an emoji or a symbol. The menu
 lists them under "Edit theme": "no icon" (the letter), 28 symbols and an
-"Emoji" field that keeps the first character typed or picked (a whole
-grapheme, so ZWJ sequences and flags stay one; macOS's Fn E / Ctrl Cmd
-Space picker types into it).
+emoji button (the space's emoji, or a smiley) that opens the emoji picker
+in the menu's place, as "Edit theme" does; the settings window's Spaces
+pane opens it below the icons.
+
+The emoji picker (`<compass-emoji-picker>`, `resources/sidebar/
+emoji_picker.ts`) has a search field, the groups as tabs (smileys, people,
+nature, food, travel, activities, objects, symbols, flags) and the group's
+emoji, or the search's results across all of them: every word typed must
+start a word of the emoji's name or CLDR keywords, names that start with
+it first, at most 120. Enter picks the first result, Down goes into the
+grid, the arrows move in it and Up from its first row goes back. An emoji
+typed or pasted in the field (macOS's Fn E / Ctrl Cmd Space picker types
+there) is the only result, its first grapheme (so ZWJ sequences and flags
+stay one). Esc clears the search, then goes back to the menu. Picking sets
+the icon and goes back. It fires `emoji-pick` with `{emoji}`; the hosts set
+the icon.
+
+Its emoji are `resources/sidebar/emoji_data.ts`, which
+`tools/update_emoji_data.py` generates from Unicode's emoji-test.txt (order
+and groups) and CLDR's English annotations (names and keywords): the
+fully-qualified emoji up to Emoji 15.0, without skin tone variants (1870).
+Pages draw emoji with the system's font, and later ones are missing from
+macOS 13's and Windows 11's. The file (95 KB) is imported when a picker
+first opens. Windows has no flag emoji, so the picker leaves the flags out
+there. Licensing: `third_party/unicode_emoji/` (Unicode License V3), listed
+on the licenses page.
 
 `SpaceIcon` (space_model.h) is none, an emoji (non-empty UTF-8 of at most
 64 bytes, no whitespace or controls) or a symbol name (`[a-z0-9-]`, at most
@@ -450,13 +473,16 @@ The command bar's space results show it (`Result.space_emoji` and
 `space_symbol`, drawn as the switcher does), and so does the little
 window's "Open in space" picker ([little-window.md](little-window.md)).
 
-Not done: the space name at the top.
+Not done: the space name at the top; skin tones and recently used emoji
+in the picker; names and keywords in other languages than English.
 
 **Tests:** `SpaceIconTest.*`, `SpaceModelTest.NotifiesIconChanges`,
 `SidebarSerializerTest.RoundTripsIcons`, `UnreadableIconsAreLeftOut`,
 `SidebarPageHandlerTest.SetsSpaceIcons`, `ArcSidebarTest.SpaceIcons`,
 `CommandBarPageHandlerTest.SpacesCarryTheirIcons`;
-`SpaceMenuRenamesSetsIconsDeletes` picks a symbol and an emoji.
+`SpaceMenuRenamesSetsIconsDeletes` picks a symbol and an emoji (searched
+for, and typed in the search), `SpacesPaneEditsAnyProfile` one in the
+settings window; `tools/tests/test_update_emoji_data.py`.
 
 ### Window theme
 

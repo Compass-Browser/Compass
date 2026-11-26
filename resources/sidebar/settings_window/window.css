@@ -1152,11 +1152,6 @@ button.pill.move {
 }
 
 .space-icons .icon-choice[selected],
-.space-icons input.emoji-input[selected] {
-  background: var(--accent-soft);
-  outline: 1.5px solid var(--accent);
-  outline-offset: -1.5px;
-}
 
 .space-icons .icon-choice svg {
   fill: currentColor;
@@ -1164,11 +1159,32 @@ button.pill.move {
   width: 16px;
 }
 
-.space-icons input.emoji-input {
-  grid-column: span 3;
-  min-height: 26px;
-  padding: 2px 6px;
-  width: 100%;
+.space-icons .emoji-choice {
+  font-size: 16px;
+  font-weight: normal;
+  line-height: 1;
+}
+
+.space-icons .emoji-choice svg.emoji-add {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.3;
+}
+
+.space-icons .emoji-choice svg.emoji-add .eye {
+  fill: currentColor;
+  stroke: none;
+}
+
+.space-emoji-row {
+  justify-content: center;
+}
+
+.space-emoji-row compass-emoji-picker {
+  --emoji-picker-height: 220px;
+  flex: 1;
+  max-width: 420px;
 }
 
 .theme-chip {
