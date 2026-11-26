@@ -1,13 +1,14 @@
 diff --git a/chrome/browser/ui/views/page_info/BUILD.gn b/chrome/browser/ui/views/page_info/BUILD.gn
-index d6e74b52c8f5ba8d69c7e9413528ca159f027c69..c45bdb9034f639ac64dbf44e9eedd0264741f2d3 100644
+index d6e74b52c8f5ba8d69c7e9413528ca159f027c69..c9b19cd8ccd720643262d4f22f9d37279e073266 100644
 --- a/chrome/browser/ui/views/page_info/BUILD.gn
 +++ b/chrome/browser/ui/views/page_info/BUILD.gn
-@@ -102,6 +102,9 @@ source_set("impl") {
+@@ -102,6 +102,10 @@ source_set("impl") {
      "//chrome/browser/ui/views/file_system_access",
      "//chrome/browser/ui/views/frame:browser_view_header",
      "//chrome/browser/vr",
 +
-+    # Compass: the ad blocker's and development mode's switches for the site.
++    # Compass: the ad blocker's and development mode's switches for the site,
++    # and the popup's look.
 +    "//compass/browser/ui:page_info_hooks",
      "//components/content_settings/browser/ui",
      "//components/dom_distiller/core",

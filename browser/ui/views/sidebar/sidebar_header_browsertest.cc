@@ -4,6 +4,7 @@
 
 #include "compass/browser/ui/views/sidebar/sidebar_header.h"
 
+#include <algorithm>
 #include <optional>
 #include <string>
 
@@ -33,6 +34,7 @@
 #include "chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h"
+#include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.h"
 #include "chrome/browser/ui/views/toolbar/back_forward_button.h"
@@ -53,8 +55,11 @@
 #include "extensions/common/extension.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/views/bubble_look.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/frame/window_frame.h"
+#include "compass/browser/window_sync/window_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/metrics_proto/omnibox_input_type.pb.h"
 #include "ui/base/clipboard/clipboard.h"
@@ -431,9 +436,47 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, SiteInfoOpensPageInfo) {
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
     return PageInfoBubbleViewBase::GetPageInfoBubbleForTesting();
   }));
-  EXPECT_EQ(PageInfoBubbleViewBase::GetPageInfoBubbleForTesting()
-                ->GetAnchorView(),
-            site_info);
+  views::BubbleDialogDelegateView* bubble =
+      PageInfoBubbleViewBase::GetPageInfoBubbleForTesting();
+  EXPECT_EQ(bubble->GetAnchorView(), site_info);
+
+  // The downloads bubble's look (compass::InstallPageInfoLook()): the
+  // space's tint, and the main page's sections as cards under its header.
+  EXPECT_EQ(bubble->background_color(),
+            ComputeBubbleLook(bubble->GetColorProvider(),
+                              GetBubbleTint(browser()))
+                .background);
+  views::View* page = bubble->GetViewByID(
+      PageInfoViewFactory::VIEW_ID_PAGE_INFO_CURRENT_VIEW);
+  ASSERT_TRUE(page);
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return std::ranges::any_of(page->children(), [](views::View* section) {
+      return section->GetVisible() && section->GetBackground();
+    });
+  }));
+  EXPECT_FALSE(page->children()[0]->GetBackground());
+}
+
+// A space's color tints the site information popup.
+IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, PageInfoTakesTheSpaceTint) {
+  WindowFeatures::From(browser())->space_model().SetColor(SpaceColor::kBlue);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("a.test", "/title1.html")));
+  views::ImageButton* site_info = header()->site_info_button_for_testing();
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return site_info->IsDrawn(); }));
+  Click(site_info);
+  ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
+    return PageInfoBubbleViewBase::GetPageInfoBubbleForTesting();
+  }));
+  views::BubbleDialogDelegateView* bubble =
+      PageInfoBubbleViewBase::GetPageInfoBubbleForTesting();
+  ASSERT_TRUE(GetBubbleTint(browser()));
+  const BubbleLook tinted =
+      ComputeBubbleLook(bubble->GetColorProvider(), GetBubbleTint(browser()));
+  EXPECT_EQ(bubble->background_color(), tinted.background);
+  EXPECT_NE(tinted.background,
+            ComputeBubbleLook(bubble->GetColorProvider(), std::nullopt)
+                .background);
 }
 
 IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, CollapsedDrawsNoControls) {

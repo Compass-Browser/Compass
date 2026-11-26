@@ -158,6 +158,25 @@ Pressing the button again closes it. Pressing the button also takes focus
 from the open bubble, which closes it first; a press within 300 ms of the
 bubble closing doesn't open it again.
 
+## The site information popup
+
+Upstream's page info bubble (the site information popup: the connection,
+permissions, cookies, the ad blocker's and development mode's switches,
+Site settings) takes the same look, 2026-11-26. `compass::
+InstallPageInfoLook()` (`views/page_info_look/`), which
+`PageInfoBubbleView` calls once its widget exists (a two-line patch), sets
+the bubble's background to `BubbleLook`'s and watches its
+`PageSwitcherView`: every page it switches to, the main page and the
+sub-pages alike, is its header then its sections, and each section becomes
+a card (12 pixels in, 12-pixel corners, 8 apart, clipped on a layer so its
+rows' hover backgrounds stay inside). Upstream's separators between
+sections are hidden: the gaps between cards replace them. A section with
+nothing shown yet (no permissions, the about-this-site section) has no card.
+Sections are watched as rows come and go (permissions arrive after the
+bubble opens), and the permissions' scroller takes the card's color, as
+scrolling contents paint on an opaque layer. The rows themselves are
+upstream's.
+
 ## Code
 
 - `browser/downloads_folder/`: what the lists hold and the platform parts
