@@ -144,6 +144,14 @@ On the window, with a trackpad (macOS) or a precision touchpad (Windows):
   (`directionInvertedFromDevice`), kept inside the work area. Momentum
   after the fingers lift is ignored, so it stops where they leave it. A
   mouse wheel isn't a move.
+- **Option and two fingers** (macOS) resize it around its center instead:
+  fingers up grow it, down shrink it, 0.5% a point of scrolling, within the
+  same sizes. macOS sends pinches only to the active app, and the window
+  takes clicks without activating Compass (activation independence), so
+  with another app in front a pinch never reaches Compass, clicked or not;
+  scrolls go to the window under the pointer, so this works from any app.
+  Windows needs it not: a pinch arrives as Ctrl+wheel, which goes to the
+  window under the pointer.
 - **Magnet:** when a pinch, a two-finger move or a mouse drag ends within
   32 pt of an edge of the work area, the window snaps to 12 pt from that
   edge (animated). A corner snaps on both sides.

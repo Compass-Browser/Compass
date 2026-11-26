@@ -21,6 +21,9 @@ namespace {
 
 constexpr NSTimeInterval kFadeDuration = 0.15;
 
+// Option and two fingers: each point of scrolling resizes by 0.5%.
+constexpr double kZoomPerScrollPoint = 0.005;
+
 NSWindow* GetNSWindow(views::Widget* widget) {
   return widget->GetNativeWindow().GetNativeNSWindow();
 }
@@ -231,15 +234,29 @@ void PipWindows::PlatformUpdateEventMonitor() {
                                              event.directionInvertedFromDevice
                                                  ? 1
                                                  : -1;
-                                         self->MoveWindow(
-                                             widget,
-                                             gfx::Vector2d(
-                                                 std::round(
-                                                     sign *
-                                                     event.scrollingDeltaX),
-                                                 std::round(
-                                                     sign *
-                                                     event.scrollingDeltaY)));
+                                         // With Option, fingers up grow it
+                                         // and down shrink it: unlike a
+                                         // pinch, which only reaches the
+                                         // active app, it works with
+                                         // another app in front.
+                                         if (event.modifierFlags &
+                                             NSEventModifierFlagOption) {
+                                           self->ZoomWindow(
+                                               widget,
+                                               -sign * event.scrollingDeltaY *
+                                                   kZoomPerScrollPoint);
+                                         } else {
+                                           self->MoveWindow(
+                                               widget,
+                                               gfx::Vector2d(
+                                                   std::round(
+                                                       sign *
+                                                       event.scrollingDeltaX),
+                                                   std::round(
+                                                       sign *
+                                                       event
+                                                           .scrollingDeltaY)));
+                                         }
                                          if (HasEnded(event.phase)) {
                                            self->EndGesture(widget);
                                          }

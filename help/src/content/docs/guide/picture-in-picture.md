@@ -43,6 +43,7 @@ Calls in **Microsoft Teams**, **Google Meet** and the **Zoom** web app follow yo
 
 - **Drag** it anywhere. Let go near an edge of the screen and it snaps neatly to that edge or corner.
 - With a trackpad (a precision touchpad on Windows): **pinch** to resize it and **swipe with two fingers** to move it.
+- On a Mac, a pinch works only while Compass is the app in front. With another app in front, hold <kbd>⌥</kbd> and swipe up or down with two fingers to resize it.
 
 ### Click through it (Mac and Windows)
 
