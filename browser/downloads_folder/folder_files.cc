@@ -30,7 +30,9 @@ constexpr std::string_view kPartialExtensions[] = {"crdownload", "download",
 constexpr std::string_view kMetadataNames[] = {"desktop.ini", "thumbs.db"};
 
 std::string LowerExtension(const base::FilePath& path) {
-  std::string extension = base::FilePath(path.BaseName()).Extension();
+  // FilePath strings are wide on Windows.
+  std::string extension =
+      base::FilePath(path.BaseName().Extension()).AsUTF8Unsafe();
   if (!extension.empty() && extension[0] == '.') {
     extension.erase(0, 1);
   }
