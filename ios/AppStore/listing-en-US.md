@@ -163,7 +163,7 @@ PENSATO PER IPHONE E IPAD
 SINCRONIZZAZIONE CHE SOLO TU PUOI LEGGERE
 • Spazi, schede, cronologia, password e schede aperte si sincronizzano con Compass sugli altri tuoi dispositivi.
 • Tutto viene cifrato sul dispositivo prima di uscirne. Il server di sincronizzazione lo conserva cifrato e non può leggerlo.
-• Nessun account: abbina un dispositivo con un codice o un codice QR mostrato da Compass su un altro dispositivo, oppure con il tuo codice di recupero.
+• Nessun account: associa un dispositivo con un codice o un codice QR mostrato da Compass su un altro dispositivo, oppure con il tuo codice di recupero.
 • Invia una scheda agli altri tuoi dispositivi.
 
 CLAUDE, CON LA TUA CHIAVE

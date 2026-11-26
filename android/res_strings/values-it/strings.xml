@@ -621,8 +621,8 @@
   <string name="compass_menu_copy_image">Copia immagine</string>
   <string name="compass_menu_share_image">Condividi immagine…</string>
   <string name="compass_menu_open_image_in_new_tab">Apri immagine in una nuova scheda</string>
-  <string name="compass_menu_peek_image">Anteprima immagine</string>
-  <string name="compass_menu_peek">Anteprima</string>
+  <string name="compass_menu_peek_image">Peek dell’immagine</string>
+  <string name="compass_menu_peek">Peek</string>
   <string name="compass_menu_open_in_new_tab">Apri in una nuova scheda</string>
   <string name="compass_menu_open_in_background">Apri in background</string>
   <string name="compass_menu_open_in_little_window">Apri in una finestrella</string>
