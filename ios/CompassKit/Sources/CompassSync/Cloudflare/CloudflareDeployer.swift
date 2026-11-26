@@ -118,17 +118,20 @@ public actor CloudflareDeployer {
     public var message: String {
       switch kind {
       case .unauthorized:
-        var s = "Cloudflare didn't accept the token. Check that it's complete and can edit Workers."
+        var s = String(localized: "Cloudflare didn't accept the token. Check that it's complete and can edit Workers.", bundle: .module, comment: "Setting up a sync server on Cloudflare: the API token was refused.")
         if !detail.isEmpty || !step.isEmpty {
           s += " (" + step + (step.isEmpty ? "" : ": ") + String(status) + (detail.isEmpty ? "" : " " + detail) + ")"
         }
         return s
-      case .noAccount: return "The token can't use any Cloudflare account."
-      case .api: return detail.isEmpty ? "Cloudflare refused to set up the server." : "Cloudflare refused: " + detail
-      case .network: return "Couldn't reach Cloudflare. Check your connection and try again."
-      case .notReachable: return "The server is set up but doesn't answer yet. Try again in a few minutes."
+      case .noAccount: return String(localized: "The token can't use any Cloudflare account.", bundle: .module, comment: "Setting up a sync server on Cloudflare: error.")
+      case .api:
+        return detail.isEmpty
+          ? String(localized: "Cloudflare refused to set up the server.", bundle: .module, comment: "Setting up a sync server on Cloudflare: error.")
+          : String(localized: "Cloudflare refused: \(detail)", bundle: .module, comment: "Setting up a sync server on Cloudflare: error. The argument is Cloudflare's own message (English).")
+      case .network: return String(localized: "Couldn't reach Cloudflare. Check your connection and try again.", bundle: .module, comment: "Setting up a sync server on Cloudflare: error.")
+      case .notReachable: return String(localized: "The server is set up but doesn't answer yet. Try again in a few minutes.", bundle: .module, comment: "Setting up a sync server on Cloudflare: error.")
       case .notFound:
-        return "Your server isn't in the Cloudflare account you signed in with. Sign in with the account it was set up in."
+        return String(localized: "Your server isn't in the Cloudflare account you signed in with. Sign in with the account it was set up in.", bundle: .module, comment: "Updating a sync server on Cloudflare: error.")
       }
     }
   }
@@ -169,7 +172,7 @@ public actor CloudflareDeployer {
     -> CloudflareDeployment
   {
     deployment = CloudflareDeployment()
-    progress("Checking your Cloudflare account…")
+    progress(String(localized: "Checking your Cloudflare account…", bundle: .module, comment: "Progress while setting up a sync server on Cloudflare."))
     let accounts = try await self.accounts()
     guard let first = accounts.first else { throw fail(.noAccount) }
     deployment.accountID = first
@@ -188,7 +191,7 @@ public actor CloudflareDeployer {
     // or for another chain) keeps it: this one gets a name of its own.
     deployment.scriptName =
       scripts[Self.scriptName] != nil ? Self.scriptName + "-" + owner.prefix(6).lowercased() : Self.scriptName
-    progress("Uploading the sync server…")
+    progress(String(localized: "Uploading the sync server…", bundle: .module, comment: "Progress while setting up a sync server on Cloudflare."))
     try await upload(
       metadata: Self.makeMetadata(owner: owner, migrationTag: scripts[deployment.scriptName] ?? "", pushRelay: pushRelay))
 
@@ -199,7 +202,7 @@ public actor CloudflareDeployer {
 
     let server = serverURL
     deployment.serverURL = server
-    progress("Waiting for the server to come online…")
+    progress(String(localized: "Waiting for the server to come online…", bundle: .module, comment: "Progress while setting up a sync server on Cloudflare."))
     // Its address resolving and answering; a new workers.dev name can take
     // a few minutes.
     var health = URLComponents(url: server, resolvingAgainstBaseURL: false)!
@@ -220,7 +223,7 @@ public actor CloudflareDeployer {
     async throws(Failure) -> CloudflareDeployment
   {
     deployment = CloudflareDeployment(scriptName: scriptName, subdomain: subdomain)
-    progress("Finding your server on Cloudflare…")
+    progress(String(localized: "Finding your server on Cloudflare…", bundle: .module, comment: "Progress while updating a sync server on Cloudflare."))
     var found = false
     for account in try await accounts() {
       deployment.accountID = account
@@ -237,13 +240,13 @@ public actor CloudflareDeployer {
     let scripts = try await listScripts()
     // Another account with this subdomain can't exist; the script is gone.
     guard let tag = scripts[scriptName] else { throw fail(.notFound) }
-    progress("Uploading the new version…")
+    progress(String(localized: "Uploading the new version…", bundle: .module, comment: "Progress while updating a sync server on Cloudflare."))
     try await upload(metadata: Self.makeMetadata(owner: "", migrationTag: tag))
 
     // Its route is on already.
     let server = serverURL
     deployment.serverURL = server
-    progress("Waiting for the new version to answer…")
+    progress(String(localized: "Waiting for the new version to answer…", bundle: .module, comment: "Progress while updating a sync server on Cloudflare."))
     try await waitUntil(ServerEndpoint.url(server, path: "compass/info", query: [:])) {
       (ServerInfo.parse($0)?.version ?? 0) >= version
     }
@@ -298,7 +301,7 @@ public actor CloudflareDeployer {
   }
 
   private func createSubdomain(progress: Progress) async throws(Failure) -> String {
-    progress("Making your workers.dev address…")
+    progress(String(localized: "Making your workers.dev address…", bundle: .module, comment: "Progress while setting up a sync server on Cloudflare (workers.dev is Cloudflare's domain)."))
     for attempt in 1...3 {
       let name = "compass-" + Self.randomLetters(8)
       let (status, json) = try await call(

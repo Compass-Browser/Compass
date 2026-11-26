@@ -22,7 +22,7 @@ public enum AIProvider: String, CaseIterable, Sendable, Identifiable {
     case .anthropic: "Anthropic"
     case .openAI: "OpenAI"
     case .gemini: "Google Gemini"
-    case .compatible: "Other (OpenAI-Compatible)"
+    case .compatible: String(localized: "Other (OpenAI-Compatible)", bundle: .module, comment: "AI provider choice in Settings → AI: any server speaking OpenAI's API.")
     }
   }
 
@@ -37,7 +37,9 @@ public enum AIProvider: String, CaseIterable, Sendable, Identifiable {
   }
 
   /// "Ask Claude", "Ask GPT", "Ask Gemini", "Ask AI".
-  public var askTitle: String { "Ask \(assistantName)" }
+  public var askTitle: String {
+    String(localized: "Ask \(assistantName)", bundle: .module, comment: "Command bar row, page menu and chat field: Ask Claude, Ask GPT, Ask Gemini, Ask AI. The argument is the assistant's name.")
+  }
 
   /// Chat Completions rather than the Messages API.
   public var usesOpenAIFormat: Bool { self != .anthropic }
@@ -58,7 +60,7 @@ public enum AIProvider: String, CaseIterable, Sendable, Identifiable {
     case .anthropic: "sk-ant-…"
     case .openAI: "sk-…"
     case .gemini: "AIza…"
-    case .compatible: "Key (if the server needs one)"
+    case .compatible: String(localized: "Key (if the server needs one)", bundle: .module, comment: "Placeholder of the API key field in Settings → AI, for an OpenAI-compatible server.")
     }
   }
 
@@ -117,10 +119,10 @@ public enum AIProvider: String, CaseIterable, Sendable, Identifiable {
   /// Where it says what was sent goes (Settings).
   public var privacyNote: String {
     switch self {
-    case .anthropic: "Chats and the sidebar's requests go to Anthropic, or the endpoint under Advanced."
-    case .openAI: "Chats and the sidebar's requests go to OpenAI, under its terms, instead of Anthropic."
-    case .gemini: "Chats and the sidebar's requests go to Google, under the Gemini API's terms, instead of Anthropic."
-    case .compatible: "Chats and the sidebar's requests go to the server below, instead of Anthropic."
+    case .anthropic: String(localized: "Chats and the sidebar's requests go to Anthropic, or the endpoint under Advanced.", bundle: .module, comment: "Settings → AI: privacy note for the Anthropic provider.")
+    case .openAI: String(localized: "Chats and the sidebar's requests go to OpenAI, under its terms, instead of Anthropic.", bundle: .module, comment: "Settings → AI: privacy note for the OpenAI provider.")
+    case .gemini: String(localized: "Chats and the sidebar's requests go to Google, under the Gemini API's terms, instead of Anthropic.", bundle: .module, comment: "Settings → AI: privacy note for the Google Gemini provider.")
+    case .compatible: String(localized: "Chats and the sidebar's requests go to the server below, instead of Anthropic.", bundle: .module, comment: "Settings → AI: privacy note for an OpenAI-compatible server.")
     }
   }
 }

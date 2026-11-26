@@ -108,7 +108,7 @@ struct SettingsView: View {
             HStack {
               SettingsLabel("Archive Inactive Tabs", "archivebox.fill", .purple)
               Spacer()
-              Text(ArchiveAfter.current(app.store.spaces)?.name ?? "Mixed").foregroundStyle(.secondary)
+              Text(ArchiveAfter.current(app.store.spaces)?.name ?? String(localized: "Mixed", comment: "Settings: Archive Inactive Tabs value when spaces have different settings")).foregroundStyle(.secondary)
             }
           }
           NavigationLink { ClearDataView() } label: {
@@ -399,9 +399,9 @@ struct SettingsView: View {
         ForEach(app.sync.profiles) { profile in
           LabeledContent {
             let count = app.sync.spaceCount(profile)
-            Text(count == 1 ? "1 space" : "\(count) spaces")
+            Text("\(count) spaces", comment: "Settings: a synced profile's number of spaces")
           } label: {
-            Text(profile.name.isEmpty ? "Profile" : profile.name)
+            Text(profile.name.isEmpty ? String(localized: "Profile", comment: "Settings: an unnamed synced profile") : profile.name)
             // A profile account that didn't sync (one the Mac hasn't
             // started yet): the others sync on.
             if let problem = app.sync.problem(profile) {
@@ -485,12 +485,12 @@ struct SettingsView: View {
 
   private var status: String {
     switch app.sync.state {
-    case .off: "Off"
-    case .syncing: "Syncing…"
-    case .on: "On"
+    case .off: String(localized: "Off", comment: "Settings: sync status")
+    case .syncing: String(localized: "Syncing…", comment: "Settings: sync status")
+    case .on: String(localized: "On", comment: "Settings: sync status")
     case .failed(let message): message
-    case .removed: "Removed from sync"
-    case .loginRequired: "Sign-in needed"
+    case .removed: String(localized: "Removed from sync", comment: "Settings: sync status")
+    case .loginRequired: String(localized: "Sign-in needed", comment: "Settings: sync status")
     }
   }
 
@@ -502,7 +502,7 @@ struct SettingsView: View {
       return
     }
     // "Compass is trying to show your sync recovery code", as on the Mac.
-    context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "show your sync recovery code") { ok, _ in
+    context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: String(localized: "show your sync recovery code", comment: "Face ID reason, completes “Compass is trying to…”")) { ok, _ in
       if ok { Task { @MainActor in presented = .recovery } }
     }
   }
@@ -547,7 +547,7 @@ enum SettingsSheet: Identifiable {
 struct RecoveryCodeView: View {
   @Environment(\.dismiss) private var dismiss
   let words: [String]
-  var dismissTitle = "Done"
+  var dismissTitle: LocalizedStringKey = "Done"
 
   var body: some View {
     NavigationStack {
@@ -556,7 +556,7 @@ struct RecoveryCodeView: View {
           Text("Save these 12 words somewhere safe, such as a password manager. You only need them if you lose every device that syncs: without them, the synced data is gone.")
           LazyVGrid(columns: [GridItem(), GridItem(), GridItem()], spacing: 12) {
             ForEach(Array(words.enumerated()), id: \.offset) { i, word in
-              Text("\(i + 1). \(word)").font(.body.monospaced()).frame(maxWidth: .infinity, alignment: .leading)
+              Text(verbatim: "\(i + 1). \(word)").font(.body.monospaced()).frame(maxWidth: .infinity, alignment: .leading)
                 .lineLimit(1).minimumScaleFactor(0.7)
             }
           }
@@ -614,7 +614,9 @@ struct AddDeviceView: View {
           if pairing.step == .showingCode, let expiresAt = pairing.expiresAt {
             TimelineView(.periodic(from: .now, by: 1)) { context in
               let left = max(0, Int(expiresAt.timeIntervalSince(context.date).rounded(.up)))
-              Text(left > 0 ? String(format: "Expires in %d:%02d", left / 60, left % 60) : "Expired")
+              Text(left > 0
+                ? String(localized: "Expires in \(left / 60):\(String(format: "%02d", left % 60))", comment: "Add a Device: the pairing code's time left, minutes:seconds")
+                : String(localized: "Expired", comment: "Add a Device: the pairing code expired"))
                 .font(.footnote).monospacedDigit()
                 .foregroundStyle(left <= 30 ? Color.red : Color.secondary)
             }
@@ -706,7 +708,7 @@ struct JoinView: View {
         Text("Server")
       } footer: {
         if let loginProvider {
-          Text("This server requires sign-in with \(loginProvider.isEmpty ? "your company's account" : loginProvider). A chain your Mac already signed in syncs at once; otherwise you'll sign in after joining.")
+          Text("This server requires sign-in with \(loginProvider.isEmpty ? String(localized: "your company's account", comment: "Sync sign-in: the identity provider when the server names none") : loginProvider). A chain your Mac already signed in syncs at once; otherwise you'll sign in after joining.")
         }
       }
       if useRecovery {
@@ -775,7 +777,7 @@ struct JoinView: View {
           code = invite.code.text
           join()
         } else {
-          message = "That QR code isn't a Compass pairing code."
+          message = String(localized: "That QR code isn't a Compass pairing code.", comment: "Join Sync: error")
         }
       }
     }
@@ -790,7 +792,7 @@ struct JoinView: View {
         dismiss()
         app.showingJoinSummary = true
       } catch {
-        message = "Check the 12 words."
+        message = String(localized: "Check the 12 words.", comment: "Join Sync: the recovery code is wrong")
       }
       return
     }
@@ -807,16 +809,16 @@ struct JoinView: View {
         dismiss()
         app.showingJoinSummary = true
       // The desktop's words (JoinResultMessage()).
-      case .denied: message = "Not added: the other device said no."
-      case .badCode: message = "Enter the code as shown, like 7-482913."
-      case .noSuchCode: message = "No such code on this server, or it expired."
-      case .codeUsed: message = "That code was already used. Ask for a new one."
-      case .wrongCode: message = "Wrong code. Ask the other device for a new one."
-      case .canceled: message = "The other device canceled. Ask for a new code."
-      case .closed: message = "The other device ended pairing. Check the code and ask for a new one."
-      case .expired: message = "Code expired. Ask for a new one."
-      case .rateLimited: message = "Too many attempts. Try again in a few minutes."
-      case .failed: message = "Couldn't reach the server."
+      case .denied: message = String(localized: "Not added: the other device said no.", comment: "Join Sync: pairing result")
+      case .badCode: message = String(localized: "Enter the code as shown, like 7-482913.", comment: "Join Sync: pairing result")
+      case .noSuchCode: message = String(localized: "No such code on this server, or it expired.", comment: "Join Sync: pairing result")
+      case .codeUsed: message = String(localized: "That code was already used. Ask for a new one.", comment: "Join Sync: pairing result")
+      case .wrongCode: message = String(localized: "Wrong code. Ask the other device for a new one.", comment: "Join Sync: pairing result")
+      case .canceled: message = String(localized: "The other device canceled. Ask for a new code.", comment: "Join Sync: pairing result")
+      case .closed: message = String(localized: "The other device ended pairing. Check the code and ask for a new one.", comment: "Join Sync: pairing result")
+      case .expired: message = String(localized: "Code expired. Ask for a new one.", comment: "Join Sync: pairing result")
+      case .rateLimited: message = String(localized: "Too many attempts. Try again in a few minutes.", comment: "Join Sync: pairing result")
+      case .failed: message = String(localized: "Couldn't reach the server.", comment: "Join Sync: pairing result")
       }
     }
   }
@@ -869,9 +871,9 @@ struct JoinSummaryView: View {
     let names = app.sync.profiles.map(\.name).filter { !$0.isEmpty }
     let count = max(app.sync.profiles.count, 1)
     let spaces = app.store.spaces.count
-    var text = count == 1 ? "Synced 1 profile" : "Synced \(count) profiles"
+    var text = String(localized: "Synced \(count) profiles", comment: "After joining sync: how many profiles came over")
     if !names.isEmpty { text += ": " + names.joined(separator: ", ") }
-    return text + " · " + (spaces == 1 ? "1 space" : "\(spaces) spaces")
+    return text + " · " + String(localized: "\(spaces) spaces", comment: "Settings: a synced profile's number of spaces")
   }
 }
 
@@ -891,7 +893,7 @@ struct SyncSignIn: View {
   }
 
   private var provider: String {
-    app.sync.loginProvider.flatMap { $0.isEmpty ? nil : $0 } ?? "your company's account"
+    app.sync.loginProvider.flatMap { $0.isEmpty ? nil : $0 } ?? String(localized: "your company's account", comment: "Sync sign-in: the identity provider when the server names none")
   }
 
   var body: some View {
@@ -946,7 +948,7 @@ struct PasswordsView: View {
           } label: {
             VStack(alignment: .leading) {
               Text(p.host)
-              Text((p.isBlocked ? "Never saved" : p.username) + profileSuffix(p)).font(.caption).foregroundStyle(.secondary)
+              Text((p.isBlocked ? String(localized: "Never saved", comment: "Passwords: a site the user chose never to save for") : p.username) + profileSuffix(p)).font(.caption).foregroundStyle(.secondary)
             }
           }
         }
@@ -974,7 +976,7 @@ struct PasswordsView: View {
       unlocked = true
       return
     }
-    context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Show your saved passwords") { ok, _ in
+    context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: String(localized: "Show your saved passwords", comment: "Face ID reason for the Passwords screen")) { ok, _ in
       if ok { Task { @MainActor in unlocked = true } }
     }
   }
@@ -983,11 +985,11 @@ struct PasswordsView: View {
 /// A row's label in Settings: a white glyph on a colored square, then the
 /// title.
 struct SettingsLabel: View {
-  let title: String
+  let title: LocalizedStringKey
   let symbol: String
   let color: Color
 
-  init(_ title: String, _ symbol: String, _ color: Color) {
+  init(_ title: LocalizedStringKey, _ symbol: String, _ color: Color) {
     self.title = title
     self.symbol = symbol
     self.color = color
@@ -1086,10 +1088,12 @@ struct BackgroundRefreshNote: View {
   }
 
   private var footer: String {
-    let only = "Compass syncs only while it's open, so changes from your other devices show up when you open it."
-    if status == .restricted { return only + " It's restricted on this device (Screen Time or device management)." }
-    if lowPower { return only + " Low Power Mode turns it off until it ends." }
-    return only + " Turn it on in Settings › Compass › Background App Refresh."
+    let only = String(localized: "Compass syncs only while it's open, so changes from your other devices show up when you open it.", comment: "Settings: Background App Refresh is off")
+    if status == .restricted {
+      return only + " " + String(localized: "It's restricted on this device (Screen Time or device management).", comment: "Settings: why Background App Refresh is off")
+    }
+    if lowPower { return only + " " + String(localized: "Low Power Mode turns it off until it ends.", comment: "Settings: why Background App Refresh is off") }
+    return only + " " + String(localized: "Turn it on in Settings › Compass › Background App Refresh.", comment: "Settings: how to turn on Background App Refresh")
   }
 }
 
@@ -1163,7 +1167,7 @@ private struct LinkRuleRow: View {
             .foregroundStyle(.white)
             .frame(width: 20, height: 20)
             .background(Circle().fill(space.theme.accent))
-          Text(space.name.isEmpty ? "Space" : space.name).foregroundStyle(.secondary).lineLimit(1)
+          Text(space.name.isEmpty ? String(localized: "Space", comment: "An unnamed space") : space.name).foregroundStyle(.secondary).lineLimit(1)
         }
       } else {
         Label("Space deleted", systemImage: "exclamationmark.triangle.fill")
@@ -1207,7 +1211,7 @@ private struct LinkRuleEditor: View {
           Picker("Space", selection: $draft.spaceID) {
             ForEach(app.store.spaces, id: \.id) { space in
               Label {
-                Text(space.name.isEmpty ? "Space" : space.name)
+                Text(space.name.isEmpty ? String(localized: "Space", comment: "An unnamed space") : space.name)
               } icon: {
                 SpaceIcon(space: space, size: 16).foregroundStyle(space.theme.accent)
               }
@@ -1249,14 +1253,14 @@ private struct LinkRuleEditor: View {
 /// bundled.
 struct ThirdPartyLicensesView: View {
   struct License: Identifiable {
-    let title: String
+    let title: LocalizedStringResource
     let path: String
     var id: String { path }
   }
 
   static let licenses = [
-    License(title: "Firefox's strip-on-share list (MPL 2.0)", path: "strip_on_share/MPL2/LICENSE"),
-    License(title: "Firefox's strip-on-share list, from ClearURLs (LGPL 3.0)", path: "strip_on_share/LGPL/LICENSE"),
+    License(title: LocalizedStringResource("Firefox's strip-on-share list (MPL 2.0)", comment: "Third-party license title"), path: "strip_on_share/MPL2/LICENSE"),
+    License(title: LocalizedStringResource("Firefox's strip-on-share list, from ClearURLs (LGPL 3.0)", comment: "Third-party license title"), path: "strip_on_share/LGPL/LICENSE"),
   ]
 
   var body: some View {
@@ -1298,6 +1302,6 @@ private struct LicenseTextView: View {
   private var text: String {
     Bundle.main.resourceURL.flatMap {
       try? String(contentsOf: $0.appendingPathComponent(license.path), encoding: .utf8)
-    } ?? "The license text is missing from this build."
+    } ?? String(localized: "The license text is missing from this build.", comment: "Third-party licenses: error")
   }
 }

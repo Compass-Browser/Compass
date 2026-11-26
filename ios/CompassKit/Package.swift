@@ -11,6 +11,9 @@ import PackageDescription
 
 let package = Package(
   name: "CompassKit",
+  // User-facing strings: String(localized:bundle: .module) and each target's
+  // Localizable.xcstrings (English and Italian).
+  defaultLocalization: "en",
   platforms: [.iOS(.v17), .macOS(.v14)],
   products: [
     .library(name: "CompassCrypto", targets: ["CompassCrypto"]),
@@ -51,23 +54,29 @@ let package = Package(
       dependencies: [.product(name: "SwiftProtobuf", package: "swift-protobuf")],
       exclude: ["README.md"]
     ),
-    .target(name: "CompassShared"),
-    .target(name: "CompassModel", dependencies: ["CompassShared"]),
+    .target(name: "CompassShared", resources: [.process("Localizable.xcstrings")]),
+    .target(name: "CompassModel", dependencies: ["CompassShared"], resources: [.process("Localizable.xcstrings")]),
     // No dependencies: the Mac's helper builds it with swiftc alone
     // (tools/on_device/BUILD.gn).
     .target(name: "CompassOnDevice"),
-    .target(name: "CompassClaude", dependencies: ["CompassShared", "CompassModel", "CompassOnDevice"]),
-    .target(name: "CompassLiveFolders", resources: [.copy("Resources/jsc_globals.js")]),
-    .target(name: "CompassBoosts"),
-    .target(name: "CompassEasels", dependencies: ["SyncProto"]),
+    .target(
+      name: "CompassClaude", dependencies: ["CompassShared", "CompassModel", "CompassOnDevice"],
+      resources: [.process("Localizable.xcstrings")]),
+    .target(
+      name: "CompassLiveFolders",
+      resources: [.copy("Resources/jsc_globals.js"), .process("Localizable.xcstrings")]),
+    .target(name: "CompassBoosts", resources: [.process("Localizable.xcstrings")]),
+    .target(name: "CompassEasels", dependencies: ["SyncProto"], resources: [.process("Localizable.xcstrings")]),
     // Sharing with other people: the client, the room crypto, and the sync
     // of shared spaces, folders and easels into the sidebar.
     .target(
       name: "CompassRooms",
-      dependencies: ["CompassCrypto", "CompassModel", "CompassEasels", "CompassSync", "SyncProto"]),
+      dependencies: ["CompassCrypto", "CompassModel", "CompassEasels", "CompassSync", "SyncProto"],
+      resources: [.process("Localizable.xcstrings")]),
     .target(
       name: "CompassSync",
-      dependencies: ["CompassCrypto", "SyncProto", "CompassModel", "CompassShared", "CompassClaude", "CompassBoosts", "CompassEasels"]),
+      dependencies: ["CompassCrypto", "SyncProto", "CompassModel", "CompassShared", "CompassClaude", "CompassBoosts", "CompassEasels"],
+      resources: [.process("Localizable.xcstrings")]),
     .testTarget(name: "CompassCryptoTests", dependencies: ["CompassCrypto"]),
     .testTarget(name: "CompassSyncTests", dependencies: ["CompassSync"]),
     .testTarget(name: "CompassModelTests", dependencies: ["CompassModel"]),

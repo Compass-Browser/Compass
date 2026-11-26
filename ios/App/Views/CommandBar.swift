@@ -56,7 +56,9 @@ struct CommandBar: View {
           }
           if !text.isEmpty {
             Card {
-              Row(title: Self.short(text), subtitle: looksLikeURL ? "Open address" : "Search \(SearchEngine.current.name)",
+              Row(title: Self.short(text), subtitle: looksLikeURL
+                    ? String(localized: "Open address", comment: "Command bar row subtitle: go to the typed address.")
+                    : String(localized: "Search \(SearchEngine.current.name)", comment: "Command bar row subtitle: search with the search engine, e.g. Search Google."),
                   trailing: found.named.isEmpty ? "return" : "arrow.right", action: { go(text) }) {
                 Image(systemName: looksLikeURL ? "globe" : "magnifyingglass")
                   .font(.system(size: 15, weight: .semibold))
@@ -69,8 +71,8 @@ struct CommandBar: View {
           }
           // As Safari: the typed text, found on the shown page.
           if replacing != nil, !text.isEmpty, text != replacing?.url {
-            CardSection("On this page") {
-              Row(title: "Find “\(text)”", subtitle: Self.short(replacing?.url ?? ""), trailing: "arrow.right",
+            CardSection(String(localized: "On this page", comment: "Command bar section: find the typed text on the shown page.")) {
+              Row(title: String(localized: "Find “\(text)”", comment: "Command bar row: find the typed text on the page."), subtitle: Self.short(replacing?.url ?? ""), trailing: "arrow.right",
                   action: {
                     dismiss()
                     app.findOnPage(text)
@@ -84,7 +86,7 @@ struct CommandBar: View {
             .padding(.bottom, 4)
           }
           if !matches.isEmpty {
-            CardSection(text.isEmpty ? "Today" : "Switch to tab") {
+            CardSection(text.isEmpty ? String(localized: "Today", comment: "Command bar section: the space's Today tabs.") : String(localized: "Switch to tab", comment: "Command bar section: open tabs matching the text.")) {
               ForEach(matches) { node in
                 Row(title: node.displayTitle, subtitle: spaceName(node), trailing: "arrow.right",
                     action: { app.show(node); dismiss() }) { SiteTile(url: node.url) }
@@ -93,7 +95,7 @@ struct CommandBar: View {
           }
           let pages = app.sync.history.search(text, limit: 8, profile: account)
           if !pages.isEmpty {
-            CardSection(text.isEmpty ? "Recently visited" : "History") {
+            CardSection(text.isEmpty ? String(localized: "Recently visited", comment: "Command bar section: recent history.") : String(localized: "History", comment: "Command bar section: history matching the text.")) {
               ForEach(pages) { page in
                 Row(title: page.title.isEmpty ? Self.short(page.url) : page.title,
                     subtitle: Self.short(page.url), action: { go(page.url) }) { SiteTile(url: page.url) }
@@ -108,7 +110,7 @@ struct CommandBar: View {
                 || $0.url.localizedCaseInsensitiveContains(text)
             }
             if !tabs.isEmpty {
-              CardSection("On \(session.name)") {
+              CardSection(String(localized: "On \(session.name)", comment: "Command bar section: tabs open on another device, e.g. On Mac.")) {
                 ForEach(tabs.prefix(text.isEmpty ? 5 : 20)) { tab in
                   Row(title: tab.title.isEmpty ? Self.short(tab.url) : tab.title,
                       subtitle: Self.short(tab.url), action: { app.open(tab.url); dismiss() }) {
@@ -119,7 +121,7 @@ struct CommandBar: View {
             }
           }
           if !found.others.isEmpty {
-            CardSection("Commands") {
+            CardSection(String(localized: "Commands", comment: "Command bar section: commands matching the text.")) {
               ForEach(found.others) { commandRow($0, returnRuns: false) }
             }
           }
@@ -358,31 +360,35 @@ struct CommandBar: View {
     let view = tab.flatMap { app.tabs.live[$0.id] }
     let page = view?.url ?? tab.flatMap { URL(string: $0.url) }
     if tab != nil {
-      list.append(Command(title: "Find on Page", subtitle: "Search the shown page",
+      list.append(Command(title: String(localized: "Find on Page", comment: "Command bar command."),
+                          subtitle: String(localized: "Search the shown page", comment: "Command bar subtitle of the command Find on Page."),
                           symbol: "doc.text.magnifyingglass", color: .blue) {
         dismiss()
         app.findOnPage()
       })
     }
     if view != nil {
-      list.append(Command(title: "Reload", subtitle: "Load the page again", symbol: "arrow.clockwise", color: .gray) {
+      list.append(Command(title: String(localized: "Reload", comment: "Command bar command."),
+                          subtitle: String(localized: "Load the page again", comment: "Command bar subtitle of the command Reload."), symbol: "arrow.clockwise", color: .gray) {
         DevMode.shared.reload(view)
         dismiss()
       })
     }
     if let page {
-      list.append(Command(title: "Copy Link", subtitle: Self.short(page.absoluteString), symbol: "link", color: .blue) {
+      list.append(Command(title: String(localized: "Copy Link", comment: "Command bar command."), subtitle: Self.short(page.absoluteString), symbol: "link", color: .blue) {
         CopyLink.copy(page)
         dismiss()
       })
     }
     if app.shownReader != nil {
-      list.append(Command(title: "Leave Reader", subtitle: "Back to the page", symbol: "book", color: .brown) {
+      list.append(Command(title: String(localized: "Leave Reader", comment: "Command bar command."),
+                          subtitle: String(localized: "Back to the page", comment: "Command bar subtitle of the command Leave Reader."), symbol: "book", color: .brown) {
         app.toggleReader()
         dismiss()
       })
     } else if app.canShowReader {
-      list.append(Command(title: "Reader", subtitle: "Read the article, without the rest", symbol: "book",
+      list.append(Command(title: String(localized: "Reader", comment: "Command bar command."),
+                          subtitle: String(localized: "Read the article, without the rest", comment: "Command bar subtitle of the command Reader."), symbol: "book",
                           color: .brown) {
         app.toggleReader()
         dismiss()
@@ -393,7 +399,7 @@ struct CommandBar: View {
     if let tab, let space = app.store.space(of: tab), !space.isIncognito,
       tab.section == .today || tab.section == .pinned, tab.parent?.isSplit != true {
       let pinned = tab.section == .pinned
-      list.append(Command(title: pinned ? "Unpin Tab" : "Pin Tab", subtitle: tab.displayTitle,
+      list.append(Command(title: pinned ? String(localized: "Unpin Tab", comment: "Command bar command.") : String(localized: "Pin Tab", comment: "Command bar command."), subtitle: tab.displayTitle,
                           symbol: pinned ? "pin.slash" : "pin", color: .orange) {
         withAnimation(SidebarStyle.motion) {
           if pinned {
@@ -407,7 +413,8 @@ struct CommandBar: View {
     }
     if DevMode.shared.canToggle(page) {
       let on = DevMode.shared.isOn(page)
-      list.append(Command(title: on ? "Leave Development Mode" : "Development Mode for This Site",
+      list.append(Command(title: on ? String(localized: "Leave Development Mode", comment: "Command bar command.")
+                            : String(localized: "Development Mode for This Site", comment: "Command bar command."),
                           subtitle: page?.host() ?? "", symbol: "chevron.left.forwardslash.chevron.right",
                           color: .gray) {
         DevMode.shared.toggle(page)
@@ -415,34 +422,40 @@ struct CommandBar: View {
       })
     }
     if let space = app.selectedSpace, app.tidier.canTidy(space) {
-      list.append(Command(title: "Tidy Today", subtitle: "Group Today's entries into folders", symbol: "sparkles",
+      list.append(Command(title: String(localized: "Tidy Today", comment: "Command bar command."),
+                          subtitle: String(localized: "Group Today's entries into folders", comment: "Command bar subtitle of the command Tidy Today."), symbol: "sparkles",
                           color: .orange) {
         app.tidyToday(space)
         dismiss()
       })
     }
     if !app.isIncognito {
-      list.append(Command(title: "Chat with \(ClaudeSettings.shared.provider.assistantName)", subtitle: "Open the chat",
+      list.append(Command(title: String(localized: "Chat with \(ClaudeSettings.shared.provider.assistantName)", comment: "Command bar command; the assistant's name, e.g. Chat with Claude."),
+                          subtitle: String(localized: "Open the chat", comment: "Command bar subtitle of Chat with Claude."),
                           symbol: "bubble.left.and.text.bubble.right", color: .orange) {
         present { app.showingClaude = true }
       })
-      list.append(Command(title: "New Incognito Tab", subtitle: "Nothing is remembered", symbol: "eyeglasses",
+      list.append(Command(title: String(localized: "New Incognito Tab", comment: "Command bar command."),
+                          subtitle: String(localized: "Nothing is remembered", comment: "Command bar subtitle of the command New Incognito Tab."), symbol: "eyeglasses",
                           color: .indigo) {
         present { app.openIncognitoTab() }
       })
     }
     if app.services.closed.canUndo {
-      list.append(Command(title: "Reopen Closed Tab", subtitle: "Undo the last close",
+      list.append(Command(title: String(localized: "Reopen Closed Tab", comment: "Command bar command."),
+                          subtitle: String(localized: "Undo the last close", comment: "Command bar subtitle of the command Reopen Closed Tab."),
                           symbol: "arrow.uturn.backward", color: .blue) {
         app.undoClose()
         dismiss()
       })
     }
-    list.append(Command(title: "Downloads", subtitle: "Files saved from pages", symbol: "arrow.down.circle",
+    list.append(Command(title: String(localized: "Downloads", comment: "Command bar command."),
+                          subtitle: String(localized: "Files saved from pages", comment: "Command bar subtitle of the command Downloads."), symbol: "arrow.down.circle",
                         color: .blue) {
       present { app.showingDownloads = true }
     })
-    list.append(Command(title: "Settings", subtitle: "Sync, passwords, search engine", symbol: "gearshape.fill",
+    list.append(Command(title: String(localized: "Settings", comment: "Command bar command."),
+                          subtitle: String(localized: "Sync, passwords, search engine", comment: "Command bar subtitle of the command Settings."), symbol: "gearshape.fill",
                         color: .gray) {
       present { app.showingSettings = true }
     })
@@ -480,8 +493,11 @@ struct CommandBar: View {
   }
 
   private func spaceName(_ node: SidebarNode) -> String {
-    if node.section == .favorites { return "Favorites" }
-    return "\(app.store.space(of: node)?.name ?? "") · \(node.section == .pinned ? "Pinned" : "Today")"
+    if node.section == .favorites { return String(localized: "Favorites", comment: "Command bar row subtitle: the tab is a favorite.") }
+    let section = node.section == .pinned
+      ? String(localized: "Pinned", comment: "Command bar row subtitle: the tab's sidebar section.")
+      : String(localized: "Today", comment: "Command bar row subtitle: the tab's sidebar section.")
+    return "\(app.store.space(of: node)?.name ?? "") · \(section)"
   }
 
   /// An address without its scheme, "www." or trailing slash.

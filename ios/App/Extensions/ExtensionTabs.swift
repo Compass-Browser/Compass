@@ -176,26 +176,32 @@ final class ExtensionWindow: NSObject, WKWebExtensionWindow {
 enum ExtensionPermissions {
   static func describe(_ permission: WKWebExtension.Permission) -> String {
     switch permission {
-    case .tabs, .webNavigation: "see the pages you visit"
-    case .cookies: "read and change cookies"
-    case .declarativeNetRequest, .declarativeNetRequestWithHostAccess: "block content on pages"
-    case .declarativeNetRequestFeedback: "see what it blocked"
-    case .clipboardWrite: "copy to the clipboard"
-    case .nativeMessaging: "talk to other apps"
-    case .scripting: "run scripts on pages it can reach"
-    case .activeTab: "reach the page when you use it"
-    case .contextMenus, .menus: "add to menus"
-    case .alarms, .storage, .unlimitedStorage: "store data"
+    case .tabs, .webNavigation: String(localized: "see the pages you visit", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet.")
+    case .cookies: String(localized: "read and change cookies", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet.")
+    case .declarativeNetRequest, .declarativeNetRequestWithHostAccess: String(localized: "block content on pages", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet.")
+    case .declarativeNetRequestFeedback: String(localized: "see what it blocked", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet.")
+    case .clipboardWrite: String(localized: "copy to the clipboard", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet.")
+    case .nativeMessaging: String(localized: "talk to other apps", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet.")
+    case .scripting: String(localized: "run scripts on pages it can reach", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet.")
+    case .activeTab: String(localized: "reach the page when you use it", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet.")
+    case .contextMenus, .menus: String(localized: "add to menus", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet.")
+    case .alarms, .storage, .unlimitedStorage: String(localized: "store data", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet.")
     default: permission.rawValue
     }
   }
 
   static func describe(_ patterns: Set<WKWebExtension.MatchPattern>) -> String {
-    if patterns.contains(where: { $0.matchesAllHosts }) { return "read and change your data on all websites" }
+    if patterns.contains(where: { $0.matchesAllHosts }) { return String(localized: "read and change your data on all websites", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet.") }
     let hosts = Set(patterns.compactMap { $0.host }).sorted()
-    if hosts.isEmpty { return "read and change data on some websites" }
+    if hosts.isEmpty { return String(localized: "read and change data on some websites", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet.") }
     let shown = hosts.prefix(3).joined(separator: ", ")
-    return "read and change your data on \(shown)" + (hosts.count > 3 ? " and \(hosts.count - 3) more" : "")
+    guard hosts.count > 3 else {
+      return String(localized: "read and change your data on \(shown)", comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet. The argument lists up to three sites.")
+    }
+    let more = String(localized: "and \(hosts.count - 3) more", comment: "After a list of three sites: how many more there are.")
+    return String(
+      localized: "read and change your data on \(shown) \(more)",
+      comment: "An extension permission, after “<extension> wants to” or as a line of its install sheet. The arguments: up to three sites, then “and 2 more”.")
   }
 
   /// Whether `next` asks for permissions or sites `current` doesn't have.

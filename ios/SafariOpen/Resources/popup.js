@@ -7,6 +7,12 @@
 // in Compass's Inbox; the tab then goes to compass://inbox, which brings
 // Compass up (Safari asks once).
 
+// Text in the browser's language (_locales), English when it has none.
+const t = (name, ...args) => browser.i18n.getMessage(name, args) || name;
+for (const el of document.querySelectorAll("[data-i18n]")) {
+  el.textContent = t(el.dataset.i18n);
+}
+
 const native = (message) => browser.runtime.sendNativeMessage("it.cipi1965.compass", message);
 
 async function activeTab() {
@@ -23,19 +29,19 @@ function note(text) {
 async function send(action, spaceID, spaceName) {
   const tab = await activeTab();
   if (!tab || !/^https?:/.test(tab.url || "")) {
-    note("Only web pages can go to Compass.");
+    note(t("only_web_pages"));
     return;
   }
   const reply = await native({ action, url: tab.url, title: tab.title || "", spaceID });
   if (!reply || !reply.ok) {
-    note("Compass couldn't take the page.");
+    note(t("page_not_taken"));
     return;
   }
   if (action === "open") {
     await browser.tabs.update(tab.id, { url: "compass://inbox" });
     window.close();
   } else {
-    note(`Pinned in ${spaceName}.`);
+    note(t("pinned_in", spaceName));
     setTimeout(() => window.close(), 900);
   }
 }

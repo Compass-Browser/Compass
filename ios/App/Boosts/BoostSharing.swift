@@ -92,8 +92,10 @@ enum BoostSharing {
     guard !previewing else { return }
     switch result {
     case .failure(let failure):
-      let alert = UIAlertController(title: "Can't Add Boost", message: failure.description, preferredStyle: .alert)
-      alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in previewing = false })
+      let alert = UIAlertController(
+        title: String(localized: "Can't Add Boost", comment: "Alert title when a shared Boost link or file can't be added."),
+        message: failure.description, preferredStyle: .alert)
+      alert.addAction(UIAlertAction(title: String(localized: "OK", comment: "Button that closes the alert."), style: .default) { _ in previewing = false })
       previewing = Presenter.present(alert)
     case .success(let shared):
       var controller: UIViewController?
@@ -169,11 +171,9 @@ struct BoostImportPreview: View {
         LabeledContent("Site", value: site)
       } footer: {
         Text(
-          "Add makes it a new Boost, turned on, in this device's Boosts"
-            + (incognito
-              ? ", not just in this Incognito tab: it stays after Incognito closes, and applies in your other tabs, not Incognito ones"
-              : "")
-            + ". When your spaces sync, it syncs with them like your other Boosts.")
+          incognito
+            ? "Add makes it a new Boost, turned on, in this device's Boosts, not just in this Incognito tab: it stays after Incognito closes, and applies in your other tabs, not Incognito ones. When your spaces sync, it syncs with them like your other Boosts."
+            : "Add makes it a new Boost, turned on, in this device's Boosts. When your spaces sync, it syncs with them like your other Boosts.")
       }
       if !shared.js.isEmpty {
         Section {
@@ -196,7 +196,7 @@ struct BoostImportPreview: View {
         Section("CSS") { code(shared.css) }
       }
       if !shared.js.isEmpty {
-        Section(shared.jsWorld == .main ? "JavaScript (in the page)" : "JavaScript (apart from the page)") {
+        Section(shared.jsWorld == .main ? LocalizedStringKey("JavaScript (in the page)") : "JavaScript (apart from the page)") {
           code(shared.js)
         }
       }
@@ -228,7 +228,7 @@ struct BoostImportPreview: View {
   private func add() {
     switch store.addShared(shared) {
     case .success(let boost):
-      AppServices.shared.active?.showMessage("Added “\(boost.name)” to Boosts")
+      AppServices.shared.active?.showMessage(String(localized: "Added “\(boost.name)” to Boosts", comment: "Message after a shared Boost is added; the argument is its name."))
       done()
     case .failure(let failure):
       error = failure.description
@@ -290,7 +290,9 @@ struct BoostImportView: View {
   private func showLink() {
     let text = link.trimmingCharacters(in: .whitespacesAndNewlines)
     guard let url = URL(string: text), let fragment = AppLinks.boostShareFragment(url) else {
-      error = "That isn't a link to a shared Boost. It starts with \(SharedBoost.linkPrefix)"
+      error = String(
+        localized: "That isn't a link to a shared Boost. It starts with \(SharedBoost.linkPrefix)",
+        comment: "Error under the Import Boost link field; the argument is the link prefix (a URL).")
       return
     }
     show(SharedBoost.decode(fragment: fragment))

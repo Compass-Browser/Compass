@@ -87,7 +87,7 @@ public final class ClosedEntries {
     public var title: String {
       if entries.count == 1, let node = entries.first?.node, !node.isSplit { return "“\(node.displayTitle)”" }
       let tabs = entries.reduce(0) { $0 + max($1.node.tabs.count, 1) }
-      return tabs == 1 ? "1 tab" : "\(tabs) tabs"
+      return String(localized: "\(tabs) tabs", bundle: .module, comment: "Undo toast and shake alert: how many tabs were closed, in “Closed <this>”.")
     }
   }
 

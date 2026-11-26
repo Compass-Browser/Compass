@@ -192,16 +192,19 @@ struct EmptyWidgetView: View {
 enum Sample {
   static let snapshot: Snapshot = {
     let entries = [
-      ("Mail", "https://mail.example.com"), ("Calendar", "https://calendar.example.com"),
-      ("Docs", "https://docs.example.com"), ("News", "https://news.example.com"),
-      ("Music", "https://music.example.com"), ("Maps", "https://maps.example.com"),
+      (String(localized: "Mail", comment: "Sample tab title in the widget gallery."), "https://mail.example.com"),
+      (String(localized: "Calendar", comment: "Sample tab title in the widget gallery."), "https://calendar.example.com"),
+      (String(localized: "Docs", comment: "Sample tab title in the widget gallery."), "https://docs.example.com"),
+      (String(localized: "News", comment: "Sample tab title in the widget gallery."), "https://news.example.com"),
+      (String(localized: "Music", comment: "Sample tab title in the widget gallery."), "https://music.example.com"),
+      (String(localized: "Maps", comment: "Sample tab title in the widget gallery."), "https://maps.example.com"),
     ].enumerated().map { Entry(id: "\($0.offset)", title: $0.element.0, url: $0.element.1) }
     let space = SpaceInfo(
-      id: "sample", name: "Home", icon: .symbol("house.fill"),
+      id: "sample", name: String(localized: "Home", comment: "Sample space name in the widget gallery."), icon: .symbol("house.fill"),
       style: SpaceStyle(stops: [0x5E7FD6, 0x8E6FD0], opacity: 0.34, accent: 0x4F7BEA),
       favorites: Array(entries.prefix(4)), pinned: Array(entries.suffix(4)), today: entries.reversed(),
       todayCount: entries.count)
-    let mac = DeviceTabs(id: "mac", name: "MacBook", kind: "desktop", modified: Date(), tabs: Array(entries.prefix(5)))
+    let mac = DeviceTabs(id: "mac", name: String(localized: "MacBook", comment: "Sample device name in the widget gallery."), kind: "desktop", modified: Date(), tabs: Array(entries.prefix(5)))
     return Snapshot(spaces: [space], recentSpaceIDs: ["sample"], devices: [mac], syncOn: true)
   }()
 }

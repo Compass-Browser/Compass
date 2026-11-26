@@ -150,7 +150,9 @@ final class ClaudeSettings {
     if sidebarOnDevice && ClaudeQuick.onDeviceFeatures.contains(feature) {
       return onDeviceAvailability.reason ?? ""
     }
-    return "Needs AI set up: save an API key (or a server) above."
+    return String(
+      localized: "Needs AI set up: save an API key (or a server) above.",
+      comment: "Settings → AI: why a sidebar feature is off.")
   }
 
   /// What "Test connection" listed, else the known models.
@@ -321,7 +323,7 @@ final class ClaudeSettings {
 
   /// The same for another picker's choice (a sidebar feature's model).
   func pickerModels(including chosen: String) -> [ClaudeModel] {
-    if chosen.isEmpty { return [ClaudeModel(id: "", displayName: "Same as Chat")] + models }
+    if chosen.isEmpty { return [ClaudeModel(id: "", displayName: String(localized: "Same as Chat", comment: "Settings → AI: a sidebar feature's model picker, using the chat's model."))] + models }
     return models.contains { $0.id == chosen } ? models : [ClaudeModel(id: chosen, displayName: chosen)] + models
   }
 

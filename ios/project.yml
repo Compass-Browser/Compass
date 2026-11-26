@@ -7,6 +7,9 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
+  # English, and Italian from the String Catalogs (Localizable.xcstrings,
+  # InfoPlist.xcstrings); XcodeGen takes knownRegions from them.
+  developmentLanguage: en
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -368,6 +371,8 @@ targets:
     platform: iOS
     sources:
       - path: SafariOpen/SafariWebExtensionHandler.swift
+      # Its name in Italian (Settings → Apps → Safari → Extensions).
+      - path: SafariOpen/InfoPlist.xcstrings
       # At the bundle's root, as Safari wants them; images/ and _locales/
       # keep their folders.
       - path: SafariOpen/Resources

@@ -13,14 +13,14 @@ enum HomeQuickActions {
 
   @MainActor static func update(_ snapshot: Snapshot) {
     var items = [
-      item("New Tab", symbol: "plus", link: .newTab(space: nil)),
-      item("New Incognito Tab", symbol: "eyeglasses", link: .incognito),
-      item("Search", symbol: "magnifyingglass", link: .search),
+      item(String(localized: "New Tab", comment: "Home Screen quick action."), symbol: "plus", link: .newTab(space: nil)),
+      item(String(localized: "New Incognito Tab", comment: "Home Screen quick action."), symbol: "eyeglasses", link: .incognito),
+      item(String(localized: "Search", comment: "Home Screen quick action."), symbol: "magnifyingglass", link: .search),
     ]
     for space in snapshot.recentSpaces(3) {
       let symbol =
         if case .symbol(let name) = space.icon { name } else { "square.stack" }
-      items.append(item(space.name, symbol: symbol, link: .space(space.id), subtitle: "Space"))
+      items.append(item(space.name, symbol: symbol, link: .space(space.id), subtitle: String(localized: "Space", comment: "Home Screen quick action's subtitle under a space's name.")))
     }
     UIApplication.shared.shortcutItems = items
   }

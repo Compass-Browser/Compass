@@ -15,7 +15,10 @@ struct SiteSettingsView: View {
   var body: some View {
     NavigationStack {
       Form {
-        Section(site.map { "\($0) settings" } ?? "Every site") {
+        Section(
+          site.map { String(localized: "\($0) settings", comment: "Site Settings: section title; the site's host") }
+            ?? String(localized: "Every site", comment: "Global Site Settings: section title")
+        ) {
           toggle(.blockAds, "Block Ads and Trackers", "hand.raised.fill", .red)
           toggle(.blockCookieBanners, "Block Cookie Banners", "checkmark.shield.fill", .orange)
         }
@@ -75,7 +78,7 @@ struct SiteSettingsView: View {
     }
   }
 
-  private func toggle(_ option: SiteSettings.Option, _ title: String, _ symbol: String, _ color: Color) -> some View {
+  private func toggle(_ option: SiteSettings.Option, _ title: LocalizedStringKey, _ symbol: String, _ color: Color) -> some View {
     Toggle(isOn: Binding(
       get: { app.siteSettings.value(option, site: site) },
       set: { app.siteSettings.set(option, $0, site: site) })

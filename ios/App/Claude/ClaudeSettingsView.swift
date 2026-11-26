@@ -153,27 +153,40 @@ struct ClaudeSettingsView: View {
           .accessibilityIdentifier("ClaudeSidebarAnswerWith")
         }
         feature(
-          ClaudeQuick.nameLinkFoldersKey, title: "Name Link Folders",
-          description:
+          ClaudeQuick.nameLinkFoldersKey,
+          title: String(localized: "Name Link Folders", comment: "Settings → AI: a sidebar feature's switch."),
+          description: String(
+            localized:
             "The AI names the folders that gather a page's links, from their tabs' titles and sites, and folder menus offer “Suggest a Name”. Each new name can be undone from the folder's menu.",
+            comment: "Settings → AI: what Name Link Folders does."),
           isOn: $settings.nameLinkFolders, model: $settings.nameLinkFoldersModel,
           identifier: "ClaudeNameLinkFolders")
         feature(
-          ClaudeQuick.tidyTodayKey, title: "Tidy Today",
-          description:
+          ClaudeQuick.tidyTodayKey,
+          title: String(localized: "Tidy Today", comment: "Settings → AI: a sidebar feature's switch."),
+          description: String(
+            localized:
             "Today's header offers “Tidy”: the AI groups Today's loose tabs into named folders, from their titles and sites. “Undo” puts everything back.",
+            comment: "Settings → AI: what Tidy Today does."),
           isOn: $settings.tidyToday, model: $settings.tidyTodayModel,
           identifier: "ClaudeTidyToday")
         feature(
-          ClaudeQuick.shortTabTitlesKey, title: "Shorter Tab Titles",
-          description:
+          ClaudeQuick.shortTabTitlesKey,
+          title: String(localized: "Shorter Tab Titles", comment: "Settings → AI: a sidebar feature's switch."),
+          description: String(
+            localized:
             "Long tab titles read as short ones in the sidebar, “PR #123: fix login” for a pull request's whole title. Only in the sidebar's rows, never saved or synced; a name you give a tab wins.",
+            comment: "Settings → AI: what Shorter Tab Titles does."),
           isOn: $settings.shortTabTitles, model: $settings.shortTabTitlesModel,
           identifier: "ClaudeShortTabTitles")
         feature(
-          ClaudeQuick.commandBarAskKey, title: "Answer Questions in the Command Bar",
-          description:
+          ClaudeQuick.commandBarAskKey,
+          title: String(
+            localized: "Answer Questions in the Command Bar", comment: "Settings → AI: a sidebar feature's switch."),
+          description: String(
+            localized:
             "A question typed in the command bar gets an “\(settings.provider.askTitle)” row, and a short answer under the field; “Continue in Chat” goes on from there. “About this page” sends the page's title and site, never what it contains.",
+            comment: "Settings → AI: what Answer Questions in the Command Bar does; the argument is the row's title, like “Ask Claude”."),
           isOn: $settings.commandBarAsk, model: $settings.commandBarAskModel,
           identifier: "ClaudeCommandBarAsk")
       } header: {
@@ -218,8 +231,10 @@ struct ClaudeSettingsView: View {
           LabeledContent(
             "Folder",
             value: settings.folderName
-              ?? (settings.fileAccess == .save ? ClaudeSettings.documentsName : "None"))
-          Button(settings.folderName == nil ? "Choose a Folder…" : "Choose Another Folder…") { pickingFolder = true }
+              ?? (settings.fileAccess == .save
+                ? String(localized: "Downloads", comment: "Settings → AI → Files: the folder the AI saves to by default (the app's Downloads folder).")
+                : String(localized: "None", comment: "Settings → AI → Files: no folder chosen.")))
+          Button(settings.folderName == nil ? LocalizedStringKey("Choose a Folder…") : "Choose Another Folder…") { pickingFolder = true }
           if settings.folderName != nil, settings.fileAccess == .save {
             Button("Use Downloads") { settings.clearFolder() }
           }
@@ -260,7 +275,12 @@ struct ClaudeSettingsView: View {
     .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
       switch result {
       case .success(let url):
-        folderError = settings.setFolder(url) ? nil : "Compass can't keep access to that folder."
+        folderError =
+          settings.setFolder(url)
+          ? nil
+          : String(
+            localized: "Compass can't keep access to that folder.",
+            comment: "Settings → AI → Files: error after choosing a folder.")
       case .failure(let error):
         folderError = error.localizedDescription
       }
@@ -270,26 +290,47 @@ struct ClaudeSettingsView: View {
   private var keyFooter: String {
     switch settings.provider {
     case .anthropic:
-      return "An Anthropic API key from console.anthropic.com, or a key for the endpoint under Advanced. It stays in this device's Keychain. A token from `claude setup-token` uses your Claude subscription, only with the risks below accepted."
+      return String(
+        localized:
+          "An Anthropic API key from console.anthropic.com, or a key for the endpoint under Advanced. It stays in this device's Keychain. A token from `claude setup-token` uses your Claude subscription, only with the risks below accepted.",
+        comment: "Settings → AI: footer under the API Key field.")
     case .openAI:
-      return "An OpenAI API key from platform.openai.com (a ChatGPT subscription can't be used). It stays in this device's Keychain. Compass's prompts and tools are made for Claude: other models may use the browser less well."
+      return String(
+        localized:
+          "An OpenAI API key from platform.openai.com (a ChatGPT subscription can't be used). It stays in this device's Keychain. Compass's prompts and tools are made for Claude: other models may use the browser less well.",
+        comment: "Settings → AI: footer under the API Key field.")
     case .gemini:
-      return "A Gemini API key from aistudio.google.com. It stays in this device's Keychain. Compass's prompts and tools are made for Claude: other models may use the browser less well."
+      return String(
+        localized:
+          "A Gemini API key from aistudio.google.com. It stays in this device's Keychain. Compass's prompts and tools are made for Claude: other models may use the browser less well.",
+        comment: "Settings → AI: footer under the API Key field.")
     case .compatible:
-      return "The server's key, if it needs one. It stays in this device's Keychain."
+      return String(
+        localized:
+          "The server's key, if it needs one. It stays in this device's Keychain.",
+        comment: "Settings → AI: footer under the API Key field.")
     }
   }
 
   private var filesFooter: String {
     switch settings.fileAccess {
     case .off:
-      return "The AI can't save, read or write files."
+      return String(
+        localized:
+          "The AI can't save, read or write files.",
+        comment: "Settings → AI: footer under Files, for what the AI may do with files.")
     case .save:
-      return "The AI can save new files it makes for you, like notes or a table, in the folder; it never replaces one. You see each file and allow it first."
+      return String(
+        localized:
+          "The AI can save new files it makes for you, like notes or a table, in the folder; it never replaces one. You see each file and allow it first.",
+        comment: "Settings → AI: footer under Files, for what the AI may do with files.")
     case .folder:
       return settings.folderName == nil
-        ? "Choose the folder the AI may use."
-        : "The AI can list and read the files in the folder, and save and change them after you allow each one. Files can contain text written to trick it: use a folder with only what the task needs."
+        ? String(localized: "Choose the folder the AI may use.", comment: "Settings → AI: footer under Files, for what the AI may do with files.")
+        : String(
+          localized:
+            "The AI can list and read the files in the folder, and save and change them after you allow each one. Files can contain text written to trick it: use a folder with only what the task needs.",
+          comment: "Settings → AI: footer under Files, for what the AI may do with files.")
     }
   }
 
@@ -321,7 +362,9 @@ struct ClaudeSettingsView: View {
       switch result {
       case .success(let models):
         testOK = true
-        testResult = "Connected: \(models.count) model\(models.count == 1 ? "" : "s") available."
+        testResult = String(
+          localized: "Connected: \(models.count) models available.",
+          comment: "Settings → AI: Test Connection's result; the argument is how many models the server lists.")
         if !models.isEmpty { settings.models = models }
       case .failure(let error):
         testOK = false
@@ -345,7 +388,9 @@ struct ClaudeFeatureRow: View {
   /// Intelligence is available.
   let ready: Bool
   /// Why not, when not `ready`.
-  var notReady = "Needs AI set up: save an API key (or a server) above."
+  var notReady = String(
+    localized: "Needs AI set up: save an API key (or a server) above.",
+    comment: "Settings → AI: why a sidebar feature is off.")
   /// Apple Intelligence answers it: no model to pick.
   var showsModel = true
   let identifier: String

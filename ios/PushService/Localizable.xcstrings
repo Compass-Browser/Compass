@@ -1,0 +1,50 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "A tab was sent to another of your devices." : {
+      "comment" : "Notification body when the sent tab couldn't be read.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "È stata inviata una scheda a un altro dei tuoi dispositivi."
+          }
+        }
+      }
+    },
+    "Tab from %@" : {
+      "comment" : "Notification title: a tab sent from the named device.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scheda da %@"
+          }
+        }
+      }
+    },
+    "Tab from another device" : {
+      "comment" : "Notification title: a tab sent from a device with no name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scheda da un altro dispositivo"
+          }
+        }
+      }
+    },
+    "Tab sent" : {
+      "comment" : "Notification title when the sent tab couldn't be read.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scheda inviata"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

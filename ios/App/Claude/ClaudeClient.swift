@@ -45,7 +45,7 @@ enum ClaudeClient {
       func pass(_ name: String, _ data: String) async -> String? {
         switch name {
         case "error":
-          return JSONValue.parse(data)?["error"]?["message"]?.string ?? "The reply failed."
+          return JSONValue.parse(data)?["error"]?["message"]?.string ?? String(localized: "The reply failed.", comment: "Claude chat: error shown when the reply failed without a message.")
         case "message_stop":
           stopped = true
         default:
@@ -69,7 +69,7 @@ enum ClaudeClient {
       if openAI {
         for translated in translator.finish() { _ = await pass(translated.name, translated.data) }
       }
-      return stopped || Task.isCancelled ? nil : "The reply ended early. Try again."
+      return stopped || Task.isCancelled ? nil : String(localized: "The reply ended early. Try again.", comment: "Claude chat: error shown when the reply stopped before its end.")
     } catch is CancellationError {
       return nil
     } catch let error as URLError where error.code == .cancelled {
@@ -87,7 +87,7 @@ enum ClaudeClient {
       guard status == 200 else {
         return .failure(ClaudeError(ClaudeEndpoint.describeError(status: status, body: data, provider: endpoint.provider)))
       }
-      guard let models = ClaudeEndpoint.parseModels(data, provider: endpoint.provider) else { return .failure(ClaudeError("The server's answer wasn't a model list.")) }
+      guard let models = ClaudeEndpoint.parseModels(data, provider: endpoint.provider) else { return .failure(ClaudeError(String(localized: "The server's answer wasn't a model list.", comment: "Settings → AI: Test Connection's error."))) }
       return .success(models)
     } catch {
       return .failure(ClaudeError(ClaudeEndpoint.describeError(status: 0, body: Data())))

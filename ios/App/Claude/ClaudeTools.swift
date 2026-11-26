@@ -195,7 +195,11 @@ final class ClaudeTools {
         guard ClaudeFiles.isValidName(fileName) else { return .error(ClaudeFiles.Failure.badName.description) }
         guard content.count <= ClaudeFiles.maxChars else { return .error(ClaudeFiles.Failure.tooLong.description) }
         let approval = Approval(
-          tool: name, title: "Save “\(fileName)” in \(folder.name)", detail: ClaudeFiles.preview(content))
+          tool: name,
+          title: String(
+            localized: "Save “\(fileName)” in \(folder.name)",
+            comment: "Claude chat: asking to allow a file save; the arguments are the file's name and the folder's."),
+          detail: ClaudeFiles.preview(content))
         guard await approve?(approval) == true else { return .error(ClaudeFiles.denied) }
         let url = try files.save(name: fileName, content: content)
         return .text("Saved as “\(url.lastPathComponent)” in \(folder.name).")
@@ -207,7 +211,14 @@ final class ClaudeTools {
         guard content.count <= ClaudeFiles.maxChars else { return .error(ClaudeFiles.Failure.tooLong.description) }
         let target = try files.target(path)
         let approval = Approval(
-          tool: name, title: "\(target.replaces ? "Replace" : "Create") “\(path)” in \(folder.name)",
+          tool: name,
+          title: target.replaces
+            ? String(
+              localized: "Replace “\(path)” in \(folder.name)",
+              comment: "Claude chat: asking to allow replacing a file; the arguments are its path and the folder's name.")
+            : String(
+              localized: "Create “\(path)” in \(folder.name)",
+              comment: "Claude chat: asking to allow a new file; the arguments are its path and the folder's name."),
           detail: ClaudeFiles.preview(content))
         guard await approve?(approval) == true else { return .error(ClaudeFiles.denied) }
         try files.write(content, to: target.url)
@@ -285,7 +296,12 @@ final class ClaudeTools {
       if BoostList.needsApproval(boost, before: before) {
         let title =
           before == nil || before?.js.isEmpty == true
-          ? "Run JavaScript on \(boost.match) (“\(boost.name)”)" : "Change the JavaScript of “\(boost.name)”"
+          ? String(
+            localized: "Run JavaScript on \(boost.match) (“\(boost.name)”)",
+            comment: "Claude chat: asking to allow a Boost's JavaScript; the arguments are its site pattern and name.")
+          : String(
+            localized: "Change the JavaScript of “\(boost.name)”",
+            comment: "Claude chat: asking to allow a change to a Boost's JavaScript; the argument is its name.")
         let approval = Approval(
           tool: name, title: title, detail: BoostTools.approvalDetail(boost, before: before), allowForChat: false,
           symbol: "wand.and.stars")
@@ -303,7 +319,11 @@ final class ClaudeTools {
       guard let boost = store.find(id) else { return .error(BoostList.Failure.notFound(id).description) }
       if BoostList.deleteNeedsApproval(boost) {
         let approval = Approval(
-          tool: name, title: "Delete “\(boost.name)” on \(boost.match)", detail: boost.js, allowForChat: false,
+          tool: name,
+          title: String(
+            localized: "Delete “\(boost.name)” on \(boost.match)",
+            comment: "Claude chat: asking to allow deleting a Boost; the arguments are its name and site pattern."),
+          detail: boost.js, allowForChat: false,
           symbol: "trash")
         guard await approve?(approval) == true else { return .error(BoostTools.deleteDenied) }
       }
@@ -537,7 +557,7 @@ final class ClaudeTools {
     let items = app.downloads.items.sorted { $0.date > $1.date }.prefix(limit)
     if items.isEmpty { return .text("No downloads.") }
     return .text(items.map { item in
-      let state = item.running ? "in progress" : item.failed == "Cancelled" ? "cancelled" : item.failed != nil ? "failed" : "done"
+      let state = item.running ? "in progress" : item.cancelled ? "cancelled" : item.failed != nil ? "failed" : "done"
       var total: Int64?
       if item.file != nil { total = item.bytes }
       if item.running, let progress = item.progress, progress > 0 { total = Int64(Double(item.bytes) / progress) }

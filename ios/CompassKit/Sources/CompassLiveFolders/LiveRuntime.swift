@@ -90,7 +90,9 @@ private final class Run: @unchecked Sendable {
     // Holds the run until then: nothing else does (the context's callbacks
     // hold it weakly).
     DispatchQueue.global().asyncAfter(deadline: .now() + limits.timeout) { [self] in
-      finish(.failure(LiveError("timeout", "No result after \(Int(limits.timeout * 1000)) ms")))
+      finish(.failure(LiveError(
+          "timeout",
+          String(localized: "No result after \(Int(limits.timeout * 1000)) ms", bundle: .module, comment: "Live folder error, shown under the folder: the plugin timed out. The argument is milliseconds."))))
     }
     queue.async { [self] in
       do {
@@ -141,7 +143,9 @@ private final class Run: @unchecked Sendable {
     let declared = Set(manifest.secrets.map(\.key))
     let own = secrets.filter { declared.contains($0.key) }
     for secret in manifest.secrets where !secret.optional && (own[secret.key] ?? "").isEmpty {
-      throw LiveError("missing_secret", "\(secret.label) is not set")
+      throw LiveError(
+        "missing_secret",
+        String(localized: "\(secret.label) is not set", bundle: .module, comment: "Live folder error, shown under the folder: a setting the plugin needs (such as an API key) is empty. The argument is its label."))
     }
     allowed = try rules.hosts(manifest, config: config, secrets: own)
 
@@ -167,7 +171,7 @@ private final class Run: @unchecked Sendable {
     guard let configValue = call(parse, this: json, [config]),
       let promise = context.objectForKeyedSubscript("__compassRun").call(withArguments: [configValue])
     else {
-      throw thrown() ?? LiveError("bad_plugin", "The plugin can't start")
+      throw thrown() ?? LiveError("bad_plugin", String(localized: "The plugin can't start", bundle: .module, comment: "Live folder error, shown under the folder."))
     }
     if let error = thrown() { throw error }
     let resolved: @convention(block) (JSValue) -> Void = { [weak self] value in self?.resolved(value) }
@@ -245,7 +249,7 @@ private final class Run: @unchecked Sendable {
     // Out of the plugin's realm the way postMessage would take it.
     let raw = value.isUndefined ? JSValue(nullIn: context)! : value
     guard let json = call(stringify, this: context.objectForKeyedSubscript("JSON"), [raw]) else {
-      finish(.failure(thrown() ?? LiveError("bad_result", "The result isn't JSON")))
+      finish(.failure(thrown() ?? LiveError("bad_result", String(localized: "The result isn't JSON", bundle: .module, comment: "Live folder error, shown under the folder."))))
       return
     }
     let text = json.isString ? json.toString()! : "null"

@@ -133,7 +133,7 @@ struct ClaudeChatSheet: View {
           .opacity(chat.attachPage ? 1 : 0.6)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(chat.attachPage ? "Page attached" : "Page not attached")
+        .accessibilityLabel(chat.attachPage ? LocalizedStringKey("Page attached") : "Page not attached")
         .frame(maxWidth: .infinity, alignment: .leading)
       }
       if !chat.queued.isEmpty {
@@ -322,7 +322,7 @@ private struct TurnView: View {
     }
   }
 
-  private func notice(_ text: String) -> some View {
+  private func notice(_ text: LocalizedStringKey) -> some View {
     Text(text).font(.callout).foregroundStyle(.secondary)
   }
 }
@@ -339,7 +339,7 @@ private struct ThinkingView: View {
       Button {
         withAnimation(.snappy) { open.toggle() }
       } label: {
-        Label(live ? "Thinking…" : "Thought", systemImage: open ? "chevron.down" : "chevron.right")
+        Label(live ? LocalizedStringKey("Thinking…") : "Thought", systemImage: open ? "chevron.down" : "chevron.right")
           .font(.caption.weight(.medium))
           .foregroundStyle(.secondary)
       }
@@ -361,7 +361,7 @@ private struct BoostRow: View {
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 6) {
       Image(systemName: change.kind == "deleted" ? "trash" : "wand.and.stars")
-      Text("\(verb) for \(change.boost.parsedMatch?.site ?? change.boost.match): \(change.boost.name)")
+      Text(line)
         .strikethrough(undone)
         .lineLimit(2)
       Spacer(minLength: 0)
@@ -375,11 +375,22 @@ private struct BoostRow: View {
     .foregroundStyle(.secondary)
   }
 
-  private var verb: String {
-    switch change.kind {
-    case "deleted": "Deleted Boost"
-    case "updated": "Updated Boost"
-    default: "Saved Boost"
+  private var line: String {
+    let site = change.boost.parsedMatch?.site ?? change.boost.match
+    let name = change.boost.name
+    return switch change.kind {
+    case "deleted":
+      String(
+        localized: "Deleted Boost for \(site): \(name)",
+        comment: "Claude chat: a Boost Claude deleted; the arguments are its site and name.")
+    case "updated":
+      String(
+        localized: "Updated Boost for \(site): \(name)",
+        comment: "Claude chat: a Boost Claude changed; the arguments are its site and name.")
+    default:
+      String(
+        localized: "Saved Boost for \(site): \(name)",
+        comment: "Claude chat: a Boost Claude made; the arguments are its site and name.")
     }
   }
 }
@@ -393,7 +404,7 @@ private struct MemoryRow: View {
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 6) {
       Image(systemName: change.kind == "forgot" ? "bookmark.slash" : "bookmark")
-      Text("\(verb): \(change.text)")
+      Text(line)
         .strikethrough(undone)
         .lineLimit(2)
       Spacer(minLength: 0)
@@ -407,11 +418,15 @@ private struct MemoryRow: View {
     .foregroundStyle(.secondary)
   }
 
-  private var verb: String {
-    switch change.kind {
-    case "forgot": "Forgot"
-    case "updated": "Updated memory"
-    default: "Saved to memory"
+  private var line: String {
+    let text = change.text
+    return switch change.kind {
+    case "forgot":
+      String(localized: "Forgot: \(text)", comment: "Claude chat: a fact Claude removed from its memory.")
+    case "updated":
+      String(localized: "Updated memory: \(text)", comment: "Claude chat: a fact Claude changed in its memory.")
+    default:
+      String(localized: "Saved to memory: \(text)", comment: "Claude chat: a fact Claude saved to its memory.")
     }
   }
 }

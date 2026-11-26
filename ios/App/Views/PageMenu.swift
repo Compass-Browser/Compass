@@ -28,12 +28,12 @@ struct PageMenu: View {
     VStack(spacing: 14) {
       addressCard(view)
       HStack(spacing: 10) {
-        Tile(title: "Find", symbol: "doc.text.magnifyingglass") {
+        Tile(title: String(localized: "Find", comment: "Page menu tile: find on page."), symbol: "doc.text.magnifyingglass") {
           dismiss()
           app.findOnPage()
         }
         // Reader mode (Reader.swift): dimmed when the page isn't an article.
-        Tile(title: "Reader", symbol: "book", on: app.shownReader != nil) {
+        Tile(title: String(localized: "Reader", comment: "Page menu tile: Reader mode."), symbol: "book", on: app.shownReader != nil) {
           dismiss()
           app.toggleReader()
         }
@@ -53,20 +53,20 @@ struct PageMenu: View {
         pinTile(tab)
         if let url = view?.url ?? tab.flatMap({ URL(string: $0.url) }) {
           ShareLink(item: url, subject: Text(tab?.displayTitle ?? "")) {
-            TileLabel(title: "Share", symbol: "square.and.arrow.up")
+            TileLabel(title: String(localized: "Share", comment: "Page menu tile: share the page."), symbol: "square.and.arrow.up")
           }
           .buttonStyle(TileStyle())
         }
       }
       HStack(spacing: 10) {
-        WideButton(title: "Downloads", symbol: "arrow.down.circle", badge: downloadsBadge) { showingDownloads = true }
-        WideButton(title: "Archive", symbol: "archivebox") { showingArchive = true }
+        WideButton(title: String(localized: "Downloads", comment: "Page menu button: the downloads list."), symbol: "arrow.down.circle", badge: downloadsBadge) { showingDownloads = true }
+        WideButton(title: String(localized: "Archive", comment: "Page menu button: the archive of closed tabs."), symbol: "archivebox") { showingArchive = true }
       }
       if #available(iOS 18.4, *) {
         ExtensionBar(tab: tab?.id, page: view?.url ?? tab.flatMap { URL(string: $0.url) })
       }
       Card {
-        Row(title: "Site Settings", subtitle: site ?? "No page", trailing: "chevron.right",
+        Row(title: String(localized: "Site Settings", comment: "Page menu row."), subtitle: site ?? String(localized: "No page", comment: "Page menu: Site Settings subtitle when no page is shown."), trailing: "chevron.right",
             action: { app.showingSiteSettings = true }) {
           Image(systemName: "slider.horizontal.3").menuIcon(.blue)
         }
@@ -75,8 +75,10 @@ struct PageMenu: View {
         if DevMode.shared.canToggle(devPage) {
           let on = DevMode.shared.isOn(devPage)
           Row(
-            title: "Development Mode",
-            subtitle: on ? "On: reload skips the cache, the address shows" : "Off",
+            title: String(localized: "Development Mode", comment: "Page menu row."),
+            subtitle: on
+              ? String(localized: "On: reload skips the cache, the address shows", comment: "Page menu: Development Mode subtitle while it's on.")
+              : String(localized: "Off", comment: "Page menu: Development Mode subtitle while it's off."),
             action: { DevMode.shared.toggle(devPage) }
           ) {
             Image(systemName: "chevron.left.forwardslash.chevron.right").menuIcon(.gray)
@@ -86,8 +88,10 @@ struct PageMenu: View {
         if let page = boostablePage(tab, view) {
           let active = BoostStore.shared.matching(page).count
           Row(
-            title: "Boost This Site",
-            subtitle: active == 0 ? "Restyle it with CSS or JavaScript" : "\(active) Boost\(active == 1 ? "" : "s") on this page",
+            title: String(localized: "Boost This Site", comment: "Page menu row: Boosts for the site."),
+            subtitle: active == 0
+              ? String(localized: "Restyle it with CSS or JavaScript", comment: "Page menu: Boost This Site subtitle with no Boosts.")
+              : String(localized: "\(active) Boosts on this page", comment: "Page menu: Boost This Site subtitle, the number of active Boosts."),
             trailing: "chevron.right", action: { showingBoosts = true }
           ) {
             Image(systemName: "wand.and.stars").menuIcon(.pink)
@@ -96,7 +100,8 @@ struct PageMenu: View {
         }
         if let tab, capturable(tab, view) {
           Row(
-            title: "Capture to Easel", subtitle: "Drag over part of the page, then pick a board",
+            title: String(localized: "Capture to Easel", comment: "Page menu row."),
+            subtitle: String(localized: "Drag over part of the page, then pick a board", comment: "Page menu: Capture to Easel subtitle."),
             trailing: "chevron.right",
             action: {
               dismiss()
@@ -111,7 +116,8 @@ struct PageMenu: View {
           }
           .accessibilityIdentifier("MenuCaptureToEasel")
         }
-        Row(title: "Settings", subtitle: "Sync, passwords, search engine", trailing: "chevron.right",
+        Row(title: String(localized: "Settings", comment: "Page menu row."),
+            subtitle: String(localized: "Sync, passwords, search engine", comment: "Page menu: Settings subtitle."), trailing: "chevron.right",
             action: {
               dismiss()
               // Once the menu is gone: one sheet at a time.
@@ -214,7 +220,7 @@ struct PageMenu: View {
   @ViewBuilder private func pinTile(_ tab: SidebarNode?) -> some View {
     let space = tab.flatMap { app.store.space(of: $0) }
     let pinned = tab?.section == .pinned
-    Tile(title: pinned ? "Unpin" : "Pin", symbol: pinned ? "pin.slash" : "pin", on: pinned) {
+    Tile(title: pinned ? String(localized: "Unpin", comment: "Page menu tile: unpin the tab.") : String(localized: "Pin", comment: "Page menu tile: pin the tab."), symbol: pinned ? "pin.slash" : "pin", on: pinned) {
       guard let tab, let space, !space.isIncognito else { return }
       withAnimation(SidebarStyle.motion) {
         if pinned {
@@ -229,7 +235,7 @@ struct PageMenu: View {
   }
 
   private var host: String {
-    guard let tab = app.shownTab, let url = URL(string: tab.url) else { return "No page" }
+    guard let tab = app.shownTab, let url = URL(string: tab.url) else { return String(localized: "No page", comment: "Page menu: shown instead of a site when no page is shown.") }
     return url.host()?.replacingOccurrences(of: "www.", with: "") ?? tab.url
   }
 }
@@ -322,7 +328,7 @@ private struct WideButton: View {
         Image(systemName: symbol).font(.system(size: 17, weight: .medium))
         Text(title).font(.body.weight(.medium))
         if badge > 0 {
-          Text("\(badge)")
+          Text(badge, format: .number)
             .font(.caption.weight(.bold))
             .foregroundStyle(.white)
             .padding(.horizontal, 6)
@@ -352,12 +358,12 @@ extension ExtensionBar {
       page?.scheme?.hasPrefix("http") == true, record.onlySites != nil
     {
       let allowed = record.onlySites?.contains(site) == true
-      ours.append(UIAction(title: "Allow on \(site)", image: UIImage(systemName: "globe"), state: allowed ? .on : .off) { _ in
+      ours.append(UIAction(title: String(localized: "Allow on \(site)", comment: "Extension button menu: let the extension run on this site, e.g. Allow on example.com."), image: UIImage(systemName: "globe"), state: allowed ? .on : .off) { _ in
         extensions.setAllowed(record.id, site: site, !allowed)
       })
     }
     if extensions.context(record.id)?.optionsPageURL != nil {
-      ours.append(UIAction(title: "Options", image: UIImage(systemName: "gearshape")) { _ in
+      ours.append(UIAction(title: String(localized: "Options", comment: "Extension button menu: the extension's options page."), image: UIImage(systemName: "gearshape")) { _ in
         dismiss()
         Task {
           try? await Task.sleep(for: .milliseconds(450))
@@ -365,7 +371,7 @@ extension ExtensionBar {
         }
       })
     }
-    ours.append(UIAction(title: "Turn Off", image: UIImage(systemName: "power"), attributes: .destructive) { _ in
+    ours.append(UIAction(title: String(localized: "Turn Off", comment: "Extension button menu: disable the extension."), image: UIImage(systemName: "power"), attributes: .destructive) { _ in
       extensions.setEnabled(record.id, false)
     })
     let own = action.menuItems

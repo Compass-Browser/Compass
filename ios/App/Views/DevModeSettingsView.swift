@@ -55,7 +55,9 @@ struct DevModeSettingsView: View {
     let input = typed.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !input.isEmpty else { return }
     if DevMode.shared.add(input) == nil {
-      note = "“\(input)” isn't a site, like localhost or example.com."
+      note = String(
+        localized: "“\(input)” isn't a site, like localhost or example.com.",
+        comment: "Development Mode settings: the typed text isn't a site.")
     } else {
       note = nil
       typed = ""

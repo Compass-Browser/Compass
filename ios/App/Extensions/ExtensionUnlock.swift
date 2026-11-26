@@ -80,10 +80,14 @@ final class ExtensionUnlock: NSObject {
     case "fillFailed":
       Self.forget(id)
       let alert = UIAlertController(
-        title: "\(Self.biometryName) unlock turned off",
-        message: "The saved password for \(name) didn't work. Type it once to turn \(Self.biometryName) back on.",
+        title: String(
+          localized: "\(Self.biometryName) unlock turned off",
+          comment: "Alert title; the argument is Face ID or Touch ID."),
+        message: String(
+          localized: "The saved password for \(name) didn't work. Type it once to turn \(Self.biometryName) back on.",
+          comment: "Alert message; the arguments are an extension's name (such as 1Password) and Face ID or Touch ID."),
         preferredStyle: .alert)
-      alert.addAction(UIAlertAction(title: "OK", style: .default))
+      alert.addAction(UIAlertAction(title: String(localized: "OK", comment: "Alert button."), style: .default))
       Presenter.present(alert)
     default:
       break
@@ -95,7 +99,7 @@ final class ExtensionUnlock: NSObject {
     recentlyFilled.add(view)
     prompting = true
     Task {
-      let password = await Self.read(id, reason: "Unlock \(name)")
+      let password = await Self.read(id, reason: String(localized: "Unlock \(name)", comment: "Face ID prompt reason; the argument is an extension's name, such as 1Password."))
       prompting = false
       guard let password, let json = String(data: try! JSONEncoder().encode([password]), encoding: .utf8) else {
         // Cancelled: the field stays for typing; Face ID again next time.
@@ -121,13 +125,17 @@ final class ExtensionUnlock: NSObject {
     #endif
     let biometry = Self.biometryName
     let alert = UIAlertController(
-      title: "Unlock \(name) with \(biometry)?",
-      message: "Compass keeps the password on this iPhone, behind \(biometry), and fills it in when \(name) asks.",
+      title: String(
+        localized: "Unlock \(name) with \(biometry)?",
+        comment: "Alert title; the arguments are an extension's name (such as 1Password) and Face ID or Touch ID."),
+      message: String(
+        localized: "Compass keeps the password on this iPhone, behind \(biometry), and fills it in when \(name) asks.",
+        comment: "Alert message; the arguments are Face ID or Touch ID, then an extension's name."),
       preferredStyle: .alert)
-    alert.addAction(UIAlertAction(title: "Not Now", style: .cancel) { _ in
+    alert.addAction(UIAlertAction(title: String(localized: "Not Now", comment: "Alert button: don't offer Face ID unlock for this extension."), style: .cancel) { _ in
       UserDefaults.standard.set(Array(declined.union([id])), forKey: Self.declinedKey)
     })
-    alert.addAction(UIAlertAction(title: "Use \(biometry)", style: .default) { _ in
+    alert.addAction(UIAlertAction(title: String(localized: "Use \(biometry)", comment: "Alert button; the argument is Face ID or Touch ID."), style: .default) { _ in
       Self.save(password, id)
     })
     Presenter.present(alert)

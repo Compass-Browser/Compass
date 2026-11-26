@@ -55,7 +55,7 @@ struct ShareView: View {
       if model.snapshot != nil {
         Section {
           Picker("Action", selection: $model.action) {
-            ForEach(ShareModel.Action.allCases) { Text($0.rawValue).tag($0) }
+            ForEach(ShareModel.Action.allCases) { Text($0.title).tag($0) }
           }
           .pickerStyle(.segmented)
           .listRowBackground(Color.clear)
@@ -75,7 +75,8 @@ struct ShareView: View {
         }
         if model.action == .pin, let space = model.space, !space.folders.isEmpty {
           Section("Folder") {
-            FolderRow(name: "Pinned", depth: 0, symbol: "pin", selected: model.folderID == nil) { model.folderID = nil }
+            FolderRow(
+              name: String(localized: "Pinned", comment: "Share extension: a space's Pinned section."), depth: 0, symbol: "pin", selected: model.folderID == nil) { model.folderID = nil }
             ForEach(space.allFolders, id: \.folder.id) { item in
               FolderRow(name: item.folder.name, depth: item.depth + 1, symbol: "folder", selected: model.folderID == item.folder.id) {
                 model.folderID = item.folder.id

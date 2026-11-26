@@ -27,13 +27,14 @@ public struct DeviceRemover: Sendable {
     /// What Settings says.
     public var message: String {
       switch self {
-      case .thisDevice: "To stop syncing this device, use Leave Sync."
-      case .deviceRemoved: "This device was removed from sync on another device."
-      case .loginRequired: "The sync server asks you to sign in. Sign in on a computer, then try again."
-      case .http(401): "The sync server didn't accept this device's key."
-      case .http(let code): "The sync server refused (HTTP \(code))."
-      case .network(let message): "Can't reach the sync server (\(message))."
-      case .badReply: "The sync server's reply wasn't understood."
+      case .thisDevice: String(localized: "To stop syncing this device, use Leave Sync.", bundle: .module, comment: "Settings → Sync: error removing a device, when it's this one.")
+      case .deviceRemoved: String(localized: "This device was removed from sync on another device.", bundle: .module, comment: "Settings → Sync: error removing a device.")
+      case .loginRequired:
+        String(localized: "The sync server asks you to sign in. Sign in on a computer, then try again.", bundle: .module, comment: "Settings → Sync: error removing a device.")
+      case .http(401): String(localized: "The sync server didn't accept this device's key.", bundle: .module, comment: "Settings → Sync: error removing a device (HTTP 401).")
+      case .http(let code): String(localized: "The sync server refused (HTTP \(code)).", bundle: .module, comment: "Settings → Sync: error removing a device. The argument is an HTTP status code.")
+      case .network(let message): String(localized: "Can't reach the sync server (\(message)).", bundle: .module, comment: "Settings → Sync: error removing a device. The argument is the system's network error.")
+      case .badReply: String(localized: "The sync server's reply wasn't understood.", bundle: .module, comment: "Settings → Sync: error removing a device.")
       }
     }
   }

@@ -428,7 +428,7 @@ struct RootView: View {
       .accessibilityElement()
       .accessibilityLabel("Sidebar width")
       .accessibilityIdentifier("SidebarResize")
-      .accessibilityValue("\(Int(columnWidth)) points")
+      .accessibilityValue(Text("\(Int(columnWidth)) points", comment: "VoiceOver value of the sidebar's resize handle: its width in points."))
       .accessibilityAdjustableAction { direction in
         let step: CGFloat = direction == .increment ? 20 : -20
         storedColumnWidth = Double(Self.clampedColumnWidth(stored: columnWidth + step, window: windowWidth))

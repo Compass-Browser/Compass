@@ -181,11 +181,11 @@ public enum OpenAIResponses {
         let reason = event["response"]?["incomplete_details"]?["reason"]?.string
         return end(reason == "content_filter" ? "refusal" : "max_tokens")
       case "response.failed":
-        error = event["response"]?["error"]?["message"]?.string ?? "The reply failed."
+        error = event["response"]?["error"]?["message"]?.string ?? String(localized: "The reply failed.", bundle: .module, comment: "Chat error when the AI provider reports a failure without a message.")
         ended = true
         return []
       case "error":
-        error = event["message"]?.string ?? event["error"]?["message"]?.string ?? "The reply failed."
+        error = event["message"]?.string ?? event["error"]?["message"]?.string ?? String(localized: "The reply failed.", bundle: .module, comment: "Chat error when the AI provider reports a failure without a message.")
         ended = true
         return []
       default:

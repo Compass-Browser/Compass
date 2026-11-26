@@ -281,11 +281,53 @@ extension ClaudeTools {
     // What the user approves, as the desktop words it.
     let title: String
     if kind == "cookies" {
-      title = action == "set" ? "Set the cookie “\(name)” on \(host)"
-        : action == "remove" ? "Delete the cookie “\(name)” on \(host)" : "Delete all cookies of \(host)"
+      title =
+        switch action {
+        case "set":
+          String(
+            localized: "Set the cookie “\(name)” on \(host)",
+            comment: "Claude chat: asking to allow a cookie change; the arguments are the cookie's name and the site.")
+        case "remove":
+          String(
+            localized: "Delete the cookie “\(name)” on \(host)",
+            comment: "Claude chat: asking to allow deleting a cookie; the arguments are the cookie's name and the site.")
+        default:
+          String(
+            localized: "Delete all cookies of \(host)",
+            comment: "Claude chat: asking to allow deleting a site's cookies; the argument is the site.")
+        }
+    } else if kind == "localStorage" {
+      title =
+        switch action {
+        case "set":
+          String(
+            localized: "Set “\(name)” in \(host)'s local storage",
+            comment: "Claude chat: asking to allow a storage change; the arguments are the key and the site.")
+        case "remove":
+          String(
+            localized: "Remove “\(name)” in \(host)'s local storage",
+            comment: "Claude chat: asking to allow a storage change; the arguments are the key and the site.")
+        default:
+          String(
+            localized: "Clear everything in \(host)'s local storage",
+            comment: "Claude chat: asking to allow clearing a site's storage; the argument is the site.")
+        }
     } else {
-      let where_ = " in \(host)\(kind == "localStorage" ? "'s local storage" : "'s session storage")"
-      title = action == "set" ? "Set “\(name)”\(where_)" : action == "remove" ? "Remove “\(name)”\(where_)" : "Clear everything\(where_)"
+      title =
+        switch action {
+        case "set":
+          String(
+            localized: "Set “\(name)” in \(host)'s session storage",
+            comment: "Claude chat: asking to allow a storage change; the arguments are the key and the site.")
+        case "remove":
+          String(
+            localized: "Remove “\(name)” in \(host)'s session storage",
+            comment: "Claude chat: asking to allow a storage change; the arguments are the key and the site.")
+        default:
+          String(
+            localized: "Clear everything in \(host)'s session storage",
+            comment: "Claude chat: asking to allow clearing a site's storage; the argument is the site.")
+        }
     }
     var detail = action == "set" ? DevToolsFormat.cut(value, 2000) : ""
     if action == "set", kind == "cookies", let attributes = input["cookie"], attributes.object?.isEmpty == false {

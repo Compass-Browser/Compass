@@ -354,7 +354,7 @@ struct BrowserScreen: View {
       Image(systemName: "key.fill").foregroundStyle(.secondary)
       VStack(alignment: .leading, spacing: 2) {
         Text(saveTitle(p)).font(.subheadline.weight(.semibold))
-        Text("\(p.username.isEmpty ? "No username" : p.username) · \(URL(string: p.realm)?.host() ?? p.realm)")
+        Text(verbatim: "\(p.username.isEmpty ? String(localized: "No username", comment: "Password save banner: the login has no username.") : p.username) · \(URL(string: p.realm)?.host() ?? p.realm)")
           .font(.caption).foregroundStyle(.secondary).lineLimit(1)
       }
       Spacer()
@@ -376,9 +376,13 @@ struct BrowserScreen: View {
   /// "Save to Work?" when the chain has several profiles.
   private func saveTitle(_ p: PasswordManager.PendingSave) -> String {
     if app.sync.profiles.count > 1, let name = app.sync.profileName(account: p.profile) {
-      return p.isUpdate ? "Update in \(name)?" : "Save to \(name)?"
+      return p.isUpdate
+        ? String(localized: "Update in \(name)?", comment: "Password save banner title; the argument is a sync profile name.")
+        : String(localized: "Save to \(name)?", comment: "Password save banner title; the argument is a sync profile name.")
     }
-    return p.isUpdate ? "Update password?" : "Save password?"
+    return p.isUpdate
+      ? String(localized: "Update password?", comment: "Password save banner title.")
+      : String(localized: "Save password?", comment: "Password save banner title.")
   }
 
   @ViewBuilder private var keyButton: some View {
@@ -671,16 +675,16 @@ struct BrowserScreen: View {
   }
 
   private var host: String {
-    guard let tab = app.shownTab else { return "Search or enter address" }
+    guard let tab = app.shownTab else { return String(localized: "Search or enter address", comment: "Address bar placeholder with no tab shown.") }
     return host(of: tab.url)
   }
 
   private func host(of url: String) -> String {
     if let board = EaselURL.uuid(from: url) {
       let title = EaselStore.shared.easel(board)?.title ?? ""
-      return title.isEmpty ? "Easel" : title
+      return title.isEmpty ? String(localized: "Easel", comment: "Address bar: an untitled Easel (a canvas board; a feature name).") : title
     }
-    if EaselURL.isList(url) { return "Easels" }
+    if EaselURL.isList(url) { return String(localized: "Easels", comment: "Address bar: the list of Easels (canvas boards; a feature name).") }
     return URL(string: url)?.host()?.replacingOccurrences(of: "www.", with: "") ?? url
   }
 

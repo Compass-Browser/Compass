@@ -1,0 +1,138 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "An image of the object is missing." : {
+      "comment" : "Easel error, shown in an alert or toast.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manca un’immagine dell’oggetto."
+          }
+        }
+      }
+    },
+    "Easels hold 64 MB of images, which is used up. Delete some images first." : {
+      "comment" : "Easel error, shown in an alert or toast.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gli Easel possono contenere 64 MB di immagini e lo spazio è esaurito. Elimina prima alcune immagini."
+          }
+        }
+      }
+    },
+    "Only PNG, JPEG and WebP images can be added." : {
+      "comment" : "Easel error, shown in an alert or toast.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puoi aggiungere solo immagini PNG, JPEG e WebP."
+          }
+        }
+      }
+    },
+    "That Easel already exists." : {
+      "comment" : "Easel error, shown in an alert or toast.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo Easel esiste già."
+          }
+        }
+      }
+    },
+    "The capture's image is missing." : {
+      "comment" : "Easel error, shown in an alert or toast. A capture is a live snapshot of part of a web page.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’immagine della cattura manca."
+          }
+        }
+      }
+    },
+    "The image couldn't be encoded." : {
+      "comment" : "Easel error, shown in an alert or toast.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile codificare l’immagine."
+          }
+        }
+      }
+    },
+    "The image couldn't be read." : {
+      "comment" : "Easel error, shown in an alert or toast.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile leggere l’immagine."
+          }
+        }
+      }
+    },
+    "The image is missing." : {
+      "comment" : "Easel error, shown in an alert or toast.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’immagine manca."
+          }
+        }
+      }
+    },
+    "The image is too large." : {
+      "comment" : "Easel error, shown in an alert or toast.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’immagine è troppo grande."
+          }
+        }
+      }
+    },
+    "There are already 200 Easels. Delete one that's no longer needed first." : {
+      "comment" : "Easel error, shown in an alert or toast.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ci sono già 200 Easel. Eliminane prima uno che non ti serve più."
+          }
+        }
+      }
+    },
+    "There's no such Easel." : {
+      "comment" : "Easel error, shown in an alert or toast.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo Easel non esiste."
+          }
+        }
+      }
+    },
+    "This Easel is full (1,000 objects). Delete some first." : {
+      "comment" : "Easel error, shown in an alert or toast.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo Easel è pieno (1.000 oggetti). Eliminane prima alcuni."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

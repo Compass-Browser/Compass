@@ -1,0 +1,151 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Action" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Azione"
+          }
+        }
+      }
+    },
+    "Add" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiungi"
+          }
+        }
+      }
+    },
+    "Add to Pinned" : {
+      "comment" : "Share extension: pin the shared link in a space.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiungi alle Fissate"
+          }
+        }
+      }
+    },
+    "Added to %@" : {
+      "comment" : "Share extension: the link was pinned; the argument is a folder or space name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiunto a %@"
+          }
+        }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annulla"
+          }
+        }
+      }
+    },
+    "Compass" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compass"
+          }
+        }
+      }
+    },
+    "Couldn't save the link." : {
+      "comment" : "Share extension error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile salvare il link."
+          }
+        }
+      }
+    },
+    "Folder" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cartella"
+          }
+        }
+      }
+    },
+    "No Link" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun link"
+          }
+        }
+      }
+    },
+    "Open" : {
+      "comment" : "Share extension: open the shared link in Compass.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri"
+          }
+        }
+      }
+    },
+    "Opens in a new tab. Open Compass once to choose spaces and pin from here." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si apre in una nuova scheda. Apri Compass una volta per scegliere gli spazi e fissare da qui."
+          }
+        }
+      }
+    },
+    "Pinned" : {
+      "comment" : "Share extension: a space's Pinned section.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fissate"
+          }
+        }
+      }
+    },
+    "Space" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spazio"
+          }
+        }
+      }
+    },
+    "There's no web link to share." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non c’è nessun link web da condividere."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

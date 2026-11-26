@@ -125,9 +125,11 @@ private struct ExtensionRow: View {
     HStack(spacing: 12) {
       ExtensionIcon(image: webExtension?.icon(for: CGSize(width: 32, height: 32)), size: 32)
       VStack(alignment: .leading, spacing: 2) {
-        Text(webExtension?.displayName ?? "Extension")
-        Text(record.availableUpdate.map { "Update available: \($0)" }
-          ?? (record.enabled ? (webExtension?.displayVersion ?? "") : "Off"))
+        Text(webExtension?.displayName ?? String(localized: "Extension", comment: "Shown for a web extension with no name."))
+        Text(record.availableUpdate.map { String(localized: "Update available: \($0)", comment: "Extensions list: an update to this version is available.") }
+          ?? (record.enabled
+            ? (webExtension?.displayVersion ?? "")
+            : String(localized: "Off", comment: "Extensions list: the extension is turned off.")))
           .font(.caption).foregroundStyle(record.availableUpdate == nil ? Color.secondary : Color.accentColor)
       }
     }
@@ -153,7 +155,7 @@ struct ExtensionDetailView: View {
         HStack(spacing: 14) {
           ExtensionIcon(image: webExtension?.icon(for: CGSize(width: 56, height: 56)), size: 56)
           VStack(alignment: .leading, spacing: 4) {
-            Text(webExtension?.displayName ?? "Extension").font(.headline)
+            Text(webExtension?.displayName ?? String(localized: "Extension", comment: "Shown for a web extension with no name.")).font(.headline)
             Text([webExtension?.displayVersion, record?.source.storeName].compactMap { $0 }.joined(separator: " · "))
               .font(.caption).foregroundStyle(.secondary)
           }
@@ -210,8 +212,9 @@ struct ExtensionDetailView: View {
           Button("Options") { extensions.openOptions(id) }
         }
         if let record, record.source != .file {
-          let title = record.availableUpdate.map { "Review Update to \($0)" } ?? "Update"
-          Button(extensions.fetching ? "Checking…" : title) { Task { await extensions.update(id) } }
+          let title = record.availableUpdate.map { String(localized: "Review Update to \($0)", comment: "Extension detail button: review the update to this version.") }
+            ?? String(localized: "Update", comment: "Extension detail button: check for and install an update.")
+          Button(extensions.fetching ? String(localized: "Checking…", comment: "Extension detail button while checking for an update.") : title) { Task { await extensions.update(id) } }
             .disabled(extensions.fetching)
           if let page = record.source.pageURL {
             Button("Show in \(record.source.storeName)") {
@@ -227,7 +230,7 @@ struct ExtensionDetailView: View {
       }
     }
     .onAppear { unlockSaved = ExtensionUnlock.isSaved(id) }
-    .navigationTitle(webExtension?.displayShortName ?? webExtension?.displayName ?? "Extension")
+    .navigationTitle(webExtension?.displayShortName ?? webExtension?.displayName ?? String(localized: "Extension", comment: "Shown for a web extension with no name."))
     .navigationBarTitleDisplayMode(.inline)
     .confirmationDialog("Remove this extension and its data?", isPresented: $confirmRemove, titleVisibility: .visible) {
       Button("Remove", role: .destructive) {
@@ -305,11 +308,15 @@ struct ExtensionInstallSheet: View {
     let webExtension = pending.webExtension as! WKWebExtension
     let updating = extensions.records.contains { $0.source == pending.source && pending.source != .file }
     let lines = ExtensionPermissions.summary(webExtension)
+    let name = webExtension.displayName ?? String(localized: "Extension", comment: "Shown for a web extension with no name.")
     VStack(spacing: 18) {
       ExtensionIcon(image: webExtension.icon(for: CGSize(width: 64, height: 64)), size: 64)
         .padding(.top, 28)
       VStack(spacing: 6) {
-        Text("\(updating ? "Update" : "Add") “\(webExtension.displayName ?? "Extension")”?")
+        Text(
+          updating
+            ? String(localized: "Update “\(name)”?", comment: "Extension install sheet title, updating an extension.")
+            : String(localized: "Add “\(name)”?", comment: "Extension install sheet title, adding an extension."))
           .font(.title3.weight(.semibold))
           .multilineTextAlignment(.center)
         Text([webExtension.displayVersion, pending.source.storeName].compactMap { $0 }.joined(separator: " · "))

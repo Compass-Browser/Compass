@@ -104,10 +104,10 @@ public final class EaselStore {
   /// A new board (`uuid` nil: a random one). Fails when there are 200.
   public func createEasel(title: String, uuid: String? = nil) -> Result<EaselBoard, EaselError> {
     guard easelsByID.count < EaselLimits.maxEasels else {
-      return .failure(EaselError("There are already 200 Easels. Delete one that's no longer needed first."))
+      return .failure(EaselError(String(localized: "There are already 200 Easels. Delete one that's no longer needed first.", bundle: .module, comment: "Easel error, shown in an alert or toast.")))
     }
     let id = uuid?.lowercased() ?? UUID().uuidString.lowercased()
-    guard Easels.isLowerUUID(id), easelsByID[id] == nil else { return .failure(EaselError("That Easel already exists.")) }
+    guard Easels.isLowerUUID(id), easelsByID[id] == nil else { return .failure(EaselError(String(localized: "That Easel already exists.", bundle: .module, comment: "Easel error, shown in an alert or toast."))) }
     var easel = EaselBoard()
     easel.uuid = id
     easel.title = Easels.trimmedTitle(title)
@@ -173,18 +173,18 @@ public final class EaselStore {
       case .success(let o): checked = o
       case .failure(let e): return .failure(e)
       }
-      guard easelsByID[checked.easelUuid] != nil else { return .failure(EaselError("There's no such Easel.")) }
+      guard easelsByID[checked.easelUuid] != nil else { return .failure(EaselError(String(localized: "There's no such Easel.", bundle: .module, comment: "Easel error, shown in an alert or toast."))) }
       if checked.uuid.isEmpty || objectsByID[checked.uuid] == nil {
         if !checked.uuid.isEmpty && !Easels.isLowerUUID(checked.uuid) {
           return .failure(EaselError("An object's id must be a UUID."))
         }
         added[checked.easelUuid, default: 0] += 1
         if objectCount(of: checked.easelUuid) + added[checked.easelUuid]! > EaselLimits.maxObjectsPerEasel {
-          return .failure(EaselError("This Easel is full (1,000 objects). Delete some first."))
+          return .failure(EaselError(String(localized: "This Easel is full (1,000 objects). Delete some first.", bundle: .module, comment: "Easel error, shown in an alert or toast.")))
         }
       }
       for sha in Easels.assets(of: checked) where assetsBySHA[sha] == nil {
-        return .failure(EaselError("An image of the object is missing."))
+        return .failure(EaselError(String(localized: "An image of the object is missing.", bundle: .module, comment: "Easel error, shown in an alert or toast.")))
       }
       normalized.append(checked)
     }
@@ -226,13 +226,13 @@ public final class EaselStore {
   /// and 2048 px a side. Returns its SHA-256; one already here is kept once.
   public func addAsset(_ data: Data, mimeType: String) -> Result<String, EaselError> {
     guard !data.isEmpty, data.count <= EaselLimits.maxAssetBytes else {
-      return .failure(EaselError("The image is too large."))
+      return .failure(EaselError(String(localized: "The image is too large.", bundle: .module, comment: "Easel error, shown in an alert or toast.")))
     }
-    guard Easels.isKnownMime(mimeType) else { return .failure(EaselError("Only PNG, JPEG and WebP images can be added.")) }
+    guard Easels.isKnownMime(mimeType) else { return .failure(EaselError(String(localized: "Only PNG, JPEG and WebP images can be added.", bundle: .module, comment: "Easel error, shown in an alert or toast."))) }
     let sha = Easels.sha256Hex(data)
     if assetsBySHA[sha] != nil { return .success(sha) }
     guard assetSizes.values.reduce(0, +) + data.count <= EaselLimits.maxAssetBytesTotal else {
-      return .failure(EaselError("Easels hold 64 MB of images, which is used up. Delete some images first."))
+      return .failure(EaselError(String(localized: "Easels hold 64 MB of images, which is used up. Delete some images first.", bundle: .module, comment: "Easel error, shown in an alert or toast.")))
     }
     var asset = EaselAsset()
     asset.uuid = Easels.assetUUID(sha256: sha)

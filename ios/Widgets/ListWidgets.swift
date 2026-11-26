@@ -29,7 +29,7 @@ struct TodayWidgetView: View {
       let count = family == .systemLarge ? 9 : 3
       let more = space.todayCount - min(count, space.today.count)
       VStack(alignment: .leading, spacing: 6) {
-        SpaceHeader(space: space, trailing: more > 0 ? "\(more) more" : nil)
+        SpaceHeader(space: space, trailing: more > 0 ? String(localized: "\(more) more", comment: "Today widget header: tabs that don't fit.") : nil)
         if space.today.isEmpty {
           Text("No tabs today").font(.system(size: 12)).foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -44,7 +44,7 @@ struct TodayWidgetView: View {
         }
       }
     } else {
-      EmptyWidgetView(text: "Open Compass to set up your spaces.")
+      EmptyWidgetView(text: String(localized: "Open Compass to set up your spaces.", comment: "Widget shown before the app has run."))
     }
   }
 }
@@ -83,7 +83,10 @@ struct DevicesWidgetView: View {
     if devices.isEmpty {
       EmptyWidgetView(
         text: entry.snapshot?.syncOn == true
-          ? "No tabs open on your other devices." : "Turn on sync in Compass to see your other devices' tabs.")
+          ? String(localized: "No tabs open on your other devices.", comment: "Other Devices widget, empty.")
+          : String(
+            localized: "Turn on sync in Compass to see your other devices' tabs.",
+            comment: "Other Devices widget when sync is off."))
     } else {
       let rows = family == .systemLarge ? 10 : 4
       VStack(alignment: .leading, spacing: 2) {

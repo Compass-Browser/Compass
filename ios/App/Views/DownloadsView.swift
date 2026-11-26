@@ -31,7 +31,7 @@ struct DownloadsView: View {
               } else if let failed = item.failed {
                 Text(failed).font(.caption).foregroundStyle(.red).lineLimit(2)
               } else {
-                Text("\(ByteCountFormatter.string(fromByteCount: item.bytes, countStyle: .file)) · \(item.date.formatted(.relative(presentation: .named)))")
+                Text(verbatim: "\(ByteCountFormatter.string(fromByteCount: item.bytes, countStyle: .file)) · \(item.date.formatted(.relative(presentation: .named)))")
                   .font(.caption).foregroundStyle(.secondary)
               }
             }

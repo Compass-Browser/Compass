@@ -1,0 +1,336 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Can't reach the server (%@)." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile raggiungere il server (%@)."
+          }
+        }
+      }
+    },
+    "Couldn't create the shared item. Try again." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile creare l’elemento condiviso. Riprova."
+          }
+        }
+      }
+    },
+    "Invalid %@." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ non valido."
+          }
+        }
+      }
+    },
+    "Inviting by email needs a server with company sign-in." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per invitare tramite email serve un server con accesso aziendale."
+          }
+        }
+      }
+    },
+    "Member %@" : {
+      "comment" : "Sharing: a member with no name or email; the argument is a short ID.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Membro %@"
+          }
+        }
+      }
+    },
+    "Shared Space" : {
+      "comment" : "Name of a shared space that has none.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spazio condiviso"
+          }
+        }
+      }
+    },
+    "Sign in to this server first." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prima accedi a questo server."
+          }
+        }
+      }
+    },
+    "Someone" : {
+      "comment" : "Sharing: who sent an invitation, when their name is unknown.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualcuno"
+          }
+        }
+      }
+    },
+    "Someone else changed this at the same time." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualcun altro l’ha modificato nello stesso momento."
+          }
+        }
+      }
+    },
+    "That account can't be invited yet. Try again later." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo account non può ancora essere invitato. Riprova più tardi."
+          }
+        }
+      }
+    },
+    "That person hasn't signed in to Compass on this server yet." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa persona non ha ancora effettuato l’accesso a Compass su questo server."
+          }
+        }
+      }
+    },
+    "That person is already a member." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa persona è già un membro."
+          }
+        }
+      }
+    },
+    "The members changed meanwhile. Try again." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nel frattempo i membri sono cambiati. Riprova."
+          }
+        }
+      }
+    },
+    "The owner can't leave. Delete it for everyone instead." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il proprietario non può uscire. Eliminalo invece per tutti."
+          }
+        }
+      }
+    },
+    "The owner's storage on the server is full." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo spazio del proprietario sul server è pieno."
+          }
+        }
+      }
+    },
+    "The room's key changed. Try again." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La chiave dell’elemento condiviso è cambiata. Riprova."
+          }
+        }
+      }
+    },
+    "The server refused (%@)." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error. The argument is the server's error code.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server ha rifiutato (%@)."
+          }
+        }
+      }
+    },
+    "The server refused." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server ha rifiutato."
+          }
+        }
+      }
+    },
+    "The server's answer couldn't be read." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile leggere la risposta del server."
+          }
+        }
+      }
+    },
+    "This invite link has been used up." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo link di invito è già stato usato il numero massimo di volte."
+          }
+        }
+      }
+    },
+    "This invite link has expired." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo link di invito è scaduto."
+          }
+        }
+      }
+    },
+    "This invite link isn't valid." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo link di invito non è valido."
+          }
+        }
+      }
+    },
+    "This invite link was turned off." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo link di invito è stato disattivato."
+          }
+        }
+      }
+    },
+    "This server doesn't allow your account." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo server non consente il tuo account."
+          }
+        }
+      }
+    },
+    "This shared item has the most members it can have." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo elemento condiviso ha già il numero massimo di membri."
+          }
+        }
+      }
+    },
+    "This shared item no longer exists." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo elemento condiviso non esiste più."
+          }
+        }
+      }
+    },
+    "You were removed from “%@”. Your copy stays on this device." : {
+      "comment" : "Sidebar banner: the user was removed from a shared space, folder or Easel. The argument is its name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sei stato rimosso da “%@”. La tua copia resta su questo dispositivo."
+          }
+        }
+      }
+    },
+    "You're no longer a member." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non sei più un membro."
+          }
+        }
+      }
+    },
+    "Your role doesn't allow that." : {
+      "comment" : "Sharing (shared spaces, folders and Easels): error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo ruolo non lo consente."
+          }
+        }
+      }
+    },
+    "“%@” is no longer shared. Your copy stays on this device." : {
+      "comment" : "Sidebar banner: a shared space, folder or Easel was deleted by its owner. The argument is its name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” non è più condiviso. La tua copia resta su questo dispositivo."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

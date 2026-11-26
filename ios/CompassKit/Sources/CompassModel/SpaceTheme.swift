@@ -214,14 +214,23 @@ public struct GradientPreset: Sendable, Identifiable {
   public var id: String { name }
 
   public static let all: [GradientPreset] = [
-    GradientPreset(name: "Lagoon", colors: [RGB(34, 197, 160), RGB(56, 189, 248)]),
-    GradientPreset(name: "Dusk", colors: [RGB(139, 92, 246), RGB(236, 72, 153)]),
-    GradientPreset(name: "Ember", colors: [RGB(239, 68, 68), RGB(249, 115, 22), RGB(234, 179, 8)]),
-    GradientPreset(name: "Meadow", colors: [RGB(132, 204, 22), RGB(34, 197, 94)]),
-    GradientPreset(name: "Ocean", colors: [RGB(30, 64, 175), RGB(59, 130, 246), RGB(34, 211, 238)]),
-    GradientPreset(name: "Peach", colors: [RGB(251, 146, 60), RGB(244, 114, 182)]),
-    GradientPreset(name: "Aurora", colors: [RGB(34, 197, 94), RGB(6, 182, 212), RGB(168, 85, 247)]),
-    GradientPreset(name: "Sand", colors: [RGB(214, 188, 140), RGB(190, 150, 110)]),
-    GradientPreset(name: "Slate", colors: [RGB(71, 85, 105), RGB(100, 116, 139)]),
+    GradientPreset(
+      name: String(localized: "Lagoon", bundle: .module, comment: "Theme editor: name of a gradient preset."), colors: [RGB(34, 197, 160), RGB(56, 189, 248)]),
+    GradientPreset(
+      name: String(localized: "Dusk", bundle: .module, comment: "Theme editor: name of a gradient preset."), colors: [RGB(139, 92, 246), RGB(236, 72, 153)]),
+    GradientPreset(
+      name: String(localized: "Ember", bundle: .module, comment: "Theme editor: name of a gradient preset."), colors: [RGB(239, 68, 68), RGB(249, 115, 22), RGB(234, 179, 8)]),
+    GradientPreset(
+      name: String(localized: "Meadow", bundle: .module, comment: "Theme editor: name of a gradient preset."), colors: [RGB(132, 204, 22), RGB(34, 197, 94)]),
+    GradientPreset(
+      name: String(localized: "Ocean", bundle: .module, comment: "Theme editor: name of a gradient preset."), colors: [RGB(30, 64, 175), RGB(59, 130, 246), RGB(34, 211, 238)]),
+    GradientPreset(
+      name: String(localized: "Peach", bundle: .module, comment: "Theme editor: name of a gradient preset."), colors: [RGB(251, 146, 60), RGB(244, 114, 182)]),
+    GradientPreset(
+      name: String(localized: "Aurora", bundle: .module, comment: "Theme editor: name of a gradient preset."), colors: [RGB(34, 197, 94), RGB(6, 182, 212), RGB(168, 85, 247)]),
+    GradientPreset(
+      name: String(localized: "Sand", bundle: .module, comment: "Theme editor: name of a gradient preset."), colors: [RGB(214, 188, 140), RGB(190, 150, 110)]),
+    GradientPreset(
+      name: String(localized: "Slate", bundle: .module, comment: "Theme editor: name of a gradient preset."), colors: [RGB(71, 85, 105), RGB(100, 116, 139)]),
   ]
 }

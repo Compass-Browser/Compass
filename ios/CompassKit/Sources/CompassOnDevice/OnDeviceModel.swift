@@ -108,9 +108,12 @@ public enum OnDeviceAvailability: String, Sendable, Equatable {
   public var reason: String? {
     switch self {
     case .available: nil
-    case .unsupported: "This device or system version can't run Apple Intelligence."
-    case .disabled: "Apple Intelligence is turned off in System Settings."
-    case .notReady: "Apple Intelligence is still downloading. Try again later."
+    case .unsupported:
+      String(localized: "This device or system version can't run Apple Intelligence.", comment: "Settings → AI: why Apple Intelligence can't answer.")
+    case .disabled:
+      String(localized: "Apple Intelligence is turned off in System Settings.", comment: "Settings → AI: why Apple Intelligence can't answer.")
+    case .notReady:
+      String(localized: "Apple Intelligence is still downloading. Try again later.", comment: "Settings → AI: why Apple Intelligence can't answer.")
     }
   }
 }

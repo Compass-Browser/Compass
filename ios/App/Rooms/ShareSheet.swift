@@ -32,6 +32,13 @@ struct ShareSheet: View {
   enum Expiry: String, CaseIterable, Identifiable {
     case day = "1 Day", week = "7 Days", never = "Never"
     var id: String { rawValue }
+    var title: String {
+      switch self {
+      case .day: String(localized: "1 Day", comment: "Share sheet: an invite link expires after a day.")
+      case .week: String(localized: "7 Days", comment: "Share sheet: an invite link expires after a week.")
+      case .never: String(localized: "Never", comment: "Share sheet: an invite link never expires.")
+      }
+    }
     var date: Date? {
       switch self {
       case .day: Date().addingTimeInterval(24 * 60 * 60)
@@ -44,6 +51,14 @@ struct ShareSheet: View {
   enum Uses: String, CaseIterable, Identifiable {
     case one = "1 Person", five = "5 People", twentyFive = "25 People", unlimited = "No Limit"
     var id: String { rawValue }
+    var title: String {
+      switch self {
+      case .one: String(localized: "1 Person", comment: "Share sheet: how many people an invite link can be used by.")
+      case .five: String(localized: "5 People", comment: "Share sheet: how many people an invite link can be used by.")
+      case .twentyFive: String(localized: "25 People", comment: "Share sheet: how many people an invite link can be used by.")
+      case .unlimited: String(localized: "No Limit", comment: "Share sheet: an invite link anyone can use.")
+      }
+    }
     var count: Int? {
       switch self {
       case .one: 1
@@ -70,16 +85,17 @@ struct ShareSheet: View {
   private var title: String {
     switch target {
     case .space(let space): space.name
-    case .folder(let node): node.title.isEmpty ? "Folder" : node.title
+    case .folder(let node):
+      node.title.isEmpty ? String(localized: "Folder", comment: "Share sheet: a folder with no name.") : node.title
     case .easel(_, let title): title
     }
   }
 
-  private var kindName: String {
+  private var shareTitle: String {
     switch target.kind {
-    case .space: "space"
-    case .folder: "folder"
-    case .easel: "easel"
+    case .space: String(localized: "Share This Space", comment: "Share sheet button: start sharing a space with other people.")
+    case .folder: String(localized: "Share This Folder", comment: "Share sheet button: start sharing a folder with other people.")
+    case .easel: String(localized: "Share This Easel", comment: "Share sheet button: start sharing an Easel with other people.")
     }
   }
 
@@ -104,7 +120,7 @@ struct ShareSheet: View {
             Button {
               Task { await share() }
             } label: {
-              Label("Share This \(kindName.capitalized)", systemImage: "person.crop.circle.badge.plus")
+              Label(shareTitle, systemImage: "person.crop.circle.badge.plus")
             }
             .disabled(working || rooms.accounts.isEmpty)
           } footer: {
@@ -150,10 +166,19 @@ struct ShareSheet: View {
   }
 
   private var subtitle: String {
-    guard let room else { return "Not shared" }
-    if room.rootUUID != rootID { return "Shared with \u{201C}\(room.name)\u{201D}" }
+    guard let room else { return String(localized: "Not shared", comment: "Share sheet: the item isn't shared.") }
+    if room.rootUUID != rootID {
+      return String(
+        localized: "Shared with \u{201C}\(room.name)\u{201D}",
+        comment: "Share sheet: the item is shared as part of a shared folder or space; the argument is its name.")
+    }
     let count = room.info?.members.count ?? 1
-    return "Shared with \(count == 1 ? "no one yet" : "\(count - 1) \(count == 2 ? "person" : "people")") · \(roleName(room.role))"
+    let others = count - 1
+    let who =
+      others == 0
+      ? String(localized: "Shared with no one yet", comment: "Share sheet: shared, but no one else joined yet.")
+      : String(localized: "Shared with \(others) people", comment: "Share sheet: how many other people it's shared with.")
+    return "\(who) · \(room.role.displayName)"
   }
 
   private var rootID: String {
@@ -167,7 +192,12 @@ struct ShareSheet: View {
   private var endTitle: String {
     guard let room else { return "" }
     return room.role == .owner
-      ? "Delete \u{201C}\(room.name)\u{201D} for everyone?" : "Leave \u{201C}\(room.name)\u{201D}?"
+      ? String(
+        localized: "Delete \u{201C}\(room.name)\u{201D} for everyone?",
+        comment: "Share sheet confirmation title: the owner ends sharing; the argument is the item's name.")
+      : String(
+        localized: "Leave \u{201C}\(room.name)\u{201D}?",
+        comment: "Share sheet confirmation title: a member stops sharing; the argument is the item's name.")
   }
 
   @ViewBuilder private func sharedSections(_ room: RoomSync) -> some View {
@@ -178,10 +208,10 @@ struct ShareSheet: View {
           Text("Viewer").tag(RoomRole.viewer)
         }
         Picker("Expires", selection: $expiry) {
-          ForEach(Expiry.allCases) { Text($0.rawValue).tag($0) }
+          ForEach(Expiry.allCases) { Text($0.title).tag($0) }
         }
         Picker("Can Be Used By", selection: $uses) {
-          ForEach(Uses.allCases) { Text($0.rawValue).tag($0) }
+          ForEach(Uses.allCases) { Text($0.title).tag($0) }
         }
         if let link, let url = URL(string: link) {
           Button {
@@ -204,7 +234,7 @@ struct ShareSheet: View {
       } header: {
         Text("Invite Link")
       } footer: {
-        Text("Anyone with the link can join as \(roleName(role).lowercased()) until it expires.")
+        Text("Anyone with the link can join as \(role.displayName.lowercased()) until it expires.")
       }
       .onChange(of: role) { link = nil; copied = false }
       .onChange(of: expiry) { link = nil; copied = false }
@@ -244,7 +274,7 @@ struct ShareSheet: View {
         ForEach(invites) { invite in
           HStack {
             VStack(alignment: .leading) {
-              Text(roleName(invite.role))
+              Text(invite.role.displayName)
               Text(inviteDetail(invite)).font(.footnote).foregroundStyle(.secondary)
             }
             Spacer()
@@ -276,8 +306,12 @@ struct ShareSheet: View {
         .font(.title2)
         .foregroundStyle(.secondary)
       VStack(alignment: .leading, spacing: 2) {
-        Text(name(member) + (me ? " (You)" : ""))
-        let detail = [member.email, member.pending ? "Invited" : ""].filter { !$0.isEmpty }.joined(separator: " · ")
+        Text(
+          me
+            ? String(localized: "\(name(member)) (You)", comment: "Share sheet: your own row in the member list.")
+            : name(member))
+        let invited = String(localized: "Invited", comment: "Share sheet: a member invited by email who hasn't joined yet.")
+        let detail = [member.email, member.pending ? invited : ""].filter { !$0.isEmpty }.joined(separator: " · ")
         if !detail.isEmpty { Text(detail).font(.footnote).foregroundStyle(.secondary) }
       }
       Spacer()
@@ -292,10 +326,10 @@ struct ShareSheet: View {
           }
           Button("Remove", role: .destructive) { removing = member }
         } label: {
-          Text(roleName(member.role)).font(.subheadline)
+          Text(member.role.displayName).font(.subheadline)
         }
       } else {
-        Text(roleName(member.role)).font(.subheadline).foregroundStyle(.secondary)
+        Text(member.role.displayName).font(.subheadline).foregroundStyle(.secondary)
       }
     }
   }
@@ -305,23 +339,25 @@ struct ShareSheet: View {
     return rooms.displayName(of: member, in: room)
   }
 
-  private func roleName(_ role: RoomRole) -> String {
-    switch role {
-    case .owner: "Owner"
-    case .editor: "Editor"
-    case .viewer: "Viewer"
-    }
-  }
 
   private func inviteDetail(_ invite: RoomInvite) -> String {
     var parts: [String] = []
     if invite.expires > 0 {
       let date = Date(timeIntervalSince1970: TimeInterval(invite.expires) / 1000)
-      parts.append(date < Date() ? "Expired" : "Until \(date.formatted(date: .abbreviated, time: .shortened))")
+      let until = date.formatted(date: .abbreviated, time: .shortened)
+      parts.append(
+        date < Date()
+          ? String(localized: "Expired", comment: "Share sheet: an invite link that has expired.")
+          : String(localized: "Until \(until)", comment: "Share sheet: when an invite link expires; the argument is a date."))
     } else {
-      parts.append("No expiry")
+      parts.append(String(localized: "No expiry", comment: "Share sheet: an invite link that never expires."))
     }
-    if let left = invite.usesLeft { parts.append(left == 0 ? "Used up" : "\(left) left") }
+    if let left = invite.usesLeft {
+      parts.append(
+        left == 0
+          ? String(localized: "Used up", comment: "Share sheet: an invite link with no uses left.")
+          : String(localized: "\(left) left", comment: "Share sheet: how many more people can use an invite link."))
+    }
     return parts.joined(separator: " · ")
   }
 
@@ -365,8 +401,12 @@ struct ShareSheet: View {
       let count = try await rooms.invite(email: email, role: emailRole, to: room)
       emailResult =
         count == 0
-        ? "No one with that email has signed in to Compass on this server."
-        : "Invited \(email). They'll see the invitation in Compass."
+        ? String(
+          localized: "No one with that email has signed in to Compass on this server.",
+          comment: "Share sheet: inviting by email found no one.")
+        : String(
+          localized: "Invited \(email). They'll see the invitation in Compass.",
+          comment: "Share sheet: an email invitation was sent; the argument is the address.")
       if count > 0 { email = "" }
     }
   }
@@ -407,5 +447,16 @@ struct RoomBadge: View {
       .font(.system(size: 11, weight: .semibold))
       .opacity(0.55)
       .accessibilityLabel(role == .viewer ? "Shared with you, view only" : "Shared")
+  }
+}
+
+extension RoomRole {
+  /// The role's name in the share sheet and the join preview.
+  var displayName: String {
+    switch self {
+    case .owner: String(localized: "Owner", comment: "A shared item's member role.")
+    case .editor: String(localized: "Editor", comment: "A shared item's member role.")
+    case .viewer: String(localized: "Viewer", comment: "A shared item's member role.")
+    }
   }
 }

@@ -117,7 +117,7 @@ enum ReaderScripts {
   /// error in the same form when there's none).
   static func parse(_ view: WKWebView) async -> ReaderResult {
     guard !reader.isEmpty, await define([readability, readerable, reader], in: view) else {
-      return ReaderResult(json: ReaderResult.failure("This page has no article."))
+      return ReaderResult(json: ReaderResult.failure(String(localized: "This page has no article.", comment: "Reader: the page has no article to show.")))
     }
     let value = try? await view.callAsyncJavaScript(
       "return JSON.stringify(__compassReader.parse({}));", arguments: [:], in: nil, contentWorld: ReaderMode.world)

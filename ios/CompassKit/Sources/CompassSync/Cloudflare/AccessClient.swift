@@ -93,13 +93,13 @@ public struct AccessClient: Sendable {
     /// The desktop's AccessClient::Describe().
     public var message: String {
       switch self {
-      case .unsupported: "This server doesn't take invites."
-      case .notOwner: "Only the server's owner can do that."
-      case .unauthorized: "The server refused this device."
-      case .noSuchInvite: "This invite doesn't exist. Check the link."
-      case .inviteGone: "This invite was used or has expired. Ask for a new one."
-      case .tooMany: "The server has too many invites or people. Remove some first."
-      case .failed: "Couldn't reach the sync server. Try again."
+      case .unsupported: String(localized: "This server doesn't take invites.", bundle: .module, comment: "Sync server invites: error.")
+      case .notOwner: String(localized: "Only the server's owner can do that.", bundle: .module, comment: "Sync server invites: error.")
+      case .unauthorized: String(localized: "The server refused this device.", bundle: .module, comment: "Sync server invites: error.")
+      case .noSuchInvite: String(localized: "This invite doesn't exist. Check the link.", bundle: .module, comment: "Sync server invites: error.")
+      case .inviteGone: String(localized: "This invite was used or has expired. Ask for a new one.", bundle: .module, comment: "Sync server invites: error.")
+      case .tooMany: String(localized: "The server has too many invites or people. Remove some first.", bundle: .module, comment: "Sync server invites: error.")
+      case .failed: String(localized: "Couldn't reach the sync server. Try again.", bundle: .module, comment: "Sync server invites: error.")
       }
     }
 

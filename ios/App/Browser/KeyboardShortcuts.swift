@@ -101,7 +101,7 @@ struct BrowserCommands: Commands {
         .keyboardShortcut("t", modifiers: [.command, .shift])
       Divider()
       ForEach(Array((app?.visibleSpaces ?? []).prefix(9).enumerated()), id: \.element.id) { index, space in
-        Button(space.name.isEmpty ? "Space \(index + 1)" : space.name) { app?.selectSpace(at: index) }
+        Button(space.name.isEmpty ? String(localized: "Space \(index + 1)", comment: "Keyboard menu: an unnamed space; the argument is its position (1–9).") : space.name) { app?.selectSpace(at: index) }
           .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .control)
       }
     }

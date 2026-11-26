@@ -1,4 +1,32 @@
 {
-  "extension_name": { "message": "Open in Compass" },
-  "extension_description": { "message": "Opens the page you're on in Compass, or pins it to a space." }
+  "extension_name": {
+    "message": "Open in Compass"
+  },
+  "extension_description": {
+    "message": "Opens the page you're on in Compass, or pins it to a space."
+  },
+  "open_button": {
+    "message": "Open in Compass",
+    "description": "The popup's main button."
+  },
+  "pin_label": {
+    "message": "Pin to a space",
+    "description": "Above the list of spaces."
+  },
+  "only_web_pages": {
+    "message": "Only web pages can go to Compass."
+  },
+  "page_not_taken": {
+    "message": "Compass couldn't take the page."
+  },
+  "pinned_in": {
+    "message": "Pinned in $SPACE$.",
+    "description": "After pinning the page; SPACE is the space's name.",
+    "placeholders": {
+      "space": {
+        "content": "$1",
+        "example": "Work"
+      }
+    }
+  }
 }

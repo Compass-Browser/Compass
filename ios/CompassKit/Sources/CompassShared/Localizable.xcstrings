@@ -1,0 +1,17 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "This page has no article." : {
+      "comment" : "Reader: the page has no article to show.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa pagina non contiene un articolo."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

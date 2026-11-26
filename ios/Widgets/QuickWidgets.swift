@@ -66,7 +66,7 @@ struct QuickWidgetView: View {
       }
       .buttonStyle(.plain)
       HStack(spacing: 8) {
-        tile(link: .newTab(space: nil), label: "New Tab") {
+        tile(link: .newTab(space: nil), label: String(localized: "New Tab", comment: "Quick Actions widget button.")) {
           Image(systemName: "plus").font(.system(size: 18, weight: .semibold))
         }
         if let space = entry.space {

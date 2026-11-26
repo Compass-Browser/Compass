@@ -286,7 +286,10 @@ final class ClaudeChat {
       rounds += 1
       if rounds > Self.maxToolRounds {
         closeOpenTools("Not run: Claude used many steps; the user may ask to go on.")
-        conversation.failLastReply("Claude stopped after \(Self.maxToolRounds) steps.")
+        conversation.failLastReply(
+          String(
+            localized: "Claude stopped after \(Self.maxToolRounds) steps.",
+            comment: "Claude chat: error under a reply that used too many tool steps; the argument is the limit."))
         break
       }
       await runTools(turn)
@@ -305,7 +308,8 @@ final class ClaudeChat {
     let settings = ClaudeSettings.shared
     guard let endpoint = settings.endpoint else {
       conversation.startReply()
-      conversation.finishReply(error: "Add an API key in Settings → AI.")
+      conversation.finishReply(
+        error: String(localized: "Add an API key in Settings → AI.", comment: "Claude chat: error when no API key is set."))
       return
     }
     if endpoint.needsTokenRisksAccepted {
@@ -350,7 +354,10 @@ final class ClaudeChat {
       cacheMemory.remember(outcome.level, for: endpoint.baseURL, isClaudeAPI: endpoint.isClaudeAPI)
     }
     guard streaming, !Task.isCancelled else { return }  // stopped
-    conversation.finishReply(error: settings.revision == started ? error : "The key or endpoint changed.")
+    conversation.finishReply(error: settings.revision == started ? error
+        : String(
+          localized: "The key or endpoint changed.",
+          comment: "Claude chat: error when the API key or endpoint changed during a reply."))
   }
 
   private func stream(_ request: ChatRequest, _ endpoint: ClaudeEndpoint, _ started: Int) async -> String? {

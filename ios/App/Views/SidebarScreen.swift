@@ -69,7 +69,7 @@ struct SidebarScreen: View {
           Button {
             // In the profile of the space it was made from.
             let space = app.store.addSpace(
-              name: "Space \(app.store.spaces.count + 1)", theme: SpaceTheme(SpaceColor.allCases.filter { $0 != .grey }.randomElement()!),
+              name: String(localized: "Space \(app.store.spaces.count + 1)", comment: "Default name of a new space: Space 3."), theme: SpaceTheme(SpaceColor.allCases.filter { $0 != .grey }.randomElement()!),
               profile: app.selectedSpace?.profileUUID ?? "")
             app.selectedSpaceID = space.id
           } label: {
@@ -187,7 +187,7 @@ struct SpacePage: View {
         }
 
         if !space.isIncognito {
-        SectionHeader(title: "Pinned") { EmptyView() }
+        SectionHeader(title: String(localized: "Pinned", comment: "Sidebar section header: pinned tabs.")) { EmptyView() }
           .dropDestination(for: String.self) { ids, _ in drop(ids, into: space.pinned) }
         if space.pinned.children.phoneVisible.isEmpty {
           Text("Pin tabs to keep them in this space.")
@@ -207,7 +207,7 @@ struct SpacePage: View {
         }
         }
 
-        SectionHeader(title: "Today") {
+        SectionHeader(title: String(localized: "Today", comment: "Sidebar section header: today's loose tabs.")) {
           // Tidy Today (docs/design/ai-sidebar.md): with its switch on and
           // Claude set up, never in incognito; 5 loose entries at least.
           let busy = app.tidier.isBusy(space)
@@ -712,7 +712,7 @@ struct NodeRow: View {
       return title
     }
     if item.isTab, let short = app.shortener.shortTitle(for: item) { return short }
-    return item.displayTitle.isEmpty ? "Untitled" : item.displayTitle
+    return item.displayTitle.isEmpty ? String(localized: "Untitled", comment: "Sidebar row of a tab with no title.") : item.displayTitle
   }
 
   /// "Split With" a tab beside it, and "Add to Split": this tab into a
@@ -826,7 +826,10 @@ struct NodeRow: View {
     } else if let space {
       if node.section == .today {
         Button("Pin", systemImage: "pin") { app.store.move(node, to: space.pinned, at: space.pinned.children.count) }
-        Button("Archive", systemImage: "archivebox") { app.store.archive(node) }
+        Button(
+          String(localized: "Archive (verb)", defaultValue: "Archive", comment: "Sidebar entry menu: move the entry to the archive."),
+          systemImage: "archivebox"
+        ) { app.store.archive(node) }
       } else if node.section == .pinned && !node.isFolder {
         Button("Unpin", systemImage: "pin.slash") { app.store.move(node, to: space.today, at: space.today.children.count) }
       }
@@ -837,7 +840,7 @@ struct NodeRow: View {
       }
       if node.section == .pinned {
         Button("New Folder", systemImage: "folder.badge.plus") {
-          app.store.addFolder(name: "New Folder", to: folderParent(in: space))
+          app.store.addFolder(name: String(localized: "New Folder", comment: "Default name of a folder made from the sidebar menu."), to: folderParent(in: space))
         }
         // Beside New Folder, in the same place.
         let liveParent = folderParent(in: space)
@@ -879,11 +882,13 @@ struct SavedURLItems: View {
 
   var body: some View {
     if tab.isAwayFromSavedURL {
-      let kind = tab.section == .favorites ? "Favorite" : "Pinned"
-      Button("Use This Page as \(kind) URL", systemImage: "pin.circle") {
+      let favorite = tab.section == .favorites
+      Button(favorite ? "Use This Page as Favorite URL" : "Use This Page as Pinned URL", systemImage: "pin.circle") {
         app.store.setSavedURL(tab, url: tab.url, title: tab.title)
       }
-      Button("Back to \(kind) URL", systemImage: "arrow.uturn.backward") { app.backToSavedURL(tab) }
+      Button(favorite ? "Back to Favorite URL" : "Back to Pinned URL", systemImage: "arrow.uturn.backward") {
+        app.backToSavedURL(tab)
+      }
     }
   }
 }

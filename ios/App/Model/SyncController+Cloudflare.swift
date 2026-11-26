@@ -17,12 +17,15 @@ struct ServerUpdate: Equatable {
   /// What the versions the server lacks add, as the desktop's page says.
   var note: String {
     let newIn = [
-      2: "sharing spaces, folders and easels with others",
-      3: "notifications on phones when a tab is sent to them, through Compass's push relay at push.compassbrowser.org",
+      2: String(localized: "sharing spaces, folders and easels with others", comment: "Server update: a feature it adds, completes “It adds …”"),
+      3: String(
+        localized: "notifications on phones when a tab is sent to them, through Compass's push relay at push.compassbrowser.org",
+        comment: "Server update: a feature it adds, completes “It adds …”"),
     ]
     let added = stride(from: current + 1, through: latest, by: 1).compactMap { newIn[$0] }
-    return (added.isEmpty ? "" : "It adds \(added.joined(separator: ", ")). ")
-      + "Your data and the people on it stay as they are."
+    let adds = added.joined(separator: ", ")
+    return (added.isEmpty ? "" : String(localized: "It adds \(adds).", comment: "Server update: what the new version adds") + " ")
+      + String(localized: "Your data and the people on it stay as they are.", comment: "Server update: note")
   }
 }
 
@@ -67,13 +70,13 @@ extension SyncController {
   /// profiles and the friends it invites. On success `newChainWords` holds
   /// the 12 words; otherwise the reason. Nothing is saved if it fails.
   func startOnCloudflare(token: String, pushRelay: Bool) async -> String? {
-    guard chain == nil else { return "Sync is already set up." }
+    guard chain == nil else { return String(localized: "Sync is already set up.", comment: "Cloudflare server setup or invite: error") }
     let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !token.isEmpty else { return "Paste your Cloudflare token." }
-    guard serverSetup == nil else { return "Sync is being set up." }
-    guard let script = Self.workerScript, !script.isEmpty else { return "This build has no sync server to set up." }
+    guard !token.isEmpty else { return String(localized: "Paste your Cloudflare token.", comment: "Cloudflare server setup or invite: error") }
+    guard serverSetup == nil else { return String(localized: "Sync is being set up.", comment: "Cloudflare server setup or invite: error") }
+    guard let script = Self.workerScript, !script.isEmpty else { return String(localized: "This build has no sync server to set up.", comment: "Cloudflare server setup or invite: error") }
     let chain = try! Chain(seed: Chain.generateSeed())
-    serverSetup = "Connecting to Cloudflare…"
+    serverSetup = String(localized: "Connecting to Cloudflare…", comment: "Cloudflare setup: progress")
     defer { serverSetup = nil }
     let deployment: CloudflareDeployment
     do {
@@ -82,7 +85,7 @@ extension SyncController {
     } catch {
       return error.message
     }
-    guard self.chain == nil, let server = deployment.serverURL else { return "Sync is already set up." }
+    guard self.chain == nil, let server = deployment.serverURL else { return String(localized: "Sync is already set up.", comment: "Cloudflare server setup or invite: error") }
     record(deployment)
     save(chain: chain, server: server)
     start(chain: chain, server: server)
@@ -95,20 +98,20 @@ extension SyncController {
   /// list with the code first, so its first sync request is let in, then
   /// starts as Start Sync does.
   func joinWithInvite(_ text: String) async -> String? {
-    guard chain == nil else { return "Sync is already set up." }
+    guard chain == nil else { return String(localized: "Sync is already set up.", comment: "Cloudflare server setup or invite: error") }
     guard let link = ServerInviteLink(text) else {
-      return "Paste the whole invite link, like https://compass-sync.example.workers.dev/invite#…."
+      return String(localized: "Paste the whole invite link, like https://compass-sync.example.workers.dev/invite#….", comment: "Cloudflare server setup or invite: error")
     }
-    guard serverSetup == nil else { return "Sync is being set up." }
+    guard serverSetup == nil else { return String(localized: "Sync is being set up.", comment: "Cloudflare server setup or invite: error") }
     let chain = try! Chain(seed: Chain.generateSeed())
-    serverSetup = "Joining…"
+    serverSetup = String(localized: "Joining…", comment: "Joining a server with an invite: progress")
     defer { serverSetup = nil }
     do {
       try await AccessClient(serverURL: link.serverURL).join(token: chain.accessToken(), code: link.code)
     } catch {
       return error.message
     }
-    guard self.chain == nil else { return "Sync is already set up." }
+    guard self.chain == nil else { return String(localized: "Sync is already set up.", comment: "Cloudflare server setup or invite: error") }
     save(chain: chain, server: link.serverURL)
     start(chain: chain, server: link.serverURL)
     newChainWords = chain.recoveryWords
@@ -191,15 +194,15 @@ extension SyncController {
   /// (`token` from Sign in with Cloudflare, or an API token), keeping its
   /// variables; done once it reports the new version. nil, or the reason.
   func updateServer(token: String) async -> String? {
-    guard chain != nil, let server = serverURL, state != .removed else { return "Sync isn't running on this device." }
+    guard chain != nil, let server = serverURL, state != .removed else { return String(localized: "Sync isn't running on this device.", comment: "Cloudflare server setup or invite: error") }
     let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !token.isEmpty else { return "Paste your Cloudflare token." }
-    guard serverSetup == nil else { return "The server is being set up or updated." }
+    guard !token.isEmpty else { return String(localized: "Paste your Cloudflare token.", comment: "Cloudflare server setup or invite: error") }
+    guard serverSetup == nil else { return String(localized: "The server is being set up or updated.", comment: "Cloudflare server setup or invite: error") }
     let latest = Self.workerVersion
     guard let name = CloudflareServerName(serverURL: server), let script = Self.workerScript, !script.isEmpty,
       latest > 0
-    else { return "This server can't be updated from here." }
-    serverSetup = "Connecting to Cloudflare…"
+    else { return String(localized: "This server can't be updated from here.", comment: "Cloudflare server setup or invite: error") }
+    serverSetup = String(localized: "Connecting to Cloudflare…", comment: "Cloudflare setup: progress")
     defer { serverSetup = nil }
     do {
       let deployment = try await CloudflareDeployer(token: token, script: script)

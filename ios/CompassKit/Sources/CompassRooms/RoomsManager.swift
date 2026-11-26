@@ -346,9 +346,15 @@ public final class RoomsManager: RoomBacking {
       if !room.role.canEdit { room.revertLocalEdits() }
       try await room.push(client, identity: account.identity)
     } catch RoomError.removed {
-      end(room, notice: "You were removed from \u{201C}\(room.name)\u{201D}. Your copy stays on this device.", deleteMount: true)
+      end(
+        room,
+        notice: String(localized: "You were removed from “\(room.name)”. Your copy stays on this device.", bundle: .module, comment: "Sidebar banner: the user was removed from a shared space, folder or Easel. The argument is its name."),
+        deleteMount: true)
     } catch RoomError.notFound {
-      end(room, notice: "\u{201C}\(room.name)\u{201D} is no longer shared. Your copy stays on this device.", deleteMount: true)
+      end(
+        room,
+        notice: String(localized: "“\(room.name)” is no longer shared. Your copy stays on this device.", bundle: .module, comment: "Sidebar banner: a shared space, folder or Easel was deleted by its owner. The argument is its name."),
+        deleteMount: true)
     } catch {}
     revision += 1
   }
@@ -563,7 +569,7 @@ public final class RoomsManager: RoomBacking {
       return name
     }
     if !member.email.isEmpty { return member.email }
-    return "Member " + member.clientID.prefix(6)
+    return String(localized: "Member \(String(member.clientID.prefix(6)))", bundle: .module, comment: "Sharing: a member with no name or email; the argument is a short ID.")
   }
 
   /// Whether a member is this device's account.
@@ -643,7 +649,7 @@ public final class RoomsManager: RoomBacking {
     var out = invitations.filter { $0.account != profile }
     for summary in list where summary.pending && rooms[summary.id] == nil {
       guard let kind = RoomKind(rawValue: summary.kind) else { continue }
-      var from = "Someone"
+      var from = String(localized: "Someone", bundle: .module, comment: "Sharing: who sent an invitation, when their name is unknown.")
       if let info = try? await client.room(summary.id), let owner = info.member(info.owner) {
         from = owner.name.isEmpty ? (owner.email.isEmpty ? from : owner.email) : owner.name
       }

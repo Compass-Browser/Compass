@@ -1,0 +1,29 @@
+{
+  "extension_name": {
+    "message": "Apri in Compass"
+  },
+  "extension_description": {
+    "message": "Apre in Compass la pagina che stai visitando o la fissa in uno spazio."
+  },
+  "open_button": {
+    "message": "Apri in Compass"
+  },
+  "pin_label": {
+    "message": "Fissa in uno spazio"
+  },
+  "only_web_pages": {
+    "message": "Solo le pagine web possono essere aperte in Compass."
+  },
+  "page_not_taken": {
+    "message": "Compass non è riuscito ad aprire la pagina."
+  },
+  "pinned_in": {
+    "message": "Fissata in $SPACE$.",
+    "placeholders": {
+      "space": {
+        "content": "$1",
+        "example": "Lavoro"
+      }
+    }
+  }
+}

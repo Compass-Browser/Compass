@@ -118,8 +118,11 @@ struct DownloadProgress: View {
   private var detail: String {
     let done = state.fraction.map { "\(Int(($0 * 100).rounded()))% · " } ?? ""
     switch state.phase {
-    case .paused: return "Paused · open Compass to finish"
-    case .background: return "Downloading in the background · " + done + size
+    case .paused: return String(localized: "Paused · open Compass to finish", comment: "Download Live Activity: the app was suspended mid-download.")
+    case .background:
+      return String(
+        localized: "Downloading in the background · \(done + size)",
+        comment: "Download Live Activity: the system downloads on; the argument is the progress and size, e.g. “45% · 12 MB”.")
     default: return done + size
     }
   }

@@ -62,8 +62,10 @@ struct BoostsView: View {
     }
   }
 
-  static let about =
-    "A Boost restyles a site with CSS, or changes it with JavaScript, each time you visit it, in every tab but Incognito ones. Boosts sync with your spaces, end-to-end encrypted. Changes show once the page loads again."
+  static let about = String(
+    localized:
+      "A Boost restyles a site with CSS, or changes it with JavaScript, each time you visit it, in every tab but Incognito ones. Boosts sync with your spaces, end-to-end encrypted. Changes show once the page loads again.",
+    comment: "Footer explaining Boosts, under the Boosts list in Settings and a site's Boosts.")
 
   private var sites: [String] {
     var seen = Set<String>()
@@ -196,7 +198,7 @@ struct BoostEditor: View {
         Section { Text(error).foregroundStyle(.red) }
       }
     }
-    .navigationTitle(original == nil ? "New Boost" : "Edit Boost")
+    .navigationTitle(original == nil ? LocalizedStringKey("New Boost") : "Edit Boost")
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .cancellationAction) {

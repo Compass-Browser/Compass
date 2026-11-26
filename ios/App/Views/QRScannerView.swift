@@ -29,7 +29,7 @@ struct QRScannerView: UIViewControllerRepresentable {
         session.canAddInput(input)
       else {
         let label = UILabel()
-        label.text = "No camera available."
+        label.text = String(localized: "No camera available.", comment: "QR code scanner: the device has no camera")
         label.textColor = .white
         label.frame = view.bounds
         label.textAlignment = .center

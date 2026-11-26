@@ -101,6 +101,13 @@ final class ShareModel {
     case open = "Open"
     case pin = "Add to Pinned"
     var id: String { rawValue }
+    /// The picker's label (rawValue is saved in the defaults).
+    var title: String {
+      switch self {
+      case .open: String(localized: "Open", comment: "Share extension: open the shared link in Compass.")
+      case .pin: String(localized: "Add to Pinned", comment: "Share extension: pin the shared link in a space.")
+      }
+    }
   }
 
   private static let lastSpaceKey = "ShareLastSpace"
@@ -158,7 +165,7 @@ final class ShareModel {
     do {
       try container.inbox.add(item)
     } catch {
-      done = "Couldn't save the link."
+      done = String(localized: "Couldn't save the link.", comment: "Share extension error.")
       return
     }
     SharedContainer.postChanged()
@@ -169,8 +176,9 @@ final class ShareModel {
     case .open:
       finish?(true)
     case .pin:
-      let place = space?.folder(id: folderID)?.name ?? space?.name ?? "Pinned"
-      done = "Added to \(place)"
+      let place = space?.folder(id: folderID)?.name ?? space?.name
+        ?? String(localized: "Pinned", comment: "Share extension: a space's Pinned section.")
+      done = String(localized: "Added to \(place)", comment: "Share extension: the link was pinned; the argument is a folder or space name.")
       Task {
         try? await Task.sleep(for: .milliseconds(900))
         finish?(false)

@@ -20,6 +20,25 @@ struct ClearDataView: View {
 
     var id: String { rawValue }
 
+    var title: String {
+      switch self {
+      case .hour: String(localized: "Last Hour", comment: "Clear Browsing Data: time range")
+      case .day: String(localized: "Today", comment: "Clear Browsing Data: time range")
+      case .week: String(localized: "Last 7 Days", comment: "Clear Browsing Data: time range")
+      case .all: String(localized: "All Time", comment: "Clear Browsing Data: time range")
+      }
+    }
+
+    /// The confirmation's question.
+    var question: String {
+      return switch self {
+      case .hour: String(localized: "Clear browsing data from last hour?", comment: "Clear Browsing Data: confirmation title")
+      case .day: String(localized: "Clear browsing data from today?", comment: "Clear Browsing Data: confirmation title")
+      case .week: String(localized: "Clear browsing data from last 7 days?", comment: "Clear Browsing Data: confirmation title")
+      case .all: String(localized: "Clear browsing data from all time?", comment: "Clear Browsing Data: confirmation title")
+      }
+    }
+
     /// nil: everything.
     var since: Date? {
       switch self {
@@ -42,7 +61,7 @@ struct ClearDataView: View {
     Form {
       Section {
         Picker("Time Range", selection: $range) {
-          ForEach(Range.allCases) { Text($0.rawValue).tag($0) }
+          ForEach(Range.allCases) { Text($0.title).tag($0) }
         }
       }
       Section {
@@ -58,7 +77,7 @@ struct ClearDataView: View {
       }
     }
     .navigationTitle("Clear Browsing Data")
-    .confirmationDialog("Clear browsing data from \(range.rawValue.lowercased())?", isPresented: $confirming,
+    .confirmationDialog(range.question, isPresented: $confirming,
                         titleVisibility: .visible) {
       Button("Clear", role: .destructive) { Task { await clear() } }
     }
@@ -66,8 +85,15 @@ struct ClearDataView: View {
 
   private var footer: String {
     var parts: [String] = []
-    if history { parts.append(app.sync.isOn ? "History is cleared on every synced device." : "History is cleared on this iPhone.") }
-    if cookies { parts.append("Clearing cookies signs you out of websites, in every profile.") }
+    if history {
+      parts.append(
+        app.sync.isOn
+          ? String(localized: "History is cleared on every synced device.", comment: "Clear Browsing Data: footer")
+          : String(localized: "History is cleared on this iPhone.", comment: "Clear Browsing Data: footer"))
+    }
+    if cookies {
+      parts.append(String(localized: "Clearing cookies signs you out of websites, in every profile.", comment: "Clear Browsing Data: footer"))
+    }
     return parts.joined(separator: " ")
   }
 
@@ -111,11 +137,11 @@ enum ArchiveAfter: CaseIterable, Identifiable {
 
   var name: String {
     switch self {
-    case .twelveHours: "After 12 Hours"
-    case .day: "After 1 Day"
-    case .week: "After 7 Days"
-    case .month: "After 30 Days"
-    case .never: "Never"
+    case .twelveHours: String(localized: "After 12 Hours", comment: "Archive Inactive Tabs: choice")
+    case .day: String(localized: "After 1 Day", comment: "Archive Inactive Tabs: choice")
+    case .week: String(localized: "After 7 Days", comment: "Archive Inactive Tabs: choice")
+    case .month: String(localized: "After 30 Days", comment: "Archive Inactive Tabs: choice")
+    case .never: String(localized: "Never", comment: "Archive Inactive Tabs: choice")
     }
   }
 

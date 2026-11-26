@@ -1,0 +1,160 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%@ is not set" : {
+      "comment" : "Live folder error, shown under the folder: a setting the plugin needs (such as an API key) is empty. The argument is its label.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ non è impostato"
+          }
+        }
+      }
+    },
+    "No response" : {
+      "comment" : "Live folder error, shown under the folder.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna risposta"
+          }
+        }
+      }
+    },
+    "No result after %lld ms" : {
+      "comment" : "Live folder error, shown under the folder: the plugin timed out. The argument is milliseconds.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun risultato dopo %lld ms"
+          }
+        }
+      }
+    },
+    "Plugins install from an https:// address." : {
+      "comment" : "Error installing a live folder plugin.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I plugin si installano da un indirizzo https://."
+          }
+        }
+      }
+    },
+    "Redirect to %@ is not allowed" : {
+      "comment" : "Live folder error, shown under the folder. The argument is a host name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il reindirizzamento a %@ non è consentito"
+          }
+        }
+      }
+    },
+    "Response from %@ is too large" : {
+      "comment" : "Live folder error, shown under the folder. The argument is a host name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La risposta di %@ è troppo grande"
+          }
+        }
+      }
+    },
+    "That isn't a live folder plugin's manifest: %@." : {
+      "comment" : "Error installing a live folder plugin. The argument is a technical detail, in English.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non è il manifest di un plugin per cartelle live: %@."
+          }
+        }
+      }
+    },
+    "The plugin can't start" : {
+      "comment" : "Live folder error, shown under the folder.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile avviare il plugin"
+          }
+        }
+      }
+    },
+    "The plugin's manifest couldn't be downloaded." : {
+      "comment" : "Error installing a live folder plugin.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile scaricare il manifest del plugin."
+          }
+        }
+      }
+    },
+    "The plugin's script couldn't be downloaded." : {
+      "comment" : "Error installing a live folder plugin.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile scaricare lo script del plugin."
+          }
+        }
+      }
+    },
+    "The plugin's script isn't UTF-8 text." : {
+      "comment" : "Error installing a live folder plugin.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo script del plugin non è testo UTF-8."
+          }
+        }
+      }
+    },
+    "The result isn't JSON" : {
+      "comment" : "Live folder error, shown under the folder.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il risultato non è in formato JSON"
+          }
+        }
+      }
+    },
+    "The server's response is too large" : {
+      "comment" : "Live folder error, shown under the folder.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La risposta del server è troppo grande"
+          }
+        }
+      }
+    },
+    "Too many redirects" : {
+      "comment" : "Live folder error, shown under the folder.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Troppi reindirizzamenti"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

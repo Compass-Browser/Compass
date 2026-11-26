@@ -51,7 +51,7 @@ struct EaselCaptureOverlay: View {
     }
     .confirmationDialog("Add to Easel", isPresented: $choosing, titleVisibility: .visible) {
       ForEach(EaselCapture.boards.prefix(8), id: \.uuid) { board in
-        Button(board.title.isEmpty ? "Untitled" : board.title) { capture(to: board.uuid) }
+        Button(board.title.isEmpty ? String(localized: "Untitled", comment: "An Easel (canvas board) with no title.") : board.title) { capture(to: board.uuid) }
       }
       Button("New Easel") { captureToNew() }
       Button("Cancel", role: .cancel) {}
@@ -75,7 +75,8 @@ struct EaselCaptureOverlay: View {
   }
 
   private func captureToNew() {
-    switch EaselStore.shared.createEasel(title: "Untitled Easel") {
+    switch EaselStore.shared.createEasel(
+      title: String(localized: "Untitled Easel", comment: "The title of a new Easel (canvas board).")) {
     case .failure(let error): app.showMessage(error.message)
     case .success(let board):
       app.pinEasel(board)
@@ -96,7 +97,9 @@ struct EaselCaptureOverlay: View {
       switch await EaselCapture.capture(view, rect: rect, to: board) {
       case .success:
         let title = EaselStore.shared.easel(board)?.title ?? ""
-        app.showMessage("Captured to “\(title.isEmpty ? "Untitled" : title)”")
+        let name = title.isEmpty ? String(localized: "Untitled", comment: "An Easel (canvas board) with no title.") : title
+        app.showMessage(
+          String(localized: "Captured to “\(name)”", comment: "Toast after capturing part of a page to an Easel; the argument is its title."))
       case .failure(let error): app.showMessage(error.message)
       }
     }

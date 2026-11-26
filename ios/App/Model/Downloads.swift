@@ -20,6 +20,8 @@ final class Downloads: NSObject {
     var bytes: Int64 = 0
     var date = Date()
     var failed: String?
+    /// Stopped by the user (`failed` then says so, localized).
+    var cancelled = false
     /// In the system's background session: it goes on while the app is
     /// suspended (Downloads+Background.swift).
     var background = false
@@ -91,7 +93,10 @@ final class Downloads: NSObject {
   func cancel(_ id: UUID) {
     if let task = sessionTasks.removeValue(forKey: id) {
       task.cancel()
-      update(id) { $0.failed = "Cancelled" }
+      update(id) {
+      $0.failed = String(localized: "Cancelled", comment: "Downloads list: a download the user stopped.")
+      $0.cancelled = true
+    }
       return
     }
     guard let download = tasks[id] else { return }
@@ -101,7 +106,10 @@ final class Downloads: NSObject {
     pending[key] = nil
     progress[id] = nil
     tasks[id] = nil
-    update(id) { $0.failed = "Cancelled" }
+    update(id) {
+      $0.failed = String(localized: "Cancelled", comment: "Downloads list: a download the user stopped.")
+      $0.cancelled = true
+    }
   }
 
   func delete(_ item: Item) {

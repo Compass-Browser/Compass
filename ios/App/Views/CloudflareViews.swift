@@ -13,7 +13,9 @@ import WebKit
 
 /// The relay's words, for setup and the owner's switch.
 private func pushRelayDetails(host: String) -> String {
-  "When a tab is sent to an iPhone or Android phone, Compass's push relay (\(host)) tells it at once. It gets each phone's notification token, never your tabs or data. Off, sent tabs arrive when the phone next syncs."
+  String(
+    localized: "When a tab is sent to an iPhone or Android phone, Compass's push relay (\(host)) tells it at once. It gets each phone's notification token, never your tabs or data. Off, sent tabs arrive when the phone next syncs.",
+    comment: "Cloudflare server: the Phone Notifications switch's explanation; the host is the relay's")
 }
 
 /// What's under way (`SyncController.serverSetup`), or the last error.
@@ -59,7 +61,7 @@ struct CloudflareSetupView: View {
         Toggle(isOn: $pushRelay) {
           VStack(alignment: .leading, spacing: 2) {
             Text("Phone Notifications")
-            Text(pushRelayDetails(host: "push.compassbrowser.org") + " You can change this later.")
+            Text(pushRelayDetails(host: "push.compassbrowser.org") + " " + String(localized: "You can change this later.", comment: "Cloudflare server setup: after the Phone Notifications explanation"))
               .font(.caption).foregroundStyle(.secondary)
           }
         }
@@ -194,8 +196,12 @@ struct ServerPeopleView: View {
           }
           ForEach(people.invites) { invite in
             row(
-              invite.name.isEmpty ? "Invite" : "Invite for \(invite.name)",
-              "Not used yet · expires \(invite.expires.formatted(date: .abbreviated, time: .omitted))"
+              invite.name.isEmpty
+                ? String(localized: "Invite", comment: "People on Your Server: an unnamed invite")
+                : String(localized: "Invite for \(invite.name)", comment: "People on Your Server: an invite and the friend's name"),
+              String(
+                localized: "Not used yet · expires \(invite.expires.formatted(date: .abbreviated, time: .omitted))",
+                comment: "People on Your Server: an invite's details; the date it expires")
             )
             .swipeActions { Button("Revoke") { remove(invite.code) }.tint(.red) }
             .contextMenu {
@@ -316,14 +322,21 @@ struct ServerPeopleView: View {
     }
   }
 
-  private func title(_ member: ServerMember) -> String { member.name.isEmpty ? "Friend" : member.name }
+  private func title(_ member: ServerMember) -> String {
+    member.name.isEmpty ? String(localized: "Friend", comment: "People on Your Server: an unnamed friend") : member.name
+  }
 
   /// "Joined Nov 25, 2026 · 2 linked accounts": their other profiles, and
   /// the chains they reset to.
   private func details(_ member: ServerMember) -> String {
     let linked =
-      member.linked > 0 ? " · \(member.linked) linked account\(member.linked == 1 ? "" : "s")" : ""
-    return "Joined \(member.added.formatted(date: .abbreviated, time: .omitted))\(linked)"
+      member.linked > 0
+      ? " · " + String(localized: "\(member.linked) linked accounts", comment: "People on Your Server: a friend's other profiles and chains")
+      : ""
+    let joined = String(
+      localized: "Joined \(member.added.formatted(date: .abbreviated, time: .omitted))",
+      comment: "People on Your Server: when a friend joined")
+    return joined + linked
   }
 
   private func invite() {
@@ -426,14 +439,15 @@ struct CloudflareSignInSheet: View {
       end(
         nil,
         reply.error == "access_denied"
-          ? "You didn't allow Compass on Cloudflare." : "Cloudflare sign-in didn't finish. Try again.")
+          ? String(localized: "You didn't allow Compass on Cloudflare.", comment: "Sign in with Cloudflare: error")
+          : String(localized: "Cloudflare sign-in didn't finish. Try again.", comment: "Sign in with Cloudflare: error"))
       return
     }
     exchanging = true
     Task {
       let token = await CloudflareOAuth.exchange(code: code, verifier: request.verifier)
       exchanging = false
-      end(token, token == nil ? "Cloudflare didn't give Compass access. Try again." : nil)
+      end(token, token == nil ? String(localized: "Cloudflare didn't give Compass access. Try again.", comment: "Sign in with Cloudflare: error") : nil)
     }
   }
 }

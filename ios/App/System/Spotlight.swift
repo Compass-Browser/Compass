@@ -49,15 +49,18 @@ final class Spotlight {
       let spaceID = Self.spacePrefix + space.id
       let spaceAttributes = CSSearchableItemAttributeSet(contentType: .content)
       spaceAttributes.title = space.name
-      spaceAttributes.contentDescription = "Space in Compass"
+      spaceAttributes.contentDescription = String(localized: "Space in Compass", comment: "Spotlight result description for a space.")
       spaceAttributes.keywords = ["space", "Compass"]
       items[spaceID] = CSSearchableItem(uniqueIdentifier: spaceID, domainIdentifier: space.id, attributeSet: spaceAttributes)
       signature[spaceID] = "space|\(space.name)"
-      for (entry, kind) in space.favorites.map({ ($0, "Favorite") }) + space.pinned.map({ ($0, "Pinned") }) {
+      for (entry, kind) in space.favorites.map({ ($0, String(localized: "Favorite", comment: "Spotlight: a favorite, in “Favorite in <space> · <site>”.")) })
+        + space.pinned.map({ ($0, String(localized: "Pinned", comment: "Spotlight: a pinned tab, in “Pinned in <space> · <site>”.")) }) {
         guard items[entry.id] == nil else { continue }
         let attributes = CSSearchableItemAttributeSet(contentType: .url)
         attributes.title = entry.label
-        attributes.contentDescription = "\(kind) in \(space.name) · \(entry.host)"
+        attributes.contentDescription = String(
+          localized: "\(kind) in \(space.name) · \(entry.host)",
+          comment: "Spotlight result description: Favorite or Pinned, the space's name, the site.")
         attributes.url = URL(string: entry.url)
         attributes.keywords = [space.name, entry.host]
         if let png = try? Data(contentsOf: icons.icon(host: entry.iconHost)) {
@@ -83,8 +86,11 @@ final class Spotlight {
   private static var appItem: CSSearchableItem {
     let attributes = CSSearchableItemAttributeSet(contentType: .application)
     attributes.title = "Compass"
-    attributes.contentDescription = "Web browser"
-    attributes.keywords = ["browser", "web browser", "web", "internet", "Compass Browser"]
+    attributes.contentDescription = String(localized: "Web browser", comment: "Spotlight description of the app itself.")
+    attributes.keywords = [
+      "browser", "web browser", "web", "internet", "Compass Browser",
+      String(localized: "browser", comment: "Spotlight keyword for the app (also matched in English)."),
+    ]
     return CSSearchableItem(uniqueIdentifier: appItemID, domainIdentifier: "app", attributeSet: attributes)
   }
 }

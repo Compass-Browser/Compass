@@ -32,14 +32,14 @@ extension RGB {
 extension SpaceColor {
   var name: String {
     switch self {
-    case .grey: "Grey"
-    case .blue: "Blue"
-    case .purple: "Purple"
-    case .pink: "Pink"
-    case .red: "Red"
-    case .orange: "Orange"
-    case .yellow: "Yellow"
-    case .green: "Green"
+    case .grey: String(localized: "Grey", comment: "Space color name")
+    case .blue: String(localized: "Blue", comment: "Space color name")
+    case .purple: String(localized: "Purple", comment: "Space color name")
+    case .pink: String(localized: "Pink", comment: "Space color name")
+    case .red: String(localized: "Red", comment: "Space color name")
+    case .orange: String(localized: "Orange", comment: "Space color name")
+    case .yellow: String(localized: "Yellow", comment: "Space color name")
+    case .green: String(localized: "Green", comment: "Space color name")
     }
   }
 }

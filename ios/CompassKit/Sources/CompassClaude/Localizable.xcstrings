@@ -1,0 +1,322 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Ask %@" : {
+      "comment" : "Command bar row, page menu and chat field: Ask Claude, Ask GPT, Ask Gemini, Ask AI. The argument is the assistant's name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiedi a %@"
+          }
+        }
+      }
+    },
+    "Chats and the sidebar's requests go to Anthropic, or the endpoint under Advanced." : {
+      "comment" : "Settings → AI: privacy note for the Anthropic provider.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le chat e le richieste della barra laterale vengono inviate ad Anthropic, o all’endpoint indicato in Avanzate."
+          }
+        }
+      }
+    },
+    "Chats and the sidebar's requests go to Google, under the Gemini API's terms, instead of Anthropic." : {
+      "comment" : "Settings → AI: privacy note for the Google Gemini provider.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le chat e le richieste della barra laterale vengono inviate a Google, secondo i termini dell’API Gemini, anziché ad Anthropic."
+          }
+        }
+      }
+    },
+    "Chats and the sidebar's requests go to OpenAI, under its terms, instead of Anthropic." : {
+      "comment" : "Settings → AI: privacy note for the OpenAI provider.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le chat e le richieste della barra laterale vengono inviate a OpenAI, secondo i suoi termini, anziché ad Anthropic."
+          }
+        }
+      }
+    },
+    "Chats and the sidebar's requests go to the server below, instead of Anthropic." : {
+      "comment" : "Settings → AI: privacy note for an OpenAI-compatible server.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le chat e le richieste della barra laterale vengono inviate al server qui sotto, anziché ad Anthropic."
+          }
+        }
+      }
+    },
+    "Claude didn't answer." : {
+      "comment" : "Command bar: the question's answer came back empty.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude non ha risposto."
+          }
+        }
+      }
+    },
+    "Claude found nothing to group." : {
+      "comment" : "Sidebar toast: Tidy Today made no folders.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude non ha trovato niente da raggruppare."
+          }
+        }
+      }
+    },
+    "Claude is overloaded (529). Try again in a moment." : {
+      "comment" : "AI request error: HTTP 529 from Anthropic.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude è sovraccarico (529). Riprova tra un momento."
+          }
+        }
+      }
+    },
+    "Claude took too long." : {
+      "comment" : "Command bar: the question's answer timed out.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude ci ha messo troppo."
+          }
+        }
+      }
+    },
+    "Couldn't reach the server. Check the connection and the endpoint URL." : {
+      "comment" : "AI request error (chat, Settings → AI test).",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile raggiungere il server. Controlla la connessione e l’URL dell’endpoint."
+          }
+        }
+      }
+    },
+    "Couldn't tidy Today." : {
+      "comment" : "Sidebar toast after Tidy Today failed.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile riordinare Oggi."
+          }
+        }
+      }
+    },
+    "Couldn't tidy Today: Claude couldn't be reached." : {
+      "comment" : "Sidebar toast after Tidy Today failed to connect.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile riordinare Oggi: Claude non è raggiungibile."
+          }
+        }
+      }
+    },
+    "Couldn't tidy Today: Claude isn't set up." : {
+      "comment" : "Sidebar toast after Tidy Today (Today = the sidebar's section of today's tabs).",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile riordinare Oggi: Claude non è configurato."
+          }
+        }
+      }
+    },
+    "Couldn't tidy Today: Claude took too long." : {
+      "comment" : "Sidebar toast after Tidy Today timed out.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile riordinare Oggi: Claude ci ha messo troppo."
+          }
+        }
+      }
+    },
+    "Key (if the server needs one)" : {
+      "comment" : "Placeholder of the API key field in Settings → AI, for an OpenAI-compatible server.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiave (se il server la richiede)"
+          }
+        }
+      }
+    },
+    "Nothing answers at that URL (404). Check the endpoint URL." : {
+      "comment" : "AI request error: HTTP 404.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna risposta a quell’URL (404). Controlla l’URL dell’endpoint."
+          }
+        }
+      }
+    },
+    "Other (OpenAI-Compatible)" : {
+      "comment" : "AI provider choice in Settings → AI: any server speaking OpenAI's API.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Altro (compatibile con OpenAI)"
+          }
+        }
+      }
+    },
+    "The key isn't allowed to do this (403)." : {
+      "comment" : "AI request error: HTTP 403.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La chiave non è autorizzata a farlo (403)."
+          }
+        }
+      }
+    },
+    "The key was refused (401). Check it, and the auth style. A token from `claude setup-token` may have expired: make a new one." : {
+      "comment" : "AI request error: HTTP 401 from Anthropic.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La chiave è stata rifiutata (401). Controllala, insieme al tipo di autenticazione. Un token di `claude setup-token` potrebbe essere scaduto: creane uno nuovo."
+          }
+        }
+      }
+    },
+    "The key was refused (401). Check it." : {
+      "comment" : "AI request error: HTTP 401 from a non-Anthropic provider.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La chiave è stata rifiutata (401). Controllala."
+          }
+        }
+      }
+    },
+    "The reply failed." : {
+      "comment" : "Chat error when the AI provider reports a failure without a message.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La risposta non è riuscita."
+          }
+        }
+      }
+    },
+    "The server answered with HTTP %lld." : {
+      "comment" : "AI request error: any other HTTP status. The argument is the status code.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server ha risposto con HTTP %lld."
+          }
+        }
+      }
+    },
+    "The server is overloaded (%lld). Try again in a moment." : {
+      "comment" : "AI request error: HTTP 503 or 529. The argument is the status code.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server è sovraccarico (%lld). Riprova tra un momento."
+          }
+        }
+      }
+    },
+    "This is a token from `claude setup-token`, which uses your Claude subscription. To use it, turn on “Accept the Risks of Subscription Tokens” in Settings → AI." : {
+      "comment" : "Chat error and Settings → AI test result, for a subscription token the user hasn't accepted the risks of.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo è un token di `claude setup-token`, che usa il tuo abbonamento a Claude. Per usarlo, attiva “Accetta i rischi dei token di abbonamento” in Impostazioni → IA."
+          }
+        }
+      }
+    },
+    "Tidied into %lld folders" : {
+      "comment" : "Sidebar toast after Tidy Today: how many folders it made.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tidied into %lld folder"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tidied into %lld folders"
+                }
+              }
+            }
+          }
+        },
+        "it" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Riordinato in %lld cartella"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Riordinato in %lld cartelle"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Too many requests (429). Wait a moment and try again." : {
+      "comment" : "AI request error: HTTP 429.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Troppe richieste (429). Attendi un momento e riprova."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

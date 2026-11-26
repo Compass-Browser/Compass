@@ -58,7 +58,7 @@ enum ExtensionSource: Codable, Hashable, Sendable {
     switch self {
     case .chromeWebStore: "Chrome Web Store"
     case .firefoxAddons: "Firefox Add-ons"
-    case .file: "File"
+    case .file: String(localized: "File", comment: "Where an extension came from: a file the user picked (beside “Chrome Web Store”).")
     }
   }
 
@@ -174,11 +174,11 @@ enum ExtensionError: LocalizedError {
 
   var errorDescription: String? {
     switch self {
-    case .notFound: "The store didn't send the extension. Check the link."
-    case .badPackage: "That isn't an extension package (.crx, .xpi or .zip)."
-    case .notDownloadable: "This extension came from a file; add it again from the file to update it."
-    case .unsupported: "Extensions need iOS 18.4 or later."
-    case .noNativeApp: "No native app to talk to on iPhone."
+    case .notFound: String(localized: "The store didn't send the extension. Check the link.", comment: "Error adding an extension.")
+    case .badPackage: String(localized: "That isn't an extension package (.crx, .xpi or .zip).", comment: "Error adding an extension.")
+    case .notDownloadable: String(localized: "This extension came from a file; add it again from the file to update it.", comment: "Error updating an extension.")
+    case .unsupported: String(localized: "Extensions need iOS 18.4 or later.", comment: "Error adding an extension on an older iOS.")
+    case .noNativeApp: String(localized: "No native app to talk to on iPhone.", comment: "Error for an extension's native messaging, which has no app on iPhone.")
     }
   }
 }

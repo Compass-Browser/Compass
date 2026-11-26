@@ -193,9 +193,9 @@ public enum Easels {
       }
       o.shape = shape
     }
-    if o.hasImage && !isSha256Hex(o.image.asset) { return .failure(EaselError("The image is missing.")) }
+    if o.hasImage && !isSha256Hex(o.image.asset) { return .failure(EaselError(String(localized: "The image is missing.", bundle: .module, comment: "Easel error, shown in an alert or toast."))) }
     if o.hasCapture && !isSha256Hex(o.capture.imageAsset) {
-      return .failure(EaselError("The capture's image is missing."))
+      return .failure(EaselError(String(localized: "The capture's image is missing.", bundle: .module, comment: "Easel error, shown in an alert or toast. A capture is a live snapshot of part of a web page.")))
     }
     return .success(o)
   }

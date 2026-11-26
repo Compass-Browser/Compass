@@ -74,7 +74,12 @@ struct PasswordList: View {
         ForEach(profiles, id: \.self) { profile in
           let rows = shown.filter { $0.profile == profile }
           if !rows.isEmpty {
-            Section(profiles.count > 1 ? profileNames[profile] ?? "Profile" : "All passwords") {
+            Section(
+              profiles.count > 1
+                ? profileNames[profile]
+                  ?? String(localized: "Profile", comment: "AutoFill: section of a profile with no known name.")
+                : String(localized: "All passwords", comment: "AutoFill: the section of every saved password.")
+            ) {
               ForEach(rows) { row($0) }
             }
           }

@@ -1,0 +1,369 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Can't reach the sync server (%@)." : {
+      "comment" : "Settings → Sync: error removing a device. The argument is the system's network error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile raggiungere il server di sincronizzazione (%@)."
+          }
+        }
+      }
+    },
+    "Checking your Cloudflare account…" : {
+      "comment" : "Progress while setting up a sync server on Cloudflare.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verifica dell’account Cloudflare…"
+          }
+        }
+      }
+    },
+    "Cloudflare didn't accept the token. Check that it's complete and can edit Workers." : {
+      "comment" : "Setting up a sync server on Cloudflare: the API token was refused.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloudflare non ha accettato il token. Controlla che sia completo e che possa modificare i Workers."
+          }
+        }
+      }
+    },
+    "Cloudflare refused to set up the server." : {
+      "comment" : "Setting up a sync server on Cloudflare: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloudflare ha rifiutato di configurare il server."
+          }
+        }
+      }
+    },
+    "Cloudflare refused: %@" : {
+      "comment" : "Setting up a sync server on Cloudflare: error. The argument is Cloudflare's own message (English).",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloudflare ha rifiutato: %@"
+          }
+        }
+      }
+    },
+    "Couldn't reach Cloudflare. Check your connection and try again." : {
+      "comment" : "Setting up a sync server on Cloudflare: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile raggiungere Cloudflare. Controlla la connessione e riprova."
+          }
+        }
+      }
+    },
+    "Couldn't reach the sync server. Try again." : {
+      "comment" : "Sync server invites: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile raggiungere il server di sincronizzazione. Riprova."
+          }
+        }
+      }
+    },
+    "Finding your server on Cloudflare…" : {
+      "comment" : "Progress while updating a sync server on Cloudflare.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricerca del server su Cloudflare…"
+          }
+        }
+      }
+    },
+    "Making your workers.dev address…" : {
+      "comment" : "Progress while setting up a sync server on Cloudflare (workers.dev is Cloudflare's domain).",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creazione dell’indirizzo workers.dev…"
+          }
+        }
+      }
+    },
+    "No device has started sync on this chain yet." : {
+      "comment" : "Settings → Sync: no device has started the sync chain (the set of devices syncing together).",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun dispositivo ha ancora avviato la sincronizzazione su questa catena."
+          }
+        }
+      }
+    },
+    "Only the server's owner can do that." : {
+      "comment" : "Sync server invites: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo il proprietario del server può farlo."
+          }
+        }
+      }
+    },
+    "Space" : {
+      "comment" : "Name of a synced space that has none.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spazio"
+          }
+        }
+      }
+    },
+    "The server has too many invites or people. Remove some first." : {
+      "comment" : "Sync server invites: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server ha troppi inviti o persone. Rimuovine prima alcuni."
+          }
+        }
+      }
+    },
+    "The server is set up but doesn't answer yet. Try again in a few minutes." : {
+      "comment" : "Setting up a sync server on Cloudflare: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server è configurato ma non risponde ancora. Riprova tra qualche minuto."
+          }
+        }
+      }
+    },
+    "The server refused this device." : {
+      "comment" : "Sync server invites: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server ha rifiutato questo dispositivo."
+          }
+        }
+      }
+    },
+    "The sync server asks you to sign in. Sign in on a computer, then try again." : {
+      "comment" : "Settings → Sync: error removing a device.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server di sincronizzazione richiede l’accesso. Accedi da un computer, poi riprova."
+          }
+        }
+      }
+    },
+    "The sync server didn't accept this device's key." : {
+      "comment" : "Settings → Sync: error removing a device (HTTP 401).",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server di sincronizzazione non ha accettato la chiave di questo dispositivo."
+          }
+        }
+      }
+    },
+    "The sync server refused (HTTP %lld)." : {
+      "comment" : "Settings → Sync: error removing a device. The argument is an HTTP status code.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server di sincronizzazione ha rifiutato (HTTP %lld)."
+          }
+        }
+      }
+    },
+    "The sync server refused this device's chain (it may serve only invited people). Ask the server's owner to allow it." : {
+      "comment" : "Settings → Sync: the server refused this device's sync chain (its set of devices).",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server di sincronizzazione ha rifiutato la catena di questo dispositivo (potrebbe accettare solo persone invitate). Chiedi al proprietario del server di consentirla."
+          }
+        }
+      }
+    },
+    "The sync server refused this profile (it may serve only invited people). Ask the server's owner to allow it." : {
+      "comment" : "Settings → Sync: the server refused a profile's account.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server di sincronizzazione ha rifiutato questo profilo (potrebbe accettare solo persone invitate). Chiedi al proprietario del server di consentirlo."
+          }
+        }
+      }
+    },
+    "The sync server's reply wasn't understood." : {
+      "comment" : "Settings → Sync: error removing a device.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile interpretare la risposta del server di sincronizzazione."
+          }
+        }
+      }
+    },
+    "The token can't use any Cloudflare account." : {
+      "comment" : "Setting up a sync server on Cloudflare: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il token non può usare nessun account Cloudflare."
+          }
+        }
+      }
+    },
+    "This device was removed from sync on another device." : {
+      "comment" : "Settings → Sync: error removing a device.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo dispositivo è stato rimosso dalla sincronizzazione da un altro dispositivo."
+          }
+        }
+      }
+    },
+    "This invite doesn't exist. Check the link." : {
+      "comment" : "Sync server invites: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo invito non esiste. Controlla il link."
+          }
+        }
+      }
+    },
+    "This invite was used or has expired. Ask for a new one." : {
+      "comment" : "Sync server invites: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo invito è già stato usato o è scaduto. Chiedine uno nuovo."
+          }
+        }
+      }
+    },
+    "This server doesn't take invites." : {
+      "comment" : "Sync server invites: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo server non accetta inviti."
+          }
+        }
+      }
+    },
+    "To stop syncing this device, use Leave Sync." : {
+      "comment" : "Settings → Sync: error removing a device, when it's this one.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per interrompere la sincronizzazione di questo dispositivo, usa “Esci dalla sincronizzazione”."
+          }
+        }
+      }
+    },
+    "Uploading the new version…" : {
+      "comment" : "Progress while updating a sync server on Cloudflare.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Caricamento della nuova versione…"
+          }
+        }
+      }
+    },
+    "Uploading the sync server…" : {
+      "comment" : "Progress while setting up a sync server on Cloudflare.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Caricamento del server di sincronizzazione…"
+          }
+        }
+      }
+    },
+    "Waiting for the Mac to start syncing this profile." : {
+      "comment" : "Settings → Sync: a synced profile no device has started yet.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa che il Mac inizi a sincronizzare questo profilo."
+          }
+        }
+      }
+    },
+    "Waiting for the new version to answer…" : {
+      "comment" : "Progress while updating a sync server on Cloudflare.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa che la nuova versione risponda…"
+          }
+        }
+      }
+    },
+    "Waiting for the server to come online…" : {
+      "comment" : "Progress while setting up a sync server on Cloudflare.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa che il server sia online…"
+          }
+        }
+      }
+    },
+    "Your server isn't in the Cloudflare account you signed in with. Sign in with the account it was set up in." : {
+      "comment" : "Updating a sync server on Cloudflare: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo server non si trova nell’account Cloudflare con cui hai effettuato l’accesso. Accedi con l’account in cui è stato configurato."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

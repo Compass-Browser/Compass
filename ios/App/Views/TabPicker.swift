@@ -110,8 +110,8 @@ struct TabPicker: View {
   /// Regular tabs or incognito's.
   private var modeToggle: some View {
     HStack(spacing: 0) {
-      modeButton("Tabs", symbol: "square.on.square", incognito: false)
-      modeButton("Incognito", symbol: "eyeglasses", incognito: true)
+      modeButton(String(localized: "Tabs", comment: "Tab picker mode: regular tabs."), symbol: "square.on.square", incognito: false)
+      modeButton(String(localized: "Incognito", comment: "Tab picker mode: incognito tabs."), symbol: "eyeglasses", incognito: true)
     }
     .padding(4)
     .floatingGlass(in: Capsule())
@@ -227,7 +227,7 @@ struct TabPicker: View {
     if let space = app.store.space(of: node) {
       badge(name: space.name, color: space.theme.accent) { SpaceIcon(space: space, size: 13) }
     } else {
-      badge(name: "Favorites", color: .gray) {
+      badge(name: String(localized: "Favorites", comment: "Tab picker card badge: the tab is a favorite."), color: .gray) {
         Image(systemName: "star.fill").font(.system(size: 11.5, weight: .semibold))
       }
     }
@@ -248,7 +248,7 @@ struct TabPicker: View {
 
   /// The badge's words for VoiceOver.
   private func place(of node: SidebarNode) -> String {
-    app.store.space(of: node)?.name ?? "Favorites"
+    app.store.space(of: node)?.name ?? String(localized: "Favorites", comment: "VoiceOver: the tab is a favorite.")
   }
 
   /// Sideways: scrolls the row. Up on a card: flicks it away. Down: closes

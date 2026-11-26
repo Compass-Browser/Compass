@@ -732,7 +732,7 @@ public final class CompassSpacesBridge: DataTypeBridge, @unchecked Sendable {
           position: s.hasDirectoryPosition ? Self.position(s.directoryPosition) : space.position)
       } else {
         let space = store.makeSpace(
-          id: id, name: s.name.isEmpty ? "Space" : s.name, theme: s.theme(over: .blue), icon: s.icon,
+          id: id, name: s.name.isEmpty ? String(localized: "Space", bundle: .module, comment: "Name of a synced space that has none.") : s.name, theme: s.theme(over: .blue), icon: s.icon,
           profileUUID: ownProfile, archiveAfter: archiveAfter ?? 12 * 60 * 60,
           position: s.hasDirectoryPosition
             ? Self.position(s.directoryPosition)

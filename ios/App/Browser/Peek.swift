@@ -352,7 +352,7 @@ struct PeekCard: View {
     let hasMenu = spaces.count > 1 || (domain != nil && target != nil)
     return HStack(spacing: 0) {
       Button { open(nil) } label: {
-        Text("Open in \(target.map(Self.name) ?? "Space")")
+        Text("Open in \(target.map(Self.name) ?? String(localized: "Space", comment: "Little window: an unnamed space, in “Open in <space>”."))")
           .font(.subheadline.weight(.semibold))
           .lineLimit(1)
           .padding(.leading, 14)
@@ -411,7 +411,9 @@ struct PeekCard: View {
     open(space)
   }
 
-  private static func name(_ space: Space) -> String { space.name.isEmpty ? "Space" : space.name }
+  private static func name(_ space: Space) -> String {
+    space.name.isEmpty ? String(localized: "Space", comment: "Little window: an unnamed space, in “Open in <space>”.") : space.name
+  }
 }
 
 /// A little window as a window of its own (iPad with windows): the card's

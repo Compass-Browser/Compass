@@ -28,7 +28,7 @@ struct SpaceWidgetView: View {
     if let space = entry.space {
       content(space)
     } else {
-      EmptyWidgetView(text: "Open Compass to set up your spaces.")
+      EmptyWidgetView(text: String(localized: "Open Compass to set up your spaces.", comment: "Widget shown before the app has run."))
     }
   }
 

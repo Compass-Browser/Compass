@@ -26,13 +26,17 @@ struct JoinSheet: View {
   private var name: String {
     if let link, !link.name.isEmpty { return link.name }
     if let joined { return joined.name }
-    return "Shared \(kindName)"
-  }
-  private var kindName: String {
     switch kind {
-    case .space: "space"
-    case .folder: "folder"
-    case .easel: "easel"
+    case .space: return String(localized: "Shared space", comment: "Join preview: a shared space whose name isn't known.")
+    case .folder: return String(localized: "Shared folder", comment: "Join preview: a shared folder whose name isn't known.")
+    case .easel: return String(localized: "Shared easel", comment: "Join preview: a shared Easel whose name isn't known.")
+    }
+  }
+  private var kindDescription: String {
+    switch kind {
+    case .space: String(localized: "A shared space", comment: "Join preview: what the invite shares.")
+    case .folder: String(localized: "A shared folder", comment: "Join preview: what the invite shares.")
+    case .easel: String(localized: "A shared easel", comment: "Join preview: what the invite shares (an Easel, a canvas board).")
     }
   }
   private var server: String {
@@ -51,7 +55,7 @@ struct JoinSheet: View {
             Image(systemName: RoomBadge.symbol(kind)).font(.title2).frame(width: 36)
             VStack(alignment: .leading, spacing: 2) {
               Text(name).font(.headline)
-              Text("A shared \(kindName)").font(.footnote).foregroundStyle(.secondary)
+              Text(kindDescription).font(.footnote).foregroundStyle(.secondary)
             }
           }
           LabeledContent("Server", value: server)
@@ -60,9 +64,10 @@ struct JoinSheet: View {
             if let owner = info.member(info.owner), let rooms {
               LabeledContent("Shared by", value: rooms.displayName(of: owner, in: joined))
             }
-            LabeledContent("Your role", value: info.role == .viewer ? "Viewer" : info.role == .owner ? "Owner" : "Editor")
+            LabeledContent("Your role", value: info.role.displayName)
           } else {
-            LabeledContent("Your role", value: "Set by the invite")
+            LabeledContent(
+              "Your role", value: String(localized: "Set by the invite", comment: "Join preview: the role comes from the invite link."))
           }
         }
         if joined == nil {
@@ -157,11 +162,23 @@ struct RoomBanners: View {
         }
       }
       ForEach(rooms.invitations) { invitation in
-        banner(icon: "envelope.badge.person.crop", text: "\(invitation.from) invited you to a shared \(invitation.kind.rawValue).") {
+        banner(icon: "envelope.badge.person.crop", text: Self.invitedText(invitation)) {
           Button("View") { RoomsModel.shared.presentInvitation(invitation) }
             .font(.footnote.weight(.semibold))
         }
       }
+    }
+  }
+
+  private static func invitedText(_ invitation: RoomsManager.Invitation) -> String {
+    let from = invitation.from
+    return switch invitation.kind {
+    case .space:
+      String(localized: "\(from) invited you to a shared space.", comment: "Sidebar banner: an email invitation; the argument is who sent it.")
+    case .folder:
+      String(localized: "\(from) invited you to a shared folder.", comment: "Sidebar banner: an email invitation; the argument is who sent it.")
+    case .easel:
+      String(localized: "\(from) invited you to a shared easel.", comment: "Sidebar banner: an email invitation; the argument is who sent it.")
     }
   }
 

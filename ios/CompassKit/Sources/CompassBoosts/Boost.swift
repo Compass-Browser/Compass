@@ -148,13 +148,17 @@ public struct BoostList: Equatable, Sendable {
 
     public var description: String {
       switch self {
-      case .emptyName: "A Boost needs a name."
-      case .nameTooLong: "A Boost's name is at most \(BoostList.maxNameChars) characters."
+      case .emptyName: String(localized: "A Boost needs a name.", bundle: .module, comment: "Boost editor: error saving.")
+      case .nameTooLong:
+        String(localized: "A Boost's name is at most \(BoostList.maxNameChars) characters.", bundle: .module, comment: "Boost editor: error saving. The argument is a number.")
       case .badMatch(let match):
-        "“\(match)” isn't a site pattern. Use a host (“example.com”, which also covers www.), “*.example.com” for the domain and all its subdomains, optionally followed by a path prefix (“github.com/settings”)."
+        String(
+          localized: "“\(match)” isn't a site pattern. Use a host (“example.com”, which also covers www.), “*.example.com” for the domain and all its subdomains, optionally followed by a path prefix (“github.com/settings”).",
+          bundle: .module, comment: "Boost editor: error saving. The argument is what the user typed as the site.")
       case .badWorld(let world): "js_world is “isolated” or “main”, not “\(world)”."
-      case .tooLarge: "A Boost's CSS and JavaScript are at most \(BoostList.maxBytes / 1024) KB together."
-      case .full: "There are already \(BoostList.maxBoosts) Boosts. Delete one first."
+      case .tooLarge:
+        String(localized: "A Boost's CSS and JavaScript are at most \(BoostList.maxBytes / 1024) KB together.", bundle: .module, comment: "Boost editor: error saving. The argument is a number of kilobytes.")
+      case .full: String(localized: "There are already \(BoostList.maxBoosts) Boosts. Delete one first.", bundle: .module, comment: "Boost editor: error saving. The argument is the maximum number of Boosts.")
       case .notFound(let id): "No Boost has the id \(id)."
       }
     }

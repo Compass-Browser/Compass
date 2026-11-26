@@ -97,9 +97,11 @@ private final class FetchTask: NSObject, URLSessionDataDelegate, @unchecked Send
     redirects += 1
     guard let url = newRequest.url else { return completionHandler(nil) }
     if redirects > limits.maxRedirects {
-      failure = LiveError("network", "Too many redirects")
+      failure = LiveError("network", String(localized: "Too many redirects", bundle: .module, comment: "Live folder error, shown under the folder."))
     } else if !allowed.allows(url) {
-      failure = LiveError("host_not_allowed", "Redirect to \(url.host() ?? url.absoluteString) is not allowed")
+      failure = LiveError(
+        "host_not_allowed",
+        String(localized: "Redirect to \(url.host() ?? url.absoluteString) is not allowed", bundle: .module, comment: "Live folder error, shown under the folder. The argument is a host name."))
     }
     if failure != nil {
       task.cancel()
@@ -134,14 +136,18 @@ private final class FetchTask: NSObject, URLSessionDataDelegate, @unchecked Send
   }
 
   private func tooLarge(_ url: URL?) -> LiveError {
-    LiveError("response_too_large", "Response from \(url?.host() ?? "the server") is too large")
+    if let host = url?.host() {
+      return LiveError(
+        "response_too_large", String(localized: "Response from \(host) is too large", bundle: .module, comment: "Live folder error, shown under the folder. The argument is a host name."))
+    }
+    return LiveError("response_too_large", String(localized: "The server's response is too large", bundle: .module, comment: "Live folder error, shown under the folder."))
   }
 
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
     if let failure { return complete(.failure(failure)) }
     if let error { return complete(.failure(LiveError("network", error.localizedDescription))) }
     guard let http = task.response as? HTTPURLResponse, let url = http.url else {
-      return complete(.failure(LiveError("network", "No response")))
+      return complete(.failure(LiveError("network", String(localized: "No response", bundle: .module, comment: "Live folder error, shown under the folder."))))
     }
     var headers: [String: String] = [:]
     for (name, value) in http.allHeaderFields {
@@ -186,7 +192,7 @@ public struct LivePluginPackage: Sendable, Equatable {
       throw LiveError("bad_manifest", "\"compass.\" IDs are for built-in plugins.")
     }
     guard String(data: entry, encoding: .utf8) != nil else {
-      throw LiveError("bad_plugin", "The plugin's script isn't UTF-8 text.")
+      throw LiveError("bad_plugin", String(localized: "The plugin's script isn't UTF-8 text.", bundle: .module, comment: "Error installing a live folder plugin."))
     }
     self.manifest = manifest
     self.manifestJSON = manifestJSON
@@ -211,7 +217,8 @@ public struct LivePluginPackage: Sendable, Equatable {
   public static func fetch(_ url: URL, rules: LiveRules, session: URLSession = .shared) async throws
     -> LivePluginPackage
   {
-    guard isAllowedSource(url) else { throw LiveError("bad_request", "Plugins install from an https:// address.") }
+    guard isAllowedSource(url) else { throw LiveError(
+        "bad_request", String(localized: "Plugins install from an https:// address.", bundle: .module, comment: "Error installing a live folder plugin.")) }
     func load(_ target: URL, max: Int) async -> Data? {
       var request = URLRequest(url: target)
       request.httpShouldHandleCookies = false
@@ -222,17 +229,19 @@ public struct LivePluginPackage: Sendable, Equatable {
       return data
     }
     guard let manifestJSON = await load(url, max: maxManifestBytes) else {
-      throw LiveError("network", "The plugin's manifest couldn't be downloaded.")
+      throw LiveError("network", String(localized: "The plugin's manifest couldn't be downloaded.", bundle: .module, comment: "Error installing a live folder plugin."))
     }
     let manifest: LiveManifest
     do {
       manifest = try rules.manifest(manifestJSON)
     } catch let error as LiveError {
-      throw LiveError("bad_manifest", "That isn't a live folder plugin's manifest: \(error.message).")
+      throw LiveError(
+        "bad_manifest",
+        String(localized: "That isn't a live folder plugin's manifest: \(error.message).", bundle: .module, comment: "Error installing a live folder plugin. The argument is a technical detail, in English."))
     }
     guard let entryURL = URL(string: manifest.entry, relativeTo: url),
       let entry = await load(entryURL.absoluteURL, max: maxEntryBytes)
-    else { throw LiveError("network", "The plugin's script couldn't be downloaded.") }
+    else { throw LiveError("network", String(localized: "The plugin's script couldn't be downloaded.", bundle: .module, comment: "Error installing a live folder plugin.")) }
     // A plugin without its icon still works.
     var icon = Data()
     if let name = manifest.icon, let iconURL = URL(string: name, relativeTo: url) {

@@ -37,7 +37,7 @@ struct TabEntity: AppEntity, Identifiable {
 
   var displayRepresentation: DisplayRepresentation {
     DisplayRepresentation(
-      title: "\(title)", subtitle: "\(isFolder ? "Folder" : url)",
+      title: "\(title)", subtitle: isFolder ? "Folder" : "\(url)",
       image: .init(systemName: isFolder ? "folder" : "globe"))
   }
 
@@ -51,7 +51,9 @@ struct TabEntity: AppEntity, Identifiable {
     self.init(
       id: node.id, title: node.isFolder ? node.title : node.displayTitle, url: node.isFolder ? "" : node.url,
       isFolder: node.isFolder, folder: folders.joined(separator: " / "), space: space.name,
-      section: node.section == .pinned ? "Pinned" : "Today")
+      section: node.section == .pinned
+        ? String(localized: "Pinned", comment: "Shortcuts: a tab's section in its space.")
+        : String(localized: "Today", comment: "Shortcuts: a tab's section in its space."))
   }
 
   /// A section's tabs and folders, depth first (a split as its panes).

@@ -1,0 +1,116 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "A Boost needs a name." : {
+      "comment" : "Boost editor: error saving.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un Boost deve avere un nome."
+          }
+        }
+      }
+    },
+    "A Boost's CSS and JavaScript are at most %lld KB together." : {
+      "comment" : "Boost editor: error saving. The argument is a number of kilobytes.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CSS e JavaScript di un Boost possono occupare al massimo %lld KB in tutto."
+          }
+        }
+      }
+    },
+    "A Boost's name is at most %lld characters." : {
+      "comment" : "Boost editor: error saving. The argument is a number.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il nome di un Boost può avere al massimo %lld caratteri."
+          }
+        }
+      }
+    },
+    "There are already %lld Boosts. Delete one first." : {
+      "comment" : "Boost editor: error saving. The argument is the maximum number of Boosts.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ci sono già %lld Boost. Eliminane prima uno."
+          }
+        }
+      }
+    },
+    "This Boost has no CSS or JavaScript." : {
+      "comment" : "Adding a shared Boost: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo Boost non contiene CSS o JavaScript."
+          }
+        }
+      }
+    },
+    "This Boost is too large to add." : {
+      "comment" : "Adding a shared Boost: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo Boost è troppo grande per essere aggiunto."
+          }
+        }
+      }
+    },
+    "This Boost was made by a newer Compass. Update Compass to add it." : {
+      "comment" : "Adding a shared Boost: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo Boost è stato creato con una versione più recente di Compass. Aggiorna Compass per aggiungerlo."
+          }
+        }
+      }
+    },
+    "This link or file doesn't hold a Boost." : {
+      "comment" : "Adding a shared Boost: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo link o file non contiene un Boost."
+          }
+        }
+      }
+    },
+    "This link or file doesn't hold a Boost. It may have been cut short when it was copied." : {
+      "comment" : "Adding a shared Boost: error.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo link o file non contiene un Boost. Potrebbe essere stato troncato durante la copia."
+          }
+        }
+      }
+    },
+    "“%@” isn't a site pattern. Use a host (“example.com”, which also covers www.), “*.example.com” for the domain and all its subdomains, optionally followed by a path prefix (“github.com/settings”)." : {
+      "comment" : "Boost editor: error saving. The argument is what the user typed as the site.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” non è un modello di sito valido. Usa un host (“example.com”, che include anche www.) oppure “*.example.com” per il dominio e tutti i suoi sottodomini, seguiti facoltativamente dall’inizio di un percorso (“github.com/settings”)."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

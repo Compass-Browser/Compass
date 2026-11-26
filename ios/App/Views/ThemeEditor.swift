@@ -128,7 +128,7 @@ struct ThemeEditor: View {
     }
   }
 
-  private func roundButton(_ symbol: String, label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+  private func roundButton(_ symbol: String, label: LocalizedStringKey, enabled: Bool, action: @escaping () -> Void) -> some View {
     Button(action: action) {
       Image(systemName: symbol)
         .font(.system(size: 15, weight: .bold))
@@ -144,7 +144,7 @@ struct ThemeEditor: View {
   /// Grey and the eight colors, then any color. A palette color replaces
   /// the gradient; the color well keeps it.
   private var palette: some View {
-    CardSection("Colors") {
+    CardSection(String(localized: "Colors", comment: "Theme editor section")) {
       HStack(spacing: 0) {
         ForEach(SpaceColor.allCases, id: \.self) { color in
           let selected = draft.palette == color
@@ -181,7 +181,7 @@ struct ThemeEditor: View {
   }
 
   private var presets: some View {
-    CardSection("Gradients") {
+    CardSection(String(localized: "Gradients", comment: "Theme editor section: preset gradients")) {
       ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 14) {
           ForEach(GradientPreset.all) { preset in
@@ -216,20 +216,20 @@ struct ThemeEditor: View {
   // MARK: Intensity and grain
 
   private var sliders: some View {
-    CardSection("Look") {
+    CardSection(String(localized: "Look", comment: "Theme editor section: intensity and grain")) {
       sliderRow("Intensity", symbol: "circle.lefthalf.filled", value: $draft.intensity)
       sliderRow("Grain", symbol: "circle.dotted", value: $draft.grain)
         .overlay(alignment: .top) { Rectangle().fill(.separator).frame(height: 1 / 3) }
     }
   }
 
-  private func sliderRow(_ title: String, symbol: String, value: Binding<Double>) -> some View {
+  private func sliderRow(_ title: LocalizedStringKey, symbol: String, value: Binding<Double>) -> some View {
     HStack(spacing: 12) {
       Image(systemName: symbol).frame(width: 22).opacity(0.7)
       Text(title).font(.system(size: 16, weight: .medium)).frame(width: 78, alignment: .leading)
       Slider(value: value, in: 0...1).tint(draft.accent)
         .accessibilityLabel(title)
-      Text("\(Int((value.wrappedValue * 100).rounded()))")
+      Text(verbatim: "\(Int((value.wrappedValue * 100).rounded()))")
         .font(.system(size: 13, weight: .medium).monospacedDigit())
         .opacity(0.55)
         .frame(width: 30, alignment: .trailing)
@@ -242,9 +242,9 @@ struct ThemeEditor: View {
 extension SpaceAppearance {
   var name: String {
     switch self {
-    case .auto: "Automatic"
-    case .light: "Light"
-    case .dark: "Dark"
+    case .auto: String(localized: "Automatic", comment: "Theme editor: space appearance")
+    case .light: String(localized: "Light", comment: "Theme editor: space appearance")
+    case .dark: String(localized: "Dark", comment: "Theme editor: space appearance")
     }
   }
 
@@ -303,7 +303,7 @@ struct ThemePad: View {
             .scaleEffect(dragged?.index == i ? 1.2 : 1)
             .position(point(for: color, radius: radius))
             .accessibilityElement()
-            .accessibilityLabel(i == 0 ? "Color" : "Gradient color \(i)")
+            .accessibilityLabel(i == 0 ? Text("Color") : Text("Gradient color \(i)"))
             .accessibilityValue("Hue \(Int(color.hsl.hue)), saturation \(Int(color.hsl.saturation * 100))%")
             .accessibilityAdjustableAction { direction in
               nudge(i, hue: direction == .increment ? 5 : -5)

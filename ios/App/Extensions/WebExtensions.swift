@@ -264,7 +264,7 @@ final class WebExtensions: NSObject {
         try? await Task.sleep(for: .milliseconds(250))
       }
       cancelPending()
-      installError = "Couldn't show the extension. Try again."
+      installError = String(localized: "Couldn't show the extension. Try again.", comment: "Error adding an extension: its install sheet didn't show.")
     }
   }
 
@@ -483,7 +483,9 @@ final class WebExtensions: NSObject {
         if let url = view.url, context.hasInjectedContent(for: url) { view.reload() }
       }
     } catch {
-      installError = "\(webExtension.displayName ?? "The extension") couldn't start: \(error.localizedDescription)"
+      installError = String(
+        localized: "\(webExtension.displayName ?? String(localized: "The extension", comment: "An extension with no name, at the start of a sentence.")) couldn't start: \(error.localizedDescription)",
+        comment: "Error starting a web extension; the arguments are its name and the system's error.")
     }
     #if DEBUG
       print("WebExtensions: loaded \(record.id) \(webExtension.displayName ?? "?") \(webExtension.version ?? "")",
@@ -567,7 +569,8 @@ extension WebExtensions {
 
   /// "1Password", not "1Password – Password Manager".
   static func name(of context: WKWebExtensionContext) -> String {
-    let full = context.webExtension.displayShortName ?? context.webExtension.displayName ?? "the extension"
+    let full = context.webExtension.displayShortName ?? context.webExtension.displayName
+      ?? String(localized: "the extension", comment: "An extension with no name, in a menu or sentence.")
     return String(full.split(separator: " – ").first ?? Substring(full))
   }
   func context(_ id: String) -> WKWebExtensionContext? { contextsByID[id] as? WKWebExtensionContext }
@@ -715,10 +718,14 @@ extension WebExtensions {
         once.done = true
         continuation.resume(returning: value)
       }
-      let name = context.webExtension.displayName ?? "An extension"
-      let alert = UIAlertController(title: "\(name) wants to \(what)", message: nil, preferredStyle: .alert)
-      alert.addAction(UIAlertAction(title: "Don't Allow", style: .cancel) { _ in answer(false) })
-      alert.addAction(UIAlertAction(title: "Allow", style: .default) { _ in answer(true) })
+      let name = context.webExtension.displayName ?? String(localized: "An extension", comment: "An extension with no name, at the start of “… wants to …”.")
+      let alert = UIAlertController(
+        title: String(
+          localized: "\(name) wants to \(what)",
+          comment: "Extension permission prompt; the arguments are the extension's name and what it asks to do, such as “see the pages you visit”."),
+        message: nil, preferredStyle: .alert)
+      alert.addAction(UIAlertAction(title: String(localized: "Don't Allow", comment: "Extension permission prompt button."), style: .cancel) { _ in answer(false) })
+      alert.addAction(UIAlertAction(title: String(localized: "Allow", comment: "Extension permission prompt button."), style: .default) { _ in answer(true) })
       guard Presenter.present(alert) else { return answer(false) }
       Task { @MainActor in
         try? await Task.sleep(for: .seconds(2))
@@ -811,7 +818,7 @@ extension WebExtensions: WKWebExtensionControllerDelegate {
   ) {
     Task {
       let what = permissions.map { ExtensionPermissions.describe($0) }.sorted().joined(separator: ", ")
-      guard await ask(extensionContext, what.isEmpty ? "get more permissions" : what) else {
+      guard await ask(extensionContext, what.isEmpty ? String(localized: "get more permissions", comment: "Extension permission prompt, in “<extension> wants to get more permissions”.") : what) else {
         completionHandler([], nil)
         return
       }

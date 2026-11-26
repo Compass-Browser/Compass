@@ -37,13 +37,13 @@ struct EaselEditor: View {
 
     var title: String {
       switch self {
-      case .select: "Select"
-      case .area: "Select Area"
-      case .text: "Text"
-      case .rectangle: "Rectangle"
-      case .circle: "Circle"
-      case .arrow: "Arrow"
-      case .pen: "Pen"
+      case .select: String(localized: "Select", comment: "Easel tool: select and move objects.")
+      case .area: String(localized: "Select Area", comment: "Easel tool: select the objects in a dragged area.")
+      case .text: String(localized: "Text", comment: "Easel tool: add text.")
+      case .rectangle: String(localized: "Rectangle", comment: "Easel tool: draw a rectangle.")
+      case .circle: String(localized: "Circle", comment: "Easel tool: draw a circle.")
+      case .arrow: String(localized: "Arrow", comment: "Easel tool: draw an arrow.")
+      case .pen: String(localized: "Pen", comment: "Easel tool: draw freehand.")
       }
     }
 
@@ -377,11 +377,18 @@ struct EaselEditor: View {
 
   static func describe(_ o: EaselObject) -> String {
     if o.hasText { return o.text.text }
-    if o.hasShape { return "Drawing" }
-    if o.hasImage { return "Image" }
-    if o.hasLink { return "Link: \(o.link.title.isEmpty ? o.link.url : o.link.title)" }
-    if o.hasCapture { return "Capture of \(o.capture.title.isEmpty ? o.capture.url : o.capture.title)" }
-    return "Unknown item"
+    if o.hasShape { return String(localized: "Drawing", comment: "VoiceOver: a shape on an Easel.") }
+    if o.hasImage { return String(localized: "Image", comment: "VoiceOver: an image on an Easel.") }
+    if o.hasLink {
+      let name = o.link.title.isEmpty ? o.link.url : o.link.title
+      return String(localized: "Link: \(name)", comment: "VoiceOver: a link card on an Easel; the argument is its title or URL.")
+    }
+    if o.hasCapture {
+      let name = o.capture.title.isEmpty ? o.capture.url : o.capture.title
+      return String(
+        localized: "Capture of \(name)", comment: "VoiceOver: a captured region of a page on an Easel; the argument is the page's title or URL.")
+    }
+    return String(localized: "Unknown item", comment: "VoiceOver: an Easel object of a kind this version doesn't know.")
   }
 
   /// A link or capture opens its page in a new tab; anything else is
@@ -681,7 +688,7 @@ struct EaselEditor: View {
   /// view.
   private func addImage(_ data: Data) async {
     guard let fitted = await Task.detached(operation: { EaselImages.fit(data) }).value.success else {
-      app.showMessage("The image couldn't be read.")
+      app.showMessage(String(localized: "The image couldn't be read.", comment: "Easel: adding an image failed."))
       return
     }
     switch store.addAsset(fitted.data, mimeType: fitted.mimeType) {
@@ -726,7 +733,29 @@ struct EaselEditor: View {
       o.height = Self.textHeight(o.text, width: 280)
       if let saved = apply([(nil, o)]).first ?? nil { selection = [saved.uuid] }
     } else {
-      app.showMessage("There's nothing to paste.")
+      app.showMessage(String(localized: "There's nothing to paste.", comment: "Easel: Paste with an empty clipboard."))
+    }
+  }
+
+  /// A text style's name in the Text style menu.
+  static func styleTitle(_ style: String) -> String {
+    switch style {
+    case "title": String(localized: "Title", comment: "Easel text style.")
+    case "heading": String(localized: "Heading", comment: "Easel text style.")
+    case "body": String(localized: "Body", comment: "Easel text style.")
+    case "caption": String(localized: "Caption", comment: "Easel text style.")
+    default: style.capitalized
+    }
+  }
+
+  /// A font's name in the Text style menu.
+  static func fontTitle(_ font: String) -> String {
+    switch font {
+    case "sans": String(localized: "Sans", comment: "Easel font: sans serif.")
+    case "serif": String(localized: "Serif", comment: "Easel font: serif.")
+    case "mono": String(localized: "Mono", comment: "Easel font: monospaced.")
+    case "hand": String(localized: "Handwriting", comment: "Easel font: handwriting.")
+    default: font.capitalized
     }
   }
 
@@ -822,7 +851,7 @@ struct EaselEditor: View {
       if selected.contains(where: { $0.hasText || $0.hasShape }) {
         Menu {
           ForEach(EaselColor.allCases) { c in
-            Button(c.rawValue.capitalized) { recolor(selection, c) }
+            Button(c.title) { recolor(selection, c) }
           }
         } label: {
           BarGlyph(symbol: "paintpalette")
@@ -833,12 +862,12 @@ struct EaselEditor: View {
         Menu {
           Section("Style") {
             ForEach(["title", "heading", "body", "caption"], id: \.self) { s in
-              Button(s.capitalized) { setText(selection, style: s) }
+              Button(Self.styleTitle(s)) { setText(selection, style: s) }
             }
           }
           Section("Font") {
             ForEach(["sans", "serif", "mono", "hand"], id: \.self) { f in
-              Button(f == "hand" ? "Handwriting" : f.capitalized) { setText(selection, font: f) }
+              Button(Self.fontTitle(f)) { setText(selection, font: f) }
             }
           }
         } label: {
@@ -892,7 +921,7 @@ struct EaselEditor: View {
           Button {
             color = c
           } label: {
-            Label(c.rawValue.capitalized, systemImage: color == c ? "checkmark.circle.fill" : "circle.fill")
+            Label(c.title, systemImage: color == c ? "checkmark.circle.fill" : "circle.fill")
           }
         }
       } label: {

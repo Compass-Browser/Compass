@@ -37,8 +37,11 @@ final class SyncController {
   }
 
   /// Settings' words for `.removed`.
-  static let removedMessage =
-    "This device was removed from sync on another device. Its data stays here. Leave sync to set it up again."
+  static var removedMessage: String {
+    String(
+      localized: "This device was removed from sync on another device. Its data stays here. Leave sync to set it up again.",
+      comment: "Settings: sync footer after this device was removed")
+  }
 
   /// The server the join form starts with: the COMPASS_SYNC_SERVER build
   /// setting (ios/Local.xcconfig, not in the repository), through Info.plist.
@@ -211,8 +214,8 @@ final class SyncController {
     /// The desktop's words (CompassSyncService::StartNewChain()).
     var message: String {
       switch self {
-      case .alreadySetUp: "Sync is already set up."
-      case .badServer: "Enter the server's URL, like https://sync.example.com/v2."
+      case .alreadySetUp: String(localized: "Sync is already set up.", comment: "Settings: starting sync failed")
+      case .badServer: String(localized: "Enter the server's URL, like https://sync.example.com/v2.", comment: "Settings: starting sync failed")
       }
     }
   }
@@ -257,7 +260,7 @@ final class SyncController {
   func addDevice() {
     guard host == nil, let chain else { return }
     guard let server = serverURL else {
-      pairing = Pairing(step: .failed, message: "No server is set.")
+      pairing = Pairing(step: .failed, message: String(localized: "No server is set.", comment: "Add a Device: error"))
       return
     }
     let host = PairingHost(
@@ -271,7 +274,7 @@ final class SyncController {
           await MainActor.run {
             guard let self, self.host === host, let parsed = PairingCode(code) else { return }
             self.pairing = Pairing(
-              step: .showingCode, code: code, message: "Enter this code on the other device.",
+              step: .showingCode, code: code, message: String(localized: "Enter this code on the other device.", comment: "Add a Device: under the pairing code"),
               expiresAt: Date().addingTimeInterval(expiresIn),
               invite: PairingInvite(server: server, code: parsed).url)
           }
@@ -309,13 +312,13 @@ final class SyncController {
   /// The desktop's HostResultMessage().
   static func hostMessage(_ result: PairingHost.Result) -> String {
     switch result {
-    case .added: "Device added. It starts syncing after a restart."
-    case .denied: "Not added."
-    case .wrongCode: "Wrong code. Try again with a new code."
-    case .canceled: "The other device canceled."
-    case .expired: "The code expired. Try again with a new code."
-    case .rateLimited: "The server is busy. Try again in a few minutes."
-    case .failed: "Couldn't reach the server."
+    case .added: String(localized: "Device added. It starts syncing after a restart.", comment: "Add a Device: result")
+    case .denied: String(localized: "Not added.", comment: "Add a Device: result")
+    case .wrongCode: String(localized: "Wrong code. Try again with a new code.", comment: "Add a Device: result")
+    case .canceled: String(localized: "The other device canceled.", comment: "Add a Device: result")
+    case .expired: String(localized: "The code expired. Try again with a new code.", comment: "Add a Device: result")
+    case .rateLimited: String(localized: "The server is busy. Try again in a few minutes.", comment: "Add a Device: result")
+    case .failed: String(localized: "Couldn't reach the server.", comment: "Add a Device: result")
     }
   }
 
@@ -673,7 +676,7 @@ final class SyncController {
   /// stops syncing them, as it does once it learns it was removed.
   func removeDevice(_ device: SyncDevice) async throws {
     guard !device.isThisDevice else { throw DeviceRemover.Failure.thisDevice }
-    guard let server = serverURL, let home = accounts[""] else { throw DeviceRemover.Failure.network("Sync is off.") }
+    guard let server = serverURL, let home = accounts[""] else { throw DeviceRemover.Failure.network(String(localized: "Sync is off.", comment: "Removing a device failed")) }
     let remover = DeviceRemover(serverURL: server, cacheGUID: home.cacheGUID, authKey: home.authKey)
     do {
       try await remover.remove(device.cacheGUID)
@@ -802,7 +805,7 @@ final class SyncController {
         result = r
       case .loginRequired:
         gated.append(profile)
-        result = .failed("The sync server asks this account to sign in.")
+        result = .failed(String(localized: "The sync server asks this account to sign in.", comment: "Settings: a synced profile's problem"))
       case .refusedKey(let r):
         refusedKey = true
         result = r
@@ -879,9 +882,9 @@ final class SyncController {
       deviceRemoved()
       return .done(.synced)
     } catch SyncEngineError.crypto {
-      return .done(.failed("This chain was reset on another device. Join it again."))
+      return .done(.failed(String(localized: "This chain was reset on another device. Join it again.", comment: "Settings: sync status")))
     } catch SyncEngineError.connection(let error) {
-      return .done(.failed("Can't reach the sync server (\(error))."))
+      return .done(.failed(String(localized: "Can't reach the sync server (\(String(describing: error))).", comment: "Settings: sync status; the parenthesis is a technical error")))
     } catch {
       return .done(.failed("\(error)"))
     }
@@ -1044,13 +1047,13 @@ final class SyncController {
       await refreshLogin()
       return
     } catch LoginClient.LoginError.unavailable {
-      loginMessage = "Sign-in isn't available on the server right now. Try again in a minute."
+      loginMessage = String(localized: "Sign-in isn't available on the server right now. Try again in a minute.", comment: "Sync sign-in: error")
       return
     } catch LoginClient.LoginError.rateLimited {
-      loginMessage = "Too many sign-in attempts. Wait a few minutes."
+      loginMessage = String(localized: "Too many sign-in attempts. Wait a few minutes.", comment: "Sync sign-in: error")
       return
     } catch {
-      if !Task.isCancelled { loginMessage = "Couldn't reach the sync server." }
+      if !Task.isCancelled { loginMessage = String(localized: "Couldn't reach the sync server.", comment: "Sync sign-in: error") }
       return
     }
     guard !Task.isCancelled else { return }
@@ -1065,7 +1068,7 @@ final class SyncController {
         switch status {
         case .pending:
           if Date() > request.expires.addingTimeInterval(10) {
-            loginMessage = "The sign-in expired. Try again."
+            loginMessage = String(localized: "The sign-in expired. Try again.", comment: "Sync sign-in: error")
             return
           }
         case .done(let user):
@@ -1075,17 +1078,17 @@ final class SyncController {
           resume()
           return
         case .denied:
-          loginMessage = "Sign-in was denied."
+          loginMessage = String(localized: "Sign-in was denied.", comment: "Sync sign-in: error")
           return
         case .expired:
-          loginMessage = "The sign-in expired. Try again."
+          loginMessage = String(localized: "The sign-in expired. Try again.", comment: "Sync sign-in: error")
           return
         }
       } catch {
         if Task.isCancelled { return }
         failures += 1
         if failures >= 5 {
-          loginMessage = "Lost the sync server while signing in. Try again."
+          loginMessage = String(localized: "Lost the sync server while signing in. Try again.", comment: "Sync sign-in: error")
           return
         }
         try? await Task.sleep(for: .seconds(2))
@@ -1118,7 +1121,7 @@ final class SyncController {
     webSession = session
     if !session.start() {
       webSession = nil
-      loginMessage = "Couldn't open the sign-in page."
+      loginMessage = String(localized: "Couldn't open the sign-in page.", comment: "Sync sign-in: error")
       loginTask?.cancel()
     }
   }

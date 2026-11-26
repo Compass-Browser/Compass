@@ -592,32 +592,35 @@ public enum RoomError: Error, Equatable, Sendable, CustomStringConvertible {
   /// Words for the user.
   public var description: String {
     switch self {
-    case .network(let message): "Can't reach the server (\(message))."
-    case .badReply: "The server's answer couldn't be read."
-    case .badArgument(let what): "Invalid \(what)."
-    case .conflict: "Someone else changed this at the same time."
-    case .staleEpoch: "The room's key changed. Try again."
-    case .removed: "You're no longer a member."
-    case .notFound: "This shared item no longer exists."
-    case .envelopesMismatch: "The members changed meanwhile. Try again."
-    case .notSignedIn: "That person hasn't signed in to Compass on this server yet."
-    case .roomExists: "Couldn't create the shared item. Try again."
+    case .network(let message): String(localized: "Can't reach the server (\(message)).", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+    case .badReply: String(localized: "The server's answer couldn't be read.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+    case .badArgument(let what): String(localized: "Invalid \(what).", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+    case .conflict: String(localized: "Someone else changed this at the same time.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+    case .staleEpoch: String(localized: "The room's key changed. Try again.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+    case .removed: String(localized: "You're no longer a member.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+    case .notFound: String(localized: "This shared item no longer exists.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+    case .envelopesMismatch: String(localized: "The members changed meanwhile. Try again.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+    case .notSignedIn: String(localized: "That person hasn't signed in to Compass on this server yet.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+    case .roomExists: String(localized: "Couldn't create the shared item. Try again.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
     case .refused(_, let code):
       switch code {
-      case "invite_invalid": "This invite link isn't valid."
-      case "invite_expired": "This invite link has expired."
-      case "invite_used_up": "This invite link has been used up."
-      case "invite_revoked": "This invite link was turned off."
-      case "forbidden": "Your role doesn't allow that."
-      case "room_full": "This shared item has the most members it can have."
-      case "already_member": "That person is already a member."
-      case "chain_not_allowed": "This server doesn't allow your account."
-      case "login_required": "Sign in to this server first."
-      case "quota_exceeded": "The owner's storage on the server is full."
-      case "owner_must_transfer": "The owner can't leave. Delete it for everyone instead."
-      case "directory_disabled": "Inviting by email needs a server with company sign-in."
-      case "no_identity_key", "identity_mismatch": "That account can't be invited yet. Try again later."
-      default: "The server refused (\(code.isEmpty ? "error" : code))."
+      case "invite_invalid": String(localized: "This invite link isn't valid.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      case "invite_expired": String(localized: "This invite link has expired.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      case "invite_used_up": String(localized: "This invite link has been used up.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      case "invite_revoked": String(localized: "This invite link was turned off.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      case "forbidden": String(localized: "Your role doesn't allow that.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      case "room_full": String(localized: "This shared item has the most members it can have.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      case "already_member": String(localized: "That person is already a member.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      case "chain_not_allowed": String(localized: "This server doesn't allow your account.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      case "login_required": String(localized: "Sign in to this server first.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      case "quota_exceeded": String(localized: "The owner's storage on the server is full.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      case "owner_must_transfer": String(localized: "The owner can't leave. Delete it for everyone instead.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      case "directory_disabled": String(localized: "Inviting by email needs a server with company sign-in.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      case "no_identity_key", "identity_mismatch": String(localized: "That account can't be invited yet. Try again later.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+      default:
+        code.isEmpty
+          ? String(localized: "The server refused.", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error.")
+          : String(localized: "The server refused (\(code)).", bundle: .module, comment: "Sharing (shared spaces, folders and Easels): error. The argument is the server's error code.")
       }
     }
   }

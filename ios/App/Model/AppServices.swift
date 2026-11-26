@@ -467,8 +467,8 @@ final class AppServices {
   /// Face ID (or the passcode) unlocks incognito.
   func unlockIncognito() async {
     let context = LAContext()
-    context.localizedFallbackTitle = "Use Passcode"
-    let ok = (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Unlock your Incognito tabs")) ?? false
+    context.localizedFallbackTitle = String(localized: "Use Passcode", comment: "Face ID prompt's fallback button, unlocking incognito.")
+    let ok = (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: String(localized: "Unlock your Incognito tabs", comment: "Face ID prompt's reason, unlocking incognito."))) ?? false
     if ok { incognitoLocked = false }
   }
 

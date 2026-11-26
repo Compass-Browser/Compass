@@ -473,7 +473,7 @@ public final class RoomSync {
         : UniquePosition.forInsert(
           after: store.spaces.last?.position, before: nil, suffix: CompassSpacesBridge.suffix(for: rootUUID))
       let space = store.makeSpace(
-        id: rootUUID, name: s.name.isEmpty ? "Shared Space" : s.name,
+        id: rootUUID, name: s.name.isEmpty ? String(localized: "Shared Space", bundle: .module, comment: "Name of a shared space that has none.") : s.name,
         theme: CompassSpacesBridge.theme(of: s, over: .blue), icon: s.icon, profileUUID: spaceProfile(),
         archiveAfter: 12 * 60 * 60, position: position)
       store.rawInsertSpace(space)

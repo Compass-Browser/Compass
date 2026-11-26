@@ -108,17 +108,19 @@ final class LiveFolders {
     let fm = FileManager.default
     guard !fm.fileExists(atPath: Self.manualDirectory.path) else { return }
     try? fm.createDirectory(at: Self.manualDirectory, withIntermediateDirectories: true)
-    let note = """
-      Live folder plugins you install by hand.
+    let note = String(
+      localized: """
+        Live folder plugins you install by hand.
 
-      Copy a plugin's folder here: its manifest.json, with the script and
-      icon it names beside it. Compass loads it the next time it comes to
-      the front, and lists it in New Live Folder. Delete the folder to
-      remove the plugin.
+        Copy a plugin's folder here: its manifest.json, with the script and
+        icon it names beside it. Compass loads it the next time it comes to
+        the front, and lists it in New Live Folder. Delete the folder to
+        remove the plugin.
 
-      Install only plugins you trust: a plugin sees the pages it reaches.
+        Install only plugins you trust: a plugin sees the pages it reaches.
 
-      """
+        """,
+      comment: "Read Me.txt in Files › Compass › Live Folder Plugins.")
     try? Data(note.utf8).write(to: Self.manualDirectory.appendingPathComponent("Read Me.txt"))
   }
 
@@ -137,9 +139,9 @@ final class LiveFolders {
 
   /// Fetches a plugin to review before installing it.
   func fetchPackage(_ address: String) async throws -> LivePluginPackage {
-    guard let rules else { throw LiveError("bad_plugin", "Live folders aren't available.") }
+    guard let rules else { throw LiveError("bad_plugin", String(localized: "Live folders aren't available.", comment: "Live folder plugin install error.")) }
     let trimmed = address.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard let url = URL(string: trimmed) else { throw LiveError("bad_request", "That isn't an address.") }
+    guard let url = URL(string: trimmed) else { throw LiveError("bad_request", String(localized: "That isn't an address.", comment: "Live folder plugin install error: the typed address isn't a URL.")) }
     return try await LivePluginPackage.fetch(url, rules: rules)
   }
 
@@ -352,7 +354,8 @@ final class LiveFolders {
       state.error = LiveError(
         "bad_plugin",
         source.pluginURL.isEmpty
-          ? "This folder's plugin isn't on this device." : "This folder's plugin isn't installed on this device.")
+          ? String(localized: "This folder's plugin isn't on this device.", comment: "Live folder error: a built-in or hand-installed plugin is missing.")
+          : String(localized: "This folder's plugin isn't installed on this device.", comment: "Live folder error: the folder's plugin isn't installed here."))
       state.nextRefresh = nil
       states[id] = state
       return

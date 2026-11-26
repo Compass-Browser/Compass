@@ -30,7 +30,10 @@ final class NotificationService: UNNotificationServiceExtension {
       let content = box.content
       let found = await Self.newestTab()
       if let (tab, account) = found {
-        content.title = tab.deviceName.isEmpty ? "Tab from another device" : "Tab from \(tab.deviceName)"
+        content.title =
+          tab.deviceName.isEmpty
+          ? String(localized: "Tab from another device", comment: "Notification title: a tab sent from a device with no name.")
+          : String(localized: "Tab from \(tab.deviceName)", comment: "Notification title: a tab sent from the named device.")
         let host = URL(string: tab.url)?.host() ?? tab.url
         content.body = tab.title.isEmpty || tab.title == tab.url ? tab.url : "\(tab.title)\n\(host)"
         // As the app's own notifications (SentTabNotifications): a tap opens it.
@@ -38,8 +41,10 @@ final class NotificationService: UNNotificationServiceExtension {
         content.threadIdentifier = "sent-tab"
         content.userInfo = ["url": tab.url, "guid": tab.guid, "account": account]
       } else {
-        content.title = "Tab sent"
-        content.body = "A tab was sent to another of your devices."
+        content.title = String(localized: "Tab sent", comment: "Notification title when the sent tab couldn't be read.")
+        content.body = String(
+          localized: "A tab was sent to another of your devices.",
+          comment: "Notification body when the sent tab couldn't be read.")
       }
       box.finish()
     }

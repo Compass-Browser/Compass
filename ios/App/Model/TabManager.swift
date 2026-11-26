@@ -540,27 +540,27 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
         once.handler = nil
         handler?(disposition, credential)
       }
-      var message = "\(space.host) requires a user name and password."
+      var message = String(localized: "\(space.host) requires a user name and password.", comment: "HTTP authentication alert; the argument is the site's host.")
       if let realm = space.realm, !realm.isEmpty { message += "\n\u{201C}\(realm)\u{201D}" }
-      if space.receivesCredentialSecurely == false { message += "\nYour login information will be sent insecurely." }
-      if failed { message = "The user name or password was incorrect.\n" + message }
-      let alert = UIAlertController(title: "Sign In", message: message, preferredStyle: .alert)
+      if space.receivesCredentialSecurely == false { message += "\n" + String(localized: "Your login information will be sent insecurely.", comment: "HTTP authentication alert, for a site without HTTPS.") }
+      if failed { message = String(localized: "The user name or password was incorrect.", comment: "HTTP authentication alert, after a failed try.") + "\n" + message }
+      let alert = UIAlertController(title: String(localized: "Sign In", comment: "HTTP authentication alert's title."), message: message, preferredStyle: .alert)
       alert.addTextField {
-        $0.placeholder = "User Name"
+        $0.placeholder = String(localized: "User Name", comment: "HTTP authentication alert's user name field.")
         $0.textContentType = .username
         $0.autocapitalizationType = .none
         $0.autocorrectionType = .no
         $0.text = challenge.proposedCredential?.user
       }
       alert.addTextField {
-        $0.placeholder = "Password"
+        $0.placeholder = String(localized: "Password", comment: "HTTP authentication alert's password field.")
         $0.textContentType = .password
         $0.isSecureTextEntry = true
       }
-      alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
+      alert.addAction(UIAlertAction(title: String(localized: "Cancel", comment: "Alert button."), style: .cancel) { _ in
         answer(.cancelAuthenticationChallenge, nil)
       })
-      alert.addAction(UIAlertAction(title: "Sign In", style: .default) { [weak alert] _ in
+      alert.addAction(UIAlertAction(title: String(localized: "Sign In", comment: "HTTP authentication alert's button."), style: .default) { [weak alert] _ in
         let user = alert?.textFields?[0].text ?? ""
         let password = alert?.textFields?[1].text ?? ""
         answer(.useCredential, URLCredential(user: user, password: password, persistence: .forSession))
@@ -626,20 +626,20 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
         var ours: [UIMenuElement] = []
         if peeks, let link {
           ours.append(
-            UIAction(title: "Peek", image: UIImage(systemName: "eye")) { [weak self] _ in
+            UIAction(title: String(localized: "Peek", comment: "Link context menu: look at the link in a card (Peek is a feature name)."), image: UIImage(systemName: "eye")) { [weak self] _ in
               self?.peek(link, from: id)
             })
         }
         if acts, let link {
           var actions: [(String, String, LinkAction)] = [
-            ("Open in New Tab", "plus.square.on.square", .newTab),
-            ("Open in Background", "square.on.square.dashed", .background),
+            (String(localized: "Open in New Tab", comment: "Link context menu."), "plus.square.on.square", .newTab),
+            (String(localized: "Open in Background", comment: "Link context menu: open in a new tab without showing it."), "square.on.square.dashed", .background),
           ]
           if !incognito {
             actions += [
-              ("Open in Incognito", "eyeglasses", .incognito),
-              ("Open in Little Window", "macwindow", .littleWindow),
-              ("Pin", "pin", .pin),
+              (String(localized: "Open in Incognito", comment: "Link context menu."), "eyeglasses", .incognito),
+              (String(localized: "Open in Little Window", comment: "Link context menu: open in a small floating window."), "macwindow", .littleWindow),
+              (String(localized: "Pin", comment: "Link context menu: add the link to the space's Pinned."), "pin", .pin),
             ]
           }
           for (title, symbol, action) in actions {
@@ -741,19 +741,20 @@ extension TabManager: WKNavigationDelegate, WKUIDelegate {
 
   private func openInApp(_ url: URL, tab: String?) {
     UIApplication.shared.open(url) { [weak self] opened in
-      if !opened { self?.onMessage?("No app can open this link", tab) }
+      if !opened { self?.onMessage?(String(localized: "No app can open this link", comment: "Toast when a link to another app can't be opened."), tab) }
     }
   }
 
   /// A page going to an app without a tap: asked first, as Safari does.
   private func askToOpenApp(_ url: URL, from page: URL?, tab: String?) {
     guard !askingToOpenApp else { return }
-    let who = SiteSettings.site(page).map { "\u{201C}\($0)\u{201D}" } ?? "This page"
+    let who = SiteSettings.site(page).map { "\u{201C}\($0)\u{201D}" } ?? String(localized: "This page", comment: "Open in app alert: stands for a page without a site name, in “%@ wants to open another app.”")
     let alert = UIAlertController(
-      title: "Open in app?", message: "\(who) wants to open another app.", preferredStyle: .alert)
-    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in self?.askingToOpenApp = false })
+      title: String(localized: "Open in app?", comment: "Alert title when a page tries to open another app."),
+      message: String(localized: "\(who) wants to open another app.", comment: "Open in app alert; the argument is the site in quotes, or “This page”."), preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: String(localized: "Cancel", comment: "Alert button."), style: .cancel) { [weak self] _ in self?.askingToOpenApp = false })
     alert.addAction(
-      UIAlertAction(title: "Open", style: .default) { [weak self] _ in
+      UIAlertAction(title: String(localized: "Open", comment: "Open in app alert's button."), style: .default) { [weak self] _ in
         self?.askingToOpenApp = false
         self?.openInApp(url, tab: tab)
       })

@@ -74,9 +74,11 @@ struct EaselList: View {
                 .foregroundStyle(.tint)
                 .frame(width: 28)
               VStack(alignment: .leading, spacing: 2) {
-                Text(board.title.isEmpty ? "Untitled" : board.title).foregroundStyle(.primary).lineLimit(1)
+                Text(board.title.isEmpty ? String(localized: "Untitled", comment: "An Easel (canvas board) with no title.") : board.title).foregroundStyle(.primary).lineLimit(1)
                 let count = store.objectCount(of: board.uuid)
-                Text("\(count) item\(count == 1 ? "" : "s") · \(Easels.date(syncTime: board.updateTime).formatted(.relative(presentation: .named)))")
+                let items = String(localized: "\(count) items", comment: "Easels list: how many objects a board holds.")
+                let date = Easels.date(syncTime: board.updateTime).formatted(.relative(presentation: .named))
+                Text(verbatim: "\(items) · \(date)")
                   .font(.caption).foregroundStyle(.secondary)
               }
             }
@@ -111,7 +113,8 @@ struct EaselList: View {
   }
 
   private func newEasel() {
-    switch EaselStore.shared.createEasel(title: "Untitled Easel") {
+    switch EaselStore.shared.createEasel(
+      title: String(localized: "Untitled Easel", comment: "The title of a new Easel (canvas board).")) {
     case .failure(let error): app.showMessage(error.message)
     case .success(let board):
       // Pinned in the space, as New Easel does elsewhere; this tab stays

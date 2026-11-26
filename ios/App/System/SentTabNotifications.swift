@@ -52,7 +52,10 @@ final class SentTabNotifications: NSObject, UNUserNotificationCenterDelegate {
   private func add(_ tabs: [SentTab], account: String) {
     for tab in tabs {
       let content = UNMutableNotificationContent()
-      content.title = tab.deviceName.isEmpty ? "Tab from another device" : "Tab from \(tab.deviceName)"
+      content.title =
+        tab.deviceName.isEmpty
+        ? String(localized: "Tab from another device", comment: "Notification title for a tab sent from another device.")
+        : String(localized: "Tab from \(tab.deviceName)", comment: "Notification title for a sent tab; the argument is the sending device's name.")
       let host = URL(string: tab.url)?.host() ?? tab.url
       content.body = tab.title.isEmpty || tab.title == tab.url ? tab.url : "\(tab.title)\n\(host)"
       content.sound = .default

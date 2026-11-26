@@ -66,11 +66,12 @@ public struct SharedBoost: Hashable, Sendable {
 
     public var description: String {
       switch self {
-      case .unreadable: "This link or file doesn't hold a Boost. It may have been cut short when it was copied."
-      case .tooLarge: "This Boost is too large to add."
-      case .notABoost: "This link or file doesn't hold a Boost."
-      case .newerVersion: "This Boost was made by a newer Compass. Update Compass to add it."
-      case .empty: "This Boost has no CSS or JavaScript."
+      case .unreadable:
+        String(localized: "This link or file doesn't hold a Boost. It may have been cut short when it was copied.", bundle: .module, comment: "Adding a shared Boost: error.")
+      case .tooLarge: String(localized: "This Boost is too large to add.", bundle: .module, comment: "Adding a shared Boost: error.")
+      case .notABoost: String(localized: "This link or file doesn't hold a Boost.", bundle: .module, comment: "Adding a shared Boost: error.")
+      case .newerVersion: String(localized: "This Boost was made by a newer Compass. Update Compass to add it.", bundle: .module, comment: "Adding a shared Boost: error.")
+      case .empty: String(localized: "This Boost has no CSS or JavaScript.", bundle: .module, comment: "Adding a shared Boost: error.")
       case .invalid(let failure): failure.description
       }
     }

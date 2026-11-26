@@ -25,11 +25,11 @@ public enum EaselImages {
 
   /// Decodes `data` (any format ImageIO reads, turned upright) and fits it.
   public static func fit(_ data: Data) -> Result<EaselPreparedImage, EaselError> {
-    guard !data.isEmpty, data.count <= maxInputBytes else { return .failure(EaselError("The image is too large.")) }
+    guard !data.isEmpty, data.count <= maxInputBytes else { return .failure(EaselError(String(localized: "The image is too large.", bundle: .module, comment: "Easel error, shown in an alert or toast."))) }
     guard let source = CGImageSourceCreateWithData(data as CFData, nil),
       let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
       let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int, w > 0, h > 0
-    else { return .failure(EaselError("The image couldn't be read.")) }
+    else { return .failure(EaselError(String(localized: "The image couldn't be read.", bundle: .module, comment: "Easel error, shown in an alert or toast."))) }
     // Decoded at most at the largest size a board keeps, upright.
     let options: [CFString: Any] = [
       kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -38,7 +38,7 @@ public enum EaselImages {
       kCGImageSourceShouldCacheImmediately: true,
     ]
     guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
-      return .failure(EaselError("The image couldn't be read."))
+      return .failure(EaselError(String(localized: "The image couldn't be read.", bundle: .module, comment: "Easel error, shown in an alert or toast.")))
     }
     return fit(image)
   }
@@ -46,7 +46,7 @@ public enum EaselImages {
   /// Fits a decoded image (a snapshot of a page).
   public static func fit(_ input: CGImage) -> Result<EaselPreparedImage, EaselError> {
     guard input.width > 0, input.height > 0, let bitmap = rgba(input) else {
-      return .failure(EaselError("The image couldn't be read."))
+      return .failure(EaselError(String(localized: "The image couldn't be read.", bundle: .module, comment: "Easel error, shown in an alert or toast.")))
     }
     let png = hasTransparency(bitmap)
     var side = EaselLimits.maxAssetPixels
@@ -54,7 +54,7 @@ public enum EaselImages {
     // Smaller until it fits: a PNG gets smaller, a JPEG first loses quality.
     for _ in 0..<12 {
       guard let scaled = scaled(bitmap, toFit: side), let encoded = encode(scaled, png: png, quality: quality) else {
-        return .failure(EaselError("The image couldn't be encoded."))
+        return .failure(EaselError(String(localized: "The image couldn't be encoded.", bundle: .module, comment: "Easel error, shown in an alert or toast.")))
       }
       if encoded.count <= EaselLimits.maxAssetBytes {
         return .success(
@@ -67,7 +67,7 @@ public enum EaselImages {
         side = max(64, side * 3 / 4)
       }
     }
-    return .failure(EaselError("The image is too large."))
+    return .failure(EaselError(String(localized: "The image is too large.", bundle: .module, comment: "Easel error, shown in an alert or toast.")))
   }
 
   /// The image drawn into 8-bit RGBA (premultiplied), sRGB.

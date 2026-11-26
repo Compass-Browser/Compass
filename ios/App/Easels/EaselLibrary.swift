@@ -29,7 +29,14 @@ enum EaselPalette: String, CaseIterable, Identifiable {
 
   init(_ name: String) { self = EaselPalette(rawValue: name) ?? .paper }
 
-  var title: String { rawValue.capitalized }
+  var title: String {
+    switch self {
+    case .paper: String(localized: "Paper", comment: "Easel background: plain.")
+    case .grid: String(localized: "Grid", comment: "Easel background: a grid of lines.")
+    case .dots: String(localized: "Dots", comment: "Easel background: a grid of dots.")
+    case .dark: String(localized: "Dark", comment: "Easel background: dark.")
+    }
+  }
   var isDark: Bool { self == .dark }
   var background: Color { isDark ? Color(red: 0.12, green: 0.12, blue: 0.13) : Color(red: 0.984, green: 0.98, blue: 0.969) }
   /// The default color of text and shapes.
@@ -42,6 +49,19 @@ enum EaselPalette: String, CaseIterable, Identifiable {
 enum EaselColor: String, CaseIterable, Identifiable {
   case ink, red, orange, yellow, green, blue, purple, grey
   var id: String { rawValue }
+
+  var title: String {
+    switch self {
+    case .ink: String(localized: "Ink", comment: "Easel color: the board's default text and shape color.")
+    case .red: String(localized: "Red", comment: "Easel color.")
+    case .orange: String(localized: "Orange", comment: "Easel color.")
+    case .yellow: String(localized: "Yellow", comment: "Easel color.")
+    case .green: String(localized: "Green", comment: "Easel color.")
+    case .blue: String(localized: "Blue", comment: "Easel color.")
+    case .purple: String(localized: "Purple", comment: "Easel color.")
+    case .grey: String(localized: "Grey", comment: "Easel color.")
+    }
+  }
 
   var css: String? {
     switch self {
@@ -110,7 +130,9 @@ enum EaselViewMemory {
 extension AppModel {
   /// New Easel: a board, and a pinned tab for it in the shown space.
   func newEasel() {
-    switch EaselStore.shared.createEasel(title: "Untitled Easel") {
+    switch EaselStore.shared.createEasel(
+      title: String(localized: "Untitled Easel", comment: "The title of a new Easel (canvas board)."))
+    {
     case .failure(let error): showMessage(error.message)
     case .success(let board):
       guard let tab = pinEasel(board) else { return }
@@ -250,7 +272,7 @@ enum EaselCapture {
   /// adds it to `board`.
   static func capture(_ view: WKWebView, rect: CGRect, to board: String) async -> Result<Void, EaselError> {
     guard let page = view.url, ["http", "https"].contains(page.scheme?.lowercased() ?? "") else {
-      return .failure(EaselError("Only web pages can be captured."))
+      return .failure(EaselError(String(localized: "Only web pages can be captured.", comment: "Easel capture error.")))
     }
     let geometry = await pageGeometry(view)
     let viewport = geometry?.viewport ?? view.bounds.size
@@ -259,10 +281,10 @@ enum EaselCapture {
     let config = WKSnapshotConfiguration()
     config.rect = rect
     guard let image = try? await view.takeSnapshot(configuration: config), let cg = image.cgImage else {
-      return .failure(EaselError("The page couldn't be captured."))
+      return .failure(EaselError(String(localized: "The page couldn't be captured.", comment: "Easel capture error.")))
     }
     guard let fitted = await Task.detached(operation: { EaselImages.fit(cg) }).value.success else {
-      return .failure(EaselError("The capture couldn't be saved."))
+      return .failure(EaselError(String(localized: "The capture couldn't be saved.", comment: "Easel capture error.")))
     }
     let store = EaselStore.shared
     let sha: String
@@ -321,7 +343,7 @@ enum EaselCapture {
   static func refresh(_ object: EaselObject, tabs: TabManager) async -> Result<Void, EaselError> {
     let c = object.capture
     guard let url = URL(string: c.url), let window = keyWindow else {
-      return .failure(EaselError("The page couldn't be loaded."))
+      return .failure(EaselError(String(localized: "The page couldn't be loaded.", comment: "Easel capture refresh error.")))
     }
     if host == nil || host?.window !== window {
       host?.removeFromSuperview()
@@ -352,14 +374,14 @@ enum EaselCapture {
     config.rect = CGRect(
       x: (c.regionX - dx) / css, y: (c.regionY - dy) / css, width: c.regionWidth / css, height: c.regionHeight / css)
     guard let image = try? await view.takeSnapshot(configuration: config), let cg = image.cgImage else {
-      return .failure(EaselError("The page couldn't be captured."))
+      return .failure(EaselError(String(localized: "The page couldn't be captured.", comment: "Easel capture error.")))
     }
     guard let fitted = await Task.detached(operation: { EaselImages.fit(cg) }).value.success else {
-      return .failure(EaselError("The capture couldn't be saved."))
+      return .failure(EaselError(String(localized: "The capture couldn't be saved.", comment: "Easel capture error.")))
     }
     let store = EaselStore.shared
     guard var current = store.object(object.uuid), current.hasCapture else {
-      return .failure(EaselError("The capture was deleted."))
+      return .failure(EaselError(String(localized: "The capture was deleted.", comment: "Easel capture refresh error: the object went away meanwhile.")))
     }
     switch store.addAsset(fitted.data, mimeType: fitted.mimeType) {
     case .success(let sha):

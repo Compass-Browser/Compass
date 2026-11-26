@@ -78,7 +78,7 @@ public struct ReaderResult: Equatable, Sendable {
     readerable = object?["readerable"] as? Bool == true
     title = object?["title"] as? String ?? ""
     error = object?["error"] as? String ?? ""
-    json = object != nil ? text ?? "" : Self.failure("This page has no article.")
+    json = object != nil ? text ?? "" : Self.failure(String(localized: "This page has no article.", bundle: .module, comment: "Reader: the page has no article to show."))
   }
 
   /// A failed parse(), as the view shows it ("This page has no article").

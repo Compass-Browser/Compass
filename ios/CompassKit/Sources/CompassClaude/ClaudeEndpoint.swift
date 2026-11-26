@@ -75,9 +75,11 @@ public struct ClaudeEndpoint: Sendable {
   /// `tokenRisksMessage` says why.
   public var needsTokenRisksAccepted: Bool { !allowOAuthToken && isOAuthToken }
 
-  public static let tokenRisksMessage =
-    "This is a token from `claude setup-token`, which uses your Claude subscription. To use it, turn on "
-    + "\"Accept the Risks of Subscription Tokens\" in Settings → AI."
+  public static var tokenRisksMessage: String {
+    String(
+      localized: "This is a token from `claude setup-token`, which uses your Claude subscription. To use it, turn on “Accept the Risks of Subscription Tokens” in Settings → AI.",
+      bundle: .module, comment: "Chat error and Settings → AI test result, for a subscription token the user hasn't accepted the risks of.")
+  }
 
   /// The Claude API itself, not a custom endpoint (server-side fallbacks
   /// are the Claude API's).
@@ -154,7 +156,9 @@ public struct ClaudeEndpoint: Sendable {
   /// What the user reads for a failed request: the API's own message, else
   /// one per status. 0 means the server couldn't be reached.
   public static func describeError(status: Int, body: Data, provider: AIProvider = .anthropic) -> String {
-    if status == 0 { return "Couldn't reach the server. Check the connection and the endpoint URL." }
+    if status == 0 {
+      return String(localized: "Couldn't reach the server. Check the connection and the endpoint URL.", bundle: .module, comment: "AI request error (chat, Settings → AI test).")
+    }
     if let message = JSONValue.parse(body)?["error"]?["message"]?.string, !message.isEmpty { return message }
     // Gemini's: [{"error": {…}}].
     if let message = JSONValue.parse(body)?.array?.first?["error"]?["message"]?.string, !message.isEmpty {
@@ -173,16 +177,19 @@ public struct ClaudeEndpoint: Sendable {
     }
     switch status {
     case 401 where provider != .anthropic:
-      return "The key was refused (401). Check it."
+      return String(localized: "The key was refused (401). Check it.", bundle: .module, comment: "AI request error: HTTP 401 from a non-Anthropic provider.")
     case 401:
-      return "The key was refused (401). Check it, and the auth style. A token from `claude setup-token` may have "
-        + "expired: make a new one."
-    case 403: return "The key isn't allowed to do this (403)."
-    case 404: return "Nothing answers at that URL (404). Check the endpoint URL."
-    case 429: return "Too many requests (429). Wait a moment and try again."
-    case 529 where provider == .anthropic: return "Claude is overloaded (529). Try again in a moment."
-    case 503, 529: return "The server is overloaded (\(status)). Try again in a moment."
-    default: return "The server answered with HTTP \(status)."
+      return String(
+        localized: "The key was refused (401). Check it, and the auth style. A token from `claude setup-token` may have expired: make a new one.",
+        bundle: .module, comment: "AI request error: HTTP 401 from Anthropic.")
+    case 403: return String(localized: "The key isn't allowed to do this (403).", bundle: .module, comment: "AI request error: HTTP 403.")
+    case 404: return String(localized: "Nothing answers at that URL (404). Check the endpoint URL.", bundle: .module, comment: "AI request error: HTTP 404.")
+    case 429: return String(localized: "Too many requests (429). Wait a moment and try again.", bundle: .module, comment: "AI request error: HTTP 429.")
+    case 529 where provider == .anthropic:
+      return String(localized: "Claude is overloaded (529). Try again in a moment.", bundle: .module, comment: "AI request error: HTTP 529 from Anthropic.")
+    case 503, 529:
+      return String(localized: "The server is overloaded (\(status)). Try again in a moment.", bundle: .module, comment: "AI request error: HTTP 503 or 529. The argument is the status code.")
+    default: return String(localized: "The server answered with HTTP \(status).", bundle: .module, comment: "AI request error: any other HTTP status. The argument is the status code.")
     }
   }
 

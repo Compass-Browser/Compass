@@ -206,8 +206,11 @@ struct LiveFolderEditor: View {
       ForEach(p.manifest.secrets, id: \.key) { s in
         Section {
           SecureField(
-            live.secret(s.key, plugin: p.id, profile: profile) == nil ? (s.optional ? "Optional" : "Required")
-              : "Saved: leave blank to keep",
+            live.secret(s.key, plugin: p.id, profile: profile) == nil
+              ? (s.optional
+                ? String(localized: "Optional", comment: "Live folder form: placeholder of an optional secret field.")
+                : String(localized: "Required", comment: "Live folder form: placeholder of a required secret field."))
+              : String(localized: "Saved: leave blank to keep", comment: "Live folder form: placeholder of a secret already saved."),
             text: Binding(get: { secrets[s.key] ?? "" }, set: { secrets[s.key] = $0 })
           )
           .textInputAutocapitalization(.never)
@@ -215,7 +218,10 @@ struct LiveFolderEditor: View {
         } header: {
           Text(s.label)
         } footer: {
-          Text(s.help.isEmpty ? "Kept on this device only." : "\(s.help) Kept on this device only.")
+          Text(
+            s.help.isEmpty
+              ? String(localized: "Kept on this device only.", comment: "Live folder form: footer of a secret field.")
+              : String(localized: "\(s.help) Kept on this device only.", comment: "Live folder form: footer of a secret field, after the plugin's help text."))
         }
       }
       if !p.manifest.cookies.isEmpty {
@@ -229,7 +235,7 @@ struct LiveFolderEditor: View {
         Section { Text(error).foregroundStyle(.red) }
       }
     }
-    .navigationTitle(folder == nil ? p.manifest.name : "Edit Source")
+    .navigationTitle(folder == nil ? p.manifest.name : String(localized: "Edit Source", comment: "Live folder form title, editing a live folder."))
     .toolbar {
       ToolbarItem(placement: .cancellationAction) {
         if folder == nil {
@@ -245,7 +251,7 @@ struct LiveFolderEditor: View {
   }
 
   @ViewBuilder private func field(_ f: LiveManifest.Field) -> some View {
-    let label = f.optional ? "\(f.label) (optional)" : f.label
+    let label = f.optional ? String(localized: "\(f.label) (optional)", comment: "Live folder form: label of an optional field.") : f.label
     switch f.type {
     case "bool":
       Toggle(label, isOn: Binding(get: { flags[f.key] ?? false }, set: { flags[f.key] = $0 }))
@@ -307,7 +313,7 @@ struct LiveFolderEditor: View {
         let created = live.create(
           plugin: p, name: name, config: values, secrets: secrets, grantCookies: grantCookies, in: parent)
       else {
-        error = "A live folder can't go there."
+        error = String(localized: "A live folder can't go there.", comment: "Live folder form error.")
         return
       }
       if created.collapsed { app.store.setCollapsed(created, false) }
@@ -316,7 +322,7 @@ struct LiveFolderEditor: View {
   }
 
   private func describe(_ hosts: [String]) -> String {
-    hosts.map { $0.hasPrefix("{") ? "the address you enter" : $0 }.joined(separator: ", ")
+    hosts.map { $0.hasPrefix("{") ? String(localized: "the address you enter", comment: "Live folder: in a list of sites a plugin reaches, for an address the user types in the form.") : $0 }.joined(separator: ", ")
   }
 }
 
@@ -391,7 +397,7 @@ struct LivePluginInstallView: View {
       do {
         let package = try await app.liveFolders.fetchPackage(address)
         if !expectedHash.isEmpty && package.sha256 != expectedHash {
-          error = "The plugin at that address isn't the one this folder was made with (it has changed since)."
+          error = String(localized: "The plugin at that address isn't the one this folder was made with (it has changed since).", comment: "Live folder plugin install error.")
         } else {
           preview = package
         }
@@ -409,12 +415,12 @@ struct LivePluginInstallView: View {
       try app.liveFolders.install(package)
       done(package)
     } catch {
-      self.error = "It couldn't be installed: \(error.localizedDescription)"
+      self.error = String(localized: "It couldn't be installed: \(error.localizedDescription)", comment: "Live folder plugin install error, with the system's reason.")
     }
   }
 
   private func describe(_ hosts: [String]) -> String {
-    hosts.isEmpty ? "nothing" : hosts.map { $0.hasPrefix("{") ? "the address you enter" : $0 }.joined(separator: ", ")
+    hosts.isEmpty ? String(localized: "nothing", comment: "Live folder plugin review: it reaches no sites.") : hosts.map { $0.hasPrefix("{") ? String(localized: "the address you enter", comment: "Live folder: in a list of sites a plugin reaches, for an address the user types in the form.") : $0 }.joined(separator: ", ")
   }
 }
 
@@ -437,7 +443,7 @@ struct LiveFolderStatus: View {
           .accessibilityLabel(error.message)
       }
       if folder.collapsed, folder.unseenCount > 0 {
-        Text("\(folder.unseenCount)")
+        Text(folder.unseenCount, format: .number)
           .font(.system(size: 11, weight: .semibold))
           .monospacedDigit()
           .foregroundStyle(.white)

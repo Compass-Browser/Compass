@@ -16,16 +16,16 @@ public struct SyncOutcome: Equatable, Sendable {
   }
 
   /// Settings' words for a profile account no device has started.
-  public static let waitingMessage = "Waiting for the Mac to start syncing this profile."
+  public static let waitingMessage = String(localized: "Waiting for the Mac to start syncing this profile.", bundle: .module, comment: "Settings → Sync: a synced profile no device has started yet.")
   /// A 401 on a profile account: a private server that doesn't know it
   /// (it lets profile accounts in once linked, `AccountLinker`).
   public static let profileRefusedMessage =
-    "The sync server refused this profile (it may serve only invited people). Ask the server's owner to allow it."
+    String(localized: "The sync server refused this profile (it may serve only invited people). Ask the server's owner to allow it.", bundle: .module, comment: "Settings → Sync: the server refused a profile's account.")
   /// A 401 on the home account.
   public static let homeRefusedMessage =
-    "The sync server refused this device's chain (it may serve only invited people). Ask the server's owner to allow it."
+    String(localized: "The sync server refused this device's chain (it may serve only invited people). Ask the server's owner to allow it.", bundle: .module, comment: "Settings → Sync: the server refused this device's sync chain (its set of devices).")
   /// And for a home account without a NIGORI.
-  public static let homeNotStartedMessage = "No device has started sync on this chain yet."
+  public static let homeNotStartedMessage = String(localized: "No device has started sync on this chain yet.", bundle: .module, comment: "Settings → Sync: no device has started the sync chain (the set of devices syncing together).")
 
   /// The home account's failure: sync failed. Nil when the home synced.
   public var failure: String?

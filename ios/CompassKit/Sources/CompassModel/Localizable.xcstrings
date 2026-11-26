@@ -1,0 +1,168 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%lld tabs" : {
+      "comment" : "Undo toast and shake alert: how many tabs were closed, in “Closed <this>”.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld tab"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld tabs"
+                }
+              }
+            }
+          }
+        },
+        "it" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld scheda"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld schede"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Aurora" : {
+      "comment" : "Theme editor: name of a gradient preset.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aurora"
+          }
+        }
+      }
+    },
+    "Dusk" : {
+      "comment" : "Theme editor: name of a gradient preset.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crepuscolo"
+          }
+        }
+      }
+    },
+    "Ember" : {
+      "comment" : "Theme editor: name of a gradient preset.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brace"
+          }
+        }
+      }
+    },
+    "Lagoon" : {
+      "comment" : "Theme editor: name of a gradient preset.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laguna"
+          }
+        }
+      }
+    },
+    "Links" : {
+      "comment" : "Sidebar: name of a link folder (links opened from one page) whose page has no title or host.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link"
+          }
+        }
+      }
+    },
+    "Meadow" : {
+      "comment" : "Theme editor: name of a gradient preset.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prato"
+          }
+        }
+      }
+    },
+    "New Folder" : {
+      "comment" : "Sidebar: name of a folder Tidy Today made, until it gets its own.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuova cartella"
+          }
+        }
+      }
+    },
+    "Ocean" : {
+      "comment" : "Theme editor: name of a gradient preset.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oceano"
+          }
+        }
+      }
+    },
+    "Peach" : {
+      "comment" : "Theme editor: name of a gradient preset.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pesca"
+          }
+        }
+      }
+    },
+    "Sand" : {
+      "comment" : "Theme editor: name of a gradient preset.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sabbia"
+          }
+        }
+      }
+    },
+    "Slate" : {
+      "comment" : "Theme editor: name of a gradient preset.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ardesia"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

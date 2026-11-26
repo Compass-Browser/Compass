@@ -963,6 +963,39 @@ Design and the desktop and server parts: [send-tab.md](send-tab.md).
 - Simulator limits: ad-hoc signed builds get no APNs token, and `simctl push` doesn't run service extensions.
 - Tests: `PushServerTests` (register, a bad token refused, unregister, and the extension's fetch finds only this phone's tab against the real server), `SendTabBridgeTests`, `SendTabServerTests` (a Mac engine sends, the phone gets it once, opening marks it for the Mac). `SeedForSimulator` with `COMPASS_SEED_SEND_TAB=<url>` sends to every other device.
 
+## Localization
+
+English and Italian (`developmentLanguage: en`; the project's
+`knownRegions`, which XcodeGen reads from the catalogs).
+
+- **String Catalogs per bundle:** `Localizable.xcstrings` in App, Widgets,
+  Share, AutoFill, PushService and each CompassKit target with UI text
+  (Shared, Model, Claude, LiveFolders, Boosts, Easels, Rooms, Sync;
+  `defaultLocalization: "en"` and `.process` in `Package.swift`). CompassKit
+  strings pass `bundle: .module`, or they'd look in the app's catalog.
+  `InfoPlist.xcstrings` in App (camera, microphone, Face ID) and SafariOpen
+  (its name); the Safari popup uses `browser.i18n` with `_locales/{en,it}`.
+- **In code:** SwiftUI literals are keys already; `String` values use
+  `String(localized:comment:)`, App Intents `LocalizedStringResource`.
+  Counts are plural variations; sentences that name a kind (space, folder,
+  easel) are whole keys per kind, since Italian agrees with the noun's
+  gender. A `comment:` must be a literal, and a ternary of two literals on
+  one line can lose a branch in extraction: write it as an if.
+- **Manual keys** (the build doesn't extract them): App Intents parameter
+  summaries, and CompassOnDevice's errors, which use the main bundle
+  because the Mac helper compiles that target with bare `swiftc`.
+- **Kept in English:** what goes to the model (prompts, tool descriptions
+  and results), logs, debug-only UI, and the default space name "Home",
+  which `CompassSpacesBridge` compares to merge an untouched local Home into
+  the synced one. Other default names ("New Folder", "Space 3", "Untitled
+  Easel") are stored as shown, so they sync in the language they were made
+  in.
+- **Updating catalogs:** a build in Xcode does; from the command line, build
+  with `SWIFT_EMIT_LOC_STRINGS=YES` and run `xcrun xcstringstool sync` with
+  each target's `.stringsdata`. Every key needs an `it` value. Terms match
+  Android's and the desktop's (Fissate, Oggi, Preferiti, codice di
+  associazione…).
+
 ## TestFlight
 
 - Team `4M33B5HNDS`, automatic signing. The entitlements are in `project.yml`: the Keychain group `<team>.it.cipi1965.compass.shared` in every target that needs it (no capability needed on the developer site), and the AutoFill Credential Provider in both the app and the extension (a capability of the App IDs; App Store Connect refuses the upload if the app lacks it).

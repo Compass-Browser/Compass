@@ -1,0 +1,471 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%@" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@"
+          }
+        }
+      }
+    },
+    "%lld more" : {
+      "comment" : "Today widget header: tabs that don't fit.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld more"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld more"
+                }
+              }
+            }
+          }
+        },
+        "it" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "altra %lld"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "altre %lld"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "A space's favorites and pinned tabs." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I preferiti e le schede fissate di uno spazio."
+          }
+        }
+      }
+    },
+    "A space's most recent tabs." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le schede più recenti di uno spazio."
+          }
+        }
+      }
+    },
+    "Calendar" : {
+      "comment" : "Sample tab title in the widget gallery.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calendario"
+          }
+        }
+      }
+    },
+    "Cancel Download" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annulla download"
+          }
+        }
+      }
+    },
+    "Compass" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compass"
+          }
+        }
+      }
+    },
+    "Docs" : {
+      "comment" : "Sample tab title in the widget gallery.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Documenti"
+          }
+        }
+      }
+    },
+    "Download" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download"
+          }
+        }
+      }
+    },
+    "Download failed" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download non riuscito"
+          }
+        }
+      }
+    },
+    "Downloaded · %@" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scaricato · %@"
+          }
+        }
+      }
+    },
+    "Downloading in the background · %@" : {
+      "comment" : "Download Live Activity: the system downloads on; the argument is the progress and size, e.g. “45% · 12 MB”.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download in background · %@"
+          }
+        }
+      }
+    },
+    "Home" : {
+      "comment" : "Sample space name in the widget gallery.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Casa"
+          }
+        }
+      }
+    },
+    "Link" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link"
+          }
+        }
+      }
+    },
+    "MacBook" : {
+      "comment" : "Sample device name in the widget gallery.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MacBook"
+          }
+        }
+      }
+    },
+    "Mail" : {
+      "comment" : "Sample tab title in the widget gallery.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mail"
+          }
+        }
+      }
+    },
+    "Maps" : {
+      "comment" : "Sample tab title in the widget gallery.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mappe"
+          }
+        }
+      }
+    },
+    "Music" : {
+      "comment" : "Sample tab title in the widget gallery.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Musica"
+          }
+        }
+      }
+    },
+    "Name" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nome"
+          }
+        }
+      }
+    },
+    "New Compass Tab" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuova scheda di Compass"
+          }
+        }
+      }
+    },
+    "New Tab" : {
+      "comment" : "Quick Actions widget button.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuova scheda"
+          }
+        }
+      }
+    },
+    "News" : {
+      "comment" : "Sample tab title in the widget gallery.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notizie"
+          }
+        }
+      }
+    },
+    "No tabs open on your other devices." : {
+      "comment" : "Other Devices widget, empty.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna scheda aperta sugli altri dispositivi."
+          }
+        }
+      }
+    },
+    "No tabs today" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna scheda oggi"
+          }
+        }
+      }
+    },
+    "Nothing pinned yet" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora niente di fissato"
+          }
+        }
+      }
+    },
+    "Open Compass Link" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri link di Compass"
+          }
+        }
+      }
+    },
+    "Open Compass to set up your spaces." : {
+      "comment" : "Widget shown before the app has run.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri Compass per configurare i tuoi spazi."
+          }
+        }
+      }
+    },
+    "Open Space" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri spazio"
+          }
+        }
+      }
+    },
+    "Opens Compass on a new tab." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apre Compass su una nuova scheda."
+          }
+        }
+      }
+    },
+    "Opens Compass on a space's sidebar." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apre Compass sulla barra laterale di uno spazio."
+          }
+        }
+      }
+    },
+    "Other Devices" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Altri dispositivi"
+          }
+        }
+      }
+    },
+    "Paused · open Compass to finish" : {
+      "comment" : "Download Live Activity: the app was suspended mid-download.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In pausa · apri Compass per completare"
+          }
+        }
+      }
+    },
+    "Quick Actions" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Azioni rapide"
+          }
+        }
+      }
+    },
+    "Search" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca"
+          }
+        }
+      }
+    },
+    "Search Compass" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca in Compass"
+          }
+        }
+      }
+    },
+    "Search or enter address" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca o inserisci indirizzo"
+          }
+        }
+      }
+    },
+    "Search, open a new tab, or go to your space." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca, apri una nuova scheda o vai al tuo spazio."
+          }
+        }
+      }
+    },
+    "Space" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spazio"
+          }
+        }
+      }
+    },
+    "The space this widget shows." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo spazio mostrato da questo widget."
+          }
+        }
+      }
+    },
+    "The tabs open on your Mac and other devices." : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le schede aperte sul Mac e sugli altri dispositivi."
+          }
+        }
+      }
+    },
+    "Today" : {
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oggi"
+          }
+        }
+      }
+    },
+    "Turn on sync in Compass to see your other devices' tabs." : {
+      "comment" : "Other Devices widget when sync is off.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva la sincronizzazione in Compass per vedere le schede degli altri dispositivi."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

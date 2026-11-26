@@ -19,8 +19,9 @@ struct CompassFocusFilter: SetFocusFilterIntent {
 
   var displayRepresentation: DisplayRepresentation {
     guard let space else { return DisplayRepresentation(title: "Compass") }
-    return DisplayRepresentation(
-      title: "\(space.name)", subtitle: onlyThisSpace ? "Only this space" : "Shown first")
+    let subtitle: LocalizedStringResource =
+      if onlyThisSpace { "Only this space" } else { "Shown first" }
+    return DisplayRepresentation(title: "\(space.name)", subtitle: subtitle)
   }
 
   func perform() async throws -> some IntentResult {

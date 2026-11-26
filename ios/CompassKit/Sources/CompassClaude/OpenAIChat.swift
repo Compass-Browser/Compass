@@ -220,7 +220,7 @@ public enum OpenAIChat {
       if trimmed == "[DONE]" { return end() }
       guard let chunk = JSONValue.parse(trimmed) else { return [] }
       if let failure = chunk["error"] {
-        error = failure["message"]?.string ?? failure.string ?? "The reply failed."
+        error = failure["message"]?.string ?? failure.string ?? String(localized: "The reply failed.", bundle: .module, comment: "Chat error when the AI provider reports a failure without a message.")
         ended = true
         return []
       }

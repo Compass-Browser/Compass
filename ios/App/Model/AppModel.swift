@@ -992,7 +992,7 @@ final class AppModel {
     step.spaceID = step.spaceID ?? selectedSpaceID
     step.reopenID = shown.map(\.id).flatMap { open.contains($0) ? $0 : nil } ?? open.first
     services.closed.push(step, keepRedo: keepRedo)
-    showClosedToast("Closed \(step.title)", action: .undoClose)
+    showClosedToast(String(localized: "Closed \(step.title)", comment: "Toast after closing tabs; the argument is what closed (a tab's title, or a count)."), action: .undoClose)
   }
 
   /// Puts back what the user closed last: its entries return to their
@@ -1008,7 +1008,7 @@ final class AppModel {
       selectedSpaceID = id
     }
     services.closed.pushRedo(step)
-    showClosedToast("Reopened \(step.title)", action: .redoClose)
+    showClosedToast(String(localized: "Reopened \(step.title)", comment: "Toast after undoing a close; the argument is what reopened."), action: .redoClose)
   }
 
   /// Closes again what the last undo put back.
@@ -1099,8 +1099,8 @@ enum StartScreen: String, CaseIterable, Identifiable {
   var id: String { rawValue }
   var name: String {
     switch self {
-    case .sidebar: "Sidebar"
-    case .lastTab: "Last Tab"
+    case .sidebar: String(localized: "Sidebar", comment: "Settings, Start screen option: the app opens on the sidebar.")
+    case .lastTab: String(localized: "Last Tab", comment: "Settings, Start screen option: the app opens on the last tab shown.")
     }
   }
 }

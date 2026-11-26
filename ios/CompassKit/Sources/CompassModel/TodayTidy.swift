@@ -34,7 +34,7 @@ extension SpaceStore {
   }
 
   /// The name a folder Tidy makes goes back to with Undo Name.
-  public static let tidyFolderPlaceholder = "New Folder"
+  public static let tidyFolderPlaceholder = String(localized: "New Folder", bundle: .module, comment: "Sidebar: name of a folder Tidy Today made, until it gets its own.")
 
   /// Whether `node` is a loose Today entry Tidy may group: a tab or split
   /// at the top level of a Today that isn't incognito's.

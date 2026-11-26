@@ -43,7 +43,7 @@ public struct LinkFolders {
     if !tab.customTitle.isEmpty { return tab.customTitle }
     if !tab.title.isEmpty { return tab.title }
     if let host = URL(string: tab.url)?.host(), !host.isEmpty { return host }
-    return "Links"
+    return String(localized: "Links", bundle: .module, comment: "Sidebar: name of a link folder (links opened from one page) whose page has no title or host.")
   }
 
   /// Adds a tab for `url`, opened in the background from the tab `opener`,
