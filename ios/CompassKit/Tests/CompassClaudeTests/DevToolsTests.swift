@@ -68,6 +68,14 @@ struct DevToolsFormatTests {
     #expect(context(true).contains("Developer tools are on"))
     #expect(context(false).contains("Developer tools are off"))
   }
+
+  @Test func languageContextLine() {
+    var options = ChatRequest.Options(model: "m", systemPrompt: "P", claudeAPI: true)
+    #expect(!ChatRequest.context(options).contains("browser is in"))
+    options.locale = "it-IT"
+    #expect(ChatRequest.context(options).contains(
+      "The user's browser is in Italian. Reply in the language the user writes in; when that isn't clear, in Italian."))
+  }
 }
 
 struct NetworkListingTests {

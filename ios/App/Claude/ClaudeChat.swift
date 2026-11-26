@@ -330,6 +330,7 @@ final class ClaudeChat {
       devtools: settings.devtools)
     let cacheMemory = CacheLevelMemory()
     options.cacheLevel = cacheMemory.level(for: endpoint.baseURL, isClaudeAPI: endpoint.isClaudeAPI)
+    options.locale = Locale.preferredLanguages.first ?? "en-US"
     // The messages once, before the reply starts: every attempt sends them.
     let messages = conversation.messages()
     conversation.startReply()

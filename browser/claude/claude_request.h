@@ -61,6 +61,10 @@ struct ChatOptions {
   // The cache breakpoints to send (CacheLevel).
   CacheLevel cache_level = CacheLevel::kNormal;
   base::Time now;
+  // The browser's UI language (g_browser_process->GetApplicationLocale(),
+  // e.g. "it"), said in the context so Claude replies in it. Empty to leave
+  // it out.
+  std::string locale;
 };
 
 // The API takes at most this many cache_control blocks, the top-level one
@@ -105,6 +109,11 @@ std::string SystemPromptText(std::string_view memory = {});
 // messages, and the system prompt, never change (thinking blocks are bound
 // to them).
 std::string BuildMessageContext(const ChatOptions& options);
+
+// |locale|'s language in English, for prompts: "it-IT" is "Italian" (the
+// language, not the country, which a small model takes as a topic).
+// "English" when it has no name.
+std::string PromptLanguageName(std::string_view locale);
 
 // Whether |model| takes the server-side refusal fallback
 // (fallbacks: "default").

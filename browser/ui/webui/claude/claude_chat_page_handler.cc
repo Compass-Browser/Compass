@@ -20,6 +20,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
@@ -519,6 +520,7 @@ void ClaudeChatPageHandler::GetContext(GetContextCallback callback) {
   options.devtools =
       browser_->GetProfile()->GetPrefs()->GetBoolean(prefs::kDevTools);
   options.window_tabs = WindowTabs();
+  options.locale = g_browser_process->GetApplicationLocale();
   std::move(callback).Run(BuildMessageContext(options));
 }
 

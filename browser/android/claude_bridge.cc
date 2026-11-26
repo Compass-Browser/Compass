@@ -21,6 +21,7 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/android/claude_tabs_android.h"
 #include "compass/browser/boosts/boost_injector.h"
@@ -547,6 +548,7 @@ void ClaudeBridge::OnPage(std::string question,
   options.files = GetFilesConfig();
   options.devtools = profile_->GetPrefs()->GetBoolean(claude::prefs::kDevTools);
   options.boosts = profile_->GetPrefs()->GetBoolean(claude::prefs::kBoosts);
+  options.locale = g_browser_process->GetApplicationLocale();
   content = claude::BuildMessageContext(options) + "\n\n" + content;
   claude::ClaudeCredentials::GetApiKey(
       profile_, base::BindOnce(&ClaudeBridge::OnKey,

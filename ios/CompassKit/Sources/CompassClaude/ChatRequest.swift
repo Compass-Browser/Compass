@@ -74,6 +74,9 @@ public struct ChatRequest: Sendable {
     /// The cache breakpoints to send (`CacheLevel`).
     public var cacheLevel: CacheLevel = .normal
     public var now: Date
+    /// The app's UI language (e.g. "it"), said in the context so Claude
+    /// replies in it; empty to leave it out.
+    public var locale: String = ""
 
     public init(
       model: String, systemPrompt: String, tools: [JSONValue] = [], browserScope: Bool = false, windowTabs: String = "",
@@ -159,6 +162,11 @@ public struct ChatRequest: Sendable {
     text += options.browserScope
       ? "The user lets you use the whole browser: other tabs and windows too."
       : "You can only use the tab the user is chatting about; the \"whole browser\" permission is off."
+    if !options.locale.isEmpty {
+      // The desktop's words (BuildMessageContext()).
+      let language = SidebarPrompts.languageName(options.locale)
+      text += " The user's browser is in \(language). Reply in the language the user writes in; when that isn't clear, in \(language)."
+    }
     if !options.files.isEmpty { text += " " + options.files }
     // The desktop's words (BuildMessageContext()).
     text += options.devtools

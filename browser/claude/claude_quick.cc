@@ -31,7 +31,6 @@
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
-#include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "compass/browser/claude/on_device_model.h"
@@ -389,16 +388,8 @@ std::string SidebarPromptFrom(std::string_view prompts,
   std::string text(base::TrimWhitespaceASCII(joined, base::TRIM_ALL));
   base::ReplaceSubstringsAfterOffset(&text, 0, "{locale}", locale);
   if (text.find("{language}") != std::string::npos) {
-    // "it-IT" is "Italian": the language, not the country, which a small
-    // model takes as a topic.
-    const std::string_view code =
-        locale.substr(0, std::min(locale.find_first_of("-_"), locale.size()));
-    std::string language = base::UTF16ToUTF8(l10n_util::GetDisplayNameForLocale(
-        code, "en", /*is_for_ui=*/false));
-    if (language.empty() || language == code) {
-      language = "English";
-    }
-    base::ReplaceSubstringsAfterOffset(&text, 0, "{language}", language);
+    base::ReplaceSubstringsAfterOffset(&text, 0, "{language}",
+                                       PromptLanguageName(locale));
   }
   return text;
 }

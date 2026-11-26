@@ -200,6 +200,20 @@ TEST(ClaudeRequestTest, MessageContext) {
   const std::string whole = BuildMessageContext(options);
   EXPECT_NE(whole.find("whole browser"), std::string::npos);
   EXPECT_EQ(whole.find("Tabs open"), std::string::npos);
+  EXPECT_EQ(whole.find("browser is in"), std::string::npos);
+
+  options.locale = "it";
+  EXPECT_NE(BuildMessageContext(options).find(
+                "The user's browser is in Italian. Reply in the language the "
+                "user writes in; when that isn't clear, in Italian."),
+            std::string::npos);
+}
+
+TEST(ClaudeRequestTest, PromptLanguageName) {
+  EXPECT_EQ(PromptLanguageName("it"), "Italian");
+  EXPECT_EQ(PromptLanguageName("it-IT"), "Italian");
+  EXPECT_EQ(PromptLanguageName("pt_BR"), "Portuguese");
+  EXPECT_EQ(PromptLanguageName("xx"), "English");
 }
 
 }  // namespace
