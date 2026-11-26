@@ -13,6 +13,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.ui.res.stringResource
 import it.cipi1965.compass.R
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.combinedClickable
@@ -187,7 +188,7 @@ private fun Cards(state: TabPickerState, listener: TabPickerUi.Listener, modifie
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         if (state.cards.isEmpty()) {
             Text(
-                if (state.incognito) "No incognito tabs" else "No tabs",
+                stringResource(if (state.incognito) R.string.compass_tabs_no_incognito_tabs else R.string.compass_tabs_no_tabs),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             return@BoxWithConstraints

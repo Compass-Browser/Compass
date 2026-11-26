@@ -32,12 +32,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import it.cipi1965.compass.R
 
 /**
  * The extensions sheet: the window's extension actions (a tap runs one: its popup, or what it
@@ -86,16 +88,16 @@ private fun ExtensionsSheet(state: ExtensionsState, listener: ExtensionsUi.Liste
         Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Extensions", style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.compass_ext_title), style = MaterialTheme.typography.titleLarge)
         when {
             !state.available ->
                 Text(
-                    "Extensions aren't available in this window.",
+                    stringResource(R.string.compass_ext_unavailable),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             state.actions.isEmpty() ->
                 Text(
-                    "No extensions yet. Add them from the Chrome Web Store.",
+                    stringResource(R.string.compass_ext_empty),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             else ->
@@ -104,8 +106,8 @@ private fun ExtensionsSheet(state: ExtensionsState, listener: ExtensionsUi.Liste
                 }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = { listener.onManage() }) { Text("Manage extensions") }
-            TextButton(onClick = { listener.onWebStore() }) { Text("Chrome Web Store") }
+            TextButton(onClick = { listener.onManage() }) { Text(stringResource(R.string.compass_ext_manage)) }
+            TextButton(onClick = { listener.onWebStore() }) { Text(stringResource(R.string.compass_ext_web_store)) }
         }
     }
 }
@@ -132,7 +134,7 @@ private fun ActionRow(action: ExtensionsState.Action, listener: ExtensionsUi.Lis
             Text(action.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (action.unlockSaved) {
                 Text(
-                    "Unlocks with your fingerprint or face",
+                    stringResource(R.string.compass_ext_unlock_saved),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -150,7 +152,7 @@ private fun ActionRow(action: ExtensionsState.Action, listener: ExtensionsUi.Lis
         }
         if (action.unlockSaved) {
             // Turning it back on: type the password once.
-            TextButton(onClick = { listener.onForgetUnlock(action.id) }) { Text("Forget password") }
+            TextButton(onClick = { listener.onForgetUnlock(action.id) }) { Text(stringResource(R.string.compass_ext_forget_password)) }
         }
     }
 }

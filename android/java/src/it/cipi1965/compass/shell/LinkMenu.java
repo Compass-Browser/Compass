@@ -48,20 +48,42 @@ import java.util.List;
  */
 public class LinkMenu implements ContextMenuUi, LinkMenuUi.Listener {
     /** Compass's names for some of Chrome's items, in its title case. */
-    private static final java.util.Map<Integer, String> TITLES = new java.util.HashMap<>();
+    private static final java.util.Map<Integer, Integer> TITLES = new java.util.HashMap<>();
 
     static {
-        TITLES.put(org.chromium.chrome.R.id.contextmenu_open_in_new_window, "Open in New Window");
-        TITLES.put(org.chromium.chrome.R.id.contextmenu_copy_link_address, "Copy Link");
-        TITLES.put(org.chromium.chrome.R.id.contextmenu_copy_link_text, "Copy Link Text");
-        TITLES.put(org.chromium.chrome.R.id.contextmenu_save_link_as, "Download Link");
-        TITLES.put(org.chromium.chrome.R.id.contextmenu_share_link, "Share Link…");
-        TITLES.put(org.chromium.chrome.R.id.contextmenu_save_image, "Download Image");
-        TITLES.put(org.chromium.chrome.R.id.contextmenu_copy_image, "Copy Image");
-        TITLES.put(org.chromium.chrome.R.id.contextmenu_share_image, "Share Image…");
-        TITLES.put(org.chromium.chrome.R.id.contextmenu_open_image_in_new_tab, "Open Image in New Tab");
-        TITLES.put(org.chromium.chrome.R.id.contextmenu_open_image_in_ephemeral_tab, "Peek Image");
-        TITLES.put(org.chromium.chrome.R.id.contextmenu_open_in_ephemeral_tab, "Peek");
+        TITLES.put(
+                org.chromium.chrome.R.id.contextmenu_open_in_new_window,
+                R.string.compass_menu_open_in_new_window);
+        TITLES.put(
+                org.chromium.chrome.R.id.contextmenu_copy_link_address,
+                R.string.compass_copy_link);
+        TITLES.put(
+                org.chromium.chrome.R.id.contextmenu_copy_link_text,
+                R.string.compass_menu_copy_link_text);
+        TITLES.put(
+                org.chromium.chrome.R.id.contextmenu_save_link_as,
+                R.string.compass_menu_download_link);
+        TITLES.put(
+                org.chromium.chrome.R.id.contextmenu_share_link,
+                R.string.compass_menu_share_link);
+        TITLES.put(
+                org.chromium.chrome.R.id.contextmenu_save_image,
+                R.string.compass_menu_download_image);
+        TITLES.put(
+                org.chromium.chrome.R.id.contextmenu_copy_image,
+                R.string.compass_menu_copy_image);
+        TITLES.put(
+                org.chromium.chrome.R.id.contextmenu_share_image,
+                R.string.compass_menu_share_image);
+        TITLES.put(
+                org.chromium.chrome.R.id.contextmenu_open_image_in_new_tab,
+                R.string.compass_menu_open_image_in_new_tab);
+        TITLES.put(
+                org.chromium.chrome.R.id.contextmenu_open_image_in_ephemeral_tab,
+                R.string.compass_menu_peek_image);
+        TITLES.put(
+                org.chromium.chrome.R.id.contextmenu_open_in_ephemeral_tab,
+                R.string.compass_menu_peek);
     }
 
     private final ChromeTabbedActivity mActivity;
@@ -169,10 +191,14 @@ public class LinkMenu implements ContextMenuUi, LinkMenuUi.Listener {
                     // Ours first: the link in a new tab, shown.
                     group.add(
                             own(
-                                    "Open in New Tab",
+                                    mActivity.getString(R.string.compass_menu_open_in_new_tab),
                                     R.drawable.compass_sym_open_in_new,
                                     () -> openInNewTab(tab, params, link)));
-                    group.add(chrome(item, "Open in Background", R.drawable.compass_sym_tab));
+                    group.add(
+                            chrome(
+                                    item,
+                                    mActivity.getString(R.string.compass_menu_open_in_background),
+                                    R.drawable.compass_sym_tab));
                     if (!incognito && web) {
                         List<LinkMenuState.Item> into = group;
                         addOwn[0] =
@@ -180,14 +206,15 @@ public class LinkMenu implements ContextMenuUi, LinkMenuUi.Listener {
                                     addOwn[0] = null;
                                     into.add(
                                             own(
-                                                    "Open in Little Window",
+                                                    mActivity.getString(
+                                                            R.string.compass_menu_open_in_little_window),
                                                     R.drawable.compass_sym_picture_in_picture,
                                                     () ->
                                                             mPeek.showLittleWindow(
                                                                     tab.getProfile(), link)));
                                     into.add(
                                             own(
-                                                    "Pin",
+                                                    mActivity.getString(R.string.compass_menu_pin),
                                                     R.drawable.compass_sym_keep,
                                                     () -> mSpaces.pinLink(link)));
                                 };
@@ -196,15 +223,28 @@ public class LinkMenu implements ContextMenuUi, LinkMenuUi.Listener {
                 }
                 if (id == org.chromium.chrome.R.id.contextmenu_open_in_new_tab) {
                     // A page without a tab (Peek's card): it opens in the background.
-                    group.add(chrome(item, "Open in Background", R.drawable.compass_sym_tab));
+                    group.add(
+                            chrome(
+                                    item,
+                                    mActivity.getString(R.string.compass_menu_open_in_background),
+                                    R.drawable.compass_sym_tab));
                     continue;
                 }
                 if (id == org.chromium.chrome.R.id.contextmenu_open_in_incognito_tab) {
-                    group.add(chrome(item, "Open in Incognito", R.drawable.compass_sym_domino_mask));
+                    group.add(
+                            chrome(
+                                    item,
+                                    mActivity.getString(R.string.compass_menu_open_in_incognito),
+                                    R.drawable.compass_sym_domino_mask));
                     if (addOwn[0] != null) addOwn[0].run();
                     continue;
                 }
-                group.add(chrome(item, TITLES.get(id), iconFor(id)));
+                Integer title = TITLES.get(id);
+                group.add(
+                        chrome(
+                                item,
+                                title != null ? mActivity.getString(title) : null,
+                                iconFor(id)));
             }
             if (addOwn[0] != null) addOwn[0].run();
             if (!group.isEmpty()) groups.add(group);

@@ -80,6 +80,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -307,7 +308,7 @@ private fun PeekBar(state: PeekUi.State, listener: PeekUi.Listener, dragBar: Mod
                     )
                 }
             }
-            FilledTonalButton(onClick = { listener.onOpen("") }) { Text("Open") }
+            FilledTonalButton(onClick = { listener.onOpen("") }) { Text(stringResource(R.string.compass_open)) }
             IconCircle(R.drawable.compass_sym_close) { listener.onClose() }
         }
     }
@@ -431,7 +432,7 @@ private fun OpenInSpace(state: PeekUi.State, listener: PeekUi.Listener) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            if (state.spaceName.isEmpty()) "Open" else "Open in ${state.spaceName}",
+            if (state.spaceName.isEmpty()) stringResource(R.string.compass_open) else stringResource(R.string.compass_peek_open_in, state.spaceName),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSecondaryContainer,
             maxLines = 1,
@@ -463,7 +464,7 @@ private fun OpenInSpace(state: PeekUi.State, listener: PeekUi.Listener) {
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    "Always Open ${state.ruleDomain} in",
+                                    stringResource(R.string.compass_peek_always_open_in, state.ruleDomain),
                                     style = MaterialTheme.typography.labelLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -475,7 +476,7 @@ private fun OpenInSpace(state: PeekUi.State, listener: PeekUi.Listener) {
                         )
                         for (space in state.spaces) {
                             DropdownMenuItem(
-                                text = { Text(space.name.ifEmpty { "Space" }) },
+                                text = { Text(space.name.ifEmpty { stringResource(R.string.compass_peek_space) }) },
                                 leadingIcon = { SpaceBadge(space) },
                                 trailingIcon = {
                                     if (space.id == state.ruleSpaceId) Sym(R.drawable.compass_sym_check, 14f)
@@ -490,7 +491,7 @@ private fun OpenInSpace(state: PeekUi.State, listener: PeekUi.Listener) {
                         if (state.spaces.size > 1) {
                             for (space in state.spaces) {
                                 DropdownMenuItem(
-                                    text = { Text(space.name.ifEmpty { "Space" }) },
+                                    text = { Text(space.name.ifEmpty { stringResource(R.string.compass_peek_space) }) },
                                     leadingIcon = { SpaceBadge(space) },
                                     trailingIcon = {
                                         if (space.id == state.spaceId) Sym(R.drawable.compass_sym_check, 14f)
@@ -505,7 +506,7 @@ private fun OpenInSpace(state: PeekUi.State, listener: PeekUi.Listener) {
                         if (state.ruleDomain.isNotEmpty()) {
                             if (state.spaces.size > 1) HorizontalDivider()
                             DropdownMenuItem(
-                                text = { Text("Always Open ${state.ruleDomain} in") },
+                                text = { Text(stringResource(R.string.compass_peek_always_open_in, state.ruleDomain)) },
                                 trailingIcon = { Sym(R.drawable.compass_sym_chevron_right, 14f) },
                                 onClick = { always = true },
                             )

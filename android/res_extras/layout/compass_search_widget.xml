@@ -27,7 +27,7 @@
         android:layout_weight="1"
         android:ellipsize="end"
         android:maxLines="1"
-        android:text="Search or type URL"
+        android:text="@string/compass_widget_search_hint"
         android:textColor="#FF5F6368"
         android:textSize="16sp" />
 </LinearLayout>

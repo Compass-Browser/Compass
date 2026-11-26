@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +57,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import it.cipi1965.compass.R
 import java.util.Date
 
 /** The sync screen: join a chain, pair devices, see what syncs (docs/design/sync.md). */
@@ -152,15 +154,15 @@ object SyncScreenUi {
 // SyncDataType's order (sync_controller.h).
 private val TYPE_NAMES =
     listOf(
-        "Passwords",
-        "History",
-        "Bookmarks",
-        "Autofill",
-        "Extensions",
-        "Settings",
-        "Reading list",
-        "Open tabs",
-        "Spaces",
+        R.string.compass_sync_type_passwords,
+        R.string.compass_sync_type_history,
+        R.string.compass_sync_type_bookmarks,
+        R.string.compass_sync_type_autofill,
+        R.string.compass_sync_type_extensions,
+        R.string.compass_sync_type_settings,
+        R.string.compass_sync_type_reading_list,
+        R.string.compass_sync_type_open_tabs,
+        R.string.compass_sync_type_spaces,
     )
 
 @Composable
@@ -176,11 +178,11 @@ private fun SyncScreen(state: SyncScreenState, listener: SyncScreenUi.Listener) 
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Sync",
+                    stringResource(R.string.compass_sync_title),
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = { listener.onDismiss() }) { Text("Done") }
+                TextButton(onClick = { listener.onDismiss() }) { Text(stringResource(R.string.compass_done)) }
             }
             if (state.error.isNotEmpty()) Text(state.error, color = MaterialTheme.colorScheme.error)
             if (state.message.isNotEmpty()) Text(state.message)
@@ -193,16 +195,16 @@ private fun SyncScreen(state: SyncScreenState, listener: SyncScreenUi.Listener) 
             Pairing(state, listener)
             Login(state, listener)
             when (state.state) {
-                "unavailable" -> Text("Sync isn't available in this profile.")
+                "unavailable" -> Text(stringResource(R.string.compass_sync_unavailable))
                 "needs_restart" -> {
                     // The service's message says why ("Restart Compass to start syncing.").
-                    if (state.message.isEmpty()) Text("Restart Compass to start syncing.")
-                    Button(onClick = { listener.onRestart() }) { Text("Restart") }
+                    if (state.message.isEmpty()) Text(stringResource(R.string.compass_sync_restart_to_start))
+                    Button(onClick = { listener.onRestart() }) { Text(stringResource(R.string.compass_sync_restart)) }
                 }
                 "on", "starting", "error", "login_required" ->
                     if (state.removed) {
                         // The message says so; leaving (then joining again) is the way on.
-                        OutlinedButton(onClick = { listener.onLeave() }) { Text("Leave the chain") }
+                        OutlinedButton(onClick = { listener.onLeave() }) { Text(stringResource(R.string.compass_sync_leave_chain)) }
                     } else {
                         Chain(state, listener)
                     }
@@ -215,29 +217,33 @@ private fun SyncScreen(state: SyncScreenState, listener: SyncScreenUi.Listener) 
 @Composable
 private fun Pairing(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     when (state.pairingStep) {
-        "working" -> Text("Pairing…")
+        "working" -> Text(stringResource(R.string.compass_sync_pairing))
         "waiting" -> {
-            Text("Approve this device on your other device.")
-            OutlinedButton(onClick = { listener.onCancelPairing() }) { Text("Cancel") }
+            Text(stringResource(R.string.compass_sync_approve_on_other))
+            OutlinedButton(onClick = { listener.onCancelPairing() }) { Text(stringResource(R.string.compass_cancel)) }
         }
         "showing_code" -> {
-            Text("On your other device, choose Join and enter:")
+            Text(stringResource(R.string.compass_sync_enter_code_on_other))
             Text(
                 state.pairingCode,
                 style = MaterialTheme.typography.displaySmall,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.SemiBold,
             )
-            OutlinedButton(onClick = { listener.onCancelPairing() }) { Text("Cancel") }
+            OutlinedButton(onClick = { listener.onCancelPairing() }) { Text(stringResource(R.string.compass_cancel)) }
         }
         "confirm" -> {
-            Text("Let “${state.pairingDevice}” join this chain?")
+            Text(stringResource(R.string.compass_sync_let_join, state.pairingDevice))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = { listener.onAnswerPairing(true) }) { Text("Allow") }
-                OutlinedButton(onClick = { listener.onAnswerPairing(false) }) { Text("Deny") }
+                Button(onClick = { listener.onAnswerPairing(true) }) { Text(stringResource(R.string.compass_sync_allow)) }
+                OutlinedButton(onClick = { listener.onAnswerPairing(false) }) { Text(stringResource(R.string.compass_sync_deny)) }
             }
         }
-        "failed" -> Text(state.pairingMessage.ifEmpty { "Pairing failed." }, color = MaterialTheme.colorScheme.error)
+        "failed" ->
+            Text(
+                state.pairingMessage.ifEmpty { stringResource(R.string.compass_sync_pairing_failed) },
+                color = MaterialTheme.colorScheme.error,
+            )
         else -> {}
     }
 }
@@ -249,7 +255,11 @@ private fun Login(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     val provider = state.loginProvider
     if (state.loginInProgress) {
         Text(
-            if (provider.isEmpty()) "Sign in" else "Sign in with $provider",
+            if (provider.isEmpty()) {
+                stringResource(R.string.compass_sync_sign_in)
+            } else {
+                stringResource(R.string.compass_sync_sign_in_with, provider)
+            },
             style = MaterialTheme.typography.titleMedium,
         )
         if (state.loginCode.isNotEmpty()) {
@@ -260,25 +270,27 @@ private fun Login(state: SyncScreenState, listener: SyncScreenUi.Listener) {
                 fontWeight = FontWeight.SemiBold,
             )
         }
-        Text("Sign in in the tab that opened. Allow only if the page shows this code.")
+        Text(stringResource(R.string.compass_sync_sign_in_in_tab))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(
                 onClick = { listener.onStartLogin() },
                 enabled = state.loginCode.isNotEmpty(),
             ) {
-                Text("Open the page")
+                Text(stringResource(R.string.compass_sync_open_page))
             }
-            OutlinedButton(onClick = { listener.onCancelLogin() }) { Text("Cancel") }
+            OutlinedButton(onClick = { listener.onCancelLogin() }) { Text(stringResource(R.string.compass_cancel)) }
         }
         HorizontalDivider()
     } else if (state.state == "login_required") {
-        Text(
-            "This server only syncs for people of its organization: sign in with your work " +
-                "account. Your data stays encrypted on your devices; signing in only lets this " +
-                "chain use the server."
-        )
+        Text(stringResource(R.string.compass_sync_login_required))
         Button(onClick = { listener.onStartLogin() }) {
-            Text(if (provider.isEmpty()) "Sign in" else "Sign in to $provider")
+            Text(
+                if (provider.isEmpty()) {
+                    stringResource(R.string.compass_sync_sign_in)
+                } else {
+                    stringResource(R.string.compass_sync_sign_in_to, provider)
+                }
+            )
         }
         HorizontalDivider()
     }
@@ -292,23 +304,20 @@ private fun Join(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     val server = serverField.text.toString().trim()
     val code = codeField.text.toString()
     val words = wordsField.text.toString()
-    Text(
-        "Sync joins a chain of your devices: everything is encrypted on them, " +
-            "and the server can't read it. There's no account."
-    )
+    Text(stringResource(R.string.compass_sync_intro))
     OutlinedTextField(
         state = serverField,
-        label = { Text("Sync server") },
+        label = { Text(stringResource(R.string.compass_sync_server)) },
         placeholder = { Text("https://…") },
         lineLimits = TextFieldLineLimits.SingleLine,
         modifier = Modifier.fillMaxWidth(),
     )
     HorizontalDivider()
-    Text("Pair with a device", style = MaterialTheme.typography.titleMedium)
-    Text("On a device that syncs, choose Add a device, then enter its code here.")
+    Text(stringResource(R.string.compass_sync_pair_with_device), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.compass_sync_pair_instructions))
     OutlinedTextField(
         state = codeField,
-        label = { Text("Pairing code") },
+        label = { Text(stringResource(R.string.compass_sync_pairing_code)) },
         lineLimits = TextFieldLineLimits.SingleLine,
         modifier = Modifier.fillMaxWidth(),
     )
@@ -316,24 +325,24 @@ private fun Join(state: SyncScreenState, listener: SyncScreenUi.Listener) {
         onClick = { listener.onJoinWithPairingCode(server, code.trim()) },
         enabled = server.isNotEmpty() && code.isNotBlank(),
     ) {
-        Text("Join")
+        Text(stringResource(R.string.compass_sync_join))
     }
     HorizontalDivider()
-    Text("Or use your recovery code", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.compass_sync_or_recovery_code), style = MaterialTheme.typography.titleMedium)
     OutlinedTextField(
         state = wordsField,
-        label = { Text("Recovery code") },
+        label = { Text(stringResource(R.string.compass_sync_recovery_code)) },
         modifier = Modifier.fillMaxWidth(),
     )
     OutlinedButton(
         onClick = { listener.onJoinWithRecoveryCode(server, words.trim()) },
         enabled = server.isNotEmpty() && words.isNotBlank(),
     ) {
-        Text("Join with recovery code")
+        Text(stringResource(R.string.compass_sync_join_with_recovery_code))
     }
     HorizontalDivider()
     TextButton(onClick = { listener.onStartNewChain(server) }, enabled = server.isNotEmpty()) {
-        Text("Start a new chain")
+        Text(stringResource(R.string.compass_sync_start_new_chain))
     }
     HorizontalDivider()
     JoinWithInvite(state, listener)
@@ -346,29 +355,26 @@ private fun Join(state: SyncScreenState, listener: SyncScreenUi.Listener) {
 private fun JoinWithInvite(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     var shown by remember { mutableStateOf(false) }
     if (!shown) {
-        TextButton(onClick = { shown = true }) { Text("I have an invite") }
+        TextButton(onClick = { shown = true }) { Text(stringResource(R.string.compass_sync_have_invite)) }
         return
     }
     val linkField = rememberTextFieldState()
     val link = linkField.text.toString().trim()
-    Text("Join with an invite", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.compass_sync_join_with_invite), style = MaterialTheme.typography.titleMedium)
     OutlinedTextField(
         state = linkField,
-        label = { Text("Invite link") },
+        label = { Text(stringResource(R.string.compass_sync_invite_link)) },
         placeholder = { Text("https://compass-sync.example.workers.dev/invite#…") },
         lineLimits = TextFieldLineLimits.SingleLine,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
         modifier = Modifier.fillMaxWidth(),
     )
-    Text(
-        "A friend who runs a Compass sync server sent it. You get a sync chain of your own on " +
-            "their server; they can't read your data."
-    )
+    Text(stringResource(R.string.compass_sync_invite_explained))
     Button(
         onClick = { listener.onJoinWithInvite(link) },
         enabled = link.isNotEmpty() && state.serverSetup.isEmpty(),
     ) {
-        Text("Join and start sync")
+        Text(stringResource(R.string.compass_sync_join_and_start))
     }
 }
 
@@ -382,43 +388,37 @@ private fun Cloudflare(state: SyncScreenState, listener: SyncScreenUi.Listener) 
     var pushRelay by remember { mutableStateOf(true) }
     val settingUp = state.serverSetup.isNotEmpty()
     if (!shown && !settingUp) {
-        TextButton(onClick = { shown = true }) { Text("No server? Set up a free one on Cloudflare") }
+        TextButton(onClick = { shown = true }) { Text(stringResource(R.string.compass_sync_no_server)) }
         return
     }
     val tokenField = rememberTextFieldState()
     val token = tokenField.text.toString().trim()
-    Text("A free server on Cloudflare", style = MaterialTheme.typography.titleMedium)
-    Text(
-        "Compass sets up a sync server in your own Cloudflare account. It's free, and only " +
-            "your devices, and friends you invite, can use it."
-    )
+    Text(stringResource(R.string.compass_sync_cloudflare_title), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.compass_sync_cloudflare_intro))
     SwitchRow(
-        title = "Phone notifications",
-        details = SETUP_PUSH_RELAY_TEXT,
+        title = stringResource(R.string.compass_sync_phone_notifications),
+        details = stringResource(R.string.compass_sync_setup_push_relay),
         checked = pushRelay,
         enabled = !settingUp,
         onCheckedChange = { pushRelay = it },
     )
     Button(onClick = { listener.onStartOnCloudflareSignIn(pushRelay) }, enabled = !settingUp) {
-        Text("Sign in with Cloudflare")
+        Text(stringResource(R.string.compass_sync_sign_in_with_cloudflare))
     }
-    Text(
-        "No Cloudflare account? You can make a free one on the sign-in page. Compass uses the " +
-            "access only to set up the server, and doesn't keep it."
-    )
+    Text(stringResource(R.string.compass_sync_no_cloudflare_account))
     if (!showToken) {
         TextButton(onClick = { showToken = true }, enabled = !settingUp) {
-            Text("Use an API token instead")
+            Text(stringResource(R.string.compass_sync_use_api_token))
         }
     } else {
-        Text("1. Open API Tokens, choose Create Token, and use the template Edit Cloudflare Workers.")
+        Text(stringResource(R.string.compass_sync_token_step_1))
         TextButton(onClick = { listener.onOpenPage(CLOUDFLARE_TOKENS_URL) }) {
-            Text("Open API Tokens")
+            Text(stringResource(R.string.compass_sync_open_api_tokens))
         }
-        Text("2. Paste the token here.")
+        Text(stringResource(R.string.compass_sync_token_step_2))
         OutlinedSecureTextField(
             state = tokenField,
-            label = { Text("Cloudflare API token") },
+            label = { Text(stringResource(R.string.compass_sync_cloudflare_api_token)) },
             modifier = Modifier.fillMaxWidth(),
         )
         Button(
@@ -428,19 +428,13 @@ private fun Cloudflare(state: SyncScreenState, listener: SyncScreenUi.Listener) 
             },
             enabled = token.isNotEmpty() && !settingUp,
         ) {
-            Text("Set up and start sync")
+            Text(stringResource(R.string.compass_sync_set_up_and_start))
         }
     }
     if (settingUp) Text(state.serverSetup)
 }
 
 private const val CLOUDFLARE_TOKENS_URL = "https://dash.cloudflare.com/profile/api-tokens"
-
-private const val SETUP_PUSH_RELAY_TEXT =
-    "When a tab is sent to an iPhone or Android phone, Compass's push relay " +
-        "(push.compassbrowser.org) tells it at once. It gets each phone's notification token, " +
-        "never your tabs or data. Off, sent tabs arrive when the phone next syncs. You can " +
-        "change this later."
 
 @Composable
 private fun SwitchRow(
@@ -471,19 +465,20 @@ private fun Chain(state: SyncScreenState, listener: SyncScreenUi.Listener) {
         } else {
             state.loginUserName.ifEmpty { state.loginUserEmail }
         }
-    if (user.isNotEmpty()) Text("Signed in as $user.")
-    Text("Devices", style = MaterialTheme.typography.titleMedium)
+    if (user.isNotEmpty()) Text(stringResource(R.string.compass_sync_signed_in_as, user))
+    Text(stringResource(R.string.compass_sync_devices), style = MaterialTheme.typography.titleMedium)
     // The device the Remove dialog asks about.
     var removing by remember { mutableStateOf<SyncScreenState.Device?>(null) }
     for (device in state.devices) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            val name = device.name.ifEmpty { stringResource(R.string.compass_sync_unnamed_device) }
             Text(
-                device.name.ifEmpty { "Unnamed device" } + if (device.self) " (this device)" else "",
+                if (device.self) stringResource(R.string.compass_sync_this_device, name) else name,
                 modifier = Modifier.weight(1f),
             )
             if (!device.self) {
                 TextButton(onClick = { removing = device }, enabled = !state.removing) {
-                    Text("Remove")
+                    Text(stringResource(R.string.compass_remove))
                 }
             }
         }
@@ -494,8 +489,15 @@ private fun Chain(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     removing?.let { device ->
         AlertDialog(
             onDismissRequest = { removing = null },
-            title = { Text("Remove ${device.name.ifEmpty { "Unnamed device" }}?") },
-            text = { Text(REMOVE_DEVICE_TEXT) },
+            title = {
+                Text(
+                    stringResource(
+                        R.string.compass_sync_remove_named,
+                        device.name.ifEmpty { stringResource(R.string.compass_sync_unnamed_device) },
+                    )
+                )
+            },
+            text = { Text(stringResource(R.string.compass_sync_remove_device_text)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -503,29 +505,32 @@ private fun Chain(state: SyncScreenState, listener: SyncScreenUi.Listener) {
                         listener.onRemoveDevice(device.guid)
                     }
                 ) {
-                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.compass_remove), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { removing = null }) { Text(stringResource(R.string.compass_cancel)) } },
         )
     }
-    Button(onClick = { listener.onAddDevice() }) { Text("Add a device") }
+    Button(onClick = { listener.onAddDevice() }) { Text(stringResource(R.string.compass_sync_add_device)) }
     if (state.peopleAvailable) {
         HorizontalDivider()
         People(state, listener)
     }
     HorizontalDivider()
-    Text("What syncs", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.compass_sync_what_syncs), style = MaterialTheme.typography.titleMedium)
     for (type in state.types) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(TYPE_NAMES.getOrElse(type.type) { "?" }, modifier = Modifier.weight(1f))
+            Text(
+                TYPE_NAMES.getOrNull(type.type)?.let { stringResource(it) } ?: "?",
+                modifier = Modifier.weight(1f),
+            )
             Switch(checked = type.enabled, onCheckedChange = { listener.onSetDataType(type.type, it) })
         }
     }
     HorizontalDivider()
     RecoveryCode(state, listener)
     HorizontalDivider()
-    OutlinedButton(onClick = { listener.onLeave() }) { Text("Leave the chain") }
+    OutlinedButton(onClick = { listener.onLeave() }) { Text(stringResource(R.string.compass_sync_leave_chain)) }
 }
 
 // docs/design/sync.md, "Inviting friends": the friends and open invites of the server this chain
@@ -534,37 +539,48 @@ private fun Chain(state: SyncScreenState, listener: SyncScreenUi.Listener) {
 private fun People(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     val context = LocalContext.current
     val dateFormat = remember { DateFormat.getMediumDateFormat(context) }
-    Text("People on your server", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.compass_sync_people_on_server), style = MaterialTheme.typography.titleMedium)
     if (state.updateAvailable) ServerUpdate(state, listener)
-    Text(
-        "Only your devices and the friends you invite can sync on your server. Their data is " +
-            "encrypted on their devices: you can't read it."
-    )
+    Text(stringResource(R.string.compass_sync_people_intro))
     // The friend the Remove dialog asks about.
     var removing by remember { mutableStateOf<SyncScreenState.Member?>(null) }
     for (member in state.members) {
         PersonRow(
-            title = member.name.ifEmpty { "Friend" },
-            details = SyncScreenState.memberDetails(dateFormat.format(Date(member.addedMs)), member.linked),
-            action = "Remove",
+            title = member.name.ifEmpty { stringResource(R.string.compass_sync_friend) },
+            details =
+                SyncScreenState.memberDetails(
+                    context.resources,
+                    dateFormat.format(Date(member.addedMs)),
+                    member.linked,
+                ),
+            action = stringResource(R.string.compass_remove),
             onClick = { removing = member },
         )
     }
     for (invite in state.invites) {
         PersonRow(
-            title = if (invite.name.isEmpty()) "Invite" else "Invite for ${invite.name}",
-            details = "Not used yet · expires ${dateFormat.format(Date(invite.expiresMs))}",
-            action = "Revoke",
+            title =
+                if (invite.name.isEmpty()) {
+                    stringResource(R.string.compass_sync_invite)
+                } else {
+                    stringResource(R.string.compass_sync_invite_for, invite.name)
+                },
+            details =
+                stringResource(
+                    R.string.compass_sync_invite_unused,
+                    dateFormat.format(Date(invite.expiresMs)),
+                ),
+            action = stringResource(R.string.compass_sync_revoke),
             onClick = { listener.onRemoveFromServer(invite.code) },
         )
     }
-    if (state.members.isEmpty() && state.invites.isEmpty()) Text("No one else yet.")
+    if (state.members.isEmpty() && state.invites.isEmpty()) Text(stringResource(R.string.compass_sync_no_one_else))
     removing?.let { member ->
-        val title = member.name.ifEmpty { "Friend" }
+        val title = member.name.ifEmpty { stringResource(R.string.compass_sync_friend) }
         AlertDialog(
             onDismissRequest = { removing = null },
-            title = { Text("Remove $title?") },
-            text = { Text(REMOVE_FRIEND_TEXT) },
+            title = { Text(stringResource(R.string.compass_sync_remove_named, title)) },
+            text = { Text(stringResource(R.string.compass_sync_remove_friend_text)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -572,18 +588,18 @@ private fun People(state: SyncScreenState, listener: SyncScreenUi.Listener) {
                         listener.onRemoveFromServer(member.chain)
                     }
                 ) {
-                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.compass_remove), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { removing = null }) { Text(stringResource(R.string.compass_cancel)) } },
         )
     }
     // docs/design/sync.md, "Push on a Cloudflare server": a server from before version 3 has no
     // such setting, and one with push off for good can't turn it on.
     if (state.pushRelayAvailable) {
         SwitchRow(
-            title = "Phone notifications",
-            details = SyncScreenState.pushRelayDetails(state.pushRelayHost),
+            title = stringResource(R.string.compass_sync_phone_notifications),
+            details = SyncScreenState.pushRelayDetails(context.resources, state.pushRelayHost),
             checked = state.pushRelay,
             enabled = !state.peopleBusy,
             onCheckedChange = { listener.onSetServerPushRelay(it) },
@@ -592,8 +608,8 @@ private fun People(state: SyncScreenState, listener: SyncScreenUi.Listener) {
     val nameField = rememberTextFieldState()
     OutlinedTextField(
         state = nameField,
-        label = { Text("Invite a friend") },
-        placeholder = { Text("Their name (only you see it)") },
+        label = { Text(stringResource(R.string.compass_sync_invite_friend)) },
+        placeholder = { Text(stringResource(R.string.compass_sync_invite_name_hint)) },
         lineLimits = TextFieldLineLimits.SingleLine,
         modifier = Modifier.fillMaxWidth(),
     )
@@ -603,18 +619,15 @@ private fun People(state: SyncScreenState, listener: SyncScreenUi.Listener) {
             nameField.clearText()
         }
     ) {
-        Text("Make an invite link")
+        Text(stringResource(R.string.compass_sync_make_invite_link))
     }
     if (state.inviteLink.isNotEmpty()) {
-        Text(
-            "Send this link to your friend. It works once, within 7 days. In Compass, they " +
-                "choose Sync, then I have an invite."
-        )
+        Text(stringResource(R.string.compass_sync_send_invite_link))
         SelectionContainer { Text(state.inviteLink, fontFamily = FontFamily.Monospace) }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = { listener.onShareInviteLink(state.inviteLink) }) { Text("Share") }
+            Button(onClick = { listener.onShareInviteLink(state.inviteLink) }) { Text(stringResource(R.string.compass_share)) }
             OutlinedButton(onClick = { listener.onCopyInviteLink(state.inviteLink) }) {
-                Text("Copy link")
+                Text(stringResource(R.string.compass_copy_link))
             }
         }
     }
@@ -646,19 +659,20 @@ private fun ServerUpdate(state: SyncScreenState, listener: SyncScreenUi.Listener
     val updating = state.serverSetup.isNotEmpty()
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("A newer version of your server is ready.", fontWeight = FontWeight.SemiBold)
-            Text(SyncScreenState.updateNote(state.updateCurrent, state.updateLatest))
+            Text(stringResource(R.string.compass_sync_server_update_ready), fontWeight = FontWeight.SemiBold)
+            val resources = LocalContext.current.resources
+            Text(SyncScreenState.updateNote(resources, state.updateCurrent, state.updateLatest))
             Button(onClick = { listener.onUpdateServer("") }, enabled = !updating) {
-                Text("Update with Cloudflare")
+                Text(stringResource(R.string.compass_sync_update_with_cloudflare))
             }
             if (!showToken) {
                 TextButton(onClick = { showToken = true }, enabled = !updating) {
-                    Text("Use an API token instead")
+                    Text(stringResource(R.string.compass_sync_use_api_token))
                 }
             } else {
                 OutlinedSecureTextField(
                     state = tokenField,
-                    label = { Text("Cloudflare API token") },
+                    label = { Text(stringResource(R.string.compass_sync_cloudflare_api_token)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedButton(
@@ -668,7 +682,7 @@ private fun ServerUpdate(state: SyncScreenState, listener: SyncScreenUi.Listener
                     },
                     enabled = token.isNotEmpty() && !updating,
                 ) {
-                    Text("Update")
+                    Text(stringResource(R.string.compass_sync_update))
                 }
             }
             if (updating) Text(state.serverSetup)
@@ -678,20 +692,6 @@ private fun ServerUpdate(state: SyncScreenState, listener: SyncScreenUi.Listener
         }
     }
 }
-
-private const val REMOVE_FRIEND_TEXT =
-    "They stop syncing on your server within a minute. Their data stays on their devices. " +
-        "You can invite them again."
-
-private const val REMOVE_DEVICE_TEXT =
-    "It stops syncing and disappears from your devices. What's on it stays there, " +
-        "and it can join again with a pairing code. Someone who has your recovery code " +
-        "can still join: to lock everyone out, use Reset sync on a computer."
-
-private const val SAVE_WORDS_TEXT =
-    "Save these 12 words somewhere safe, such as a password manager. " +
-        "You only need them if you lose every device that syncs: without " +
-        "them, the synced data is gone."
 
 @Composable
 private fun WordList(words: List<String>) {
@@ -703,32 +703,31 @@ private fun WordList(words: List<String>) {
 /** A new chain's words, shown once (no screen lock, as the desktop's "Start sync"). */
 @Composable
 private fun NewWords(state: SyncScreenState, listener: SyncScreenUi.Listener) {
-    Text("Your recovery code", style = MaterialTheme.typography.titleMedium)
-    Text(SAVE_WORDS_TEXT)
+    Text(stringResource(R.string.compass_sync_your_recovery_code), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.compass_sync_save_words_text))
     WordList(state.newWords)
-    Button(onClick = { listener.onNewWordsSaved() }) { Text("I saved it") }
+    Button(onClick = { listener.onNewWordsSaved() }) { Text(stringResource(R.string.compass_sync_i_saved_it)) }
 }
 
 /** As the desktop's Recovery code section: behind the screen lock, the window secure meanwhile. */
 @Composable
 private fun RecoveryCode(state: SyncScreenState, listener: SyncScreenUi.Listener) {
-    Text("Recovery code", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.compass_sync_recovery_code), style = MaterialTheme.typography.titleMedium)
     if (state.recoveryWords.isEmpty()) {
-        Text("With it, any device can join this chain. Compass asks for your screen lock first.")
+        Text(stringResource(R.string.compass_sync_recovery_code_intro))
         if (state.recoveryError.isNotEmpty()) {
             Text(state.recoveryError, color = MaterialTheme.colorScheme.error)
         }
-        OutlinedButton(onClick = { listener.onShowRecoveryCode() }) { Text("Show recovery code") }
+        OutlinedButton(onClick = { listener.onShowRecoveryCode() }) { Text(stringResource(R.string.compass_sync_show_recovery_code)) }
         return
     }
-    Text(SAVE_WORDS_TEXT)
+    Text(stringResource(R.string.compass_sync_save_words_text))
     if (state.recoveryUnprotected) {
         Text(
-            "This device has no screen lock, so Compass didn't ask for one. " +
-                "Anyone holding it can see these words.",
+            stringResource(R.string.compass_sync_no_screen_lock),
             color = MaterialTheme.colorScheme.error,
         )
     }
     WordList(state.recoveryWords)
-    Button(onClick = { listener.onHideRecoveryCode() }) { Text("Hide") }
+    Button(onClick = { listener.onHideRecoveryCode() }) { Text(stringResource(R.string.compass_sync_hide)) }
 }

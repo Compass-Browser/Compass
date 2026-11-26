@@ -70,7 +70,13 @@ android_library("base_java") {
     "java/src/it/cipi1965/compass/extras/CompassIntents.java",
     "java/src/it/cipi1965/compass/extras/NewTabTileService.java",
   ]
-  deps = [ "//build/android:build_java" ]
+  deps = [
+    ":strings_resources",
+    "//build/android:build_java",
+  ]
+
+  # it.cipi1965.compass.R, for the autofill suggestion's label.
+  resources_package = "it.cipi1965.compass"
 }
 
 android_library("java") {
@@ -168,6 +174,7 @@ android_library("java") {
   deps = [
     ":base_java",
     ":hook_java",
+    ":strings_resources",
     ":symbols_resources",
     "//base:base_java",
     "//build/android:build_java",
@@ -263,6 +270,18 @@ android_resources("icon_resources") {
   ]
   resource_overlay = true
   deps = [ "//chrome/android:chrome_base_module_resources" ]
+}
+
+# The shell's user-facing strings: English in res_strings/values,
+# translations in res_strings/values-<locale> (Italian). Chrome's APK and
+# bundle templates keep the locales in platform_pak_locales
+# (aapt_locale_allowlist), "it" among them. A res directory belongs to one
+# target, so these aren't in res/ with the icon.
+android_resources("strings_resources") {
+  sources = [
+    "res_strings/values-it/strings.xml",
+    "res_strings/values/strings.xml",
+  ]
 }
 
 # Material Symbols, the icons (res_symbols/README.md).
@@ -401,6 +420,7 @@ android_resources("extras_resources") {
   ]
   deps = [
     ":icon_resources",
+    ":strings_resources",
     ":symbols_resources",
   ]
 }

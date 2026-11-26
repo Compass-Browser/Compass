@@ -12,6 +12,7 @@ import android.view.ViewGroup;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
+import it.cipi1965.compass.R;
 import it.cipi1965.compass.sync.RoomsBridge;
 
 import org.chromium.chrome.browser.ChromeTabbedActivity;
@@ -147,7 +148,10 @@ public class ShareSheet implements ShareSheetUi.Listener {
                     }
                     ClipboardManager clipboard =
                             (ClipboardManager) mActivity.getSystemService(Context.CLIPBOARD_SERVICE);
-                    clipboard.setPrimaryClip(ClipData.newPlainText("Compass invite link", link));
+                    clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                    mActivity.getString(R.string.compass_share_invite_link_clip),
+                                    link));
                     mState.setLink(link);
                     loadRoom();
                 });

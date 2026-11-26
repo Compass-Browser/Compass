@@ -29,6 +29,7 @@ import java.util.WeakHashMap
 import javax.crypto.Cipher
 import javax.crypto.spec.OAEPParameterSpec
 import javax.crypto.spec.PSource
+import it.cipi1965.compass.R
 import org.chromium.content_public.browser.WebContents
 import org.json.JSONObject
 
@@ -129,12 +130,9 @@ class ExtensionUnlock(
                 "fillFailed" -> {
                     forget(activity, id)
                     AlertDialog.Builder(activity)
-                        .setTitle("Biometric unlock turned off")
-                        .setMessage(
-                            "The saved password for ${nameOf(id)} didn't work. Type it once to turn " +
-                                "biometric unlock back on."
-                        )
-                        .setPositiveButton("OK", null)
+                        .setTitle(R.string.compass_ext_unlock_off_title)
+                        .setMessage(activity.getString(R.string.compass_ext_unlock_off_message, nameOf(id)))
+                        .setPositiveButton(R.string.compass_ok, null)
                         .show()
                 }
             }
@@ -175,9 +173,9 @@ class ExtensionUnlock(
         }
         val prompt =
             BiometricPrompt.Builder(activity)
-                .setTitle("Unlock ${nameOf(id)}")
+                .setTitle(activity.getString(R.string.compass_ext_unlock_prompt_title, nameOf(id)))
                 .setAllowedAuthenticators(BIOMETRIC_STRONG)
-                .setNegativeButton("Type password", activity.mainExecutor) { _, _ -> done(null) }
+                .setNegativeButton(activity.getString(R.string.compass_ext_unlock_type_password), activity.mainExecutor) { _, _ -> done(null) }
                 .build()
         prompt.authenticate(
             BiometricPrompt.CryptoObject(cipher),
@@ -210,12 +208,9 @@ class ExtensionUnlock(
         if (isSaved(activity, id) || declined.contains(id)) return
         val name = nameOf(id)
         AlertDialog.Builder(activity)
-            .setTitle("Unlock $name with biometrics?")
-            .setMessage(
-                "Compass keeps the password on this device, behind your fingerprint or face, and " +
-                    "fills it in when $name asks."
-            )
-            .setNegativeButton("Not now") { _, _ ->
+            .setTitle(activity.getString(R.string.compass_ext_unlock_offer_title, name))
+            .setMessage(activity.getString(R.string.compass_ext_unlock_offer_message, name))
+            .setNegativeButton(R.string.compass_ext_unlock_not_now) { _, _ ->
                 prefs.edit().putStringSet(PREF_DECLINED, declined + id).apply()
             }
             .setPositiveButton(useBiometricsLabel()) { _, _ -> save(activity, password, id) }
@@ -230,7 +225,7 @@ class ExtensionUnlock(
                 ?.buttonLabel
                 ?.let { return it }
         }
-        return "Use biometrics"
+        return activity.getString(R.string.compass_ext_unlock_use_biometrics)
     }
 
     companion object {

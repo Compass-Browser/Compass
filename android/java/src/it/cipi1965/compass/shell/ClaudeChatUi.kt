@@ -11,6 +11,7 @@ import android.view.View
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
@@ -91,6 +92,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.KeyboardType
@@ -273,8 +276,8 @@ object ClaudeChatUi {
                                 strokeWidth = 2.dp,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer,
                             )
-                            Text("Claude is working…", style = MaterialTheme.typography.labelLarge)
-                            IconButton(onClick = { onStop.run() }) { SymIcon(R.drawable.compass_sym_stop, "Stop") }
+                            Text(stringResource(R.string.compass_claude_working), style = MaterialTheme.typography.labelLarge)
+                            IconButton(onClick = { onStop.run() }) { SymIcon(R.drawable.compass_sym_stop, stringResource(R.string.compass_claude_stop)) }
                         }
                     }
                 }
@@ -302,8 +305,8 @@ private val ClaudeChatState.known: List<Pair<String, String>>
 private val ClaudeChatState.providerName: String
     get() = providers.firstOrNull { it.first == provider }?.second ?: "Anthropic"
 
-private fun modelName(id: String, models: List<Pair<String, String>>): String =
-    if (id.isEmpty()) "Same as chat"
+private fun modelName(id: String, models: List<Pair<String, String>>, sameAsChat: String): String =
+    if (id.isEmpty()) sameAsChat
     else models.firstOrNull { it.first == id }?.second?.takeIf { it.isNotEmpty() } ?: id
 
 /**
@@ -311,11 +314,16 @@ private fun modelName(id: String, models: List<Pair<String, String>>): String =
  * another; "Same as chat" first where empty means the chat's model (a sidebar feature with a
  * compatible server).
  */
-private fun modelChoices(state: ClaudeChatState, current: String, sameAsChat: Boolean = false): List<Pair<String, String>> {
+private fun modelChoices(
+    state: ClaudeChatState,
+    current: String,
+    sameAsChat: Boolean = false,
+    sameAsChatLabel: String = "",
+): List<Pair<String, String>> {
     val list = state.known.toMutableList()
     for ((id, name) in state.apiModels) if (list.none { it.first == id }) list.add(id to name.ifEmpty { id })
     if (current.isNotEmpty() && list.none { it.first == current }) list.add(current to current)
-    if (sameAsChat) list.add(0, "" to "Same as chat")
+    if (sameAsChat) list.add(0, "" to sameAsChatLabel)
     return list
 }
 
@@ -375,29 +383,29 @@ private fun Header(
         }
         if (state.messages.isNotEmpty()) {
             IconButton(onClick = { listener.onClear() }, enabled = !state.streaming) {
-                SymIcon(R.drawable.compass_sym_edit_square, "New Chat")
+                SymIcon(R.drawable.compass_sym_edit_square, stringResource(R.string.compass_claude_new_chat))
             }
         }
         IconButton(onClick = onTall) {
             SymIcon(
                 if (tall) R.drawable.compass_sym_expand_more else R.drawable.compass_sym_expand_less,
-                if (tall) "Smaller" else "Larger",
+                stringResource(if (tall) R.string.compass_claude_smaller else R.string.compass_claude_larger),
             )
         }
         var menu by remember { mutableStateOf(false) }
         Box {
-            IconButton(onClick = { menu = true }) { SymIcon(R.drawable.compass_sym_more_vert, "More") }
+            IconButton(onClick = { menu = true }) { SymIcon(R.drawable.compass_sym_more_vert, stringResource(R.string.compass_more)) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 val items =
                     listOf(
-                        Triple("Memory", R.drawable.compass_sym_bookmark, "memory"),
-                        Triple("Boosts", R.drawable.compass_sym_bolt, "boosts"),
-                        Triple("Claude in the Sidebar", R.drawable.compass_sym_view_sidebar, "sidebar"),
-                        Triple("Settings", R.drawable.compass_sym_settings, "settings"),
+                        Triple(R.string.compass_claude_memory, R.drawable.compass_sym_bookmark, "memory"),
+                        Triple(R.string.compass_claude_boosts, R.drawable.compass_sym_bolt, "boosts"),
+                        Triple(R.string.compass_claude_in_sidebar, R.drawable.compass_sym_view_sidebar, "sidebar"),
+                        Triple(R.string.compass_settings, R.drawable.compass_sym_settings, "settings"),
                     )
                 for ((title, icon, target) in items) {
                     DropdownMenuItem(
-                        text = { Text(title) },
+                        text = { Text(stringResource(title)) },
                         leadingIcon = { SymIcon(icon, null) },
                         onClick = {
                             menu = false
@@ -407,7 +415,7 @@ private fun Header(
                 }
                 if (state.hasKey) {
                     DropdownMenuItem(
-                        text = { Text("Change Key") },
+                        text = { Text(stringResource(R.string.compass_claude_change_key)) },
                         leadingIcon = { SymIcon(R.drawable.compass_sym_key_fill, null) },
                         onClick = {
                             menu = false
@@ -433,7 +441,7 @@ private fun ModelMenu(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                modelName(state.model, state.known + state.apiModels).removePrefix("Claude "),
+                modelName(state.model, state.known + state.apiModels, stringResource(R.string.compass_claude_same_as_chat)).removePrefix("Claude "),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
@@ -461,7 +469,7 @@ private fun ModelMenu(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
 @Composable
 private fun PageTitle(title: String, onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) { SymIcon(R.drawable.compass_sym_arrow_back, "Back to the chat") }
+        IconButton(onClick = onBack) { SymIcon(R.drawable.compass_sym_arrow_back, stringResource(R.string.compass_claude_back_to_chat)) }
         Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
     }
 }
@@ -505,19 +513,19 @@ private val SIDEBAR_FEATURES =
     listOf(
         Triple(
             "name_link_folders",
-            "Name Link Folders",
-            "Folders get a short name from their tabs' titles. Suggest a Name in a folder's menu.",
+            R.string.compass_claude_feature_name_link_folders,
+            R.string.compass_claude_feature_name_link_folders_about,
         ),
-        Triple("tidy_today", "Tidy Today", "Tidy in Today's header groups its tabs into named folders, with Undo."),
+        Triple("tidy_today", R.string.compass_claude_feature_tidy_today, R.string.compass_claude_feature_tidy_today_about),
         Triple(
             "short_tab_titles",
-            "Shorter Tab Titles",
-            "Long tab titles read shorter in the sidebar. Only there: the page keeps its title.",
+            R.string.compass_claude_feature_short_tab_titles,
+            R.string.compass_claude_feature_short_tab_titles_about,
         ),
         Triple(
             "command_bar_ask",
-            "Answer Questions in the Command Bar",
-            "A question typed in the command bar gets a short answer there.",
+            R.string.compass_claude_feature_command_bar_ask,
+            R.string.compass_claude_feature_command_bar_ask_about,
         ),
     )
 
@@ -527,15 +535,14 @@ private val SIDEBAR_FEATURES =
  */
 @Composable
 private fun ColumnScope.SidebarFeaturesPage(state: ClaudeChatState, listener: ClaudeChatUi.Listener, onBack: () -> Unit) {
-    PageTitle("Claude in the Sidebar", onBack)
+    PageTitle(stringResource(R.string.compass_claude_in_sidebar), onBack)
     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             Text(
                 if (state.setUp) {
-                    "Small requests to ${state.providerName} that send tab titles and hosts, never the pages themselves, " +
-                        "and never in incognito."
+                    stringResource(R.string.compass_claude_sidebar_privacy, state.providerName)
                 } else {
-                    "Set up ${state.providerName} in Settings first."
+                    stringResource(R.string.compass_claude_sidebar_set_up_first, state.providerName)
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -546,9 +553,18 @@ private fun ColumnScope.SidebarFeaturesPage(state: ClaudeChatState, listener: Cl
             val feature = state.features.firstOrNull { it.key == key }
             Group {
                 val model = feature?.model ?: ""
-                SwitchRow(title, about, state.setUp && feature?.on == true, state.setUp) { listener.onSetFeature(key, it) }
+                SwitchRow(stringResource(title), stringResource(about), state.setUp && feature?.on == true, state.setUp) {
+                    listener.onSetFeature(key, it)
+                }
                 // A compatible server's features can ask the chat's model (empty).
-                ModelMenuButton(model, modelChoices(state, model, sameAsChat = state.provider == "compatible"), state.setUp) {
+                val choices =
+                    modelChoices(
+                        state,
+                        model,
+                        sameAsChat = state.provider == "compatible",
+                        sameAsChatLabel = stringResource(R.string.compass_claude_same_as_chat),
+                    )
+                ModelMenuButton(model, choices, state.setUp) {
                     listener.onSetFeatureModel(key, it)
                 }
             }
@@ -562,7 +578,7 @@ private fun ModelMenuButton(model: String, choices: List<Pair<String, String>>, 
     var open by remember { mutableStateOf(false) }
     Box(Modifier.padding(start = 8.dp, bottom = 6.dp)) {
         TextButton(onClick = { open = true }, enabled = enabled) {
-            Text("Model: ${modelName(model, choices)}", maxLines = 1)
+            Text(stringResource(R.string.compass_claude_model_label, modelName(model, choices, stringResource(R.string.compass_claude_same_as_chat))), maxLines = 1)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             for ((id, name) in choices) {
@@ -589,21 +605,21 @@ private fun ColumnScope.MemoryPage(state: ClaudeChatState, listener: ClaudeChatU
     var deletingAll by remember { mutableStateOf(false) }
     // The memory being edited (its id).
     var editing by remember { mutableStateOf("") }
-    PageTitle("Memory", onBack)
+    PageTitle(stringResource(R.string.compass_claude_memory), onBack)
     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             Group {
-                SwitchRow("Use memory", "What Claude remembers goes with each new chat.", state.memoryEnabled) {
+                SwitchRow(stringResource(R.string.compass_claude_use_memory), stringResource(R.string.compass_claude_use_memory_about), state.memoryEnabled) {
                     listener.onMemoryEnabled(it)
                 }
-                SwitchRow("Let Claude save memories", null, state.memorySave, state.memoryEnabled) { listener.onMemorySave(it) }
+                SwitchRow(stringResource(R.string.compass_claude_save_memories), null, state.memorySave, state.memoryEnabled) { listener.onMemorySave(it) }
             }
         }
-        item { SectionTitle("What Claude remembers") }
+        item { SectionTitle(stringResource(R.string.compass_claude_what_claude_remembers)) }
         if (state.memories.isEmpty()) {
             item {
                 Text(
-                    "Claude saves facts about you here as you chat: preferences, what you work on. You see each save, and can undo it.",
+                    stringResource(R.string.compass_claude_memories_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -637,14 +653,14 @@ private fun ColumnScope.MemoryPage(state: ClaudeChatState, listener: ClaudeChatU
                                         editing = ""
                                     },
                                 ) {
-                                    Text("Done")
+                                    Text(stringResource(R.string.compass_done))
                                 }
                             }
                         } else {
                             ListItem(
                                 trailingContent = {
                                     IconButton(onClick = { listener.onRemoveMemory(memory.id) }) {
-                                        SymIcon(R.drawable.compass_sym_close, "Delete")
+                                        SymIcon(R.drawable.compass_sym_close, stringResource(R.string.compass_delete))
                                     }
                                 },
                                 colors = rowColors(),
@@ -656,13 +672,13 @@ private fun ColumnScope.MemoryPage(state: ClaudeChatState, listener: ClaudeChatU
             }
             item {
                 TextButton(onClick = { deletingAll = true }) {
-                    Text("Delete All Memories", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.compass_claude_delete_all_memories), color = MaterialTheme.colorScheme.error)
                 }
             }
         }
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        PillField(adding, "Something Claude should know", Modifier.weight(1f))
+        PillField(adding, stringResource(R.string.compass_claude_memory_placeholder), Modifier.weight(1f))
         FilledIconButton(
             onClick = {
                 listener.onAddMemory(adding.text.toString().trim())
@@ -671,21 +687,21 @@ private fun ColumnScope.MemoryPage(state: ClaudeChatState, listener: ClaudeChatU
             enabled = adding.text.isNotBlank(),
             modifier = Modifier.size(48.dp),
         ) {
-            SymIcon(R.drawable.compass_sym_add, "Add")
+            SymIcon(R.drawable.compass_sym_add, stringResource(R.string.compass_add))
         }
     }
     if (deletingAll) {
         AlertDialog(
             onDismissRequest = { deletingAll = false },
-            title = { Text("Delete all memories?") },
-            text = { Text("Claude forgets everything it saved about you, on every device that syncs.") },
+            title = { Text(stringResource(R.string.compass_claude_delete_all_memories_title)) },
+            text = { Text(stringResource(R.string.compass_claude_delete_all_memories_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     deletingAll = false
                     listener.onRemoveAllMemories()
-                }) { Text("Delete All", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.compass_claude_delete_all), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { deletingAll = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { deletingAll = false }) { Text(stringResource(R.string.compass_cancel)) } },
         )
     }
 }
@@ -709,9 +725,9 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
     val apiKey = keyField.text.toString().trim()
     val anthropic = state.provider == "anthropic"
     val compatible = state.provider == "compatible"
-    PageTitle("Settings", onBack)
+    PageTitle(stringResource(R.string.compass_settings), onBack)
     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item { SectionTitle("Provider") }
+        item { SectionTitle(stringResource(R.string.compass_claude_provider)) }
         item {
             Group {
                 for ((id, name) in state.providers) {
@@ -741,19 +757,16 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
         }
         if (compatible) {
             // An OpenAI-compatible server: its URL and the model to ask, both needed.
-            item { SectionTitle("Server") }
+            item { SectionTitle(stringResource(R.string.compass_claude_server)) }
             item {
                 Group {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedTextField(
                             state = urlField,
-                            label = { Text("Server URL") },
+                            label = { Text(stringResource(R.string.compass_claude_server_url)) },
                             placeholder = { Text("https://example.com/v1") },
                             supportingText = {
-                                Text(
-                                    "The base URL its API answers under, before chat/completions (OpenRouter, Ollama, " +
-                                        "LM Studio, a company gateway): https, or http to this device."
-                                )
+                                Text(stringResource(R.string.compass_claude_server_url_about))
                             },
                             lineLimits = TextFieldLineLimits.SingleLine,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
@@ -761,7 +774,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                         )
                         OutlinedTextField(
                             state = modelField,
-                            label = { Text("Model ID") },
+                            label = { Text(stringResource(R.string.compass_claude_model_id)) },
                             lineLimits = TextFieldLineLimits.SingleLine,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                             modifier = Modifier.fillMaxWidth(),
@@ -776,7 +789,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                                 },
                                 enabled = !state.streaming,
                             ) {
-                                Text("Save")
+                                Text(stringResource(R.string.compass_save))
                             }
                         }
                     }
@@ -785,17 +798,17 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
         }
         if (state.provider == "openai") {
             // Sign in with ChatGPT: the plan instead of a key (docs/design/ai-providers.md).
-            item { SectionTitle("ChatGPT Plan") }
+            item { SectionTitle(stringResource(R.string.compass_claude_chatgpt_plan)) }
             item {
                 Group {
                     if (state.chatgptSignedIn) {
                         ListItem(
                             supportingContent = { if (state.chatgptEmail.isNotEmpty()) Text(state.chatgptEmail) },
                             trailingContent = {
-                                TextButton(onClick = { listener.onSignOutOfChatGpt() }) { Text("Sign Out") }
+                                TextButton(onClick = { listener.onSignOutOfChatGpt() }) { Text(stringResource(R.string.compass_claude_sign_out)) }
                             },
                             colors = rowColors(),
-                        ) { Text("Signed in with ChatGPT") }
+                        ) { Text(stringResource(R.string.compass_claude_chatgpt_signed_in)) }
                     } else {
                         Row(
                             Modifier.padding(16.dp),
@@ -805,7 +818,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                             FilledTonalButton(
                                 onClick = { listener.onSignInWithChatGpt() },
                                 enabled = !state.chatgptSigningIn,
-                            ) { Text("Continue with ChatGPT") }
+                            ) { Text(stringResource(R.string.compass_claude_chatgpt_continue)) }
                             if (state.chatgptSigningIn) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                         }
                     }
@@ -814,8 +827,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
             item {
                 Text(
                     if (state.chatgptNote.isNotEmpty()) state.chatgptNote
-                    else "Use your ChatGPT plan instead of an API key: its usage limits apply, shared with your " +
-                        "other apps. While you're signed in, the key below isn't used.",
+                    else stringResource(R.string.compass_claude_chatgpt_about),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (state.chatgptNote.isNotEmpty()) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -823,7 +835,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                 )
             }
         }
-        item { SectionTitle("API Key") }
+        item { SectionTitle(stringResource(R.string.compass_claude_api_key_section)) }
         item {
             Group {
                 if (state.hasKey) {
@@ -831,17 +843,17 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                         supportingContent = { Text(state.keyHint) },
                         trailingContent = {
                             TextButton(onClick = { listener.onForgetKey() }) {
-                                Text("Remove Key", color = MaterialTheme.colorScheme.error)
+                                Text(stringResource(R.string.compass_claude_remove_key), color = MaterialTheme.colorScheme.error)
                             }
                         },
                         colors = rowColors(),
-                    ) { Text("API key") }
+                    ) { Text(stringResource(R.string.compass_claude_api_key)) }
                 } else {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         // Hidden as typed, with no suggestions or learning.
                         OutlinedSecureTextField(
                             state = keyField,
-                            label = { Text(if (compatible) "API key (if the server needs one)" else "API key") },
+                            label = { Text(stringResource(if (compatible) R.string.compass_claude_api_key_optional else R.string.compass_claude_api_key)) },
                             placeholder = { Text(state.keyPlaceholder) },
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -852,7 +864,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                             },
                             enabled = apiKey.isNotEmpty(),
                         ) {
-                            Text("Save Key")
+                            Text(stringResource(R.string.compass_claude_save_key))
                         }
                     }
                 }
@@ -862,14 +874,13 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
         }
         item {
             Text(
-                "Kept encrypted on this device. Each provider keeps its own key." +
-                    if (anthropic) "" else " Compass's prompts and tools are made for Claude: other models may use the browser less well.",
+                stringResource(if (anthropic) R.string.compass_claude_key_note else R.string.compass_claude_key_note_other),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
-        item { SectionTitle("Connection") }
+        item { SectionTitle(stringResource(R.string.compass_claude_connection)) }
         item {
             Group {
                 // A compatible server's model is typed above; once Test Connection lists its models, they
@@ -881,12 +892,12 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                     if (!compatible) {
                         OutlinedTextField(
                             state = urlField,
-                            label = { Text("Server") },
+                            label = { Text(stringResource(R.string.compass_claude_server)) },
                             placeholder = { Text(state.defaultBaseUrl) },
                             supportingText = {
                                 Text(
-                                    if (anthropic) "Empty for the Claude API; else a gateway's (Amazon Bedrock, Google Vertex AI) URL."
-                                    else "Empty for ${state.providerName}'s own API; else a gateway's URL."
+                                    if (anthropic) stringResource(R.string.compass_claude_server_about_anthropic)
+                                    else stringResource(R.string.compass_claude_server_about_other, state.providerName)
                                 )
                             },
                             lineLimits = TextFieldLineLimits.SingleLine,
@@ -895,7 +906,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                         )
                     }
                     if (anthropic) {
-                        Text("Send the key as", style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(R.string.compass_claude_send_key_as), style = MaterialTheme.typography.labelLarge)
                         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                             val styles = listOf("x-api-key", "Bearer")
                             styles.forEachIndexed { i, label ->
@@ -912,7 +923,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         // The saved URL is normalized (a trailing slash).
                         if (!compatible && baseUrl.trimEnd('/') != state.baseUrl.trimEnd('/')) {
-                            FilledTonalButton(onClick = { listener.onSetEndpoint(baseUrl, state.authStyle) }) { Text("Save") }
+                            FilledTonalButton(onClick = { listener.onSetEndpoint(baseUrl, state.authStyle) }) { Text(stringResource(R.string.compass_save)) }
                         }
                         OutlinedButton(
                             onClick = { listener.onTestConnection() },
@@ -920,7 +931,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                             enabled = !state.testing && (state.hasKey || (state.provider == "openai" && state.chatgptSignedIn) ||
                                 (compatible && state.baseUrl.isNotEmpty())),
                         ) {
-                            Text("Test Connection")
+                            Text(stringResource(R.string.compass_claude_test_connection))
                         }
                         if (state.testing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     }
@@ -937,18 +948,18 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                 }
             }
         }
-        item { SectionTitle("Files") }
+        item { SectionTitle(stringResource(R.string.compass_claude_files)) }
         item {
             Group {
                 val choices =
                     listOf(
-                        Triple(0, "Off", "Claude can't save or read files."),
-                        Triple(1, "Save Files", "Claude can save new files in Downloads."),
-                        Triple(2, "Use a Folder", "Claude can list, read and write files in a folder of Downloads."),
+                        Triple(0, R.string.compass_claude_files_off, R.string.compass_claude_files_off_about),
+                        Triple(1, R.string.compass_claude_files_save, R.string.compass_claude_files_save_about),
+                        Triple(2, R.string.compass_claude_files_folder, R.string.compass_claude_files_folder_about),
                     )
                 for ((access, title, about) in choices) {
                     ListItem(
-                        supportingContent = { Text(about) },
+                        supportingContent = { Text(stringResource(about)) },
                         leadingContent = {
                             RadioButton(
                                 selected = state.filesAccess == access,
@@ -957,7 +968,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                         },
                         colors = rowColors(),
                         modifier = Modifier.clickable { listener.onFiles(access, if (access == 2) folder else "") },
-                    ) { Text(title) }
+                    ) { Text(stringResource(title)) }
                 }
                 if (state.filesAccess == 2) {
                     Row(
@@ -967,7 +978,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                     ) {
                         OutlinedTextField(
                             state = folderField,
-                            label = { Text("Folder in Downloads") },
+                            label = { Text(stringResource(R.string.compass_claude_folder_in_downloads)) },
                             lineLimits = TextFieldLineLimits.SingleLine,
                             modifier = Modifier.weight(1f),
                         )
@@ -975,7 +986,7 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
                             onClick = { listener.onFiles(2, folder) },
                             enabled = folder.isNotEmpty() && folder != state.filesFolder,
                         ) {
-                            Text("Use")
+                            Text(stringResource(R.string.compass_claude_use))
                         }
                     }
                 }
@@ -983,20 +994,18 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
         }
         item {
             Text(
-                "You approve each file Claude saves or writes before it happens.",
+                stringResource(R.string.compass_claude_files_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
-        item { SectionTitle("Advanced") }
+        item { SectionTitle(stringResource(R.string.compass_claude_advanced)) }
         item {
             Group {
                 SwitchRow(
-                    "Let Claude use developer tools",
-                    "Claude can inspect the tab it works on as a web developer would: its network requests, styles, " +
-                        "storage and performance, and emulate other devices. Pages can try to give Claude " +
-                        "instructions; you approve each change to cookies or storage.",
+                    stringResource(R.string.compass_claude_devtools),
+                    stringResource(R.string.compass_claude_devtools_about),
                     state.devtools,
                 ) {
                     listener.onDevTools(it)
@@ -1014,11 +1023,8 @@ private fun ColumnScope.SettingsPage(state: ClaudeChatState, listener: ClaudeCha
 @Composable
 private fun TokenRisksRow(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
     SwitchRow(
-        "Accept the risks of subscription tokens",
-        "Lets the key be a token from claude setup-token (sk-ant-oat…), which uses your Claude subscription. " +
-            "Compass then sends it as Claude Code does, saying it's Claude Code. Anthropic doesn't offer these " +
-            "tokens for other apps: they can stop working at any time, and using them this way may go against " +
-            "the terms of your subscription. Off, such a token is refused.",
+        stringResource(R.string.compass_claude_token_risks),
+        stringResource(R.string.compass_claude_token_risks_about),
         state.acceptTokenRisks,
     ) {
         listener.onAcceptTokenRisks(it)
@@ -1031,25 +1037,24 @@ private fun TokenRisksRow(state: ClaudeChatState, listener: ClaudeChatUi.Listene
  */
 @Composable
 private fun ColumnScope.BoostsPage(state: ClaudeChatState, listener: ClaudeChatUi.Listener, onBack: () -> Unit) {
-    PageTitle("Boosts", onBack)
+    PageTitle(stringResource(R.string.compass_claude_boosts), onBack)
     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             Group {
                 SwitchRow(
-                    "Let Claude make Boosts",
-                    "A Boost changes how a site looks or works on all your devices. You approve every Boost with " +
-                        "JavaScript; CSS-only ones save at once, with Undo.",
+                    stringResource(R.string.compass_claude_boosts_allow),
+                    stringResource(R.string.compass_claude_boosts_allow_about),
                     state.boostsOn,
                 ) {
                     listener.onBoostsAllowed(it)
                 }
             }
         }
-        item { SectionTitle("Your Boosts") }
+        item { SectionTitle(stringResource(R.string.compass_claude_your_boosts)) }
         item {
             if (state.boosts.isEmpty()) {
                 Text(
-                    "No Boosts yet.",
+                    stringResource(R.string.compass_claude_no_boosts),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
@@ -1071,7 +1076,7 @@ private fun ColumnScope.BoostsPage(state: ClaudeChatState, listener: ClaudeChatU
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Switch(checked = boost.enabled, onCheckedChange = { listener.onBoostEnabled(boost.id, it) })
                                     IconButton(onClick = { listener.onRemoveBoost(boost.id) }) {
-                                        SymIcon(R.drawable.compass_sym_delete, "Delete")
+                                        SymIcon(R.drawable.compass_sym_delete, stringResource(R.string.compass_delete))
                                     }
                                 }
                             },
@@ -1112,15 +1117,15 @@ private fun ApprovalCard(approval: ClaudeChatState.Approval, listener: ClaudeCha
                 )
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { listener.onAnswer(approval.id, 1) }) { Text("Allow") }
+                Button(onClick = { listener.onAnswer(approval.id, 1) }) { Text(stringResource(R.string.compass_claude_allow)) }
                 if (!approval.alwaysAsk) {
-                    OutlinedButton(onClick = { listener.onAnswer(approval.id, 2) }) { Text("For This Chat") }
+                    OutlinedButton(onClick = { listener.onAnswer(approval.id, 2) }) { Text(stringResource(R.string.compass_claude_for_this_chat)) }
                 }
-                TextButton(onClick = { listener.onAnswer(approval.id, 0) }) { Text("Deny") }
+                TextButton(onClick = { listener.onAnswer(approval.id, 0) }) { Text(stringResource(R.string.compass_claude_deny)) }
             }
             if (approval.waiting > 0) {
                 Text(
-                    "${approval.waiting} more waiting",
+                    pluralStringResource(R.plurals.compass_claude_more_waiting, approval.waiting, approval.waiting),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1137,7 +1142,7 @@ private fun ApprovalCard(approval: ClaudeChatState.Approval, listener: ClaudeCha
 private fun QueuedList(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            if (state.streaming) "Sends after this reply" else "Paused: send to go on",
+            stringResource(if (state.streaming) R.string.compass_claude_queued_sends_after else R.string.compass_claude_queued_paused),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1155,11 +1160,11 @@ private fun QueuedList(state: ClaudeChatState, listener: ClaudeChatUi.Listener) 
                     overflow = TextOverflow.Ellipsis,
                     modifier =
                         Modifier.weight(1f)
-                            .clickable(onClickLabel = "Edit") { listener.onEditQueued(index) }
+                            .clickable(onClickLabel = stringResource(R.string.compass_edit)) { listener.onEditQueued(index) }
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                 )
                 IconButton(onClick = { listener.onRemoveQueued(index) }, modifier = Modifier.size(36.dp)) {
-                    SymIcon(R.drawable.compass_sym_close, "Remove", Modifier.size(18.dp))
+                    SymIcon(R.drawable.compass_sym_close, stringResource(R.string.compass_remove), Modifier.size(18.dp))
                 }
             }
         }
@@ -1197,11 +1202,11 @@ private fun ColumnScope.KeyEntry(state: ClaudeChatState, listener: ClaudeChatUi.
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (state.provider == "compatible") {
             Text(
-                "Compass asks an OpenAI-compatible server you choose. Add its URL and the model to ask in Settings to start.",
+                stringResource(R.string.compass_claude_compatible_intro),
                 style = MaterialTheme.typography.bodyMedium,
             )
             if (state.error.isNotEmpty()) Text(state.error, color = MaterialTheme.colorScheme.error)
-            Button(onClick = onSettings) { Text("Open Settings") }
+            Button(onClick = onSettings) { Text(stringResource(R.string.compass_claude_open_settings)) }
         } else {
             KeyFields(state, listener, onSettings)
         }
@@ -1215,15 +1220,14 @@ private fun KeyFields(state: ClaudeChatState, listener: ClaudeChatUi.Listener, o
     val typed = keyField.text.toString().trim()
     val anthropic = state.provider == "anthropic"
     Text(
-        if (anthropic) "Claude reads the page with you. Add an Anthropic API key to start; it's kept encrypted on this device."
-        else "${state.providerName} reads the page with you. Add your ${state.providerName} API key to start; it's kept " +
-            "encrypted on this device.",
+        if (anthropic) stringResource(R.string.compass_claude_key_intro_anthropic)
+        else stringResource(R.string.compass_claude_key_intro_other, state.providerName),
         style = MaterialTheme.typography.bodyMedium,
     )
     // Hidden as typed, with no suggestions or learning.
     OutlinedSecureTextField(
         state = keyField,
-        label = { Text("API key") },
+        label = { Text(stringResource(R.string.compass_claude_api_key)) },
         placeholder = { Text(state.keyPlaceholder) },
         modifier = Modifier.fillMaxWidth(),
     )
@@ -1231,13 +1235,18 @@ private fun KeyFields(state: ClaudeChatState, listener: ClaudeChatUi.Listener, o
     // A subscription token: the switch it needs, where it's typed.
     if (anthropic && typed.startsWith("sk-ant-oat")) Group { TokenRisksRow(state, listener) }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Button(onClick = { listener.onSetKey(typed) }, enabled = typed.isNotEmpty()) { Text("Save") }
-        TextButton(onClick = onSettings) { Text("Use Another Provider") }
+        Button(onClick = { listener.onSetKey(typed) }, enabled = typed.isNotEmpty()) { Text(stringResource(R.string.compass_save)) }
+        TextButton(onClick = onSettings) { Text(stringResource(R.string.compass_claude_use_another_provider)) }
     }
 }
 
-// What a new chat offers to ask.
-private val SUGGESTIONS = listOf("Summarize this page", "What are the key points?", "Explain it simply")
+// What a new chat offers to ask (sent as shown, in the user's language).
+private val SUGGESTIONS =
+    listOf(
+        R.string.compass_claude_suggest_summarize,
+        R.string.compass_claude_suggest_key_points,
+        R.string.compass_claude_suggest_explain,
+    )
 
 @Composable
 private fun ColumnScope.Chat(state: ClaudeChatState, listener: ClaudeChatUi.Listener) {
@@ -1255,16 +1264,16 @@ private fun ColumnScope.Chat(state: ClaudeChatState, listener: ClaudeChatUi.List
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text("Ask about this page", style = MaterialTheme.typography.headlineSmall)
+                    Text(stringResource(R.string.compass_claude_ask_about_page), style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        "A summary, an explanation, what it says about something. With the whole browser on, " +
-                            "Claude can also work with your tabs and spaces.",
+                        stringResource(R.string.compass_claude_empty_about),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-                        for (suggestion in SUGGESTIONS) {
+                        for (id in SUGGESTIONS) {
+                            val suggestion = stringResource(id)
                             SuggestionChip(onClick = { listener.onSend(suggestion) }, label = { Text(suggestion) })
                         }
                     }
@@ -1289,7 +1298,7 @@ private fun ColumnScope.Chat(state: ClaudeChatState, listener: ClaudeChatUi.List
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.weight(1f).padding(vertical = 6.dp),
                     )
-                    if (state.canRetry) TextButton(onClick = { listener.onRetry() }) { Text("Retry") }
+                    if (state.canRetry) TextButton(onClick = { listener.onRetry() }) { Text(stringResource(R.string.compass_retry)) }
                 }
             }
         }
@@ -1301,18 +1310,18 @@ private fun ColumnScope.Chat(state: ClaudeChatState, listener: ClaudeChatUi.List
         FilterChip(
             selected = state.attachPage,
             onClick = { listener.onAttachPage(!state.attachPage) },
-            label = { Text("This page") },
+            label = { Text(stringResource(R.string.compass_claude_this_page)) },
             leadingIcon = { SymIcon(R.drawable.compass_sym_description, null, Modifier.size(FilterChipDefaults.IconSize)) },
         )
         FilterChip(
             selected = state.browserScope,
             onClick = { listener.onBrowserScope(!state.browserScope) },
-            label = { Text("Whole browser") },
+            label = { Text(stringResource(R.string.compass_claude_whole_browser)) },
             leadingIcon = { SymIcon(R.drawable.compass_sym_public, null, Modifier.size(FilterChipDefaults.IconSize)) },
         )
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        PillField(input, "Ask about this page", Modifier.weight(1f))
+        PillField(input, stringResource(R.string.compass_claude_ask_about_page), Modifier.weight(1f))
         if (state.streaming && input.text.isNotBlank()) {
             FilledIconButton(
                 onClick = {
@@ -1326,7 +1335,7 @@ private fun ColumnScope.Chat(state: ClaudeChatState, listener: ClaudeChatUi.List
                     ),
                 modifier = Modifier.size(48.dp),
             ) {
-                SymIcon(R.drawable.compass_sym_arrow_upward, "Send after this reply")
+                SymIcon(R.drawable.compass_sym_arrow_upward, stringResource(R.string.compass_claude_send_after_reply))
             }
         }
         if (state.streaming) {
@@ -1339,7 +1348,7 @@ private fun ColumnScope.Chat(state: ClaudeChatState, listener: ClaudeChatUi.List
                     ),
                 modifier = Modifier.size(48.dp),
             ) {
-                SymIcon(R.drawable.compass_sym_stop, "Stop")
+                SymIcon(R.drawable.compass_sym_stop, stringResource(R.string.compass_claude_stop))
             }
         } else {
             FilledIconButton(
@@ -1350,7 +1359,7 @@ private fun ColumnScope.Chat(state: ClaudeChatState, listener: ClaudeChatUi.List
                 enabled = input.text.isNotBlank() || state.queued.isNotEmpty(),
                 modifier = Modifier.size(48.dp),
             ) {
-                SymIcon(R.drawable.compass_sym_arrow_upward, "Ask")
+                SymIcon(R.drawable.compass_sym_arrow_upward, stringResource(R.string.compass_claude_ask))
             }
         }
     }
@@ -1400,11 +1409,14 @@ private fun MessageRow(message: ClaudeChatState.Message, listener: ClaudeChatUi.
         "memory" ->
             ChangeRow(
                 if (message.kind == "forgot") R.drawable.compass_sym_remove else R.drawable.compass_sym_bookmark,
-                when (message.kind) {
-                    "updated" -> "Updated memory: "
-                    "forgot" -> "Forgot: "
-                    else -> "Saved to memory: "
-                } + message.text,
+                stringResource(
+                    when (message.kind) {
+                        "updated" -> R.string.compass_claude_memory_updated
+                        "forgot" -> R.string.compass_claude_memory_forgot
+                        else -> R.string.compass_claude_memory_saved
+                    },
+                    message.text,
+                ),
                 message.undone,
             ) {
                 listener.onUndoMemory(message.undoId)
@@ -1412,11 +1424,14 @@ private fun MessageRow(message: ClaudeChatState.Message, listener: ClaudeChatUi.
         "boost" ->
             ChangeRow(
                 if (message.kind == "deleted") R.drawable.compass_sym_delete else R.drawable.compass_sym_bolt,
-                when (message.kind) {
-                    "updated" -> "Updated Boost for "
-                    "deleted" -> "Deleted Boost for "
-                    else -> "Saved Boost for "
-                } + message.text,
+                stringResource(
+                    when (message.kind) {
+                        "updated" -> R.string.compass_claude_boost_updated
+                        "deleted" -> R.string.compass_claude_boost_deleted
+                        else -> R.string.compass_claude_boost_saved
+                    },
+                    message.text,
+                ),
                 message.undone,
             ) {
                 listener.onUndoBoost(message.undoId)
@@ -1460,13 +1475,13 @@ private fun ChangeRow(@DrawableRes icon: Int, text: String, undone: Boolean, onU
         )
         if (undone) {
             Text(
-                "Undone",
+                stringResource(R.string.compass_claude_undone),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.padding(end = 12.dp),
             )
         } else {
-            TextButton(onClick = onUndo) { Text("Undo") }
+            TextButton(onClick = onUndo) { Text(stringResource(R.string.compass_undo)) }
         }
     }
 }
@@ -1492,7 +1507,10 @@ private fun ToolRow(message: ClaudeChatState.Message, listener: ClaudeChatUi.Lis
         ) {
             SymIcon(R.drawable.compass_sym_build, null, Modifier.size(16.dp), muted)
             Text(
-                toolLabel(message.text) + toolSubject(message.input),
+                toolLabel(message.text).let { label ->
+                    val subject = toolSubject(message.input)
+                    if (subject.isEmpty()) label else stringResource(R.string.compass_claude_tool_with_subject, label, subject)
+                },
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -1500,8 +1518,8 @@ private fun ToolRow(message: ClaudeChatState.Message, listener: ClaudeChatUi.Lis
             )
             when {
                 !message.done -> CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                message.error -> SymIcon(R.drawable.compass_sym_error, "Failed", Modifier.size(16.dp), MaterialTheme.colorScheme.error)
-                else -> SymIcon(R.drawable.compass_sym_check_circle, "Done", Modifier.size(16.dp), MaterialTheme.colorScheme.primary)
+                message.error -> SymIcon(R.drawable.compass_sym_error, stringResource(R.string.compass_claude_tool_failed), Modifier.size(16.dp), MaterialTheme.colorScheme.error)
+                else -> SymIcon(R.drawable.compass_sym_check_circle, stringResource(R.string.compass_claude_tool_done), Modifier.size(16.dp), MaterialTheme.colorScheme.primary)
             }
             SymIcon(R.drawable.compass_sym_expand_more, null, Modifier.size(16.dp).rotate(if (open) 180f else 0f), muted)
         }
@@ -1526,7 +1544,7 @@ private fun ToolRow(message: ClaudeChatState.Message, listener: ClaudeChatUi.Lis
                     if (bitmap != null) {
                         Image(
                             bitmap,
-                            contentDescription = "Screenshot",
+                            contentDescription = stringResource(R.string.compass_claude_screenshot),
                             contentScale = ContentScale.FillWidth,
                             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)),
                         )
@@ -1563,7 +1581,7 @@ private fun ThinkingRow(message: ClaudeChatState.Message) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             SymIcon(R.drawable.compass_sym_psychology, null, Modifier.size(16.dp), muted)
-            Text(if (message.done) "Thought" else "Thinking…", style = MaterialTheme.typography.labelMedium, color = muted)
+            Text(stringResource(if (message.done) R.string.compass_claude_thought else R.string.compass_claude_thinking), style = MaterialTheme.typography.labelMedium, color = muted)
             if (!message.done) CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp)
             SymIcon(R.drawable.compass_sym_expand_more, null, Modifier.size(16.dp).rotate(if (open) 180f else 0f), muted)
         }
@@ -1579,61 +1597,68 @@ private fun ThinkingRow(message: ClaudeChatState.Message) {
     }
 }
 
-/** A few words on what a tool acted on: its URL, ref, text or query, from its input. */
+/** A few words on what a tool acted on: its URL, ref, text or query, from its input; or "". */
 private fun toolSubject(input: String): String {
     val json = runCatching { org.json.JSONObject(input) }.getOrNull() ?: return ""
     for (key in listOf("url", "query", "text", "ref", "tab_id", "path", "name", "selector", "key", "space")) {
         val value = json.optString(key)
-        if (value.isNotEmpty()) return ": " + if (value.length > 40) value.take(40) + "…" else value
+        if (value.isNotEmpty()) return if (value.length > 40) value.take(40) + "…" else value
     }
     return ""
 }
 
 private fun prettyJson(input: String): String = runCatching { org.json.JSONObject(input).toString(2) }.getOrDefault(input)
 
-/** What a tool did, in words (common/claude/tools.json's names). */
-private fun toolLabel(name: String): String =
+/** What a tool did, in words (common/claude/tools.json's names); an unknown tool by its name. */
+@Composable
+private fun toolLabel(name: String): String {
+    val id = toolLabelId(name)
+    return if (id == 0) name else stringResource(id)
+}
+
+@StringRes
+private fun toolLabelId(name: String): Int =
     when (name) {
-        "read_page", "get_page_text" -> "Reading the page"
-        "find" -> "Looking for something on the page"
-        "screenshot" -> "Looking at the page"
-        "click" -> "Clicking"
-        "hover" -> "Pointing"
-        "type", "form_input" -> "Typing"
-        "key" -> "Pressing a key"
-        "scroll" -> "Scrolling"
-        "navigate" -> "Going to a page"
-        "wait" -> "Waiting"
-        "read_console" -> "Reading the console"
-        "run_js" -> "Running a script"
-        "list_tabs" -> "Looking at the tabs"
-        "open_tab" -> "Opening a tab"
-        "select_tab" -> "Switching tabs"
-        "close_tab" -> "Closing a tab"
-        "activate_tab" -> "Showing a tab"
-        "move_tab" -> "Moving a tab"
-        "rename_tab" -> "Renaming"
-        "create_folder" -> "Making a folder"
-        "mute_tab" -> "Muting a tab"
-        "split_tabs" -> "Putting tabs side by side"
-        "switch_space" -> "Switching spaces"
-        "create_space" -> "Making a space"
-        "search_history" -> "Searching history"
-        "list_downloads" -> "Looking at downloads"
-        "send_tab_to_device" -> "Sending a tab"
-        "network_requests" -> "Looking at network requests"
-        "network_response" -> "Reading a response"
-        "inspect_element" -> "Inspecting an element"
-        "page_storage" -> "Reading the page's storage"
-        "edit_page_storage" -> "Changing the page's storage"
-        "performance" -> "Measuring performance"
-        "emulate" -> "Emulating a device"
-        "save_file" -> "Saving a file"
-        "list_files" -> "Listing files"
-        "read_file" -> "Reading a file"
-        "write_file" -> "Writing a file"
-        "list_boosts" -> "Looking at Boosts"
-        "save_boost" -> "Saving a Boost"
-        "delete_boost" -> "Deleting a Boost"
-        else -> name
+        "read_page", "get_page_text" -> R.string.compass_claude_tool_reading_page
+        "find" -> R.string.compass_claude_tool_finding
+        "screenshot" -> R.string.compass_claude_tool_looking_page
+        "click" -> R.string.compass_claude_tool_clicking
+        "hover" -> R.string.compass_claude_tool_pointing
+        "type", "form_input" -> R.string.compass_claude_tool_typing
+        "key" -> R.string.compass_claude_tool_key
+        "scroll" -> R.string.compass_claude_tool_scrolling
+        "navigate" -> R.string.compass_claude_tool_navigating
+        "wait" -> R.string.compass_claude_tool_waiting
+        "read_console" -> R.string.compass_claude_tool_console
+        "run_js" -> R.string.compass_claude_tool_run_js
+        "list_tabs" -> R.string.compass_claude_tool_list_tabs
+        "open_tab" -> R.string.compass_claude_tool_open_tab
+        "select_tab" -> R.string.compass_claude_tool_select_tab
+        "close_tab" -> R.string.compass_claude_tool_close_tab
+        "activate_tab" -> R.string.compass_claude_tool_activate_tab
+        "move_tab" -> R.string.compass_claude_tool_move_tab
+        "rename_tab" -> R.string.compass_claude_tool_rename
+        "create_folder" -> R.string.compass_claude_tool_create_folder
+        "mute_tab" -> R.string.compass_claude_tool_mute_tab
+        "split_tabs" -> R.string.compass_claude_tool_split_tabs
+        "switch_space" -> R.string.compass_claude_tool_switch_space
+        "create_space" -> R.string.compass_claude_tool_create_space
+        "search_history" -> R.string.compass_claude_tool_search_history
+        "list_downloads" -> R.string.compass_claude_tool_list_downloads
+        "send_tab_to_device" -> R.string.compass_claude_tool_send_tab
+        "network_requests" -> R.string.compass_claude_tool_network_requests
+        "network_response" -> R.string.compass_claude_tool_network_response
+        "inspect_element" -> R.string.compass_claude_tool_inspect
+        "page_storage" -> R.string.compass_claude_tool_page_storage
+        "edit_page_storage" -> R.string.compass_claude_tool_edit_page_storage
+        "performance" -> R.string.compass_claude_tool_performance
+        "emulate" -> R.string.compass_claude_tool_emulate
+        "save_file" -> R.string.compass_claude_tool_save_file
+        "list_files" -> R.string.compass_claude_tool_list_files
+        "read_file" -> R.string.compass_claude_tool_read_file
+        "write_file" -> R.string.compass_claude_tool_write_file
+        "list_boosts" -> R.string.compass_claude_tool_list_boosts
+        "save_boost" -> R.string.compass_claude_tool_save_boost
+        "delete_boost" -> R.string.compass_claude_tool_delete_boost
+        else -> 0
     }

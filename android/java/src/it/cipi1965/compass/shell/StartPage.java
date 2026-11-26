@@ -8,6 +8,7 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.view.View;
 
+import it.cipi1965.compass.R;
 import it.cipi1965.compass.spaces.SpacesBridge;
 
 import org.chromium.build.annotations.Nullable;
@@ -96,7 +97,7 @@ public class StartPage implements NativePage, StartPageUi.Listener {
 
     @Override
     public String getTitle() {
-        return "New tab";
+        return mActivity.getString(R.string.compass_start_title);
     }
 
     @Override

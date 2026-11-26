@@ -19,7 +19,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.zIndex
+import it.cipi1965.compass.R
 import kotlin.math.roundToInt
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -206,7 +208,7 @@ private fun PaneFrame(
         ) {
             SiteIcon(pane.url, 16.dp)
             Text(
-                pane.title.ifEmpty { pane.url }.ifEmpty { "Untitled" },
+                pane.title.ifEmpty { pane.url }.ifEmpty { stringResource(R.string.compass_untitled) },
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = if (pane.front) FontWeight.SemiBold else FontWeight.Normal,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (pane.front) 1f else 0.7f),
@@ -327,7 +329,7 @@ private fun PanePicker(state: SplitUi.State, accent: Color, listener: SplitUi.Li
                 ) {
                     SiteIcon(pane.url, 14.dp)
                     Text(
-                        pane.title.ifEmpty { "Untitled" },
+                        pane.title.ifEmpty { stringResource(R.string.compass_untitled) },
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (pane.front) FontWeight.SemiBold else FontWeight.Normal,
                         maxLines = 1,

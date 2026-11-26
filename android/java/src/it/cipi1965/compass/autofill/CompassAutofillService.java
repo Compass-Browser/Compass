@@ -28,6 +28,8 @@ import android.view.autofill.AutofillId;
 import android.view.autofill.AutofillValue;
 import android.widget.RemoteViews;
 
+import it.cipi1965.compass.R;
+
 import org.chromium.build.annotations.Nullable;
 
 import java.security.MessageDigest;
@@ -96,7 +98,7 @@ public class CompassAutofillService extends AutofillService {
                         PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_MUTABLE);
 
         RemoteViews presentation = new RemoteViews(getPackageName(), android.R.layout.simple_list_item_1);
-        presentation.setTextViewText(android.R.id.text1, "Compass passwords…");
+        presentation.setTextViewText(android.R.id.text1, getString(R.string.compass_passwords_suggestion));
         // The values come from the picker, once unlocked.
         Dataset.Builder dataset = new Dataset.Builder(presentation);
         if (fields.username != null) dataset.setValue(fields.username, null);

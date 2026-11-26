@@ -8,6 +8,8 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.widget.Toast;
 
+import it.cipi1965.compass.R;
+
 import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 
@@ -34,7 +36,7 @@ public class PasswordSaveActivity extends Activity {
             // Compass's browser process, if this is all that runs of it.
             ChromeBrowserInitializer.getInstance().handleSynchronousStartup();
         } catch (RuntimeException e) {
-            Toast.makeText(this, "Compass couldn't save the password", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.compass_passwords_save_failed, Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -42,7 +44,7 @@ public class PasswordSaveActivity extends Activity {
                 new PasswordsBridge(ProfileManager.getLastUsedRegularProfile(), json -> {});
         bridge.save(realm, username != null ? username : "", password);
         bridge.destroy();
-        Toast.makeText(this, "Saved to Compass passwords", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, R.string.compass_passwords_saved, Toast.LENGTH_SHORT).show();
         finish();
     }
 }

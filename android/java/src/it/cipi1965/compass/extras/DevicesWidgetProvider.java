@@ -4,6 +4,10 @@
 
 package it.cipi1965.compass.extras;
 
+import android.content.Context;
+
+import it.cipi1965.compass.R;
+
 /**
  * A home screen widget, as the iOS app's Other Devices widget: tabs open on the sync chain's other
  * devices, the most recently active device's first.
@@ -20,7 +24,7 @@ public class DevicesWidgetProvider extends ListWidgetProvider {
     }
 
     @Override
-    protected String defaultTitle() {
-        return "Other Devices";
+    protected String defaultTitle(Context context) {
+        return context.getString(R.string.compass_widget_other_devices);
     }
 }

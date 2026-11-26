@@ -21,8 +21,8 @@ class SiteSheetState {
         @JvmField val on: Boolean,
         @JvmField val enabled: Boolean,
         /** What on and off read as: "Allowed" and "Blocked", or "On" and "Off". */
-        @JvmField val onText: String = "Allowed",
-        @JvmField val offText: String = "Blocked",
+        @JvmField val onText: String,
+        @JvmField val offText: String,
     )
 
     var open by mutableStateOf(false)

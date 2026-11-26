@@ -41,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -172,7 +173,7 @@ private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
                 }
                 Box(Modifier.weight(1f)) {
                     if (text.isEmpty()) {
-                        Text("Search or enter address", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        Text(stringResource(R.string.compass_bar_search_or_enter_address), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     }
                     BasicTextField(
                         state = field,
@@ -198,7 +199,15 @@ private fun Header(state: CommandBarState, listener: CommandBarUi.Listener) {
             }
         }
         Text(
-            if (state.editing) "Go to" else if (state.incognito) "New incognito tab" else "New tab in ${state.spaceName.ifEmpty { "this space" }}",
+            when {
+                state.editing -> stringResource(R.string.compass_command_go_to)
+                state.incognito -> stringResource(R.string.compass_command_new_incognito_tab)
+                else ->
+                    stringResource(
+                        R.string.compass_command_new_tab_in,
+                        state.spaceName.ifEmpty { stringResource(R.string.compass_command_this_space) },
+                    )
+            },
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(start = 16.dp),
@@ -229,7 +238,7 @@ private fun AnswerCard(state: CommandBarState, listener: CommandBarUi.Listener) 
                 state.answerError.isNotEmpty() && state.answer.isEmpty() ->
                     Text(state.answerError, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                 state.answer.isEmpty() ->
-                    Text("Claude is answering…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.compass_command_claude_answering), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 else ->
                     Text(
                         state.answer,
@@ -239,7 +248,7 @@ private fun AnswerCard(state: CommandBarState, listener: CommandBarUi.Listener) 
                     )
             }
             if (state.answerDone && state.answer.isNotEmpty()) {
-                TextButton(onClick = { listener.onContinueInChat() }) { Text("Continue in Chat") }
+                TextButton(onClick = { listener.onContinueInChat() }) { Text(stringResource(R.string.compass_command_continue_in_chat)) }
             }
         }
     }
@@ -264,7 +273,7 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
             item(key = "ask") {
                 Card(Modifier.padding(bottom = 8.dp)) {
                     CardRow(
-                        "Ask Claude",
+                        stringResource(R.string.compass_menu_ask_claude),
                         subtitle = text,
                         first = true,
                         trailing = R.drawable.compass_sym_keyboard_return,
@@ -278,7 +287,7 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                "About this page: ${state.aboutPageTitle}",
+                                stringResource(R.string.compass_command_about_this_page, state.aboutPageTitle),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -296,7 +305,7 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
                 Card(Modifier.padding(bottom = 8.dp)) {
                     CardRow(
                         text.removePrefix("https://").removePrefix("http://").removePrefix("www."),
-                        subtitle = if (state.typedIsAddress) "Open address" else "Search the web",
+                        subtitle = stringResource(if (state.typedIsAddress) R.string.compass_command_open_address else R.string.compass_command_search_web),
                         first = true,
                         trailing = R.drawable.compass_sym_keyboard_return,
                         onClick = { listener.onSubmit(text) },
@@ -308,11 +317,13 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
         }
         if (state.entries.isNotEmpty()) {
             item(key = "entries") {
-                CardSection(if (text.isEmpty()) "Today" else "Switch to tab") {
+                CardSection(stringResource(if (text.isEmpty()) R.string.compass_command_today else R.string.compass_command_switch_to_tab)) {
                     state.entries.forEachIndexed { i, entry ->
                         CardRow(
                             entry.title.ifEmpty { entry.url },
-                            subtitle = if (entry.where == "Favorites") "Favorites" else "${state.spaceName} · ${entry.where}",
+                            subtitle =
+                                if (entry.where == "Favorites") whereLabel(entry.where)
+                                else stringResource(R.string.compass_command_entry_where, state.spaceName, whereLabel(entry.where)),
                             first = i == 0,
                             trailing = R.drawable.compass_sym_arrow_forward,
                             onClick = { listener.onEntryClicked(entry.id, entry.url) },
@@ -325,7 +336,7 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
         }
         if (searches.isNotEmpty()) {
             item(key = "searches") {
-                CardSection("Search suggestions") {
+                CardSection(stringResource(R.string.compass_command_search_suggestions)) {
                     searches.forEachIndexed { i, (index, suggestion) ->
                         CardRow(suggestion.title, first = i == 0, onClick = { listener.onSuggestionClicked(index) }) {
                             MenuIcon(R.drawable.compass_sym_search)
@@ -336,7 +347,7 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
         }
         if (pages.isNotEmpty()) {
             item(key = "pages") {
-                CardSection(if (text.isEmpty()) "Recently visited" else "History") {
+                CardSection(stringResource(if (text.isEmpty()) R.string.compass_command_recently_visited else R.string.compass_menu_history)) {
                     pages.forEachIndexed { i, (index, suggestion) ->
                         CardRow(
                             suggestion.title,
@@ -352,11 +363,11 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
         }
         if (state.deviceTabs.isNotEmpty()) {
             item(key = "devices") {
-                CardSection("Tabs on other devices") {
+                CardSection(stringResource(R.string.compass_command_tabs_on_other_devices)) {
                     state.deviceTabs.forEachIndexed { i, tab ->
                         CardRow(
                             tab.title.ifEmpty { tab.url },
-                            subtitle = "On ${tab.device} · ${tab.url.removePrefix("https://").removePrefix("www.")}",
+                            subtitle = stringResource(R.string.compass_command_on_device, tab.device, tab.url.removePrefix("https://").removePrefix("www.")),
                             first = i == 0,
                             onClick = { listener.onDeviceTabClicked(tab.url) },
                         ) {
@@ -368,3 +379,13 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
         }
     }
 }
+
+/** An entry's place for its subtitle: |where| is CompassBar's key ("Favorites", "Pinned", "Today"). */
+@Composable
+private fun whereLabel(where: String): String =
+    when (where) {
+        "Favorites" -> stringResource(R.string.compass_command_favorites)
+        "Pinned" -> stringResource(R.string.compass_command_pinned)
+        "Today" -> stringResource(R.string.compass_command_today)
+        else -> where
+    }

@@ -1188,6 +1188,19 @@ controls that count are the bottom ones, where Compass's bar is
   it brings to Android. Today Android gets `components/sync`, the protocol,
   strings, `common`, `browser:url_handler`, `browser:feature_overrides`,
   `browser/prefs` and `browser/updates:hooks`.
+- **Strings.** The shell's text is in `res_strings/values/strings.xml`
+  (English) and `res_strings/values-it/strings.xml` (Italian), in the
+  `:strings_resources` target (`res/` can't hold them: a resource directory
+  belongs to one target, and `res/` is `:icon_resources`'s). Every name
+  starts with `compass_` so it can't override an upstream string. Chrome's
+  APK template keeps the locales in `platform_pak_locales`
+  (`aapt_locale_allowlist`), so a `values-<lang>` directory is all a new
+  language needs. `:base_java` has resources too (`resources_package
+  it.cipi1965.compass`) for the autofill service's label. Text that comes
+  from shared C++ over JNI (sync, sharing, Claude, ad blocker errors) is
+  localized on the C++ side, not here. Sentences that name a kind
+  of thing (space, folder, easel) are whole strings per kind, since Italian
+  agrees articles and adjectives with the noun's gender.
 - **Signing.** The upload keystore, the Play service account and the FCM
   service account are kept out of the repository. Play holds the app
   signing key (Play App Signing); the build is signed with the upload key

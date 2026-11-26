@@ -20,7 +20,7 @@
         android:ellipsize="end"
         android:maxLines="1"
         android:paddingStart="4dp"
-        android:text="Today"
+        android:text="@string/compass_widget_today"
         android:textColor="#FF1F2937"
         android:textSize="15sp"
         android:textStyle="bold" />
@@ -31,7 +31,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:paddingStart="4dp"
-        android:text="Nothing in Today"
+        android:text="@string/compass_widget_nothing_in_today"
         android:textColor="#FF5F6368"
         android:textSize="14sp" />
 

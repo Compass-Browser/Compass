@@ -18,6 +18,7 @@ import android.widget.FrameLayout;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
+import it.cipi1965.compass.R;
 import it.cipi1965.compass.extras.CompassIntents;
 import it.cipi1965.compass.extras.ListWidgetProvider;
 import it.cipi1965.compass.extras.TodayWidgetProvider;
@@ -328,7 +329,9 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
         if (mToast == null || mClaude == null || !spaceId.equals(shownSpaceId())) return;
         ClaudeSidebarBridge claude = mClaude;
         showToast(
-                folders == 1 ? "Tidied into 1 folder" : "Tidied into " + folders + " folders",
+                mActivity
+                        .getResources()
+                        .getQuantityString(R.plurals.compass_sidebar_tidied, folders, folders),
                 () -> claude.undoTidy(undoId));
     }
 
@@ -572,9 +575,10 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
                 if (rows.length() == ListWidgetProvider.rows()) break;
             }
             SidebarState.Space space = mState.getActiveSpace();
-            String title = "Today";
+            String title = mActivity.getString(R.string.compass_sidebar_today);
             if (space != null && !space.name.isEmpty()) {
-                title = (space.emoji.isEmpty() ? "" : space.emoji + " ") + space.name + " · Today";
+                String name = space.emoji.isEmpty() ? space.name : space.emoji + " " + space.name;
+                title = mActivity.getString(R.string.compass_sidebar_space_today, name);
             }
             ListWidgetProvider.publish(
                     mActivity,
@@ -687,7 +691,10 @@ public class Spaces implements SidebarUi.Listener, PinPickerUi.Listener {
             String label = space.emoji.isEmpty() ? space.name : space.emoji + " " + space.name;
             shortcuts.add(
                     new ShortcutInfo.Builder(mActivity, "space-" + space.id)
-                            .setShortLabel(label.isEmpty() ? "Space" : label)
+                            .setShortLabel(
+                                    label.isEmpty()
+                                            ? mActivity.getString(R.string.compass_spaces_space)
+                                            : label)
                             .setIcon(Icon.createWithResource(mActivity, icon))
                             .setIntent(intent)
                             .setRank(rank++)

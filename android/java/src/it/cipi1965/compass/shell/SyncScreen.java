@@ -23,6 +23,7 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.lifecycle.DefaultLifecycleObserver;
 import androidx.lifecycle.LifecycleOwner;
 
+import it.cipi1965.compass.R;
 import it.cipi1965.compass.sync.SyncBridge;
 
 import org.chromium.build.annotations.Nullable;
@@ -105,7 +106,9 @@ public class SyncScreen implements SyncScreenUi.Listener, SyncBridge.LoginPages 
     /** A line for Settings' Sync row: off, or how it goes. */
     public String summary() {
         refresh();
-        return "off".equals(mState.getState()) ? "Off" : mState.getMessage();
+        return "off".equals(mState.getState())
+                ? mActivity.getString(R.string.compass_sync_summary_off)
+                : mState.getMessage();
     }
 
     private void refresh() {
@@ -215,7 +218,9 @@ public class SyncScreen implements SyncScreenUi.Listener, SyncBridge.LoginPages 
         }
         BiometricPrompt.Builder builder =
                 new BiometricPrompt.Builder(mActivity)
-                        .setTitle("Show your sync recovery code");
+                        .setTitle(
+                                mActivity.getString(
+                                        R.string.compass_sync_show_recovery_code_prompt));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             builder.setAllowedAuthenticators(
                     BiometricManager.Authenticators.BIOMETRIC_STRONG
@@ -263,7 +268,7 @@ public class SyncScreen implements SyncScreenUi.Listener, SyncBridge.LoginPages 
         // Read now, not before: the chain may have changed meanwhile.
         String[] words = mBridge.getRecoveryCode();
         if (words == null || words.length == 0) {
-            mState.setRecoveryError("Sync isn't running on this device.");
+            mState.setRecoveryError(mActivity.getString(R.string.compass_sync_not_running));
             return;
         }
         mState.setRecoveryUnprotected(unprotected);
@@ -386,7 +391,9 @@ public class SyncScreen implements SyncScreenUi.Listener, SyncBridge.LoginPages 
         ClipboardManager clipboard =
                 (ClipboardManager) mActivity.getSystemService(Context.CLIPBOARD_SERVICE);
         // Android 13 on shows that it was copied.
-        clipboard.setPrimaryClip(ClipData.newPlainText("Compass invite link", link));
+        clipboard.setPrimaryClip(
+                ClipData.newPlainText(
+                        mActivity.getString(R.string.compass_share_invite_link_clip), link));
     }
 
     @Override

@@ -7,6 +7,7 @@ package it.cipi1965.compass.shell;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.annotation.StringRes;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import it.cipi1965.compass.R;
@@ -39,10 +40,10 @@ public class SiteSheet implements SiteSheetUi.Listener {
     /** A permission the sheet lists when the site has its own setting for it. */
     private static final class Permission {
         final int mType;
-        final String mTitle;
+        final @StringRes int mTitle;
         final int mIcon;
 
-        Permission(int type, String title, int icon) {
+        Permission(int type, @StringRes int title, int icon) {
             mType = type;
             mTitle = title;
             mIcon = icon;
@@ -52,7 +53,8 @@ public class SiteSheet implements SiteSheetUi.Listener {
             return mType;
         }
 
-        String title() {
+        @StringRes
+        int title() {
             return mTitle;
         }
 
@@ -62,16 +64,16 @@ public class SiteSheet implements SiteSheetUi.Listener {
     }
 
     private static final Permission[] PERMISSIONS = {
-        new Permission(ContentSettingsType.GEOLOCATION, "Location", R.drawable.compass_sym_location_on),
-        new Permission(ContentSettingsType.MEDIASTREAM_CAMERA, "Camera", R.drawable.compass_sym_videocam),
-        new Permission(ContentSettingsType.MEDIASTREAM_MIC, "Microphone", R.drawable.compass_sym_mic),
+        new Permission(ContentSettingsType.GEOLOCATION, R.string.compass_site_location, R.drawable.compass_sym_location_on),
+        new Permission(ContentSettingsType.MEDIASTREAM_CAMERA, R.string.compass_site_camera, R.drawable.compass_sym_videocam),
+        new Permission(ContentSettingsType.MEDIASTREAM_MIC, R.string.compass_site_microphone, R.drawable.compass_sym_mic),
         new Permission(
-                ContentSettingsType.NOTIFICATIONS, "Notifications", R.drawable.compass_sym_notifications),
+                ContentSettingsType.NOTIFICATIONS, R.string.compass_site_notifications, R.drawable.compass_sym_notifications),
         new Permission(
-                ContentSettingsType.CLIPBOARD_READ_WRITE, "Clipboard", R.drawable.compass_sym_content_paste),
-        new Permission(ContentSettingsType.SENSORS, "Motion Sensors", R.drawable.compass_sym_sensors),
-        new Permission(ContentSettingsType.MIDI_SYSEX, "MIDI Devices", R.drawable.compass_sym_piano),
-        new Permission(ContentSettingsType.NFC, "NFC Devices", R.drawable.compass_sym_nfc),
+                ContentSettingsType.CLIPBOARD_READ_WRITE, R.string.compass_site_clipboard, R.drawable.compass_sym_content_paste),
+        new Permission(ContentSettingsType.SENSORS, R.string.compass_site_motion_sensors, R.drawable.compass_sym_sensors),
+        new Permission(ContentSettingsType.MIDI_SYSEX, R.string.compass_site_midi_devices, R.drawable.compass_sym_piano),
+        new Permission(ContentSettingsType.NFC, R.string.compass_site_nfc_devices, R.drawable.compass_sym_nfc),
     };
 
     /**
@@ -80,22 +82,22 @@ public class SiteSheet implements SiteSheetUi.Listener {
      * on.
      */
     private static final Permission AD_BLOCKER =
-            new Permission(ContentSettingsType.ADS, "Ad Blocker", R.drawable.compass_sym_shield);
+            new Permission(ContentSettingsType.ADS, R.string.compass_site_ad_blocker, R.drawable.compass_sym_shield);
 
     /** The site's own settings: always listed. */
     private static final Permission[] OPTIONS = {
         new Permission(
                 ContentSettingsType.REQUEST_DESKTOP_SITE,
-                "Desktop Site",
+                R.string.compass_site_desktop_site,
                 R.drawable.compass_sym_desktop_windows),
-        new Permission(ContentSettingsType.SOUND, "Sound", R.drawable.compass_sym_volume_up),
+        new Permission(ContentSettingsType.SOUND, R.string.compass_site_sound, R.drawable.compass_sym_volume_up),
         new Permission(
-                ContentSettingsType.POPUPS, "Pop-ups and Redirects", R.drawable.compass_sym_open_in_new),
+                ContentSettingsType.POPUPS, R.string.compass_site_popups, R.drawable.compass_sym_open_in_new),
         new Permission(
                 ContentSettingsType.AUTO_PICTURE_IN_PICTURE,
-                "Automatic Picture-in-Picture",
+                R.string.compass_site_auto_pip,
                 R.drawable.compass_sym_picture_in_picture),
-        new Permission(ContentSettingsType.JAVASCRIPT, "JavaScript", R.drawable.compass_sym_javascript),
+        new Permission(ContentSettingsType.JAVASCRIPT, R.string.compass_site_javascript, R.drawable.compass_sym_javascript),
     };
 
     private final ChromeTabbedActivity mActivity;
@@ -179,12 +181,12 @@ public class SiteSheet implements SiteSheetUi.Listener {
                         || permission == AD_BLOCKER;
         return new SiteSheetState.Setting(
                 mKeys.size() - 1,
-                permission.title(),
+                mActivity.getString(permission.title()),
                 permission.icon(),
                 on,
                 enabled,
-                onOff ? "On" : "Allowed",
-                onOff ? "Off" : "Blocked");
+                mActivity.getString(onOff ? R.string.compass_on : R.string.compass_site_allowed),
+                mActivity.getString(onOff ? R.string.compass_off : R.string.compass_site_blocked));
     }
 
     private String origin() {

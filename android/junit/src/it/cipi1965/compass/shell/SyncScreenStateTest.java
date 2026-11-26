@@ -8,8 +8,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import android.content.res.Resources;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -21,6 +24,11 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class SyncScreenStateTest {
+    /** The English strings (res/values/strings.xml). */
+    private static Resources res() {
+        return RuntimeEnvironment.getApplication().getResources();
+    }
+
     @Test
     public void testServerSetup() {
         SyncScreenState state = new SyncScreenState();
@@ -126,29 +134,30 @@ public class SyncScreenStateTest {
                         + " when a tab is sent to them, through Compass's push relay at"
                         + " push.compassbrowser.org. Your data and the people on it stay as they"
                         + " are.",
-                SyncScreenState.updateNote(1, 3));
+                SyncScreenState.updateNote(res(), 1, 3));
         assertEquals(
                 "It adds notifications on phones when a tab is sent to them, through Compass's"
                         + " push relay at push.compassbrowser.org. Your data and the people on it"
                         + " stay as they are.",
-                SyncScreenState.updateNote(2, 3));
+                SyncScreenState.updateNote(res(), 2, 3));
         // A version with nothing to tell.
         assertEquals(
                 "Your data and the people on it stay as they are.",
-                SyncScreenState.updateNote(3, 4));
+                SyncScreenState.updateNote(res(), 3, 4));
     }
 
     @Test
     public void testWording() {
-        assertEquals("Joined May 1, 2026", SyncScreenState.memberDetails("May 1, 2026", 0));
+        assertEquals(
+                "Joined May 1, 2026", SyncScreenState.memberDetails(res(), "May 1, 2026", 0));
         assertEquals(
                 "Joined May 1, 2026 · 1 linked account",
-                SyncScreenState.memberDetails("May 1, 2026", 1));
+                SyncScreenState.memberDetails(res(), "May 1, 2026", 1));
         assertEquals(
                 "Joined May 1, 2026 · 3 linked accounts",
-                SyncScreenState.memberDetails("May 1, 2026", 3));
+                SyncScreenState.memberDetails(res(), "May 1, 2026", 3));
         assertTrue(
-                SyncScreenState.pushRelayDetails("relay.example")
+                SyncScreenState.pushRelayDetails(res(), "relay.example")
                         .startsWith(
                                 "When a tab is sent to an iPhone or Android phone, Compass's push"
                                         + " relay (relay.example) tells it at once."));

@@ -73,6 +73,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.maxLengthTrim
 import androidx.compose.material3.SliderState
+import androidx.compose.ui.res.stringResource
 import it.cipi1965.compass.R
 import kotlinx.coroutines.delay
 import kotlin.math.atan2
@@ -137,11 +138,11 @@ internal fun ThemeEditor(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        space.name.ifEmpty { "Space" },
+                        space.name.ifEmpty { stringResource(R.string.compass_spaces_space) },
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = close) { Text("Done") }
+                    TextButton(onClick = close) { Text(stringResource(R.string.compass_done)) }
                 }
                 Column(
                     Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -154,22 +155,22 @@ internal fun ThemeEditor(
                     Palette(draft) { draft = it }
                     Presets(draft) { draft = it }
                     if (!draft.isGrey) {
-                        CardSection("Look") {
-                            SliderRow("Intensity", R.drawable.compass_sym_contrast, draft.intensity, draft.accent) {
+                        CardSection(stringResource(R.string.compass_theme_look)) {
+                            SliderRow(stringResource(R.string.compass_theme_intensity), R.drawable.compass_sym_contrast, draft.intensity, draft.accent) {
                                 draft = draft.copy(intensity = it)
                             }
-                            SliderRow("Grain", R.drawable.compass_sym_grain, draft.grain, draft.accent) {
+                            SliderRow(stringResource(R.string.compass_theme_grain), R.drawable.compass_sym_grain, draft.grain, draft.accent) {
                                 draft = draft.copy(grain = it)
                             }
                         }
                     }
-                    CardSection("Icon") {
+                    CardSection(stringResource(R.string.compass_theme_icon)) {
                         OutlinedTextField(
                             state = emojiField,
                             // An emoji or two (8 UTF-16 units, as before).
                             inputTransformation = InputTransformation.maxLengthTrim(8),
-                            label = { Text("Emoji") },
-                            placeholder = { Text("The name's first letter") },
+                            label = { Text(stringResource(R.string.compass_theme_emoji)) },
+                            placeholder = { Text(stringResource(R.string.compass_theme_emoji_placeholder)) },
                             lineLimits = TextFieldLineLimits.SingleLine,
                             modifier = Modifier.fillMaxWidth().padding(14.dp),
                         )
@@ -193,6 +194,7 @@ private fun ModePicker(theme: SpaceTheme, onPick: (SpaceTheme.Appearance) -> Uni
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         for (mode in SpaceTheme.Appearance.entries) {
             val selected = theme.appearance == mode
+            val label = stringResource(mode.label)
             val shape = RoundedCornerShape(12.dp)
             Column(
                 Modifier.weight(1f)
@@ -202,7 +204,7 @@ private fun ModePicker(theme: SpaceTheme, onPick: (SpaceTheme.Appearance) -> Uni
                     .border(1.5.dp, theme.accent.copy(alpha = if (selected) 0.6f else 0f), shape)
                     .clickable { onPick(mode) }
                     .semantics {
-                        contentDescription = mode.label
+                        contentDescription = label
                         this.selected = selected
                     }
                     .padding(vertical = 8.dp),
@@ -213,7 +215,7 @@ private fun ModePicker(theme: SpaceTheme, onPick: (SpaceTheme.Appearance) -> Uni
                 val onButton = MaterialTheme.colorScheme.onSurface
                 val color = if (selected && contrast(theme.accent, CompassStyle.cardFill()) >= 3f) theme.accent else onButton
                 Sym(mode.symbol, 17f, color)
-                Text(mode.label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = color)
+                Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = color)
             }
         }
     }
@@ -223,7 +225,7 @@ private fun ModePicker(theme: SpaceTheme, onPick: (SpaceTheme.Appearance) -> Uni
 @Composable
 private fun CountControls(theme: SpaceTheme, onChange: (SpaceTheme) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-        RoundButton(R.drawable.compass_sym_remove, "Fewer colors", theme.colors.size > 1) {
+        RoundButton(R.drawable.compass_sym_remove, stringResource(R.string.compass_theme_fewer_colors), theme.colors.size > 1) {
             onChange(theme.copy(colors = theme.colors.dropLast(1)))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -235,7 +237,7 @@ private fun CountControls(theme: SpaceTheme, onChange: (SpaceTheme) -> Unit) {
                 )
             }
         }
-        RoundButton(R.drawable.compass_sym_add, "More colors", theme.colors.size < SpaceTheme.MAX_COLORS) {
+        RoundButton(R.drawable.compass_sym_add, stringResource(R.string.compass_theme_more_colors), theme.colors.size < SpaceTheme.MAX_COLORS) {
             val last = theme.colors.lastOrNull()
             onChange(theme.copy(colors = if (last == null) listOf(Rgb.parse(SpaceTheme.PALETTE[1])!!) else theme.colors + last.rotated(40.0)))
         }
@@ -262,16 +264,17 @@ private fun RoundButton(@DrawableRes symbol: Int, label: String, enabled: Boolea
  */
 @Composable
 private fun Palette(theme: SpaceTheme, onChange: (SpaceTheme) -> Unit) {
-    CardSection("Colors") {
+    CardSection(stringResource(R.string.compass_theme_colors)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp)) {
             SpaceTheme.PALETTE.forEachIndexed { i, hex ->
                 val selected = theme.palette == hex
+                val name = stringResource(SpaceTheme.PALETTE_NAMES[i])
                 val rgb = Rgb.parse(hex)
                 Box(
                     Modifier.weight(1f).heightIn(min = 44.dp)
                         .clickable { onChange(theme.copy(colors = listOfNotNull(rgb))) }
                         .semantics {
-                            contentDescription = SpaceTheme.PALETTE_NAMES[i]
+                            contentDescription = name
                             this.selected = selected
                         },
                     contentAlignment = Alignment.Center,
@@ -288,7 +291,7 @@ private fun Palette(theme: SpaceTheme, onChange: (SpaceTheme) -> Unit) {
         }
         val color = theme.color
         if (color != null) {
-            SliderRow("Lightness", R.drawable.compass_sym_light_mode, color.hsl.lightness, theme.accent) { l ->
+            SliderRow(stringResource(R.string.compass_theme_lightness), R.drawable.compass_sym_light_mode, color.hsl.lightness, theme.accent) { l ->
                 val hsl = color.hsl
                 onChange(theme.copy(colors = listOf(Rgb.fromHsl(hsl.copy(lightness = l))) + theme.gradient))
             }
@@ -298,12 +301,13 @@ private fun Palette(theme: SpaceTheme, onChange: (SpaceTheme) -> Unit) {
 
 @Composable
 private fun Presets(theme: SpaceTheme, onChange: (SpaceTheme) -> Unit) {
-    CardSection("Gradients") {
+    CardSection(stringResource(R.string.compass_theme_gradients)) {
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            for ((name, colors) in SpaceTheme.PRESETS) {
+            for ((nameId, colors) in SpaceTheme.PRESETS) {
+                val name = stringResource(nameId)
                 val selected = theme.colors == colors
                 val shape = RoundedCornerShape(10.dp)
                 Column(
@@ -371,7 +375,8 @@ private fun ThemePad(theme: SpaceTheme, modifier: Modifier, onChange: (SpaceThem
     var dragged by remember { mutableStateOf(-1) }
     val backdrop = MaterialTheme.colorScheme.surfaceContainerLow
     val outline = MaterialTheme.colorScheme.onSurface
-    BoxWithConstraints(modifier.fillMaxWidth().aspectRatio(1f).semantics { contentDescription = "Color pad" }) {
+    val padDescription = stringResource(R.string.compass_theme_color_pad)
+    BoxWithConstraints(modifier.fillMaxWidth().aspectRatio(1f).semantics { contentDescription = padDescription }) {
         val side = with(density) { minOf(maxWidth, maxHeight).toPx() }
         val radius = side / 2
         val reach = radius - big / 2

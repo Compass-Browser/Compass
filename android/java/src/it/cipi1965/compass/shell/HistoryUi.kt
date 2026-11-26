@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LifecycleOwner
@@ -104,11 +105,17 @@ object HistoryUi {
     }
 
     /**
-     * |visits| (newest first) under their days: "Today", "Yesterday", then the date (|dateTitle|),
-     * by the calendar of |now|.
+     * |visits| (newest first) under their days: |todayTitle| ("Today"), |yesterdayTitle|
+     * ("Yesterday"), then the date (|dateTitle|), by the calendar of |now|.
      */
     @JvmStatic
-    fun byDay(visits: List<Visit>, now: Calendar, dateTitle: (Long) -> String): List<Day> {
+    fun byDay(
+        visits: List<Visit>,
+        now: Calendar,
+        todayTitle: String,
+        yesterdayTitle: String,
+        dateTitle: (Long) -> String,
+    ): List<Day> {
         fun dayStart(calendar: Calendar): Long {
             val day = calendar.clone() as Calendar
             day.set(Calendar.HOUR_OF_DAY, 0)
@@ -127,8 +134,8 @@ object HistoryUi {
         for (visit in visits) {
             val visitTitle =
                 when {
-                    visit.time >= today -> "Today"
-                    visit.time >= yesterday -> "Yesterday"
+                    visit.time >= today -> todayTitle
+                    visit.time >= yesterday -> yesterdayTitle
                     else -> dateTitle(visit.time)
                 }
             if (visitTitle != title && current.isNotEmpty()) {
@@ -169,7 +176,12 @@ private fun History(context: Context, state: HistoryUi.State, listener: HistoryU
     BackHandler { listener.onDismiss() }
     val dateFormat = remember { DateFormat.getLongDateFormat(context) }
     val timeFormat = remember { DateFormat.getTimeFormat(context) }
-    val days = HistoryUi.byDay(state.visits, Calendar.getInstance()) { dateFormat.format(Date(it)) }
+    val todayTitle = stringResource(R.string.compass_history_today)
+    val yesterdayTitle = stringResource(R.string.compass_history_yesterday)
+    val days =
+        HistoryUi.byDay(state.visits, Calendar.getInstance(), todayTitle, yesterdayTitle) {
+            dateFormat.format(Date(it))
+        }
     val list = rememberLazyListState()
     val atEnd by remember {
         derivedStateOf {
@@ -198,11 +210,11 @@ private fun History(context: Context, state: HistoryUi.State, listener: HistoryU
                     Sym(R.drawable.compass_sym_arrow_back, 20f)
                 }
                 Text(
-                    "History",
+                    stringResource(R.string.compass_menu_history),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(start = 4.dp).weight(1f),
                 )
-                TextButton(onClick = { listener.onClearData() }) { Text("Clear…") }
+                TextButton(onClick = { listener.onClearData() }) { Text(stringResource(R.string.compass_history_clear)) }
             }
             // What's typed goes to the listener, which searches.
             val query = rememberTextFieldState(state.query)
@@ -211,7 +223,7 @@ private fun History(context: Context, state: HistoryUi.State, listener: HistoryU
             }
             TextField(
                 state = query,
-                placeholder = { Text("Search history") },
+                placeholder = { Text(stringResource(R.string.compass_history_search)) },
                 leadingIcon = { Sym(R.drawable.compass_sym_search, 18f, MaterialTheme.colorScheme.onSurfaceVariant) },
                 lineLimits = TextFieldLineLimits.SingleLine,
                 shape = RoundedCornerShape(28.dp),
@@ -226,7 +238,7 @@ private fun History(context: Context, state: HistoryUi.State, listener: HistoryU
             )
             if (days.isEmpty() && !state.loading) {
                 Text(
-                    if (state.query.isEmpty()) "No history" else "Nothing found",
+                    stringResource(if (state.query.isEmpty()) R.string.compass_history_none else R.string.compass_history_nothing_found),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
@@ -265,7 +277,7 @@ private fun History(context: Context, state: HistoryUi.State, listener: HistoryU
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    "${visit.host} · ${timeFormat.format(Date(visit.time))}",
+                                    stringResource(R.string.compass_history_host_time, visit.host, timeFormat.format(Date(visit.time))),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,

@@ -34,8 +34,8 @@ public abstract class ListWidgetProvider extends AppWidgetProvider {
     /** The layout's and its views' names' prefix ("compass_today_"). */
     protected abstract String prefix();
 
-    /** The title when nothing was published yet. */
-    protected abstract String defaultTitle();
+    /** The title when nothing was published yet, or none was. */
+    protected abstract String defaultTitle(Context context);
 
     /** The number of rows the widget shows. */
     public static int rows() {
@@ -81,7 +81,7 @@ public abstract class ListWidgetProvider extends AppWidgetProvider {
         } catch (JSONException e) {
             // Nothing published yet.
         }
-        views.setTextViewText(id(context, "title"), title.isEmpty() ? defaultTitle() : title);
+        views.setTextViewText(id(context, "title"), title.isEmpty() ? defaultTitle(context) : title);
         // The title opens the sidebar.
         views.setOnClickPendingIntent(
                 id(context, "title"),

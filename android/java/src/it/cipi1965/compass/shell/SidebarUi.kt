@@ -110,6 +110,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import it.cipi1965.compass.R
 import kotlin.math.abs
 
@@ -493,7 +495,7 @@ private fun SpacePage(state: SidebarState, listener: SidebarUi.Listener) {
                 }
             }
         }
-        item(key = "pinned-header") { Box(Modifier.dropMark(drag, "pinned-header")) { SectionHeader("Pinned") } }
+        item(key = "pinned-header") { Box(Modifier.dropMark(drag, "pinned-header")) { SectionHeader(stringResource(R.string.compass_sidebar_pinned)) } }
         if (state.pinned.isEmpty()) {
             item(key = "pinned-empty") { Box(Modifier.dropMark(drag, "pinned-empty")) { PinnedEmpty() } }
         } else {
@@ -502,15 +504,15 @@ private fun SpacePage(state: SidebarState, listener: SidebarUi.Listener) {
         item(key = "today-header") {
             Box(Modifier.dropMark(drag, "today-header")) {
                 SectionHeader(
-                    "Today",
-                    trailing = if (state.today.isEmpty()) null else "Clear",
+                    stringResource(R.string.compass_sidebar_today),
+                    trailing = if (state.today.isEmpty()) null else stringResource(R.string.compass_clear),
                     onTrailing = { listener.onClearToday() },
                     // Tidy Today (docs/design/ai-sidebar.md): Claude's folders, with Undo.
                     extra =
                         when {
                             state.incognito || !state.tidyAvailable -> null
-                            state.tidyBusy -> "Tidying…"
-                            else -> "Tidy"
+                            state.tidyBusy -> stringResource(R.string.compass_sidebar_tidying)
+                            else -> stringResource(R.string.compass_sidebar_tidy)
                         },
                     extraEnabled = !state.tidyBusy && state.looseTodayEntries >= 5,
                     onExtra = { listener.onTidyToday() },
@@ -620,30 +622,30 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
                 Sym(R.drawable.compass_sym_more_horiz, 15f)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                MenuItem("New Easel", R.drawable.compass_sym_easel) {
+                MenuItem(stringResource(R.string.compass_easel_new), R.drawable.compass_sym_easel) {
                     menu = false
                     listener.onNewEasel()
                 }
                 HorizontalDivider()
-                MenuItem("Rename", R.drawable.compass_sym_edit) {
+                MenuItem(stringResource(R.string.compass_rename), R.drawable.compass_sym_edit) {
                     menu = false
                     renaming = true
                 }
-                MenuItem("Edit Theme", R.drawable.compass_sym_palette) {
+                MenuItem(stringResource(R.string.compass_theme_edit), R.drawable.compass_sym_palette) {
                     menu = false
                     theming = true
                 }
-                MenuItem("Archive", R.drawable.compass_sym_archive) {
+                MenuItem(stringResource(R.string.compass_sidebar_archive_title), R.drawable.compass_sym_archive) {
                     menu = false
                     archive = true
                 }
                 if (state.canShare && space.own) {
-                    MenuItem(if (state.shared.containsKey(space.id)) "Sharing…" else "Share Space…", R.drawable.compass_sym_person_add) {
+                    MenuItem(stringResource(if (state.shared.containsKey(space.id)) R.string.compass_sidebar_sharing else R.string.compass_sidebar_share_space), R.drawable.compass_sym_person_add) {
                         menu = false
                         listener.onShare("space", space.id)
                     }
                 }
-                MenuItem("Archive Tabs After…", R.drawable.compass_sym_schedule) {
+                MenuItem(stringResource(R.string.compass_sidebar_archive_after_ellipsis), R.drawable.compass_sym_schedule) {
                     menu = false
                     archiveAfter = true
                 }
@@ -654,7 +656,7 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
                 if (state.spaces.size > 1 && others.isNotEmpty()) {
                     HorizontalDivider()
                     for ((name, dir) in others) {
-                        MenuItem("Move to ${name.ifEmpty { "Profile" }}", R.drawable.compass_sym_stacks) {
+                        MenuItem(if (name.isEmpty()) stringResource(R.string.compass_sidebar_move_to_profile) else stringResource(R.string.compass_sidebar_move_to, name), R.drawable.compass_sym_stacks) {
                             menu = false
                             movingTo = name to dir
                         }
@@ -662,7 +664,7 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
                 }
                 if (state.spaces.size > 1) {
                     HorizontalDivider()
-                    MenuItem("Delete Space", R.drawable.compass_sym_delete, destructive = true) {
+                    MenuItem(stringResource(R.string.compass_sidebar_delete_space), R.drawable.compass_sym_delete, destructive = true) {
                         menu = false
                         deleting = true
                     }
@@ -693,31 +695,36 @@ private fun SpaceHeader(state: SidebarState, listener: SidebarUi.Listener) {
     movingTo?.let { (name, dir) ->
         AlertDialog(
             onDismissRequest = { movingTo = null },
-            title = { Text("Move “${space.name}” to ${name.ifEmpty { "this profile" }}?") },
+            title = {
+                Text(
+                    if (name.isEmpty()) stringResource(R.string.compass_sidebar_move_space_to_this_profile, space.name)
+                    else stringResource(R.string.compass_sidebar_move_space_to, space.name, name)
+                )
+            },
             text = {
-                Text("Its tabs will be signed out of sites, because each profile keeps its own cookies.")
+                Text(stringResource(R.string.compass_sidebar_move_space_message))
             },
             confirmButton = {
                 TextButton(onClick = {
                     movingTo = null
                     listener.onMoveSpaceToProfile(space.id, dir)
-                }) { Text("Move") }
+                }) { Text(stringResource(R.string.compass_sidebar_move)) }
             },
-            dismissButton = { TextButton(onClick = { movingTo = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { movingTo = null }) { Text(stringResource(R.string.compass_cancel)) } },
         )
     }
     if (deleting) {
         AlertDialog(
             onDismissRequest = { deleting = false },
-            title = { Text("Delete “${space.name}”?") },
-            text = { Text("Its pinned tabs and Today go with it, on every device.") },
+            title = { Text(stringResource(R.string.compass_sidebar_delete_space_title, space.name)) },
+            text = { Text(stringResource(R.string.compass_sidebar_delete_space_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     deleting = false
                     listener.onRemoveSpace(space.id)
-                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.compass_delete), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { deleting = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { deleting = false }) { Text(stringResource(R.string.compass_cancel)) } },
         )
     }
 }
@@ -733,15 +740,15 @@ private fun ArchiveSheet(open: Boolean, state: SidebarState, listener: SidebarUi
             Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Archive", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.compass_sidebar_archive_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
             if (state.archive.isNotEmpty()) {
-                TextButton(onClick = { listener.onClearArchive() }) { Text("Clear") }
+                TextButton(onClick = { listener.onClearArchive() }) { Text(stringResource(R.string.compass_clear)) }
             }
-            TextButton(onClick = onDismiss) { Text("Done") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.compass_done)) }
         }
         if (state.archive.isEmpty()) {
             Text(
-                "Nothing archived",
+                stringResource(R.string.compass_sidebar_nothing_archived),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
@@ -798,10 +805,16 @@ private fun ArchiveSheet(open: Boolean, state: SidebarState, listener: SidebarUi
 /** "Archive Tabs After": the iOS app's choices (DataViews.swift, ArchiveAfter); 0 hours is never. */
 @Composable
 private fun ArchiveAfterDialog(hours: Int, onPick: (Int) -> Unit, onDismiss: () -> Unit) {
-    val choices = listOf(12 to "12 Hours", 24 to "24 Hours", 7 * 24 to "7 Days", 30 * 24 to "30 Days", 0 to "Never")
+    val choices = listOf(
+        12 to pluralStringResource(R.plurals.compass_sidebar_hours, 12, 12),
+        24 to pluralStringResource(R.plurals.compass_sidebar_hours, 24, 24),
+        7 * 24 to pluralStringResource(R.plurals.compass_sidebar_days, 7, 7),
+        30 * 24 to pluralStringResource(R.plurals.compass_sidebar_days, 30, 30),
+        0 to stringResource(R.string.compass_never),
+    )
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Archive Tabs After") },
+        title = { Text(stringResource(R.string.compass_sidebar_archive_after)) },
         text = {
             Column {
                 for ((value, label) in choices) {
@@ -815,14 +828,14 @@ private fun ArchiveAfterDialog(hours: Int, onPick: (Int) -> Unit, onDismiss: () 
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.compass_cancel)) } },
     )
 }
 
 @Composable
 private fun RenameDialog(
     name: String,
-    title: String = "Rename Space",
+    title: String = stringResource(R.string.compass_sidebar_rename_space),
     onDone: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -832,9 +845,9 @@ private fun RenameDialog(
         title = { Text(title) },
         text = { OutlinedTextField(state = field, lineLimits = TextFieldLineLimits.SingleLine) },
         confirmButton = {
-            TextButton(onClick = { onDone(field.text.toString().trim().ifEmpty { name }) }) { Text("Done") }
+            TextButton(onClick = { onDone(field.text.toString().trim().ifEmpty { name }) }) { Text(stringResource(R.string.compass_done)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.compass_cancel)) } },
     )
 }
 
@@ -860,7 +873,7 @@ private fun SidebarToast(state: SidebarState, listener: SidebarUi.Listener) {
         )
         if (state.toastUndoable) {
             TextButton(onClick = { listener.onToastUndo() }) {
-                Text("Undo", color = MaterialTheme.colorScheme.inversePrimary)
+                Text(stringResource(R.string.compass_undo), color = MaterialTheme.colorScheme.inversePrimary)
             }
         }
     }
@@ -919,7 +932,7 @@ private fun PinnedEmpty() {
             .padding(12.dp)
     ) {
         Text(
-            "Pin tabs to keep them in this space.",
+            stringResource(R.string.compass_sidebar_pinned_empty),
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
         )
@@ -946,7 +959,7 @@ private fun NewTabRow(listener: SidebarUi.Listener) {
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(Modifier.width(18.dp), contentAlignment = Alignment.Center) { Sym(R.drawable.compass_sym_add, 15f) }
-        Text("New Tab", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.compass_new_tab), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -976,6 +989,7 @@ private fun NodeRow(
     drag: SidebarUi.RowDrag,
 ) {
     val split = node.type == "split"
+    val untitled = stringResource(R.string.compass_untitled)
     val shown =
         if (split) node.children.any { it.tab >= 0 && it.tab == state.currentTab }
         else node.tab >= 0 && node.tab == state.currentTab
@@ -1108,7 +1122,7 @@ private fun NodeRow(
                     ) {
                         SiteIcon(pane.url, 16.dp)
                         Text(
-                            pane.shortTitle.ifEmpty { pane.title }.ifEmpty { "Untitled" },
+                            pane.shortTitle.ifEmpty { pane.title }.ifEmpty { untitled },
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = if (front) FontWeight.SemiBold else null,
                             color = if (shown) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1125,7 +1139,7 @@ private fun NodeRow(
                 }
                 Text(
                     // Claude's short title (Shorter Tab Titles), only here: the page keeps its own.
-                    node.shortTitle.ifEmpty { node.title }.ifEmpty { "Untitled" },
+                    node.shortTitle.ifEmpty { node.title }.ifEmpty { untitled },
                     style = MaterialTheme.typography.labelLarge,
                     color = if (shown) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -1173,21 +1187,21 @@ private fun FolderMenu(
                 action()
             }
         }
-        Item("Rename", R.drawable.compass_sym_edit) { renaming = true }
+        Item(stringResource(R.string.compass_rename), R.drawable.compass_sym_edit) { renaming = true }
         // Sharing a pinned folder with other people.
         if (state.canShare && !node.isLiveFolder && state.pinned.any { it.contains(node.id) }) {
-            Item(if (state.shared.containsKey(node.id)) "Sharing…" else "Share…", R.drawable.compass_sym_person_add) {
+            Item(stringResource(if (state.shared.containsKey(node.id)) R.string.compass_sidebar_sharing else R.string.compass_share_ellipsis), R.drawable.compass_sym_person_add) {
                 listener.onShare("folder", node.id)
             }
         }
         if (node.canUndoName) {
-            Item("Undo Name", R.drawable.compass_sym_undo) { listener.onUndoName(node.id) }
+            Item(stringResource(R.string.compass_sidebar_undo_name), R.drawable.compass_sym_undo) { listener.onUndoName(node.id) }
         } else if (state.suggestNames && !state.incognito && !node.isLiveFolder && node.children.isNotEmpty()) {
-            Item("Suggest a Name", R.drawable.compass_sym_auto_awesome) { listener.onSuggestName(node.id) }
+            Item(stringResource(R.string.compass_sidebar_suggest_name), R.drawable.compass_sym_auto_awesome) { listener.onSuggestName(node.id) }
         }
     }
     if (renaming) {
-        RenameDialog(node.title, title = "Rename Folder", onDone = {
+        RenameDialog(node.title, title = stringResource(R.string.compass_sidebar_rename_folder), onDone = {
             listener.onRenameFolder(node.id, it)
             renaming = false
         }) { renaming = false }
@@ -1206,6 +1220,7 @@ private fun EntryMenu(
 ) {
     // Split With and Add to Split list entries beside it (sub: which list shows).
     var sub by remember { mutableStateOf("") }
+    val untitled = stringResource(R.string.compass_untitled)
     val splits = remember(expanded, state.pinned, state.today) { splitChoices(node, place, state) }
     DropdownMenu(expanded = expanded, onDismissRequest = {
         sub = ""
@@ -1220,17 +1235,17 @@ private fun EntryMenu(
             }
         }
         if (sub.isNotEmpty()) {
-            MenuItem(if (sub == "with") "Split With" else "Add to Split", R.drawable.compass_sym_chevron_left) { sub = "" }
+            MenuItem(stringResource(if (sub == "with") R.string.compass_sidebar_split_with else R.string.compass_sidebar_add_to_split), R.drawable.compass_sym_chevron_left) { sub = "" }
             HorizontalDivider()
             when {
                 sub == "with" -> for (tab in splits.first) {
-                    Item(tab.title.ifEmpty { "Untitled" }, R.drawable.compass_sym_split) { listener.onSplit(node.id, tab.id) }
+                    Item(tab.title.ifEmpty { untitled }, R.drawable.compass_sym_split) { listener.onSplit(node.id, tab.id) }
                 }
                 node.type == "split" -> for (tab in splits.first) {
-                    Item(tab.title.ifEmpty { "Untitled" }, R.drawable.compass_sym_split) { listener.onSplit(node.id, tab.id) }
+                    Item(tab.title.ifEmpty { untitled }, R.drawable.compass_sym_split) { listener.onSplit(node.id, tab.id) }
                 }
                 else -> for (split in splits.second) {
-                    Item(split.children.joinToString(" · ") { it.title.ifEmpty { "Untitled" } }, R.drawable.compass_sym_split) {
+                    Item(split.children.joinToString(" · ") { it.title.ifEmpty { untitled } }, R.drawable.compass_sym_split) {
                         listener.onSplit(split.id, node.id)
                     }
                 }
@@ -1239,56 +1254,68 @@ private fun EntryMenu(
         }
         // Splits (docs/design/android.md, "Splits").
         if (node.type == "tab" && splits.first.isNotEmpty()) {
-            MenuItem("Split With…", R.drawable.compass_sym_split) { sub = "with" }
+            MenuItem(stringResource(R.string.compass_sidebar_split_with_ellipsis), R.drawable.compass_sym_split) { sub = "with" }
         }
         if ((node.type == "tab" && splits.second.isNotEmpty()) ||
             (node.type == "split" && node.children.size < MAX_SPLIT_PANES && splits.first.isNotEmpty())
         ) {
-            MenuItem("Add to Split…", R.drawable.compass_sym_split_add) { sub = "add" }
+            MenuItem(stringResource(R.string.compass_sidebar_add_to_split_ellipsis), R.drawable.compass_sym_split_add) { sub = "add" }
         }
         if (node.type == "split") {
-            Item("Separate Tabs", R.drawable.compass_sym_split_off) { listener.onUnsplit(node.id) }
+            Item(stringResource(R.string.compass_sidebar_separate_tabs), R.drawable.compass_sym_split_off) { listener.onUnsplit(node.id) }
         }
         // An easel's tab: share the board.
         val easel = easelOf(node.url)
         if (easel != null && state.canShare) {
-            Item("Share Easel…", R.drawable.compass_sym_person_add) { listener.onShare("easel", easel) }
+            Item(stringResource(R.string.compass_easel_share), R.drawable.compass_sym_person_add) { listener.onShare("easel", easel) }
         }
         // A pinned tab's or favorite's pinned URL, while it's on another page (sidebar.md, "Pinned URL").
         if (place != SidebarUi.EntryPlace.TODAY && node.isAwayFromSavedUrl) {
-            val kind = if (place == SidebarUi.EntryPlace.FAVORITES) "Favorite" else "Pinned"
-            Item("Use This Page as $kind URL", R.drawable.compass_sym_keep) { listener.onUseAsSavedUrl(node.id) }
-            Item("Back to $kind URL", R.drawable.compass_sym_undo) { listener.onBackToSavedUrl(node.id) }
+            val favorite = place == SidebarUi.EntryPlace.FAVORITES
+            Item(
+                stringResource(
+                    if (favorite) R.string.compass_sidebar_use_page_as_favorite_url
+                    else R.string.compass_sidebar_use_page_as_pinned_url
+                ),
+                R.drawable.compass_sym_keep,
+            ) { listener.onUseAsSavedUrl(node.id) }
+            Item(
+                stringResource(
+                    if (favorite) R.string.compass_sidebar_back_to_favorite_url
+                    else R.string.compass_sidebar_back_to_pinned_url
+                ),
+                R.drawable.compass_sym_undo,
+            ) { listener.onBackToSavedUrl(node.id) }
         }
         when (place) {
             SidebarUi.EntryPlace.TODAY -> {
-                Item("Pin", R.drawable.compass_sym_keep) { listener.onMoveNode(node.id, "", "pinned") }
-                Item("Archive", R.drawable.compass_sym_archive) { listener.onArchiveNode(node.id) }
+                Item(stringResource(R.string.compass_sidebar_pin), R.drawable.compass_sym_keep) { listener.onMoveNode(node.id, "", "pinned") }
+                Item(stringResource(R.string.compass_archive), R.drawable.compass_sym_archive) { listener.onArchiveNode(node.id) }
             }
-            SidebarUi.EntryPlace.PINNED -> Item("Unpin", R.drawable.compass_sym_keep_off) { listener.onUnpinNode(node.id) }
+            SidebarUi.EntryPlace.PINNED -> Item(stringResource(R.string.compass_sidebar_unpin), R.drawable.compass_sym_keep_off) { listener.onUnpinNode(node.id) }
             SidebarUi.EntryPlace.FAVORITES -> {}
         }
         if (place != SidebarUi.EntryPlace.FAVORITES) {
-            Item("Add to Favorites", R.drawable.compass_sym_star) { listener.onMoveNode(node.id, "", "favorites") }
+            Item(stringResource(R.string.compass_sidebar_add_to_favorites), R.drawable.compass_sym_star) { listener.onMoveNode(node.id, "", "favorites") }
         }
         if (place == SidebarUi.EntryPlace.FAVORITES) {
-            Item("Pin to This Space", R.drawable.compass_sym_keep) { listener.onMoveNode(node.id, "", "pinned") }
+            Item(stringResource(R.string.compass_sidebar_pin_to_this_space), R.drawable.compass_sym_keep) { listener.onMoveNode(node.id, "", "pinned") }
         }
         for (space in state.spaces) {
             if (space.id == state.activeId) continue
-            Item("Move to ${space.name.ifEmpty { "Space" }}", R.drawable.compass_sym_stacks) {
+            Item(stringResource(R.string.compass_sidebar_move_to, space.name.ifEmpty { stringResource(R.string.compass_spaces_space) }), R.drawable.compass_sym_stacks) {
                 listener.onMoveNode(node.id, space.id, if (place == SidebarUi.EntryPlace.TODAY) "today" else "pinned")
             }
         }
-        if (node.url.isNotEmpty()) Item("Copy Link", R.drawable.compass_sym_link) { listener.onCopyLink(node.url) }
+        if (node.url.isNotEmpty()) Item(stringResource(R.string.compass_copy_link), R.drawable.compass_sym_link) { listener.onCopyLink(node.url) }
         HorizontalDivider()
         when (place) {
             SidebarUi.EntryPlace.TODAY ->
-                Item("Close", R.drawable.compass_sym_delete, destructive = true) { listener.onCloseNode(node.id) }
+                Item(stringResource(R.string.compass_close), R.drawable.compass_sym_delete, destructive = true) { listener.onCloseNode(node.id) }
             SidebarUi.EntryPlace.FAVORITES ->
-                Item("Remove from Favorites", R.drawable.compass_sym_delete, destructive = true) { listener.onUnpinNode(node.id) }
+                Item(stringResource(R.string.compass_sidebar_remove_from_favorites), R.drawable.compass_sym_delete, destructive = true) { listener.onUnpinNode(node.id) }
             SidebarUi.EntryPlace.PINNED ->
-                Item("Delete", R.drawable.compass_sym_delete, destructive = true) { listener.onUnpinNode(node.id) }
+                Item(stringResource(R.string.compass_delete), R.drawable.compass_sym_delete, destructive = true) { listener.onUnpinNode(node.id) }
         }
     }
 }
@@ -1316,12 +1343,15 @@ private fun SpacesBar(state: SidebarState, listener: SidebarUi.Listener) {
             itemsIndexed(state.allSpaces, key = { _, it -> it.id }) { i, space ->
                 val selected = space.id == state.activeId
                 val newProfile = i > 0 && state.allSpaces[i - 1].profile != space.profile
+                val description =
+                    if (state.profileCount > 1) stringResource(R.string.compass_spaces_space_in_profile, space.name, space.profile)
+                    else space.name
                 val scale = remember { Animatable(1f) }
                 LaunchedEffect(selected) { scale.animateTo(if (selected) 1.15f else 1f, spring(dampingRatio = 0.6f)) }
                 Box(
                     Modifier.padding(start = if (newProfile) 10.dp else 0.dp)
                         .size(34.dp).scale(scale.value).clip(CircleShape).clickable { listener.onSpaceClicked(space.id) }
-                        .semantics { contentDescription = if (state.profileCount > 1) "${space.name}, ${space.profile}" else space.name },
+                        .semantics { contentDescription = description },
                     contentAlignment = Alignment.Center,
                 ) {
                     SpaceIcon(
@@ -1332,8 +1362,9 @@ private fun SpacesBar(state: SidebarState, listener: SidebarUi.Listener) {
                 }
             }
             item(key = "add") {
+                val newName = stringResource(R.string.compass_spaces_default_name, state.spaces.size + 1)
                 Box(
-                    Modifier.size(34.dp).clip(CircleShape).clickable { listener.onAddSpace("Space ${state.spaces.size + 1}") },
+                    Modifier.size(34.dp).clip(CircleShape).clickable { listener.onAddSpace(newName) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Sym(R.drawable.compass_sym_add, 15f, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f))

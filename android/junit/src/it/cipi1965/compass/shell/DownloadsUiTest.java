@@ -6,13 +6,16 @@ package it.cipi1965.compass.shell;
 
 import static org.junit.Assert.assertEquals;
 
+import android.content.res.Resources;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 
-/** The Downloads screen's sizes and lines (DownloadsUi). */
+/** The Downloads screen's sizes and lines (DownloadsUi), in English (Robolectric's locale). */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class DownloadsUiTest {
@@ -32,17 +35,20 @@ public class DownloadsUiTest {
 
     @Test
     public void lines() {
+        Resources res = RuntimeEnvironment.getApplication().getResources();
         assertEquals(
                 "40% · 4.0 MB of 10 MB",
                 DownloadsUi.subtitle(
-                        download(DownloadsUi.Status.RUNNING, 4_000_000, 10_000_000, 40)));
+                        download(DownloadsUi.Status.RUNNING, 4_000_000, 10_000_000, 40), res));
         assertEquals(
                 "Paused · 4.0 MB",
-                DownloadsUi.subtitle(download(DownloadsUi.Status.PAUSED, 4_000_000, 0, -1)));
+                DownloadsUi.subtitle(download(DownloadsUi.Status.PAUSED, 4_000_000, 0, -1), res));
         assertEquals(
                 "10 MB · example.com",
                 DownloadsUi.subtitle(
-                        download(DownloadsUi.Status.DONE, 10_000_000, 10_000_000, 100)));
-        assertEquals("Failed", DownloadsUi.subtitle(download(DownloadsUi.Status.FAILED, 0, 0, -1)));
+                        download(DownloadsUi.Status.DONE, 10_000_000, 10_000_000, 100), res));
+        assertEquals(
+                "Failed",
+                DownloadsUi.subtitle(download(DownloadsUi.Status.FAILED, 0, 0, -1), res));
     }
 }

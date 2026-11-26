@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LifecycleOwner
@@ -124,38 +125,38 @@ private fun PageMenuSheet(state: PageMenuState, listener: PageMenuUi.Listener) {
     ) {
         AddressCard(state, listener)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Tile("Find", R.drawable.compass_sym_find_in_page) { listener.onFind() }
+            Tile(stringResource(R.string.compass_menu_find), R.drawable.compass_sym_find_in_page) { listener.onFind() }
             // Reader: on any web page, as on the desktop (one without an article says so).
             Tile(
-                "Reader",
+                stringResource(R.string.compass_menu_reader),
                 R.drawable.compass_sym_menu_book,
                 enabled = state.url.startsWith("http"),
                 selected = state.inReader,
             ) {
                 listener.onReader()
             }
-            if (!state.incognito) Tile("Ask Claude", R.drawable.compass_sym_auto_awesome) { listener.onAskClaude() }
+            if (!state.incognito) Tile(stringResource(R.string.compass_menu_ask_claude), R.drawable.compass_sym_auto_awesome) { listener.onAskClaude() }
             Tile(
-                if (state.pinned) "Unpin" else "Pin",
+                stringResource(if (state.pinned) R.string.compass_menu_unpin else R.string.compass_menu_pin),
                 if (state.pinned) R.drawable.compass_sym_keep_off else R.drawable.compass_sym_keep,
                 enabled = !state.incognito && state.url.isNotEmpty(),
                 selected = state.pinned,
             ) {
                 listener.onTogglePin()
             }
-            Tile("Share", R.drawable.compass_sym_share, enabled = state.url.isNotEmpty()) { listener.onShare() }
+            Tile(stringResource(R.string.compass_share), R.drawable.compass_sym_share, enabled = state.url.isNotEmpty()) { listener.onShare() }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            WideButton("Downloads", R.drawable.compass_sym_download) { listener.onDownloads() }
-            WideButton("History", R.drawable.compass_sym_history) { listener.onHistory() }
+            WideButton(stringResource(R.string.compass_menu_downloads), R.drawable.compass_sym_download) { listener.onDownloads() }
+            WideButton(stringResource(R.string.compass_menu_history), R.drawable.compass_sym_history) { listener.onHistory() }
         }
         ExtensionsRow(state, listener)
         Card {
             // Easels (docs/design/android.md, "Easels"): the visible page, to a board.
             if (!state.incognito && state.url.startsWith("http")) {
                 CardRow(
-                    "Capture to Easel",
-                    subtitle = "Add what's on screen to a board",
+                    stringResource(R.string.compass_menu_capture_to_easel),
+                    subtitle = stringResource(R.string.compass_menu_capture_to_easel_subtitle),
                     first = true,
                     onClick = { listener.onCaptureToEasel() },
                 ) {
@@ -163,16 +164,16 @@ private fun PageMenuSheet(state: PageMenuState, listener: PageMenuUi.Listener) {
                 }
             }
             CardRow(
-                "Site Settings",
-                subtitle = state.host.removePrefix("www.").ifEmpty { "No page" },
+                stringResource(R.string.compass_menu_site_settings),
+                subtitle = state.host.removePrefix("www.").ifEmpty { stringResource(R.string.compass_menu_no_page) },
                 first = state.incognito || !state.url.startsWith("http"),
                 onClick = { listener.onSiteSettings() },
             ) {
                 MenuIcon(R.drawable.compass_sym_tune)
             }
             CardRow(
-                "Settings",
-                subtitle = "Sync, passwords, search engine",
+                stringResource(R.string.compass_settings),
+                subtitle = stringResource(R.string.compass_menu_settings_subtitle),
                 onClick = { listener.onSettings() },
             ) {
                 MenuIcon(R.drawable.compass_sym_settings_fill)
@@ -198,7 +199,7 @@ private fun AddressCard(state: PageMenuState, listener: PageMenuUi.Listener) {
         CardIcon(R.drawable.compass_sym_arrow_back, state.canGoBack) { listener.onBack() }
         CardIcon(R.drawable.compass_sym_arrow_forward, state.canGoForward) { listener.onForward() }
         Text(
-            state.host.removePrefix("www.").ifEmpty { "Search or enter address" },
+            state.host.removePrefix("www.").ifEmpty { stringResource(R.string.compass_bar_search_or_enter_address) },
             style = MaterialTheme.typography.bodyLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

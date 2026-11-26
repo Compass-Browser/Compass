@@ -7,6 +7,8 @@ package it.cipi1965.compass.shell;
 import android.app.AlertDialog;
 import android.widget.Toast;
 
+import it.cipi1965.compass.R;
+
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
@@ -41,7 +43,7 @@ final class Easels {
             }
             spaces.onNodeClicked(json.getString("nodeId"), json.getString("url"));
         } catch (JSONException e) {
-            toast(activity, "The Easel couldn't be made.");
+            toast(activity, activity.getString(R.string.compass_easel_new_failed));
         }
     }
 
@@ -56,7 +58,7 @@ final class Easels {
     static void capture(ChromeTabbedActivity activity, @Nullable Spaces spaces) {
         Tab tab = activity.getActivityTab();
         if (tab == null || !canCapture(tab)) {
-            toast(activity, "Only web pages can be captured.");
+            toast(activity, activity.getString(R.string.compass_easel_capture_web_only));
             return;
         }
         String spaceId = spaces != null ? spaces.shownSpaceId() : "";
@@ -75,9 +77,9 @@ final class Easels {
             return;
         }
         ids[ids.length - 1] = "";
-        titles[titles.length - 1] = "New Easel";
+        titles[titles.length - 1] = activity.getString(R.string.compass_easel_new);
         new AlertDialog.Builder(activity)
-                .setTitle("Capture to Easel")
+                .setTitle(R.string.compass_easel_capture_title)
                 .setItems(
                         titles,
                         (dialog, which) -> {
@@ -89,7 +91,7 @@ final class Easels {
                                     spaceId,
                                     result -> onCaptured(activity, result));
                         })
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(R.string.compass_cancel, null)
                 .show();
     }
 
@@ -97,9 +99,14 @@ final class Easels {
         try {
             JSONObject json = new JSONObject(result);
             String error = json.optString("error");
-            toast(activity, error.isEmpty() ? "Added to “" + json.optString("title") + "”" : error);
+            toast(
+                    activity,
+                    error.isEmpty()
+                            ? activity.getString(
+                                    R.string.compass_easel_added_to, json.optString("title"))
+                            : error);
         } catch (JSONException e) {
-            toast(activity, "The page couldn't be captured.");
+            toast(activity, activity.getString(R.string.compass_easel_capture_failed));
         }
     }
 

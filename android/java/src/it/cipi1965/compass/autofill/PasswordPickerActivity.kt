@@ -51,10 +51,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import it.cipi1965.compass.R
 import it.cipi1965.compass.shell.CompassTheme
 import org.chromium.chrome.browser.init.ChromeBrowserInitializer
 import org.chromium.chrome.browser.profiles.ProfileManager
@@ -121,7 +123,7 @@ class PasswordPickerActivity : ComponentActivity() {
             load()
             return
         }
-        val builder = BiometricPrompt.Builder(this).setTitle("Fill a Compass password")
+        val builder = BiometricPrompt.Builder(this).setTitle(getString(R.string.compass_passwords_unlock_title))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             builder.setAllowedAuthenticators(
                 BiometricManager.Authenticators.BIOMETRIC_WEAK or
@@ -153,7 +155,7 @@ class PasswordPickerActivity : ComponentActivity() {
             // Compass's browser process, if this is all that runs of it.
             ChromeBrowserInitializer.getInstance().handleSynchronousStartup()
         } catch (e: RuntimeException) {
-            error = "Compass couldn't start."
+            error = getString(R.string.compass_passwords_start_failed)
             return
         }
         val webDomain = intent.getStringExtra(EXTRA_WEB_DOMAIN)
@@ -237,20 +239,20 @@ class PasswordPickerActivity : ComponentActivity() {
                     Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text("Compass passwords", style = MaterialTheme.typography.titleLarge)
+                    Text(stringResource(R.string.compass_passwords_title), style = MaterialTheme.typography.titleLarge)
                     val list = entries
                     when {
                         error.isNotEmpty() -> Text(error, color = MaterialTheme.colorScheme.error)
-                        list == null -> Text("Unlocking…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        list == null -> Text(stringResource(R.string.compass_passwords_unlocking), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         list.isEmpty() ->
                             Text(
-                                "No saved passwords. Compass saves them when you sign in to sites in it.",
+                                stringResource(R.string.compass_passwords_empty),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         else -> {
                             OutlinedTextField(
                                 state = queryField,
-                                placeholder = { Text("Search") },
+                                placeholder = { Text(stringResource(R.string.compass_search)) },
                                 lineLimits = TextFieldLineLimits.SingleLine,
                                 modifier = Modifier.fillMaxWidth(),
                             )
@@ -262,9 +264,10 @@ class PasswordPickerActivity : ComponentActivity() {
                                 }
                             LazyColumn(Modifier.weight(1f)) {
                                 itemsIndexed(shown) { i, entry ->
+                                    val noUsername = stringResource(R.string.compass_passwords_no_username)
                                     if (i > 0 && entry.relevance == 0 && shown[i - 1].relevance > 0) {
                                         Text(
-                                            "Other passwords",
+                                            stringResource(R.string.compass_passwords_other),
                                             style = MaterialTheme.typography.labelLarge,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
@@ -283,7 +286,7 @@ class PasswordPickerActivity : ComponentActivity() {
                                             overflow = TextOverflow.Ellipsis,
                                         )
                                         Text(
-                                            entry.username.ifEmpty { "(no username)" },
+                                            entry.username.ifEmpty { noUsername },
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1,
@@ -294,7 +297,7 @@ class PasswordPickerActivity : ComponentActivity() {
                             }
                         }
                     }
-                    TextButton(onClick = { cancel() }, modifier = Modifier.align(Alignment.End)) { Text("Cancel") }
+                    TextButton(onClick = { cancel() }, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.compass_cancel)) }
                 }
             }
         }

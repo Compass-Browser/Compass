@@ -26,7 +26,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="@drawable/compass_widget_button"
-            android:contentDescription="Search"
+            android:contentDescription="@string/compass_search"
             android:padding="12dp"
             android:src="@drawable/compass_sym_search"
             android:tint="#FF1F2937" />
@@ -36,7 +36,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:maxLines="1"
-            android:text="Search"
+            android:text="@string/compass_search"
             android:textColor="#FF44474E"
             android:textSize="12sp" />
     </LinearLayout>
@@ -53,7 +53,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="@drawable/compass_widget_button"
-            android:contentDescription="Incognito"
+            android:contentDescription="@string/compass_widget_incognito"
             android:padding="12dp"
             android:src="@drawable/compass_sym_eyeglasses"
             android:tint="#FF1F2937" />
@@ -63,7 +63,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:maxLines="1"
-            android:text="Incognito"
+            android:text="@string/compass_widget_incognito"
             android:textColor="#FF44474E"
             android:textSize="12sp" />
     </LinearLayout>
@@ -80,7 +80,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="@drawable/compass_widget_button"
-            android:contentDescription="Claude"
+            android:contentDescription="@string/compass_widget_claude"
             android:padding="12dp"
             android:src="@drawable/compass_sym_auto_awesome"
             android:tint="#FF1F2937" />
@@ -90,7 +90,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:maxLines="1"
-            android:text="Claude"
+            android:text="@string/compass_widget_claude"
             android:textColor="#FF44474E"
             android:textSize="12sp" />
     </LinearLayout>
@@ -107,7 +107,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="@drawable/compass_widget_button"
-            android:contentDescription="Sidebar"
+            android:contentDescription="@string/compass_widget_sidebar"
             android:padding="12dp"
             android:src="@drawable/compass_sym_view_sidebar"
             android:tint="#FF1F2937" />
@@ -117,7 +117,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:maxLines="1"
-            android:text="Sidebar"
+            android:text="@string/compass_widget_sidebar"
             android:textColor="#FF44474E"
             android:textSize="12sp" />
     </LinearLayout>

@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -103,8 +104,7 @@ private fun IncognitoPage(listener: StartPageUi.Listener) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Sym(it.cipi1965.compass.R.drawable.compass_sym_eyeglasses, 44f, Color.White)
             Text(
-                "Incognito tabs aren't saved or synced, leave no history, and keep their cookies " +
-                    "only until you close them or quit Compass. Sites can still see your visits.",
+                stringResource(it.cipi1965.compass.R.string.compass_start_incognito),
                 fontSize = 13.sp,
                 color = Color.White.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center,

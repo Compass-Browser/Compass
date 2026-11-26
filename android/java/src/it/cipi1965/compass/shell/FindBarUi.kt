@@ -42,6 +42,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -132,7 +133,7 @@ private fun FindBar(state: FindBarUi.State, listener: FindBarUi.Listener) {
         Sym(R.drawable.compass_sym_search, 16f, MaterialTheme.colorScheme.onSurfaceVariant)
         Box(Modifier.weight(1f)) {
             if (state.text.isEmpty()) {
-                Text("Find on page", fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                Text(stringResource(R.string.compass_find_placeholder), fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
             BasicTextField(
                 state = field,
@@ -146,7 +147,8 @@ private fun FindBar(state: FindBarUi.State, listener: FindBarUi.Listener) {
         }
         if (state.text.isNotEmpty() && state.answered) {
             Text(
-                if (state.total == 0) "No matches" else "${state.active} of ${state.total}",
+                if (state.total == 0) stringResource(R.string.compass_find_no_matches)
+                else stringResource(R.string.compass_find_count, state.active, state.total),
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -165,7 +167,7 @@ private fun FindBar(state: FindBarUi.State, listener: FindBarUi.Listener) {
         ) {
             Sym(R.drawable.compass_sym_chevron_right, 18f, modifier = Modifier.rotate(90f).alpha(if (enabled) 1f else 0.3f))
         }
-        androidx.compose.material3.TextButton(onClick = { listener.onDone() }) { Text("Done") }
+        androidx.compose.material3.TextButton(onClick = { listener.onDone() }) { Text(stringResource(R.string.compass_done)) }
     }
 }
 }

@@ -9,6 +9,7 @@ import android.view.ViewGroup;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
+import it.cipi1965.compass.R;
 import it.cipi1965.compass.claude.ClaudeSidebarBridge;
 
 import org.chromium.build.annotations.Nullable;
@@ -290,7 +291,7 @@ public class CommandBar
         mState.setAnswerError("");
         mSent = mClaude.ask(question, about ? mPageTitle : "", about ? mPageHost : "");
         if (mSent.isEmpty()) {
-            mState.setAnswerError("Claude isn't set up.");
+            mState.setAnswerError(mActivity.getString(R.string.compass_command_claude_not_set_up));
             mState.setAnswerDone(true);
         }
     }

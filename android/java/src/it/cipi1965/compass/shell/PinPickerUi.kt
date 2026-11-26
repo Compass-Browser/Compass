@@ -32,6 +32,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.compose.ui.res.stringResource
 import it.cipi1965.compass.R
 
 /**
@@ -75,7 +76,7 @@ object PinPickerUi {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text("Pinned to Compass", style = MaterialTheme.typography.titleLarge)
+                            Text(stringResource(R.string.compass_sidebar_pinned_to_compass), style = MaterialTheme.typography.titleLarge)
                             Text(
                                 state.title,
                                 style = MaterialTheme.typography.bodyMedium,
@@ -84,14 +85,14 @@ object PinPickerUi {
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        TextButton(onClick = { listener.onPinPickerDone() }) { Text("Done") }
+                        TextButton(onClick = { listener.onPinPickerDone() }) { Text(stringResource(R.string.compass_done)) }
                     }
                     LazyColumn(
                         Modifier.fillMaxWidth().heightIn(max = 560.dp),
                         contentPadding = PaddingValues(bottom = 24.dp),
                     ) {
                         item {
-                            Place("Favorites", R.drawable.compass_sym_star, 0, state.parentId == sidebar.favoritesId) {
+                            Place(stringResource(R.string.compass_sidebar_favorites), R.drawable.compass_sym_star, 0, state.parentId == sidebar.favoritesId) {
                                 listener.onPinInto(sidebar.favoritesId)
                             }
                         }
@@ -99,20 +100,20 @@ object PinPickerUi {
                             if (space.pinnedId.isEmpty()) continue
                             item(key = space.id) {
                                 Text(
-                                    listOf(space.emoji, space.name.ifEmpty { "Space" }).filter { it.isNotEmpty() }.joinToString(" "),
+                                    listOf(space.emoji, space.name.ifEmpty { stringResource(R.string.compass_spaces_space) }).filter { it.isNotEmpty() }.joinToString(" "),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 4.dp),
                                 )
                             }
                             item(key = space.pinnedId) {
-                                Place("Pinned", R.drawable.compass_sym_keep, 0, state.parentId == space.pinnedId) {
+                                Place(stringResource(R.string.compass_sidebar_pinned), R.drawable.compass_sym_keep, 0, state.parentId == space.pinnedId) {
                                     listener.onPinInto(space.pinnedId)
                                 }
                             }
                             items(space.folders, key = { it.id }) { folder ->
                                 Place(
-                                    folder.title.ifEmpty { "Folder" },
+                                    folder.title.ifEmpty { stringResource(R.string.compass_sidebar_folder) },
                                     R.drawable.compass_sym_folder,
                                     folder.depth + 1,
                                     state.parentId == folder.id,

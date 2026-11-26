@@ -10,6 +10,8 @@ import android.view.ViewGroup;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
+import it.cipi1965.compass.R;
+
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.tab.Tab;
@@ -78,8 +80,12 @@ public class UndoToast implements UndoToastUi.Listener {
         mState.setUndoable(true);
         mState.setText(
                 tabs.size() == 1
-                        ? "Closed “" + tabs.get(0).getTitle() + "”"
-                        : "Closed " + tabs.size() + " tabs");
+                        ? mView.getContext()
+                                .getString(R.string.compass_sidebar_closed_tab, tabs.get(0).getTitle())
+                        : mView.getContext()
+                                .getResources()
+                                .getQuantityString(
+                                        R.plurals.compass_sidebar_closed_tabs, tabs.size(), tabs.size()));
         mState.setShown(true);
         mView.bringToFront();
         mView.removeCallbacks(mTimeout);

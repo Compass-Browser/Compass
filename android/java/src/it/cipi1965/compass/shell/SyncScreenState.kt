@@ -4,9 +4,11 @@
 
 package it.cipi1965.compass.shell
 
+import android.content.res.Resources
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import it.cipi1965.compass.R
 import org.json.JSONObject
 
 /** What the sync screen shows: SyncBridge's snapshot (sync_bridge.h), parsed. */
@@ -179,31 +181,33 @@ class SyncScreenState {
         // What each server version brings (the desktop's sync_page.ts, NEW_IN).
         private val NEW_IN =
             mapOf(
-                2 to "sharing spaces, folders and easels with others",
-                3 to
-                    "notifications on phones when a tab is sent to them, through " +
-                        "Compass's push relay at push.compassbrowser.org",
+                2 to R.string.compass_sync_new_in_2,
+                3 to R.string.compass_sync_new_in_3,
             )
 
         /** The update card's note, for a server at [current] and Compass's [latest]. */
         @JvmStatic
-        fun updateNote(current: Int, latest: Int): String {
-            val added = (current + 1..latest).mapNotNull { NEW_IN[it] }
-            return (if (added.isNotEmpty()) "It adds ${added.joinToString(", ")}. " else "") +
-                "Your data and the people on it stay as they are."
+        fun updateNote(res: Resources, current: Int, latest: Int): String {
+            val added = (current + 1..latest).mapNotNull { NEW_IN[it] }.map { res.getString(it) }
+            return if (added.isNotEmpty()) {
+                res.getString(R.string.compass_sync_update_note_adds, added.joinToString(", "))
+            } else {
+                res.getString(R.string.compass_sync_update_note)
+            }
         }
 
         /** The Phone notifications switch's details, for a server using the relay at [host]. */
         @JvmStatic
-        fun pushRelayDetails(host: String): String =
-            "When a tab is sent to an iPhone or Android phone, Compass's push relay ($host) " +
-                "tells it at once. It gets each phone's notification token, never your tabs " +
-                "or data. Off, sent tabs arrive when the phone next syncs."
+        fun pushRelayDetails(res: Resources, host: String): String =
+            res.getString(R.string.compass_sync_push_relay_details, host)
 
         /** A friend's row: "Joined <date> · 2 linked accounts". */
         @JvmStatic
-        fun memberDetails(date: String, linked: Int): String =
-            "Joined $date" +
-                if (linked > 0) " · $linked linked account${if (linked == 1) "" else "s"}" else ""
+        fun memberDetails(res: Resources, date: String, linked: Int): String =
+            if (linked > 0) {
+                res.getQuantityString(R.plurals.compass_sync_member_joined_linked, linked, date, linked)
+            } else {
+                res.getString(R.string.compass_sync_member_joined, date)
+            }
     }
 }

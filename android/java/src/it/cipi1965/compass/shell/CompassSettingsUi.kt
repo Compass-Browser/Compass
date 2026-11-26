@@ -48,6 +48,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -330,7 +332,7 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                     Sym(R.drawable.compass_sym_arrow_back, 20f)
                 }
                 Text(
-                    "Settings",
+                    stringResource(R.string.compass_settings),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(start = 4.dp),
                 )
@@ -338,8 +340,8 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
-                CardSection("Sync") {
-                    CardRow("Sync", state.syncSummary, first = true, onClick = {
+                CardSection(stringResource(R.string.compass_settings_sync)) {
+                    CardRow(stringResource(R.string.compass_settings_sync), state.syncSummary, first = true, onClick = {
                         open(CompassSettingsUi.Row.SYNC)
                     }) {
                         MenuIcon(R.drawable.compass_sym_sync)
@@ -347,12 +349,15 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                 }
                 // Each profile of the chain and its spaces, as iOS's Settings › Profiles.
                 if (state.profiles.size > 1) {
-                    CardSection("Profiles") {
+                    CardSection(stringResource(R.string.compass_settings_profiles)) {
+                        val unnamed = stringResource(R.string.compass_settings_profile)
                         state.profiles.forEachIndexed { i, profile ->
-                            val spaces = if (profile.spaces == 1) "1 space" else "${profile.spaces} spaces"
+                            val spaces = pluralStringResource(
+                                R.plurals.compass_settings_profile_spaces, profile.spaces, profile.spaces)
                             CardRow(
-                                profile.name.ifEmpty { "Profile" },
-                                if (profile.current) "$spaces · This window" else spaces,
+                                profile.name.ifEmpty { unnamed },
+                                if (profile.current) stringResource(R.string.compass_settings_profile_this_window, spaces)
+                                else spaces,
                                 first = i == 0,
                                 onClick = {},
                             ) {
@@ -361,106 +366,109 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
                         }
                     }
                 }
-                CardSection("Browsing") {
+                CardSection(stringResource(R.string.compass_settings_browsing)) {
                     SettingsRow(
-                        "Default Browser",
+                        stringResource(R.string.compass_settings_default_browser),
                         R.drawable.compass_sym_open_in_browser,
                         subtitle =
-                            if (state.isDefaultBrowser) "Compass opens links from other apps"
-                            else "Open links from other apps in Compass",
+                            if (state.isDefaultBrowser) stringResource(R.string.compass_settings_default_browser_on)
+                            else stringResource(R.string.compass_settings_default_browser_off),
                         first = true,
                     ) {
                         open(CompassSettingsUi.Row.DEFAULT_BROWSER)
                     }
                     SwitchRow(
-                        "Open in a Little Window",
-                        "Links from other apps open over what you're doing, not among your tabs",
+                        stringResource(R.string.compass_settings_little_window),
+                        stringResource(R.string.compass_settings_little_window_summary),
                         checked = state.littleWindow,
                         enabled = true,
                     ) {
                         listener.onSetLittleWindow(it)
                     }
                     SettingsRow(
-                        "Sites in Spaces",
+                        stringResource(R.string.compass_settings_sites_in_spaces),
                         R.drawable.compass_sym_link,
-                        subtitle = "Links from other apps to these sites open in their space",
+                        subtitle = stringResource(R.string.compass_settings_sites_in_spaces_summary),
                     ) {
                         open(CompassSettingsUi.Row.SITES_IN_SPACES)
                     }
                     SettingsRow(
-                        "Search Engine",
+                        stringResource(R.string.compass_settings_search_engine),
                         R.drawable.compass_sym_search,
                         subtitle = state.searchEngines.firstOrNull { it.keyword == state.searchEngine }?.name ?: "",
                     ) {
                         open(CompassSettingsUi.Row.SEARCH_ENGINE)
                     }
-                    SettingsRow("Passwords", R.drawable.compass_sym_key_fill) {
+                    SettingsRow(stringResource(R.string.compass_settings_passwords), R.drawable.compass_sym_key_fill) {
                         open(CompassSettingsUi.Row.PASSWORDS)
                     }
                     SettingsRow(
-                        "Passwords in Other Apps",
+                        stringResource(R.string.compass_settings_autofill_apps),
                         R.drawable.compass_sym_key_fill,
-                        subtitle = "Fill your Compass passwords in apps",
+                        subtitle = stringResource(R.string.compass_settings_autofill_apps_summary),
                     ) {
                         open(CompassSettingsUi.Row.AUTOFILL_APPS)
                     }
                     SettingsRow("Claude", R.drawable.compass_sym_auto_awesome) {
                         open(CompassSettingsUi.Row.CLAUDE)
                     }
-                    SettingsRow("Extensions", R.drawable.compass_sym_extension_fill) {
+                    SettingsRow(stringResource(R.string.compass_settings_extensions), R.drawable.compass_sym_extension_fill) {
                         open(CompassSettingsUi.Row.EXTENSIONS)
                     }
                 }
-                CardSection("Tabs and data") {
+                CardSection(stringResource(R.string.compass_settings_tabs_and_data)) {
                     SettingsRow(
-                        "On Launch",
+                        stringResource(R.string.compass_settings_on_launch),
                         R.drawable.compass_sym_view_sidebar,
-                        subtitle = if (state.onLaunch == OnLaunch.LAST_TAB) "Last Tab" else "Sidebar",
+                        subtitle = stringResource(
+                            if (state.onLaunch == OnLaunch.LAST_TAB) R.string.compass_settings_on_launch_last_tab
+                            else R.string.compass_settings_on_launch_sidebar),
                         first = true,
                     ) {
                         choosingOnLaunch = true
                     }
-                    SettingsRow("Clear Browsing Data", R.drawable.compass_sym_delete) {
+                    SettingsRow(stringResource(R.string.compass_settings_clear_data), R.drawable.compass_sym_delete) {
                         open(CompassSettingsUi.Row.CLEAR_DATA)
                     }
-                    SettingsRow("Downloads", R.drawable.compass_sym_download) {
+                    SettingsRow(stringResource(R.string.compass_settings_downloads), R.drawable.compass_sym_download) {
                         open(CompassSettingsUi.Row.DOWNLOADS)
                     }
                 }
-                CardSection("Privacy") {
-                    SettingsRow("Site Settings", R.drawable.compass_sym_public, first = true) {
+                CardSection(stringResource(R.string.compass_settings_privacy)) {
+                    SettingsRow(stringResource(R.string.compass_settings_site_settings), R.drawable.compass_sym_public, first = true) {
                         open(CompassSettingsUi.Row.SITE_SETTINGS)
                     }
                     SettingsRow(
-                        "Ad Blocker",
+                        stringResource(R.string.compass_settings_ad_blocker),
                         R.drawable.compass_sym_shield,
-                        subtitle = if (state.adBlock) "Blocking ads and trackers" else "Off",
+                        subtitle = stringResource(
+                            if (state.adBlock) R.string.compass_settings_ad_blocker_on else R.string.compass_off),
                     ) {
                         open(CompassSettingsUi.Row.AD_BLOCKER)
                     }
-                    SettingsRow("Privacy and Security", R.drawable.compass_sym_lock) {
+                    SettingsRow(stringResource(R.string.compass_settings_privacy_and_security), R.drawable.compass_sym_lock) {
                         open(CompassSettingsUi.Row.PRIVACY)
                     }
-                    SettingsRow("Privacy Policy", R.drawable.compass_sym_description) {
+                    SettingsRow(stringResource(R.string.compass_settings_privacy_policy), R.drawable.compass_sym_description) {
                         open(CompassSettingsUi.Row.PRIVACY_POLICY)
                     }
                 }
-                CardSection("General") {
-                    SettingsRow("Accessibility", R.drawable.compass_sym_tune, first = true) {
+                CardSection(stringResource(R.string.compass_settings_general)) {
+                    SettingsRow(stringResource(R.string.compass_settings_accessibility), R.drawable.compass_sym_tune, first = true) {
                         open(CompassSettingsUi.Row.ACCESSIBILITY)
                     }
-                    SettingsRow("Languages", R.drawable.compass_sym_language) {
+                    SettingsRow(stringResource(R.string.compass_settings_languages), R.drawable.compass_sym_language) {
                         open(CompassSettingsUi.Row.LANGUAGES)
                     }
-                    SettingsRow("More Settings", R.drawable.compass_sym_settings_fill) {
+                    SettingsRow(stringResource(R.string.compass_settings_more_settings), R.drawable.compass_sym_settings_fill) {
                         open(CompassSettingsUi.Row.MORE)
                     }
-                    SettingsRow("Third-Party Licenses", R.drawable.compass_sym_description) {
+                    SettingsRow(stringResource(R.string.compass_settings_licenses), R.drawable.compass_sym_description) {
                         open(CompassSettingsUi.Row.LICENSES)
                     }
                 }
                 Text(
-                    "Compass ${state.version}",
+                    stringResource(R.string.compass_settings_version, state.version),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -477,16 +485,16 @@ private fun Settings(state: CompassSettingsUi.State, listener: CompassSettingsUi
  */
 @Composable
 private fun SearchEnginePage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
-    SubPage("Search Engine", listener) {
+    SubPage(stringResource(R.string.compass_settings_search_engine), listener) {
         if (state.searchEngineManaged) {
             Text(
-                "Your organization chose the search engine.",
+                stringResource(R.string.compass_settings_search_engine_managed),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 16.dp, top = 8.dp),
             )
         }
-        CardSection("Search with") {
+        CardSection(stringResource(R.string.compass_settings_search_with)) {
             for (engine in state.searchEngines) {
                 RadioRow(
                     engine.name,
@@ -508,14 +516,15 @@ private fun SearchEnginePage(state: CompassSettingsUi.State, listener: CompassSe
  */
 @Composable
 private fun PrivacyPage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
-    SubPage("Privacy and Security", listener) {
-        CardSection("Safe Browsing") {
+    SubPage(stringResource(R.string.compass_settings_privacy_and_security), listener) {
+        CardSection(stringResource(R.string.compass_settings_safe_browsing)) {
             val levels = listOf(
-                Triple(CompassSettingsUi.SafeBrowsing.ENHANCED, "Enhanced Protection",
-                    "Checks sites and downloads in real time with Google"),
-                Triple(CompassSettingsUi.SafeBrowsing.STANDARD, "Standard Protection",
-                    "Warns about sites and downloads known to be dangerous"),
-                Triple(CompassSettingsUi.SafeBrowsing.OFF, "No Protection", "Not recommended"),
+                Triple(CompassSettingsUi.SafeBrowsing.ENHANCED, stringResource(R.string.compass_settings_safe_browsing_enhanced),
+                    stringResource(R.string.compass_settings_safe_browsing_enhanced_summary)),
+                Triple(CompassSettingsUi.SafeBrowsing.STANDARD, stringResource(R.string.compass_settings_safe_browsing_standard),
+                    stringResource(R.string.compass_settings_safe_browsing_standard_summary)),
+                Triple(CompassSettingsUi.SafeBrowsing.OFF, stringResource(R.string.compass_settings_safe_browsing_off),
+                    stringResource(R.string.compass_settings_safe_browsing_off_summary)),
             )
             for ((level, title, subtitle) in levels) {
                 RadioRow(
@@ -528,19 +537,19 @@ private fun PrivacyPage(state: CompassSettingsUi.State, listener: CompassSetting
                 }
             }
         }
-        CardSection("Browsing") {
+        CardSection(stringResource(R.string.compass_settings_browsing)) {
             val switches = listOf(
-                Triple(CompassSettingsUi.PrivacySwitch.BLOCK_THIRD_PARTY_COOKIES, "Block Third-Party Cookies",
-                    "Sites can't use cookies to follow you across sites"),
-                Triple(CompassSettingsUi.PrivacySwitch.HTTPS_ONLY, "Always Use Secure Connections",
-                    "Warns before loading a site that doesn't support HTTPS"),
-                Triple(CompassSettingsUi.PrivacySwitch.PRELOAD_PAGES, "Preload Pages",
-                    "Loads pages you're likely to visit, for faster browsing"),
-                Triple(CompassSettingsUi.PrivacySwitch.DO_NOT_TRACK, "Send \"Do Not Track\"",
-                    "Asks sites not to track you; many ignore it"),
+                Triple(CompassSettingsUi.PrivacySwitch.BLOCK_THIRD_PARTY_COOKIES, stringResource(R.string.compass_settings_third_party_cookies),
+                    stringResource(R.string.compass_settings_third_party_cookies_summary)),
+                Triple(CompassSettingsUi.PrivacySwitch.HTTPS_ONLY, stringResource(R.string.compass_settings_https_only),
+                    stringResource(R.string.compass_settings_https_only_summary)),
+                Triple(CompassSettingsUi.PrivacySwitch.PRELOAD_PAGES, stringResource(R.string.compass_settings_preload_pages),
+                    stringResource(R.string.compass_settings_preload_pages_summary)),
+                Triple(CompassSettingsUi.PrivacySwitch.DO_NOT_TRACK, stringResource(R.string.compass_settings_do_not_track),
+                    stringResource(R.string.compass_settings_do_not_track_summary)),
                 Triple(CompassSettingsUi.PrivacySwitch.CLEAN_COPIED_LINKS,
-                    "Remove Tracking from Copied Links",
-                    "Copy URL leaves out parameters that only track where a link was shared"),
+                    stringResource(R.string.compass_settings_clean_copied_links),
+                    stringResource(R.string.compass_settings_clean_copied_links_summary)),
             )
             for ((which, title, subtitle) in switches) {
                 SwitchRow(
@@ -553,17 +562,17 @@ private fun PrivacyPage(state: CompassSettingsUi.State, listener: CompassSetting
                 }
             }
         }
-        CardSection("More") {
-            SettingsRow("Clear Browsing Data", R.drawable.compass_sym_delete, first = true) {
+        CardSection(stringResource(R.string.compass_more)) {
+            SettingsRow(stringResource(R.string.compass_settings_clear_data), R.drawable.compass_sym_delete, first = true) {
                 listener.onRow(CompassSettingsUi.Row.CLEAR_DATA)
             }
-            SettingsRow("More Privacy Settings", R.drawable.compass_sym_shield) {
+            SettingsRow(stringResource(R.string.compass_settings_more_privacy), R.drawable.compass_sym_shield) {
                 listener.onRow(CompassSettingsUi.Row.MORE_PRIVACY)
             }
         }
         if (state.safeBrowsingManaged || state.privacyManaged.isNotEmpty()) {
             Text(
-                "Your organization manages some of these settings.",
+                stringResource(R.string.compass_settings_managed),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 24.dp),
@@ -580,18 +589,18 @@ private fun PrivacyPage(state: CompassSettingsUi.State, listener: CompassSetting
 @Composable
 private fun AdBlockerPage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
     var adding by remember { mutableStateOf(false) }
-    SubPage("Ad Blocker", listener) {
+    SubPage(stringResource(R.string.compass_settings_ad_blocker), listener) {
         CardSection("") {
             SwitchRow(
-                "Block Ads and Trackers",
-                "On every site, unless you turn it off for one in its Site sheet",
+                stringResource(R.string.compass_settings_block_ads),
+                stringResource(R.string.compass_settings_block_ads_summary),
                 checked = state.adBlock,
                 enabled = true,
             ) {
                 listener.onSetAdBlock(it)
             }
         }
-        CardSection("Filter lists") {
+        CardSection(stringResource(R.string.compass_settings_filter_lists)) {
             for (list in state.filterLists) {
                 Row(
                     Modifier.fillMaxWidth()
@@ -618,7 +627,7 @@ private fun AdBlockerPage(state: CompassSettingsUi.State, listener: CompassSetti
                     }
                     if (!list.builtin) {
                         TextButton(onClick = { listener.onRemoveFilterList(list.id) }) {
-                            Text("Remove", color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.compass_remove), color = MaterialTheme.colorScheme.error)
                         }
                     }
                     Switch(
@@ -629,18 +638,19 @@ private fun AdBlockerPage(state: CompassSettingsUi.State, listener: CompassSetti
             }
         }
         CardSection("") {
-            SettingsRow("Add a List", R.drawable.compass_sym_add, first = true) { adding = true }
+            SettingsRow(stringResource(R.string.compass_settings_add_list), R.drawable.compass_sym_add, first = true) { adding = true }
             SettingsRow(
-                if (state.filterListsUpdating) "Updating…" else "Update Now",
+                stringResource(
+                    if (state.filterListsUpdating) R.string.compass_settings_filter_lists_updating
+                    else R.string.compass_settings_filter_lists_update_now),
                 R.drawable.compass_sym_refresh,
-                subtitle = "Lists are checked for updates once a day",
+                subtitle = stringResource(R.string.compass_settings_filter_lists_update_summary),
             ) {
                 if (!state.filterListsUpdating) listener.onUpdateFilterLists()
             }
         }
         Text(
-            "Lists come from their publishers. Scriptlets and some uBlock Origin rules aren't " +
-                "supported.",
+            stringResource(R.string.compass_settings_filter_lists_footer),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 24.dp),
@@ -658,18 +668,19 @@ private fun AddFilterListDialog(listener: CompassSettingsUi.Listener, onDone: ()
     var error by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDone,
-        title = { Text("Add a List") },
+        title = { Text(stringResource(R.string.compass_settings_add_list)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     state = urlField,
-                    label = { Text("Address") },
+                    label = { Text(stringResource(R.string.compass_settings_add_list_address)) },
                     placeholder = { Text("https://") },
                     lineLimits = TextFieldLineLimits.SingleLine,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                val hint = stringResource(R.string.compass_settings_add_list_hint)
                 Text(
-                    error.ifEmpty { "The address of an Adblock Plus or uBlock Origin list." },
+                    error.ifEmpty { hint },
                     style = MaterialTheme.typography.bodySmall,
                     color =
                         if (error.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
@@ -684,9 +695,9 @@ private fun AddFilterListDialog(listener: CompassSettingsUi.Listener, onDone: ()
                     error = listener.onAddFilterList(urlField.text.toString())
                     if (error.isEmpty()) onDone()
                 },
-            ) { Text("Add") }
+            ) { Text(stringResource(R.string.compass_add)) }
         },
-        dismissButton = { TextButton(onClick = onDone) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDone) { Text(stringResource(R.string.compass_cancel)) } },
     )
 }
 
@@ -696,12 +707,12 @@ private fun AddFilterListDialog(listener: CompassSettingsUi.Listener, onDone: ()
  */
 @Composable
 private fun SiteSettingsPage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
-    SubPage("Site Settings", listener) {
-        CardSection("By default") {
+    SubPage(stringResource(R.string.compass_settings_site_settings), listener) {
+        CardSection(stringResource(R.string.compass_settings_by_default)) {
             for (permission in state.sitePermissions) {
                 SwitchRow(
                     permission.title,
-                    if (permission.on) permission.onLabel else "Blocked",
+                    if (permission.on) permission.onLabel else stringResource(R.string.compass_settings_permission_blocked),
                     checked = permission.on,
                     enabled = !permission.managed,
                 ) {
@@ -711,11 +722,11 @@ private fun SiteSettingsPage(state: CompassSettingsUi.State, listener: CompassSe
                 // Android doesn't let start yet (docs/design/android.md, "Auto picture-in-picture").
             }
         }
-        CardSection("Sites") {
+        CardSection(stringResource(R.string.compass_settings_sites)) {
             SettingsRow(
-                "All Sites and Exceptions",
+                stringResource(R.string.compass_settings_all_sites),
                 R.drawable.compass_sym_public,
-                subtitle = "What each site may do, and its data",
+                subtitle = stringResource(R.string.compass_settings_all_sites_summary),
                 first = true,
             ) {
                 listener.onRow(CompassSettingsUi.Row.ALL_SITES)
@@ -723,7 +734,7 @@ private fun SiteSettingsPage(state: CompassSettingsUi.State, listener: CompassSe
         }
         if (state.sitePermissions.any { it.managed }) {
             Text(
-                "Your organization manages some of these settings.",
+                stringResource(R.string.compass_settings_managed),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 24.dp),
@@ -741,20 +752,22 @@ private fun SiteSettingsPage(state: CompassSettingsUi.State, listener: CompassSe
 private fun SitesInSpacesPage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
     // The rule being edited: its domain, or "" for a new one; null: no dialog.
     var editing by remember { mutableStateOf<String?>(null) }
-    SubPage("Sites in Spaces", listener) {
-        CardSection("Links from other apps open in") {
+    SubPage(stringResource(R.string.compass_settings_sites_in_spaces), listener) {
+        CardSection(stringResource(R.string.compass_settings_sites_in_spaces_header)) {
             if (state.linkRules.isEmpty()) {
                 Text(
-                    "No sites yet. Add one, or pick Always Open in the little window's menu.",
+                    stringResource(R.string.compass_settings_sites_in_spaces_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(16.dp),
                 )
             }
+            val unnamed = stringResource(R.string.compass_settings_space)
+            val deleted = stringResource(R.string.compass_settings_space_deleted)
             for (rule in state.linkRules) {
                 CardRow(
                     rule.domain,
-                    rule.space?.name?.ifEmpty { "Space" } ?: "Space deleted",
+                    rule.space?.name?.ifEmpty { unnamed } ?: deleted,
                     onClick = { editing = rule.domain },
                 ) {
                     RuleSpaceBadge(rule.space)
@@ -762,7 +775,7 @@ private fun SitesInSpacesPage(state: CompassSettingsUi.State, listener: CompassS
             }
         }
         CardSection("") {
-            SettingsRow("Add Site", R.drawable.compass_sym_add, first = true) { editing = "" }
+            SettingsRow(stringResource(R.string.compass_settings_add_site), R.drawable.compass_sym_add, first = true) { editing = "" }
         }
     }
     val domain = editing
@@ -807,31 +820,32 @@ private fun LinkRuleDialog(
     val normalized = if (site.isBlank()) "" else listener.normalizeLinkDomain(site)
     AlertDialog(
         onDismissRequest = onDone,
-        title = { Text(if (adding) "Add Site" else domain) },
+        title = { Text(if (adding) stringResource(R.string.compass_settings_add_site) else domain) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (adding) {
                     OutlinedTextField(
                         state = siteField,
-                        label = { Text("Site") },
+                        label = { Text(stringResource(R.string.compass_settings_site)) },
                         placeholder = { Text("github.com") },
                         lineLimits = TextFieldLineLimits.SingleLine,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     if (site.isNotBlank() && normalized.isEmpty()) {
                         Text(
-                            "That isn't a site's domain (for example github.com).",
+                            stringResource(R.string.compass_settings_site_invalid),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
                     } else if (normalized.isNotEmpty() && normalized != site.trim()) {
                         Text(
-                            "Links to $normalized and its subdomains",
+                            stringResource(R.string.compass_settings_site_subdomains, normalized),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
+                val unnamed = stringResource(R.string.compass_settings_space)
                 for (choice in spaces) {
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { space = choice.id },
@@ -840,7 +854,7 @@ private fun LinkRuleDialog(
                         RadioButton(selected = choice.id == space, onClick = { space = choice.id })
                         RuleSpaceBadge(choice)
                         Text(
-                            choice.name.ifEmpty { "Space" },
+                            choice.name.ifEmpty { unnamed },
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.padding(start = 12.dp),
                         )
@@ -855,7 +869,7 @@ private fun LinkRuleDialog(
                     listener.onSetLinkRule(if (adding) normalized else domain, space)
                     onDone()
                 },
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.compass_save)) }
         },
         dismissButton = {
             Row {
@@ -863,9 +877,9 @@ private fun LinkRuleDialog(
                     TextButton(onClick = {
                         listener.onRemoveLinkRule(domain)
                         onDone()
-                    }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                    }) { Text(stringResource(R.string.compass_delete), color = MaterialTheme.colorScheme.error) }
                 }
-                TextButton(onClick = onDone) { Text("Cancel") }
+                TextButton(onClick = onDone) { Text(stringResource(R.string.compass_cancel)) }
             }
         },
     )
@@ -913,7 +927,7 @@ private fun SubPage(
  */
 @Composable
 private fun LicensesPage(state: CompassSettingsUi.State, listener: CompassSettingsUi.Listener) {
-    SubPage("Third-Party Licenses", listener) {
+    SubPage(stringResource(R.string.compass_settings_licenses), listener) {
         for (license in state.licenses) {
             CardSection(license.title) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -985,10 +999,12 @@ private fun SwitchRow(
 private fun OnLaunchDialog(value: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("On Launch") },
+        title = { Text(stringResource(R.string.compass_settings_on_launch)) },
         text = {
             Column {
-                for ((choice, label) in listOf(OnLaunch.SIDEBAR to "Sidebar", OnLaunch.LAST_TAB to "Last Tab")) {
+                for ((choice, label) in listOf(
+                        OnLaunch.SIDEBAR to stringResource(R.string.compass_settings_on_launch_sidebar),
+                        OnLaunch.LAST_TAB to stringResource(R.string.compass_settings_on_launch_last_tab))) {
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onPick(choice) }.padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -998,14 +1014,14 @@ private fun OnLaunchDialog(value: String, onPick: (String) -> Unit, onDismiss: (
                     }
                 }
                 Text(
-                    "Last Tab opens on the tab you last looked at, if it's still open.",
+                    stringResource(R.string.compass_settings_on_launch_summary),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.compass_cancel)) } },
     )
 }
 

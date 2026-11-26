@@ -44,6 +44,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -206,11 +207,11 @@ private fun NewTabButton(actions: CompassBarUi.Actions) {
     Box {
         BarIcon(R.drawable.compass_sym_add, true, onLongClick = { menu = true }) { actions.newTab() }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            MenuItem("New Tab", R.drawable.compass_sym_add) {
+            MenuItem(stringResource(R.string.compass_new_tab), R.drawable.compass_sym_add) {
                 menu = false
                 actions.newTab()
             }
-            MenuItem("New Incognito Tab", R.drawable.compass_sym_eyeglasses) {
+            MenuItem(stringResource(R.string.compass_bar_new_incognito_tab), R.drawable.compass_sym_eyeglasses) {
                 menu = false
                 actions.newIncognitoTab()
             }
@@ -242,7 +243,7 @@ private fun AddressPill(state: CompassBarState, actions: CompassBarUi.Actions, m
             if (empty) {
                 Sym(R.drawable.compass_sym_search, 14f, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 Text(
-                    "Search or enter address",
+                    stringResource(R.string.compass_bar_search_or_enter_address),
                     fontSize = 16.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -282,35 +283,35 @@ private fun AddressPill(state: CompassBarState, actions: CompassBarUi.Actions, m
             }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            MenuItem("Reload", R.drawable.compass_sym_refresh) {
+            MenuItem(stringResource(R.string.compass_reload), R.drawable.compass_sym_refresh) {
                 menu = false
                 actions.reload()
             }
-            MenuItem("Copy URL", R.drawable.compass_sym_content_copy) {
+            MenuItem(stringResource(R.string.compass_bar_copy_url), R.drawable.compass_sym_content_copy) {
                 menu = false
                 actions.copyUrl()
             }
-            MenuItem("Share", R.drawable.compass_sym_share) {
+            MenuItem(stringResource(R.string.compass_share), R.drawable.compass_sym_share) {
                 menu = false
                 actions.share()
             }
-            MenuItem("Find on Page", R.drawable.compass_sym_search) {
+            MenuItem(stringResource(R.string.compass_bar_find_on_page), R.drawable.compass_sym_search) {
                 menu = false
                 actions.findInPage()
             }
             if (state.readerable || state.inReader) {
-                MenuItem(if (state.inReader) "Hide Reader" else "Show Reader", R.drawable.compass_sym_menu_book) {
+                MenuItem(stringResource(if (state.inReader) R.string.compass_bar_hide_reader else R.string.compass_bar_show_reader), R.drawable.compass_sym_menu_book) {
                     menu = false
                     actions.toggleReader()
                 }
             }
             if (state.desktopSite) {
-                MenuItem("Request Mobile Site", R.drawable.compass_sym_smartphone) {
+                MenuItem(stringResource(R.string.compass_bar_request_mobile_site), R.drawable.compass_sym_smartphone) {
                     menu = false
                     actions.toggleDesktopSite()
                 }
             } else {
-                MenuItem("Request Desktop Site", R.drawable.compass_sym_desktop_windows) {
+                MenuItem(stringResource(R.string.compass_bar_request_desktop_site), R.drawable.compass_sym_desktop_windows) {
                     menu = false
                     actions.toggleDesktopSite()
                 }

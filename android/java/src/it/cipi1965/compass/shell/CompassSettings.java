@@ -14,6 +14,8 @@ import android.view.ViewGroup;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
+import it.cipi1965.compass.R;
+
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.build.annotations.Nullable;
@@ -359,21 +361,23 @@ public class CompassSettings implements CompassSettingsUi.Listener {
     }
 
     // Site Settings' permissions: each one's title, what on means, and its default.
-    private static final Object[][] SITE_PERMISSIONS = {
-        {ContentSettingsType.GEOLOCATION, "Location", "Ask first"},
-        {ContentSettingsType.MEDIASTREAM_CAMERA, "Camera", "Ask first"},
-        {ContentSettingsType.MEDIASTREAM_MIC, "Microphone", "Ask first"},
-        {ContentSettingsType.NOTIFICATIONS, "Notifications", "Ask first"},
-        {ContentSettingsType.POPUPS, "Pop-ups and Redirects", "Allowed"},
-        {ContentSettingsType.AUTOMATIC_DOWNLOADS, "Automatic Downloads", "Ask first"},
-        {ContentSettingsType.SOUND, "Sound", "Allowed"},
-        {ContentSettingsType.JAVASCRIPT, "JavaScript", "Allowed"},
+    private static final int ASK = R.string.compass_settings_permission_ask;
+    private static final int ALLOWED = R.string.compass_settings_permission_allowed;
+    private static final int[][] SITE_PERMISSIONS = {
+        {ContentSettingsType.GEOLOCATION, R.string.compass_settings_permission_location, ASK},
+        {ContentSettingsType.MEDIASTREAM_CAMERA, R.string.compass_settings_permission_camera, ASK},
+        {ContentSettingsType.MEDIASTREAM_MIC, R.string.compass_settings_permission_microphone, ASK},
+        {ContentSettingsType.NOTIFICATIONS, R.string.compass_settings_permission_notifications, ASK},
+        {ContentSettingsType.POPUPS, R.string.compass_settings_permission_popups, ALLOWED},
+        {ContentSettingsType.AUTOMATIC_DOWNLOADS, R.string.compass_settings_permission_automatic_downloads, ASK},
+        {ContentSettingsType.SOUND, R.string.compass_settings_permission_sound, ALLOWED},
+        {ContentSettingsType.JAVASCRIPT, R.string.compass_settings_permission_javascript, ALLOWED},
         // A playing video goes into picture-in-picture when its tab is left (docs/design/
         // android.md, "Auto picture-in-picture"); Compass allows it by default.
-        {ContentSettingsType.AUTO_PICTURE_IN_PICTURE, "Automatic Picture in Picture", "Allowed"},
+        {ContentSettingsType.AUTO_PICTURE_IN_PICTURE, R.string.compass_settings_permission_auto_pip, ALLOWED},
         // Blocked: the ad blocker is on for sites (docs/design/ad-blocker.md); allowed turns it
         // off for every site of the profile.
-        {ContentSettingsType.ADS, "Ads", "Allowed"},
+        {ContentSettingsType.ADS, R.string.compass_settings_permission_ads, ALLOWED},
     };
 
     // The desktop's "Remove tracking from copied links"
@@ -386,13 +390,13 @@ public class CompassSettings implements CompassSettingsUi.Listener {
     private void loadSitePermissions() {
         Profile profile = profile();
         List<CompassSettingsUi.SitePermission> permissions = new ArrayList<>();
-        for (Object[] row : SITE_PERMISSIONS) {
-            int type = (Integer) row[0];
+        for (int[] row : SITE_PERMISSIONS) {
+            int type = row[0];
             permissions.add(
                     new CompassSettingsUi.SitePermission(
                             type,
-                            (String) row[1],
-                            (String) row[2],
+                            mActivity.getString(row[1]),
+                            mActivity.getString(row[2]),
                             WebsitePreferenceBridge.isCategoryEnabled(profile, type),
                             WebsitePreferenceBridge.isContentSettingManaged(profile, type)));
         }
@@ -441,12 +445,17 @@ public class CompassSettings implements CompassSettingsUi.Listener {
     }
 
     // "12,345 rules · updated 2 hours ago", or why there are none yet.
-    private static String filterListDetail(org.json.JSONObject list) {
-        if (list.optBoolean("updating")) return "Updating…";
+    private String filterListDetail(org.json.JSONObject list) {
+        if (list.optBoolean("updating")) {
+            return mActivity.getString(R.string.compass_settings_filter_lists_updating);
+        }
         double updated = list.optDouble("updatedMs");
         if (!(updated > 0)) {
             String error = list.optString("error");
-            return error.isEmpty() ? "Not downloaded yet" : error;
+            // The error comes from the native side (AdBlockBridge), in English.
+            return error.isEmpty()
+                    ? mActivity.getString(R.string.compass_settings_filter_list_not_downloaded)
+                    : error;
         }
         int rules = list.optInt("urlRules") + list.optInt("cssRules");
         CharSequence ago =
@@ -454,7 +463,12 @@ public class CompassSettings implements CompassSettingsUi.Listener {
                         (long) updated,
                         System.currentTimeMillis(),
                         android.text.format.DateUtils.MINUTE_IN_MILLIS);
-        return String.format(java.util.Locale.getDefault(), "%,d rules · updated %s", rules, ago);
+        return mActivity.getResources()
+                .getQuantityString(
+                        R.plurals.compass_settings_filter_list_rules,
+                        rules,
+                        String.format(java.util.Locale.getDefault(), "%,d", rules),
+                        ago);
     }
 
     @Override
@@ -508,35 +522,39 @@ public class CompassSettings implements CompassSettingsUi.Listener {
 
     // Third-Party Licenses: the license files Compass adds, from the APK's assets
     // (android/BUILD.gn :license_assets).
-    private static final String[][] LICENSES = {
-        {
-            "Firefox's strip-on-share list (MPL 2.0)",
-            "The tracking parameters Remove Tracking from Copied Links leaves out.",
-            "licenses/strip_on_share_mpl2.txt",
-        },
-        {
-            "Firefox's strip-on-share list, from ClearURLs (LGPL 3.0)",
-            "More tracking parameters for Remove Tracking from Copied Links.",
-            "licenses/strip_on_share_lgpl.txt",
-        },
+    private static final int[] LICENSE_TITLES = {
+        R.string.compass_settings_license_mpl2_title, R.string.compass_settings_license_lgpl_title,
+    };
+    private static final int[] LICENSE_ABOUTS = {
+        R.string.compass_settings_license_mpl2_about, R.string.compass_settings_license_lgpl_about,
+    };
+    private static final String[] LICENSE_FILES = {
+        "licenses/strip_on_share_mpl2.txt", "licenses/strip_on_share_lgpl.txt",
     };
     private static final String LICENSES_SOURCE =
-            " Source: https://github.com/mozilla-firefox/firefox,"
-                    + " toolkit/components/antitracking/StripOnShareLists.";
+            "https://github.com/mozilla-firefox/firefox,"
+                    + " toolkit/components/antitracking/StripOnShareLists";
 
     private void loadLicenses() {
         List<CompassSettingsUi.License> licenses = new ArrayList<>();
-        for (String[] row : LICENSES) {
+        for (int i = 0; i < LICENSE_FILES.length; i++) {
             String text;
-            try (java.io.InputStream in = mActivity.getAssets().open(row[2])) {
+            try (java.io.InputStream in = mActivity.getAssets().open(LICENSE_FILES[i])) {
                 java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
                 byte[] buffer = new byte[8192];
                 for (int n; (n = in.read(buffer)) != -1; ) bytes.write(buffer, 0, n);
                 text = bytes.toString("UTF-8");
             } catch (java.io.IOException e) {
-                text = "The license text is missing from this build.";
+                text = mActivity.getString(R.string.compass_settings_license_missing);
             }
-            licenses.add(new CompassSettingsUi.License(row[0], row[1] + LICENSES_SOURCE, text));
+            licenses.add(
+                    new CompassSettingsUi.License(
+                            mActivity.getString(LICENSE_TITLES[i]),
+                            mActivity.getString(
+                                    R.string.compass_settings_license_about,
+                                    mActivity.getString(LICENSE_ABOUTS[i]),
+                                    LICENSES_SOURCE),
+                            text));
         }
         mState.setLicenses(licenses);
     }

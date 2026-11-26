@@ -47,6 +47,8 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.compose.ui.res.stringResource
+import it.cipi1965.compass.R
 
 /**
  * The toast after closing tabs, as the iOS app's (CompassApp.swift): "Closed “Title”" and Undo in
@@ -116,7 +118,7 @@ private fun Toast(state: UndoToastUi.State, listener: UndoToastUi.Listener) {
                 )
                 if (state.undoable) {
                     TextButton(onClick = { listener.onUndo() }) {
-                        Text("Undo", color = MaterialTheme.colorScheme.inversePrimary)
+                        Text(stringResource(R.string.compass_undo), color = MaterialTheme.colorScheme.inversePrimary)
                     }
                 } else {
                     Spacer(Modifier.height(48.dp))

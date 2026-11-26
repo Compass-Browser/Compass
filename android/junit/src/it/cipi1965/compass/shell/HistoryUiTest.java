@@ -42,7 +42,9 @@ public class HistoryUiTest {
         visits.add(visit(2, at(2026, Calendar.NOVEMBER, 12, 23)));
         visits.add(visit(3, at(2026, Calendar.NOVEMBER, 10, 12)));
         visits.add(visit(4, at(2026, Calendar.NOVEMBER, 10, 11)));
-        List<HistoryUi.Day> days = HistoryUi.byDay(visits, now, time -> "D" + (time / 86400000L));
+        List<HistoryUi.Day> days =
+                HistoryUi.byDay(
+                        visits, now, "Today", "Yesterday", time -> "D" + (time / 86400000L));
         assertEquals(3, days.size());
         assertEquals("Today", days.get(0).title);
         assertEquals(2, days.get(0).visits.size());
@@ -55,6 +57,12 @@ public class HistoryUiTest {
     @Test
     public void noVisitsNoDays() {
         assertTrue(
-                HistoryUi.byDay(new ArrayList<>(), Calendar.getInstance(), time -> "").isEmpty());
+                HistoryUi.byDay(
+                                new ArrayList<>(),
+                                Calendar.getInstance(),
+                                "Today",
+                                "Yesterday",
+                                time -> "")
+                        .isEmpty());
     }
 }

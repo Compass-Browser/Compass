@@ -5,6 +5,7 @@
 package it.cipi1965.compass.shell
 
 import android.content.Context
+import android.content.res.Resources
 import android.text.format.DateFormat
 import android.view.View
 import androidx.activity.OnBackPressedDispatcherOwner
@@ -47,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LifecycleOwner
@@ -104,7 +106,10 @@ object DownloadsUi {
         var downloads by mutableStateOf<List<Download>>(emptyList())
     }
 
-    /** "512 B", "1.5 KB", "12 MB", "1.2 GB": a size the way Android's Files shows it. */
+    /**
+     * "512 B", "1.5 KB", "12 MB", "1.2 GB": a size the way Android's Files shows it, with the
+     * locale's decimal separator.
+     */
     @JvmStatic
     fun formatSize(bytes: Long): String {
         if (bytes < 1000) return "$bytes B"
@@ -115,20 +120,27 @@ object DownloadsUi {
             value /= 1000
             unit++
         }
-        return if (value < 10) String.format(Locale.US, "%.1f %s", value, units[unit])
-        else String.format(Locale.US, "%.0f %s", value, units[unit])
+        return if (value < 10) String.format(Locale.getDefault(), "%.1f %s", value, units[unit])
+        else String.format(Locale.getDefault(), "%.0f %s", value, units[unit])
     }
 
     /** The line under a download's name: its progress, or its size and site. */
     @JvmStatic
-    fun subtitle(download: Download): String {
+    fun subtitle(download: Download, res: Resources): String {
         val sizes =
-            if (download.totalBytes > 0) "${formatSize(download.receivedBytes)} of ${formatSize(download.totalBytes)}"
+            if (download.totalBytes > 0)
+                res.getString(
+                    R.string.compass_downloads_size_of,
+                    formatSize(download.receivedBytes),
+                    formatSize(download.totalBytes),
+                )
             else formatSize(download.receivedBytes)
         return when (download.status) {
-            Status.RUNNING -> if (download.percent >= 0) "${download.percent}% · $sizes" else sizes
-            Status.PAUSED -> "Paused · $sizes"
-            Status.FAILED -> "Failed"
+            Status.RUNNING ->
+                if (download.percent >= 0) res.getString(R.string.compass_downloads_running, download.percent, sizes)
+                else sizes
+            Status.PAUSED -> res.getString(R.string.compass_downloads_paused, sizes)
+            Status.FAILED -> res.getString(R.string.compass_downloads_failed)
             Status.DONE ->
                 listOf(formatSize(maxOf(download.totalBytes, download.receivedBytes)), download.host)
                     .filter { it.isNotEmpty() }
@@ -167,15 +179,15 @@ private fun Downloads(context: Context, state: DownloadsUi.State, listener: Down
     deleting?.let { download ->
         AlertDialog(
             onDismissRequest = { deleting = null },
-            title = { Text("Delete download?") },
-            text = { Text("\"${download.title}\" will be deleted from this device.") },
+            title = { Text(stringResource(R.string.compass_downloads_delete_title)) },
+            text = { Text(stringResource(R.string.compass_downloads_delete_text, download.title)) },
             confirmButton = {
                 TextButton(onClick = {
                     deleting = null
                     listener.onDelete(download.key)
-                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.compass_delete), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.compass_cancel)) } },
         )
     }
     Box(
@@ -196,15 +208,15 @@ private fun Downloads(context: Context, state: DownloadsUi.State, listener: Down
                     Sym(R.drawable.compass_sym_arrow_back, 20f)
                 }
                 Text(
-                    "Downloads",
+                    stringResource(R.string.compass_menu_downloads),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(start = 4.dp).weight(1f),
                 )
-                TextButton(onClick = { listener.onSettings() }) { Text("Settings") }
+                TextButton(onClick = { listener.onSettings() }) { Text(stringResource(R.string.compass_settings)) }
             }
             if (state.downloads.isEmpty()) {
                 Text(
-                    "No downloads",
+                    stringResource(R.string.compass_downloads_none),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
@@ -239,10 +251,10 @@ private fun Downloads(context: Context, state: DownloadsUi.State, listener: Down
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            val subtitle = DownloadsUi.subtitle(download)
+                            val subtitle = DownloadsUi.subtitle(download, context.resources)
                             Text(
                                 if (download.status == DownloadsUi.Status.DONE && download.time > 0)
-                                    "$subtitle · ${dateFormat.format(Date(download.time))}"
+                                    stringResource(R.string.compass_downloads_done_date, subtitle, dateFormat.format(Date(download.time)))
                                 else subtitle,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color =
@@ -265,7 +277,7 @@ private fun Downloads(context: Context, state: DownloadsUi.State, listener: Down
                         when (download.status) {
                             DownloadsUi.Status.RUNNING, DownloadsUi.Status.PAUSED -> {
                                 TextButton(onClick = { listener.onPauseOrResume(download.key) }) {
-                                    Text(if (download.status == DownloadsUi.Status.PAUSED) "Resume" else "Pause")
+                                    Text(stringResource(if (download.status == DownloadsUi.Status.PAUSED) R.string.compass_downloads_resume else R.string.compass_downloads_pause))
                                 }
                                 Box(
                                     Modifier.size(48.dp).clip(CircleShape).clickable { listener.onCancel(download.key) },

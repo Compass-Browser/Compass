@@ -11,6 +11,8 @@ import android.view.ViewGroup;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
+import it.cipi1965.compass.R;
+
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -113,7 +115,7 @@ public class Extensions
     /** The extension's name, for the unlock prompts. */
     private String extensionName(String id) {
         ExtensionAction action = mBridge != null ? mBridge.getAction(id, null) : null;
-        return action != null && !action.getName().isEmpty() ? action.getName() : "the extension";
+        return action != null && !action.getName().isEmpty() ? action.getName() : mActivity.getString(R.string.compass_ext_unnamed);
     }
 
     /**

@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LifecycleOwner
@@ -95,18 +96,18 @@ private fun SiteSheet(state: SiteSheetState, listener: SiteSheetUi.Listener) {
         }
         Card { ConnectionRow(state.connection) }
         if (state.permissions.isNotEmpty()) {
-            CardSection("Permissions") {
+            CardSection(stringResource(R.string.compass_site_permissions)) {
                 for (setting in state.permissions) SettingRow(setting, listener)
-                CardRow("Reset Permissions", onClick = { listener.onResetPermissions() }) {
+                CardRow(stringResource(R.string.compass_site_reset_permissions), onClick = { listener.onResetPermissions() }) {
                     MenuIcon(R.drawable.compass_sym_restart_alt)
                 }
             }
         }
-        CardSection("This Site") { for (setting in state.options) SettingRow(setting, listener) }
+        CardSection(stringResource(R.string.compass_site_this_site)) { for (setting in state.options) SettingRow(setting, listener) }
         Card {
             CardRow(
-                "All Site Settings",
-                subtitle = "Cookies and site data, every permission",
+                stringResource(R.string.compass_site_all_settings),
+                subtitle = stringResource(R.string.compass_site_all_settings_subtitle),
                 trailing = R.drawable.compass_sym_chevron_right,
                 onClick = { listener.onAllSettings() },
             ) {
@@ -121,20 +122,24 @@ private fun ConnectionRow(connection: SiteSheetState.Connection) {
     val (title, subtitle, icon) =
         when (connection) {
             SiteSheetState.Connection.SECURE ->
-                Triple("Connection is secure", "What you send and receive is private.", R.drawable.compass_sym_lock)
+                Triple(
+                    stringResource(R.string.compass_site_secure),
+                    stringResource(R.string.compass_site_secure_subtitle),
+                    R.drawable.compass_sym_lock,
+                )
             SiteSheetState.Connection.DANGEROUS ->
                 Triple(
-                    "Dangerous site",
-                    "Don't enter passwords or payment details here.",
+                    stringResource(R.string.compass_site_dangerous),
+                    stringResource(R.string.compass_site_no_passwords),
                     R.drawable.compass_sym_warning,
                 )
             SiteSheetState.Connection.NOT_SECURE ->
                 Triple(
-                    "Connection isn't secure",
-                    "Don't enter passwords or payment details here.",
+                    stringResource(R.string.compass_site_not_secure),
+                    stringResource(R.string.compass_site_no_passwords),
                     R.drawable.compass_sym_no_encryption,
                 )
-            SiteSheetState.Connection.NONE -> Triple("Compass page", "", R.drawable.compass_sym_info)
+            SiteSheetState.Connection.NONE -> Triple(stringResource(R.string.compass_site_compass_page), "", R.drawable.compass_sym_info)
         }
     val alert = connection == SiteSheetState.Connection.DANGEROUS
     Row(

@@ -5,10 +5,12 @@
 package it.cipi1965.compass.shell
 
 import android.graphics.Bitmap
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import it.cipi1965.compass.R
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -25,10 +27,10 @@ class SpaceTheme(
     grain: Double = 0.0,
     @JvmField val appearance: Appearance = Appearance.AUTO,
 ) {
-    enum class Appearance(val label: String) {
-        AUTO("Automatic"),
-        LIGHT("Light"),
-        DARK("Dark"),
+    enum class Appearance(@StringRes val label: Int) {
+        AUTO(R.string.compass_theme_automatic),
+        LIGHT(R.string.compass_theme_light),
+        DARK(R.string.compass_theme_dark),
     }
 
     @JvmField val colors: List<Rgb> = colors.take(MAX_COLORS)
@@ -150,19 +152,24 @@ class SpaceTheme(
         val PALETTE = listOf(
             "", "#3b82f6", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#eab308", "#22c55e",
         )
-        val PALETTE_NAMES = listOf("Grey", "Blue", "Purple", "Pink", "Red", "Orange", "Yellow", "Green")
+        /** PALETTE's names, for accessibility. */
+        val PALETTE_NAMES = listOf(
+            R.string.compass_theme_grey, R.string.compass_theme_blue, R.string.compass_theme_purple,
+            R.string.compass_theme_pink, R.string.compass_theme_red, R.string.compass_theme_orange,
+            R.string.compass_theme_yellow, R.string.compass_theme_green,
+        )
 
-        /** The theme editor's whole gradients (the desktop's GRADIENT_PRESETS). */
-        val PRESETS: List<Pair<String, List<Rgb>>> = listOf(
-            "Lagoon" to listOf(Rgb(34, 197, 160), Rgb(56, 189, 248)),
-            "Dusk" to listOf(Rgb(139, 92, 246), Rgb(236, 72, 153)),
-            "Ember" to listOf(Rgb(239, 68, 68), Rgb(249, 115, 22), Rgb(234, 179, 8)),
-            "Meadow" to listOf(Rgb(132, 204, 22), Rgb(34, 197, 94)),
-            "Ocean" to listOf(Rgb(30, 64, 175), Rgb(59, 130, 246), Rgb(34, 211, 238)),
-            "Peach" to listOf(Rgb(251, 146, 60), Rgb(244, 114, 182)),
-            "Aurora" to listOf(Rgb(34, 197, 94), Rgb(6, 182, 212), Rgb(168, 85, 247)),
-            "Sand" to listOf(Rgb(214, 188, 140), Rgb(190, 150, 110)),
-            "Slate" to listOf(Rgb(71, 85, 105), Rgb(100, 116, 139)),
+        /** The theme editor's whole gradients (the desktop's GRADIENT_PRESETS), by their names' ids. */
+        val PRESETS: List<Pair<Int, List<Rgb>>> = listOf(
+            R.string.compass_theme_lagoon to listOf(Rgb(34, 197, 160), Rgb(56, 189, 248)),
+            R.string.compass_theme_dusk to listOf(Rgb(139, 92, 246), Rgb(236, 72, 153)),
+            R.string.compass_theme_ember to listOf(Rgb(239, 68, 68), Rgb(249, 115, 22), Rgb(234, 179, 8)),
+            R.string.compass_theme_meadow to listOf(Rgb(132, 204, 22), Rgb(34, 197, 94)),
+            R.string.compass_theme_ocean to listOf(Rgb(30, 64, 175), Rgb(59, 130, 246), Rgb(34, 211, 238)),
+            R.string.compass_theme_peach to listOf(Rgb(251, 146, 60), Rgb(244, 114, 182)),
+            R.string.compass_theme_aurora to listOf(Rgb(34, 197, 94), Rgb(6, 182, 212), Rgb(168, 85, 247)),
+            R.string.compass_theme_sand to listOf(Rgb(214, 188, 140), Rgb(190, 150, 110)),
+            R.string.compass_theme_slate to listOf(Rgb(71, 85, 105), Rgb(100, 116, 139)),
         )
 
         private fun clamp(value: Double, fallback: Double) =

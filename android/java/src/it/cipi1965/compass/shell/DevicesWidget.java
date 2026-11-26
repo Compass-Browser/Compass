@@ -6,6 +6,7 @@ package it.cipi1965.compass.shell;
 
 import android.content.Context;
 
+import it.cipi1965.compass.R;
 import it.cipi1965.compass.extras.DevicesWidgetProvider;
 import it.cipi1965.compass.extras.ListWidgetProvider;
 
@@ -53,7 +54,12 @@ public class DevicesWidget {
                             String title = tab.title.isEmpty() ? tab.url.getSpec() : tab.title;
                             rows.put(
                                     new JSONObject()
-                                            .put("title", title + " · " + session.name)
+                                            .put(
+                                                    "title",
+                                                    mContext.getString(
+                                                            R.string.compass_widget_device_tab,
+                                                            title,
+                                                            session.name))
                                             .put("url", tab.url.getSpec()));
                             if (rows.length() == ListWidgetProvider.rows()) break outer;
                         }
@@ -63,7 +69,8 @@ public class DevicesWidget {
             ListWidgetProvider.publish(
                     mContext,
                     new DevicesWidgetProvider(),
-                    new JSONObject().put("title", "Other Devices").put("rows", rows).toString());
+                    // No title: the widget's own, in the device's language.
+                    new JSONObject().put("rows", rows).toString());
         } catch (JSONException e) {
             // Not published.
         }
