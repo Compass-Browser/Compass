@@ -14,6 +14,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/base/l10n/l10n_util.h"
 #if BUILDFLAG(IS_ANDROID)
 // Chrome's tab models; their headers come with //chrome/browser, which
 // this links into (as //compass/browser/android's ClaudeTabsAndroid).
@@ -25,7 +26,6 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"  // nogncheck
 #include "chrome/browser/ui/navigator/browser_navigator.h"  // nogncheck
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"  // nogncheck
-#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #endif

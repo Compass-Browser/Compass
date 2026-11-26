@@ -18,11 +18,11 @@
 #include "build/build_config.h"
 #include "compass/browser/arc_import/arc_sidebar.h"
 #include "compass/browser/browser_import/app_sidebar.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "compass/browser/browser_import/safari_reader.h"
-#include "compass/strings/grit/compass_strings.h"
-#include "ui/base/l10n/l10n_util.h"
 #endif
 
 namespace compass::browser_import {
