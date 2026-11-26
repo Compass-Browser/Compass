@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {Memory, Model, SettingsHandlerRemote, SettingsState} from
-    '../claude.mojom-webui.js';
-import {AuthStyle, Backend, FilesAccess, SettingsHandler} from
-    '../claude.mojom-webui.js';
-
 import '../settings_window/icon.js';
 
+import type {Memory, Model, SettingsHandlerRemote, SettingsState} from '../claude.mojom-webui.js';
+import {AuthStyle, Backend, FilesAccess, SettingsHandler} from '../claude.mojom-webui.js';
 import type {KnownModel} from '../claude_models.js';
 import {knownModels} from '../claude_models.js';
+import {i18n, i18nF, i18nPlural} from '../i18n.js';
 
 // A sidebar feature's model, by default (claude_quick.h, kDefaultQuickModel).
 const QUICK_MODEL_DEFAULT = 'claude-haiku-5-5';
@@ -18,16 +16,9 @@ const QUICK_MODEL_DEFAULT = 'claude-haiku-5-5';
 // What the key field says under it, for a provider other than Anthropic
 // (whose text is in the page, with its subscription tokens).
 const KEY_HELP: Record<string, string> = {
-  openai: 'An OpenAI API key from platform.openai.com, or sign in with ' +
-      'ChatGPT above. Stored encrypted on this device only; ' +
-      'it never syncs, and pages never see it. Compass\'s prompts and tools ' +
-      'are made for Claude: other models may use the browser less well.',
-  gemini: 'A Gemini API key from aistudio.google.com. Stored encrypted on ' +
-      'this device only; it never syncs, and pages never see it. ' +
-      'Compass\'s prompts and tools are made for Claude: other models may ' +
-      'use the browser less well.',
-  compatible: 'The server\'s key, if it needs one. Stored encrypted on ' +
-      'this device only; it never syncs, and pages never see it.',
+  openai: i18n('claudePageKeyHelpOpenai'),
+  gemini: i18n('claudePageKeyHelpGemini'),
+  compatible: i18n('claudePageKeyHelpCompatible'),
 };
 
 // Claude in the sidebar (docs/design/ai-sidebar.md): each feature is a row
@@ -49,11 +40,8 @@ interface SidebarFeature {
 const SIDEBAR_FEATURES: SidebarFeature[] = [
   {
     id: 'nameLinkFolders',
-    name: 'Name Link Folders',
-    description: 'Claude names the folders that gather a page\'s links, ' +
-        'from their tabs\' titles and sites, and folder menus offer ' +
-        '"Suggest a Name". Each new name can be undone from the folder\'s ' +
-        'menu.',
+    name: i18n('claudePageNameLinkFolders'),
+    description: i18n('claudePageNameLinkFoldersDetail'),
     enabled: state => state.nameLinkFolders,
     model: state => state.nameLinkFoldersModel,
     setEnabled: (handler, on) => handler.setNameLinkFolders(on),
@@ -62,10 +50,8 @@ const SIDEBAR_FEATURES: SidebarFeature[] = [
   },
   {
     id: 'tidyToday',
-    name: 'Tidy Today',
-    description: '"Tidy" in Today\'s header and the command bar asks ' +
-        'Claude to group Today\'s loose tabs into named folders, from their ' +
-        'titles and sites. Nothing is closed, and Undo puts every tab back.',
+    name: i18n('claudePageTidyToday'),
+    description: i18n('claudePageTidyTodayDetail'),
     enabled: state => state.tidyToday,
     model: state => state.tidyTodayModel,
     setEnabled: (handler, on) => handler.setTidyToday(on),
@@ -74,10 +60,8 @@ const SIDEBAR_FEATURES: SidebarFeature[] = [
   },
   {
     id: 'shortTabTitles',
-    name: 'Shorter Tab Titles',
-    description: 'Long tab titles read as short ones in the sidebar, from ' +
-        'the titles and sites of your tabs. Hover cards keep the full title, ' +
-        'and a name you give a tab always wins.',
+    name: i18n('claudePageShortTabTitles'),
+    description: i18n('claudePageShortTabTitlesDetail'),
     enabled: state => state.shortTabTitles,
     model: state => state.shortTabTitlesModel,
     setEnabled: (handler, on) => handler.setShortTabTitles(on),
@@ -86,11 +70,8 @@ const SIDEBAR_FEATURES: SidebarFeature[] = [
   },
   {
     id: 'commandBarAsk',
-    name: 'Answer Questions in the Command Bar',
-    description: 'A question typed in the command bar gets an "Ask Claude" ' +
-        'row; its short answer shows right there, and "Continue in Chat" ' +
-        'takes it to the chat. Only the question goes, with the current ' +
-        'tab\'s title and site when "About this page" is on.',
+    name: i18n('claudePageCommandBarAsk'),
+    description: i18n('claudePageCommandBarAskDetail'),
     enabled: state => state.commandBarAsk,
     model: state => state.commandBarAskModel,
     setEnabled: (handler, on) => handler.setCommandBarAsk(on),
@@ -123,7 +104,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
   private memoryCount_ = 0;
 
   protected get pageTitle() {
-    return 'Claude';
+    return i18n('claudePageTitle');
   }
 
   protected getPageTemplate() {
@@ -159,10 +140,8 @@ export class CompassClaudePageElement extends CompassSettingsPage {
       const {revoked} = await this.handler_.signOutOfChatGPT();
       this.note_(
           'chatgptNote',
-          revoked ? 'Signed out.' :
-                    'Signed out of Compass. OpenAI didn\'t confirm ' +
-                  'revoking the sign-in: you can disconnect Compass in ' +
-                  'ChatGPT\'s settings.',
+          revoked ? i18n('claudePageSignedOut') :
+                    i18n('claudePageSignedOutNotRevoked'),
           !revoked);
       await this.refresh_();
     });
@@ -179,7 +158,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     });
     this.$('removeKey').addEventListener('click', async () => {
       await this.handler_.setApiKey('');
-      this.note_('keyNote', 'Key removed.', false);
+      this.note_('keyNote', i18n('claudePageKeyRemoved'), false);
       await this.refresh_();
     });
     this.$('test').addEventListener('click', () => this.test_());
@@ -200,7 +179,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     const savePath = async () => {
       this.handler_.setClaudeCodePath(
           this.$<HTMLInputElement>('claudeCodePath').value);
-      this.note_('claudeCodePathNote', 'Saved.', false);
+      this.note_('claudeCodePathNote', i18n('claudePageSavedDot'), false);
       await this.refresh_();
       await this.test_();
     };
@@ -244,12 +223,12 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     });
     this.$('copyMcpCommand').addEventListener('click', () => {
       navigator.clipboard.writeText(this.$('mcpCommand').textContent || '');
-      this.$('copyMcpCommand').textContent = 'Copied';
+      this.$('copyMcpCommand').textContent = i18n('claudePageCopied');
     });
     this.setUpMemory_();
     this.setUpFiles_();
     // The main view's rows open the rest (claude_page.html, data-page-view).
-    this.setUpViews('AI');
+    this.setUpViews(i18n('claudePageBackLabel'));
     this.refresh_();
   }
 
@@ -297,9 +276,9 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     const path = this.$('filesFolderPath');
     if (access === FilesAccess.kSave) {
       path.textContent = state.filesFolder ||
-          `Downloads (${state.defaultSaveFolder})`;
+          i18nF('claudePageDownloadsFolder', state.defaultSaveFolder);
     } else {
-      path.textContent = state.filesFolder || 'No folder chosen';
+      path.textContent = state.filesFolder || i18n('claudePageNoFolder');
     }
     path.title = path.textContent;
     this.show('clearFilesFolder',
@@ -372,26 +351,27 @@ export class CompassClaudePageElement extends CompassSettingsPage {
         state.model :
         this.$<HTMLSelectElement>('model').selectedOptions[0]?.textContent ||
             state.model;
-    const answers = claudeCode ? 'Claude Code on this computer' : provider;
+    const answers = claudeCode ? i18n('claudePageClaudeCodeHere') : provider;
     const ready = claudeCode || state.setUp;
     this.$('connectionRowDetail').textContent = ready ?
         [answers, model].filter(part => part).join(' · ') :
-        `${answers} · Not set up yet`;
+        i18nF('claudePageNotSetUp', answers);
 
     this.$('sidebarRow').hidden = !state.sidebarSupported;
     const on = SIDEBAR_FEATURES.filter(f => f.enabled(state)).length;
     const onDevice = state.onDeviceSupported && state.sidebarOnDevice;
     this.$('sidebarRowDetail').textContent =
-        (on ? `${on} of ${SIDEBAR_FEATURES.length} on` : 'Off') +
+        (on ? i18nF('claudePageFeaturesOn', on, SIDEBAR_FEATURES.length) :
+              i18n('claudePageOff')) +
         (onDevice ? ' · Apple Intelligence' : '');
 
     const files = this.$('filesRowDetail');
     if (state.filesAccess === FilesAccess.kOff) {
-      files.textContent = 'Off';
+      files.textContent = i18n('claudePageOff');
     } else if (state.filesAccess === FilesAccess.kSave) {
-      files.textContent = 'Saves new files';
+      files.textContent = i18n('claudePageSavesNewFiles');
     } else {
-      files.textContent = state.filesFolder || 'No folder chosen';
+      files.textContent = state.filesFolder || i18n('claudePageNoFolder');
     }
 
     this.$('memoryRow').hidden = !state.memorySupported;
@@ -401,9 +381,9 @@ export class CompassClaudePageElement extends CompassSettingsPage {
   private renderMemoryRow_() {
     const enabled = this.state_?.memoryEnabled;
     const count = this.memoryCount_;
-    let detail = 'Off';
+    let detail = i18n('claudePageOff');
     if (enabled) {
-      detail = count === 1 ? 'On · 1 memory' : `On · ${count} memories`;
+      detail = i18nPlural('claudePageMemoryOn', count);
     }
     this.$('memoryRowDetail').textContent = detail;
   }
@@ -474,9 +454,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
       }
     });
     this.$('removeAllMemories').addEventListener('click', async () => {
-      if (!window.confirm(
-              'Delete everything Claude remembers about you, on all your ' +
-              'devices?')) {
+      if (!window.confirm(i18n('claudePageConfirmDeleteAll'))) {
         return;
       }
       this.handler_.removeAllMemories();
@@ -501,10 +479,10 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     text.textContent = memory.text;
     const edit = document.createElement('button');
     edit.className = 'secondary';
-    edit.textContent = 'Edit';
+    edit.textContent = i18n('edit');
     const remove = document.createElement('button');
     remove.className = 'secondary';
-    remove.textContent = 'Delete';
+    remove.textContent = i18n('delete');
     remove.addEventListener('click', async () => {
       this.handler_.removeMemory(memory.id);
       await this.refreshMemories_();
@@ -536,7 +514,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
           this.refreshMemories_();
         }
       });
-      edit.textContent = 'Save';
+      edit.textContent = i18n('save');
       text.replaceWith(input);
       input.focus();
     });
@@ -571,7 +549,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
       modelRow.id = `${feature.id}ModelRow`;
       const modelLabel = document.createElement('label');
       modelLabel.htmlFor = `${feature.id}Model`;
-      modelLabel.textContent = 'Model';
+      modelLabel.textContent = i18n('claudePageModel');
       const select = document.createElement('select');
       select.id = `${feature.id}Model`;
       select.addEventListener(
@@ -614,17 +592,13 @@ export class CompassClaudePageElement extends CompassSettingsPage {
       this.show(`${feature.id}ModelRow`, !local);
     }
     this.show('onDeviceUnavailable', onDevice && !deviceReady);
-    this.$('onDeviceUnavailable').textContent =
-        this.onDeviceUnavailable_ ?? 'Checking Apple Intelligence…';
+    this.$('onDeviceUnavailable').textContent = this.onDeviceUnavailable_ ??
+        i18n('claudePageCheckingAppleIntelligence');
     this.show('sidebarNeedsKey', needsKey);
     this.$('sidebarNeedsKey').textContent = onDevice ?
-        'Answer Questions in the Command Bar needs an API key (or a ' +
-            'gateway\'s) above.' :
-        state.onDeviceSupported ?
-        'These need an API key (or a gateway\'s) above, or Apple ' +
-            'Intelligence. Claude Code mode doesn\'t do them yet.' :
-        'These need an API key (or a gateway\'s) above. Claude Code mode ' +
-            'doesn\'t do them yet.';
+        i18n('claudePageNeedsKeyCommandBar') :
+        state.onDeviceSupported ? i18n('claudePageNeedsKeyOrDevice') :
+                                  i18n('claudePageNeedsKey');
     if (onDevice && this.onDeviceUnavailable_ === null &&
         !this.checkingOnDevice_) {
       this.checkOnDevice_();
@@ -654,7 +628,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     this.$('mcpCommand').textContent = state.mcpCommand;
     this.$('mcpBinary').textContent =
         state.mcpCommand.replace(/^claude mcp add compass -- /, '');
-    this.$('copyMcpCommand').textContent = 'Copy';
+    this.$('copyMcpCommand').textContent = i18n('copy');
     this.show('mcpClients', state.mcpAllowedClients.length > 0);
     this.$('mcpClientList').replaceChildren(
         ...state.mcpAllowedClients.map(client => {
@@ -663,7 +637,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
           name.textContent = client;
           const forget = document.createElement('button');
           forget.className = 'secondary';
-          forget.textContent = 'Forget';
+          forget.textContent = i18n('claudePageForget');
           forget.addEventListener('click', async () => {
             this.handler_.forgetMcpClient(client);
             await this.refresh_();
@@ -702,7 +676,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
       models.unshift({id: chosen, displayName: chosen});
     }
     if (sameAsChat) {
-      models.unshift({id: '', displayName: 'Same as chat'});
+      models.unshift({id: '', displayName: i18n('claudePageSameAsChat')});
     }
     select.replaceChildren(...models.map(model => {
       const option = document.createElement('option');
@@ -721,8 +695,9 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     this.show('chatgptSection', openai);
     this.show('chatgptSignedOut', !state.chatgptSignedIn);
     this.show('chatgptSignedIn', state.chatgptSignedIn);
-    this.$('chatgptAccount').textContent =
-        state.chatgptEmail ? `Signed in as ${state.chatgptEmail}` : 'Signed in';
+    this.$('chatgptAccount').textContent = state.chatgptEmail ?
+        i18nF('claudePageSignedInAs', state.chatgptEmail) :
+        i18n('claudePageSignedIn');
     if (openai && state.chatgptNote) {
       this.note_('chatgptNote', state.chatgptNote, true);
     }
@@ -731,9 +706,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
   private async signInWithChatGPT_() {
     const button = this.$<HTMLButtonElement>('chatgptSignIn');
     button.disabled = true;
-    this.note_('chatgptNote',
-               'Finish signing in in the tab that opened, then come back.',
-               false);
+    this.note_('chatgptNote', i18n('claudePageFinishSignIn'), false);
     const {error} = await this.handler_.signInWithChatGPT();
     button.disabled = false;
     if (error) {
@@ -751,7 +724,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     const input = this.$<HTMLInputElement>('apiKey');
     const key = input.value.trim();
     if (!key) {
-      this.note_('keyNote', 'Paste a key first.', true);
+      this.note_('keyNote', i18n('claudePagePasteKey'), true);
       return;
     }
     this.$<HTMLButtonElement>('saveKey').disabled = true;
@@ -759,11 +732,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     this.$<HTMLButtonElement>('saveKey').disabled = false;
     input.value = '';
     if (!saved) {
-      this.note_(
-          'keyNote',
-          'The key couldn\'t be stored: the system\'s secure storage ' +
-              'refused it.',
-          true);
+      this.note_('keyNote', i18n('claudePageKeyNotStored'), true);
       return;
     }
     this.show('keyNote', false);
@@ -780,14 +749,10 @@ export class CompassClaudePageElement extends CompassSettingsPage {
         AuthStyle.kApiKey;
     const {ok} = await this.handler_.setEndpoint(baseUrl, authStyle);
     if (!ok) {
-      this.note_(
-          'endpointNote',
-          'Use an https:// URL (http:// only to this computer), without a ' +
-              'query.',
-          true);
+      this.note_('endpointNote', i18n('claudePageBadUrl'), true);
       return;
     }
-    this.note_('endpointNote', 'Saved.', false);
+    this.note_('endpointNote', i18n('claudePageSavedDot'), false);
     await this.refresh_();
   }
 
@@ -796,21 +761,20 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     const url = this.$<HTMLInputElement>('serverUrl').value.trim();
     const {ok} = await this.handler_.setEndpoint(url, AuthStyle.kApiKey);
     if (!ok) {
-      this.note_(
-          'serverNote',
-          'Use an https:// URL (http:// only to this computer), without a ' +
-              'query.',
-          true);
+      this.note_('serverNote', i18n('claudePageBadUrl'), true);
       return;
     }
-    this.note_('serverNote', url ? 'Saved.' : 'Server removed.', false);
+    this.note_(
+        'serverNote',
+        url ? i18n('claudePageSavedDot') : i18n('claudePageServerRemoved'),
+        false);
     await this.refresh_();
   }
 
   private async test_() {
     const button = this.$<HTMLButtonElement>('test');
     button.disabled = true;
-    this.note_('testNote', 'Connecting…', false);
+    this.note_('testNote', i18n('claudePageConnecting'), false);
     const provider = this.provider_;
     const {result} = await this.handler_.testConnection();
     button.disabled = false;
@@ -833,9 +797,7 @@ export class CompassClaudePageElement extends CompassSettingsPage {
     }
     this.renderModels_();
     this.note_(
-        'testNote',
-        `Connected: ${result.models.length} model${
-            result.models.length === 1 ? '' : 's'} available.`,
+        'testNote', i18nPlural('claudePageConnected', result.models.length),
         false);
   }
 

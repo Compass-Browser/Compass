@@ -42,6 +42,7 @@
 #include "compass/browser/ui/browser_import/app_icon.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/history/core/browser/url_row.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
@@ -50,6 +51,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/user_data_importer/common/importer_data_types.h"
 #include "components/user_data_importer/common/importer_type.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::browser_import {
 
@@ -77,13 +79,11 @@ scoped_refptr<base::SequencedTaskRunner> CopyRunner() {
 std::string AsProfileBrings(Browser browser) {
   switch (browser) {
     case Browser::kCrest:
-      return "A profile of its own, with its cookies, history and "
-             "extensions: you stay signed in to sites. Crest's passwords "
-             "stay in Crest.";
+      return l10n_util::GetStringUTF8(
+          IDS_COMPASS_BROWSER_IMPORT_CREST_AS_PROFILE);
     case Browser::kYab:
-      return "A profile of its own, with its history, and the sign-ins of "
-             "sites Yab opened in Chromium. Sites it opened in WebKit need "
-             "you to sign in again.";
+      return l10n_util::GetStringUTF8(
+          IDS_COMPASS_BROWSER_IMPORT_YAB_AS_PROFILE);
     default:
       return std::string();
   }
@@ -93,9 +93,9 @@ std::string AsProfileBrings(Browser browser) {
 std::string AsProfileBrought(Browser browser) {
   switch (browser) {
     case Browser::kCrest:
-      return "cookies, history and extensions";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_BROWSER_IMPORT_CREST_BROUGHT);
     case Browser::kYab:
-      return "history, and sign-ins from Yab's Chromium tabs";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_BROWSER_IMPORT_YAB_BROUGHT);
     default:
       return std::string();
   }
@@ -288,7 +288,8 @@ ProfileCopy CopyAsProfile(const SourceProfile& profile,
                           scoped_refptr<os_crypt_async::Encryptor> encryptor) {
   ProfileCopy result;
   if (FindProfilesImportedFromBrowsers(user_data_dir).contains(profile.id)) {
-    result.problem = "It was imported as a profile before.";
+    result.problem =
+        l10n_util::GetStringUTF8(IDS_COMPASS_BROWSER_IMPORT_ALREADY_IMPORTED);
     return result;
   }
   if (KeepsHistoryOutsideProfile(profile.browser) &&
@@ -302,16 +303,16 @@ ProfileCopy CopyAsProfile(const SourceProfile& profile,
                          to, prefs::kBrowserImportProfile, profile.id);
     if (!result.copy.ok) {
       base::DeletePathRecursively(to);
-      result.problem = "Its new profile couldn't be made.";
+      result.problem =
+          l10n_util::GetStringUTF8(IDS_COMPASS_BROWSER_IMPORT_PROFILE_NOT_MADE);
     }
     return result;
   }
   PasswordDecryptor decrypt =
       ChromiumPasswordDecryptor(profile.browser, profile.root);
   if (!decrypt || !encryptor) {
-    result.problem = "It couldn't be copied: Compass wasn't given the key " +
-                     base::UTF16ToUTF8(BrowserName(profile.browser)) +
-                     " encrypts its cookies and passwords with.";
+    result.problem = l10n_util::GetStringFUTF8(
+        IDS_COMPASS_BROWSER_IMPORT_NO_KEY, BrowserName(profile.browser));
     return result;
   }
   result.data = ReadProfile(profile, options);
@@ -338,8 +339,7 @@ ProfileCopy CopyAsProfile(const SourceProfile& profile,
   }
   if (!result.copy.ok) {
     result.problem =
-        "Its folder couldn't be copied. Check that there's enough free "
-        "space, then try again.";
+        l10n_util::GetStringUTF8(IDS_COMPASS_BROWSER_IMPORT_COPY_FAILED);
   }
   return result;
 }
@@ -392,7 +392,8 @@ class Importer : public importer::ImporterProgressObserver {
       if (it == by_id.end()) {
         BrowserImportSummary summary;
         summary.name = base::UTF8ToUTF16(choice.id);
-        summary.problems.push_back("This profile wasn't found any more.");
+        summary.problems.push_back(
+            l10n_util::GetStringUTF8(IDS_COMPASS_BROWSER_IMPORT_PROFILE_GONE));
         result_.summaries.push_back(std::move(summary));
         continue;
       }
@@ -472,8 +473,8 @@ class Importer : public importer::ImporterProgressObserver {
     Summarize(added, *profile, summary);
     if ((job.choice.bookmarks || job.choice.tabs) && added.spaces.empty() &&
         !data_.sidebar.spaces.empty()) {
-      summary.problems.push_back(
-          "Its spaces were imported before, so they were left as they are.");
+      summary.problems.push_back(l10n_util::GetStringUTF8(
+          IDS_COMPASS_BROWSER_IMPORT_SPACES_IMPORTED_BEFORE));
     }
 
     auto writer = base::MakeRefCounted<ProfileWriter>(profile);
@@ -487,9 +488,8 @@ class Importer : public importer::ImporterProgressObserver {
                             data_.problems.end());
     if (data_.no_password_key) {
       summary.problems.push_back(
-          "Its passwords couldn't be read: Compass wasn't given the key " +
-          base::UTF16ToUTF8(BrowserName(job.profile.browser)) +
-          " encrypts them with.");
+          l10n_util::GetStringFUTF8(IDS_COMPASS_BROWSER_IMPORT_NO_PASSWORD_KEY,
+                                    BrowserName(job.profile.browser)));
     }
 
     // Firefox-based: history and passwords through Chromium's importer.
@@ -602,8 +602,8 @@ class Importer : public importer::ImporterProgressObserver {
 
   void OnNewProfileLoaded(BrowserImportSummary summary, Profile* profile) {
     if (!profile) {
-      summary.problems.push_back(
-          "It was copied, but the new profile couldn't be opened.");
+      summary.problems.push_back(l10n_util::GetStringUTF8(
+          IDS_COMPASS_BROWSER_IMPORT_PROFILE_NOT_OPENED));
       Finish(std::move(summary));
       return;
     }

@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "chrome/common/webui_url_constants.h"
+#include "compass/browser/ui/webui/localized_strings/localized_strings.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/common/referrer.h"
@@ -41,6 +42,7 @@ CompassEmptyUI::CompassEmptyUI(content::WebUI* web_ui)
   // Shares the sidebar's resource pak; only the default page differs.
   webui::SetupWebUIDataSource(source, kCompassSidebarResources,
                               IDR_COMPASS_SIDEBAR_EMPTY_HTML);
+  AddSidebarPakLocalizedStrings(source);
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 }
 

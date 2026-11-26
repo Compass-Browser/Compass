@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import {colorToCss} from '../colors.js';
+import {i18n, i18nF} from '../i18n.js';
 import type {LinkRule, LinkRuleSpace} from '../sidebar.mojom-webui.js';
 import {SettingsHandler} from '../sidebar.mojom-webui.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX} from '../space_icons.js';
@@ -26,7 +27,7 @@ export class CompassLinksPageElement extends CompassSettingsPage {
   private editing_ = '';
 
   protected get pageTitle() {
-    return 'Links from Other Apps';
+    return i18n('linksPageTitle');
   }
 
   protected getPageTemplate() {
@@ -92,18 +93,19 @@ export class CompassLinksPageElement extends CompassSettingsPage {
       target.append(name);
     } else {
       target.classList.add('links-broken');
-      target.textContent = 'Space deleted: opens in a little window';
+      target.textContent = i18n('linksPageSpaceDeleted');
     }
 
     const edit = document.createElement('button');
     edit.className = 'secondary';
-    edit.textContent = 'Edit';
+    edit.textContent = i18n('edit');
     edit.addEventListener('click', () => this.openForm_(rule.domain, rule));
 
     const remove = document.createElement('button');
     remove.className = 'secondary';
-    remove.textContent = 'Delete';
-    remove.setAttribute('aria-label', `Delete ${rule.domain}`);
+    remove.textContent = i18n('delete');
+    remove.setAttribute(
+        'aria-label', i18nF('linksPageDeleteSite', rule.domain));
     remove.addEventListener('click', async () => {
       await this.handler_.removeLinkRule(rule.domain);
       if (this.editing_ === rule.domain) {
@@ -178,8 +180,8 @@ export class CompassLinksPageElement extends CompassSettingsPage {
     if (saved === null || saved === undefined) {
       const note = this.$('linkNote');
       note.textContent = domain.trim() ?
-          `"${domain.trim()}" isn't a site's domain, like github.com.` :
-          'Type a site\'s domain, like github.com.';
+          i18nF('linksPageNotADomain', domain.trim()) :
+          i18n('linksPageTypeDomain');
       note.hidden = false;
       return;
     }

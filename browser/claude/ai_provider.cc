@@ -6,8 +6,10 @@
 
 #include "base/functional/callback.h"
 #include "base/strings/strcat.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::claude {
 
@@ -52,7 +54,7 @@ std::optional<AIProvider> ParseProvider(std::string_view id) {
   return std::nullopt;
 }
 
-std::string_view ProviderDisplayName(AIProvider provider) {
+std::string ProviderDisplayName(AIProvider provider) {
   switch (provider) {
     case AIProvider::kAnthropic:
       return "Anthropic";
@@ -61,7 +63,7 @@ std::string_view ProviderDisplayName(AIProvider provider) {
     case AIProvider::kGemini:
       return "Google Gemini";
     case AIProvider::kCompatible:
-      return "Other (OpenAI-compatible)";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_AI_PROVIDER_COMPATIBLE);
   }
   return "";
 }
@@ -157,7 +159,7 @@ base::span<const KnownModel> KnownModels(AIProvider provider) {
   return {};
 }
 
-std::string_view KeyPlaceholder(AIProvider provider) {
+std::string KeyPlaceholder(AIProvider provider) {
   switch (provider) {
     case AIProvider::kAnthropic:
       return "sk-ant-…";
@@ -166,25 +168,22 @@ std::string_view KeyPlaceholder(AIProvider provider) {
     case AIProvider::kGemini:
       return "AIza…";
     case AIProvider::kCompatible:
-      return "Key (if the server needs one)";
+      return l10n_util::GetStringUTF8(
+          IDS_COMPASS_AI_KEY_PLACEHOLDER_COMPATIBLE);
   }
   return "";
 }
 
-std::string_view PrivacyNote(AIProvider provider) {
+std::string PrivacyNote(AIProvider provider) {
   switch (provider) {
     case AIProvider::kAnthropic:
-      return "Chats and the sidebar's requests go to Anthropic, or the "
-             "endpoint under Advanced.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_AI_PRIVACY_ANTHROPIC);
     case AIProvider::kOpenAI:
-      return "Chats and the sidebar's requests go to OpenAI, under its "
-             "terms, instead of Anthropic.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_AI_PRIVACY_OPENAI);
     case AIProvider::kGemini:
-      return "Chats and the sidebar's requests go to Google, under the "
-             "Gemini API's terms, instead of Anthropic.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_AI_PRIVACY_GEMINI);
     case AIProvider::kCompatible:
-      return "Chats and the sidebar's requests go to the server below, "
-             "instead of Anthropic.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_AI_PRIVACY_COMPATIBLE);
   }
   return "";
 }

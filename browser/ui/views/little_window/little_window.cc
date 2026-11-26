@@ -13,11 +13,11 @@
 #include "base/auto_reset.h"
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/uuid.h"
-#include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/command_observer.h"
@@ -41,7 +41,6 @@
 #include "chrome/browser/ui/views/toolbar/back_forward_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/webui_url_constants.h"
-#include "components/vector_icons/vector_icons.h"
 #include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -50,8 +49,11 @@
 #include "compass/browser/ui/views/sidebar/space_icon_image.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/base_window.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
@@ -156,7 +158,8 @@ gfx::Rect GetNewWindowBoundsAt(const gfx::Point& point) {
 // A space's name, or "Space <n>" for one without a name, as the switcher.
 std::u16string GetSpaceName(const SpaceModel& space, size_t index) {
   return space.name().empty()
-             ? u"Space " + base::NumberToString16(index + 1)
+             ? l10n_util::GetStringFUTF16(IDS_COMPASS_UNNAMED_SPACE,
+                                          base::NumberToString16(index + 1))
              : space.name();
 }
 
@@ -292,13 +295,13 @@ class LittleWindowButton : public views::LabelButton,
     SetBorder(views::CreateEmptyBorder(
         gfx::Insets::VH(0, kPillHorizontalPadding)));
     SetMinSize(gfx::Size(0, kPillHeight));
-    SetTooltipText(
+    SetTooltipText(l10n_util::GetStringUTF16(
 #if BUILDFLAG(IS_MAC)
-        u"Move this page to a tab (⌘O)"
+        IDS_COMPASS_LITTLE_WINDOW_MOVE_TO_TAB_MAC
 #else
-        u"Move this page to a tab (Ctrl+O)"
+        IDS_COMPASS_LITTLE_WINDOW_MOVE_TO_TAB
 #endif
-    );
+        ));
     Update();
   }
   LittleWindowButton(const LittleWindowButton&) = delete;
@@ -313,7 +316,10 @@ class LittleWindowButton : public views::LabelButton,
   void Update() {
     const SpaceModel* space = GetTargetSpace(browser_->GetProfile());
     const std::u16string name = space ? space->name() : std::u16string();
-    SetText(name.empty() ? u"Open in Compass" : u"Open in " + name);
+    SetText(name.empty() ? l10n_util::GetStringUTF16(
+                               IDS_COMPASS_LITTLE_WINDOW_OPEN_IN_COMPASS)
+                         : l10n_util::GetStringFUTF16(
+                               IDS_COMPASS_LITTLE_WINDOW_OPEN_IN_SPACE, name));
     if (auto* frame = static_cast<LittleWindowFrame*>(frame_.view())) {
       frame->SetSpaceColor(space ? std::optional(space->color())
                                  : std::nullopt);
@@ -387,8 +393,10 @@ class LittleSpaceMenuButton : public views::ImageButton,
     SetBackground(views::CreateRoundedRectBackground(
         kColorLocationBarBackground, kPillHeight / 2.f));
     SetPreferredSize(gfx::Size(kPillHeight, kPillHeight));
-    SetTooltipText(u"Open in Another Space");
-    GetViewAccessibility().SetName(u"Open in Another Space");
+    SetTooltipText(l10n_util::GetStringUTF16(
+        IDS_COMPASS_LITTLE_WINDOW_OPEN_IN_ANOTHER_SPACE));
+    GetViewAccessibility().SetName(l10n_util::GetStringUTF16(
+        IDS_COMPASS_LITTLE_WINDOW_OPEN_IN_ANOTHER_SPACE));
     Update();
   }
   LittleSpaceMenuButton(const LittleSpaceMenuButton&) = delete;
@@ -500,7 +508,8 @@ class LittleSpaceMenuButton : public views::ImageButton,
       model_->AddSeparator(ui::NORMAL_SEPARATOR);
       model_->AddSubMenu(
           kAlwaysOpenSubmenuCommand,
-          u"Always Open " + base::UTF8ToUTF16(rule_domain_) + u" in",
+          l10n_util::GetStringFUTF16(IDS_COMPASS_LITTLE_WINDOW_ALWAYS_OPEN_IN,
+                                     base::UTF8ToUTF16(rule_domain_)),
           always_model_.get());
     }
     runner_ = std::make_unique<views::MenuRunner>(

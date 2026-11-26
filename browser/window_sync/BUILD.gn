@@ -56,6 +56,7 @@ source_set("window_sync") {
     "//chrome/common",
     "//compass/browser/easels:store",
     "//compass/browser/ui/easels:titles",
+    "//compass/strings:compass_strings",
     "//components/prefs",
     "//components/viz/common",
     "//content/public/browser",

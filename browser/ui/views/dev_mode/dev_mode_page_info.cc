@@ -13,9 +13,11 @@
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/controls/rich_controls_container_view.h"
 #include "compass/browser/dev_mode/dev_mode.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_service.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
@@ -51,7 +53,8 @@ class DevModePageInfoRow : public views::View {
     auto* row = AddChildView(std::make_unique<RichControlsContainerView>());
     row->SetIcon(ui::ImageModel::FromVectorIcon(vector_icons::kCodeIcon,
                                                 ui::kColorIcon, kIconSize));
-    row->SetTitle(u"Development mode");
+    row->SetTitle(
+        l10n_util::GetStringUTF16(IDS_COMPASS_DEV_MODE_PAGE_INFO_TITLE));
     subtitle_ = row->AddSecondaryLabel(std::u16string());
 
     auto toggle = std::make_unique<views::ToggleButton>(base::BindRepeating(
@@ -65,7 +68,8 @@ class DevModePageInfoRow : public views::View {
                               views::DISTANCE_RELATED_LABEL_HORIZONTAL),
                           0, 0));
     toggle_ = row->AddControl(std::move(toggle));
-    toggle_->GetViewAccessibility().SetName(u"Development mode");
+    toggle_->GetViewAccessibility().SetName(
+        l10n_util::GetStringUTF16(IDS_COMPASS_DEV_MODE_PAGE_INFO_TITLE));
     Update();
   }
 
@@ -78,8 +82,9 @@ class DevModePageInfoRow : public views::View {
   void Update() {
     const bool on = dev_mode::IsEnabledFor(prefs_, url_);
     toggle_->SetIsOn(on);
-    subtitle_->SetText(on ? u"Reload skips the cache; DevTools bar is shown"
-                          : u"Tools for building this site");
+    subtitle_->SetText(
+        l10n_util::GetStringUTF16(on ? IDS_COMPASS_DEV_MODE_PAGE_INFO_ON
+                                     : IDS_COMPASS_DEV_MODE_PAGE_INFO_OFF));
   }
 
   raw_ptr<PrefService> prefs_;

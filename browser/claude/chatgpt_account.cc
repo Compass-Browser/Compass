@@ -12,6 +12,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/sequence_checker.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/sequence_bound.h"
@@ -20,6 +21,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/common/encryptor.h"
 #include "components/prefs/pref_service.h"
@@ -40,6 +42,7 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::claude {
 
@@ -275,13 +278,14 @@ void ChatGPTAccount::SignIn(OpenUrlCallback open_url, SignInCallback done) {
   pending_->timeout.Start(
       FROM_HERE, kSignInTimeout,
       base::BindOnce(&ChatGPTAccount::FinishSignIn, base::Unretained(this),
-                     std::optional<std::string>(
-                         "The sign-in timed out. Try again.")));
+                     std::optional<std::string>(l10n_util::GetStringUTF8(
+                         IDS_COMPASS_CHATGPT_SIGN_IN_TIMED_OUT))));
 }
 
 void ChatGPTAccount::CancelSignIn() {
   if (pending_) {
-    FinishSignIn("The sign-in was cancelled.");
+    FinishSignIn(
+        l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_SIGN_IN_CANCELED));
   }
 }
 
@@ -290,8 +294,7 @@ void ChatGPTAccount::OnServerStarted(OpenUrlCallback open_url, int port) {
     return;
   }
   if (!port) {
-    FinishSignIn(
-        "Compass couldn't listen for ChatGPT's answer on this device.");
+    FinishSignIn(l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_NO_LISTENER));
     return;
   }
   pending_->redirect_uri = chatgpt::RedirectUri(port);
@@ -326,25 +329,25 @@ void ChatGPTAccount::OnCallbackRequest(int connection_id, const GURL& url) {
     if (pending_) {
       pending_->server->Respond(
           connection_id,
-          chatgpt::CallbackPage(false,
-                                "This page isn't from Compass's current "
-                                "sign-in. Go back to Compass and try "
-                                "again."));
+          chatgpt::CallbackPage(
+              false, l10n_util::GetStringUTF8(
+                         IDS_COMPASS_CHATGPT_CALLBACK_WRONG_SIGN_IN)));
     }
     return;
   }
   pending_->connection_id = connection_id;
   if (!callback.error.empty()) {
     FinishSignIn(callback.error == "access_denied"
-                     ? std::string("You didn't allow Compass to use ChatGPT.")
+                     ? l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_DENIED)
                      : (callback.error_description.empty()
-                            ? "ChatGPT refused the sign-in (" +
-                                  callback.error + ")."
+                            ? l10n_util::GetStringFUTF8(
+                                  IDS_COMPASS_CHATGPT_REFUSED,
+                                  base::UTF8ToUTF16(callback.error))
                             : callback.error_description));
     return;
   }
   if (callback.code.empty()) {
-    FinishSignIn("ChatGPT's answer had no sign-in code. Try again.");
+    FinishSignIn(l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_NO_CODE));
     return;
   }
   base::expected<std::string, std::string> client =
@@ -382,9 +385,10 @@ void ChatGPTAccount::OnCodeExchanged(std::optional<std::string> body) {
       // The registration is gone: the next sign-in registers anew.
       profile_->GetPrefs()->ClearPref(prefs::kChatGPTClientId);
     }
-    FinishSignIn(reply.error().code == "invalid_grant"
-                     ? std::string("The sign-in code was refused. Try again.")
-                     : reply.error().message);
+    FinishSignIn(
+        reply.error().code == "invalid_grant"
+            ? l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_CODE_REFUSED)
+            : reply.error().message);
     return;
   }
   const base::Time now = base::Time::Now();
@@ -396,10 +400,7 @@ void ChatGPTAccount::OnCodeExchanged(std::optional<std::string> body) {
     return;
   }
   if (!chatgpt::HasPlanScope(reply->scope)) {
-    FinishSignIn(
-        "ChatGPT signed you in, but didn't let Compass use your plan. Sign "
-        "in again and allow it, or check that your plan includes using it "
-        "in other apps.");
+    FinishSignIn(l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_NO_PLAN_SCOPE));
     return;
   }
   chatgpt::Session session;
@@ -408,7 +409,8 @@ void ChatGPTAccount::OnCodeExchanged(std::optional<std::string> body) {
   session.subject = claims->subject;
   session.email = claims->email;
   if (session.refresh_token.empty()) {
-    FinishSignIn("ChatGPT didn't give Compass a lasting sign-in. Try again.");
+    FinishSignIn(
+        l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_NO_REFRESH_TOKEN));
     return;
   }
   StoreSession(session,
@@ -421,9 +423,7 @@ void ChatGPTAccount::OnSignInStored(chatgpt::Session session, bool stored) {
     return;
   }
   if (!stored) {
-    FinishSignIn(
-        "The sign-in couldn't be stored: the system's secure storage "
-        "refused it.");
+    FinishSignIn(l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_NOT_STORED));
     return;
   }
   ++generation_;
@@ -444,8 +444,8 @@ void ChatGPTAccount::FinishSignIn(std::optional<std::string> error) {
         *pending->connection_id,
         chatgpt::CallbackPage(
             !error, error ? *error
-                          : "Compass can now use your ChatGPT plan. You can "
-                            "close this tab."));
+                          : l10n_util::GetStringUTF8(
+                                IDS_COMPASS_CHATGPT_CALLBACK_SIGNED_IN)));
   }
   // The server goes a moment later, once the page is out.
   base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
@@ -530,7 +530,7 @@ void ChatGPTAccount::GetAccessToken(TokenCallback callback) {
   if (!IsSignedIn(*profile_->GetPrefs())) {
     last_token_error_ =
         ended_reason_.empty()
-            ? std::string("Sign in with ChatGPT in Compass's AI settings.")
+            ? l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_SIGN_IN_IN_SETTINGS)
             : ended_reason_;
     std::move(callback).Run(base::unexpected(last_token_error_));
     return;
@@ -547,9 +547,8 @@ void ChatGPTAccount::GetAccessToken(TokenCallback callback) {
 void ChatGPTAccount::OnLoadedForToken(bool loaded) {
   if (!loaded) {
     // Can't be decrypted any more (the OS's storage was reset).
-    ResolveWaiting(base::unexpected(std::string(
-        "Your ChatGPT sign-in can't be read any more. Sign in again in "
-        "Compass's AI settings.")));
+    ResolveWaiting(base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_SESSION_UNREADABLE)));
     return;
   }
   if (session_->IsFresh(base::Time::Now())) {
@@ -576,7 +575,7 @@ void ChatGPTAccount::OnRefreshed(int generation,
       ResolveWaiting(base::ok(session_->access_token));
     } else {
       ResolveWaiting(base::unexpected(
-          std::string("Sign in with ChatGPT in Compass's AI settings.")));
+          l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_SIGN_IN_IN_SETTINGS)));
     }
     return;
   }
@@ -587,8 +586,7 @@ void ChatGPTAccount::OnRefreshed(int generation,
       // Over: the registration stays for signing in again.
       ClearSession();
       ended_reason_ =
-          "Your ChatGPT sign-in has ended. Sign in again in Compass's AI "
-          "settings.";
+          l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_SESSION_ENDED);
       ResolveWaiting(base::unexpected(ended_reason_));
       return;
     }

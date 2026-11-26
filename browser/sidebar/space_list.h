@@ -23,6 +23,10 @@ class GURL;
 
 namespace compass {
 
+// The name of the space a new profile starts with ("Home"), and of the one
+// added when the last space goes.
+std::u16string DefaultSpaceName();
+
 // A profile's spaces, in the switcher's order, and the active one: the space
 // new windows open in. Never empty. Also holds the profile's Favorites and
 // its link rules. See docs/design/spaces.md.

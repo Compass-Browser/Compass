@@ -2,16 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import '../emoji_picker.js';
+import '../theme_editor.js';
+
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {colorToCss} from '../colors.js';
+import {i18n, i18nF} from '../i18n.js';
 import type {ProfileOption, Space} from '../sidebar.mojom-webui.js';
 import type {SpaceSymbol} from '../space_icons.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from '../space_icons.js';
 import type {ArchiveDelay} from '../space_options.js';
 import {ARCHIVE_DELAYS} from '../space_options.js';
-import '../emoji_picker.js';
-import '../theme_editor.js';
 import type {ThemeEditorHandler} from '../theme_editor.js';
 
 import {SettingsWindowBrowserProxy} from './browser_proxy.js';
@@ -62,8 +64,7 @@ export class CompassSettingsSpacesPaneElement extends CrLitElement {
 
   protected readonly archiveDelays_: ArchiveDelay[] = ARCHIVE_DELAYS;
   protected readonly spaceSymbols_: SpaceSymbol[] = SPACE_SYMBOLS;
-  private readonly handler_ =
-      SettingsWindowBrowserProxy.getInstance().handler;
+  private readonly handler_ = SettingsWindowBrowserProxy.getInstance().handler;
   private listenerId_: number|null = null;
 
   override createRenderRoot() {
@@ -75,11 +76,10 @@ export class CompassSettingsSpacesPaneElement extends CrLitElement {
     this.handler_.getSpaces().then(
         ({spaces, profiles}: {spaces: Space[], profiles: ProfileOption[]}) =>
             this.setSpaces_(spaces, profiles));
-    this.listenerId_ =
-        SettingsWindowBrowserProxy.getInstance()
-            .callbackRouter.spacesChanged.addListener(
-                (spaces: Space[], profiles: ProfileOption[]) =>
-                    this.setSpaces_(spaces, profiles));
+    this.listenerId_ = SettingsWindowBrowserProxy.getInstance()
+                           .callbackRouter.spacesChanged.addListener(
+                               (spaces: Space[], profiles: ProfileOption[]) =>
+                                   this.setSpaces_(spaces, profiles));
   }
 
   override disconnectedCallback() {
@@ -140,7 +140,8 @@ export class CompassSettingsSpacesPaneElement extends CrLitElement {
   }
 
   protected getGroupTitle_(group: SpaceGroup): string {
-    return this.hasProfiles_() ? group.profileName : 'Spaces';
+    return this.hasProfiles_() ? group.profileName :
+                                 i18n('settingsWindowPaneSpaces');
   }
 
   // Space rows ---------------------------------------------------------------
@@ -183,12 +184,12 @@ export class CompassSettingsSpacesPaneElement extends CrLitElement {
   protected getSpaceDetail_(space: Space): string {
     const parts = [];
     if (space.viewOnly) {
-      parts.push('Shared with you, view only');
+      parts.push(i18n('spacesPaneSharedViewOnly'));
     } else if (space.shared) {
-      parts.push('Shared');
+      parts.push(i18n('spacesPaneShared'));
     }
     if (!space.synced) {
-      parts.push('On this device only');
+      parts.push(i18n('spacesPaneDeviceOnly'));
     }
     return parts.join(' · ');
   }
@@ -329,7 +330,8 @@ export class CompassSettingsSpacesPaneElement extends CrLitElement {
   // Order: up or down among the profile's spaces, which moves it past the
   // previous or next of them in the switcher.
   private getNeighbor_(space: Space, step: -1|1): Space|null {
-    const own = this.spaces_.filter(other => other.profileId === space.profileId);
+    const own =
+        this.spaces_.filter(other => other.profileId === space.profileId);
     return own[own.indexOf(space) + step] ?? null;
   }
 
@@ -379,13 +381,11 @@ export class CompassSettingsSpacesPaneElement extends CrLitElement {
   }
 
   protected getDeleteText_(space: Space): string {
-    const own = this.spaces_.filter(other => other.profileId === space.profileId);
-    const last = own.length === 1 && this.hasProfiles_() ?
-        ` It's ${space.profileName}'s last space: the profile leaves the ` +
-            'switcher, and stays in Profiles.' :
-        '';
-    return `Deletes “${space.name}” with its pinned and Today tabs and its ` +
-        `archive.${last}`;
+    const own =
+        this.spaces_.filter(other => other.profileId === space.profileId);
+    return own.length === 1 && this.hasProfiles_() ?
+        i18nF('spacesPaneDeleteLastConfirm', space.name, space.profileName) :
+        i18nF('spacesPaneDeleteConfirm', space.name);
   }
 
   protected onDeleteClick_(e: Event) {

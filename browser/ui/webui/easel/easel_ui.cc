@@ -14,6 +14,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/easels/easel_store.h"
 #include "compass/browser/ui/webui/easel/easel_page_handler.h"
+#include "compass/browser/ui/webui/localized_strings/localized_strings.h"
 #include "compass/grit/compass_easel_resources.h"
 #include "compass/grit/compass_easel_resources_map.h"
 #include "content/public/browser/web_contents.h"
@@ -62,6 +63,7 @@ EaselUI::EaselUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
   // its URL.
   webui::SetupWebUIDataSource(source, kCompassEaselResources,
                               IDR_COMPASS_EASEL_EASEL_HTML);
+  AddEaselLocalizedStrings(source);
   easels::EaselStore* store = easels::EaselStore::Get(profile);
   source->SetRequestFilter(
       base::BindRepeating(&IsAssetRequest),

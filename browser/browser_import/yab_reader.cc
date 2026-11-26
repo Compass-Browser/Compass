@@ -21,6 +21,8 @@
 
 #if BUILDFLAG(IS_MAC)
 #include "compass/browser/browser_import/safari_reader.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 #endif
 
 namespace compass::browser_import {
@@ -248,8 +250,11 @@ void AddBookmarks(const base::ListValue& list,
       AddBookmarks(*list_children, id_prefix, depth + 1, children);
     }
     if (!children.empty()) {
-      out.push_back(MakeFolder(id, title.empty() ? u"Folder" : title,
-                               std::move(children)));
+      out.push_back(MakeFolder(
+          id,
+          title.empty() ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_FOLDER)
+                        : title,
+          std::move(children)));
     }
   }
 }
@@ -334,7 +339,9 @@ ImportedSidebar YabSidebar(
     arc::Space out;
     out.id = base::StrCat({prefix, "space:", id});
     std::u16string name = base::UTF8ToUTF16(StringAt(*space, "name"));
-    out.name = name.empty() ? u"Space" : std::move(name);
+    out.name = name.empty()
+                   ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_SPACE)
+                   : std::move(name);
     const std::string icon = StringAt(*space, "icon");
     out.icon = AppSpaceIcon(icon, icon);
     ApplyYabPaint(*space, out);
@@ -396,7 +403,8 @@ std::vector<AppProfile> ParseYabProfiles(const base::ListValue* spaces) {
   if (!spaces) {
     AppProfile& first = profiles.emplace_back();
     first.key = std::string(kFirstSpaceId);
-    first.spaces.push_back(u"Personal");
+    first.spaces.push_back(
+        l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_PERSONAL));
     return profiles;
   }
   for (const base::Value& value : *spaces) {
@@ -411,7 +419,9 @@ std::vector<AppProfile> ParseYabProfiles(const base::ListValue* spaces) {
       it = profiles.end() - 1;
     }
     std::u16string name = base::UTF8ToUTF16(StringAt(*space, "name"));
-    it->spaces.push_back(name.empty() ? u"Space" : std::move(name));
+    it->spaces.push_back(
+        name.empty() ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_SPACE)
+                     : std::move(name));
   }
   return profiles;
 }

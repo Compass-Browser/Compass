@@ -8,8 +8,9 @@
 import {EaselBrowserProxy} from './browser_proxy.js';
 import {button, el, toast} from './dom.js';
 import type {EaselSummary} from './easel.mojom-webui.js';
+import {i18n, i18nF, i18nPlural} from './i18n.js';
 
-const NEW_TITLE = 'Untitled Easel';
+const NEW_TITLE = i18n('easelUntitled');
 
 export class EaselList {
   private readonly root_: HTMLElement;
@@ -27,12 +28,12 @@ export class EaselList {
   }
 
   async start() {
-    document.title = 'Easels';
-    const create = button('New Easel', 'primary', () => void this.create_());
+    document.title = i18n('easelList');
+    const create = button(i18n('easelNewEasel'), 'primary', () => void this.create_());
     this.list_ = el('ul', {className: 'easel-list'});
     this.root_.replaceChildren(el('main', {className: 'list-page'}, [
       el('header', {className: 'list-header'}, [
-        el('h1', {text: 'Easels'}),
+        el('h1', {text: i18n('easelList')}),
         create,
       ]),
       this.list_,
@@ -50,15 +51,14 @@ export class EaselList {
     if (!available) {
       list.replaceChildren(el('li', {
         className: 'empty',
-        text: 'Easels aren\'t available in Incognito and Guest windows.',
+        text: i18n('easelUnavailable'),
       }));
       return;
     }
     if (easels.length === 0) {
       list.replaceChildren(el('li', {
         className: 'empty',
-        text: 'No Easels yet. Make one to collect text, drawings, images ' +
-            'and links on a board.',
+        text: i18n('easelNoEasels'),
       }));
       return;
     }
@@ -75,8 +75,8 @@ export class EaselList {
     ]);
     const row = el('li', {className: 'easel-row'}, [
       open,
-      button('Rename', 'text-button', () => this.rename_(row, easel)),
-      button('Delete', 'text-button danger', () => this.delete_(easel)),
+      button(i18n('easelRename'), 'text-button', () => this.rename_(row, easel)),
+      button(i18n('easelDelete'), 'text-button danger', () => this.delete_(easel)),
     ]);
     row.dataset['palette'] = easel.palette || 'paper';
     return row;
@@ -100,7 +100,7 @@ export class EaselList {
       className: 'rename',
       attrs: {
         'type': 'text',
-        'aria-label': 'Title',
+        'aria-label': i18n('easelTitleLabel'),
         'maxlength': '200',
         'value': easel.title,
       },
@@ -135,15 +135,14 @@ export class EaselList {
     const dialog = el('dialog', {className: 'confirm'});
     const name = easel.title || NEW_TITLE;
     dialog.append(
-        el('p', {text: `Delete “${name}”?`}),
+        el('p', {text: i18nF('easelDeleteQuestion', name)}),
         el('p', {
           className: 'detail',
-          text: 'Its text, drawings, images and links are deleted on every ' +
-              'device. Tabs that show it stay, and say it\'s gone.',
+          text: i18n('easelDeleteDetail'),
         }),
         el('div', {className: 'buttons'}, [
-          button('Cancel', 'text-button', () => dialog.close()),
-          button('Delete', 'primary danger', () => {
+          button(i18n('easelCancel'), 'text-button', () => dialog.close()),
+          button(i18n('easelDelete'), 'primary danger', () => {
             dialog.close();
             this.proxy_.handler.deleteEasel(easel.uuid);
             void this.refresh_();
@@ -156,8 +155,7 @@ export class EaselList {
 }
 
 function describe(easel: EaselSummary): string {
-  const count = easel.objectCount === 1 ? '1 item' :
-                                          `${easel.objectCount} items`;
+  const count = i18nPlural('easelItemCount', easel.objectCount);
   const time = easel.updateTimeMs || easel.createTimeMs;
   if (!time) {
     return count;

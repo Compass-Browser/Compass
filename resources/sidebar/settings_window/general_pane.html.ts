@@ -4,6 +4,8 @@
 
 import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n} from '../i18n.js';
+
 import type {CompassSettingsGeneralPaneElement} from './general_pane.js';
 import {PREF_HARDWARE_ACCELERATION, PREF_PIP_ON_LEAVING_WINDOW, PREF_MINIMUM_FONT_SIZE, PREF_OFFER_TRANSLATE, PREF_PROMPT_FOR_DOWNLOAD, PREF_SPELLCHECK, PREF_FONT_SIZE} from './general_pane.js';
 
@@ -19,9 +21,9 @@ ${this.isView_('languages') ? html`
 ${this.isView_('fonts') ? html`
 <button class="back" @click="${this.onFontsBackClick_}">
   <compass-settings-icon name="back"></compass-settings-icon>
-  General
+  ${i18n('generalPaneTitle')}
 </button>
-<h2 class="subpage-title">Fonts</h2>
+<h2 class="subpage-title">${i18n('generalPaneFonts')}</h2>
 <section class="row-group">
   <div class="group">
     ${this.fontPrefs.map(font => html`
@@ -48,9 +50,9 @@ ${this.isView_('fonts') ? html`
         <compass-settings-icon name="textsize"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Minimum font size</span>
+        <span class="row-label">${i18n('generalPaneMinimumFontSize')}</span>
       </span>
-      <select class="popup" aria-label="Minimum font size"
+      <select class="popup" aria-label="${i18n('generalPaneMinimumFontSize')}"
           data-pref="${PREF_MINIMUM_FONT_SIZE}"
           ?disabled="${this.isEnforced_(PREF_MINIMUM_FONT_SIZE)}"
           @change="${this.onNumberSelectChange_}">
@@ -67,19 +69,19 @@ ${this.isView_('fonts') ? html`
 ` : nothing}
 <div ?hidden="${!this.isView_('main')}">
 <section class="row-group">
-  <h2 class="group-title">Browser</h2>
+  <h2 class="group-title">${i18n('generalPaneBrowser')}</h2>
   <div class="group">
     <div class="row control-row" data-row="defaultBrowser">
       <span class="tile" data-color="blue">
         <compass-settings-icon name="compass"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Default browser</span>
+        <span class="row-label">${i18n('generalPaneDefaultBrowser')}</span>
         <span class="row-detail">${this.getDefaultBrowserText_()}</span>
       </span>
       <button class="pill accent" ?hidden="${!this.canMakeDefault_()}"
           @click="${this.onMakeDefaultClick_}">
-        Make Default
+        ${i18n('generalPaneMakeDefault')}
       </button>
     </div>
     <div class="row control-row" data-row="search">
@@ -87,10 +89,10 @@ ${this.isView_('fonts') ? html`
         <compass-settings-icon name="search"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Search engine</span>
-        <span class="row-detail">What the command bar searches with.</span>
+        <span class="row-label">${i18n('generalPaneSearchEngine')}</span>
+        <span class="row-detail">${i18n('generalPaneSearchEngineDetail')}</span>
       </span>
-      <select class="popup" aria-label="Search engine"
+      <select class="popup" aria-label="${i18n('generalPaneSearchEngine')}"
           ?disabled="${this.isSearchEngineManaged_()}"
           @change="${this.onSearchEngineChange_}">
         ${this.engines_.map(engine => html`
@@ -106,7 +108,7 @@ ${this.isView_('fonts') ? html`
         <compass-settings-icon name="search"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Manage search engines and site search</span>
+        <span class="row-label">${i18n('generalPaneManageSearchEngines')}</span>
       </span>
       <compass-settings-icon class="row-trail" name="chevron">
       </compass-settings-icon>
@@ -115,17 +117,16 @@ ${this.isView_('fonts') ? html`
 </section>
 
 <section class="row-group">
-  <h2 class="group-title">Picture-in-picture</h2>
+  <h2 class="group-title">${i18n('generalPanePip')}</h2>
   <div class="group">
     <label class="row control-row" data-row="pipOnLeavingWindow">
       <span class="tile" data-color="pink">
         <compass-settings-icon name="pip"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Also when you leave the window</span>
+        <span class="row-label">${i18n('generalPanePipOnLeavingWindow')}</span>
         <span class="row-detail">
-          A playing video or a call goes into picture-in-picture when its
-          window is covered or minimized, or you switch to another app.
+          ${i18n('generalPanePipOnLeavingWindowDetail')}
         </span>
       </span>
       <input type="checkbox" class="switch"
@@ -138,18 +139,18 @@ ${this.isView_('fonts') ? html`
 </section>
 
 <section class="row-group">
-  <h2 class="group-title">Downloads</h2>
+  <h2 class="group-title">${i18n('generalPaneDownloads')}</h2>
   <div class="group">
     <div class="row control-row" data-row="downloads">
       <span class="tile" data-color="blue">
         <compass-settings-icon name="download"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Location</span>
+        <span class="row-label">${i18n('generalPaneDownloadLocation')}</span>
         <span class="row-detail path">${this.downloadLocation_}</span>
       </span>
       <button class="pill" @click="${this.onChangeDownloadLocationClick_}">
-        Change…
+        ${i18n('generalPaneChangeEllipsis')}
       </button>
     </div>
     <label class="row control-row" data-row="promptForDownload">
@@ -157,7 +158,7 @@ ${this.isView_('fonts') ? html`
         <compass-settings-icon name="folder"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Ask where to save each file</span>
+        <span class="row-label">${i18n('generalPanePromptForDownload')}</span>
       </span>
       <input type="checkbox" class="switch"
           data-pref="${PREF_PROMPT_FOR_DOWNLOAD}"
@@ -169,16 +170,16 @@ ${this.isView_('fonts') ? html`
 </section>
 
 <section class="row-group">
-  <h2 class="group-title">Appearance</h2>
+  <h2 class="group-title">${i18n('generalPaneAppearance')}</h2>
   <div class="group">
     <div class="row control-row" data-row="fontSize">
       <span class="tile" data-color="purple">
         <compass-settings-icon name="textsize"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Font size</span>
+        <span class="row-label">${i18n('generalPaneFontSize')}</span>
       </span>
-      <select class="popup" aria-label="Font size"
+      <select class="popup" aria-label="${i18n('generalPaneFontSize')}"
           data-pref="${PREF_FONT_SIZE}"
           ?disabled="${this.isEnforced_(PREF_FONT_SIZE)}"
           @change="${this.onNumberSelectChange_}">
@@ -194,10 +195,10 @@ ${this.isView_('fonts') ? html`
         <compass-settings-icon name="zoom"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Page zoom</span>
-        <span class="row-detail">For sites you haven't zoomed yourself.</span>
+        <span class="row-label">${i18n('generalPanePageZoom')}</span>
+        <span class="row-detail">${i18n('generalPanePageZoomDetail')}</span>
       </span>
-      <select class="popup" aria-label="Page zoom"
+      <select class="popup" aria-label="${i18n('generalPanePageZoom')}"
           @change="${this.onZoomChange_}">
         ${this.getZoomFactors_().map(factor => html`
           <option value="${factor}" ?selected="${this.isZoomSelected_(factor)}">
@@ -210,7 +211,7 @@ ${this.isView_('fonts') ? html`
         <compass-settings-icon name="font"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Fonts</span>
+        <span class="row-label">${i18n('generalPaneFonts')}</span>
         <span class="row-detail">${this.getFontsSummary_()}</span>
       </span>
       <compass-settings-icon class="row-trail" name="chevron">
@@ -220,7 +221,7 @@ ${this.isView_('fonts') ? html`
 </section>
 
 <section class="row-group">
-  <h2 class="group-title">Languages</h2>
+  <h2 class="group-title">${i18n('generalPaneLanguages')}</h2>
   <div class="group">
     <button class="row" data-row="languages"
         @click="${this.onManageLanguagesClick_}">
@@ -228,7 +229,7 @@ ${this.isView_('fonts') ? html`
         <compass-settings-icon name="globe"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Preferred languages</span>
+        <span class="row-label">${i18n('generalPanePreferredLanguages')}</span>
         <span class="row-detail">${this.getLanguagesText_()}</span>
       </span>
       <compass-settings-icon class="row-trail" name="chevron">
@@ -239,9 +240,9 @@ ${this.isView_('fonts') ? html`
         <compass-settings-icon name="translate"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Offer to translate pages</span>
+        <span class="row-label">${i18n('generalPaneOfferTranslate')}</span>
         <span class="row-detail">
-          In languages that aren't among your preferred ones.
+          ${i18n('generalPaneOfferTranslateDetail')}
         </span>
       </span>
       <input type="checkbox" class="switch"
@@ -255,7 +256,7 @@ ${this.isView_('fonts') ? html`
         <compass-settings-icon name="spell"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Check spelling as you type</span>
+        <span class="row-label">${i18n('generalPaneSpellcheck')}</span>
       </span>
       <input type="checkbox" class="switch" data-pref="${PREF_SPELLCHECK}"
           .checked="${this.getBool_(PREF_SPELLCHECK)}"
@@ -266,24 +267,24 @@ ${this.isView_('fonts') ? html`
 </section>
 
 <section class="row-group">
-  <h2 class="group-title">System</h2>
+  <h2 class="group-title">${i18n('generalPaneSystem')}</h2>
   <div class="group">
     <div class="row control-row" data-row="hardwareAcceleration">
       <span class="tile" data-color="slate">
         <compass-settings-icon name="chip"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Use graphics acceleration when available</span>
+        <span class="row-label">${i18n('generalPaneHardwareAcceleration')}</span>
         <span class="row-detail" ?hidden="${!this.needsRelaunch_()}">
-          Takes effect when Compass restarts.
+          ${i18n('generalPaneRelaunchNeeded')}
         </span>
       </span>
       <button class="pill accent" ?hidden="${!this.needsRelaunch_()}"
           @click="${this.onRelaunchClick_}">
-        Relaunch
+        ${i18n('generalPaneRelaunch')}
       </button>
       <input type="checkbox" class="switch"
-          aria-label="Use graphics acceleration when available"
+          aria-label="${i18n('generalPaneHardwareAcceleration')}"
           data-pref="${PREF_HARDWARE_ACCELERATION}"
           .checked="${this.getBool_(PREF_HARDWARE_ACCELERATION)}"
           ?disabled="${this.isEnforced_(PREF_HARDWARE_ACCELERATION)}"
@@ -294,11 +295,11 @@ ${this.isView_('fonts') ? html`
         <compass-settings-icon name="network"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Proxy settings</span>
-        <span class="row-detail">In your computer's network settings.</span>
+        <span class="row-label">${i18n('generalPaneProxy')}</span>
+        <span class="row-detail">${i18n('generalPaneProxyDetail')}</span>
       </span>
       <compass-settings-icon class="row-trail" name="external"
-          title="Opens your computer's settings">
+          title="${i18n('generalPaneOpensSystemSettings')}">
       </compass-settings-icon>
     </button>
   </div>

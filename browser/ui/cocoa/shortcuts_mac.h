@@ -44,8 +44,10 @@ struct CustomizableCommand {
   // Its key in kShortcutsPref (shortcut_settings.h).
   std::string_view id;
   int command;
-  std::string_view section;
-  std::string_view label;
+  // Message IDs (compass_strings.grd) of the page's heading and the
+  // command's name.
+  int section_id;
+  int label_id;
 };
 base::span<const CustomizableCommand> GetCustomizableCommands();
 const CustomizableCommand* FindCustomizableCommand(std::string_view id);

@@ -6,6 +6,8 @@ import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {Result} from '../command_bar.mojom-webui.js';
 
+import {i18n} from '../i18n.js';
+
 import type {CompassCommandBarAppElement} from './app.js';
 
 export function getHtml(this: CompassCommandBarAppElement) {
@@ -17,22 +19,22 @@ export function getHtml(this: CompassCommandBarAppElement) {
     <line x1="10.4" y1="10.4" x2="13.5" y2="13.5"></line>
   </svg>
   <input id="input" type="text" spellcheck="false" autocomplete="off"
-      aria-label="Command bar" aria-controls="results"
+      aria-label="${i18n('commandBarTitle')}" aria-controls="results"
       placeholder="${this.getPlaceholder_()}"
       @input="${this.onInput_}" @keydown="${this.onKeydown_}">
 </div>
 ${this.isAsking_() ? html`
-  <div id="answer" role="region" aria-live="polite" aria-label="Claude's answer">
+  <div id="answer" role="region" aria-live="polite" aria-label="${i18n('commandBarAnswer')}">
     <div class="answer-text" ?pending="${!this.answer_ && !this.answerDone_}">
       ${this.getAnswerText_()}
     </div>
     ${this.answerError_ ? html`
       <div class="answer-error">${this.answerError_}</div>` : nothing}
     <div class="answer-actions">
-      <span class="hint">Esc to close</span>
+      <span class="hint">${i18n('commandBarEscToClose')}</span>
       <button id="continueInChat" class="continue"
           ?disabled="${!this.answerDone_ && !this.answer_}"
-          @click="${this.onContinueClick_}">Continue in Chat
+          @click="${this.onContinueClick_}">${i18n('commandBarContinueInChat')}
         <span class="key" aria-hidden="true">↵</span></button>
     </div>
   </div>` : html`${this.results_.length ? html`
@@ -66,7 +68,9 @@ ${this.isAsking_() ? html`
         ${this.hasAboutPage_(result) ? html`
           <button class="about" ?on="${this.aboutPage_}"
               aria-pressed="${this.aboutPage_}"
-              title="${this.getAboutTitle_(result)}">About this page</button>` :
+              title="${this.getAboutTitle_(result)}">
+            ${i18n('commandBarAboutPage')}
+          </button>` :
           nothing}
         <span class="action">${result.action}</span>
       </div>`)}

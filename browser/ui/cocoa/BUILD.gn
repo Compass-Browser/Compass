@@ -21,6 +21,7 @@ source_set("shortcuts") {
   deps = [
     "//chrome/app:command_ids",
     "//compass/browser/shortcuts",
+    "//compass/strings:compass_strings",
     "//ui/events:events_base",
   ]
   if (is_mac) {

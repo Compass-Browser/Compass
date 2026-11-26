@@ -33,13 +33,15 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/common/webui_url_constants.h"
-#include "content/public/browser/web_contents.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
-#include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/sidebar/sidebar_store.h"
+#include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/startup_space.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/base/base_window.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
@@ -241,7 +243,7 @@ void RemoveSpaceFromProfile(Profile* profile, SpaceModel& space) {
     if (SpaceDirectory* directory = SpaceDirectory::GetIfExists()) {
       directory->Unlist(profile);
     }
-    list.AddSpace(list.spaces().size(), u"Home");
+    list.AddSpace(list.spaces().size(), DefaultSpaceName());
     // Nothing can show what's left in its parking window: favorites' tabs.
     service->CloseParkingWindow();
   }
@@ -390,9 +392,11 @@ WindowFeatures* WindowFeatures::From(BrowserWindowInterface* browser) {
 
 void WindowFeatures::AddSpaceAndSwitch(bool synced) {
   SpaceList& list = service_->space_list();
-  SpaceModel* space = list.AddSpace(
-      list.spaces().size(),
-      u"Space " + base::NumberToString16(list.spaces().size() + 1));
+  SpaceModel* space =
+      list.AddSpace(list.spaces().size(),
+                    l10n_util::GetStringFUTF16(
+                        IDS_COMPASS_SPACE_NUMBERED_NAME,
+                        base::NumberToString16(list.spaces().size() + 1)));
   // Before sync's pass, which is posted.
   space->SetSynced(synced);
   SwitchToSpace(*space);
@@ -978,9 +982,10 @@ void AddSpaceToProfile(Profile* profile) {
           return;
         }
         SpaceList& list = SpaceService::Get(profile.get())->space_list();
-        list.AddSpace(
-            list.spaces().size(),
-            u"Space " + base::NumberToString16(list.spaces().size() + 1));
+        list.AddSpace(list.spaces().size(),
+                      l10n_util::GetStringFUTF16(
+                          IDS_COMPASS_SPACE_NUMBERED_NAME,
+                          base::NumberToString16(list.spaces().size() + 1)));
       },
       profile->GetWeakPtr()));
 }

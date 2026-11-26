@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {i18n, i18nF, i18nPlural} from '../i18n.js';
 import {SettingsHandler} from '../sidebar.mojom-webui.js';
 
 import {getTemplate} from './dev_mode_page.html.js';
@@ -17,7 +18,7 @@ export class CompassDevModePageElement extends CompassSettingsPage {
   private hosts_: string[] = [];
 
   protected get pageTitle() {
-    return 'Development Mode';
+    return i18n('devModePageTitle');
   }
 
   protected getPageTemplate() {
@@ -51,8 +52,8 @@ export class CompassDevModePageElement extends CompassSettingsPage {
     // Advanced's row: "2 sites · localhost, example.com".
     const count = this.hosts_.length;
     this.setSubpageDetail(
-        count === 0 ? 'No sites' :
-                      `${count} ${count === 1 ? 'site' : 'sites'} · ` +
+        count === 0 ? i18n('devModePageNoSitesDetail') :
+                      `${i18nPlural('devModePageSiteCount', count)} · ` +
                 `${this.hosts_.slice(0, 2).join(', ')}` +
                 (count > 2 ? ', …' : ''));
   }
@@ -68,8 +69,8 @@ export class CompassDevModePageElement extends CompassSettingsPage {
 
     const remove = document.createElement('button');
     remove.className = 'secondary';
-    remove.textContent = 'Remove';
-    remove.setAttribute('aria-label', `Remove ${host}`);
+    remove.textContent = i18n('remove');
+    remove.setAttribute('aria-label', i18nF('devModePageRemoveSite', host));
     remove.addEventListener('click', async () => {
       await this.handler_.removeDevModeHost(host);
       await this.refresh_();
@@ -84,14 +85,13 @@ export class CompassDevModePageElement extends CompassSettingsPage {
     const typed = input.value.trim();
     const note = this.$('devModeNote');
     if (!typed) {
-      note.textContent = 'Type a site, like localhost or example.com.';
+      note.textContent = i18n('devModePageTypeSite');
       note.hidden = false;
       return;
     }
     const {host} = await this.handler_.addDevModeHost(typed);
     if (host === null || host === undefined) {
-      note.textContent =
-          `"${typed}" isn't a site, like localhost or example.com.`;
+      note.textContent = i18nF('devModePageNotASite', typed);
       note.hidden = false;
       return;
     }

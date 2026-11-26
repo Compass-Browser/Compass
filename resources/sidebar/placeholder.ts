@@ -4,6 +4,7 @@
 
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 
+import {i18n} from './i18n.js';
 import {PlaceholderHandler} from './sidebar.mojom-webui.js';
 
 // chrome://compass-placeholder: a frozen screenshot of the tab that moved to
@@ -15,7 +16,7 @@ const handler = PlaceholderHandler.getRemote();
 ColorChangeUpdater.forDocument().start();
 
 handler.getInfo().then(({title, url}) => {
-  const name = title || url || 'This tab';
+  const name = title || url || i18n('placeholderThisTab');
   document.querySelector('#title')!.textContent = name;
   document.title = name;
 });

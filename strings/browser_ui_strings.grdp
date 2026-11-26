@@ -1,0 +1,439 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Compass's browser UI outside its WebUI pages: views, menus, dialogs,
+     toasts on pages, and errors the pages show (browser/ui/, components/). -->
+<grit-part>
+
+  <!-- Peek -->
+  <message name="IDS_COMPASS_PEEK_CLOSE" desc="Tooltip of the button that closes a peek (a link previewed over the page); Esc is its key.">
+    Close (Esc)
+  </message>
+  <message name="IDS_COMPASS_PEEK_OPEN_AS_TAB_MAC" desc="Tooltip of the button that turns a peek (a link previewed over the page) into a tab, on macOS; ⌘O is its shortcut.">
+    Open as Tab (⌘O)
+  </message>
+  <message name="IDS_COMPASS_PEEK_OPEN_AS_TAB" desc="Tooltip of the button that turns a peek (a link previewed over the page) into a tab, on Windows and Linux; Ctrl+O is its shortcut.">
+    Open as Tab (Ctrl+O)
+  </message>
+
+  <!-- Settings window -->
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_TITLE" desc="Title of Compass&#x27;s settings window.">
+    Settings
+  </message>
+
+  <!-- Sidebar -->
+  <message name="IDS_COMPASS_TAB_PREVIEW_LOADING" desc="Shown in a tab&#x27;s hover preview while its content loads.">
+    Loading…
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_HEADER_PILL_TOOLTIP" desc="Tooltip of the address pill at the top of the sidebar, which opens the command bar to edit the URL or search.">
+    Show URL and search
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_HEADER_SITE_INFO" desc="Tooltip of the site information button in the sidebar&#x27;s address pill.">
+    View site information
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_HEADER_NEW_TAB_PILL" desc="Text of the sidebar&#x27;s address pill on a new tab page, where there&#x27;s no address yet.">
+    Search or enter URL
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_HEADER_SHOW_READER" desc="Tooltip of the button in the address pill that shows the page in Reader, Compass&#x27;s reading mode.">
+    Show Reader
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_HEADER_HIDE_READER" desc="Tooltip of the button in the address pill that leaves Reader, Compass&#x27;s reading mode.">
+    Hide Reader
+  </message>
+
+  <!-- Ad blocker and development mode, in the site information popup -->
+  <message name="IDS_COMPASS_ADBLOCK_PAGE_INFO_TITLE" desc="Title of the row in the site information popup that turns Compass&#x27;s ad blocker on or off for the site, and its switch&#x27;s accessible name.">
+    Ad blocker
+  </message>
+  <message name="IDS_COMPASS_ADBLOCK_PAGE_INFO_ON" desc="Under the ad blocker&#x27;s row in the site information popup, when it&#x27;s on for the site.">
+    Blocking ads and trackers on this site
+  </message>
+  <message name="IDS_COMPASS_ADBLOCK_PAGE_INFO_OFF" desc="Under the ad blocker&#x27;s row in the site information popup, when the user turned it off for the site.">
+    Off for this site
+  </message>
+  <message name="IDS_COMPASS_DEV_MODE_PAGE_INFO_TITLE" desc="Title of the row in the site information popup that turns development mode (tools for web developers) on or off for the site, and its switch&#x27;s accessible name.">
+    Development mode
+  </message>
+  <message name="IDS_COMPASS_DEV_MODE_PAGE_INFO_ON" desc="Under the development mode row in the site information popup, when it&#x27;s on: reloading bypasses the cache and a bar of developer tools shows.">
+    Reload skips the cache; DevTools bar is shown
+  </message>
+  <message name="IDS_COMPASS_DEV_MODE_PAGE_INFO_OFF" desc="Under the development mode row in the site information popup, when it&#x27;s off.">
+    Tools for building this site
+  </message>
+
+  <!-- Development mode bar -->
+  <message name="IDS_COMPASS_DEV_MODE_BAR_ADDRESS" desc="Accessible name of the editable page address in the development mode bar.">
+    Page address
+  </message>
+  <message name="IDS_COMPASS_DEV_MODE_BAR_CONSOLE" desc="Tooltip of the development mode bar&#x27;s button that opens DevTools&#x27; JavaScript console.">
+    Open console
+  </message>
+  <message name="IDS_COMPASS_DEV_MODE_BAR_NETWORK" desc="Tooltip of the development mode bar&#x27;s button that opens DevTools&#x27; network panel.">
+    Open network panel
+  </message>
+  <message name="IDS_COMPASS_DEV_MODE_BAR_INSPECT" desc="Tooltip of the development mode bar&#x27;s button that lets the user pick an element of the page to inspect in DevTools.">
+    Inspect an element
+  </message>
+  <message name="IDS_COMPASS_DEV_MODE_BAR_COPY_URL" desc="Tooltip of the development mode bar&#x27;s button that copies the page&#x27;s URL.">
+    Copy URL
+  </message>
+  <message name="IDS_COMPASS_DEV_MODE_BAR_COPIED" desc="Tooltip of the development mode bar&#x27;s copy button for a moment after it copied the page&#x27;s URL.">
+    Copied
+  </message>
+
+  <!-- Little window -->
+  <message name="IDS_COMPASS_UNNAMED_SPACE" desc="The name shown for a space the user didn&#x27;t name, by its position in the list of spaces.">
+    Space <ph name="NUMBER">$1<ex>2</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_LITTLE_WINDOW_MOVE_TO_TAB_MAC" desc="Tooltip of the little window&#x27;s button (a small popup window for a link opened from another app) that moves its page into a tab of a normal window, on macOS; ⌘O is its shortcut.">
+    Move this page to a tab (⌘O)
+  </message>
+  <message name="IDS_COMPASS_LITTLE_WINDOW_MOVE_TO_TAB" desc="Tooltip of the little window&#x27;s button (a small popup window for a link opened from another app) that moves its page into a tab of a normal window, on Windows and Linux; Ctrl+O is its shortcut.">
+    Move this page to a tab (Ctrl+O)
+  </message>
+  <message name="IDS_COMPASS_LITTLE_WINDOW_OPEN_IN_COMPASS" desc="Button of the little window that moves its page into a tab, when the target space has no name.">
+    Open in Compass
+  </message>
+  <message name="IDS_COMPASS_LITTLE_WINDOW_OPEN_IN_SPACE" desc="Button of the little window that moves its page into a tab of the named space.">
+    Open in <ph name="SPACE_NAME">$1<ex>Work</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_LITTLE_WINDOW_OPEN_IN_ANOTHER_SPACE" desc="Tooltip and accessible name of the little window&#x27;s menu button that lists the spaces its page can be opened in.">
+    Open in Another Space
+  </message>
+  <message name="IDS_COMPASS_LITTLE_WINDOW_ALWAYS_OPEN_IN" desc="Submenu of the little window&#x27;s space menu: its items are spaces, and choosing one opens every link of the site in that space from now on.">
+    Always Open <ph name="DOMAIN">$1<ex>github.com</ex></ph> in
+  </message>
+
+  <!-- Downloads library (the downloads bubble's Downloads and Screenshots tabs) -->
+  <message name="IDS_COMPASS_DOWNLOADS_SHOW_IN_FINDER" desc="macOS: menu item and button that show a downloaded file, or the screenshots folder, in the Finder.">
+    Show in Finder
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_SHOW_IN_FOLDER" desc="Windows and Linux: menu item that shows a downloaded file in its folder.">
+    Show in Folder
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_MOVE_TO_TRASH" desc="macOS and Linux: menu item that moves a downloaded file to the Trash.">
+    Move to Trash
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_MOVE_TO_RECYCLE_BIN" desc="Windows: menu item that moves a downloaded file to the Recycle Bin.">
+    Move to Recycle Bin
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_JUST_NOW" desc="When a file was downloaded, if it was less than a minute ago.">
+    Just now
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_FOLDER" desc="In place of the size of an item of the Downloads folder that is a folder.">
+    Folder
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_TAB_DOWNLOADS" desc="The downloads bubble&#x27;s tab that lists downloaded files.">
+    Downloads
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_TAB_SCREENSHOTS" desc="The downloads bubble&#x27;s tab that shows the user&#x27;s screenshots.">
+    Screenshots
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_RECENT" desc="Heading of the downloads bubble&#x27;s list of this session&#x27;s downloads.">
+    Recent downloads
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_IN_FOLDER" desc="Heading of the downloads bubble&#x27;s list of the files in the Downloads folder.">
+    In your Downloads folder
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_FOLDER_EMPTY" desc="Shown in the downloads bubble when the Downloads folder has no files.">
+    Your Downloads folder is empty.
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_OPEN_FOLDER" desc="Windows and Linux: button of the Screenshots tab that opens the folder screenshots are saved to.">
+    Open Folder
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_NO_SCREENSHOTS" desc="Shown in the downloads bubble&#x27;s Screenshots tab when there are none.">
+    No screenshots yet.
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_SCREENSHOTS_IN" desc="Heading of the downloads bubble&#x27;s Screenshots tab: the folder they&#x27;re in.">
+    In <ph name="FOLDER">$1<ex>Desktop</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_DOWNLOADS_NO_SCREENSHOTS_SAVED_TO" desc="Shown in the downloads bubble&#x27;s Screenshots tab when there are none, with the folder new ones go to.">
+    No screenshots yet. They're saved to <ph name="FOLDER">$1<ex>Desktop</ex></ph>.
+  </message>
+
+  <!-- Easels (boards of captured page regions, a Compass feature) and screenshots -->
+  <message name="IDS_COMPASS_EASEL_UNTITLED" desc="The title a new Easel (a board of captures, a Compass feature) gets until the user names it.">
+    Untitled Easel
+  </message>
+  <message name="IDS_COMPASS_CONTEXT_MENU_CAPTURE_SCREENSHOT" desc="Page context menu item that lets the user pick a region of the page to save as a screenshot.">
+    Capture Screenshot…
+  </message>
+  <message name="IDS_COMPASS_CONTEXT_MENU_CAPTURE_TO_EASEL" desc="Page context menu item that lets the user pick a region of the page to add to an Easel (a board of captures, a Compass feature).">
+    Capture to Easel…
+  </message>
+  <message name="IDS_COMPASS_EASEL_ADDED_TO" desc="Toast on the page after a capture was added to an Easel (a board of captures), with the Easel&#x27;s title.">
+    Added to “<ph name="EASEL_TITLE">$1<ex>Moodboard</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_EASEL_PAGE_NOT_CAPTURABLE" desc="Toast when the user asks to capture a page that can&#x27;t be captured (a browser page, a PDF).">
+    This page can't be captured.
+  </message>
+  <message name="IDS_COMPASS_EASEL_PROFILE_CLOSED" desc="Error when a capture or refresh can&#x27;t finish because the user&#x27;s profile was closed meanwhile.">
+    The profile was closed.
+  </message>
+  <message name="IDS_COMPASS_EASEL_DELETED" desc="Error when a capture can&#x27;t be added because its Easel (a board of captures) was deleted meanwhile.">
+    That Easel was deleted.
+  </message>
+  <message name="IDS_COMPASS_EASEL_NOTHING_TO_CAPTURE" desc="Error when the page shows nothing that could be captured.">
+    The page isn't showing anything to capture.
+  </message>
+  <message name="IDS_COMPASS_EASEL_REGION_OUTSIDE" desc="Error when the region the user picked to capture is outside the page.">
+    The region is outside the page.
+  </message>
+  <message name="IDS_COMPASS_EASEL_CAPTURE_FAILED" desc="Error when capturing a page, or a region of it, failed.">
+    The page couldn't be captured.
+  </message>
+  <message name="IDS_COMPASS_EASEL_UNAVAILABLE" desc="Error when Easels (boards of captures, a Compass feature) can&#x27;t be used in the window (an incognito window).">
+    Easels aren't available in this window.
+  </message>
+  <message name="IDS_COMPASS_EASEL_STILL_LOADING" desc="Error when the user captures to an Easel before the Easels finished loading.">
+    Easels are still loading. Try again in a moment.
+  </message>
+  <message name="IDS_COMPASS_EASEL_REFRESH_TIMEOUT" desc="Error when refreshing a live capture on an Easel failed because its page took too long to load.">
+    The page took too long to load.
+  </message>
+  <message name="IDS_COMPASS_EASEL_REFRESH_LOAD_FAILED" desc="Error when refreshing a live capture on an Easel failed because its page didn&#x27;t load.">
+    The page couldn't be loaded.
+  </message>
+  <message name="IDS_COMPASS_EASEL_REFRESH_CRASHED" desc="Error when refreshing a live capture on an Easel failed because its page crashed.">
+    The page stopped working while it loaded.
+  </message>
+  <message name="IDS_COMPASS_EASEL_REFRESH_READ_FAILED" desc="Error when refreshing a live capture on an Easel failed because the page couldn&#x27;t be read.">
+    The page couldn't be read.
+  </message>
+  <message name="IDS_COMPASS_EASEL_REFRESH_CAPTURE_DELETED" desc="Error when a capture being refreshed was deleted meanwhile.">
+    The capture was deleted.
+  </message>
+  <message name="IDS_COMPASS_EASEL_REFRESH_NO_CAPTURE" desc="Error when the capture to refresh doesn&#x27;t exist.">
+    There's no such capture.
+  </message>
+  <message name="IDS_COMPASS_EASEL_REFRESH_NOT_REFRESHABLE" desc="Error when a capture&#x27;s page can&#x27;t be loaded again to refresh it.">
+    This capture's page can't be loaded again.
+  </message>
+  <message name="IDS_COMPASS_EASEL_REFRESH_ANDROID" desc="Error on Android, where refreshing a capture on an Easel isn&#x27;t supported yet.">
+    Refresh isn't available on Android yet.
+  </message>
+  <message name="IDS_COMPASS_SCREENSHOT_SAVE_FAILED" desc="Error when a screenshot of the page couldn&#x27;t be written to disk.">
+    The screenshot couldn't be saved.
+  </message>
+  <message name="IDS_COMPASS_SCREENSHOT_SAVED" desc="Toast after a screenshot was saved: the folder it&#x27;s in and its file name.">
+    Saved to <ph name="FOLDER">$1<ex>Desktop</ex></ph> as <ph name="FILE_NAME">$2<ex>Screenshot 2026-11-26 at 10.15.03.png</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SCREENSHOT_COPIED" desc="Toast after a screenshot was copied to the clipboard.">
+    Copied to the clipboard
+  </message>
+  <message name="IDS_COMPASS_SCREENSHOT_NO_SIZE" desc="Error when a full-page screenshot fails because the page has no size.">
+    The page has no size to capture.
+  </message>
+  <message name="IDS_COMPASS_SCREENSHOT_CLIPPED" desc="Toast after a full-page screenshot of a very long page: what happened to it, then that only its top part was taken.">
+    <ph name="RESULT">$1<ex>Copied to the clipboard</ex></ph> (the first <ph name="HEIGHT">$2<ex>16384</ex></ph> pixels)
+  </message>
+
+  <!-- Zap (hiding elements of a site, kept as a Boost) -->
+  <message name="IDS_COMPASS_ZAP_UNAVAILABLE" desc="Toast when elements the user zapped (hid) on a page can&#x27;t be kept, e.g. in an incognito window.">
+    Zaps can't be kept in this window.
+  </message>
+  <message name="IDS_COMPASS_ZAP_SAVED" desc="Toast after the user zapped (hid) elements of a site: they stay hidden there, kept in a Boost (Compass&#x27;s per-site CSS and JavaScript) whose name is given.">
+    Hidden on <ph name="SITE">$1<ex>example.com</ex></ph> from now on (Boost “<ph name="BOOST_NAME">$2<ex>Zaps</ex></ph>”)
+  </message>
+
+  <!-- Spaces menu (macOS menu bar) -->
+  <message name="IDS_COMPASS_SPACES_MENU_TITLE" desc="macOS: title of the menu bar&#x27;s Spaces menu, which lists the user&#x27;s spaces (Compass&#x27;s groups of tabs) to switch to.">
+    Spaces
+  </message>
+  <message name="IDS_COMPASS_SPACES_MENU_NEW_SPACE" desc="macOS: item of the menu bar&#x27;s Spaces menu that creates a space (a group of tabs) and switches to it.">
+    New Space
+  </message>
+  <message name="IDS_COMPASS_SPACES_MENU_NEW_LOCAL_SPACE" desc="macOS: item of the menu bar&#x27;s Spaces menu that creates a space that stays on this computer instead of syncing to the user&#x27;s other devices.">
+    New Space on This Device
+  </message>
+
+  <!-- MCP clients (apps on the computer that use Claude's tools in Compass) -->
+  <message name="IDS_COMPASS_MCP_DIALOG_TITLE" desc="Title of the dialog that asks whether an app on the computer (an MCP client, such as Claude Code) may control Compass.">
+    <ph name="APP_NAME">$1<ex>Claude Code</ex></ph> wants to control Compass
+  </message>
+  <message name="IDS_COMPASS_MCP_DIALOG_TITLE_IN_PROFILE" desc="Title of the dialog that asks whether an app on the computer (an MCP client, such as Claude Code) may control Compass in one of the user&#x27;s browser profiles.">
+    <ph name="APP_NAME">$1<ex>Claude Code</ex></ph> wants to control Compass in <ph name="PROFILE_NAME">$2<ex>Work</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_MCP_DIALOG_BODY" desc="Body of the dialog that asks whether an app on the computer (an MCP client) may control Compass: what it could do if allowed.">
+    <ph name="APP_NAME">$1<ex>Claude Code</ex></ph> is an app on this computer that uses Claude's tools in Compass. Allowed, it can read your tabs, take screenshots, read their consoles, run JavaScript, and click and type in them, signed in as you. Allow only apps you trust.
+  </message>
+  <message name="IDS_COMPASS_MCP_DIALOG_ALWAYS_ALLOW" desc="Checkbox of the dialog that asks whether an app may control Compass: allow it from now on without asking.">
+    Always allow <ph name="APP_NAME">$1<ex>Claude Code</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_MCP_DIALOG_ALWAYS_ALLOW_IN_PROFILE" desc="Checkbox of the dialog that asks whether an app may control Compass in one profile: allow it there from now on without asking.">
+    Always allow <ph name="APP_NAME">$1<ex>Claude Code</ex></ph> in this profile
+  </message>
+  <message name="IDS_COMPASS_MCP_DIALOG_ALLOW" desc="Button of the dialog that asks whether an app may control Compass: allow it.">
+    Allow
+  </message>
+  <message name="IDS_COMPASS_MCP_DIALOG_DENY" desc="Button of the dialog that asks whether an app may control Compass: refuse.">
+    Deny
+  </message>
+
+  <!-- Tidy Today (Claude groups the loose tabs of the sidebar's Today section into folders) -->
+  <message name="IDS_COMPASS_TIDY_TODAY_NOT_SET_UP" desc="Error in the sidebar when Claude couldn&#x27;t tidy Today (group its loose tabs into folders) because Claude isn&#x27;t set up. &quot;Today&quot; is the name of a section of the sidebar.">
+    Couldn't tidy Today: Claude isn't set up.
+  </message>
+  <message name="IDS_COMPASS_TIDY_TODAY_TIMEOUT" desc="Error in the sidebar when Claude couldn&#x27;t tidy Today because it took too long to answer. &quot;Today&quot; is the name of a section of the sidebar.">
+    Couldn't tidy Today: Claude took too long.
+  </message>
+  <message name="IDS_COMPASS_TIDY_TODAY_UNREACHABLE" desc="Error in the sidebar when Claude couldn&#x27;t tidy Today because it couldn&#x27;t be reached. &quot;Today&quot; is the name of a section of the sidebar.">
+    Couldn't tidy Today: Claude couldn't be reached.
+  </message>
+  <message name="IDS_COMPASS_TIDY_TODAY_FAILED" desc="Error in the sidebar when Claude couldn&#x27;t tidy Today for another reason. &quot;Today&quot; is the name of a section of the sidebar.">
+    Couldn't tidy Today.
+  </message>
+  <message name="IDS_COMPASS_TIDY_TODAY_NOTHING" desc="Shown in the sidebar when Claude, asked to tidy Today, found no tabs to group into folders.">
+    Claude found nothing to group.
+  </message>
+
+  <!-- Importing from other browsers (settings, Import) -->
+  <message name="IDS_COMPASS_BROWSER_IMPORT_CREST_AS_PROFILE" desc="Settings, importing from the Crest browser: what &quot;Add as a new profile&quot; brings over.">
+    A profile of its own, with its cookies, history and extensions: you stay signed in to sites. Crest's passwords stay in Crest.
+  </message>
+  <message name="IDS_COMPASS_BROWSER_IMPORT_YAB_AS_PROFILE" desc="Settings, importing from the Yab browser: what &quot;Add as a new profile&quot; brings over. Yab shows some sites with Chromium and others with WebKit.">
+    A profile of its own, with its history, and the sign-ins of sites Yab opened in Chromium. Sites it opened in WebKit need you to sign in again.
+  </message>
+  <message name="IDS_COMPASS_BROWSER_IMPORT_CREST_BROUGHT" desc="Settings, in the list of what an import from Crest added as a new profile brought over (one item of a list).">
+    cookies, history and extensions
+  </message>
+  <message name="IDS_COMPASS_BROWSER_IMPORT_YAB_BROUGHT" desc="Settings, in the list of what an import from Yab added as a new profile brought over (one item of a list).">
+    history, and sign-ins from Yab's Chromium tabs
+  </message>
+  <message name="IDS_COMPASS_BROWSER_IMPORT_ALREADY_IMPORTED" desc="Settings, a problem after importing another browser&#x27;s profile: it was already imported as a Compass profile.">
+    It was imported as a profile before.
+  </message>
+  <message name="IDS_COMPASS_BROWSER_IMPORT_PROFILE_NOT_MADE" desc="Settings, a problem after importing another browser&#x27;s profile: the new Compass profile couldn&#x27;t be created.">
+    Its new profile couldn't be made.
+  </message>
+  <message name="IDS_COMPASS_BROWSER_IMPORT_NO_KEY" desc="Settings, a problem after importing another browser&#x27;s profile: the system didn&#x27;t give Compass the key the other browser encrypts its data with (e.g. the user refused the Keychain prompt).">
+    It couldn't be copied: Compass wasn't given the key <ph name="BROWSER_NAME">$1<ex>Chrome</ex></ph> encrypts its cookies and passwords with.
+  </message>
+  <message name="IDS_COMPASS_BROWSER_IMPORT_COPY_FAILED" desc="Settings, a problem after importing another browser&#x27;s profile: its folder couldn&#x27;t be copied.">
+    Its folder couldn't be copied. Check that there's enough free space, then try again.
+  </message>
+  <message name="IDS_COMPASS_BROWSER_IMPORT_PROFILE_GONE" desc="Settings, a problem after importing: the other browser&#x27;s profile the user chose no longer exists.">
+    This profile wasn't found any more.
+  </message>
+  <message name="IDS_COMPASS_BROWSER_IMPORT_SPACES_IMPORTED_BEFORE" desc="Settings, a problem after importing another browser&#x27;s profile: its spaces (groups of tabs) were imported before, so they weren&#x27;t imported again.">
+    Its spaces were imported before, so they were left as they are.
+  </message>
+  <message name="IDS_COMPASS_BROWSER_IMPORT_NO_PASSWORD_KEY" desc="Settings, a problem after importing another browser&#x27;s profile: its passwords couldn&#x27;t be decrypted because the system didn&#x27;t give Compass the other browser&#x27;s key.">
+    Its passwords couldn't be read: Compass wasn't given the key <ph name="BROWSER_NAME">$1<ex>Chrome</ex></ph> encrypts them with.
+  </message>
+  <message name="IDS_COMPASS_BROWSER_IMPORT_PROFILE_NOT_OPENED" desc="Settings, a problem after importing another browser&#x27;s profile: it was copied into a new Compass profile, which then couldn&#x27;t be opened.">
+    It was copied, but the new profile couldn't be opened.
+  </message>
+
+  <!-- Live folders (pinned folders a plugin fills, e.g. from an RSS feed) -->
+  <message name="IDS_COMPASS_LIVE_FOLDER_SECRET_NOT_SET" desc="Error of a live folder (a folder a plugin fills) when a secret the plugin needs (an API token) isn&#x27;t set; the placeholder is the secret&#x27;s name as the plugin labels it.">
+    <ph name="FIELD">$1<ex>Access token</ex></ph> is not set
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDER_FIELD_REQUIRED" desc="Error when setting up a live folder (a folder a plugin fills) without a field the plugin requires; the placeholder is the field&#x27;s name as the plugin labels it.">
+    <ph name="FIELD">$1<ex>Feed URL</ex></ph> is required.
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDER_SNAPSHOT_TOO_LARGE" desc="Error of a live folder&#x27;s tab preview when the page&#x27;s snapshot is too large to send to its plugin.">
+    The page snapshot is too large
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDER_NO_PREVIEW" desc="Error when a live folder plugin is asked for a tab preview it doesn&#x27;t offer.">
+    The plugin has no preview
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDER_PLUGIN_NOT_INSTALLED" desc="Error when the plugin chosen for a live folder isn&#x27;t installed.">
+    That plugin isn't installed.
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDER_ONLY_IN_PINNED" desc="Error when the user tries to make a live folder outside the sidebar&#x27;s Pinned section. &quot;Pinned&quot; is the name of that section.">
+    Live folders go in Pinned.
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDER_NOT_LIVE" desc="Error when the user edits a live folder that has meanwhile become a normal folder.">
+    That folder isn't live anymore.
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDER_PLUGIN_CHANGED" desc="Error when installing a live folder plugin from a web address whose content changed since the user reviewed it.">
+    The plugin at that address has changed since. Review it again before installing.
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDER_PLUGIN_NOT_SAVED" desc="Error when a live folder plugin couldn&#x27;t be written to disk.">
+    The plugin couldn't be saved on this device.
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDER_PLUGIN_MISSING" desc="Error of a live folder whose plugin (by its ID) isn&#x27;t installed on this device, e.g. a folder synced from another device.">
+    The plugin <ph name="PLUGIN_ID">$1<ex>github</ex></ph> isn't installed on this device
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDER_REFRESH_TIMEOUT" desc="Error of a live folder when its plugin took too long to refresh it.">
+    The refresh took too long
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDER_PLUGIN_PAGE_STOPPED" desc="Error of a live folder when the hidden page running its plugin stopped.">
+    The plugin's page stopped
+  </message>
+  <message name="IDS_COMPASS_TAB_PREVIEW_LAST_SEEN" desc="Footer of a tab&#x27;s hover preview that shows what a plugin found last time, because the tab is unloaded: the time of day it was taken.">
+    Last seen <ph name="TIME">$1<ex>10:42</ex></ph>
+  </message>
+
+  <!-- Reader (Compass's reading mode) -->
+  <message name="IDS_COMPASS_READER_PARSE_FAILED" desc="Shown in Reader, Compass&#x27;s reading mode, when the page&#x27;s article couldn&#x27;t be extracted.">
+    This page couldn't be read (it may still be loading).
+  </message>
+
+  <!-- Sync: a free sync server on Cloudflare, and invites -->
+  <message name="IDS_COMPASS_CLOUDFLARE_UNAUTHORIZED" desc="Sync settings, setting up the user&#x27;s own sync server on Cloudflare: Cloudflare refused the API token the user gave. Technical details may follow in parentheses. &quot;Workers&quot; is Cloudflare&#x27;s product name.">
+    Cloudflare didn't accept the token. Check that it's complete and can edit Workers.
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_NO_ACCOUNT" desc="Sync settings, setting up a sync server on Cloudflare: the user&#x27;s token has access to no Cloudflare account.">
+    The token can't use any Cloudflare account.
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_REFUSED" desc="Sync settings, setting up a sync server on Cloudflare: Cloudflare refused, without saying why.">
+    Cloudflare refused to set up the server.
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_REFUSED_WITH_DETAIL" desc="Sync settings, setting up a sync server on Cloudflare: Cloudflare refused, with its own message (in English).">
+    Cloudflare refused: <ph name="DETAIL">$1<ex>Script too large</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_NETWORK" desc="Sync settings, setting up a sync server on Cloudflare: Cloudflare couldn&#x27;t be reached.">
+    Couldn't reach Cloudflare. Check your connection and try again.
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_NOT_REACHABLE" desc="Sync settings, setting up a sync server on Cloudflare: the server was created but doesn&#x27;t respond yet.">
+    The server is set up but doesn't answer yet. Try again in a few minutes.
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_NOT_FOUND" desc="Sync settings, updating the user&#x27;s sync server on Cloudflare: it isn&#x27;t in the Cloudflare account the user signed in with.">
+    Your server isn't in the Cloudflare account you signed in with. Sign in with the account it was set up in.
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_PROGRESS_FINDING" desc="Sync settings, progress while updating the user&#x27;s sync server on Cloudflare.">
+    Finding your server on Cloudflare…
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_PROGRESS_CHECKING" desc="Sync settings, progress while setting up a sync server on Cloudflare.">
+    Checking your Cloudflare account…
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_PROGRESS_SUBDOMAIN" desc="Sync settings, progress while setting up a sync server on Cloudflare: creating the account&#x27;s workers.dev subdomain (a web address).">
+    Making your workers.dev address…
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_PROGRESS_UPLOADING_UPDATE" desc="Sync settings, progress while updating the user&#x27;s sync server on Cloudflare.">
+    Uploading the new version…
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_PROGRESS_UPLOADING" desc="Sync settings, progress while setting up a sync server on Cloudflare.">
+    Uploading the sync server…
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_PROGRESS_WAITING_UPDATE" desc="Sync settings, progress after updating the user&#x27;s sync server on Cloudflare, until it answers.">
+    Waiting for the new version to answer…
+  </message>
+  <message name="IDS_COMPASS_CLOUDFLARE_PROGRESS_WAITING" desc="Sync settings, progress after setting up a sync server on Cloudflare, until it answers.">
+    Waiting for the server to come online…
+  </message>
+  <message name="IDS_COMPASS_SYNC_ACCESS_UNSUPPORTED" desc="Sync settings, inviting people to the user&#x27;s own sync server: the server doesn&#x27;t support invites.">
+    This server doesn't take invites.
+  </message>
+  <message name="IDS_COMPASS_SYNC_ACCESS_NOT_OWNER" desc="Sync settings: only the sync server&#x27;s owner may manage who uses it.">
+    Only the server's owner can do that.
+  </message>
+  <message name="IDS_COMPASS_SYNC_ACCESS_UNAUTHORIZED" desc="Sync settings: the sync server refused this device&#x27;s request.">
+    The server refused this device.
+  </message>
+  <message name="IDS_COMPASS_SYNC_ACCESS_NO_SUCH_INVITE" desc="Sync settings, joining someone&#x27;s sync server with an invite link: the invite doesn&#x27;t exist.">
+    This invite doesn't exist. Check the link.
+  </message>
+  <message name="IDS_COMPASS_SYNC_ACCESS_INVITE_GONE" desc="Sync settings, joining someone&#x27;s sync server with an invite link: it was used already or expired.">
+    This invite was used or has expired. Ask for a new one.
+  </message>
+  <message name="IDS_COMPASS_SYNC_ACCESS_TOO_MANY" desc="Sync settings, inviting people to the user&#x27;s own sync server: it has reached its limit of invites or people.">
+    The server has too many invites or people. Remove some first.
+  </message>
+  <message name="IDS_COMPASS_SYNC_ACCESS_FAILED" desc="Sync settings: the sync server couldn&#x27;t be reached.">
+    Couldn't reach the sync server. Try again.
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDER_CLOSING" desc="Error when installing a live folder plugin can&#x27;t finish because Compass is quitting.">
+    Compass is closing.
+  </message>
+</grit-part>

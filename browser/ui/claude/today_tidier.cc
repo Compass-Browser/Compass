@@ -18,7 +18,9 @@
 #include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/ui/claude/sidebar_spaces.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_service.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass {
 
@@ -175,19 +177,22 @@ void TodayTidier::OnReply(const base::Uuid& space_id,
         // Turned off meanwhile: nothing to say.
         return;
       case claude::QuickError::kNotSetUp:
-        Fail(space_id, "Couldn't tidy Today: Claude isn't set up.");
+        Fail(space_id,
+             l10n_util::GetStringUTF8(IDS_COMPASS_TIDY_TODAY_NOT_SET_UP));
         return;
       case claude::QuickError::kTimeout:
-        Fail(space_id, "Couldn't tidy Today: Claude took too long.");
+        Fail(space_id,
+             l10n_util::GetStringUTF8(IDS_COMPASS_TIDY_TODAY_TIMEOUT));
         return;
       case claude::QuickError::kFailed:
       case claude::QuickError::kRateLimited:
       case claude::QuickError::kBackingOff:
-        Fail(space_id, "Couldn't tidy Today: Claude couldn't be reached.");
+        Fail(space_id,
+             l10n_util::GetStringUTF8(IDS_COMPASS_TIDY_TODAY_UNREACHABLE));
         return;
       case claude::QuickError::kRefused:
       case claude::QuickError::kBadReply:
-        Fail(space_id, "Couldn't tidy Today.");
+        Fail(space_id, l10n_util::GetStringUTF8(IDS_COMPASS_TIDY_TODAY_FAILED));
         return;
     }
     return;
@@ -223,7 +228,7 @@ void TodayTidier::Apply(SpaceModel& space,
   SpaceModel::TodayTidy tidy = space.TidyToday(std::move(groups));
   const base::Uuid space_id = space.id();
   if (tidy.folders.empty()) {
-    Fail(space_id, "Claude found nothing to group.");
+    Fail(space_id, l10n_util::GetStringUTF8(IDS_COMPASS_TIDY_TODAY_NOTHING));
     return;
   }
   const size_t folders = tidy.folders.size();

@@ -14,8 +14,10 @@
 #include "base/strings/utf_string_conversions.h"
 #include "compass/browser/arc_import/arc_sidebar.h"
 #include "compass/browser/browser_import/app_sidebar.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "sql/database.h"
 #include "sql/statement.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::browser_import {
 
@@ -314,7 +316,9 @@ std::vector<AppProfile> ParseCrestProfiles(const base::DictValue& core) {
       it = profiles.end() - 1;
     }
     std::u16string name = base::UTF8ToUTF16(StringAt(*space, "name"));
-    it->spaces.push_back(name.empty() ? u"Space" : std::move(name));
+    it->spaces.push_back(
+        name.empty() ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_SPACE)
+                     : std::move(name));
   }
   return profiles;
 }
@@ -353,7 +357,9 @@ ImportedSidebar CrestSidebar(const SourceProfile& profile,
     arc::Space out;
     out.id = base::StrCat({prefix, "space:", id});
     std::u16string name = base::UTF8ToUTF16(StringAt(*space, "name"));
-    out.name = name.empty() ? u"Space" : std::move(name);
+    out.name = name.empty()
+                   ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_SPACE)
+                   : std::move(name);
     out.icon = AppSpaceIcon("", StringAt(*space, "symbol"));
     ApplyCrestLook(*space, out);
     CrestSpaceBuilder(*space, base::StrCat({prefix, "space:", id, ":"}))

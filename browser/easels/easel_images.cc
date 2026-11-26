@@ -13,10 +13,12 @@
 #include "base/functional/bind.h"
 #include "base/task/thread_pool.h"
 #include "compass/browser/easels/easel_store.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "services/data_decoder/public/cpp/decode_image.h"
 #include "services/data_decoder/public/mojom/image_decoder.mojom.h"
 #include "skia/ext/image_operations.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/geometry/size.h"
@@ -66,14 +68,16 @@ std::optional<std::vector<uint8_t>> Encode(const SkBitmap& bitmap,
 
 base::expected<PreparedImage, std::string> FitBitmap(const SkBitmap& input) {
   if (input.drawsNothing() || input.width() <= 0 || input.height() <= 0) {
-    return base::unexpected("The image couldn't be read.");
+    return base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_IMAGE_UNREADABLE));
   }
   SkBitmap bitmap = input;
   if (bitmap.colorType() != kN32_SkColorType) {
     SkBitmap converted;
     if (!converted.tryAllocN32Pixels(bitmap.width(), bitmap.height()) ||
         !bitmap.readPixels(converted.pixmap())) {
-      return base::unexpected("The image couldn't be read.");
+      return base::unexpected(
+          l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_IMAGE_UNREADABLE));
     }
     bitmap = converted;
   }
@@ -85,7 +89,8 @@ base::expected<PreparedImage, std::string> FitBitmap(const SkBitmap& input) {
     SkBitmap scaled = ScaledToFit(bitmap, side);
     std::optional<std::vector<uint8_t>> encoded = Encode(scaled, png, quality);
     if (!encoded) {
-      return base::unexpected("The image couldn't be encoded.");
+      return base::unexpected(
+          l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_IMAGE_NOT_ENCODED));
     }
     if (encoded->size() <= kMaxAssetBytes) {
       PreparedImage image;
@@ -101,7 +106,8 @@ base::expected<PreparedImage, std::string> FitBitmap(const SkBitmap& input) {
       side = std::max(64, side * 3 / 4);
     }
   }
-  return base::unexpected("The image is too large.");
+  return base::unexpected(
+      l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_IMAGE_TOO_LARGE));
 }
 
 void PrepareBitmap(const SkBitmap& bitmap, PreparedImageCallback callback) {
@@ -112,7 +118,8 @@ void PrepareBitmap(const SkBitmap& bitmap, PreparedImageCallback callback) {
 
 void PrepareImage(std::string encoded, PreparedImageCallback callback) {
   if (encoded.empty() || encoded.size() > kMaxInputBytes) {
-    std::move(callback).Run(base::unexpected("The image is too large."));
+    std::move(callback).Run(base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_IMAGE_TOO_LARGE)));
     return;
   }
   data_decoder::DecodeImageIsolated(
@@ -121,8 +128,8 @@ void PrepareImage(std::string encoded, PreparedImageCallback callback) {
       base::BindOnce(
           [](PreparedImageCallback callback, const SkBitmap& bitmap) {
             if (bitmap.drawsNothing()) {
-              std::move(callback).Run(
-                  base::unexpected("The image couldn't be read."));
+              std::move(callback).Run(base::unexpected(l10n_util::GetStringUTF8(
+                  IDS_COMPASS_EASELS_IMAGE_UNREADABLE)));
               return;
             }
             PrepareBitmap(bitmap, std::move(callback));

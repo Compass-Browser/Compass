@@ -10,6 +10,7 @@
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 
 import {applyBubbleLook} from '../bubble_look.js';
+import {i18n, i18nF, i18nPlural} from '../i18n.js';
 import type {Item, Member, Room} from '../share.mojom-webui.js';
 
 import {ShareBrowserProxy} from './browser_proxy.js';
@@ -29,25 +30,27 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-function kindName(kind: string): string {
+// The message |prefix| + Space, Easel or Folder, for |kind|, with |args|:
+// each kind has its own sentence, as languages inflect around the noun.
+function forKind(prefix: string, kind: string, ...args: string[]): string {
   switch (kind) {
     case 'space':
-      return 'space';
+      return i18nF(prefix + 'Space', ...args);
     case 'easel':
-      return 'easel';
+      return i18nF(prefix + 'Easel', ...args);
     default:
-      return 'folder';
+      return i18nF(prefix + 'Folder', ...args);
   }
 }
 
 function roleName(role: string): string {
   switch (role) {
     case 'owner':
-      return 'Owner';
+      return i18n('shareRoleOwner');
     case 'editor':
-      return 'Can edit';
+      return i18n('shareRoleEditor');
     default:
-      return 'Can view';
+      return i18n('shareRoleViewer');
   }
 }
 
@@ -70,7 +73,7 @@ function confirmInline(
     row: HTMLElement, question: string, action: string,
     onConfirm: () => void) {
   row.querySelector('.confirm')?.remove();
-  const cancel = el('button', {}, 'Cancel');
+  const cancel = el('button', {}, i18n('cancel'));
   const yes = el('button', {className: 'danger primary'}, action);
   const box = el(
       'div', {className: 'confirm'}, el('p', {}, question),
@@ -104,11 +107,12 @@ async function renderSheet() {
   const {item} = await proxy.handler.getItem(currentKind, currentId);
   app.replaceChildren();
   if (!item) {
-    title.textContent = 'Share';
-    app.append(el('p', {className: 'sub'}, 'This item is no longer here.'));
+    title.textContent = i18n('shareTitle');
+    app.append(el('p', {className: 'sub'}, i18n('shareItemGone')));
     return;
   }
-  title.textContent = `Share “${item.name || 'Untitled'}”`;
+  title.textContent =
+      i18nF('shareTitleItem', item.name || i18n('shareUntitled'));
   if (!item.roomId) {
     renderNotShared(item);
     return;
@@ -118,13 +122,10 @@ async function renderSheet() {
 }
 
 function renderNotShared(item: Item) {
-  app.append(el(
-      'p', {className: 'sub'},
-      `Invite people to this ${kindName(item.kind)}. Everyone sees ` +
-          'changes as they happen. It stays end-to-end encrypted: your ' +
-          'sync server can’t read it.'));
+  app.append(
+      el('p', {className: 'sub'}, forKind('shareInvite', item.kind)));
   const error = el('p', {className: 'error', hidden: true});
-  const share = el('button', {className: 'primary'}, 'Start sharing');
+  const share = el('button', {className: 'primary'}, i18n('shareStart'));
   share.disabled = !item.canShare;
   share.onclick = async () => {
     share.disabled = true;
@@ -140,9 +141,7 @@ function renderNotShared(item: Item) {
   };
   app.append(el('div', {className: 'row actions'}, share), error);
   if (!item.canShare) {
-    app.append(el(
-        'p', {className: 'note'},
-        'Turn on sync to share. Sharing goes through your sync server.'));
+    app.append(el('p', {className: 'note'}, i18n('shareNeedsSync')));
   }
 }
 
@@ -160,9 +159,9 @@ async function renderRoom() {
   const owner = room.role === 'owner';
   app.append(el(
       'p', {className: 'sub'},
-      `Shared on ${room.server}. ` +
-          (room.role === 'viewer' ? 'You can view it.' :
-                                    'End-to-end encrypted.')));
+      i18nF('shareSharedOn', room.server) + ' ' +
+          (room.role === 'viewer' ? i18n('shareViewOnly') :
+                                    i18n('shareEncrypted'))));
   if (owner) {
     renderInviteLink(room);
     if (room.oidc) {
@@ -181,8 +180,8 @@ async function renderRoom() {
 function roleSelect(): HTMLSelectElement {
   const role = el('select', {});
   role.append(
-      el('option', {value: 'editor'}, 'Can edit'),
-      el('option', {value: 'viewer'}, 'Can view'));
+      el('option', {value: 'editor'}, i18n('shareRoleEditor')),
+      el('option', {value: 'viewer'}, i18n('shareRoleViewer')));
   return role;
 }
 
@@ -190,21 +189,22 @@ function renderInviteLink(room: Room) {
   const role = roleSelect();
   const expiry = el('select', {});
   expiry.append(
-      el('option', {value: '7'}, 'Expires in 7 days'),
-      el('option', {value: '1'}, 'Expires in 1 day'),
-      el('option', {value: '0'}, 'Never expires'));
+      el('option', {value: '7'}, i18n('shareExpires7Days')),
+      el('option', {value: '1'}, i18n('shareExpires1Day')),
+      el('option', {value: '0'}, i18n('shareNeverExpires')));
   const uses = el('select', {});
   uses.append(
-      el('option', {value: '0'}, 'Any number of people'),
-      el('option', {value: '1'}, 'One person'),
-      el('option', {value: '5'}, 'Up to 5 people'),
-      el('option', {value: '25'}, 'Up to 25 people'));
+      el('option', {value: '0'}, i18n('shareUsesAny')),
+      el('option', {value: '1'}, i18n('shareUsesOne')),
+      el('option', {value: '5'}, i18nF('shareUsesUpTo', 5)),
+      el('option', {value: '25'}, i18nF('shareUsesUpTo', 25)));
   const link = el('input', {
     type: 'text',
     readOnly: true,
-    placeholder: 'No link yet',
+    placeholder: i18n('shareNoLink'),
   });
-  const copy = el('button', {className: 'primary'}, 'Copy invite link');
+  const copy =
+      el('button', {className: 'primary'}, i18n('shareCopyInviteLink'));
   const error = el('p', {className: 'error', hidden: true});
   copy.onclick = async () => {
     copy.disabled = true;
@@ -218,22 +218,21 @@ function renderInviteLink(room: Room) {
     showError(error, '');
     link.value = result.link;
     proxy.handler.copyToClipboard(result.link);
-    copy.textContent = 'Copied';
-    setTimeout(() => copy.textContent = 'Copy invite link', 2000);
+    copy.textContent = i18n('shareCopied');
+    setTimeout(() => copy.textContent = i18n('shareCopyInviteLink'), 2000);
   };
   group(
-      'Invite with a link',
+      i18n('shareInviteWithLink'),
       el('div', {className: 'row options'}, role, expiry, uses),
       el('div', {className: 'row'}, link, copy, error));
-  app.append(el(
-      'p', {className: 'note'},
-      'Anyone with the link can join until it expires or you revoke it.'));
+  app.append(el('p', {className: 'note'}, i18n('shareLinkNote')));
 }
 
 function renderEmailInvite(room: Room) {
-  const email = el('input', {type: 'email', placeholder: 'name@company.com'});
+  const email = el(
+      'input', {type: 'email', placeholder: i18n('shareEmailPlaceholder')});
   const role = roleSelect();
-  const invite = el('button', {}, 'Invite');
+  const invite = el('button', {}, i18n('shareInvite'));
   const error = el('p', {className: 'error', hidden: true});
   invite.onclick = async () => {
     invite.disabled = true;
@@ -247,13 +246,13 @@ function renderEmailInvite(room: Room) {
     }
   };
   group(
-      'Invite by email',
+      i18n('shareInviteByEmail'),
       el('div', {className: 'row'}, email, role, invite, error));
 }
 
 function memberName(member: Member): string {
-  const name = member.name || member.email || 'Someone';
-  return member.isMe ? `${name} (you)` : name;
+  const name = member.name || member.email || i18n('shareSomeone');
+  return member.isMe ? i18nF('shareMemberYou', name) : name;
 }
 
 function renderMembers(room: Room) {
@@ -262,8 +261,9 @@ function renderMembers(room: Room) {
   for (const member of room.members) {
     const who = el(
         'div', {className: 'who'},
-        el('div', {}, memberName(member) + (member.pending ? ' · invited' :
-                                                             '')));
+        el('div', {},
+           member.pending ? i18nF('shareMemberInvited', memberName(member)) :
+                            memberName(member)));
     if (member.email && member.name) {
       who.append(el('div', {className: 'email'}, member.email));
     }
@@ -282,12 +282,11 @@ function renderMembers(room: Room) {
         }
         await renderRoom();
       };
-      const remove = el('button', {className: 'danger'}, 'Remove');
+      const remove = el('button', {className: 'danger'}, i18n('remove'));
       remove.onclick = () => confirmInline(
           row,
-          `Remove ${memberName(member)}? They keep a copy of what was ` +
-              'shared, but won’t see new changes.',
-          'Remove', async () => {
+          i18nF('shareRemoveMemberConfirm', memberName(member)),
+          i18n('remove'), async () => {
             remove.disabled = true;
             const result =
                 await proxy.handler.removeMember(room.roomId, member.clientId);
@@ -304,7 +303,7 @@ function renderMembers(room: Room) {
     }
     rows.push(row);
   }
-  group(`People (${room.members.length})`, ...rows);
+  group(i18nF('sharePeople', room.members.length), ...rows);
 }
 
 function renderInvites(room: Room) {
@@ -316,10 +315,14 @@ function renderInvites(room: Room) {
   }
   const rows = open.map(invite => {
     const expires = Number(invite.expires) ?
-        `expires ${new Date(Number(invite.expires)).toLocaleDateString()}` :
-        'never expires';
-    const uses = invite.usesLeft < 0 ? '' : `, ${invite.usesLeft} uses left`;
-    const revoke = el('button', {}, 'Revoke');
+        i18nF(
+            'shareInviteExpires',
+            new Date(Number(invite.expires)).toLocaleDateString()) :
+        i18n('shareInviteNeverExpires');
+    const uses = invite.usesLeft < 0 ?
+        '' :
+        ', ' + i18nPlural('shareInviteUsesLeft', invite.usesLeft);
+    const revoke = el('button', {}, i18n('shareRevoke'));
     revoke.onclick = async () => {
       revoke.disabled = true;
       await proxy.handler.revokeInvite(room.roomId, invite.id);
@@ -331,31 +334,27 @@ function renderInvites(room: Room) {
            `${roleName(invite.role)} · ${expires}${uses}`),
         revoke);
   });
-  group('Invite links', ...rows);
+  group(i18n('shareInviteLinks'), ...rows);
 }
 
 function renderName(name: string) {
   const input = el('input', {type: 'text', value: name});
   input.onchange = () => proxy.handler.setDisplayName(input.value);
-  group('Your name for sharing', el('div', {className: 'row'}, input));
-  app.append(el(
-      'p', {className: 'note'},
-      'What the people you share with see, unless your company’s ' +
-          'sign-in gives your name.'));
+  group(i18n('shareYourName'), el('div', {className: 'row'}, input));
+  app.append(el('p', {className: 'note'}, i18n('shareYourNameNote')));
 }
 
 function renderLeave(room: Room) {
   const owner = room.role === 'owner';
-  const label = owner ? 'Delete for everyone' : 'Leave';
+  const label =
+      owner ? i18n('shareDeleteForEveryone') : i18n('shareLeave');
   const button = el('button', {className: 'danger'}, label);
   const error = el('p', {className: 'error', hidden: true});
   const row = el('div', {className: 'row actions'}, button);
   button.onclick = () => confirmInline(
       row,
-      owner ? `Stop sharing this ${kindName(room.kind)} and remove it ` +
-              'from everyone else? You keep it.' :
-              `Leave this ${kindName(room.kind)}? You keep a copy, but ` +
-              'won’t see new changes.',
+      owner ? forKind('shareStopConfirm', room.kind) :
+              forKind('shareLeaveConfirm', room.kind),
       label, async () => {
         button.disabled = true;
         const result = owner ? await proxy.handler.deleteRoom(room.roomId) :
@@ -377,21 +376,17 @@ async function renderJoin(fragment: string) {
   const {preview} = await proxy.handler.previewJoin(link);
   app.replaceChildren();
   if (!preview) {
-    title.textContent = 'This invite link doesn’t work';
-    app.append(el(
-        'p', {className: 'sub'},
-        'It may have been copied only in part. Ask for a new one.'));
+    title.textContent = i18n('shareBadLinkTitle');
+    app.append(el('p', {className: 'sub'}, i18n('shareBadLink')));
     return;
   }
-  const kind = kindName(preview.kind);
-  title.textContent = `Join “${preview.name || 'Untitled'}”`;
+  title.textContent =
+      i18nF('shareJoinTitle', preview.name || i18n('shareUntitled'));
   app.append(el(
       'p', {className: 'sub'},
-      `You’ve been invited to a shared ${kind} on ` +
-          `${preview.server}. The person who shared it decides whether ` +
-          'you can edit it or only view it.'));
+      forKind('shareJoinInvited', preview.kind, preview.server)));
   if (preview.alreadyJoined) {
-    app.append(el('p', {className: 'sub'}, 'You’ve already joined it.'));
+    app.append(el('p', {className: 'sub'}, i18n('shareAlreadyJoined')));
     return;
   }
   const space = el('select', {});
@@ -403,24 +398,25 @@ async function renderJoin(fragment: string) {
       space.append(node);
     }
     group(
-        'Put it in',
+        i18n('sharePutItIn'),
         el('div', {className: 'row options'}, space));
   }
-  const join = el('button', {className: 'primary'}, 'Join');
+  const join = el('button', {className: 'primary'}, i18n('shareJoin'));
   const error = el('p', {className: 'error', hidden: true});
   join.onclick = async () => {
     join.disabled = true;
-    join.textContent = 'Joining…';
+    join.textContent = i18n('shareJoining');
     const result = await proxy.handler.join(link, space.value || '');
     if (result.error) {
       showError(error, result.error);
       join.disabled = false;
-      join.textContent = 'Join';
+      join.textContent = i18n('shareJoin');
       return;
     }
-    title.textContent = 'Joined';
+    title.textContent = i18n('shareJoined');
     app.replaceChildren(el(
-        'p', {className: 'sub'}, `“${preview.name}” is in your sidebar.`));
+        'p', {className: 'sub'},
+        i18nF('shareJoinedInSidebar', preview.name)));
   };
   const {name} = await proxy.handler.getDisplayName();
   renderName(name);

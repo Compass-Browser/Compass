@@ -25,13 +25,14 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
+#include "compass/browser/window_sync/tab_strip_bridge.h"
+#include "compass/browser/window_sync/window_features.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/download/public/common/download_url_parameters.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/vector_icons/vector_icons.h"
-#include "compass/browser/ui/views/sidebar/compass_sidebar_view.h"
-#include "compass/browser/window_sync/tab_strip_bridge.h"
-#include "compass/browser/window_sync/window_features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/file_select_listener.h"
@@ -45,6 +46,7 @@
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
@@ -54,9 +56,9 @@
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/animation/slide_animation.h"
 #include "ui/gfx/animation/tween.h"
-#include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
+#include "ui/gfx/geometry/size_conversions.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/animation_delegate_views.h"
 #include "ui/views/background.h"
@@ -203,14 +205,16 @@ class PeekView : public views::View, public views::AnimationDelegateViews {
     card_ = AddChildView(std::move(card));
 
     close_button_ =
-        AddButton(close_, vector_icons::kCloseIcon, u"Close (Esc)");
+        AddButton(close_, vector_icons::kCloseIcon,
+                  l10n_util::GetStringUTF16(IDS_COMPASS_PEEK_CLOSE));
     open_button_ = AddButton(std::move(open_as_entry), kOpenInFullIcon,
+                             l10n_util::GetStringUTF16(
 #if BUILDFLAG(IS_MAC)
-                             u"Open as Tab (⌘O)"
+                                 IDS_COMPASS_PEEK_OPEN_AS_TAB_MAC
 #else
-                             u"Open as Tab (Ctrl+O)"
+                                 IDS_COMPASS_PEEK_OPEN_AS_TAB
 #endif
-    );
+                                 ));
   }
   PeekView(const PeekView&) = delete;
   PeekView& operator=(const PeekView&) = delete;

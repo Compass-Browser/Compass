@@ -4,6 +4,7 @@
 
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n, i18nF} from './i18n.js';
 import type {CompassNowPlayingElement} from './now_playing.js';
 import type {NowPlaying} from './sidebar.mojom-webui.js';
 import {speakerIcon} from './speaker_icon.js';
@@ -18,8 +19,8 @@ ${repeat(this.items, (item: NowPlaying) => item.id, (item: NowPlaying) => html`
       <span class="title" title="${item.title}"
           @click="${this.onShowTabClick_}">${item.title}</span>
       ${item.canPictureInPicture ? html`
-        <button class="pip" title="Picture in picture"
-            aria-label="Picture in picture"
+        <button class="pip" title="${i18n('nowPlayingPictureInPicture')}"
+            aria-label="${i18n('nowPlayingPictureInPicture')}"
             @click="${this.onPictureInPictureClick_}">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <rect class="outline" x="1.5" y="2.5" width="10" height="8"
@@ -28,7 +29,8 @@ ${repeat(this.items, (item: NowPlaying) => item.id, (item: NowPlaying) => html`
                 rx="1.5"></rect>
           </svg>
         </button>` : nothing}
-      <button class="close" title="Close" aria-label="Close"
+      <button class="close" title="${i18n('close')}"
+          aria-label="${i18n('close')}"
           @click="${this.onCloseClick_}">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <path class="outline" d="M4 4l8 8M12 4l-8 8"></path>
@@ -37,18 +39,19 @@ ${repeat(this.items, (item: NowPlaying) => item.id, (item: NowPlaying) => html`
     </div>
     <div class="controls">
       <button class="show-tab" title="${item.title}"
-          aria-label="Go to ${item.title}" @click="${this.onShowTabClick_}">
+          aria-label="${i18nF('nowPlayingGoTo', item.title)}" @click="${this.onShowTabClick_}">
         <img alt="" src="${this.getFaviconUrl_(item)}">
       </button>
-      <button class="previous" title="Previous" aria-label="Previous"
+      <button class="previous" title="${i18n('nowPlayingPrevious')}"
+          aria-label="${i18n('nowPlayingPrevious')}"
           ?disabled="${!item.canPrevious}" @click="${this.onPreviousClick_}">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <rect x="3" y="3.5" width="1.6" height="9" rx="0.8"></rect>
           <path d="M13 4.3v7.4a.6.6 0 0 1-.93.5L6.5 8.5a.6.6 0 0 1 0-1l5.57-3.7a.6.6 0 0 1 .93.5z"></path>
         </svg>
       </button>
-      <button class="play-pause" title="${item.playing ? 'Pause' : 'Play'}"
-          aria-label="${item.playing ? 'Pause' : 'Play'}"
+      <button class="play-pause" title="${this.getPlayPauseLabel_(item)}"
+          aria-label="${this.getPlayPauseLabel_(item)}"
           ?disabled="${!item.canPlayPause}"
           @click="${this.onPlayPauseClick_}">
         ${item.playing ? html`
@@ -60,7 +63,8 @@ ${repeat(this.items, (item: NowPlaying) => item.id, (item: NowPlaying) => html`
             <path d="M5 3.9v8.2a.7.7 0 0 0 1.06.6l6.5-4.1a.7.7 0 0 0 0-1.2l-6.5-4.1A.7.7 0 0 0 5 3.9z"></path>
           </svg>`}
       </button>
-      <button class="next" title="Next" aria-label="Next"
+      <button class="next" title="${i18n('nowPlayingNext')}"
+          aria-label="${i18n('nowPlayingNext')}"
           ?disabled="${!item.canNext}" @click="${this.onNextClick_}">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <rect x="11.4" y="3.5" width="1.6" height="9" rx="0.8"></rect>
@@ -68,8 +72,8 @@ ${repeat(this.items, (item: NowPlaying) => item.id, (item: NowPlaying) => html`
         </svg>
       </button>
       <button class="audio" ?muted="${item.muted}"
-          title="${item.muted ? 'Unmute' : 'Mute'}"
-          aria-label="${item.muted ? 'Unmute' : 'Mute'}"
+          title="${this.getMuteLabel_(item)}"
+          aria-label="${this.getMuteLabel_(item)}"
           @click="${this.onMuteClick_}">
         ${speakerIcon(item.muted)}
       </button>

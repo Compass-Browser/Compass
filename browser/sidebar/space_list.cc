@@ -9,14 +9,20 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
 namespace compass {
 
+std::u16string DefaultSpaceName() {
+  return l10n_util::GetStringUTF16(IDS_COMPASS_DEFAULT_SPACE_NAME);
+}
+
 SpaceList::SpaceList() {
   spaces_.push_back(std::make_unique<SpaceModel>());
   active_space_ = spaces_.front().get();
-  active_space_->SetName(u"Home");
+  active_space_->SetName(DefaultSpaceName());
   active_space_->AddObserver(this);
 }
 

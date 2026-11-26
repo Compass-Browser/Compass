@@ -1,0 +1,22 @@
+diff --git a/chrome/chrome_repack_locales.gni b/chrome/chrome_repack_locales.gni
+index 226c91dd847f533d800407fb95cf2d7b56917e6e..a9e480ee2bdce8b2fa186cf936e521380ea3f0de 100644
+--- a/chrome/chrome_repack_locales.gni
++++ b/chrome/chrome_repack_locales.gni
+@@ -42,6 +42,9 @@ template("chrome_repack_locales") {
+       "${root_gen_dir}/ui/strings/auto_image_annotation_strings_",
+       "${root_gen_dir}/ui/strings/ax_strings_",
+       "${root_gen_dir}/ui/strings/ui_strings_",
++
++      # Compass's own strings.
++      "${root_gen_dir}/compass/strings/compass_strings_",
+     ]
+     if (!defined(deps)) {
+       deps = []
+@@ -67,6 +70,7 @@ template("chrome_repack_locales") {
+       "//ui/strings:auto_image_annotation_strings",
+       "//ui/strings:ax_strings",
+       "//ui/strings:ui_strings",
++      "//compass/strings:compass_strings",
+     ]
+     if (defined(invoker.deps)) {
+       deps += invoker.deps

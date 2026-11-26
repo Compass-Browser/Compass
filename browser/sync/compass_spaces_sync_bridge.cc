@@ -2404,7 +2404,8 @@ void CompassSpacesSyncBridge::MergeWithChain(
   std::vector<SpaceModel*> unused;
   for (const auto& space : list_->spaces()) {
     if (space->synced() && !mirror_.contains(Key(space->id())) &&
-        space->name() == u"Home" && space->pinned_root()->children().empty()) {
+        (space->name() == DefaultSpaceName() || space->name() == u"Home") &&
+        space->pinned_root()->children().empty()) {
       unused.push_back(space.get());
     }
   }

@@ -12,6 +12,7 @@
 #include "chrome/browser/ui/webui/favicon_source.h"
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "compass/browser/ui/webui/localized_strings/localized_strings.h"
 #include "components/favicon_base/favicon_url_parser.h"
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_contents.h"
@@ -37,6 +38,7 @@ CompassSidebarUI::CompassSidebarUI(content::WebUI* web_ui)
       content::WebUIDataSource::CreateAndAdd(profile, kCompassSidebarHost);
   webui::SetupWebUIDataSource(source, kCompassSidebarResources,
                               IDR_COMPASS_SIDEBAR_COMPASS_SIDEBAR_HTML);
+  AddSidebarPakLocalizedStrings(source);
 
   content::URLDataSource::Add(
       profile, std::make_unique<FaviconSource>(

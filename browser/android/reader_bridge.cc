@@ -21,11 +21,13 @@
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "compass/browser/reader/reader_assets.h"
 #include "compass/browser/ui/webui/reader/reader_untrusted_ui.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 
 // Must come after the includes it uses.
 #include "compass/android/jni_headers/ReaderBridge_jni.h"
+#include "ui/base/l10n/l10n_util.h"
 
 using base::android::JavaRef;
 using base::android::ScopedJavaGlobalRef;
@@ -107,8 +109,8 @@ static void JNI_ReaderBridge_Parse(JNIEnv* env,
               result = base::Value(
                   base::DictValue()
                       .Set("ok", false)
-                      .Set("error", "This page couldn't be read (it may still "
-                                    "be loading)."));
+                      .Set("error", l10n_util::GetStringUTF8(
+                                        IDS_COMPASS_READER_PAGE_UNREADABLE)));
             }
             std::string json;
             base::JSONWriter::Write(result, &json);

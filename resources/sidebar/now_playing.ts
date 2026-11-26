@@ -6,6 +6,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {SidebarBrowserProxy} from './browser_proxy.js';
 import {getFaviconUrl} from './favicon.js';
+import {i18n} from './i18n.js';
 import {getCss} from './now_playing.css.js';
 import {getHtml} from './now_playing.html.js';
 import type {NowPlaying} from './sidebar.mojom-webui.js';
@@ -37,6 +38,14 @@ export class CompassNowPlayingElement extends CrLitElement {
   }
 
   accessor items: NowPlaying[] = [];
+
+  protected getPlayPauseLabel_(item: NowPlaying): string {
+    return item.playing ? i18n('nowPlayingPause') : i18n('nowPlayingPlay');
+  }
+
+  protected getMuteLabel_(item: NowPlaying): string {
+    return item.muted ? i18n('nowPlayingUnmute') : i18n('nowPlayingMute');
+  }
 
   protected getFaviconUrl_(item: NowPlaying): string {
     return getFaviconUrl(item.url, 32, null);

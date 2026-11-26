@@ -509,4 +509,3 @@ look read as a plain copy of System Settings).
 - On Windows and Linux the page sits under the system's title bar, with
   its own title row too. A frameless window with minimize and close in the
   page's title row would suit them better.
-- English only, as the sections.

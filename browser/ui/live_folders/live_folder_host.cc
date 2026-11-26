@@ -10,11 +10,13 @@
 #include "base/json/json_writer.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_browser_interface_broker_registry.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 
@@ -66,9 +68,11 @@ int LiveFolderHost::Run(RunSpec spec, RunCallback callback) {
   running->callback = std::move(callback);
   running->backstop.Start(
       FROM_HERE, running->spec.timeout + kBackstopSlack,
-      base::BindOnce(&LiveFolderHost::Finish, base::Unretained(this), run_id,
-                     base::unexpected(LiveError{
-                         "timeout", "The refresh took too long"})));
+      base::BindOnce(
+          &LiveFolderHost::Finish, base::Unretained(this), run_id,
+          base::unexpected(LiveError{
+              "timeout", l10n_util::GetStringUTF8(
+                             IDS_COMPASS_LIVE_FOLDER_REFRESH_TIMEOUT)})));
   runs_[run_id] = std::move(running);
   if (page_.is_bound()) {
     StartOnPage(run_id);
@@ -190,7 +194,9 @@ void LiveFolderHost::OnPageGone() {
   }
   for (int run_id : started) {
     Finish(run_id, base::unexpected(LiveError{
-                       "plugin_error", "The plugin's page stopped"}));
+                       "plugin_error",
+                       l10n_util::GetStringUTF8(
+                           IDS_COMPASS_LIVE_FOLDER_PLUGIN_PAGE_STOPPED)}));
   }
   // Not from inside the disconnect handler: the page's WebContents may be
   // the one calling it.

@@ -1,0 +1,1252 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The settings window's sections (resources/sidebar/settings/). -->
+<grit-part>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_ADD_BOOST" desc="Button that adds a Boost: a new one, or the shared one being previewed.">
+    Add Boost
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_ADD_SHARED" desc="Heading of the preview of a Boost someone shared, before adding it.">
+    Add a shared Boost
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_BROKEN_LINK" desc="Shown when a link to a shared Boost is cut short.">
+    This Boost link is broken: part of it may be missing.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_BY_CLAUDE" desc="Tag on a Boost Claude made.">
+    by Claude
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_COPY_FAILED" desc="Shown when a Boost&#x27;s link couldn&#x27;t be copied.">
+    Couldn’t copy the link.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_COPY_LINK" desc="Button that copies a link to share a Boost.">
+    Copy Link
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_CSS_HINT" desc="When a Boost&#x27;s CSS is added to the page.">
+    Added before the page draws.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_DELETE_BOOST" desc="Accessible name of the button that deletes a Boost.">
+    Delete <ph name="BOOST">$1<ex>Quieter GitHub</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_FILE_SAVED" desc="Shown after a Boost was saved to a file.">
+    File saved.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_IMPORT" desc="Button that adds a Boost from a file someone shared.">
+    Import…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_JS_HINT" desc="When a Boost&#x27;s JavaScript runs.">
+    Runs once the page has loaded.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_JS_RUNS" desc="Label of a menu: where a Boost&#x27;s JavaScript runs, apart from the page&#x27;s scripts or with them.">
+    JavaScript runs
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_JS_WARNING" desc="Warning on a shared Boost that runs JavaScript, before adding it.">
+    This Boost runs JavaScript on <ph name="SITE">$1<ex>github.com</ex></ph>. Only add it if you trust whoever shared it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_LEAD" desc="Explains Boosts at the top of their settings section. &quot;Let Claude make Boosts&quot; is the name of a setting; &quot;Shared&quot; is a tag shown on Boosts others shared.">
+    Boosts change how sites look and work: CSS and JavaScript that Compass adds to every page of a site, on all your devices. Make them here, or ask Claude (turn on "Let Claude make Boosts" in Claude's settings). JavaScript in a Boost can read and change the pages it runs on, so only keep code you trust. Share a Boost as a link or a file; Boosts others share with you are marked Shared.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_LINK_COPIED" desc="Shown after a Boost&#x27;s link was copied.">
+    Link copied.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_NAME" desc="Label of the field for a Boost&#x27;s name.">
+    Name
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_NAME_PLACEHOLDER" desc="Example of a Boost&#x27;s name, shown in its empty name field. The Boost hides parts of GitHub&#x27;s pages.">
+    Quieter GitHub
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_NO_BOOSTS" desc="Shown in place of the list of Boosts when there are none.">
+    No Boosts yet.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_RUNS_APART" desc="On a shared Boost: its JavaScript runs apart from the page&#x27;s own scripts.">
+    It runs apart from the page’s scripts, with access to the page itself.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_RUNS_WITH_PAGE" desc="On a shared Boost: its JavaScript runs with the page&#x27;s own scripts.">
+    It runs with the page’s own scripts, so it can see and change everything they do.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_SAVE_FILE" desc="Button that saves a Boost to a file to share it.">
+    Save File…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_SHARE" desc="Button that shows the ways to share a Boost.">
+    Share
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_SHARED" desc="Tag on a Boost someone shared with the user.">
+    Shared
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_SHARE_BOOST" desc="Accessible name of the button that shows the ways to share a Boost.">
+    Share <ph name="BOOST">$1<ex>Quieter GitHub</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_SITE" desc="Label of the field for the site a Boost runs on.">
+    Site
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_SITE_HINT" desc="Explains how to write the site a Boost runs on.">
+    example.com (with www.), *.example.com (with every subdomain), or a path: github.com/settings
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_TITLE" desc="Heading of the settings section that lists Boosts: CSS and JavaScript Compass adds to the pages of a site. Boosts is a feature name.">
+    Boosts
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_TOO_BIG" desc="Shown when a Boost is too big to share as a link.">
+    This Boost is too big for a link. Share it as a file.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_TURN_ON" desc="Accessible name of the switch that turns a Boost on or off.">
+    Turn on <ph name="BOOST">$1<ex>Quieter GitHub</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_WORLD_ISOLATED" desc="Menu item: a Boost&#x27;s JavaScript runs apart from the page&#x27;s own scripts.">
+    Apart from the page's scripts
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_BOOSTS_WORLD_MAIN" desc="Menu item: a Boost&#x27;s JavaScript runs together with the page&#x27;s own scripts.">
+    With the page's scripts
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_ACCEPT_TOKEN_RISKS" desc="Checkbox: accept the risks of using a Claude subscription token as the API key.">
+    Accept the risks of subscription tokens
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_ADD_MEMORY_PLACEHOLDER" desc="Placeholder of the field to add a memory, with an example fact.">
+    Add a fact, like “I live in Milan”
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_ALLOW_MCP" desc="Switch: other apps on this computer may use Compass through MCP (Model Context Protocol). MCP is a technical name.">
+    Allow MCP clients
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_ALLOW_MCP_DETAIL" desc="Explains the &quot;Allow MCP clients&quot; switch. Claude Code and Claude Desktop are product names.">
+    Let Claude Code, Claude Desktop and other MCP apps on this computer use Compass, signed in as you. Compass asks before each new app.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_ANSWER_WITH" desc="Accessible name of the choice of what answers the sidebar&#x27;s tasks: the chat&#x27;s provider or Apple Intelligence.">
+    Answer with
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_API_KEY" desc="Choice and label: an API key for the AI provider.">
+    API key
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_API_KEY_DETAIL" desc="Explains connecting with an API key. Console is Anthropic&#x27;s website for API accounts.">
+    The Claude API, or a gateway, billed to the key's Console account.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_APPLE_INTELLIGENCE" desc="Choice: Apple Intelligence, the model built into macOS, answers the sidebar&#x27;s tasks. Apple Intelligence is a product name.">
+    Apple Intelligence (on this Mac)
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_APPLE_INTELLIGENCE_DETAIL" desc="Explains Apple Intelligence answering the sidebar&#x27;s tasks. The names in it are the names of those tasks, as shown below it.">
+    The model built into macOS answers Name Link Folders, Tidy Today and Shorter Tab Titles, with no key and in Claude Code mode too; titles and sites never leave this Mac. It's smaller than Claude: its names are plainer, and Tidy leaves more tabs loose. Answer Questions in the Command Bar stays with the provider above.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_AUTH_API_KEY" desc="Menu item: send the key in the x-api-key header, as the Claude API wants. x-api-key is an HTTP header name.">
+    x-api-key (Claude API)
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_AUTH_BEARER" desc="Menu item: send the key in the Authorization: Bearer header, as gateways want. &quot;Authorization: Bearer&quot; is an HTTP header.">
+    Authorization: Bearer (gateways)
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_BACK_LABEL" desc="Link back from one of the Claude settings&#x27; views to the AI page of the settings window.">
+    AI
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_BAD_URL" desc="Error shown for a base or server URL that isn&#x27;t https:// (or http:// to this computer) or has a query.">
+    Use an https:// URL (http:// only to this computer), without a query.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_BASE_URL" desc="Label of the field for the API&#x27;s base URL.">
+    Base URL
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CAN_DO_FOOTER" desc="Warning under the switches for what Claude may do.">
+    Claude asks before JavaScript it adds, plugins it saves and cookies it changes. Web pages can try to give Claude instructions of their own; it's told to ignore them, but only turn these on for tasks you watch and pages you trust.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CHATGPT_HINT" desc="Explains signing in with ChatGPT.">
+    Sign in with your ChatGPT account to use your ChatGPT plan instead of an API key: its usage limits apply, shared with your other apps, and you can see or cap what Compass uses in ChatGPT's settings. While you're signed in, the key below isn't used.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CHATGPT_PLAN" desc="Label of the sign-in with a ChatGPT account. ChatGPT is a product name.">
+    ChatGPT plan
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CHECKING_APPLE_INTELLIGENCE" desc="Shown while Compass checks whether Apple Intelligence can answer.">
+    Checking Apple Intelligence…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CHOOSE" desc="Button that opens a dialog to choose the folder Claude uses.">
+    Choose…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CLAUDE_CODE" desc="Choice and label: Claude Code, Anthropic&#x27;s command-line app. Product name.">
+    Claude Code
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CLAUDE_CODE_DETAIL" desc="Explains connecting with Claude Code.">
+    Your Claude Code on this computer, signed in with your Claude subscription. Compass runs it for each chat, with only Compass's tools.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CLAUDE_CODE_HERE" desc="What answers the chat: Claude Code on this computer.">
+    Claude Code on this computer
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CLAUDE_CODE_NO_TOOLS" desc="Shown on systems where Claude Code can&#x27;t use Compass&#x27;s page tools.">
+    On this system Claude Code chats about the page you attach, but can't use the page tools yet.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CLAUDE_CODE_PATH_HINT" desc="Explains the Claude Code path field. &quot;claude&quot; is the name of a program; ~/.local/bin is a folder; Homebrew and Terminal are app names.">
+    Leave empty to use the claude that Claude Code's installer put in ~/.local/bin (or Homebrew's). Sign in once by running claude in Terminal.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_COMMAND_BAR_ASK" desc="Name of a sidebar task: Claude answers questions typed in the command bar.">
+    Answer Questions in the Command Bar
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_COMMAND_BAR_ASK_DETAIL" desc="Explains the Answer Questions task. &quot;Ask Claude&quot;, &quot;Continue in Chat&quot; and &quot;About this page&quot; are names shown in the command bar.">
+    A question typed in the command bar gets an "Ask Claude" row; its short answer shows right there, and "Continue in Chat" takes it to the chat. Only the question goes, with the current tab's title and site when "About this page" is on.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CONFIRM_DELETE_ALL" desc="Asks before deleting every memory.">
+    Delete everything Claude remembers about you, on all your devices?
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CONNECTED" desc="Shown when the connection works, with how many models the provider has.">
+    {COUNT, plural, =1 {Connected: 1 model available.} other {Connected: # models available.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CONNECTING" desc="Shown while testing the connection.">
+    Connecting…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CONNECTION" desc="Row and heading of the view where the user picks the AI provider, its key and model.">
+    Connection
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CONNECTION_LEAD" desc="Explains the Connection view. console.anthropic.com is a website.">
+    Chat with Claude about the page you're on. Claude can read it, its JavaScript console, and click and type in it. Compass ships no key: use your own API key from console.anthropic.com, or a gateway's, or your own Claude Code.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CONNECT_WITH" desc="Heading of the choice between an API key and Claude Code.">
+    Connect with
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_CONTINUE_WITH_CHATGPT" desc="Button that signs in with a ChatGPT account.">
+    Continue with ChatGPT
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_COPIED" desc="Shown on the Copy button once the command was copied." meaning="A command was copied">
+    Copied
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_DELETE_ALL_MEMORIES" desc="Button that deletes every memory.">
+    Delete all memories
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_DEV_TOOLS" desc="Switch: Claude may use the browser&#x27;s developer tools.">
+    Use developer tools
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_DEV_TOOLS_DETAIL" desc="Explains the &quot;Use developer tools&quot; switch.">
+    Inspect the network, styles, cookies, storage and performance of the tab it works on.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_DOWNLOADS_FOLDER" desc="The folder Claude saves files in by default: the Downloads folder, with its path.">
+    Downloads (<ph name="PATH">$1<ex>/Users/ada/Downloads</ex></ph>)
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_ENDPOINT" desc="Heading of the advanced settings for the API&#x27;s address.">
+    Endpoint
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_ENDPOINT_HINT_ANTHROPIC" desc="Explains the Base URL field for Anthropic. Amazon Bedrock and Google Cloud Vertex AI are product names.">
+    Leave empty for the Claude API. A gateway or proxy that serves the Anthropic Messages API (Amazon Bedrock, Google Cloud Vertex AI, your own) goes here.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_ENDPOINT_HINT_OTHER" desc="Explains the Base URL field for providers other than Anthropic.">
+    Leave empty for the provider's own API. A gateway or proxy that serves the same API goes here.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_FEATURES_ON" desc="Status of the sidebar&#x27;s tasks: how many of them are on.">
+    <ph name="ON">$1<ex>2</ex></ph> of <ph name="TOTAL">$2<ex>4</ex></ph> on
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_FILES" desc="Row and heading of the view of what Claude may do with files on this computer.">
+    Files
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_FILES_ASK" desc="Explains that Claude asks before each file it saves. &quot;Allow&quot;, &quot;Allow for this chat&quot; and &quot;Deny&quot; are the names of the buttons in the chat.">
+    Claude asks before each file it saves or changes, in the chat: Allow, Allow for this chat, or Deny.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_FILES_OFF_DETAIL" desc="Explains the Off choice for files.">
+    Claude can't use files on this computer.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_FINISH_SIGN_IN" desc="Shown while the user signs in to ChatGPT in another tab.">
+    Finish signing in in the tab that opened, then come back.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_FORGET" desc="Button that stops always allowing an MCP app.">
+    Forget
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_FOUND_AUTOMATICALLY" desc="Placeholder of the field for Claude Code&#x27;s path when empty: Compass finds it.">
+    Found automatically
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_IN_SIDEBAR" desc="Row and heading of the view of small tasks Claude does in the sidebar.">
+    Claude in the sidebar
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_KEY_HELP_ANTHROPIC" desc="Explains how the Anthropic API key is stored. &quot;claude setup-token&quot; is a command.">
+    Stored encrypted on this device only; it never syncs, and pages never see it. To use your Claude subscription, connect with Claude Code instead, or, with the risks below accepted, use a token from <ph name="BEGIN_CODE">&lt;code&gt;</ph>claude setup-token<ph name="END_CODE">&lt;/code&gt;</ph>.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_KEY_HELP_COMPATIBLE" desc="Explains the key field for an OpenAI-compatible server.">
+    The server's key, if it needs one. Stored encrypted on this device only; it never syncs, and pages never see it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_KEY_HELP_GEMINI" desc="Explains the Gemini API key field. aistudio.google.com is a website.">
+    A Gemini API key from aistudio.google.com. Stored encrypted on this device only; it never syncs, and pages never see it. Compass's prompts and tools are made for Claude: other models may use the browser less well.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_KEY_HELP_OPENAI" desc="Explains the OpenAI API key field. platform.openai.com is a website.">
+    An OpenAI API key from platform.openai.com, or sign in with ChatGPT above. Stored encrypted on this device only; it never syncs, and pages never see it. Compass's prompts and tools are made for Claude: other models may use the browser less well.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_KEY_NOT_STORED" desc="Error shown when the system&#x27;s secure storage (Keychain) refused the API key.">
+    The key couldn't be stored: the system's secure storage refused it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_KEY_REMOVED" desc="Shown after the API key was removed.">
+    Key removed.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_LET_CLAUDE_SAVE" desc="Checkbox: Claude may save memories itself.">
+    Let Claude save memories
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_LET_CLAUDE_SAVE_DETAIL" desc="Explains letting Claude save memories. Undo is the name of a button in the chat.">
+    Claude saves what it thinks will help in later chats, and shows each save in the chat, with Undo. Off, only you add them, here.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MAKE_BOOSTS" desc="Switch: Claude may make Boosts (CSS and JavaScript added to a site&#x27;s pages). Boosts is a feature name.">
+    Make Boosts
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MAKE_BOOSTS_DETAIL" desc="Explains the &quot;Make Boosts&quot; switch.">
+    Add CSS and JavaScript to sites you ask it to change, on all your devices.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MAKE_PLUGINS" desc="Switch: Claude may write plugins for live folders and tab previews.">
+    Make plugins
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MAKE_PLUGINS_DETAIL" desc="Explains the &quot;Make plugins&quot; switch.">
+    Write plugins for live folders and tab previews, and save them on this computer.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MCP_ADD_TO_CLAUDE_CODE" desc="Above the command to run to add Compass to Claude Code.">
+    To add Compass to Claude Code, run:
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MCP_ALWAYS_ALLOWED" desc="Heading of the MCP apps the user always allowed.">
+    Always allowed:
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MCP_OTHER_CLIENTS" desc="How other MCP apps add Compass: the placeholder is the path of a program, &quot;stdio MCP server&quot; is technical.">
+    Other clients: run <ph name="BEGIN_CODE">&lt;code id="mcpBinary"&gt;</ph><ph name="END_CODE">&lt;/code&gt;</ph> as a stdio MCP server.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MCP_UNSUPPORTED" desc="Shown on systems where MCP apps can&#x27;t use Compass.">
+    MCP clients aren't supported on this system yet.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MEMORY" desc="Row and heading of the view of the facts Claude remembers about the user.">
+    Memory
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MEMORY_ON" desc="Status of Memory: it&#x27;s on, and how many memories Claude keeps.">
+    {COUNT, plural, =1 {On · 1 memory} other {On · # memories}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MODEL" desc="Heading and label for the AI model Claude&#x27;s chat (or a sidebar feature) uses.">
+    Model
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MODEL_ID_PLACEHOLDER" desc="Placeholder of the field for a model&#x27;s ID on an OpenAI-compatible server.">
+    Model ID
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_MORE" desc="Heading of the rows for Claude&#x27;s other settings.">
+    More
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_NAME_LINK_FOLDERS" desc="Name of a sidebar task: Claude names the folders that gather a page&#x27;s links.">
+    Name Link Folders
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_NAME_LINK_FOLDERS_DETAIL" desc="Explains the Name Link Folders task. &quot;Suggest a Name&quot; is the name of a menu item.">
+    Claude names the folders that gather a page's links, from their tabs' titles and sites, and folder menus offer "Suggest a Name". Each new name can be undone from the folder's menu.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_NEEDS_KEY" desc="Shown when the sidebar&#x27;s tasks can&#x27;t run: no key.">
+    These need an API key (or a gateway's) above. Claude Code mode doesn't do them yet.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_NEEDS_KEY_COMMAND_BAR" desc="Shown when Apple Intelligence answers the sidebar&#x27;s tasks but the command bar&#x27;s still needs a key. &quot;Answer Questions in the Command Bar&quot; is a task&#x27;s name.">
+    Answer Questions in the Command Bar needs an API key (or a gateway's) above.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_NEEDS_KEY_OR_DEVICE" desc="Shown when the sidebar&#x27;s tasks can&#x27;t run: no key, and Apple Intelligence is an option.">
+    These need an API key (or a gateway's) above, or Apple Intelligence. Claude Code mode doesn't do them yet.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_NOT_SET_UP" desc="Status of the connection when the provider is not set up yet.">
+    <ph name="PROVIDER">$1<ex>Anthropic</ex></ph> · Not set up yet
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_NO_FOLDER" desc="Shown in place of a folder when none was chosen.">
+    No folder chosen
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_NO_MEMORIES" desc="Shown in place of the list of memories when there are none.">
+    No memories yet.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_OFF" desc="Status of a setting that is off; also the choice that lets Claude use no files." meaning="Status of a Claude setting that is off">
+    Off
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_OWN_TOOLS" desc="Checkbox: Claude Code may use its own tools (files, commands, the web) in the folder.">
+    Let Claude Code use its own tools
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_OWN_TOOLS_DETAIL" desc="Explains letting Claude Code use its own tools.">
+    Claude Code's own tools work in the folder too: reading and editing files, running commands, and fetching from the web. It asks before each change, each command that isn't read-only, and the web. Web pages can try to give Claude instructions of their own, so read what you allow.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_PASTE_KEY" desc="Error shown when saving an empty API key.">
+    Paste a key first.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_PROVIDER" desc="Label of the menu that picks the AI provider (Anthropic, OpenAI, Gemini, a compatible server).">
+    Provider
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_REPLACE" desc="Button that replaces the saved API key with another.">
+    Replace
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SAME_AS_CHAT" desc="Choice and menu item: the sidebar&#x27;s tasks use the same provider (or model) as the chat.">
+    Same as chat
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SAME_AS_CHAT_DETAIL" desc="Explains &quot;Same as chat&quot;.">
+    The provider above answers, with its key.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SAVED_DOT" desc="Shown after a setting was saved.">
+    Saved.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SAVES_NEW_FILES" desc="Status of Files: Claude saves new files.">
+    Saves new files
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SAVE_ENDPOINT" desc="Button that saves the base URL and how to send the key.">
+    Save endpoint
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SAVE_FILES" desc="Choice: Claude may save new files it makes in one folder.">
+    Save files
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SAVE_FILES_DETAIL" desc="Explains the &quot;Save files&quot; choice.">
+    Claude can save new files it makes for you, like notes or a table, in one folder. It doesn't read or replace your files.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SEND_KEY_AS" desc="Label of the menu for which HTTP header carries the API key.">
+    Send the key as
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SERVER" desc="Label of the field for an OpenAI-compatible server&#x27;s URL.">
+    Server
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SERVER_HINT" desc="Explains the Server field. chat/completions is a path of the API; OpenRouter, Ollama and LM Studio are product names.">
+    The base URL its API answers under, before chat/completions: OpenRouter, Ollama, LM Studio, a company gateway.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SERVER_REMOVED" desc="Shown after the server&#x27;s URL was cleared.">
+    Server removed.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SHORT_TAB_TITLES" desc="Name of a sidebar task: Claude shortens long tab titles.">
+    Shorter Tab Titles
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SHORT_TAB_TITLES_DETAIL" desc="Explains the Shorter Tab Titles task. Hover cards are the cards shown when hovering a tab.">
+    Long tab titles read as short ones in the sidebar, from the titles and sites of your tabs. Hover cards keep the full title, and a name you give a tab always wins.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SIDEBAR_HINT" desc="Explains the small tasks Claude does in the sidebar and what they send.">
+    Small tasks Claude does in the sidebar, each with its own switch and model. Only tabs' titles and sites are sent, to the endpoint above, never what pages contain; incognito windows never. At most 30 automatic requests an hour.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SIGNED_IN" desc="Shown when signed in to ChatGPT and the account&#x27;s email isn&#x27;t known.">
+    Signed in
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SIGNED_IN_AS" desc="Shown when signed in to ChatGPT, with the account&#x27;s email.">
+    Signed in as <ph name="EMAIL">$1<ex>ada@example.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SIGNED_OUT" desc="Shown after signing out of ChatGPT.">
+    Signed out.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SIGNED_OUT_NOT_REVOKED" desc="Shown after signing out of ChatGPT when OpenAI didn&#x27;t confirm it.">
+    Signed out of Compass. OpenAI didn't confirm revoking the sign-in: you can disconnect Compass in ChatGPT's settings.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_SIGN_OUT" desc="Button that signs out of the ChatGPT account.">
+    Sign Out
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_TEST_CONNECTION" desc="Button that checks the key, server and model work.">
+    Test connection
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_TIDY_TODAY" desc="Name of a sidebar task: Claude groups the loose tabs of Today (the sidebar&#x27;s section of open tabs) into folders.">
+    Tidy Today
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_TIDY_TODAY_DETAIL" desc="Explains the Tidy Today task. &quot;Tidy&quot; is the name of a button; Today is the sidebar&#x27;s section of open tabs.">
+    "Tidy" in Today's header and the command bar asks Claude to group Today's loose tabs into named folders, from their titles and sites. Nothing is closed, and Undo puts every tab back.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_TITLE" desc="Heading of the Claude settings section. Claude is a product name.">
+    Claude
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_TOKEN_RISKS_DETAIL" desc="Explains the risks of subscription tokens. &quot;claude setup-token&quot; is a command and sk-ant-oat… how such a token starts.">
+    Lets the key be a token from <ph name="BEGIN_CODE">&lt;code&gt;</ph>claude setup-token<ph name="END_CODE">&lt;/code&gt;</ph> (sk-ant-oat…), which uses your Claude subscription. Compass then sends it as Claude Code does, saying it's Claude Code. Anthropic doesn't offer these tokens for other apps: they can stop working at any time, and using them this way may go against the terms of your subscription. Off, such a token is refused.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_USE_DOWNLOADS" desc="Button that goes back to saving Claude&#x27;s files in the Downloads folder.">
+    Use Downloads
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_USE_FOLDER" desc="Choice: Claude may list, read and write files in one folder.">
+    Use a folder
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_USE_FOLDER_DETAIL" desc="Explains the &quot;Use a folder&quot; choice.">
+    Claude can list, read and write files in one folder you choose, and nowhere else.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_USE_MEMORY" desc="Checkbox: Claude keeps short facts about the user between chats.">
+    Use memory
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_USE_MEMORY_DETAIL" desc="Explains Claude&#x27;s memory.">
+    Claude keeps short facts about you, like how you like answers, and starts each new chat with them. They sync with your spaces, end-to-end encrypted. Off, Claude neither sees nor saves them; what's saved stays until you delete it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_WHAT_CLAUDE_CAN_DO" desc="Heading of the switches for what Claude may do in the browser.">
+    What Claude can do
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_WHOLE_BROWSER" desc="Switch: Claude may use every tab and window, not only the one it works on.">
+    Use the whole browser
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CLAUDE_WHOLE_BROWSER_DETAIL" desc="Explains the &quot;Use the whole browser&quot; switch.">
+    List, open and use your other tabs and windows, signed in as you.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_DEV_MODE_ADD_SITE" desc="Button that puts the typed site in development mode.">
+    Add Site
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_DEV_MODE_LEAD" desc="Explains development mode at the top of its settings section. Cmd+Shift+D and Ctrl+Shift+D are keyboard shortcuts.">
+    On these sites, reload always gets a fresh copy instead of using the cache, and a bar above the page shows the full address with buttons for the console, the network panel, inspecting an element and copying the address. The network panel also lists the requests made before you opened it. A site covers every port, so localhost covers localhost:3000; *.example.com also covers its subdomains. You can also turn development mode on or off from the site information popup, the command bar, or with Cmd+Shift+D (Ctrl+Shift+D on Windows and Linux).
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_DEV_MODE_NOT_A_SITE" desc="Error shown when what the user typed to put in development mode is not a site.">
+    "<ph name="TYPED">$1<ex>foo bar</ex></ph>" isn't a site, like localhost or example.com.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_DEV_MODE_NO_SITES" desc="Shown in place of the list of sites in development mode when it is empty.">
+    No sites yet.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_DEV_MODE_NO_SITES_DETAIL" desc="Status shown in the settings window next to Development Mode when no site is in it.">
+    No sites
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_DEV_MODE_REMOVE_SITE" desc="Accessible name of the button that takes a site out of development mode.">
+    Remove <ph name="SITE">$1<ex>localhost</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_DEV_MODE_SITE_COUNT" desc="Status shown in the settings window next to Development Mode: how many sites are in it. Followed by the first sites&#x27; names.">
+    {COUNT, plural, =1 {1 site} other {# sites}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_DEV_MODE_SITE_LABEL" desc="Accessible name of the text field where the user types a site to put in development mode.">
+    Site
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_DEV_MODE_TITLE" desc="Heading of the settings section that lists the sites in development mode.">
+    Development Mode
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_DEV_MODE_TYPE_SITE" desc="Error shown when the user adds a site to development mode without typing one.">
+    Type a site, like localhost or example.com.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_ADDED_SPACES" desc="After importing from Arc: the profiles imported before that got new spaces.">
+    Added new spaces to <ph name="PROFILES">$1<ex>Personal, Work</ex></ph>.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_ARCHIVED_COUNT" desc="How many of a space&#x27;s tabs are archived.">
+    {COUNT, plural, =1 {1 archived} other {# archived}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_ARC_KEYCHAIN_NOTICE" desc="Explains the macOS prompt that appears while importing from Arc. &quot;Arc Safe Storage&quot; is the name of Arc&#x27;s key in the macOS Keychain; &quot;Always Allow&quot; and &quot;Allow&quot; are the names of the prompt&#x27;s buttons, as macOS shows them.">
+    macOS will ask whether Compass may use "Arc Safe Storage", the key Arc encrypts your cookies and passwords with. Choose <ph name="BEGIN_BOLD">&lt;b&gt;</ph>Always Allow<ph name="END_BOLD">&lt;/b&gt;</ph> (or Allow) so Compass can bring them over.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_ARC_LEAD" desc="Explains what importing from Arc brings. Favorites are Arc&#x27;s favorite sites, shown as icons above the sidebar.">
+    Bring your Arc profiles to Compass: you stay signed in to your sites, and your history, passwords, extensions and settings come along, with your spaces, pinned tabs and favorites.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_ARC_NOT_FOUND" desc="Shown when Arc is not on this computer.">
+    Arc wasn't found on this computer.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_ARC_OPEN" desc="Shown when Arc is running, so it can&#x27;t be imported from.">
+    Arc is open. Quit it to import: its data is in use while it runs.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_ARC_OPEN_SHORT" desc="Shown on Arc&#x27;s row in the list of browsers while Arc is running.">
+    Arc is open. Quit it to import from it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_AS_PROFILE" desc="Choice: import a browser profile as a new Compass profile.">
+    A new profile
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_AS_SPACE" desc="Choice: import a browser profile as a space in the current Compass profile.">
+    A space in this profile
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_BOOKMARKS" desc="Switch: import the browser&#x27;s bookmarks.">
+    Bookmarks
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_BOOKMARK_COUNT" desc="How many bookmarks a browser profile has.">
+    {COUNT, plural, =1 {1 bookmark} other {# bookmarks}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_BRING_IN_AS" desc="Heading of the choice of how to import a browser profile: as a space in this profile, or as a new profile.">
+    Bring it in as
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_BROUGHT_EASELS" desc="After importing from Arc: how many Easels came over. Easels is a feature name.">
+    {COUNT, plural, =1 {Brought over 1 Easel.} other {Brought over # Easels.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_BROWSERS" desc="Link back to the list of browsers to import from.">
+    Browsers
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_BROWSERS_HERE" desc="Heading of the list of other browsers found on this computer.">
+    Browsers on this computer
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_BROWSERS_OPEN" desc="Shown when some of the browsers found are running, so they can&#x27;t be imported from.">
+    Some browsers are open. Quit them to import from them: their files are in use while they run.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_BROWSER_OPEN" desc="Shown on a browser profile that can&#x27;t be imported because the browser is running.">
+    <ph name="BROWSER">$1<ex>Chrome</ex></ph> is open. Quit it to import from it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_CHECK_AGAIN" desc="Button that looks again for whether the other browsers are still open.">
+    Check Again
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_COOKIES_DROPPED" desc="Warning after an import: cookies that couldn&#x27;t be imported.">
+    {COUNT, plural, =1 {1 cookie couldn't come along: you may have to sign in again on some sites.} other {# cookies couldn't come along: you may have to sign in again on some sites.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_EASELS_EMPTY" desc="After importing from Arc on a Mac: Easels that came over empty because Arc never downloaded them. Easels is a feature name.">
+    {COUNT, plural, =1 {1 Easel came over empty: Arc hasn't downloaded it to this Mac. Open it in Arc, then import again.} other {# Easels came over empty: Arc hasn't downloaded them to this Mac. Open them in Arc, then import again.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_FAILED" desc="Error after importing from Arc.">
+    {COUNT, plural, =1 {Couldn't import one profile. Check that Arc is closed, then try again.} other {Couldn't import # profiles. Check that Arc is closed, then try again.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_FAILED_MAC" desc="Error after importing from Arc on a Mac. &quot;Arc Safe Storage&quot; is the name of Arc&#x27;s key in the macOS Keychain.">
+    {COUNT, plural, =1 {Couldn't import one profile. Check that Arc is closed and that Compass was allowed to use "Arc Safe Storage", then try again.} other {Couldn't import # profiles. Check that Arc is closed and that Compass was allowed to use "Arc Safe Storage", then try again.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_FAVORITE_COUNT" desc="How many favorites were imported: Arc&#x27;s favorite sites, shown as icons above the sidebar.">
+    {COUNT, plural, =1 {1 favorite} other {# favorites}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_FOUND" desc="Status shown in the settings window next to Import: the browsers found on this computer.">
+    <ph name="BROWSERS">$1<ex>Chrome, Firefox and Arc</ex></ph> found
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_HISTORY" desc="Switch: import the browser&#x27;s history.">
+    History
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_HISTORY_BROUGHT" desc="What an import brought: the history (how much isn&#x27;t known).">
+    history
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_HISTORY_COUNT" desc="How many pages of history were imported.">
+    {COUNT, plural, =1 {1 history page} other {# history pages}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_HISTORY_DETAIL" desc="Under the History switch.">
+    The pages you visited
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_IMPORT" desc="Button that starts importing what the user chose.">
+    Import
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_IMPORTED_ALREADY" desc="Shown on a browser profile, or a way to import it, that was imported already.">
+    Imported already.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_IMPORTED_AS_PROFILE" desc="Shown on the choice to import a browser profile as a new profile, when it was imported that way already.">
+    Imported already, as the profile <ph name="PROFILE">$1<ex>Chrome</ex></ph>.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_IMPORTED_NAME" desc="A space or Arc profile that was imported before, in the list to import.">
+    <ph name="NAME">$1<ex>Work</ex></ph> (imported)
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_IMPORTED_PROFILES" desc="After importing from Arc: the profiles imported.">
+    Imported <ph name="PROFILES">$1<ex>Personal, Work</ex></ph>.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_IMPORTING" desc="Shown while importing from another browser.">
+    Importing… This takes a moment.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_IMPORTING_ARC" desc="Shown while importing Arc&#x27;s profiles.">
+    Importing… This takes a moment for each profile.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_IMPORT_ANOTHER" desc="Button that goes back to the list of browsers to import another one.">
+    Import Another Browser
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_IMPORT_EASELS_AGAIN" desc="Button that imports Arc&#x27;s Easels again, once Arc has downloaded them. Easels is a feature name.">
+    Import Easels Again
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_KEPT_APART" desc="Explains importing a browser profile as a new profile.">
+    Kept apart, with its cookies, history, passwords, extensions and settings: you stay signed in to sites.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_KEYCHAIN_NOTICE" desc="Explains the macOS prompt that appears while importing. &quot;Safe Storage&quot; is the name of the browser&#x27;s key in the macOS Keychain; &quot;Allow&quot; is the name of the prompt&#x27;s button, as macOS shows it.">
+    macOS asks whether Compass may use this browser's "Safe Storage" key, for its passwords and for a profile of its own. Choose <ph name="BEGIN_BOLD">&lt;b&gt;</ph>Allow<ph name="END_BOLD">&lt;/b&gt;</ph> so Compass can read them.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_LEAD" desc="Explains the import settings section, above the list of browsers found.">
+    Bring bookmarks, open tabs, history and passwords into Compass. Choose a browser to see what can come over.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_LOOKING_FOR_ARC" desc="Shown while Compass looks for Arc on this computer.">
+    Looking for Arc…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_LOOKING_FOR_BROWSERS" desc="Shown while Compass looks for other browsers on this computer.">
+    Looking for browsers…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_NEWER_VERSION" desc="Added when the browser to import as a new profile is a newer version than Compass.">
+    <ph name="BROWSER">$1<ex>Chrome</ex></ph> <ph name="VERSION">$2<ex>140</ex></ph> is newer than Compass, so some of it may not come along.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_NEW_PROFILE_NAMED" desc="What an import made: a new Compass profile, with its name.">
+    New profile <ph name="PROFILE">$1<ex>Chrome</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_NEW_SPACES_TO_ADD" desc="On an Arc profile imported before that has spaces it didn&#x27;t have then.">
+    {COUNT, plural, =1 {1 new space to add. Its cookies, history and passwords stay as first imported.} other {# new spaces to add. Its cookies, history and passwords stay as first imported.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_NEW_SPACE_CALLED" desc="Explains importing a browser profile as a space: the space is named after the browser.">
+    A new space called <ph name="BROWSER">$1<ex>Chrome</ex></ph>, next to yours.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_NONE_FOUND" desc="Status shown in the settings window next to Import when no other browser is on this computer.">
+    No other browsers found
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_NOTHING_IMPORTED" desc="Shown after an import that brought nothing.">
+    Nothing was imported.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_NOTHING_NEW" desc="Shown when importing Arc&#x27;s Easels again found nothing new.">
+    Nothing new to bring over.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_NO_BROWSERS" desc="Shown when no other browser was found on this computer.">
+    No other browser was found on this computer.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_OPEN_SPACES" desc="Button that closes the import and shows the user&#x27;s spaces in the sidebar.">
+    Open My Spaces
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_OPEN_TABS" desc="Switch: import the browser&#x27;s open tabs.">
+    Open tabs
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_OPEN_TAB_COUNT" desc="How many open tabs a browser profile has.">
+    {COUNT, plural, =1 {1 open tab} other {# open tabs}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_PASSWORDS" desc="Switch: import the browser&#x27;s saved passwords.">
+    Passwords
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_PASSWORDS_BROUGHT" desc="What an import brought: the passwords (how many isn&#x27;t known).">
+    passwords
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_PASSWORDS_DETAIL" desc="Under the Passwords switch.">
+    Your saved passwords
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_PASSWORDS_SKIPPED" desc="Warning after an import: passwords that couldn&#x27;t be decrypted.">
+    {COUNT, plural, =1 {1 password couldn't be decrypted and stayed behind.} other {# passwords couldn't be decrypted and stayed behind.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_PASSWORD_COUNT" desc="How many passwords were imported.">
+    {COUNT, plural, =1 {1 password} other {# passwords}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_PROFILE_BROUGHT" desc="What importing a browser profile as a new profile brought.">
+    cookies, history, passwords, extensions and settings
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_PROFILE_COUNT" desc="How many profiles Arc has.">
+    {COUNT, plural, =1 {1 profile} other {# profiles}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_QUIT_ARC" desc="Button that quits Arc so its data can be imported.">
+    Quit Arc
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_QUIT_THEN_IMPORT_EASELS" desc="Shown when Arc is still open while importing its Easels again. &quot;Import Easels Again&quot; is the name of a button.">
+    Quit Arc, then choose Import Easels Again.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_SPACES_NAMED" desc="What an import made: the spaces, with their names.">
+    {COUNT, plural, =1 {Space <ph name="SPACES">$1<ex>Chrome</ex></ph>} other {Spaces <ph name="SPACES">$1<ex>Work, Personal</ex></ph>}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_SPACE_COUNT" desc="How many spaces a browser profile has.">
+    {COUNT, plural, =1 {1 space} other {# spaces}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_TABS_IN_PINNED" desc="What an import brought: tabs in the sidebar&#x27;s Pinned section.">
+    {COUNT, plural, =1 {1 tab in Pinned} other {# tabs in Pinned}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_TABS_IN_PINNED_OPTION" desc="Under the Bookmarks switch: bookmarks become tabs in the sidebar&#x27;s Pinned section.">
+    {COUNT, plural, =1 {1 tab, in Pinned} other {# tabs, in Pinned}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_TABS_IN_TODAY" desc="What an import brought: tabs in the sidebar&#x27;s Today section.">
+    {COUNT, plural, =1 {1 tab in Today} other {# tabs in Today}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_TABS_IN_TODAY_OPTION" desc="Under the Open tabs switch: open tabs become tabs in the sidebar&#x27;s Today section.">
+    {COUNT, plural, =1 {1 tab, in Today} other {# tabs, in Today}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_TAB_COUNT" desc="How many tabs a space or profile has.">
+    {COUNT, plural, =1 {1 tab} other {# tabs}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_TITLE" desc="Heading of the settings section that imports bookmarks, tabs, history and passwords from another browser, or Arc.">
+    Import from Another Browser
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_UNDECRYPTABLE" desc="Warning after importing from Arc: cookies and passwords that couldn&#x27;t be decrypted.">
+    {COUNT, plural, =1 {1 cookie or password couldn't be decrypted and stayed behind: you may have to sign in again on some sites.} other {# cookies and passwords couldn't be decrypted and stayed behind: you may have to sign in again on some sites.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_IMPORT_WHAT_TO_IMPORT" desc="Heading of the switches for what to import from a browser: bookmarks, open tabs, history, passwords.">
+    What to import
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_LINKS_ADD_SITE" desc="Button that opens the form to give a site a space for its links.">
+    Add Site
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_LINKS_DELETE_SITE" desc="Accessible name of the button that deletes the rule of a site.">
+    Delete <ph name="SITE">$1<ex>github.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_LINKS_LEAD" desc="Explains the Links from Other Apps settings section. Today is the name of the sidebar&#x27;s section of open tabs.">
+    Links you open in other apps, such as Mail or Slack, open in a little window. Give a site a space, and its links open there instead, as a new tab in Today. A site's rule covers its subdomains; a rule for a subdomain wins over its site's. Links you click inside Compass stay where they are. Rules sync with your spaces.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_LINKS_NOT_A_DOMAIN" desc="Error shown when what the user typed is not a site&#x27;s domain.">
+    "<ph name="TYPED">$1<ex>foo bar</ex></ph>" isn't a site's domain, like github.com.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_LINKS_NO_SITES" desc="Shown in place of the list of sites whose links open in a space, when it is empty.">
+    No sites yet.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_LINKS_SITE_LABEL" desc="Accessible name of the text field for the site whose links open in a space.">
+    Site
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_LINKS_SPACE_DELETED" desc="Shown for a site whose links went to a space that was deleted: they open in a little window again.">
+    Space deleted: opens in a little window
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_LINKS_SPACE_LABEL" desc="Accessible name of the menu that picks the space a site&#x27;s links open in.">
+    Space
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_LINKS_TITLE" desc="Heading of the settings section where the user picks which space opens the links of a site that come from other apps.">
+    Links from Other Apps
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_LINKS_TYPE_DOMAIN" desc="Error shown when the user saves without typing a site&#x27;s domain.">
+    Type a site's domain, like github.com.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_ADDRESS_LABEL" desc="Accessible name of the text field for the address of a plugin to install.">
+    Plugin address
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_ADDRESS_YOU_ENTER" desc="Stands for a site that the user types in a live folder&#x27;s settings, in a list of the sites a plugin reaches.">
+    the address you enter
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_BADGE" desc="Tag on a plugin that shows a count on its tabs in the sidebar.">
+    Badge
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_CAN_USE_LOGIN" desc="A plugin&#x27;s live folders can use the user&#x27;s login on their sites, if allowed folder by folder.">
+    Can use your login on those sites, if you allow it per folder
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_CONFIRM_REMOVE" desc="Asks whether to remove a plugin no live folder uses.">
+    Remove <ph name="PLUGIN">$1<ex>RSS</ex></ph>?
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_CONFIRM_REMOVE_USED" desc="Asks whether to remove a plugin that live folders use.">
+    {COUNT, plural, =1 {Remove <ph name="PLUGIN">$1<ex>RSS</ex></ph>? 1 live folder uses it and will stop refreshing.} other {Remove <ph name="PLUGIN">$1<ex>RSS</ex></ph>? # live folders use it and will stop refreshing.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_DEVELOPER" desc="Heading of the part of a plugin with its source code.">
+    Developer
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_FROM" desc="The address a plugin was installed from.">
+    From <ph name="URL">$1<ex>https://example.com/plugin/manifest.json</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_INSTALL" desc="Button that opens a form to install a plugin from its address.">
+    Install plugin…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_INSTALL_BUTTON" desc="Button that installs the plugin the user reviewed.">
+    Install
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_LAST_LOG" desc="Heading of what a plugin&#x27;s last preview wrote to its log.">
+    Its last preview logged:
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_LEAD" desc="Explains plugins at the top of their settings section.">
+    Plugins fill live folders in the sidebar and show what's new when you hover a tab. They run apart from your pages and only reach the sites listed for each.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_LIVE_FOLDER" desc="Tag on a plugin that fills live folders.">
+    Live folder
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_LIVE_FOLDERS" desc="Heading of the part of a plugin about the live folders it fills.">
+    Live folders
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_MAKE_WITH_CLAUDE" desc="Button that asks Claude to write a new plugin.">
+    Make one with Claude
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_META" desc="Under a plugin&#x27;s name: where it comes from and its version.">
+    <ph name="SOURCE">$1<ex>Built-in</ex></ph> · version <ph name="VERSION">$2<ex>1.2</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_NO_PLUGIN" desc="Error shown when the address the user typed has no plugin.">
+    That address doesn't have a plugin.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_OPEN_FOLDER" desc="Button that opens the folder of local plugins in the file manager.">
+    Open plugins folder
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_PREVIEW_BADGE_HINT" desc="What a tab preview plugin that also shows a count on tabs does.">
+    Reads pages on <ph name="HOSTS">$1<ex>github.com, api.github.com</ex></ph> to show what's new when you hover their tabs, and a count on their tabs in the sidebar. It runs apart from the page and can't send what it reads anywhere.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_PREVIEW_HINT" desc="What a tab preview plugin does.">
+    Reads pages on <ph name="HOSTS">$1<ex>github.com, api.github.com</ex></ph> to show what's new when you hover their tabs. It runs apart from the page and can't send what it reads anywhere.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_REACHES" desc="The sites a plugin&#x27;s live folders reach.">
+    Reaches <ph name="HOSTS">$1<ex>github.com, api.github.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_REVIEW" desc="Button that shows what a plugin reaches before installing it." meaning="Check a plugin before installing it">
+    Review
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_REVIEW_ALSO_REACHES" desc="Before installing a plugin: other sites it can reach.">
+    Can also reach <ph name="HOSTS">$1<ex>github.com, api.github.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_REVIEW_ASKS_FOR" desc="Before installing a plugin: the secrets (like API keys) it asks the user for.">
+    Asks for: <ph name="SECRETS">$1<ex>API key</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_REVIEW_FOLDERS_LOGIN" desc="Before installing a plugin: its live folders can use the user&#x27;s login, if allowed folder by folder.">
+    Live folders can use your login, if you allow it per folder
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_REVIEW_FOLDERS_REACH" desc="Before installing a plugin: the sites its live folders reach.">
+    Live folders reach <ph name="HOSTS">$1<ex>github.com, api.github.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_REVIEW_READS" desc="Before installing a plugin: the sites whose pages it reads to show a tab preview.">
+    Reads pages on <ph name="HOSTS">$1<ex>github.com, api.github.com</ex></ph> to show a tab preview
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_REVIEW_SESSION" desc="Before installing a plugin: it can use the user&#x27;s session on a site, if allowed.">
+    Can use your session on <ph name="SITE">$1<ex>mail.google.com</ex></ph>, if you allow it
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_SAVED" desc="Shown after a plugin&#x27;s preview options were saved.">
+    Saved
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_SESSION_ALSO_REACHES" desc="Added after the explanation of a plugin&#x27;s session: other sites it reaches without the login.">
+    It can also reach <ph name="HOSTS">$1<ex>github.com, api.github.com</ex></ph>, without your login there.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_SESSION_HINT" desc="Explains the checkbox that lets a plugin use the user&#x27;s session on a site.">
+    With this on, it can make requests to <ph name="SITE">$1<ex>mail.google.com</ex></ph> as you, for what the page doesn't show (or when the tab isn't loaded).
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_SHOW_PREVIEWS" desc="Label of a checkbox that turns a plugin&#x27;s tab previews on.">
+    Show its previews
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_SOURCE_BUILTIN" desc="Where a plugin comes from: it ships with Compass.">
+    Built-in
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_SOURCE_CLAUDE" desc="Where a plugin comes from: Claude wrote it.">
+    Made by Claude
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_SOURCE_INSTALLED" desc="Where a plugin comes from: the user installed it from an address.">
+    Installed
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_SOURCE_LOCAL" desc="Where a plugin comes from: the user&#x27;s plugins folder.">
+    Local
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_TAB_PREVIEW" desc="Tag on a plugin, and heading of its part, that shows a preview when hovering a tab.">
+    Tab preview
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_TAB_PREVIEWS" desc="Label of a checkbox that turns on the previews plugins show in the cards that appear when hovering a tab.">
+    Show tab previews in hover cards
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_TITLE" desc="Heading of the settings section that lists the plugins of live folders and tab previews.">
+    Plugins
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_USED_BY" desc="How many live folders use a plugin.">
+    {COUNT, plural, =1 {Used by 1 folder} other {Used by # folders}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_USE_SESSION" desc="Label of a checkbox that lets a plugin make requests to a site with the user&#x27;s login.">
+    Advanced: use your session on <ph name="SITE">$1<ex>mail.google.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_PLUGINS_VIEW_SOURCE" desc="Button that shows a plugin&#x27;s source code.">
+    View source
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_CLICK_TO_CHANGE" desc="Tooltip of a keyboard shortcut&#x27;s keys, which the user clicks to change them.">
+    Click to change
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_CONFLICT" desc="Asks whether to take keys that another command already uses.">
+    <ph name="KEYS">$1<ex>Cmd+T</ex></ph> is the shortcut for “<ph name="COMMAND">$2<ex>New tab</ex></ph>”. Use it here instead?
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_CTRL_TAB" desc="Label of a checkbox: when on, Ctrl+Tab switches to the most recently used tabs instead of the next tab in the sidebar.">
+    Ctrl+Tab goes to recently used tabs
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_CTRL_TAB_HINT" desc="Explains the Ctrl+Tab checkbox. Cards are the previews of the tabs that appear while Ctrl is held.">
+    Hold Ctrl to see cards; press Tab again to go further back. Off, Ctrl+Tab goes down the sidebar.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_DEFAULT" desc="Under a changed keyboard shortcut: the keys it had by default.">
+    Default: <ph name="KEYS">$1<ex>Cmd+T</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_LEAD" desc="Explains how to change a keyboard shortcut. Esc and Delete are keys on the keyboard.">
+    Click a shortcut, then press the keys you want. Esc cancels, Delete leaves it without a shortcut.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_NONE" desc="Shown in place of a command&#x27;s keys when it has no keyboard shortcut.">
+    None
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_PRESS_KEYS" desc="Shown in place of a shortcut&#x27;s keys while the page waits for the user to press new ones.">
+    Press keys…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_RECORDING_TOOLTIP" desc="Tooltip of a shortcut while the page waits for new keys. Esc and Delete are keys on the keyboard.">
+    Esc cancels, Delete removes the shortcut
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_RESET" desc="Button that puts one keyboard shortcut back to its default keys.">
+    Reset
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_RESET_ALL" desc="Button that puts every keyboard shortcut back to its default keys.">
+    Reset all
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_TITLE" desc="Heading of the settings section where the user changes keyboard shortcuts.">
+    Keyboard shortcuts
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SHORTCUTS_USE_HERE" desc="Button that takes keys another command already uses and gives them to this one.">
+    Use here
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_ACTIVE_NOW" desc="When a device was last seen: it&#x27;s syncing now.">
+    active now
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_ADD_DEVICE" desc="Button that shows a pairing code to add another device.">
+    Add a device
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_ADD_DEVICE_QUESTION" desc="Asks whether to add a device to sync. The placeholder is shown in bold.">
+    Add <ph name="BEGIN_DEVICE">&lt;strong id="deviceName"&gt;</ph><ph name="END_DEVICE">&lt;/strong&gt;</ph> to sync?
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_ALLOW" desc="Button that adds the device to sync.">
+    Allow
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_CLOUDFLARE_NOTE" desc="Explains setting up a sync server on Cloudflare.">
+    Compass sets up a sync server in your own Cloudflare account. It's free, and only your devices, and friends you invite, can use it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_CLOUDFLARE_TOKEN" desc="Label of the field for a Cloudflare API token.">
+    Cloudflare API token
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_CODE_ON_OTHER_DEVICE" desc="Label of the field for the pairing code another device shows.">
+    The code shown on the other device
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_COPIED" desc="Shown on the Copy link button once the link was copied." meaning="A link was copied">
+    Copied
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_COPY_LINK" desc="Button that copies the invite link.">
+    Copy link
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_DENY" desc="Button that refuses to add the device to sync.">
+    Deny
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_DEVICES" desc="Heading of the list of devices that sync.">
+    Devices
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_EVERY_PROFILE" desc="Under &quot;What syncs&quot;: the switches apply to every profile.">
+    For every profile on this device.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_EXPIRED" desc="Under a pairing code that no longer works.">
+    Expired
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_EXPIRES_IN" desc="Under a pairing code: how long it still works, as minutes:seconds.">
+    Expires in <ph name="TIME">$1<ex>4:12</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_FRIEND" desc="Name shown for a friend on the server without a name.">
+    Friend
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_HAVE_ANOTHER_DEVICE" desc="Button for joining the sync of a device the user already has.">
+    I have another device
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_HAVE_INVITE" desc="Button for joining with an invite link a friend sent.">
+    I have an invite
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_HIDE" desc="Button that hides the recovery code.">
+    Hide
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_INVITE" desc="An open invite without a name." meaning="An invite (noun)">
+    Invite
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_INVITE_FOR" desc="An open invite, with the invited friend&#x27;s name.">
+    Invite for <ph name="NAME">$1<ex>Ada's iPhone</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_INVITE_FRIEND" desc="Label of the field for the name of a friend to invite.">
+    Invite a friend
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_INVITE_LINK" desc="Label of the field for an invite link.">
+    Invite link
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_INVITE_NAME_PLACEHOLDER" desc="Placeholder of the field for the invited friend&#x27;s name.">
+    Their name (only you see it)
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_INVITE_NOTE" desc="Explains joining a friend&#x27;s sync server with an invite.">
+    A friend who runs a Compass sync server sent it. You get a sync chain of your own on their server; they can't read your data.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_INVITE_RESULT" desc="Explains the invite link. &quot;Sync&quot; and &quot;I have an invite&quot; are names in Compass&#x27;s settings.">
+    Send this link to your friend. It works once, within 7 days. In Compass, they choose Sync, then I have an invite.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_IS_OFF" desc="Status at the top of the Sync section when sync is off.">
+    Sync is off.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_JOIN" desc="Button that joins sync with the pairing code.">
+    Join
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_JOINED" desc="When a friend joined the server.">
+    Joined <ph name="DATE">$1<ex>Nov 26, 2026</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_JOIN_INVITE" desc="Button that joins with the invite link and starts sync.">
+    Join and start sync
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_JOIN_NOTE" desc="Explains where to find the pairing code. &quot;Sync&quot; and &quot;Add a device&quot; are names in Compass&#x27;s settings.">
+    On a device that syncs, open Sync and choose Add a device.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_JOIN_WITH_RECOVERY" desc="Button that joins sync with the recovery code.">
+    Join with the recovery code
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_LEAD" desc="Explains sync at the top of its settings section.">
+    Your spaces, passwords, history and more on all your devices, encrypted on each device: the server can't read them.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_LEAVE" desc="Button that leaves sync on this device.">
+    Leave sync
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_LEAVE_OR_RESET" desc="Heading of the section to leave or reset sync.">
+    Leave or reset
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_LEAVE_OR_RESET_NOTE" desc="Explains leaving and resetting sync. A chain is the group of devices that sync together.">
+    Leaving keeps this device's data and stops syncing it. Resetting makes a new chain with a new recovery code: this device's data goes up again, and your other devices must join again.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_LEAVE_TEXT" desc="Text of the dialog that asks before leaving sync.">
+    This device keeps its data but stops syncing. Your other devices go on syncing. Compass restarts to finish.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_LEAVE_TITLE" desc="Title of the dialog that asks before leaving sync.">
+    Leave sync?
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_LINKED_ACCOUNTS" desc="How many other accounts (profiles) a friend on the server has.">
+    {COUNT, plural, =1 {1 linked account} other {# linked accounts}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_LOGIN_NOTE" desc="Shown with the code while the user signs in in another tab.">
+    Sign in in the tab that opened. Allow only if the page shows this code.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_LOGIN_REQUIRED" desc="Shown when the sync server asks the user to sign in with a work account (company single sign-on). A chain is the group of devices that sync together.">
+    This server only syncs for people of its organization: sign in with your work account. Your data stays encrypted on your devices; signing in only lets this chain use the server.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_MAKE_INVITE" desc="Button that makes an invite link.">
+    Make an invite link
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_MAPPING_LEAD" desc="Explains choosing which profile of the other devices each profile of this Mac syncs with.">
+    This Mac has other profiles. Choose which profile of your other devices each one syncs with.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_NEW_IN_PUSH" desc="What a sync server update adds: phone notifications. push.compassbrowser.org is a server&#x27;s address.">
+    notifications on phones when a tab is sent to them, through Compass's push relay at push.compassbrowser.org
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_NEW_IN_SHARING" desc="What a sync server update adds: sharing spaces, folders and Easels. Easels is a feature name.">
+    sharing spaces, folders and easels with others
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_NEW_PROFILE" desc="Menu item: a profile of this Mac syncs as a new profile.">
+    a new profile
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_NOT_USED_YET" desc="An open invite: not used yet, and when it expires.">
+    Not used yet · expires <ph name="DATE">$1<ex>Dec 3, 2026</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_NO_CLOUDFLARE_ACCOUNT" desc="Explains what to do without a Cloudflare account, and what Compass does with the access.">
+    No Cloudflare account? You can make a free one on the sign-in page. Compass uses the access only to set up the server, and doesn't keep it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_NO_DEVICES_YET" desc="Shown in place of the list of devices before this device synced.">
+    The devices show once this one has synced.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_NO_PEOPLE" desc="Shown in place of the list of friends on the server when there are none.">
+    No one else yet.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_NO_SERVER" desc="Button that shows how to set up a free sync server on Cloudflare. Cloudflare is a company name.">
+    No server? Set up a free one on Cloudflare
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_OFF" desc="Status shown in the settings window next to Sync: off." meaning="Status of sync when it is off">
+    Off
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_ON" desc="Status shown in the settings window next to Sync: on." meaning="Status of sync when it is on">
+    On
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_ON_DEVICES" desc="Status shown in the settings window next to Sync: on, and how many devices sync.">
+    {COUNT, plural, =1 {On · 1 device} other {On · # devices}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_ON_ERROR" desc="Status shown in the settings window next to Sync: on, but something failed.">
+    On · Something went wrong
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_OPEN_SIGN_IN_PAGE" desc="Button that opens the sign-in page again.">
+    Open the sign-in page
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_OTHER_SERVER" desc="Explains how to use another sync server.">
+    To use another server, leave sync and join again with the new one.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_PEOPLE" desc="Heading of the list of friends who sync on the user&#x27;s server.">
+    People on your server
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_PEOPLE_NOTE" desc="Explains who can use the user&#x27;s sync server.">
+    Only your devices and the friends you invite can sync on your server. Their data is encrypted on their devices: you can't read it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_PHONE_NOTIFICATIONS" desc="Switch: tell phones at once when a tab is sent to them.">
+    Phone notifications
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_PUSH_DETAILS" desc="Explains phone notifications on the user&#x27;s own server. The placeholder is the push relay&#x27;s address.">
+    When a tab is sent to an iPhone or Android phone, Compass's push relay (<ph name="HOST">$1<ex>push.compassbrowser.org</ex></ph>) tells it at once. It gets each phone's notification token, never your tabs or data. Off, sent tabs arrive when the phone next syncs.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_PUSH_NOTE" desc="Explains phone notifications. push.compassbrowser.org is a server&#x27;s address.">
+    When a tab is sent to an iPhone or Android phone, Compass's push relay (push.compassbrowser.org) tells it at once. It gets each phone's notification token, never your tabs or data. Off, sent tabs arrive when the phone next syncs. You can change this later.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_QR_LABEL" desc="Accessible name of the QR code that adds a phone to sync.">
+    QR code to add a phone
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_RECOVERY_CODE" desc="Heading of the recovery code section.">
+    Recovery code
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_RECOVERY_CODE_FIELD" desc="Label of the field for the recovery code, which is 12 words.">
+    Recovery code (12 words)
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_RECOVERY_NOTE" desc="Explains the recovery code. Touch ID is a product name.">
+    The 12 words that bring your data back if you lose every device. Compass asks for Touch ID or your password first.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_REMOVED" desc="Status shown in the settings window next to Sync: this device was removed from sync on another device.">
+    This device was removed
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_REMOVE_DEVICE_TEXT" desc="Text of the dialog that asks before removing a device from sync. &quot;Reset sync&quot; is the name of a button.">
+    It stops syncing and disappears from your devices. What's on it stays there, and it can join again with a pairing code. Someone who has your recovery code can still join: to lock everyone out, use Reset sync.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_REMOVE_FRIEND_TEXT" desc="Text of the dialog that asks before removing a friend from the server.">
+    They stop syncing on your server within a minute. Their data stays on their devices. You can invite them again.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_REMOVE_NAMED" desc="Accessible name of the button that removes a device or friend from sync.">
+    Remove <ph name="NAME">$1<ex>Ada's iPhone</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_REMOVE_QUESTION" desc="Title of the dialog that asks before removing a device or friend.">
+    Remove <ph name="NAME">$1<ex>Ada's iPhone</ex></ph>?
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_RESET" desc="Button that resets sync with a new recovery code.">
+    Reset sync
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_RESET_TEXT" desc="Text of the dialog that asks before resetting sync. A chain is the group of devices that sync together.">
+    Compass makes a new sync chain with a new recovery code, and this device's data goes up to it after a restart. Your other devices stay on the old chain until you add them again, and the old recovery code stops working here.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_RESET_TITLE" desc="Title of the dialog that asks before resetting sync.">
+    Reset sync?
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_RESTART" desc="Button that restarts Compass to finish setting up sync.">
+    Restart Compass
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_RESTART_TO_FINISH" desc="Status shown in the settings window next to Sync: Compass must restart.">
+    Restart Compass to finish
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_REVOKE" desc="Button that revokes an open invite.">
+    Revoke
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_REVOKE_NAMED" desc="Accessible name of the button that revokes an open invite.">
+    Revoke <ph name="NAME">$1<ex>Ada's iPhone</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SAVED" desc="Button that hides the recovery code once the user saved it.">
+    I saved it
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SAVE_WORDS" desc="Explains the recovery code.">
+    Save these 12 words somewhere safe, such as a password manager. You only need them if you lose every device that syncs: without them, the synced data is gone.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SCAN_QR" desc="Explains the QR code shown to add an iPhone.">
+    On an iPhone, scan this with the camera, or type the code below in Compass.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SERVER" desc="Label of the field for the sync server&#x27;s address.">
+    Sync server
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SERVER_HEADING" desc="Heading of the sync server section.">
+    Server
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SERVER_NOTE" desc="Explains the sync server field. A chain is the group of devices that sync together.">
+    The address of the Compass sync server you run, or one you trust. Every device of a chain uses the same one.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SERVER_UPDATE_READY" desc="Shown when a newer version of the user&#x27;s Cloudflare sync server is available.">
+    A newer version of your server is ready.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SET_UP_AND_START" desc="Button that sets up the server on Cloudflare and starts sync.">
+    Set up and start sync
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SHOW_RECOVERY" desc="Button that shows the recovery code.">
+    Show recovery code
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SIGNED_IN_AS" desc="Who the sync chain is signed in to the server&#x27;s organization as.">
+    Signed in as <ph name="USER">$1<ex>Ada Lovelace (ada@example.com)</ex></ph>.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SIGN_IN" desc="Button that starts signing in to the sync server&#x27;s organization.">
+    Sign in
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SIGN_IN_CLOUDFLARE" desc="Button that signs in to Cloudflare to set up the server.">
+    Sign in with Cloudflare
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SIGN_IN_TO" desc="Button that signs in to the sync server&#x27;s organization, with the sign-in provider&#x27;s name.">
+    Sign in to <ph name="PROVIDER">$1<ex>Okta</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SIGN_IN_TO_GO_ON" desc="Status shown in the settings window next to Sync: the user must sign in to the server&#x27;s organization.">
+    Sign in to go on syncing
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SIGN_IN_WITH" desc="Heading while signing in, with the sign-in provider&#x27;s name.">
+    Sign in with <ph name="PROVIDER">$1<ex>Okta</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_START" desc="Button that starts sync on this device.">
+    Start sync
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_STARTING" desc="Status shown in the settings window next to Sync: starting.">
+    Starting…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_SYNCS_WITH" desc="Before a menu of the other devices&#x27; profiles: which one a profile of this Mac syncs with.">
+    <ph name="PROFILE">$1<ex>Work</ex></ph> syncs with
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_THIS_DEVICE" desc="Tag on this device in the list of devices.">
+    This device
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TITLE" desc="Heading of the Sync settings section.">
+    Sync
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TOKEN_STEP_1" desc="First step to make a Cloudflare API token. &quot;API Tokens&quot;, &quot;Create Token&quot; and &quot;Edit Cloudflare Workers&quot; are names in Cloudflare&#x27;s dashboard, which is in English.">
+    Open <ph name="BEGIN_LINK">&lt;a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener"&gt;</ph>API Tokens<ph name="END_LINK">&lt;/a&gt;</ph>, choose Create Token, and use the template Edit Cloudflare Workers.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TOKEN_STEP_2" desc="Second step to use a Cloudflare API token.">
+    Paste the token here.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_AUTOFILL" desc="Switch: sync autofill data.">
+    Autofill
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_AUTOFILL_DETAIL" desc="What the Autofill switch covers.">
+    Addresses and form entries
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_EXTENSIONS" desc="Switch: sync extensions.">
+    Extensions
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_EXTENSIONS_DETAIL" desc="What the Extensions switch covers.">
+    Extensions and their settings
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_HISTORY" desc="Switch: sync history.">
+    History
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_HISTORY_DETAIL" desc="What the History switch covers.">
+    Pages you visited
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_OPEN_TABS" desc="Switch: sync open tabs.">
+    Open tabs
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_OPEN_TABS_DETAIL" desc="What the Open tabs switch covers.">
+    Your tabs, for the other devices
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_PASSWORDS" desc="Switch: sync passwords.">
+    Passwords
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_PASSWORDS_DETAIL" desc="What the Passwords switch covers.">
+    Saved passwords and passkeys
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_SETTINGS" desc="Switch: sync settings.">
+    Settings
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_SETTINGS_DETAIL" desc="What the Settings switch covers.">
+    Settings and search engines
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_SPACES" desc="Switch: sync spaces.">
+    Spaces
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_TYPE_SPACES_DETAIL" desc="What the Spaces switch covers. Favorites are the sites pinned as icons above the sidebar.">
+    Spaces, pinned tabs, folders, favorites
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_UNNAMED_DEVICE" desc="Name shown for a device without a name.">
+    Unnamed device
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_UPDATE" desc="Button that updates the sync server with the API token.">
+    Update
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_UPDATE_ADDS" desc="What a sync server update adds, as a list of features.">
+    It adds <ph name="FEATURES">$1<ex>sharing spaces, folders and easels with others</ex></ph>.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_UPDATE_CLOUDFLARE" desc="Button that updates the sync server by signing in to Cloudflare.">
+    Update with Cloudflare
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_UPDATE_KEEPS" desc="Says that updating the sync server keeps its data.">
+    Your data and the people on it stay as they are.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_USE_RECOVERY_CODE" desc="Button for joining with the recovery code instead of a pairing code.">
+    Use a recovery code
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_USE_TOKEN" desc="Button that shows how to use a Cloudflare API token instead of signing in.">
+    Use an API token instead
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_WHAT_SYNCS" desc="Heading of the switches for what syncs.">
+    What syncs
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SYNC_YOUR_RECOVERY_CODE" desc="Heading above the recovery code&#x27;s words.">
+    Your recovery code
+  </message>
+</grit-part>

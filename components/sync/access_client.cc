@@ -12,12 +12,14 @@
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::sync {
 namespace {
@@ -134,20 +136,19 @@ std::string AccessClient::Describe(Error error) {
     case Error::kNone:
       return std::string();
     case Error::kUnsupported:
-      return "This server doesn't take invites.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_ACCESS_UNSUPPORTED);
     case Error::kNotOwner:
-      return "Only the server's owner can do that.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_ACCESS_NOT_OWNER);
     case Error::kUnauthorized:
-      return "The server refused this device.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_ACCESS_UNAUTHORIZED);
     case Error::kNoSuchInvite:
-      return "This invite doesn't exist. Check the link.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_ACCESS_NO_SUCH_INVITE);
     case Error::kInviteGone:
-      return "This invite was used or has expired. Ask for a new one.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_ACCESS_INVITE_GONE);
     case Error::kTooMany:
-      return "The server has too many invites or people. Remove some "
-             "first.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_ACCESS_TOO_MANY);
     case Error::kFailed:
-      return "Couldn't reach the sync server. Try again.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_ACCESS_FAILED);
   }
 }
 

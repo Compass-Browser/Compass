@@ -250,7 +250,7 @@
      view of its own. -->
 <div class="window-rows" data-page-view="main">
 <section class="row-group">
-  <h2 class="group-title">Model</h2>
+  <h2 class="group-title">$i18n{claudePageModel}</h2>
   <div class="group">
     <button class="row" id="connectionRow" data-row="connectionRow"
         data-open-view="connection">
@@ -258,7 +258,7 @@
         <compass-settings-icon name="ai"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Connection</span>
+        <span class="row-label">$i18n{claudePageConnection}</span>
         <span class="row-detail" id="connectionRowDetail"></span>
       </span>
       <compass-settings-icon class="row-trail" name="chevron">
@@ -268,16 +268,16 @@
 </section>
 
 <section class="row-group">
-  <h2 class="group-title">What Claude can do</h2>
+  <h2 class="group-title">$i18n{claudePageWhatClaudeCanDo}</h2>
   <div class="group">
     <label class="row control-row" data-row="browserScope">
       <span class="tile" data-color="blue">
         <compass-settings-icon name="globe"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Use the whole browser</span>
+        <span class="row-label">$i18n{claudePageWholeBrowser}</span>
         <span class="row-detail">
-          List, open and use your other tabs and windows, signed in as you.
+          $i18n{claudePageWholeBrowserDetail}
         </span>
       </span>
       <input type="checkbox" class="switch" id="browserScope">
@@ -287,10 +287,9 @@
         <compass-settings-icon name="code"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Use developer tools</span>
+        <span class="row-label">$i18n{claudePageDevTools}</span>
         <span class="row-detail">
-          Inspect the network, styles, cookies, storage and performance of the
-          tab it works on.
+          $i18n{claudePageDevToolsDetail}
         </span>
       </span>
       <input type="checkbox" class="switch" id="devtools">
@@ -300,10 +299,9 @@
         <compass-settings-icon name="boosts"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Make Boosts</span>
+        <span class="row-label">$i18n{claudePageMakeBoosts}</span>
         <span class="row-detail">
-          Add CSS and JavaScript to sites you ask it to change, on all your
-          devices.
+          $i18n{claudePageMakeBoostsDetail}
         </span>
       </span>
       <input type="checkbox" class="switch" id="boosts">
@@ -313,23 +311,19 @@
         <compass-settings-icon name="plugins"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Make plugins</span>
+        <span class="row-label">$i18n{claudePageMakePlugins}</span>
         <span class="row-detail">
-          Write plugins for live folders and tab previews, and save them on
-          this computer.
+          $i18n{claudePageMakePluginsDetail}
         </span>
       </span>
       <input type="checkbox" class="switch" id="plugins">
     </label>
   </div>
-  <p class="group-footer">Claude asks before JavaScript it adds, plugins it
-    saves and cookies it changes. Web pages can try to give Claude
-    instructions of their own; it's told to ignore them, but only turn
-    these on for tasks you watch and pages you trust.</p>
+  <p class="group-footer">$i18n{claudePageCanDoFooter}</p>
 </section>
 
 <section class="row-group">
-  <h2 class="group-title">More</h2>
+  <h2 class="group-title">$i18n{claudePageMore}</h2>
   <div class="group">
     <button class="row" id="sidebarRow" data-row="sidebarRow"
         data-open-view="sidebar">
@@ -337,7 +331,7 @@
         <compass-settings-icon name="sidebar"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Claude in the sidebar</span>
+        <span class="row-label">$i18n{claudePageInSidebar}</span>
         <span class="row-detail" id="sidebarRowDetail"></span>
       </span>
       <compass-settings-icon class="row-trail" name="chevron">
@@ -349,7 +343,7 @@
         <compass-settings-icon name="folder"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Files</span>
+        <span class="row-label">$i18n{claudePageFiles}</span>
         <span class="row-detail" id="filesRowDetail"></span>
       </span>
       <compass-settings-icon class="row-trail" name="chevron">
@@ -361,7 +355,7 @@
         <compass-settings-icon name="bookmark"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Memory</span>
+        <span class="row-label">$i18n{claudePageMemory}</span>
         <span class="row-detail" id="memoryRowDetail"></span>
       </span>
       <compass-settings-icon class="row-trail" name="chevron">
@@ -372,213 +366,176 @@
         <compass-settings-icon name="plug"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Allow MCP clients</span>
+        <span class="row-label">$i18n{claudePageAllowMcp}</span>
         <span class="row-detail">
-          Let Claude Code, Claude Desktop and other MCP apps on this computer
-          use Compass, signed in as you. Compass asks before each new app.
+          $i18n{claudePageAllowMcpDetail}
         </span>
       </span>
       <input type="checkbox" class="switch" id="mcpEnabled">
     </label>
   </div>
   <div id="mcpSetup" hidden>
-    <p class="hint">To add Compass to Claude Code, run:</p>
+    <p class="hint">$i18n{claudePageMcpAddToClaudeCode}</p>
     <div class="mcp-command">
       <code id="mcpCommand"></code>
-      <button id="copyMcpCommand" class="secondary">Copy</button>
+      <button id="copyMcpCommand" class="secondary">$i18n{copy}</button>
     </div>
-    <p class="hint">Other clients: run <code id="mcpBinary"></code> as a
-      stdio MCP server.</p>
+    <p class="hint">$i18nRaw{claudePageMcpOtherClients}</p>
     <div id="mcpClients" hidden>
-      <p class="hint">Always allowed:</p>
+      <p class="hint">$i18n{claudePageMcpAlwaysAllowed}</p>
       <ul id="mcpClientList" class="mcp-clients"></ul>
     </div>
   </div>
-  <p class="hint" id="mcpUnsupported" hidden>MCP clients aren't supported on
-  this system yet.</p>
+  <p class="hint" id="mcpUnsupported" hidden>$i18n{claudePageMcpUnsupported}</p>
 </section>
 </div>
 
-<div data-page-view="connection" data-title="Connection" hidden>
+<div data-page-view="connection" data-title="$i18n{claudePageConnection}" hidden>
 <div class="legacy-group">
-<p class="lead">Chat with Claude about the page you're on. Claude can read it,
-  its JavaScript console, and click and type in it. Compass ships no key: use
-  your own API key from console.anthropic.com, or a gateway's, or your own
-  Claude Code.</p>
+<p class="lead">$i18n{claudePageConnectionLead}</p>
 
 <!-- Who answers (docs/design/ai-providers.md): everything below is the
      picked provider's; each keeps its own key and models. -->
-<label class="field" for="provider">Provider</label>
+<label class="field" for="provider">$i18n{claudePageProvider}</label>
 <select id="provider"></select>
 <p class="hint" id="privacyNote"></p>
 
 <!-- An OpenAI-compatible server: its URL, which it can't do without. -->
 <section id="serverSection" hidden>
-  <label class="field" for="serverUrl">Server</label>
+  <label class="field" for="serverUrl">$i18n{claudePageServer}</label>
   <div class="claude-inline">
     <input id="serverUrl" type="url" spellcheck="false"
         placeholder="https://example.com/v1">
-    <button id="saveServer" class="secondary">Save</button>
+    <button id="saveServer" class="secondary">$i18n{save}</button>
   </div>
-  <p class="hint">The base URL its API answers under, before
-    chat/completions: OpenRouter, Ollama, LM Studio, a company gateway.</p>
+  <p class="hint">$i18n{claudePageServerHint}</p>
   <p class="note" id="serverNote" hidden></p>
 </section>
 
 <!-- Claude Code is Claude's: Anthropic only. -->
 <section id="backendSection" data-row="backend">
-<div class="field">Connect with</div>
+<div class="field">$i18n{claudePageConnectWith}</div>
 <div class="claude-backend" role="radiogroup">
   <label>
     <input type="radio" name="backend" id="backendApiKey" value="apiKey">
     <span>
-      <span class="name">API key</span>
-      <span class="hint block">The Claude API, or a gateway, billed to the
-        key's Console account.</span>
+      <span class="name">$i18n{claudePageApiKey}</span>
+      <span class="hint block">$i18n{claudePageApiKeyDetail}</span>
     </span>
   </label>
   <label>
     <input type="radio" name="backend" id="backendClaudeCode"
         value="claudeCode">
     <span>
-      <span class="name">Claude Code</span>
-      <span class="hint block">Your Claude Code on this computer, signed in
-        with your Claude subscription. Compass runs it for each chat, with
-        only Compass's tools.</span>
+      <span class="name">$i18n{claudePageClaudeCode}</span>
+      <span class="hint block">$i18n{claudePageClaudeCodeDetail}</span>
     </span>
   </label>
 </div>
 </section>
 
 <section id="claudeCodeSection" hidden>
-  <label class="field" for="claudeCodePath">Claude Code</label>
+  <label class="field" for="claudeCodePath">$i18n{claudePageClaudeCode}</label>
   <div class="claude-inline">
     <input id="claudeCodePath" type="text" spellcheck="false"
-        placeholder="Found automatically">
-    <button id="saveClaudeCodePath" class="secondary">Save</button>
+        placeholder="$i18n{claudePageFoundAutomatically}">
+    <button id="saveClaudeCodePath" class="secondary">$i18n{save}</button>
   </div>
-  <p class="hint">Leave empty to use the claude that Claude Code's installer
-    put in ~/.local/bin (or Homebrew's). Sign in once by running claude in
-    Terminal.</p>
-  <p class="hint" id="claudeCodeNoTools" hidden>On this system Claude Code
-    chats about the page you attach, but can't use the page tools yet.</p>
+  <p class="hint">$i18n{claudePageClaudeCodePathHint}</p>
+  <p class="hint" id="claudeCodeNoTools" hidden>$i18n{claudePageClaudeCodeNoTools}</p>
   <p class="note" id="claudeCodePathNote" hidden></p>
 </section>
 
 <section id="apiKeySection">
 <div id="chatgptSection" hidden>
-  <label class="field" for="chatgptSignIn">ChatGPT plan</label>
+  <label class="field" for="chatgptSignIn">$i18n{claudePageChatgptPlan}</label>
   <div class="claude-key-row" id="chatgptSignedOut">
-    <button id="chatgptSignIn">Continue with ChatGPT</button>
+    <button id="chatgptSignIn">$i18n{claudePageContinueWithChatgpt}</button>
   </div>
   <div class="claude-key-row" id="chatgptSignedIn" hidden>
     <span class="saved-key" id="chatgptAccount"></span>
-    <button id="chatgptSignOut" class="secondary">Sign Out</button>
+    <button id="chatgptSignOut" class="secondary">$i18n{claudePageSignOut}</button>
   </div>
-  <p class="hint">Sign in with your ChatGPT account to use your ChatGPT plan
-    instead of an API key: its usage limits apply, shared with your other
-    apps, and you can see or cap what Compass uses in ChatGPT's settings.
-    While you're signed in, the key below isn't used.</p>
+  <p class="hint">$i18n{claudePageChatgptHint}</p>
   <p class="note" id="chatgptNote" hidden></p>
 </div>
-<label class="field" for="apiKey" data-row="apiKey">API key</label>
+<label class="field" for="apiKey" data-row="apiKey">$i18n{claudePageApiKey}</label>
 <div class="claude-key-row" id="keyEntry">
   <input id="apiKey" type="password" autocomplete="off" spellcheck="false"
       placeholder="sk-ant-…">
-  <button id="saveKey">Save</button>
+  <button id="saveKey">$i18n{save}</button>
 </div>
 <div class="claude-key-row" id="keySaved" hidden>
   <span class="saved-key" id="keyHint"></span>
-  <button id="replaceKey" class="secondary">Replace</button>
-  <button id="removeKey" class="secondary">Remove</button>
+  <button id="replaceKey" class="secondary">$i18n{claudePageReplace}</button>
+  <button id="removeKey" class="secondary">$i18n{remove}</button>
 </div>
-<p class="hint" id="keyHelpAnthropic">Stored encrypted on this device only;
-  it never syncs, and pages never see it. To use your Claude subscription, connect with Claude
-  Code instead, or, with the risks below accepted, use a token from
-  <code>claude setup-token</code>.</p>
+<p class="hint" id="keyHelpAnthropic">$i18nRaw{claudePageKeyHelpAnthropic}</p>
 <p class="hint" id="keyHelpOther" hidden></p>
 <p class="note" id="keyNote" hidden></p>
 <label class="claude-scope" id="tokenRisksRow">
   <input type="checkbox" id="acceptTokenRisks">
   <span>
-    <span class="name">Accept the risks of subscription tokens</span>
-    <span class="hint block">Lets the key be a token from
-      <code>claude setup-token</code> (sk-ant-oat…), which uses your Claude
-      subscription. Compass then sends it as Claude Code does, saying it's
-      Claude Code. Anthropic doesn't offer these tokens for other apps: they
-      can stop working at any time, and using them this way may go against
-      the terms of your subscription. Off, such a token is refused.</span>
+    <span class="name">$i18n{claudePageAcceptTokenRisks}</span>
+    <span class="hint block">$i18nRaw{claudePageTokenRisksDetail}</span>
   </span>
 </label>
 </section>
 
 <label class="field" for="model" id="modelLabel" data-row="model">
-  Model</label>
+  $i18n{claudePageModel}</label>
 <div class="claude-inline">
   <!-- An OpenAI-compatible server's model is typed; once Test connection
        lists its models, they can be picked too. -->
-  <input id="modelId" type="text" spellcheck="false" placeholder="Model ID"
+  <input id="modelId" type="text" spellcheck="false" placeholder="$i18n{claudePageModelIdPlaceholder}"
       hidden>
   <select id="model"></select>
-  <button id="test" class="secondary">Test connection</button>
+  <button id="test" class="secondary">$i18n{claudePageTestConnection}</button>
 </div>
 <p class="note" id="testNote" hidden></p>
 
 <details id="advanced" class="api-only">
-  <summary>Endpoint</summary>
-  <label class="field" for="baseUrl">Base URL</label>
+  <summary>$i18n{claudePageEndpoint}</summary>
+  <label class="field" for="baseUrl">$i18n{claudePageBaseUrl}</label>
   <input id="baseUrl" type="url" spellcheck="false"
       placeholder="https://api.anthropic.com" class="wide">
-  <p class="hint" id="endpointHintAnthropic">Leave empty for the Claude API.
-    A gateway or proxy that serves the Anthropic Messages API (Amazon
-    Bedrock, Google Cloud Vertex AI, your own) goes here.</p>
-  <p class="hint" id="endpointHintOther" hidden>Leave empty for the
-    provider's own API. A gateway or proxy that serves the same API goes
-    here.</p>
+  <p class="hint" id="endpointHintAnthropic">$i18n{claudePageEndpointHintAnthropic}</p>
+  <p class="hint" id="endpointHintOther" hidden>$i18n{claudePageEndpointHintOther}</p>
   <div id="authStyleRow">
-    <label class="field" for="authStyle">Send the key as</label>
+    <label class="field" for="authStyle">$i18n{claudePageSendKeyAs}</label>
     <select id="authStyle">
-      <option value="apiKey">x-api-key (Claude API)</option>
-      <option value="bearer">Authorization: Bearer (gateways)</option>
+      <option value="apiKey">$i18n{claudePageAuthApiKey}</option>
+      <option value="bearer">$i18n{claudePageAuthBearer}</option>
     </select>
   </div>
   <div class="buttons">
-    <button id="saveEndpoint" class="secondary">Save endpoint</button>
+    <button id="saveEndpoint" class="secondary">$i18n{claudePageSaveEndpoint}</button>
   </div>
   <p class="note" id="endpointNote" hidden></p>
 </details>
 </div>
 </div>
 
-<div data-page-view="sidebar" data-title="Claude in the sidebar" hidden>
+<div data-page-view="sidebar" data-title="$i18n{claudePageInSidebar}" hidden>
 <div class="legacy-group">
 <section id="sidebarFeatures">
-  <p class="hint">Small tasks Claude does in the sidebar, each with its own
-    switch and model. Only tabs' titles and sites are sent, to the endpoint
-    above, never what pages contain; incognito windows never. At most 30
-    automatic requests an hour.</p>
+  <p class="hint">$i18n{claudePageSidebarHint}</p>
   <!-- "Answer with" (docs/design/ai-sidebar.md, "On this device"): on a
        Mac with the Apple Intelligence helper. -->
-  <div class="claude-backend" role="radiogroup" aria-label="Answer with"
+  <div class="claude-backend" role="radiogroup" aria-label="$i18n{claudePageAnswerWith}"
       id="sidebarAnswerWith" hidden>
     <label>
       <input type="radio" name="sidebarAnswerWith" id="sidebarChat">
       <span>
-        <span class="name">Same as chat</span>
-        <span class="hint block">The provider above answers, with its
-          key.</span>
+        <span class="name">$i18n{claudePageSameAsChat}</span>
+        <span class="hint block">$i18n{claudePageSameAsChatDetail}</span>
       </span>
     </label>
     <label>
       <input type="radio" name="sidebarAnswerWith" id="sidebarOnDevice">
       <span>
-        <span class="name">Apple Intelligence (on this Mac)</span>
-        <span class="hint block">The model built into macOS answers Name
-          Link Folders, Tidy Today and Shorter Tab Titles, with no key and in
-          Claude Code mode too; titles and sites never leave this Mac. It's
-          smaller than Claude: its names are plainer, and Tidy leaves more
-          tabs loose. Answer Questions in the Command Bar stays with the
-          provider above.</span>
+        <span class="name">$i18n{claudePageAppleIntelligence}</span>
+        <span class="hint block">$i18n{claudePageAppleIntelligenceDetail}</span>
       </span>
     </label>
   </div>
@@ -591,93 +548,77 @@
 </div>
 </div>
 
-<div data-page-view="files" data-title="Files" hidden>
+<div data-page-view="files" data-title="$i18n{claudePageFiles}" hidden>
 <div class="legacy-group">
 <section id="files">
-  <div class="claude-backend" role="radiogroup" aria-label="Files">
+  <div class="claude-backend" role="radiogroup" aria-label="$i18n{claudePageFiles}">
     <label>
       <input type="radio" name="files" id="filesOff">
       <span>
-        <span class="name">Off</span>
-        <span class="hint block">Claude can't use files on this
-          computer.</span>
+        <span class="name">$i18n{claudePageOff}</span>
+        <span class="hint block">$i18n{claudePageFilesOffDetail}</span>
       </span>
     </label>
     <label>
       <input type="radio" name="files" id="filesSave">
       <span>
-        <span class="name">Save files</span>
-        <span class="hint block">Claude can save new files it makes for you,
-          like notes or a table, in one folder. It doesn't read or replace
-          your files.</span>
+        <span class="name">$i18n{claudePageSaveFiles}</span>
+        <span class="hint block">$i18n{claudePageSaveFilesDetail}</span>
       </span>
     </label>
     <label>
       <input type="radio" name="files" id="filesFolder">
       <span>
-        <span class="name">Use a folder</span>
-        <span class="hint block">Claude can list, read and write files in one
-          folder you choose, and nowhere else.</span>
+        <span class="name">$i18n{claudePageUseFolder}</span>
+        <span class="hint block">$i18n{claudePageUseFolderDetail}</span>
       </span>
     </label>
   </div>
   <div class="claude-inline files-folder" id="filesFolderRow" hidden>
     <span class="saved-key" id="filesFolderPath"></span>
-    <button id="chooseFilesFolder" class="secondary">Choose…</button>
-    <button id="clearFilesFolder" class="secondary" hidden>Use
-      Downloads</button>
+    <button id="chooseFilesFolder" class="secondary">$i18n{claudePageChoose}</button>
+    <button id="clearFilesFolder" class="secondary" hidden>$i18n{claudePageUseDownloads}</button>
   </div>
-  <p class="hint" id="filesAsk" hidden>Claude asks before each file it saves
-    or changes, in the chat: Allow, Allow for this chat, or Deny.</p>
+  <p class="hint" id="filesAsk" hidden>$i18n{claudePageFilesAsk}</p>
   <label class="claude-scope" id="ownToolsRow" hidden>
     <input type="checkbox" id="claudeCodeOwnTools">
     <span>
-      <span class="name">Let Claude Code use its own tools</span>
-      <span class="hint block">Claude Code's own tools work in the folder
-        too: reading and editing files, running commands, and fetching from
-        the web. It asks before each change, each command that isn't
-        read-only, and the web. Web pages can try to give Claude
-        instructions of their own, so read what you allow.</span>
+      <span class="name">$i18n{claudePageOwnTools}</span>
+      <span class="hint block">$i18n{claudePageOwnToolsDetail}</span>
     </span>
   </label>
 </section>
 </div>
 </div>
 
-<div data-page-view="memory" data-title="Memory" hidden>
+<div data-page-view="memory" data-title="$i18n{claudePageMemory}" hidden>
 <div class="legacy-group">
 <section id="memory" hidden>
   <label class="claude-scope">
     <input type="checkbox" id="memoryEnabled">
     <span>
-      <span class="name">Use memory</span>
-      <span class="hint block">Claude keeps short facts about you, like how
-        you like answers, and starts each new chat with them. They sync with
-        your spaces, end-to-end encrypted. Off, Claude neither sees nor saves
-        them; what's saved stays until you delete it.</span>
+      <span class="name">$i18n{claudePageUseMemory}</span>
+      <span class="hint block">$i18n{claudePageUseMemoryDetail}</span>
     </span>
   </label>
   <div id="memoryDetails">
     <label class="claude-scope">
       <input type="checkbox" id="memorySave">
       <span>
-        <span class="name">Let Claude save memories</span>
-        <span class="hint block">Claude saves what it thinks will help in
-          later chats, and shows each save in the chat, with Undo. Off,
-          only you add them, here.</span>
+        <span class="name">$i18n{claudePageLetClaudeSave}</span>
+        <span class="hint block">$i18n{claudePageLetClaudeSaveDetail}</span>
       </span>
     </label>
     <ul id="memoryList" class="memory-list"></ul>
-    <p class="hint" id="memoryEmpty">No memories yet.</p>
+    <p class="hint" id="memoryEmpty">$i18n{claudePageNoMemories}</p>
     <div class="claude-inline">
       <input type="text" id="memoryNew" maxlength="500"
-          placeholder="Add a fact, like “I live in Milan”">
-      <button id="addMemory" class="secondary">Add</button>
+          placeholder="$i18n{claudePageAddMemoryPlaceholder}">
+      <button id="addMemory" class="secondary">$i18n{add}</button>
     </div>
     <p class="note" id="memoryNote" hidden></p>
     <div class="buttons">
-      <button id="removeAllMemories" class="secondary" hidden>Delete all
-        memories</button>
+      <button id="removeAllMemories" class="secondary" hidden>$i18n{claudePageDeleteAllMemories}</button>
     </div>
   </div>
 </section>

@@ -9,6 +9,7 @@ import {isWindows} from '//resources/js/platform.js';
 import type {EmojiGroupData} from './emoji_data.js';
 import {getCss} from './emoji_picker.css.js';
 import {getHtml} from './emoji_picker.html.js';
+import {i18n} from './i18n.js';
 import {firstGrapheme} from './space_options.js';
 
 export interface Emoji {
@@ -35,6 +36,20 @@ const EMOJI_TEXT = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 // when a picker first opens, so pages that don't open one never load it.
 let groupsPromise: Promise<EmojiGroup[]>|null = null;
 
+// The groups' names, by id. emoji_data.ts has CLDR's English names and
+// keywords, which stay English: search matches them.
+const GROUP_LABELS: Record<string, string> = {
+  smileys: 'emojiPickerGroupSmileys',
+  people: 'emojiPickerGroupPeople',
+  nature: 'emojiPickerGroupNature',
+  food: 'emojiPickerGroupFood',
+  travel: 'emojiPickerGroupTravel',
+  activities: 'emojiPickerGroupActivities',
+  objects: 'emojiPickerGroupObjects',
+  symbols: 'emojiPickerGroupSymbols',
+  flags: 'emojiPickerGroupFlags',
+};
+
 function loadGroups(): Promise<EmojiGroup[]> {
   groupsPromise ??= import('./emoji_data.js').then(
       ({EMOJI_GROUPS}) => EMOJI_GROUPS
@@ -42,7 +57,9 @@ function loadGroups(): Promise<EmojiGroup[]> {
           .filter((group: EmojiGroupData) => !isWindows || group.id !== 'flags')
           .map((group: EmojiGroupData) => ({
                  id: group.id,
-                 label: group.label,
+                 label: GROUP_LABELS[group.id] ?
+                     i18n(GROUP_LABELS[group.id]!) :
+                     group.label,
                  icon: group.icon,
                  emoji: group.emoji.split('\n').map(line => {
                    const [emoji, name, keywords] = line.split('\t');

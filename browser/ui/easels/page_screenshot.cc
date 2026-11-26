@@ -15,15 +15,19 @@
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/values.h"
 #include "compass/browser/claude/devtools_session.h"
 #include "compass/browser/downloads_folder/folder_files.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/codec/png_codec.h"
 
 namespace compass::easels {
@@ -58,14 +62,15 @@ void SavePng(std::vector<uint8_t> png, ScreenshotCallback done) {
       base::BindOnce(
           [](ScreenshotCallback done, std::optional<base::FilePath> path) {
             if (!path) {
-              std::move(done).Run(
-                  base::unexpected("The screenshot couldn't be saved."));
+              std::move(done).Run(base::unexpected(l10n_util::GetStringUTF8(
+                  IDS_COMPASS_SCREENSHOT_SAVE_FAILED)));
               return;
             }
             // "Saved to Desktop as Screenshot …".
-            std::move(done).Run(base::ok(base::StrCat(
-                {"Saved to ", path->DirName().BaseName().AsUTF8Unsafe(),
-                 " as ", path->BaseName().AsUTF8Unsafe()})));
+            std::move(done).Run(base::ok(l10n_util::GetStringFUTF8(
+                IDS_COMPASS_SCREENSHOT_SAVED,
+                path->DirName().BaseName().LossyDisplayName(),
+                path->BaseName().LossyDisplayName())));
           },
           std::move(done)));
 }
@@ -75,7 +80,8 @@ void CopyBitmap(const SkBitmap& bitmap, ScreenshotCallback done) {
     ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
     writer.WriteImage(bitmap);
   }
-  std::move(done).Run(base::ok(std::string("Copied to the clipboard")));
+  std::move(done).Run(base::ok(
+      std::string(l10n_util::GetStringUTF8(IDS_COMPASS_SCREENSHOT_COPIED))));
 }
 
 // One full-page capture: measures the page, then has DevTools render all
@@ -104,7 +110,7 @@ class FullPageCapture {
     const double width = size ? size->FindDouble("width").value_or(0) : 0;
     const double height = size ? size->FindDouble("height").value_or(0) : 0;
     if (width < 1 || height < 1) {
-      Fail("The page has no size to capture.");
+      Fail(l10n_util::GetStringUTF8(IDS_COMPASS_SCREENSHOT_NO_SIZE));
       return;
     }
     clipped_ = height > kMaxFullPageHeight;
@@ -129,15 +135,15 @@ class FullPageCapture {
     std::optional<std::vector<uint8_t>> png =
         data ? base::Base64Decode(*data) : std::nullopt;
     if (!png || !contents_) {
-      Fail("The page couldn't be captured.");
+      Fail(l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_CAPTURE_FAILED));
       return;
     }
     ScreenshotCallback done = base::BindOnce(
         [](bool clipped, ScreenshotCallback done, Result result) {
           if (result.has_value() && clipped) {
-            result = base::ok(base::StrCat(
-                {*result, base::StringPrintf(" (the first %d pixels)",
-                                             kMaxFullPageHeight)}));
+            result = base::ok(l10n_util::GetStringFUTF8(
+                IDS_COMPASS_SCREENSHOT_CLIPPED, base::UTF8ToUTF16(*result),
+                base::NumberToString16(kMaxFullPageHeight)));
           }
           std::move(done).Run(std::move(result));
         },
@@ -147,7 +153,8 @@ class FullPageCapture {
     } else {
       SkBitmap bitmap = gfx::PNGCodec::Decode(*png);
       if (bitmap.drawsNothing()) {
-        std::move(done).Run(base::unexpected("The page couldn't be captured."));
+        std::move(done).Run(base::unexpected(
+            l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_CAPTURE_FAILED)));
       } else {
         CopyBitmap(bitmap, std::move(done));
       }
@@ -187,7 +194,8 @@ void FinishScreenshot(content::WebContents* contents,
   std::optional<std::vector<uint8_t>> png =
       gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, /*discard_transparency=*/false);
   if (!png) {
-    std::move(done).Run(base::unexpected("The screenshot couldn't be saved."));
+    std::move(done).Run(base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_SCREENSHOT_SAVE_FAILED)));
     return;
   }
   SavePng(std::move(*png), std::move(done));

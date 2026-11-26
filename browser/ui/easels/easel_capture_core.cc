@@ -20,12 +20,14 @@
 #include "compass/browser/easels/easel_images.h"
 #include "compass/browser/easels/easel_store.h"
 #include "compass/browser/ui/easels/easel_page_js.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/image/image.h"
 
 namespace compass::easels {
@@ -61,18 +63,20 @@ void Fail(std::unique_ptr<CaptureState> state, std::string error) {
 void Save(std::unique_ptr<CaptureState> state, std::string favicon_sha) {
   EaselStore* store = state->store.get();
   if (!store) {
-    return Fail(std::move(state), "The profile was closed.");
+    return Fail(std::move(state),
+                l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_PROFILE_CLOSED));
   }
   std::string easel_uuid = state->request.easel_uuid;
   if (easel_uuid.empty()) {
     base::expected<sync_pb::CompassEasel, std::string> easel =
-        store->CreateEasel(kNewEaselTitle);
+        store->CreateEasel(NewEaselTitle());
     if (!easel.has_value()) {
       return Fail(std::move(state), easel.error());
     }
     easel_uuid = easel->uuid();
   } else if (!store->FindEasel(easel_uuid)) {
-    return Fail(std::move(state), "That Easel was deleted.");
+    return Fail(std::move(state),
+                l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_DELETED));
   }
 
   std::vector<gfx::RectF> boxes;
@@ -137,7 +141,8 @@ void OnImagePrepared(std::unique_ptr<CaptureState> state,
     return Fail(std::move(state), prepared.error());
   }
   if (!state->store) {
-    return Fail(std::move(state), "The profile was closed.");
+    return Fail(std::move(state),
+                l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_PROFILE_CLOSED));
   }
   base::expected<std::string, std::string> sha = state->store->AddAsset(
       std::move(prepared->data), std::move(prepared->mime_type));
@@ -191,16 +196,16 @@ void CopyPageRegion(content::WebContents* contents,
   content::RenderWidgetHostView* widget_view =
       contents ? contents->GetRenderWidgetHostView() : nullptr;
   if (!widget_view || !widget_view->IsSurfaceAvailableForCopy()) {
-    std::move(callback).Run(
-        base::unexpected("The page isn't showing anything to capture."));
+    std::move(callback).Run(base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_NOTHING_TO_CAPTURE)));
     return;
   }
   const gfx::Rect rect =
       RegionToViewRect(css_region, view, widget_view->GetDeviceScaleFactor(),
                        widget_view->GetViewBounds().size());
   if (rect.IsEmpty()) {
-    std::move(callback).Run(
-        base::unexpected("The region is outside the page."));
+    std::move(callback).Run(base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_REGION_OUTSIDE)));
     return;
   }
   // An empty output size: the copy keeps the surface's device pixels.
@@ -210,8 +215,8 @@ void CopyPageRegion(content::WebContents* contents,
           [](BitmapCallback callback,
              const content::CopyFromSurfaceResult& result) {
             if (!result.has_value() || result->bitmap.drawsNothing()) {
-              std::move(callback).Run(
-                  base::unexpected("The page couldn't be captured."));
+              std::move(callback).Run(base::unexpected(
+                  l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_CAPTURE_FAILED)));
               return;
             }
             std::move(callback).Run(result->bitmap);
@@ -226,13 +231,13 @@ void AddCaptureToEasel(content::WebContents* contents,
       Profile::FromBrowserContext(contents->GetBrowserContext());
   EaselStore* store = EaselStore::Get(profile);
   if (!store) {
-    std::move(done).Run(
-        base::unexpected("Easels aren't available in this window."));
+    std::move(done).Run(base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_UNAVAILABLE)));
     return;
   }
   if (!store->loaded()) {
     std::move(done).Run(base::unexpected(
-        "Easels are still loading. Try again in a moment."));
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_STILL_LOADING)));
     return;
   }
   auto state = std::make_unique<CaptureState>();
@@ -284,7 +289,7 @@ std::vector<const sync_pb::CompassEasel*> EaselsForPicker(Profile* profile) {
 }
 
 std::string EaselTitleOf(const sync_pb::CompassEasel& easel) {
-  return easel.title().empty() ? std::string(kNewEaselTitle) : easel.title();
+  return easel.title().empty() ? NewEaselTitle() : easel.title();
 }
 
 }  // namespace compass::easels

@@ -53,12 +53,14 @@ source_set("easel") {
     "//url",
   ]
   deps = [
-    "//compass/browser/rooms",
     ":conversions",
     "//base:i18n",
     "//chrome/browser/profiles:profile",
+    "//compass/browser/rooms",
     "//compass/browser/ui/easels:refresh",
+    "//compass/browser/ui/webui:localized_strings",
     "//compass/resources/easel:resources",
+    "//compass/strings:compass_strings",
     "//content/public/common",
     "//net",
     "//net/traffic_annotation",

@@ -25,6 +25,7 @@ build_webui("build") {
     "editor.ts",
     "geometry.ts",
     "history.ts",
+    "i18n.ts",
     "icons.ts",
     "list.ts",
     "model.ts",

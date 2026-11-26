@@ -18,8 +18,10 @@
 #include "chrome/browser/global_keyboard_shortcuts_mac.h"
 #include "compass/browser/shortcuts/shortcut_settings.h"
 #include "compass/browser/ui/compass_command_ids.h"
+#include "compass/strings/grit/compass_strings.h"
 #import "ui/base/accelerators/platform_accelerator_cocoa.h"
 #import "ui/base/cocoa/nsmenuitem_additions.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_code_conversion_mac.h"
 #include "ui/events/keycodes/keyboard_codes.h"
@@ -30,55 +32,86 @@ namespace {
 
 // In the order the settings page shows them, by section.
 constexpr CustomizableCommand kCustomizableCommands[] = {
-    {"new-tab", IDC_NEW_TAB, "Compass", "New tab (command bar)"},
-    {"open-location", IDC_FOCUS_LOCATION, "Compass",
-     "Edit the page's address"},
-    {"toggle-sidebar", IDC_TOGGLE_VERTICAL_TABS_COLLAPSE, "Compass",
-     "Show or hide the sidebar"},
-    {"copy-url", IDC_COPY_URL, "Compass", "Copy the page's link"},
-    {"little-window", kNewLittleWindowCommand, "Compass",
-     "New little window"},
-    {"claude", kToggleClaudeCommand, "Compass", "Chat with Claude"},
-    {"reader", kToggleReaderModeCommand, "Compass", "Reader mode"},
+    {"new-tab", IDC_NEW_TAB, IDS_COMPASS_SHORTCUTS_SECTION_COMPASS,
+     IDS_COMPASS_SHORTCUTS_NEW_TAB},
+    {"open-location", IDC_FOCUS_LOCATION, IDS_COMPASS_SHORTCUTS_SECTION_COMPASS,
+     IDS_COMPASS_SHORTCUTS_OPEN_LOCATION},
+    {"toggle-sidebar", IDC_TOGGLE_VERTICAL_TABS_COLLAPSE,
+     IDS_COMPASS_SHORTCUTS_SECTION_COMPASS,
+     IDS_COMPASS_SHORTCUTS_TOGGLE_SIDEBAR},
+    {"copy-url", IDC_COPY_URL, IDS_COMPASS_SHORTCUTS_SECTION_COMPASS,
+     IDS_COMPASS_SHORTCUTS_COPY_URL},
+    {"little-window", kNewLittleWindowCommand,
+     IDS_COMPASS_SHORTCUTS_SECTION_COMPASS,
+     IDS_COMPASS_SHORTCUTS_LITTLE_WINDOW},
+    {"claude", kToggleClaudeCommand, IDS_COMPASS_SHORTCUTS_SECTION_COMPASS,
+     IDS_COMPASS_SHORTCUTS_CLAUDE},
+    {"reader", kToggleReaderModeCommand, IDS_COMPASS_SHORTCUTS_SECTION_COMPASS,
+     IDS_COMPASS_SHORTCUTS_READER},
 
-    {"restore-tab", IDC_RESTORE_TAB, "Tabs", "Reopen closed tab"},
-    {"undo-close-tab", kUndoCloseTabCommand, "Tabs",
-     "Undo closing a tab (outside text)"},
-    {"redo-close-tab", kRedoCloseTabCommand, "Tabs",
-     "Redo closing a tab (outside text)"},
-    {"next-tab", IDC_SELECT_NEXT_TAB, "Tabs", "Next tab"},
-    {"previous-tab", IDC_SELECT_PREVIOUS_TAB, "Tabs", "Previous tab"},
-    {"mute-tab", kToggleTabMuteCommand, "Tabs", "Mute or unmute the tab"},
-    {"reload", IDC_RELOAD, "Tabs", "Reload"},
-    {"hard-reload", IDC_RELOAD_BYPASSING_CACHE, "Tabs",
-     "Reload without the cache"},
-    {"back", IDC_BACK, "Tabs", "Back"},
-    {"forward", IDC_FORWARD, "Tabs", "Forward"},
-    {"find", IDC_FIND, "Tabs", "Find on page"},
-    {"zoom-in", IDC_ZOOM_PLUS, "Tabs", "Zoom in"},
-    {"zoom-out", IDC_ZOOM_MINUS, "Tabs", "Zoom out"},
-    {"zoom-reset", IDC_ZOOM_NORMAL, "Tabs", "Actual size"},
-    {"print", IDC_PRINT, "Tabs", "Print"},
-    {"save-page", IDC_SAVE_PAGE, "Tabs", "Save page as"},
+    {"restore-tab", IDC_RESTORE_TAB, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_RESTORE_TAB},
+    {"undo-close-tab", kUndoCloseTabCommand, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_UNDO_CLOSE_TAB},
+    {"redo-close-tab", kRedoCloseTabCommand, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_REDO_CLOSE_TAB},
+    {"next-tab", IDC_SELECT_NEXT_TAB, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_NEXT_TAB},
+    {"previous-tab", IDC_SELECT_PREVIOUS_TAB,
+     IDS_COMPASS_SHORTCUTS_SECTION_TABS, IDS_COMPASS_SHORTCUTS_PREVIOUS_TAB},
+    {"mute-tab", kToggleTabMuteCommand, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_MUTE_TAB},
+    {"reload", IDC_RELOAD, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_RELOAD},
+    {"hard-reload", IDC_RELOAD_BYPASSING_CACHE,
+     IDS_COMPASS_SHORTCUTS_SECTION_TABS, IDS_COMPASS_SHORTCUTS_HARD_RELOAD},
+    {"back", IDC_BACK, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_BACK},
+    {"forward", IDC_FORWARD, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_FORWARD},
+    {"find", IDC_FIND, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_FIND},
+    {"zoom-in", IDC_ZOOM_PLUS, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_ZOOM_IN},
+    {"zoom-out", IDC_ZOOM_MINUS, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_ZOOM_OUT},
+    {"zoom-reset", IDC_ZOOM_NORMAL, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_ZOOM_RESET},
+    {"print", IDC_PRINT, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_PRINT},
+    {"save-page", IDC_SAVE_PAGE, IDS_COMPASS_SHORTCUTS_SECTION_TABS,
+     IDS_COMPASS_SHORTCUTS_SAVE_PAGE},
 
-    {"new-window", IDC_NEW_WINDOW, "Windows", "New window"},
-    {"new-incognito-window", IDC_NEW_INCOGNITO_WINDOW, "Windows",
-     "New incognito window"},
-    {"fullscreen", IDC_FULLSCREEN, "Windows", "Enter or exit full screen"},
+    {"new-window", IDC_NEW_WINDOW, IDS_COMPASS_SHORTCUTS_SECTION_WINDOWS,
+     IDS_COMPASS_SHORTCUTS_NEW_WINDOW},
+    {"new-incognito-window", IDC_NEW_INCOGNITO_WINDOW,
+     IDS_COMPASS_SHORTCUTS_SECTION_WINDOWS,
+     IDS_COMPASS_SHORTCUTS_NEW_INCOGNITO_WINDOW},
+    {"fullscreen", IDC_FULLSCREEN, IDS_COMPASS_SHORTCUTS_SECTION_WINDOWS,
+     IDS_COMPASS_SHORTCUTS_FULLSCREEN},
 
-    {"history", IDC_SHOW_HISTORY, "Browser", "History"},
-    {"downloads", IDC_SHOW_DOWNLOADS, "Browser", "Downloads"},
-    {"extensions", IDC_MANAGE_EXTENSIONS, "Browser", "Extensions"},
-    {"settings", IDC_OPTIONS, "Browser", "Settings"},
-    {"clear-browsing-data", IDC_CLEAR_BROWSING_DATA, "Browser",
-     "Clear browsing data"},
+    {"history", IDC_SHOW_HISTORY, IDS_COMPASS_SHORTCUTS_SECTION_BROWSER,
+     IDS_COMPASS_SHORTCUTS_HISTORY},
+    {"downloads", IDC_SHOW_DOWNLOADS, IDS_COMPASS_SHORTCUTS_SECTION_BROWSER,
+     IDS_COMPASS_SHORTCUTS_DOWNLOADS},
+    {"extensions", IDC_MANAGE_EXTENSIONS, IDS_COMPASS_SHORTCUTS_SECTION_BROWSER,
+     IDS_COMPASS_SHORTCUTS_EXTENSIONS},
+    {"settings", IDC_OPTIONS, IDS_COMPASS_SHORTCUTS_SECTION_BROWSER,
+     IDS_COMPASS_SHORTCUTS_SETTINGS},
+    {"clear-browsing-data", IDC_CLEAR_BROWSING_DATA,
+     IDS_COMPASS_SHORTCUTS_SECTION_BROWSER,
+     IDS_COMPASS_SHORTCUTS_CLEAR_BROWSING_DATA},
 
-    {"devtools", IDC_DEV_TOOLS, "Developer", "Developer tools"},
-    {"console", IDC_DEV_TOOLS_CONSOLE, "Developer", "JavaScript console"},
-    {"inspect", IDC_DEV_TOOLS_INSPECT, "Developer", "Inspect elements"},
-    {"view-source", IDC_VIEW_SOURCE, "Developer", "View source"},
-    {"dev-mode", kToggleDevModeCommand, "Developer",
-     "Development mode for this site"},
+    {"devtools", IDC_DEV_TOOLS, IDS_COMPASS_SHORTCUTS_SECTION_DEVELOPER,
+     IDS_COMPASS_SHORTCUTS_DEVTOOLS},
+    {"console", IDC_DEV_TOOLS_CONSOLE, IDS_COMPASS_SHORTCUTS_SECTION_DEVELOPER,
+     IDS_COMPASS_SHORTCUTS_CONSOLE},
+    {"inspect", IDC_DEV_TOOLS_INSPECT, IDS_COMPASS_SHORTCUTS_SECTION_DEVELOPER,
+     IDS_COMPASS_SHORTCUTS_INSPECT},
+    {"view-source", IDC_VIEW_SOURCE, IDS_COMPASS_SHORTCUTS_SECTION_DEVELOPER,
+     IDS_COMPASS_SHORTCUTS_VIEW_SOURCE},
+    {"dev-mode", kToggleDevModeCommand, IDS_COMPASS_SHORTCUTS_SECTION_DEVELOPER,
+     IDS_COMPASS_SHORTCUTS_DEV_MODE},
 };
 
 // Compass's commands that run only on keys the page passed on
@@ -400,7 +433,8 @@ std::optional<std::u16string> FindBuiltInShortcut(
        GetShortcutsNotPresentInMainMenu()) {
     if (!IsCustomizable(shortcut.chrome_command) &&
         AcceleratorFromShortcut(shortcut) == accelerator) {
-      return u"a built-in shortcut";
+      return l10n_util::GetStringUTF16(
+          IDS_COMPASS_SHORTCUTS_IN_USE_BY_BUILT_IN);
     }
   }
   return std::nullopt;

@@ -11,6 +11,7 @@ import {ApprovalDecision} from '../chat.mojom-webui.js';
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {knownModels} from '../claude_models.js';
+import {i18n, i18nF} from '../i18n.js';
 
 import {ClaudeChatBrowserProxy} from './browser_proxy.js';
 import type {AssistantTurn, ContentBlock, MemoryView, ToolView, UserTurn} from './conversation.js';
@@ -132,9 +133,9 @@ export class CompassClaudeChatAppElement extends CrLitElement {
 
   conversation = new Conversation();
   protected suggestions_ = [
-    'Summarize this page',
-    'What are the key points?',
-    'Explain this page simply',
+    i18n('claudeChatSuggestSummarize'),
+    i18n('claudeChatSuggestKeyPoints'),
+    i18n('claudeChatSuggestExplain'),
   ];
 
   private browserProxy_ = ClaudeChatBrowserProxy.getInstance();
@@ -309,8 +310,8 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   // The queue's label. It waits for the reply; with none, it waits for the
   // user (the last task failed or there's no key).
   protected getQueuedLabel_(): string {
-    return this.streaming_ ? 'Sends after this reply' :
-                             'Paused: send to go on';
+    return this.streaming_ ? i18n('claudeChatQueuedSends') :
+                             i18n('claudeChatQueuedPaused');
   }
 
   // Tool results show in the rows of the reply that asked for them.
@@ -324,8 +325,8 @@ export class CompassClaudeChatAppElement extends CrLitElement {
   }
 
   protected getAttachTitle_(): string {
-    return this.attachPage_ ? 'Claude gets this page\'s text with your message' :
-                              'Not sent';
+    return this.attachPage_ ? i18n('claudeChatAttachOn') :
+                              i18n('claudeChatAttachOff');
   }
 
   private changed_() {
@@ -558,8 +559,7 @@ export class CompassClaudeChatAppElement extends CrLitElement {
     if (++this.toolRounds_ > MAX_TOOL_ROUNDS) {
       this.conversation.closeOpenTools(
           'Not run: Claude used many steps; the user may ask to go on.');
-      turn.error = `Claude stopped after ${MAX_TOOL_ROUNDS} steps. ` +
-          'Send "go on" to let it continue.';
+      turn.error = i18nF('claudeChatTooManySteps', MAX_TOOL_ROUNDS);
       this.endTask_();
       return;
     }

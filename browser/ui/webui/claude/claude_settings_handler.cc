@@ -10,9 +10,9 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/path_service.h"
-#include "base/task/thread_pool.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
@@ -29,11 +29,13 @@
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/claude/claude_quick.h"
 #include "compass/browser/ui/claude/claude_files_config.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/shell_dialogs/selected_file_info.h"
 
 #if BUILDFLAG(IS_MAC)
@@ -410,7 +412,8 @@ void ClaudeSettingsHandler::CheckOnDevice(CheckOnDeviceCallback callback) {
     return;
   }
 #endif
-  std::move(callback).Run("Apple Intelligence isn't available here.");
+  std::move(callback).Run(l10n_util::GetStringUTF8(
+      IDS_COMPASS_CLAUDE_APPLE_INTELLIGENCE_UNAVAILABLE));
 }
 
 void ClaudeSettingsHandler::SetProviderModel(const char* name,
@@ -448,7 +451,8 @@ void ClaudeSettingsHandler::ChooseFilesFolder(
       this, std::make_unique<ChromeSelectFilePolicy>(web_contents_.get()));
   const FilesConfig config = GetFilesConfig(profile_);
   folder_dialog_->SelectFile(
-      ui::SelectFileDialog::SELECT_FOLDER, u"Choose a folder for Claude",
+      ui::SelectFileDialog::SELECT_FOLDER,
+      l10n_util::GetStringUTF16(IDS_COMPASS_CLAUDE_FOLDER_DIALOG_TITLE),
       config.folder.empty() ? DefaultSaveFolder(profile_) : config.folder,
       /*file_types=*/nullptr, /*file_type_index=*/0,
       /*default_extension=*/base::FilePath::StringType(),
@@ -503,7 +507,8 @@ void ClaudeSettingsHandler::AddMemory(const std::string& text,
                                       AddMemoryCallback callback) {
   ClaudeMemory* memory = ClaudeMemory::Get(profile_);
   if (!memory) {
-    std::move(callback).Run("Memory isn't available in this profile.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_CLAUDE_MEMORY_UNAVAILABLE));
     return;
   }
   base::expected<MemoryEntry, std::string> added = memory->Add(text);
@@ -515,7 +520,8 @@ void ClaudeSettingsHandler::UpdateMemory(const std::string& id,
                                          UpdateMemoryCallback callback) {
   ClaudeMemory* memory = ClaudeMemory::Get(profile_);
   if (!memory) {
-    std::move(callback).Run("Memory isn't available in this profile.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_CLAUDE_MEMORY_UNAVAILABLE));
     return;
   }
   base::expected<MemoryEntry, std::string> updated = memory->Update(id, text);
@@ -571,13 +577,15 @@ void ClaudeSettingsHandler::OnKeyForTest(TestConnectionCallback callback,
       result->error = ClaudeCredentials::MissingKeyMessage(profile_);
     } else if (ClaudeCredentials::HasApiKey(profile_)) {
       result->error =
-          "The saved key can't be read any more. Enter it again.";
+          l10n_util::GetStringUTF8(IDS_COMPASS_CLAUDE_KEY_UNREADABLE);
     } else if (prefs::CurrentProvider(*profile_->GetPrefs()) ==
                AIProvider::kCompatible) {
       // A key may not be needed, but the server's URL is.
-      result->error = "Enter the server's base URL first.";
+      result->error =
+          l10n_util::GetStringUTF8(IDS_COMPASS_CLAUDE_ENTER_BASE_URL);
     } else {
-      result->error = "Enter an API key first.";
+      result->error =
+          l10n_util::GetStringUTF8(IDS_COMPASS_CLAUDE_ENTER_API_KEY);
     }
     std::move(callback).Run(std::move(result));
     return;
@@ -585,7 +593,7 @@ void ClaudeSettingsHandler::OnKeyForTest(TestConnectionCallback callback,
   Endpoint endpoint = EndpointFromPrefs(*profile_->GetPrefs());
   endpoint.api_key = std::move(*key);
   if (NeedsTokenRisksAccepted(endpoint)) {
-    result->error = kTokenRisksMessage;
+    result->error = l10n_util::GetStringUTF8(IDS_COMPASS_AI_TOKEN_RISKS);
     std::move(callback).Run(std::move(result));
     return;
   }
@@ -623,9 +631,9 @@ void ClaudeSettingsHandler::OnClaudeCodeChecked(
   if (!status) {
     result->error =
         profile_->GetPrefs()->GetString(prefs::kClaudeCodePath).empty()
-            ? "Claude Code isn't installed where Compass looks. Install it "
-              "(claude.com/claude-code), or set its path."
-            : "There's no Claude Code at that path.";
+            ? l10n_util::GetStringUTF8(
+                  IDS_COMPASS_CLAUDE_CODE_NOT_INSTALLED_SET_PATH)
+            : l10n_util::GetStringUTF8(IDS_COMPASS_CLAUDE_CODE_NOT_AT_PATH);
   } else if (!status->ok) {
     result->error = std::move(status->text);
   } else {

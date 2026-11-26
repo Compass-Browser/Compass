@@ -6,6 +6,7 @@ import './icon.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n, i18nF} from '../i18n.js';
 import type {SearchEngineDetails} from '../sidebar.mojom-webui.js';
 
 import {SettingsWindowBrowserProxy} from './browser_proxy.js';
@@ -76,11 +77,14 @@ export class CompassSettingsSearchEnginesElement extends CrLitElement {
   }
 
   protected getEngineDetail_(engine: SearchEngineDetails): string {
-    return engine.isDefault ? `${engine.keyword} · Default` : engine.keyword;
+    return engine.isDefault ?
+        i18nF('searchEnginesKeywordDefault', engine.keyword) :
+        engine.keyword;
   }
 
   protected getDraftTitle_(): string {
-    return this.draft_?.id ? 'Edit search engine' : 'Add site search';
+    return this.draft_?.id ? i18n('searchEnginesEdit') :
+                             i18n('searchEnginesAdd');
   }
 
   // Events.

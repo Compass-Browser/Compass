@@ -173,7 +173,9 @@ Both are views and upstream's accelerator table, so they share the code.
 `compass/browser/shortcuts/shortcuts_table.{h,cc}` has the same API as
 `shortcuts_mac.h` for the page (`GetCustomizableCommands()`: macOS's list
 less undo and redo of closing tabs; `GetDefaultAccelerators()`,
-`GetAccelerators()`, `FindBuiltInShortcut()`).
+`GetAccelerators()`, `FindBuiltInShortcut()`). Each `CustomizableCommand`
+holds its section and label as message IDs (`section_id`, `label_id`), so
+the page shows them in the UI language.
 
 - **The table.** A window's shortcuts are upstream's accelerator table
   (`GetAcceleratorList()`), which `BrowserView::LoadAccelerators()`

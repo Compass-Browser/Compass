@@ -12,7 +12,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "compass/browser/sync/sync_settings.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/qr_code_generator/qr_code_generator.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
 namespace compass {
@@ -420,11 +422,13 @@ void CompassSyncPageHandler::SetDataTypeEnabled(sync::mojom::DataType type,
 void CompassSyncPageHandler::RevealRecoveryCode(
     RevealRecoveryCodeCallback callback) {
   if (reauthenticating_) {
-    std::move(callback).Run(false, "Already asking.", {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_ALREADY_ASKING), {});
     return;
   }
   if (controller_->GetRecoveryCode().empty()) {
-    std::move(callback).Run(false, "Sync isn't running on this device.", {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_NOT_RUNNING), {});
     return;
   }
   reauthenticating_ = true;
@@ -445,7 +449,9 @@ void CompassSyncPageHandler::OnReauthenticated(
   std::vector<std::string> words = controller_->GetRecoveryCode();
   const bool ok = !words.empty();
   std::move(callback).Run(
-      ok, ok ? std::string() : "Sync isn't running on this device.",
+      ok,
+      ok ? std::string()
+         : l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_NOT_RUNNING),
       std::move(words));
 }
 

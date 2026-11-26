@@ -4,6 +4,8 @@
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n, i18nF} from '../i18n.js';
+
 import type {ContentBlock, MemoryView, ToolView, Turn} from './conversation.js';
 import {renderMarkdown} from './markdown.js';
 import {getCss} from './turn.css.js';
@@ -101,22 +103,18 @@ export class CompassClaudeTurnElement extends CrLitElement {
     if (!memory) {
       return '';
     }
-    if (memory.boost) {
-      const verb = memory.kind === 'deleted' ? 'Deleted' :
+    if (memory.boost || memory.plugin) {
+      const kind = memory.kind === 'deleted' ? 'Deleted' :
           memory.kind === 'updated'          ? 'Updated' :
                                                'Saved';
-      return `${verb} Boost for ${memory.text}`;
+      return i18nF(
+          `claudeChat${memory.boost ? 'Boost' : 'Plugin'}${kind}`,
+          memory.text);
     }
-    if (memory.plugin) {
-      const verb = memory.kind === 'deleted' ? 'Deleted' :
-          memory.kind === 'updated'          ? 'Updated' :
-                                               'Saved';
-      return `${verb} plugin ${memory.text}`;
-    }
-    const verb = memory.kind === 'forgot' ? 'Forgot' :
-        memory.kind === 'updated'         ? 'Updated memory' :
-                                            'Saved to memory';
-    return `${verb}: ${memory.text}`;
+    const kind = memory.kind === 'forgot' ? 'Forgot' :
+        memory.kind === 'updated'         ? 'Updated' :
+                                            'Saved';
+    return i18nF(`claudeChatMemory${kind}`, memory.text);
   }
 
   protected onUndoMemoryClick_(e: Event) {
@@ -130,108 +128,120 @@ export class CompassClaudeTurnElement extends CrLitElement {
       const text = String(value ?? '');
       return text.length > max ? text.slice(0, max - 1) + '…' : text;
     };
-    const where = () => input['ref'] ? ` ${input['ref']}` :
+    // The message |key| ("Click"), |key| + 'Ref' for an element ("Click
+    // e12") or |key| + 'At' for a point ("Click at 10, 20").
+    const where = (key: string) => input['ref'] ?
+        i18nF(key + 'Ref', String(input['ref'])) :
         Array.isArray(input['coordinate']) ?
-                                       ` at ${input['coordinate'].join(', ')}` :
-                                       '';
+        i18nF(key + 'At', input['coordinate'].join(', ')) :
+        i18n(key);
     switch (item.name) {
       case 'read_page':
-        return 'Read the page';
+        return i18n('claudeChatToolReadPage');
       case 'get_page_text':
-        return 'Read the page\'s text';
+        return i18n('claudeChatToolGetPageText');
       case 'find':
-        return `Find “${short(input['query'])}”`;
+        return i18nF('claudeChatToolFind', short(input['query']));
       case 'screenshot':
-        return 'Screenshot';
+        return i18n('claudeChatToolScreenshot');
       case 'read_console':
-        return 'Read the console';
+        return i18n('claudeChatToolReadConsole');
       case 'run_js':
-        return 'Run JavaScript';
+        return i18n('claudeChatToolRunJs');
       case 'click':
-        return `Click${where()}`;
+        return where('claudeChatToolClick');
       case 'hover':
-        return `Point${where()}`;
+        return where('claudeChatToolHover');
       case 'type':
-        return `Type “${short(input['text'])}”`;
+        return i18nF('claudeChatToolType', short(input['text']));
       case 'key':
-        return `Press ${short(input['keys'])}`;
+        return i18nF('claudeChatToolKey', short(input['keys']));
       case 'scroll':
-        return `Scroll ${input['direction'] || ''}`;
+        return i18nF('claudeChatToolScroll', String(input['direction'] || ''))
+            .trim();
       case 'form_input':
-        return `Fill${where()}`;
+        return where('claudeChatToolFill');
       case 'navigate':
-        return `Go to ${short(input['url'])}`;
+        return i18nF('claudeChatToolNavigate', short(input['url']));
       case 'wait':
-        return `Wait ${input['seconds'] ?? ''} s`;
+        return i18nF('claudeChatToolWait', String(input['seconds'] ?? ''));
       case 'remember':
-        return `Remember “${short(input['text'])}”`;
+        return i18nF('claudeChatToolRemember', short(input['text']));
       case 'update_memory':
-        return `Update memory “${short(input['text'])}”`;
+        return i18nF('claudeChatToolUpdateMemory', short(input['text']));
       case 'forget':
-        return 'Forget a memory';
+        return i18n('claudeChatToolForget');
       case 'list_boosts':
-        return input['host'] ? `List Boosts for ${short(input['host'])}` :
-                               'List Boosts';
+        return input['host'] ?
+            i18nF('claudeChatToolListBoostsFor', short(input['host'])) :
+            i18n('claudeChatToolListBoosts');
       case 'save_boost':
-        return `Save Boost for ${short(input['match'])}`;
+        return i18nF('claudeChatToolSaveBoost', short(input['match']));
       case 'delete_boost':
-        return 'Delete a Boost';
+        return i18n('claudeChatToolDeleteBoost');
       case 'list_plugins':
-        return 'List plugins';
+        return i18n('claudeChatToolListPlugins');
       case 'get_plugin':
-        return `Read plugin ${short(input['id'])}`;
+        return i18nF('claudeChatToolGetPlugin', short(input['id']));
       case 'test_plugin':
-        return input['mode'] === 'folder' ? 'Test a live folder plugin' :
-                                            'Test a tab preview';
+        return input['mode'] === 'folder' ?
+            i18n('claudeChatToolTestFolderPlugin') :
+            i18n('claudeChatToolTestPreviewPlugin');
       case 'save_plugin':
-        return 'Save a plugin';
+        return i18n('claudeChatToolSavePlugin');
       case 'delete_plugin':
-        return `Delete plugin ${short(input['id'])}`;
+        return i18nF('claudeChatToolDeletePlugin', short(input['id']));
       case 'save_file':
-        return `Save “${short(input['name'])}”`;
+        return i18nF('claudeChatToolSaveFile', short(input['name']));
       case 'list_files':
-        return input['path'] ? `List “${short(input['path'])}”` :
-                               'List the folder';
+        return input['path'] ?
+            i18nF('claudeChatToolListPath', short(input['path'])) :
+            i18n('claudeChatToolListFolder');
       case 'read_file':
-        return `Read “${short(input['path'])}”`;
+        return i18nF('claudeChatToolReadFile', short(input['path']));
       case 'write_file':
-        return `Write “${short(input['path'])}”`;
+        return i18nF('claudeChatToolWriteFile', short(input['path']));
       case 'network_requests':
-        return 'List network requests';
+        return i18n('claudeChatToolNetworkRequests');
       case 'network_response':
-        return `Read request ${short(input['id'])}`;
+        return i18nF('claudeChatToolNetworkResponse', short(input['id']));
       case 'inspect_element':
-        return `Inspect ${short(input['ref'] || input['selector'])}`;
+        return i18nF(
+            'claudeChatToolInspect', short(input['ref'] || input['selector']));
       case 'page_storage':
-        return 'Read the site\'s storage';
+        return i18n('claudeChatToolPageStorage');
       case 'edit_page_storage':
         return input['action'] === 'clear' ?
-            `Clear ${short(input['store'])}` :
-            `${input['action'] === 'set' ? 'Set' : 'Remove'} “${
-                short(input['name'])}” in ${short(input['store'])}`;
+            i18nF('claudeChatToolClearStorage', short(input['store'])) :
+            i18nF(
+                input['action'] === 'set' ? 'claudeChatToolSetStorage' :
+                                            'claudeChatToolRemoveStorage',
+                short(input['name']), short(input['store']));
       case 'performance':
-        return 'Measure performance';
+        return i18n('claudeChatToolPerformance');
       case 'emulate':
-        return input['reset'] ? 'Stop emulating' :
-                                `Emulate ${short(input['device'] || '')}`.trim();
+        return input['reset'] ?
+            i18n('claudeChatToolStopEmulating') :
+            i18nF('claudeChatToolEmulate', short(input['device'] || ''))
+                .trim();
       // Claude Code's own tools.
       case 'Bash':
-        return `Run ${short(input['command'])}`;
+        return i18nF('claudeChatToolRun', short(input['command']));
       case 'Read':
-        return `Read “${short(input['file_path'])}”`;
+        return i18nF('claudeChatToolReadFile', short(input['file_path']));
       case 'Write':
-        return `Write “${short(input['file_path'])}”`;
+        return i18nF('claudeChatToolWriteFile', short(input['file_path']));
       case 'Edit':
-        return `Edit “${short(input['file_path'])}”`;
+        return i18nF('claudeChatToolEditFile', short(input['file_path']));
       case 'Glob':
       case 'Grep':
-        return `Search files for “${short(input['pattern'])}”`;
+        return i18nF('claudeChatToolSearchFiles', short(input['pattern']));
       case 'WebFetch':
-        return `Fetch ${short(input['url'])}`;
+        return i18nF('claudeChatToolFetch', short(input['url']));
       case 'WebSearch':
-        return `Search the web for “${short(input['query'])}”`;
+        return i18nF('claudeChatToolSearchWeb', short(input['query']));
       default:
-        return item.name || 'Tool';
+        return item.name || i18n('claudeChatToolGeneric');
     }
   }
 

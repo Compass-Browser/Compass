@@ -317,8 +317,7 @@
     margin-top: 0;
   }
 </style>
-<p class="lead">Your spaces, passwords, history and more on all your
-  devices, encrypted on each device: the server can't read them.</p>
+<p class="lead">$i18n{syncPageLead}</p>
 
 <div id="statusCard" class="card">
   <span id="statusDot" aria-hidden="true"></span>
@@ -328,11 +327,9 @@
 <!-- Company sign-in (docs/design/sync.md, "Company sign-in (OIDC)"): the
      server asks the chain to sign in. -->
 <section id="loginRequired" class="card" hidden>
-  <p>This server only syncs for people of its organization: sign in with
-    your work account. Your data stays encrypted on your devices; signing
-    in only lets this chain use the server.</p>
+  <p>$i18n{syncPageLoginRequired}</p>
   <div class="buttons">
-    <button id="startLogin">Sign in</button>
+    <button id="startLogin">$i18n{syncPageSignIn}</button>
   </div>
 </section>
 
@@ -340,110 +337,87 @@
 <section id="loginPanel" class="card" hidden>
   <p id="loginTitle"></p>
   <div id="loginCode" class="code"></div>
-  <p class="note">Sign in in the tab that opened. Allow only if the
-    page shows this code.</p>
+  <p class="note">$i18n{syncPageLoginNote}</p>
   <div class="buttons">
-    <button id="reopenLogin" class="secondary">Open the sign-in
-      page</button>
-    <button id="cancelLogin" class="secondary">Cancel</button>
+    <button id="reopenLogin" class="secondary">$i18n{syncPageOpenSignInPage}</button>
+    <button id="cancelLogin" class="secondary">$i18n{cancel}</button>
   </div>
 </section>
 
 <!-- Off. -->
 <section id="off" hidden>
-  <label class="field" for="server">Sync server</label>
+  <label class="field" for="server">$i18n{syncPageServer}</label>
   <input id="server" type="url" autocomplete="off" spellcheck="false"
       placeholder="https://sync.example.com/v2">
-  <p class="note">The address of the Compass sync server you run, or
-    one you trust. Every device of a chain uses the same one.</p>
+  <p class="note">$i18n{syncPageServerNote}</p>
   <div class="buttons">
-    <button id="start">Start sync</button>
-    <button id="showJoin" class="secondary">I have another
-      device</button>
+    <button id="start">$i18n{syncPageStart}</button>
+    <button id="showJoin" class="secondary">$i18n{syncPageHaveAnotherDevice}</button>
   </div>
-  <button id="showInvite" class="link">I have an invite</button>
+  <button id="showInvite" class="link">$i18n{syncPageHaveInvite}</button>
   <div id="invitePanel" hidden>
-    <label class="field" for="inviteJoinLink">Invite link</label>
+    <label class="field" for="inviteJoinLink">$i18n{syncPageInviteLink}</label>
     <input id="inviteJoinLink" type="url" autocomplete="off"
         spellcheck="false"
         placeholder="https://compass-sync.example.workers.dev/invite#…">
-    <p class="note">A friend who runs a Compass sync server sent it. You
-      get a sync chain of your own on their server; they can't read your
-      data.</p>
+    <p class="note">$i18n{syncPageInviteNote}</p>
     <div class="buttons">
-      <button id="joinInvite">Join and start sync</button>
+      <button id="joinInvite">$i18n{syncPageJoinInvite}</button>
     </div>
   </div>
-  <button id="showCloudflare" class="link">No server? Set up a free one
-    on Cloudflare</button>
+  <button id="showCloudflare" class="link">$i18n{syncPageNoServer}</button>
 
   <!-- docs/design/sync.md, "A free server on Cloudflare". -->
   <div id="cloudflarePanel" hidden>
-    <p class="note">Compass sets up a sync server in your own Cloudflare
-      account. It's free, and only your devices, and friends you invite,
-      can use it.</p>
+    <p class="note">$i18n{syncPageCloudflareNote}</p>
     <!-- docs/design/sync.md, "Push on a Cloudflare server". -->
     <ul class="rows">
       <li>
         <label class="grow" for="setupPushRelay">
-          <div class="name">Phone notifications</div>
-          <div class="details">When a tab is sent to an iPhone or Android
-            phone, Compass's push relay (push.compassbrowser.org) tells it
-            at once. It gets each phone's notification token, never your
-            tabs or data. Off, sent tabs arrive when the phone next syncs.
-            You can change this later.</div>
+          <div class="name">$i18n{syncPagePhoneNotifications}</div>
+          <div class="details">$i18n{syncPagePushNote}</div>
         </label>
         <input id="setupPushRelay" type="checkbox" class="switch"
             role="switch" checked>
       </li>
     </ul>
     <div class="buttons">
-      <button id="signInCloudflare">Sign in with Cloudflare</button>
-      <button id="showCloudflareToken" class="link">Use an API token
-        instead</button>
+      <button id="signInCloudflare">$i18n{syncPageSignInCloudflare}</button>
+      <button id="showCloudflareToken" class="link">$i18n{syncPageUseToken}</button>
     </div>
-    <p class="note">No Cloudflare account? You can make a free one on the
-      sign-in page. Compass uses the access only to set up the server, and
-      doesn't keep it.</p>
+    <p class="note">$i18n{syncPageNoCloudflareAccount}</p>
     <div id="cloudflareTokenPanel" hidden>
       <ol class="note">
-        <li>Open <a href="https://dash.cloudflare.com/profile/api-tokens"
-            target="_blank" rel="noopener">API Tokens</a>, choose Create
-          Token, and use the template Edit Cloudflare Workers.</li>
-        <li>Paste the token here.</li>
+        <li>$i18nRaw{syncPageTokenStep1}</li>
+        <li>$i18n{syncPageTokenStep2}</li>
       </ol>
-      <label class="field" for="cloudflareToken">Cloudflare API
-        token</label>
+      <label class="field" for="cloudflareToken">$i18n{syncPageCloudflareToken}</label>
       <input id="cloudflareToken" type="password" autocomplete="off"
           spellcheck="false">
       <div class="buttons">
-        <button id="startCloudflare">Set up and start sync</button>
+        <button id="startCloudflare">$i18n{syncPageSetUpAndStart}</button>
       </div>
     </div>
     <p id="cloudflareProgress" class="note" aria-live="polite"></p>
   </div>
 
   <div id="joinPanel" hidden>
-    <label class="field" for="code">The code shown on the other
-      device</label>
+    <label class="field" for="code">$i18n{syncPageCodeOnOtherDevice}</label>
     <input id="code" type="text" placeholder="7-482913"
         autocomplete="off" spellcheck="false">
-    <p class="note">On a device that syncs, open Sync and choose Add a
-      device.</p>
+    <p class="note">$i18n{syncPageJoinNote}</p>
     <div class="buttons">
-      <button id="join">Join</button>
-      <button id="showRecovery" class="link">Use a recovery
-        code</button>
+      <button id="join">$i18n{syncPageJoin}</button>
+      <button id="showRecovery" class="link">$i18n{syncPageUseRecoveryCode}</button>
     </div>
   </div>
 
   <div id="recoveryPanel" hidden>
-    <label class="field" for="recovery">Recovery code (12
-      words)</label>
+    <label class="field" for="recovery">$i18n{syncPageRecoveryCodeField}</label>
     <textarea id="recovery" autocomplete="off"
         spellcheck="false"></textarea>
     <div class="buttons">
-      <button id="recover">Join with the recovery code</button>
+      <button id="recover">$i18n{syncPageJoinWithRecovery}</button>
     </div>
   </div>
   <p id="offError" class="error"></p>
@@ -452,20 +426,18 @@
 <!-- A recovery code: once after "Start sync" or "Reset sync", or on
      request. -->
 <section id="wordsPanel" hidden>
-  <h2>Your recovery code</h2>
-  <p>Save these 12 words somewhere safe, such as a password manager.
-    You only need them if you lose every device that syncs: without
-    them, the synced data is gone.</p>
+  <h2>$i18n{syncPageYourRecoveryCode}</h2>
+  <p>$i18n{syncPageSaveWords}</p>
   <ol id="words"></ol>
   <div class="buttons">
-    <button id="saved">I saved it</button>
+    <button id="saved">$i18n{syncPageSaved}</button>
   </div>
 </section>
 
 <!-- Restart needed. -->
 <section id="restartPanel" hidden>
   <div class="buttons">
-    <button id="restart">Restart Compass</button>
+    <button id="restart">$i18n{syncPageRestart}</button>
   </div>
 </section>
 
@@ -473,130 +445,117 @@
 <section id="pairing" class="card" hidden>
   <div id="pairingQrPanel" hidden>
     <div id="pairingQr"></div>
-    <p class="note">On an iPhone, scan this with the camera, or type the
-      code below in Compass.</p>
+    <p class="note">$i18n{syncPageScanQr}</p>
   </div>
   <div id="pairingCode" class="code"></div>
   <p id="pairingExpiry" class="note" hidden></p>
   <p id="pairingMessage"></p>
   <div id="confirm" hidden>
-    <p>Add <strong id="deviceName"></strong> to sync?</p>
+    <p>$i18nRaw{syncPageAddDeviceQuestion}</p>
     <div class="buttons">
-      <button id="allow">Allow</button>
-      <button id="deny" class="secondary">Deny</button>
+      <button id="allow">$i18n{syncPageAllow}</button>
+      <button id="deny" class="secondary">$i18n{syncPageDeny}</button>
     </div>
   </div>
   <div class="buttons">
-    <button id="cancelPairing" class="secondary">Cancel</button>
+    <button id="cancelPairing" class="secondary">$i18n{cancel}</button>
   </div>
 </section>
 
 <!-- Joining with other profiles here: which of the chain's each takes
      (slice 5). -->
 <section id="mapping" class="card" hidden>
-  <p>This Mac has other profiles. Choose which profile of your other
-    devices each one syncs with.</p>
+  <p>$i18n{syncPageMappingLead}</p>
   <div id="mappingRows"></div>
   <div class="buttons">
-    <button id="mapProfiles">Continue</button>
+    <button id="mapProfiles">$i18n{continue}</button>
   </div>
   <p id="mappingError" class="error"></p>
 </section>
 
 <!-- On. -->
 <section id="on" hidden>
-  <h2>Devices</h2>
+  <h2>$i18n{syncPageDevices}</h2>
   <ul id="devices" class="rows"></ul>
-  <p id="noDevices" class="note" hidden>The devices show once this one
-    has synced.</p>
+  <p id="noDevices" class="note" hidden>$i18n{syncPageNoDevicesYet}</p>
   <p id="devicesError" class="error"></p>
   <div class="buttons">
-    <button id="addDevice">Add a device</button>
+    <button id="addDevice">$i18n{syncPageAddDevice}</button>
   </div>
 
   <!-- docs/design/sync.md, "Inviting friends": only on a server with an
        access list that this chain owns. -->
   <div id="people" hidden>
-    <h2>People on your server</h2>
+    <h2>$i18n{syncPagePeople}</h2>
     <!-- docs/design/sync.md, "Updating a server". -->
     <div id="serverUpdate" class="card" hidden>
-      <p><strong>A newer version of your server is ready.</strong>
+      <p><strong>$i18n{syncPageServerUpdateReady}</strong>
         <span id="serverUpdateNote"></span></p>
       <div class="buttons">
-        <button id="updateServer">Update with Cloudflare</button>
-        <button id="showUpdateToken" class="link">Use an API token
-          instead</button>
+        <button id="updateServer">$i18n{syncPageUpdateCloudflare}</button>
+        <button id="showUpdateToken" class="link">$i18n{syncPageUseToken}</button>
       </div>
       <div id="updateTokenPanel" hidden>
-        <label class="field" for="updateToken">Cloudflare API token</label>
+        <label class="field" for="updateToken">$i18n{syncPageCloudflareToken}</label>
         <input id="updateToken" type="password" autocomplete="off"
             spellcheck="false">
         <div class="buttons">
-          <button id="updateServerToken">Update</button>
+          <button id="updateServerToken">$i18n{syncPageUpdate}</button>
         </div>
       </div>
       <p id="updateProgress" class="note" aria-live="polite"></p>
       <p id="updateError" class="error"></p>
     </div>
-    <p class="note">Only your devices and the friends you invite can sync
-      on your server. Their data is encrypted on their devices: you can't
-      read it.</p>
+    <p class="note">$i18n{syncPagePeopleNote}</p>
     <ul id="peopleList" class="rows"></ul>
-    <p id="noPeople" class="note" hidden>No one else yet.</p>
+    <p id="noPeople" class="note" hidden>$i18n{syncPageNoPeople}</p>
     <!-- docs/design/sync.md, "Push on a Cloudflare server". -->
     <ul id="pushRelayRow" class="rows" hidden>
       <li>
         <label class="grow" for="pushRelay">
-          <div class="name">Phone notifications</div>
+          <div class="name">$i18n{syncPagePhoneNotifications}</div>
           <div class="details" id="pushRelayDetails"></div>
         </label>
         <input id="pushRelay" type="checkbox" class="switch" role="switch">
       </li>
     </ul>
-    <label class="field" for="inviteName">Invite a friend</label>
+    <label class="field" for="inviteName">$i18n{syncPageInviteFriend}</label>
     <input id="inviteName" type="text" autocomplete="off"
-        placeholder="Their name (only you see it)">
+        placeholder="$i18n{syncPageInviteNamePlaceholder}">
     <div class="buttons">
-      <button id="invite" class="secondary">Make an invite link</button>
+      <button id="invite" class="secondary">$i18n{syncPageMakeInvite}</button>
     </div>
     <div id="inviteResult" hidden>
-      <p class="note">Send this link to your friend. It works once, within
-        7 days. In Compass, they choose Sync, then I have an invite.</p>
+      <p class="note">$i18n{syncPageInviteResult}</p>
       <input id="inviteLink" type="text" readonly>
       <div class="buttons">
-        <button id="copyInvite" class="secondary small">Copy link</button>
+        <button id="copyInvite" class="secondary small">$i18n{syncPageCopyLink}</button>
       </div>
     </div>
     <p id="peopleError" class="error"></p>
   </div>
 
-  <h2>What syncs</h2>
-  <p class="note">For every profile on this device.</p>
+  <h2>$i18n{syncPageWhatSyncs}</h2>
+  <p class="note">$i18n{syncPageEveryProfile}</p>
   <ul id="types" class="rows"></ul>
 
-  <h2>Recovery code</h2>
-  <p>The 12 words that bring your data back if you lose every device.
-    Compass asks for Touch ID or your password first.</p>
+  <h2>$i18n{syncPageRecoveryCode}</h2>
+  <p>$i18n{syncPageRecoveryNote}</p>
   <div class="buttons">
-    <button id="showWords" class="secondary">Show recovery
-      code</button>
+    <button id="showWords" class="secondary">$i18n{syncPageShowRecovery}</button>
   </div>
   <p id="wordsError" class="error"></p>
 
-  <h2>Server</h2>
+  <h2>$i18n{syncPageServerHeading}</h2>
   <p id="serverUrl"></p>
   <p id="signedInAs" hidden></p>
-  <p class="note">To use another server, leave sync and join again
-    with the new one.</p>
+  <p class="note">$i18n{syncPageOtherServer}</p>
 
-  <h2>Leave or reset</h2>
-  <p class="note">Leaving keeps this device's data and stops syncing
-    it. Resetting makes a new chain with a new recovery code: this
-    device's data goes up again, and your other devices must join
-    again.</p>
+  <h2>$i18n{syncPageLeaveOrReset}</h2>
+  <p class="note">$i18n{syncPageLeaveOrResetNote}</p>
   <div class="buttons">
-    <button id="leave" class="secondary">Leave sync</button>
-    <button id="reset" class="danger">Reset sync</button>
+    <button id="leave" class="secondary">$i18n{syncPageLeave}</button>
+    <button id="reset" class="danger">$i18n{syncPageReset}</button>
   </div>
   <p id="onError" class="error"></p>
 </section>
@@ -605,7 +564,7 @@
      "Removing a device"): the status says so; leaving is the way on. -->
 <section id="removedPanel" hidden>
   <div class="buttons">
-    <button id="removedLeave">Leave sync</button>
+    <button id="removedLeave">$i18n{syncPageLeave}</button>
   </div>
 </section>
 
@@ -614,6 +573,6 @@
   <p id="confirmText"></p>
   <div class="buttons">
     <button id="confirmOk"></button>
-    <button id="confirmCancel" class="secondary">Cancel</button>
+    <button id="confirmCancel" class="secondary">$i18n{cancel}</button>
   </div>
 </dialog>

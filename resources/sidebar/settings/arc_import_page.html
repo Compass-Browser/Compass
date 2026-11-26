@@ -163,23 +163,19 @@
 
 <!-- The browsers on this computer, and Arc. -->
 <div id="listView">
-  <p class="lead">
-    Bring bookmarks, open tabs, history and passwords into Compass. Choose
-    a browser to see what can come over.
-  </p>
+  <p class="lead">$i18n{arcImportPageLead}</p>
   <section class="row-group">
-    <h3 class="group-title">Browsers on this computer</h3>
+    <h3 class="group-title">$i18n{arcImportPageBrowsersHere}</h3>
     <div class="group">
-      <p id="browsersLoading" class="empty">Looking for browsers…</p>
+      <p id="browsersLoading" class="empty">$i18n{arcImportPageLookingForBrowsers}</p>
       <p id="browsersNone" class="empty" hidden>
-        No other browser was found on this computer.
+        $i18n{arcImportPageNoBrowsers}
       </p>
       <div id="browsers"></div>
     </div>
     <div id="browsersRunning" class="group-footer" hidden>
-      <span>Some browsers are open. Quit them to import from them: their
-        files are in use while they run.</span>
-      <button id="browsersRefresh" class="pill small">Check Again</button>
+      <span>$i18n{arcImportPageBrowsersOpen}</span>
+      <button id="browsersRefresh" class="pill small">$i18n{arcImportPageCheckAgain}</button>
     </div>
   </section>
   <section id="arcGroup" class="row-group" hidden>
@@ -201,7 +197,7 @@
 <!-- One browser profile's choices, the import, and what it did. -->
 <div id="browserView" hidden>
   <button class="back" id="browserBack">
-    <compass-settings-icon name="back"></compass-settings-icon>Browsers
+    <compass-settings-icon name="back"></compass-settings-icon>$i18n{arcImportPageBrowsers}
   </button>
   <div class="import-head">
     <span id="browserIcon"></span>
@@ -212,31 +208,28 @@
   </div>
   <div id="browsersChooser">
     <section id="modeGroup" class="row-group" hidden>
-      <h3 class="group-title">Bring it in as</h3>
+      <h3 class="group-title">$i18n{arcImportPageBringInAs}</h3>
       <div id="modes" class="group" role="radiogroup"
-          aria-label="Bring it in as"></div>
+          aria-label="$i18n{arcImportPageBringInAs}"></div>
     </section>
     <section class="row-group">
-      <h3 class="group-title">What to import</h3>
+      <h3 class="group-title">$i18n{arcImportPageWhatToImport}</h3>
       <div id="options" class="group"></div>
       <p id="keychainNotice" class="import-note" hidden>
-        macOS asks whether Compass may use this browser's "Safe Storage" key,
-        for its passwords and for a profile of its own. Choose
-        <b>Allow</b> so Compass can read them.
+        $i18nRaw{arcImportPageKeychainNotice}
       </p>
     </section>
     <div class="actions">
-      <button id="browserCancel" class="pill">Cancel</button>
-      <button id="importBrowsers" class="pill accent" disabled>Import</button>
+      <button id="browserCancel" class="pill">$i18n{cancel}</button>
+      <button id="importBrowsers" class="pill accent" disabled>$i18n{arcImportPageImport}</button>
     </div>
   </div>
-  <p id="browsersImporting" class="import-status" hidden>Importing… This
-    takes a moment.</p>
+  <p id="browsersImporting" class="import-status" hidden>$i18n{arcImportPageImporting}</p>
   <div id="browsersDone" hidden>
     <div id="browsersSummary" class="group"></div>
     <div class="actions">
-      <button id="browsersAgain" class="pill">Import Another Browser</button>
-      <button id="openBrowsers" class="pill accent">Open My Spaces</button>
+      <button id="browsersAgain" class="pill">$i18n{arcImportPageImportAnother}</button>
+      <button id="openBrowsers" class="pill accent">$i18n{arcImportPageOpenSpaces}</button>
     </div>
   </div>
 </div>
@@ -244,47 +237,38 @@
 <!-- Arc's profiles (docs/design/arc-import.md). -->
 <div id="arcView" hidden>
   <button class="back" id="arcBack">
-    <compass-settings-icon name="back"></compass-settings-icon>Browsers
+    <compass-settings-icon name="back"></compass-settings-icon>$i18n{arcImportPageBrowsers}
   </button>
   <h2 class="subpage-title">Arc</h2>
-  <p class="lead">
-    Bring your Arc profiles to Compass: you stay signed in to your sites,
-    and your history, passwords, extensions and settings come along, with
-    your spaces, pinned tabs and favorites.
-  </p>
+  <p class="lead">$i18n{arcImportPageArcLead}</p>
 
   <div class="arc-card">
-    <p id="loading">Looking for Arc…</p>
-    <p id="notFound" hidden>Arc wasn't found on this computer.</p>
+    <p id="loading">$i18n{arcImportPageLookingForArc}</p>
+    <p id="notFound" hidden>$i18n{arcImportPageArcNotFound}</p>
 
     <div id="chooser" hidden>
       <div id="arcRunning" class="notice warning" hidden>
-        <span>Arc is open. Quit it to import: its data is in use while it
-          runs.</span>
-        <button id="quitArc" class="pill">Quit Arc</button>
+        <span>$i18n{arcImportPageArcOpen}</span>
+        <button id="quitArc" class="pill">$i18n{arcImportPageQuitArc}</button>
       </div>
       <ul id="profiles"></ul>
       <p id="arcKeychainNotice" class="notice" hidden>
-        macOS will ask whether Compass may use "Arc Safe Storage", the key
-        Arc encrypts your cookies and passwords with. Choose
-        <b>Always Allow</b> (or Allow) so Compass can bring them over.
+        $i18nRaw{arcImportPageArcKeychainNotice}
       </p>
       <div class="actions">
-        <button id="import" class="pill accent" disabled>Import</button>
+        <button id="import" class="pill accent" disabled>$i18n{arcImportPageImport}</button>
       </div>
     </div>
 
-    <p id="importing" hidden>Importing… This takes a moment for each
-      profile.</p>
+    <p id="importing" hidden>$i18n{arcImportPageImportingArc}</p>
 
     <div id="done" hidden>
       <p id="doneText"></p>
       <p id="failedText" class="notice" hidden></p>
       <p id="easelsText" class="notice" hidden></p>
       <div class="actions">
-        <button id="importEasels" class="pill" hidden>Import Easels
-          Again</button>
-        <button id="open" class="pill accent">Open My Spaces</button>
+        <button id="importEasels" class="pill" hidden>$i18n{arcImportPageImportEaselsAgain}</button>
+        <button id="open" class="pill accent">$i18n{arcImportPageOpenSpaces}</button>
       </div>
     </div>
   </div>

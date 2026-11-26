@@ -54,6 +54,7 @@ build_webui("build") {
     "emoji_picker.ts",
     "empty.ts",
     "favicon.ts",
+    "i18n.ts",
     "live_folders/editor.html.ts",
     "live_folders/editor.ts",
     "live_folders/host.ts",
@@ -104,6 +105,7 @@ build_webui("build") {
     "theme_editor.html.ts",
     "theme_editor.ts",
   ]
+
   # Compass's settings sections (settings/page_base.ts): native elements whose
   # markup is in their .html file.
   web_component_files = [
@@ -148,10 +150,10 @@ build_webui("build") {
     "//compass/browser/ui/webui/command_bar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/find_bar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/live_folders:mojo_bindings_ts__generator",
-    "//compass/browser/ui/webui/sidebar:mojo_bindings_ts__generator",
-    "//compass/browser/ui/webui/sync:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/share:mojo_bindings_ts__generator",
+    "//compass/browser/ui/webui/sidebar:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/space_editor:mojo_bindings_ts__generator",
+    "//compass/browser/ui/webui/sync:mojo_bindings_ts__generator",
   ]
   mojo_files = [
     "$root_gen_dir/compass/browser/ui/webui/bubble/bubble.mojom-webui.ts",
@@ -197,12 +199,15 @@ action("licenses_page") {
   args = [
     "--out",
     rebase_path(outputs[0], root_build_dir),
-    "Firefox's strip-on-share list|The tracking parameters Remove tracking from copied links leaves out.|$_source|Mozilla Public License 2.0|" +
-        rebase_path(inputs[0], root_build_dir),
-    "Firefox's strip-on-share list, from ClearURLs|More tracking parameters for Remove tracking from copied links.|$_source|GNU Lesser General Public License 3.0|" +
-        rebase_path(inputs[1], root_build_dir),
-    "Unicode emoji and CLDR annotations|The emoji, names and keywords of the space emoji picker.|https://unicode.org/emoji/|Unicode License V3|" +
-        rebase_path(inputs[2], root_build_dir),
+    "Firefox's strip-on-share list|The tracking parameters Remove tracking from copied links leaves out.|$_source|Mozilla Public License 2.0|" + rebase_path(
+            inputs[0],
+            root_build_dir),
+    "Firefox's strip-on-share list, from ClearURLs|More tracking parameters for Remove tracking from copied links.|$_source|GNU Lesser General Public License 3.0|" + rebase_path(
+            inputs[1],
+            root_build_dir),
+    "Unicode emoji and CLDR annotations|The emoji, names and keywords of the space emoji picker.|https://unicode.org/emoji/|Unicode License V3|" + rebase_path(
+            inputs[2],
+            root_build_dir),
   ]
 }
 
@@ -210,8 +215,7 @@ generate_grd("build_licenses_grdp") {
   grd_prefix = "compass_licenses"
   out_grd = "$target_gen_dir/licenses.grdp"
   deps = [ ":licenses_page" ]
-  input_files_base_dir =
-      rebase_path("$target_gen_dir/licenses", root_build_dir)
+  input_files_base_dir = rebase_path("$target_gen_dir/licenses", root_build_dir)
   input_files = [ "licenses.html" ]
 }
 

@@ -2369,8 +2369,6 @@ with role and status, removed ones too, and invites; never contents),
 - A device that comes back to an expired chain is told only "sync stopped"
   in upstream's words.
 - The throttled message can't tell 50 devices from other throttling.
-- Device times ("9 minutes ago") follow the system locale while the page's
-  own strings are English only.
 - Change notifications and pairing slots live in one server process's
   memory.
 

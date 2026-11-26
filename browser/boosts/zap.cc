@@ -9,6 +9,9 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::boosts {
 
@@ -61,7 +64,8 @@ Boost AddZappedSelectors(const Boost* existing,
     all = ZappedSelectors(*existing);
   } else {
     boost.match = std::string(match);
-    boost.name = base::StrCat({"Zapped on ", match});
+    boost.name = l10n_util::GetStringFUTF8(IDS_COMPASS_BOOSTS_ZAP_NAME,
+                                           base::UTF8ToUTF16(match));
     boost.author = "user";
   }
   for (const std::string& raw : selectors) {

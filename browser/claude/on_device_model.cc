@@ -27,6 +27,8 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/values.h"
 #include "compass/browser/claude/on_device_buildflags.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::claude {
 
@@ -52,12 +54,11 @@ std::string DescribeOnDeviceAvailability(OnDeviceAvailability availability) {
     case OnDeviceAvailability::kAvailable:
       return std::string();
     case OnDeviceAvailability::kUnsupported:
-      return "This Mac can't run Apple Intelligence: it needs macOS 26 or "
-             "later on a Mac with Apple silicon.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_AI_ON_DEVICE_UNSUPPORTED);
     case OnDeviceAvailability::kDisabled:
-      return "Apple Intelligence is turned off in System Settings.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_AI_ON_DEVICE_DISABLED);
     case OnDeviceAvailability::kNotReady:
-      return "Apple Intelligence is still downloading. Try again later.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_AI_ON_DEVICE_NOT_READY);
   }
   return std::string();
 }

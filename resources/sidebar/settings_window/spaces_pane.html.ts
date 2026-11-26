@@ -4,6 +4,8 @@
 
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n, i18nF} from '../i18n.js';
+
 import type {Space} from '../sidebar.mojom-webui.js';
 import type {SpaceSymbol} from '../space_icons.js';
 import type {ArchiveDelay} from '../space_options.js';
@@ -19,9 +21,9 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
     <div class="group-header">
       <h2 class="group-title">${this.getGroupTitle_(group)}</h2>
       <button class="pill small" data-profile-id="${group.profileId}"
-          aria-label="New space in ${group.profileName}"
+          aria-label="${i18nF('spacesPaneNewSpaceIn', group.profileName)}"
           @click="${this.onAddClick_}">
-        New space
+        ${i18n('spacesPaneNewSpace')}
       </button>
     </div>
     <div class="group">
@@ -29,7 +31,7 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
         <div class="row control-row">
           <span class="row-text">
             <span class="row-detail">
-              No spaces in the switcher. A new space brings the profile in.
+              ${i18n('spacesPaneNoSpaces')}
             </span>
           </span>
         </div>` : nothing}
@@ -46,7 +48,7 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
           </span>
           <span class="row-text">
             <input class="field space-name" type="text"
-                aria-label="Name of ${space.name}" data-space-id="${space.id}"
+                aria-label="${i18nF('spacesPaneNameOf', space.name)}" data-space-id="${space.id}"
                 spellcheck="false" autocomplete="off"
                 ?disabled="${space.viewOnly}" .value="${space.name}"
                 @change="${this.onNameChange_}"
@@ -56,14 +58,15 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
             </span>
           </span>
           <button class="pill small move" data-space-id="${space.id}"
-              data-step="up" title="Move up" aria-label="Move ${space.name} up"
+              data-step="up" title="${i18n('spacesPaneMoveUp')}"
+              aria-label="${i18nF('spacesPaneMoveSpaceUp', space.name)}"
               ?disabled="${!this.canMoveUp_(space)}"
               @click="${this.onMoveClick_}">
             ↑
           </button>
           <button class="pill small move" data-space-id="${space.id}"
-              data-step="down" title="Move down"
-              aria-label="Move ${space.name} down"
+              data-step="down" title="${i18n('spacesPaneMoveDown')}"
+              aria-label="${i18nF('spacesPaneMoveSpaceDown', space.name)}"
               ?disabled="${!this.canMoveDown_(space)}"
               @click="${this.onMoveClick_}">
             ↓
@@ -71,17 +74,19 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
           <button class="pill small" data-space-id="${space.id}"
               aria-expanded="${this.isExpanded_(space)}"
               @click="${this.onExpandClick_}">
-            ${this.isExpanded_(space) ? 'Done' : 'Edit…'}
+            ${this.isExpanded_(space) ? i18n('done') :
+                                        i18n('spacesPaneEditEllipsis')}
           </button>
         </div>
         ${this.isExpanded_(space) ? html`
           <div class="space-details">
             <div class="row control-row space-detail-row">
-              <span class="row-text"><span class="row-label">Icon</span></span>
-              <div class="space-icons" role="radiogroup" aria-label="Icon">
+              <span class="row-text"><span class="row-label">${i18n('spacesPaneIcon')}</span></span>
+              <div class="space-icons" role="radiogroup" aria-label="${i18n('spacesPaneIcon')}">
                 <button class="icon-choice" role="radio"
                     data-space-id="${space.id}" data-symbol=""
-                    title="No icon" aria-label="No icon"
+                    title="${i18n('spacesPaneNoIcon')}"
+                    aria-label="${i18n('spacesPaneNoIcon')}"
                     aria-checked="${this.isIcon_(space, '')}"
                     ?selected="${this.isIcon_(space, '')}"
                     ?disabled="${space.viewOnly}"
@@ -102,7 +107,8 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
                     </svg>
                   </button>`)}
                 <button class="icon-choice emoji-choice"
-                    title="Emoji" aria-label="Emoji"
+                    title="${i18n('spacesPaneEmoji')}"
+                    aria-label="${i18n('spacesPaneEmoji')}"
                     aria-expanded="${this.isEmojiOpen_(space)}"
                     ?selected="${!!space.icon?.emoji}"
                     ?disabled="${space.viewOnly}"
@@ -128,13 +134,14 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
                 </compass-emoji-picker>
               </div>` : nothing}
             <div class="row control-row space-detail-row">
-              <span class="row-text"><span class="row-label">Theme</span></span>
+              <span class="row-text"><span class="row-label">${i18n('spacesPaneTheme')}</span></span>
               <span class="theme-chip" style="${this.getSpaceStyle_(space)}">
               </span>
               <button class="pill small"
                   aria-expanded="${this.isThemeOpen_(space)}"
                   ?disabled="${space.viewOnly}" @click="${this.onThemeClick_}">
-                ${this.isThemeOpen_(space) ? 'Done' : 'Edit theme…'}
+                ${this.isThemeOpen_(space) ? i18n('done') :
+                                          i18n('spacesPaneEditThemeEllipsis')}
               </button>
             </div>
             ${this.isThemeOpen_(space) ? html`
@@ -146,26 +153,26 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
             <div class="row control-row space-detail-row"
                 ?hidden="${!this.hasProfiles_()}">
               <span class="row-text">
-                <span class="row-label">Profile</span>
+                <span class="row-label">${i18n('spacesPaneProfile')}</span>
                 <span class="row-detail">
-                  Its open tabs close; its pinned and Today tabs move with it.
+                  ${i18n('spacesPaneProfileDetail')}
                 </span>
               </span>
-              <select class="popup" aria-label="Profile of ${space.name}"
+              <select class="popup" aria-label="${i18nF('spacesPaneProfileOf', space.name)}"
                   data-space-id="${space.id}" @change="${this.onProfileChange_}">
                 ${this.profiles_.map(profile => html`
                   <option value="${profile.id}"
                       ?selected="${profile.id === space.profileId}">
                     ${profile.name}
                   </option>`)}
-                <option value="">New profile…</option>
+                <option value="">${i18n('spacesPaneNewProfileEllipsis')}</option>
               </select>
             </div>
             <div class="row control-row space-detail-row">
               <span class="row-text">
-                <span class="row-label">Archive Today tabs after</span>
+                <span class="row-label">${i18n('spacesPaneArchiveAfter')}</span>
               </span>
-              <select class="popup" aria-label="Archive Today tabs after"
+              <select class="popup" aria-label="${i18n('spacesPaneArchiveAfter')}"
                   data-space-id="${space.id}"
                   @change="${this.onArchiveDelayChange_}">
                 ${this.archiveDelays_.map((delay: ArchiveDelay) => html`
@@ -178,7 +185,7 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
             <label class="row control-row space-detail-row"
                 ?hidden="${!this.canChangeSync_(space)}">
               <span class="row-text">
-                <span class="row-label">Sync to your other devices</span>
+                <span class="row-label">${i18n('spacesPaneSync')}</span>
               </span>
               <input type="checkbox" class="switch" data-space-id="${space.id}"
                   .checked="${space.synced}" @change="${this.onSyncChange_}">
@@ -187,16 +194,15 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
                 ?hidden="${!this.isConfirmingUnsync_(space)}">
               <span class="row-text">
                 <span class="row-detail">
-                  “${space.name}” stays on this device and is removed from your
-                  other devices.
+                  ${i18nF('spacesPaneUnsyncConfirm', space.name)}
                 </span>
               </span>
               <button class="pill" @click="${this.onUnsyncCancelClick_}">
-                Cancel
+                ${i18n('cancel')}
               </button>
               <button class="pill danger" data-space-id="${space.id}"
                   @click="${this.onUnsyncConfirmClick_}">
-                Stop syncing
+                ${i18n('spacesPaneStopSyncing')}
               </button>
             </div>
             <div class="row control-row space-detail-row"
@@ -204,12 +210,12 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
               <span class="row-text"></span>
               <button class="pill export" data-space-id="${space.id}"
                   @click="${this.onExportClick_}">
-                Export…
+                ${i18n('spacesPaneExportEllipsis')}
               </button>
               <button class="pill danger" data-space-id="${space.id}"
                   ?disabled="${!this.canDelete_()}"
                   @click="${this.onDeleteClick_}">
-                Delete space…
+                ${i18n('spacesPaneDeleteSpaceEllipsis')}
               </button>
             </div>
             <div class="row control-row confirm-row"
@@ -218,11 +224,11 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
                 <span class="row-detail">${this.getDeleteText_(space)}</span>
               </span>
               <button class="pill" @click="${this.onDeleteCancelClick_}">
-                Cancel
+                ${i18n('cancel')}
               </button>
               <button class="pill danger" data-space-id="${space.id}"
                   @click="${this.onDeleteConfirmClick_}">
-                Delete
+                ${i18n('delete')}
               </button>
             </div>
           </div>` : nothing}`)}
@@ -232,14 +238,13 @@ ${repeat(this.getGroups_(), (group: SpaceGroup) => group.profileId,
   <div class="group">
     <div class="row control-row">
       <span class="row-text">
-        <span class="row-label">Export spaces</span>
+        <span class="row-label">${i18n('spacesPaneExportSpaces')}</span>
         <span class="row-detail">
-          Every space's pinned and Today tabs, and the favorites, as a
-          bookmarks file other browsers can import.
+          ${i18n('spacesPaneExportSpacesDetail')}
         </span>
       </span>
       <button class="pill" id="exportAll" @click="${this.onExportAllClick_}">
-        Export…
+        ${i18n('spacesPaneExportEllipsis')}
       </button>
     </div>
   </div>

@@ -290,3 +290,11 @@ anywhere; it works in Incognito.
   book shows on the article and not on the sign-in page; the reader shows
   the article without the page's ads; Aa → Sepia is kept for the next
   reader; × goes back).
+
+## Not yet
+
+- **Localization.** Reader's own labels (`common/reader/reader.html`,
+  `reader_view.js`, about 20) are English on every platform. iOS loads the
+  files as they are and the desktop serves them through a request filter
+  without template replacement, so `$i18n{}` won't do; the strings need
+  passing in from each platform.

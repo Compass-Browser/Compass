@@ -11,6 +11,8 @@
 
 #include "compass/browser/adblock/adblock_service.h"
 #include "compass/browser/ui/webui/settings/settings_window_handler.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass {
 
@@ -46,8 +48,9 @@ void SettingsWindowHandler::SetFilterListEnabled(const std::string& id,
 void SettingsWindowHandler::AddFilterList(const std::string& url,
                                           AddFilterListCallback callback) {
   adblock::AdBlockService* service = adblock::AdBlockService::Get();
-  std::move(callback).Run(service ? service->AddList(url)
-                                  : "The ad blocker isn't running");
+  std::move(callback).Run(
+      service ? service->AddList(url)
+              : l10n_util::GetStringUTF8(IDS_COMPASS_ADBLOCK_NOT_RUNNING));
 }
 
 void SettingsWindowHandler::RemoveFilterList(const std::string& id) {

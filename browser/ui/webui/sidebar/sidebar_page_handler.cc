@@ -54,9 +54,9 @@
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/little_window/little_window.h"
 #include "compass/browser/ui/views/share_bubble/share_bubble.h"
-#include "compass/browser/ui/views/space_editor_bubble/space_editor_bubble.h"
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
+#include "compass/browser/ui/views/space_editor_bubble/space_editor_bubble.h"
 #include "compass/browser/ui/webui/sidebar/live_plugin_mojo.h"
 #include "compass/browser/ui/webui/sidebar/now_playing_tracker.h"
 #include "compass/browser/ui/webui/sidebar/space_mojo.h"
@@ -64,6 +64,7 @@
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/undo_close.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_service.h"
 #include "components/send_tab_to_self/entry_point_display_reason.h"
 #include "components/send_tab_to_self/metrics_util.h"
@@ -78,6 +79,7 @@
 #include "content/public/common/referrer.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/menu_separator_types.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
@@ -206,8 +208,10 @@ class NodeMenu : public ui::SimpleMenuModel,
       space_ids_.push_back(space->id().AsLowercaseString());
     }
     if (!space_ids_.empty()) {
-      AddSubMenu(SidebarPageHandler::kMoveToSpace, u"Move to Space",
-                 &spaces_menu_);
+      AddSubMenu(
+          SidebarPageHandler::kMoveToSpace,
+          l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_MOVE_TO_SPACE),
+          &spaces_menu_);
     }
   }
 
@@ -220,8 +224,10 @@ class NodeMenu : public ui::SimpleMenuModel,
                             base::UTF8ToUTF16(devices_[i].device_name));
     }
     if (!devices_.empty()) {
-      AddSubMenu(SidebarPageHandler::kSendToDevices, u"Send to Your Devices",
-                 &devices_menu_);
+      AddSubMenu(
+          SidebarPageHandler::kSendToDevices,
+          l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_SEND_TO_DEVICES),
+          &devices_menu_);
     }
   }
 
@@ -1029,47 +1035,68 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
 
   if (node->type() == SidebarNode::Type::kFolder) {
     if (node->is_live_folder()) {
-      menu->AddItem(kRefreshLiveFolder, u"Refresh");
-      menu->AddItem(kEditLiveSource, u"Edit Source\u2026");
-      menu->AddItem(kMarkAllSeen, u"Mark All Seen");
-      menu->AddItem(kConvertToPlainFolder, u"Convert to Normal Folder");
+      menu->AddItem(kRefreshLiveFolder,
+                    l10n_util::GetStringUTF16(
+                        IDS_COMPASS_SIDEBAR_MENU_REFRESH_LIVE_FOLDER));
+      menu->AddItem(
+          kEditLiveSource,
+          l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_EDIT_LIVE_SOURCE));
+      menu->AddItem(kMarkAllSeen, l10n_util::GetStringUTF16(
+                                      IDS_COMPASS_SIDEBAR_MENU_MARK_ALL_SEEN));
+      menu->AddItem(kConvertToPlainFolder,
+                    l10n_util::GetStringUTF16(
+                        IDS_COMPASS_SIDEBAR_MENU_CONVERT_TO_FOLDER));
       menu->AddSeparator(ui::NORMAL_SEPARATOR);
     } else {
-      menu->AddItem(kNewFolder, u"New Folder");
+      menu->AddItem(kNewFolder, l10n_util::GetStringUTF16(
+                                    IDS_COMPASS_SIDEBAR_CONTEXT_NEW_FOLDER));
       if (space_model().CanAddLiveFolder(node) &&
           LiveFolderService::Get(browser_->GetProfile())) {
-        menu->AddItem(kNewLiveFolder, u"New Live Folder\u2026");
+        menu->AddItem(kNewLiveFolder,
+                      l10n_util::GetStringUTF16(
+                          IDS_COMPASS_SIDEBAR_MENU_NEW_LIVE_FOLDER));
         // Or one Claude writes a plugin for (docs/design/claude.md,
         // "Plugins").
         if (browser_->GetProfile()->GetPrefs()->GetBoolean(
                 claude::prefs::kPlugins)) {
           menu->AddItem(kDescribeLiveFolder,
-                        u"Describe a Live Folder to Claude\u2026");
+                        l10n_util::GetStringUTF16(
+                            IDS_COMPASS_SIDEBAR_MENU_DESCRIBE_LIVE_FOLDER));
         }
       }
     }
-    menu->AddItem(kRename, u"Rename");
+    menu->AddItem(kRename, l10n_util::GetStringUTF16(IDS_COMPASS_RENAME));
     // Claude's names (docs/design/ai-sidebar.md): back to the name before
     // Claude's, or one from Claude for a folder that has none of its.
     if (node->name_source() == SidebarNode::NameSource::kClaude &&
         !node->name_before_claude().empty()) {
-      menu->AddItem(kUndoName, u"Undo Name");
+      menu->AddItem(kUndoName, l10n_util::GetStringUTF16(
+                                   IDS_COMPASS_SIDEBAR_MENU_UNDO_NAME));
     } else if (!node->is_live_folder() && !node->children().empty() &&
                CanSuggestNames()) {
-      menu->AddItem(kSuggestName, u"Suggest a Name");
+      menu->AddItem(kSuggestName, l10n_util::GetStringUTF16(
+                                      IDS_COMPASS_SIDEBAR_MENU_SUGGEST_NAME));
     }
     menu->AddSeparator(ui::NORMAL_SEPARATOR);
     if (pin_item) {
-      menu->AddItem(pinned ? kUnpin : kPin, pinned ? u"Unpin" : u"Pin");
+      menu->AddItem(
+          pinned ? kUnpin : kPin,
+          pinned ? l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_UNPIN)
+                 : l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_PIN));
     }
     menu->AddMoveToSpace(space_list.spaces(), space_model());
     // Sharing a pinned folder with other people.
     if (pinned && !node->is_live_folder() && CanShare()) {
       menu->AddSeparator(ui::NORMAL_SEPARATOR);
-      menu->AddItem(kShare, IsShared(node) ? u"Sharing\u2026" : u"Share\u2026");
+      menu->AddItem(
+          kShare,
+          IsShared(node)
+              ? l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_SHARING)
+              : l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_SHARE));
     }
     menu->AddSeparator(ui::NORMAL_SEPARATOR);
-    menu->AddItem(kRemove, u"Delete Folder");
+    menu->AddItem(kRemove, l10n_util::GetStringUTF16(
+                               IDS_COMPASS_SIDEBAR_MENU_DELETE_FOLDER));
     return menu;
   }
 
@@ -1083,26 +1110,31 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
   SidebarNode* shown = bridge().GetShownNode(tab_strip_model()->GetActiveTab());
   if (node->type() == SidebarNode::Type::kSplit ||
       node->parent()->type() == SidebarNode::Type::kSplit) {
-    menu->AddItem(kSeparate, u"Separate Tabs");
+    menu->AddItem(kSeparate, l10n_util::GetStringUTF16(
+                                 IDS_COMPASS_SIDEBAR_MENU_SEPARATE_TABS));
     menu->AddSeparator(ui::NORMAL_SEPARATOR);
   } else if (entry && !favorite && shown && shown != node &&
              space_model().Contains(shown) &&
              space_model().CanSplit(shown, node)) {
-    menu->AddItem(kOpenInSplit, u"Open in Split View");
+    menu->AddItem(kOpenInSplit, l10n_util::GetStringUTF16(
+                                    IDS_COMPASS_SIDEBAR_MENU_OPEN_IN_SPLIT));
     menu->AddSeparator(ui::NORMAL_SEPARATOR);
   }
   if (node->type() == SidebarNode::Type::kTab) {
     // A favorite's tile shows no name.
     if (!favorite) {
-      menu->AddItem(kRename, u"Rename");
+      menu->AddItem(kRename, l10n_util::GetStringUTF16(IDS_COMPASS_RENAME));
     }
-    menu->AddItem(kCopyLink, u"Copy Link");
+    menu->AddItem(kCopyLink, l10n_util::GetStringUTF16(
+                                 IDS_COMPASS_SIDEBAR_MENU_COPY_LINK));
     // An easel's tab: share the easel.
     if (!rooms::EaselOfTab(*node).empty() && CanShare()) {
-      menu->AddItem(kShare, u"Share Easel\u2026");
+      menu->AddItem(kShare, l10n_util::GetStringUTF16(
+                                IDS_COMPASS_SIDEBAR_MENU_SHARE_EASEL));
     }
     if (entry) {
-      menu->AddItem(kDuplicate, u"Duplicate");
+      menu->AddItem(kDuplicate, l10n_util::GetStringUTF16(
+                                    IDS_COMPASS_SIDEBAR_MENU_DUPLICATE));
     }
     menu->AddSendToDevices(GetSendTargets(node->url()));
     // The node hears of its tab's navigations up to 200 ms late.
@@ -1111,53 +1143,72 @@ std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
     }
     if (!node->saved_url().is_empty() && node->url().is_valid() &&
         node->url() != node->saved_url()) {
-      menu->AddItem(kSetSavedUrl, favorite ? u"Use This Page as Favorite URL"
-                                           : u"Use This Page as Pinned URL");
-      menu->AddItem(kBackToSavedUrl, favorite ? u"Back to Favorite URL"
-                                              : u"Back to Pinned URL");
+      menu->AddItem(kSetSavedUrl,
+                    favorite ? l10n_util::GetStringUTF16(
+                                   IDS_COMPASS_SIDEBAR_MENU_SET_FAVORITE_URL)
+                             : l10n_util::GetStringUTF16(
+                                   IDS_COMPASS_SIDEBAR_MENU_SET_PINNED_URL));
+      menu->AddItem(kBackToSavedUrl,
+                    favorite
+                        ? l10n_util::GetStringUTF16(
+                              IDS_COMPASS_SIDEBAR_MENU_BACK_TO_FAVORITE_URL)
+                        : l10n_util::GetStringUTF16(
+                              IDS_COMPASS_SIDEBAR_MENU_BACK_TO_PINNED_URL));
     }
     // With "Let Claude make plugins": a preview of this site's pages.
     if (live && node->url().SchemeIsHTTPOrHTTPS() &&
         browser_->GetProfile()->GetPrefs()->GetBoolean(
             claude::prefs::kPlugins)) {
-      menu->AddItem(kMakePreview,
-                    u"Make a Preview for " +
-                        base::UTF8ToUTF16(node->url().host()) + u"…");
+      menu->AddItem(kMakePreview, l10n_util::GetStringFUTF16(
+                                      IDS_COMPASS_SIDEBAR_MENU_MAKE_PREVIEW,
+                                      base::UTF8ToUTF16(node->url().host())));
     }
     if (live) {
-      menu->AddItem(kReload, u"Reload");
+      menu->AddItem(kReload,
+                    l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_RELOAD));
       // Its speaker mutes it while it plays; this mutes it before it does.
       if (registry().GetAudioState(node) ==
           LiveTabRegistry::AudioState::kMuted) {
-        menu->AddItem(kUnmute, u"Unmute Tab");
+        menu->AddItem(kUnmute, l10n_util::GetStringUTF16(
+                                   IDS_COMPASS_SIDEBAR_MENU_UNMUTE_TAB));
       } else {
-        menu->AddItem(kMute, u"Mute Tab");
+        menu->AddItem(kMute, l10n_util::GetStringUTF16(
+                                 IDS_COMPASS_SIDEBAR_MENU_MUTE_TAB));
       }
     }
   }
   if (entry && !favorite) {
     menu->AddSeparator(ui::NORMAL_SEPARATOR);
     if (pin_item) {
-      menu->AddItem(pinned ? kUnpin : kPin, pinned ? u"Unpin" : u"Pin");
+      menu->AddItem(
+          pinned ? kUnpin : kPin,
+          pinned ? l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_UNPIN)
+                 : l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_PIN));
     }
     if (node->type() == SidebarNode::Type::kTab) {
-      menu->AddItem(kAddToFavorites, u"Add to Favorites");
+      menu->AddItem(
+          kAddToFavorites,
+          l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_ADD_TO_FAVORITES));
     }
     menu->AddMoveToSpace(space_list.spaces(), space_model());
   }
   menu->AddSeparator(ui::NORMAL_SEPARATOR);
   if (live) {
-    menu->AddItem(kCloseTab, node->type() == SidebarNode::Type::kSplit
-                                 ? u"Close Split"
-                                 : u"Close Tab");
+    menu->AddItem(
+        kCloseTab,
+        node->type() == SidebarNode::Type::kSplit
+            ? l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_CLOSE_SPLIT)
+            : l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_MENU_CLOSE_TAB));
   }
   if (favorite) {
-    menu->AddItem(kRemove, u"Remove from Favorites");
+    menu->AddItem(kRemove, l10n_util::GetStringUTF16(
+                               IDS_COMPASS_SIDEBAR_MENU_REMOVE_FROM_FAVORITES));
   } else if (pinned && entry) {
-    menu->AddItem(kRemove, u"Remove from Pinned");
+    menu->AddItem(kRemove, l10n_util::GetStringUTF16(
+                               IDS_COMPASS_SIDEBAR_MENU_REMOVE_FROM_PINNED));
   } else if (!live) {
     // Closing an unloaded Today entry removes it, as its × does.
-    menu->AddItem(kCloseTab, u"Remove");
+    menu->AddItem(kCloseTab, l10n_util::GetStringUTF16(IDS_COMPASS_REMOVE));
   }
   return menu;
 }
@@ -1274,7 +1325,9 @@ void SidebarPageHandler::ExecuteMenuCommand(const std::string& id,
       break;
     case kNewFolder:
       if (node->type() == SidebarNode::Type::kFolder) {
-        space.AddFolder(node, node->children().size(), u"New Folder");
+        space.AddFolder(
+            node, node->children().size(),
+            l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_CONTEXT_NEW_FOLDER));
       }
       break;
     case kUndoName:
@@ -1528,11 +1581,10 @@ void SidebarPageHandler::OnTidied(const base::Uuid& space_id,
   if (!observed_space_ || space_id != space_model().id()) {
     return;
   }
-  page_->ShowToast(folders == 1 ? std::string("Tidied into 1 folder")
-                                : "Tidied into " +
-                                      base::NumberToString(folders) +
-                                      " folders",
-                   undo_id);
+  page_->ShowToast(
+      l10n_util::GetPluralStringFUTF8(IDS_COMPASS_SIDEBAR_TIDIED_TOAST,
+                                      static_cast<int>(folders)),
+      undo_id);
 }
 
 void SidebarPageHandler::OnTidyFailed(const base::Uuid& space_id,
@@ -1868,13 +1920,15 @@ void SidebarPageHandler::SaveLiveFolder(sidebar::mojom::LiveFolderEditPtr edit,
                                         SaveLiveFolderCallback callback) {
   LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
   if (!service) {
-    std::move(callback).Run("Live folders aren't available here.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDERS_UNAVAILABLE));
     return;
   }
   std::optional<base::Value> config =
       base::JSONReader::Read(edit->config_json, base::JSON_PARSE_RFC);
   if (!config || !config->is_dict()) {
-    std::move(callback).Run("The settings couldn't be read.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDERS_SETTINGS_UNREADABLE));
     return;
   }
   std::map<std::string, std::string> secrets(edit->secrets.begin(),
@@ -1913,7 +1967,8 @@ void SidebarPageHandler::PreviewLivePlugin(
     PreviewLivePluginCallback callback) {
   LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
   if (!service) {
-    std::move(callback).Run(nullptr, "Live folders aren't available here.");
+    std::move(callback).Run(nullptr, l10n_util::GetStringUTF8(
+                                         IDS_COMPASS_LIVE_FOLDERS_UNAVAILABLE));
     return;
   }
   service->PreviewPlugin(
@@ -1937,7 +1992,8 @@ void SidebarPageHandler::InstallLivePlugin(
     InstallLivePluginCallback callback) {
   LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
   if (!service) {
-    std::move(callback).Run("Live folders aren't available here.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDERS_UNAVAILABLE));
     return;
   }
   service->InstallPlugin(GURL(url), sha256, std::move(callback));
@@ -2123,14 +2179,8 @@ void SidebarPageHandler::GetRoomNotices(GetRoomNoticesCallback callback) {
               ? nullptr
               : rooms::RoomService::GetIfExists(browser_->GetProfile())) {
     for (const rooms::RemovedNotice& notice : rooms->GetRemovedNotices()) {
-      const std::string name =
-          notice.name.empty() ? std::string("A shared ") + notice.kind
-                              : "\u201c" + notice.name + "\u201d";
       notices.push_back(sidebar::mojom::RoomNotice::New(
-          notice.room_id,
-          name + (notice.deleted ? " is no longer shared."
-                                 : ": you were removed.") +
-              " Your copy stays here."));
+          notice.room_id, rooms::RemovedNoticeText(notice)));
     }
   }
   std::move(callback).Run(std::move(notices));

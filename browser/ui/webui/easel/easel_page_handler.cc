@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "compass/browser/rooms/room_service.h"
 #include "compass/browser/ui/webui/easel/easel_page_handler.h"
 
 #include <utility>
@@ -10,14 +9,17 @@
 #include "base/auto_reset.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/browser/rooms/room_service.h"
 #include "compass/browser/ui/easels/easel_refresh.h"
 #include "compass/browser/ui/webui/easel/easel_conversions.h"
 #include "compass/browser/ui/webui/easel/link_card_fetch.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/referrer.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
@@ -97,8 +99,9 @@ void EaselPageHandler::GetEasel(const std::string& uuid,
 void EaselPageHandler::CreateEasel(const std::string& title,
                                    CreateEaselCallback callback) {
   if (!store_) {
-    std::move(callback).Run(std::string(),
-                            "Easels aren't available in this window.");
+    std::move(callback).Run(
+        std::string(),
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_UNAVAILABLE_IN_WINDOW));
     return;
   }
   base::AutoReset<bool> changing(&changing_, true);
@@ -146,11 +149,13 @@ void EaselPageHandler::SaveObjects(const std::string& easel_uuid,
                                    std::vector<mojom::EaselObjectPtr> objects,
                                    SaveObjectsCallback callback) {
   if (!store_) {
-    std::move(callback).Run("Easels aren't available in this window.", {});
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_UNAVAILABLE_IN_WINDOW), {});
     return;
   }
   if (IsViewOnly(easel_uuid)) {
-    std::move(callback).Run("You can only view this shared easel.", {});
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_VIEW_ONLY), {});
     return;
   }
   std::vector<sync_pb::CompassEaselObject> protos;
@@ -158,7 +163,8 @@ void EaselPageHandler::SaveObjects(const std::string& easel_uuid,
     const sync_pb::CompassEaselObject* existing =
         store_->FindObject(object->uuid);
     if (existing && existing->easel_uuid() != easel_uuid) {
-      std::move(callback).Run("The object is on another Easel.", {});
+      std::move(callback).Run(
+          l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_OBJECT_ELSEWHERE), {});
       return;
     }
     base::expected<sync_pb::CompassEaselObject, std::string> proto =
@@ -200,8 +206,9 @@ void EaselPageHandler::DeleteObjects(const std::vector<std::string>& uuids) {
 void EaselPageHandler::AddImage(const std::vector<uint8_t>& data,
                                 AddImageCallback callback) {
   if (!store_) {
-    std::move(callback).Run("Easels aren't available in this window.",
-                            std::string(), 0, 0);
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_UNAVAILABLE_IN_WINDOW),
+        std::string(), 0, 0);
     return;
   }
   easels::PrepareImage(

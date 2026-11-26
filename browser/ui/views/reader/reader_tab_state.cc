@@ -25,10 +25,11 @@
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
-#include "components/input/native_web_keyboard_event.h"
-#include "components/tabs/public/tab_interface.h"
 #include "compass/browser/reader/reader_assets.h"
 #include "compass/browser/ui/webui/reader/reader_untrusted_ui.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "components/input/native_web_keyboard_event.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
@@ -37,6 +38,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/referrer.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/events/keycodes/keyboard_codes.h"
@@ -177,8 +179,8 @@ void ReaderTabState::OnParsed(int parse_id, base::Value result) {
     result = base::Value(
         base::DictValue()
             .Set("ok", false)
-            .Set("error", "This page couldn't be read (it may still be "
-                          "loading)."));
+            .Set("error",
+                 l10n_util::GetStringUTF8(IDS_COMPASS_READER_PARSE_FAILED)));
   }
   std::string json;
   base::JSONWriter::Write(result, &json);

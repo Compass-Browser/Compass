@@ -49,6 +49,7 @@
 #include "compass/browser/window_sync/tab_strip_bridge.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "compass/common/compass_url.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
@@ -62,6 +63,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
@@ -82,41 +84,54 @@ constexpr size_t kMaxOtherDeviceTabs = 6;
 
 struct CommandInfo {
   CommandBarCommand command;
-  const char16_t* name;
+  // Its name's message ID.
+  int name_id;
   // Its symbol in the page's command_icons.ts.
   const char* symbol;
 };
 
 constexpr CommandInfo kCommands[] = {
-    {CommandBarCommand::kNewSpace, u"New space", "add"},
-    {CommandBarCommand::kNewLocalSpace, u"New space on this device",
+    {CommandBarCommand::kNewSpace, IDS_COMPASS_COMMAND_BAR_NEW_SPACE, "add"},
+    {CommandBarCommand::kNewLocalSpace, IDS_COMPASS_COMMAND_BAR_NEW_LOCAL_SPACE,
      "cloud_off"},
-    {CommandBarCommand::kPinEntry, u"Pin tab", "keep"},
-    {CommandBarCommand::kUnpinEntry, u"Unpin tab", "keep_off"},
-    {CommandBarCommand::kAddFavorite, u"Add to Favorites", "star"},
-    {CommandBarCommand::kRemoveFavorite, u"Remove from Favorites", "remove"},
-    {CommandBarCommand::kRouteSiteToSpace, u"Route this site to space\u2026",
+    {CommandBarCommand::kPinEntry, IDS_COMPASS_COMMAND_BAR_PIN_TAB, "keep"},
+    {CommandBarCommand::kUnpinEntry, IDS_COMPASS_COMMAND_BAR_UNPIN_TAB,
+     "keep_off"},
+    {CommandBarCommand::kAddFavorite, IDS_COMPASS_COMMAND_BAR_ADD_FAVORITE,
+     "star"},
+    {CommandBarCommand::kRemoveFavorite,
+     IDS_COMPASS_COMMAND_BAR_REMOVE_FAVORITE, "remove"},
+    {CommandBarCommand::kRouteSiteToSpace, IDS_COMPASS_COMMAND_BAR_ROUTE_SITE,
      "alt_route"},
-    {CommandBarCommand::kBoostSite, u"Boost this site\u2026", "sparkle"},
-    {CommandBarCommand::kZapSite, u"Zap elements on this site\u2026", "zap"},
-    {CommandBarCommand::kCopyUrl, u"Copy URL", "link"},
-    {CommandBarCommand::kReload, u"Reload", "refresh"},
-    {CommandBarCommand::kHistory, u"History", "history"},
-    {CommandBarCommand::kDownloads, u"Downloads", "download"},
-    {CommandBarCommand::kExtensions, u"Extensions", "extension"},
-    {CommandBarCommand::kSettings, u"Settings", "settings"},
-    {CommandBarCommand::kImportFromArc, u"Import from Another Browser",
+    {CommandBarCommand::kBoostSite, IDS_COMPASS_COMMAND_BAR_BOOST_SITE,
+     "sparkle"},
+    {CommandBarCommand::kZapSite, IDS_COMPASS_COMMAND_BAR_ZAP_SITE, "zap"},
+    {CommandBarCommand::kCopyUrl, IDS_COMPASS_COMMAND_BAR_COPY_URL, "link"},
+    {CommandBarCommand::kReload, IDS_COMPASS_COMMAND_BAR_RELOAD, "refresh"},
+    {CommandBarCommand::kHistory, IDS_COMPASS_COMMAND_BAR_HISTORY, "history"},
+    {CommandBarCommand::kDownloads, IDS_COMPASS_COMMAND_BAR_DOWNLOADS,
+     "download"},
+    {CommandBarCommand::kExtensions, IDS_COMPASS_COMMAND_BAR_EXTENSIONS,
+     "extension"},
+    {CommandBarCommand::kSettings, IDS_COMPASS_COMMAND_BAR_SETTINGS,
+     "settings"},
+    {CommandBarCommand::kImportFromArc, IDS_COMPASS_COMMAND_BAR_IMPORT,
      "import"},
-    {CommandBarCommand::kKeyboardShortcuts, u"Keyboard shortcuts", "keyboard"},
-    {CommandBarCommand::kTidyToday, u"Tidy Today", "tidy"},
-    {CommandBarCommand::kNewEasel, u"New Easel", "easel"},
-    {CommandBarCommand::kCaptureToEasel, u"Capture to Easel\u2026", "capture"},
-    {CommandBarCommand::kCaptureScreenshot, u"Capture Screenshot\u2026",
-     "screenshot"},
-    {CommandBarCommand::kReaderMode, u"Reader Mode", "reader"},
-    {CommandBarCommand::kLeaveReaderMode, u"Leave Reader Mode", "reader"},
-    {CommandBarCommand::kDevMode, u"Development Mode for This Site", "code"},
-    {CommandBarCommand::kLeaveDevMode, u"Leave Development Mode", "code"},
+    {CommandBarCommand::kKeyboardShortcuts,
+     IDS_COMPASS_COMMAND_BAR_KEYBOARD_SHORTCUTS, "keyboard"},
+    {CommandBarCommand::kTidyToday, IDS_COMPASS_COMMAND_BAR_TIDY_TODAY, "tidy"},
+    {CommandBarCommand::kNewEasel, IDS_COMPASS_COMMAND_BAR_NEW_EASEL, "easel"},
+    {CommandBarCommand::kCaptureToEasel,
+     IDS_COMPASS_COMMAND_BAR_CAPTURE_TO_EASEL, "capture"},
+    {CommandBarCommand::kCaptureScreenshot,
+     IDS_COMPASS_COMMAND_BAR_CAPTURE_SCREENSHOT, "screenshot"},
+    {CommandBarCommand::kReaderMode, IDS_COMPASS_COMMAND_BAR_READER_MODE,
+     "reader"},
+    {CommandBarCommand::kLeaveReaderMode,
+     IDS_COMPASS_COMMAND_BAR_LEAVE_READER_MODE, "reader"},
+    {CommandBarCommand::kDevMode, IDS_COMPASS_COMMAND_BAR_DEV_MODE, "code"},
+    {CommandBarCommand::kLeaveDevMode, IDS_COMPASS_COMMAND_BAR_LEAVE_DEV_MODE,
+     "code"},
 };
 
 // Claude's rows: the chat's, and Ask in the command bar's.
@@ -418,7 +433,8 @@ void CommandBarPageHandler::OnAnswerDone(
     answer_ = std::string(base::TrimWhitespaceASCII(*text, base::TRIM_ALL));
     page_->OnAnswer(answer_);
   }
-  page_->OnAnswerDone(answer_.empty() ? "Claude gave no answer."
+  page_->OnAnswerDone(answer_.empty() ? l10n_util::GetStringUTF8(
+                                            IDS_COMPASS_COMMAND_BAR_NO_ANSWER)
                                       : std::string());
 }
 
@@ -473,10 +489,12 @@ void CommandBarPageHandler::Rebuild() {
     if (ask_row_) {
       Item item;
       item.kind = ResultKind::kAskClaude;
-      item.title = u"Ask Claude";
+      item.title =
+          l10n_util::GetStringUTF16(IDS_COMPASS_COMMAND_BAR_ASK_CLAUDE);
       item.subtitle =
           std::u16string(base::TrimWhitespace(text_, base::TRIM_ALL));
-      item.action = "Answer";
+      item.action =
+          l10n_util::GetStringUTF8(IDS_COMPASS_COMMAND_BAR_ACTION_ANSWER);
       item.command_symbol = kAskSymbol;
       AssignId(item, "a:ask");
       items.push_back(std::move(item));
@@ -548,7 +566,8 @@ CommandBarPageHandler::Item CommandBarPageHandler::MatchItem(
   item.kind = search ? ResultKind::kSearch : ResultKind::kNavigate;
   item.title = ToCompassText(match.contents);
   item.subtitle = match.description;
-  item.action = search ? "Search" : "Open";
+  item.action = l10n_util::GetStringUTF8(
+      search ? IDS_COMPASS_COMMAND_BAR_ACTION_SEARCH : IDS_COMPASS_OPEN);
   if (!search) {
     item.icon_url = match.destination_url;
   }
@@ -623,11 +642,13 @@ CommandBarPageHandler::Item CommandBarPageHandler::EntryItem(
   item.title = GetEntryTitle(node);
   item.subtitle = base::UTF8ToUTF16(ToCompassURL(node.url()).spec());
   if (favorite) {
-    item.subtitle = u"Favorites · " + item.subtitle;
+    item.subtitle = l10n_util::GetStringFUTF16(
+        IDS_COMPASS_COMMAND_BAR_FAVORITE_SUBTITLE, item.subtitle);
   } else if (!own_space) {
     item.subtitle = space.name() + u" · " + item.subtitle;
   }
-  item.action = live ? "Switch to tab" : "Open";
+  item.action = l10n_util::GetStringUTF8(
+      live ? IDS_COMPASS_COMMAND_BAR_ACTION_SWITCH_TO_TAB : IDS_COMPASS_OPEN);
   item.icon_url = node.url();
   item.node_id = node.id();
   item.space_id = space.id();
@@ -653,10 +674,11 @@ void CommandBarPageHandler::AddSpaceItems(std::vector<Item>& items) {
     item.kind = ResultKind::kSpace;
     item.title = space->name();
     item.action = entry.profile == browser_->GetProfile()
-                      ? "Switch to space"
-                      : "Switch to space in " +
-                            base::UTF16ToUTF8(
-                                SpaceDirectory::GetProfileName(entry.profile));
+                      ? l10n_util::GetStringUTF8(
+                            IDS_COMPASS_COMMAND_BAR_ACTION_SWITCH_TO_SPACE)
+                      : l10n_util::GetStringFUTF8(
+                            IDS_COMPASS_COMMAND_BAR_ACTION_SWITCH_TO_SPACE_IN,
+                            SpaceDirectory::GetProfileName(entry.profile));
     item.space_id = space->id();
     item.space_icon = space->icon();
     AssignId(item, "s:" + space->id().AsLowercaseString());
@@ -679,15 +701,15 @@ void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items,
     }
   };
   for (const CommandInfo& info : kCommands) {
+    const std::u16string name = l10n_util::GetStringUTF16(info.name_id);
     if (!IsCommandAvailable(info.command) ||
-        !ContainsAll(base::i18n::ToLower(info.name), words) ||
-        !takes(info.name)) {
+        !ContainsAll(base::i18n::ToLower(name), words) || !takes(name)) {
       continue;
     }
     Item item;
     item.kind = ResultKind::kCommand;
-    item.title = info.name;
-    item.action = "Run";
+    item.title = name;
+    item.action = l10n_util::GetStringUTF8(IDS_COMPASS_COMMAND_BAR_ACTION_RUN);
     item.command = info.command;
     item.command_symbol = info.symbol;
     AssignId(item, "c:" + base::NumberToString(static_cast<int>(info.command)));
@@ -697,8 +719,9 @@ void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items,
   // Claude, last: "Chat with Claude" for no text or text naming it, else
   // "Ask Claude" with the text as the question. Named ("chat"), it leads
   // with the other named commands.
-  if (!IsCommandAvailable(CommandBarCommand::kAskClaude) ||
-      !takes(u"Chat with Claude")) {
+  const std::u16string chat =
+      l10n_util::GetStringUTF16(IDS_COMPASS_COMMAND_BAR_CHAT_WITH_CLAUDE);
+  if (!IsCommandAvailable(CommandBarCommand::kAskClaude) || !takes(chat)) {
     return;
   }
   const std::u16string question(
@@ -707,18 +730,18 @@ void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items,
   item.kind = ResultKind::kCommand;
   item.command = CommandBarCommand::kAskClaude;
   item.command_symbol = kChatSymbol;
-  if (words.empty() || ContainsAll(u"chat with claude", words)) {
-    item.title = u"Chat with Claude";
-    item.action = "Open";
+  if (words.empty() || ContainsAll(base::i18n::ToLower(chat), words)) {
+    item.title = chat;
+    item.action = l10n_util::GetStringUTF8(IDS_COMPASS_OPEN);
   } else if (ask_row_) {
     // "Ask Claude" leads, answering here; this one asks in the chat.
-    item.title = u"Ask in Chat";
+    item.title = l10n_util::GetStringUTF16(IDS_COMPASS_COMMAND_BAR_ASK_IN_CHAT);
     item.subtitle = question;
-    item.action = "Ask";
+    item.action = l10n_util::GetStringUTF8(IDS_COMPASS_COMMAND_BAR_ACTION_ASK);
   } else {
-    item.title = u"Ask Claude";
+    item.title = l10n_util::GetStringUTF16(IDS_COMPASS_COMMAND_BAR_ASK_CLAUDE);
     item.subtitle = question;
-    item.action = "Ask";
+    item.action = l10n_util::GetStringUTF8(IDS_COMPASS_COMMAND_BAR_ACTION_ASK);
   }
   AssignId(item, "c:claude");
   items.push_back(std::move(item));
@@ -739,8 +762,9 @@ void CommandBarPageHandler::AddOtherDeviceTabItems(std::vector<Item>& items) {
     item.title = tab.title.empty() ? url : tab.title;
     // Grouped by device: the rows of one device are together, each says
     // which.
-    item.subtitle = u"On " + device.name + u" · " + url;
-    item.action = "Open";
+    item.subtitle = l10n_util::GetStringFUTF16(
+        IDS_COMPASS_COMMAND_BAR_OTHER_DEVICE_SUBTITLE, device.name, url);
+    item.action = l10n_util::GetStringUTF8(IDS_COMPASS_OPEN);
     item.icon_url = tab.url;
     item.url = tab.url;
     AssignId(item,

@@ -12,6 +12,7 @@ import {SpaceAppearance} from './sidebar.mojom-webui.js';
 import type {Space, SpaceColor} from './sidebar.mojom-webui.js';
 import {getCss} from './theme_editor.css.js';
 import {getHtml} from './theme_editor.html.js';
+import {i18n, i18nF} from './i18n.js';
 
 // How far from the pad's center (as a fraction of its half width and half
 // height) a fully saturated color sits.
@@ -34,9 +35,9 @@ export interface ModeOption {
 }
 
 const MODES: ModeOption[] = [
-  {appearance: SpaceAppearance.kAuto, label: 'Match the system'},
-  {appearance: SpaceAppearance.kLight, label: 'Light'},
-  {appearance: SpaceAppearance.kDark, label: 'Dark'},
+  {appearance: SpaceAppearance.kAuto, label: i18n('themeEditorMatchSystem')},
+  {appearance: SpaceAppearance.kLight, label: i18n('themeEditorLight')},
+  {appearance: SpaceAppearance.kDark, label: i18n('themeEditorDark')},
 ];
 
 export interface DialTick {
@@ -177,7 +178,8 @@ export class CompassThemeEditorElement extends CrLitElement {
   }
 
   protected getDotLabel_(index: number): string {
-    return index === 0 ? 'Main color' : `Gradient color ${index + 1}`;
+    return index === 0 ? i18n('themeEditorMainColor') :
+                        i18nF('themeEditorGradientColor', index + 1);
   }
 
   protected getHexLabel_(color: SpaceColor): string {

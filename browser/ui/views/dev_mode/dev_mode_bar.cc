@@ -20,18 +20,23 @@
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "compass/browser/dev_mode/devtools_frontend_hook.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "components/url_formatter/url_fixer.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/devtools_manager_delegate.h"
-#include "components/url_formatter/url_fixer.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkRRect.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/page_transition_types.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
+#include "ui/events/event.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -42,14 +47,11 @@
 #include "ui/views/border.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
-#include "ui/base/page_transition_types.h"
-#include "ui/events/event.h"
-#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/textfield/textfield.h"
-#include "url/url_constants.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/view_utils.h"
+#include "url/url_constants.h"
 
 namespace compass {
 
@@ -100,7 +102,8 @@ DevModeBar::DevModeBar(ContentsContainerView* container)
   url->SetBackgroundEnabled(false);
   url->SetTextColorId(ui::kColorSysOnSurface);
   url->SetTextInputType(ui::TEXT_INPUT_TYPE_URL);
-  url->GetViewAccessibility().SetName(u"Page address");
+  url->GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(IDS_COMPASS_DEV_MODE_BAR_ADDRESS));
   url->set_controller(this);
   // Plain text on the bar: no hover wash or focus ring, which would draw a
   // box around most of it.
@@ -118,10 +121,18 @@ DevModeBar::DevModeBar(ContentsContainerView* container)
     button->GetViewAccessibility().SetName(tooltip);
     return AddChildView(std::move(button));
   };
-  console_ = add_button(&DevModeBar::OpenConsole, u"Open console");
-  network_ = add_button(&DevModeBar::OpenNetwork, u"Open network panel");
-  inspect_ = add_button(&DevModeBar::InspectElement, u"Inspect an element");
-  copy_ = add_button(&DevModeBar::CopyUrl, u"Copy URL");
+  console_ =
+      add_button(&DevModeBar::OpenConsole,
+                 l10n_util::GetStringUTF16(IDS_COMPASS_DEV_MODE_BAR_CONSOLE));
+  network_ =
+      add_button(&DevModeBar::OpenNetwork,
+                 l10n_util::GetStringUTF16(IDS_COMPASS_DEV_MODE_BAR_NETWORK));
+  inspect_ =
+      add_button(&DevModeBar::InspectElement,
+                 l10n_util::GetStringUTF16(IDS_COMPASS_DEV_MODE_BAR_INSPECT));
+  copy_ =
+      add_button(&DevModeBar::CopyUrl,
+                 l10n_util::GetStringUTF16(IDS_COMPASS_DEV_MODE_BAR_COPY_URL));
 
   container_observation_.Observe(container_);
   PlaceInContainer();
@@ -343,7 +354,9 @@ void DevModeBar::PlaceInContainer() {
 void DevModeBar::ShowCopied(bool copied) {
   copied_timer_.Stop();
   copied_ = copied;
-  const std::u16string tooltip = copied ? u"Copied" : u"Copy URL";
+  const std::u16string tooltip =
+      l10n_util::GetStringUTF16(copied ? IDS_COMPASS_DEV_MODE_BAR_COPIED
+                                       : IDS_COMPASS_DEV_MODE_BAR_COPY_URL);
   copy_->SetTooltipText(tooltip);
   copy_->GetViewAccessibility().SetName(tooltip);
   if (copied) {

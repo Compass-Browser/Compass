@@ -20,12 +20,14 @@
 #include "compass/browser/ui/settings_window_hooks.h"
 #include "compass/browser/window_sync/tab_strip_bridge.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "third_party/blink/public/mojom/page/draggable_region.mojom.h"
 #include "ui/base/base_window.h"
 #include "ui/base/hit_test.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
@@ -94,7 +96,7 @@ class SettingsWidgetDelegate : public views::WidgetDelegate {
  public:
   explicit SettingsWidgetDelegate(base::WeakPtr<SettingsWindow> window)
       : window_(std::move(window)) {
-    SetTitle(u"Settings");
+    SetTitle(l10n_util::GetStringUTF16(IDS_COMPASS_SETTINGS_WINDOW_TITLE));
     SetCanResize(false);
     SetCanMinimize(true);
     SetShowCloseButton(true);

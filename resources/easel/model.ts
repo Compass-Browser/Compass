@@ -7,6 +7,7 @@
 
 import {ObjectKind} from './easel.mojom-webui.js';
 import type {EaselObject} from './easel.mojom-webui.js';
+import {i18n} from './i18n.js';
 
 // CompassEaselShape.kind.
 export enum ShapeKind {
@@ -18,10 +19,10 @@ export enum ShapeKind {
 
 // The board backgrounds (CompassEasel.palette); anything else is paper.
 export const PALETTES: Array<{value: string, name: string}> = [
-  {value: 'paper', name: 'Paper'},
-  {value: 'grid', name: 'Grid'},
-  {value: 'dots', name: 'Dots'},
-  {value: 'dark', name: 'Dark'},
+  {value: 'paper', name: i18n('easelPalettePaper')},
+  {value: 'grid', name: i18n('easelPaletteGrid')},
+  {value: 'dots', name: i18n('easelPaletteDots')},
+  {value: 'dark', name: i18n('easelPaletteDark')},
 ];
 
 export function paletteOf(value: string): string {
@@ -32,28 +33,28 @@ export function paletteOf(value: string): string {
 // in the messages, so boards look alike on every device). '' is the board's ink (absent in the
 // message), which follows the background.
 export const COLORS: Array<{value: string, name: string}> = [
-  {value: '', name: 'Ink'},
-  {value: '#d1242f', name: 'Red'},
-  {value: '#e16f24', name: 'Orange'},
-  {value: '#d4a72c', name: 'Yellow'},
-  {value: '#1a7f37', name: 'Green'},
-  {value: '#0969da', name: 'Blue'},
-  {value: '#8250df', name: 'Purple'},
-  {value: '#6e7781', name: 'Grey'},
+  {value: '', name: i18n('easelColorInk')},
+  {value: '#d1242f', name: i18n('easelColorRed')},
+  {value: '#e16f24', name: i18n('easelColorOrange')},
+  {value: '#d4a72c', name: i18n('easelColorYellow')},
+  {value: '#1a7f37', name: i18n('easelColorGreen')},
+  {value: '#0969da', name: i18n('easelColorBlue')},
+  {value: '#8250df', name: i18n('easelColorPurple')},
+  {value: '#6e7781', name: i18n('easelColorGrey')},
 ];
 
 export const TEXT_STYLES: Array<{value: string, name: string}> = [
-  {value: 'title', name: 'Title'},
-  {value: 'heading', name: 'Heading'},
-  {value: '', name: 'Body'},
-  {value: 'caption', name: 'Caption'},
+  {value: 'title', name: i18n('easelStyleTitle')},
+  {value: 'heading', name: i18n('easelStyleHeading')},
+  {value: '', name: i18n('easelStyleBody')},
+  {value: 'caption', name: i18n('easelStyleCaption')},
 ];
 
 export const FONTS: Array<{value: string, name: string}> = [
-  {value: '', name: 'Sans'},
-  {value: 'serif', name: 'Serif'},
-  {value: 'mono', name: 'Mono'},
-  {value: 'hand', name: 'Hand'},
+  {value: '', name: i18n('easelFontSans')},
+  {value: 'serif', name: i18n('easelFontSerif')},
+  {value: 'mono', name: i18n('easelFontMono')},
+  {value: 'hand', name: i18n('easelFontHand')},
 ];
 
 // docs/design/easels.md, "What a board is".

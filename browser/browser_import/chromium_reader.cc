@@ -11,8 +11,8 @@
 #include <utility>
 
 #include "base/containers/span_reader.h"
-#include "base/files/file_enumerator.h"
 #include "base/files/file.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/json/json_reader.h"
@@ -24,11 +24,13 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/sessions/core/session_command.h"
 #include "components/sessions/core/session_service_commands.h"
 #include "components/sessions/core/session_types.h"
 #include "sql/database.h"
 #include "sql/statement.h"
+#include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_POSIX)
 #include <errno.h>
@@ -83,9 +85,11 @@ void AddBookmarks(const base::ListValue& nodes,
       if (const base::ListValue* list = node->FindList("children")) {
         AddBookmarks(*list, id_prefix, children);
       }
-      out.push_back(MakeFolder(guid ? id : std::string(),
-                               title.empty() ? u"Folder" : title,
-                               std::move(children)));
+      out.push_back(MakeFolder(
+          guid ? id : std::string(),
+          title.empty() ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_FOLDER)
+                        : title,
+          std::move(children)));
       continue;
     }
     const std::string* url = node->FindString("url");
@@ -204,10 +208,11 @@ std::vector<arc::Item> ParseChromiumBookmarks(const base::DictValue& bookmarks,
   }
   struct Root {
     const char* key;
-    const char16_t* name;
+    int name_id;
   };
-  for (const Root root : {Root{"other", u"Other bookmarks"},
-                          Root{"synced", u"Mobile bookmarks"}}) {
+  for (const Root root :
+       {Root{"other", IDS_COMPASS_IMPORT_CHROMIUM_OTHER_BOOKMARKS},
+        Root{"synced", IDS_COMPASS_IMPORT_CHROMIUM_MOBILE_BOOKMARKS}}) {
     const base::DictValue* dict = roots->FindDict(root.key);
     const base::ListValue* children =
         dict ? dict->FindList("children") : nullptr;
@@ -223,7 +228,8 @@ std::vector<arc::Item> ParseChromiumBookmarks(const base::DictValue& bookmarks,
     const std::string* guid = dict->FindString("guid");
     items.push_back(MakeFolder(
         base::StrCat({id_prefix, "bookmark:", guid ? *guid : root.key}),
-        name && !name->empty() ? base::UTF8ToUTF16(*name) : root.name,
+        name && !name->empty() ? base::UTF8ToUTF16(*name)
+                               : l10n_util::GetStringUTF16(root.name_id),
         std::move(entries)));
   }
   return items;
@@ -468,7 +474,9 @@ ImportedSidebar ChromiumSidebar(const SourceProfile& profile,
   for (const VivaldiWorkspace& workspace : workspaces) {
     arc::Space space;
     space.id = base::StrCat({prefix, "workspace:", workspace.id});
-    space.name = workspace.name.empty() ? u"Workspace" : workspace.name;
+    space.name = workspace.name.empty()
+                     ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_WORKSPACE)
+                     : workspace.name;
     if (std::optional<SpaceIcon> icon = SpaceIcon::Emoji(workspace.emoji)) {
       space.icon = *icon;
     }

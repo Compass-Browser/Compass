@@ -6,6 +6,8 @@
 // sections (the window's own elements, and Compass's settings/*_page.ts) and
 // groups of rows (docs/design/settings-window.md).
 
+import {i18n} from '../i18n.js';
+
 // A row inside a section's element that search can take you to (the
 // element marks it with data-row).
 export interface SearchRow {
@@ -18,8 +20,8 @@ export interface SearchRow {
 }
 
 // The colors of the row tiles and pane headers (window.css, .tile).
-export type TileColor = 'blue'|'indigo'|'purple'|'pink'|'red'|'orange'|
-    'yellow'|'green'|'teal'|'gray'|'slate';
+export type TileColor = 'blue'|'indigo'|'purple'|'pink'|'red'|'orange'|'yellow'|
+    'green'|'teal'|'gray'|'slate';
 
 // A section shown on a page of its own: the pane lists it as a row (with the
 // status the element reports, the `subpage-detail` event), and its path
@@ -75,61 +77,85 @@ export interface Pane {
 export const PANES: Pane[] = [
   {
     id: 'general',
-    label: 'General',
+    label: i18n('generalPaneTitle'),
     color: 'gray',
-    blurb: 'How Compass opens, searches, downloads and shows pages.',
+    blurb: i18n('settingsWindowPaneGeneralBlurb'),
     sections: [{
       tag: 'compass-settings-general-pane',
       path: 'general',
       keywords: '',
       searchRows: [
-        {id: 'defaultBrowser', label: 'Default browser'},
+        {id: 'defaultBrowser', label: i18n('generalPaneDefaultBrowser')},
         {
           id: 'search',
-          label: 'Search engine',
+          label: i18n('generalPaneSearchEngine'),
           keywords: 'google bing duckduckgo omnibox',
         },
-        {id: 'searchEngines', label: 'Manage search engines and site search'},
-        {id: 'downloads', label: 'Download location', keywords: 'folder'},
-        {id: 'promptForDownload', label: 'Ask where to save each file'},
-        {id: 'fontSize', label: 'Font size', keywords: 'text larger smaller'},
-        {id: 'zoom', label: 'Page zoom'},
-        {id: 'webkit.webprefs.fonts.standard.Zyyy', label: 'Fonts',
-         keywords: 'serif sans-serif fixed typeface',
-         path: 'general?view=fonts'},
-        {id: 'minimumFontSize', label: 'Minimum font size',
-         path: 'general?view=fonts'},
-        {id: 'languages', label: 'Preferred languages'},
-        {id: 'translate', label: 'Offer to translate pages'},
-        {id: 'spellcheck', label: 'Check spelling as you type',
-         keywords: 'spellcheck'},
-        {id: 'hardwareAcceleration',
-         label: 'Use graphics acceleration when available',
-         keywords: 'hardware gpu'},
-        {id: 'proxy', label: 'Proxy settings', keywords: 'network'},
-        {id: 'pipOnLeavingWindow',
-         label: 'Picture-in-picture when you leave the window',
-         keywords: 'video call pip'},
+        {id: 'searchEngines', label: i18n('generalPaneManageSearchEngines')},
+        {
+          id: 'downloads',
+          label: i18n('settingsWindowSearchDownloadLocation'),
+          keywords: 'folder'
+        },
+        {id: 'promptForDownload', label: i18n('generalPanePromptForDownload')},
+        {
+          id: 'fontSize',
+          label: i18n('generalPaneFontSize'),
+          keywords: 'text larger smaller'
+        },
+        {id: 'zoom', label: i18n('generalPanePageZoom')},
+        {
+          id: 'webkit.webprefs.fonts.standard.Zyyy',
+          label: i18n('generalPaneFonts'),
+          keywords: 'serif sans-serif fixed typeface',
+          path: 'general?view=fonts'
+        },
+        {
+          id: 'minimumFontSize',
+          label: i18n('generalPaneMinimumFontSize'),
+          path: 'general?view=fonts'
+        },
+        {id: 'languages', label: i18n('generalPanePreferredLanguages')},
+        {id: 'translate', label: i18n('generalPaneOfferTranslate')},
+        {
+          id: 'spellcheck',
+          label: i18n('generalPaneSpellcheck'),
+          keywords: 'spellcheck'
+        },
+        {
+          id: 'hardwareAcceleration',
+          label: i18n('generalPaneHardwareAcceleration'),
+          keywords: 'hardware gpu'
+        },
+        {id: 'proxy', label: i18n('generalPaneProxy'), keywords: 'network'},
+        {
+          id: 'pipOnLeavingWindow',
+          label: i18n('settingsWindowSearchPipOnLeavingWindow'),
+          keywords: 'video call pip'
+        },
       ],
     }],
     groups: [],
   },
   {
     id: 'profiles',
-    label: 'Profiles',
+    label: i18n('settingsWindowPaneProfiles'),
     color: 'purple',
-    blurb: 'Separate people and accounts, each with their own spaces, sync ' +
-        'and passwords.',
+    blurb: i18n('settingsWindowPaneProfilesBlurb'),
     sections: [
       {
         tag: 'compass-settings-profile-section',
         path: 'profiles',
         keywords: '',
         searchRows: [
-          {id: 'profileName', label: 'Profile name', keywords: 'people'},
+          {
+            id: 'profileName',
+            label: i18n('settingsWindowSearchProfileName'),
+            keywords: 'people'
+          },
           {
             id: 'addProfile',
-            label: 'New profile',
+            label: i18n('profileSectionNewProfile'),
             keywords: 'add create people',
           },
         ],
@@ -139,8 +165,8 @@ export const PANES: Pane[] = [
         path: 'sync',
         keywords: 'sync devices account sign in pair',
         subpage: {
-          group: 'Sync and import',
-          label: 'Sync',
+          group: i18n('settingsWindowSyncAndImport'),
+          label: i18n('settingsWindowSync'),
           icon: 'sync',
           color: 'blue',
         },
@@ -150,8 +176,8 @@ export const PANES: Pane[] = [
         path: 'importArc',
         keywords: 'import arc chrome safari firefox bookmarks history',
         subpage: {
-          group: 'Sync and import',
-          label: 'Import from another browser',
+          group: i18n('settingsWindowSyncAndImport'),
+          label: i18n('settingsWindowImport'),
           icon: 'import',
           color: 'green',
         },
@@ -161,26 +187,29 @@ export const PANES: Pane[] = [
   },
   {
     id: 'spaces',
-    label: 'Spaces',
+    label: i18n('settingsWindowPaneSpaces'),
     color: 'indigo',
-    blurb:
-        'Your spaces: their names, icons, themes and the profile each is in.',
+    blurb: i18n('settingsWindowPaneSpacesBlurb'),
     sections: [{
       tag: 'compass-settings-spaces-pane',
       path: 'spaces',
       keywords: 'space spaces workspace switcher icon emoji color theme ' +
           'gradient profile archive sync rename reorder delete',
       searchRows: [
-        {id: 'spaces', label: 'Edit spaces', keywords: 'rename icon theme'},
+        {
+          id: 'spaces',
+          label: i18n('settingsWindowSearchEditSpaces'),
+          keywords: 'rename icon theme'
+        },
       ],
     }],
     groups: [],
   },
   {
     id: 'links',
-    label: 'Links',
+    label: i18n('settingsWindowPaneLinks'),
     color: 'teal',
-    blurb: 'Which app or window opens links to the sites you choose.',
+    blurb: i18n('settingsWindowPaneLinksBlurb'),
     sections: [{
       tag: 'compass-links-page',
       path: 'links',
@@ -190,9 +219,9 @@ export const PANES: Pane[] = [
   },
   {
     id: 'shortcuts',
-    label: 'Shortcuts',
+    label: i18n('settingsWindowPaneShortcuts'),
     color: 'slate',
-    blurb: 'Keyboard shortcuts for Compass’s commands.',
+    blurb: i18n('settingsWindowPaneShortcutsBlurb'),
     sections: [{
       tag: 'compass-shortcuts-page',
       path: 'shortcuts',
@@ -202,9 +231,9 @@ export const PANES: Pane[] = [
   },
   {
     id: 'boosts',
-    label: 'Boosts',
+    label: i18n('settingsWindowPaneBoosts'),
     color: 'pink',
-    blurb: 'Your own CSS and JavaScript, added to the sites you pick.',
+    blurb: i18n('settingsWindowPaneBoostsBlurb'),
     sections: [{
       tag: 'compass-boosts-page',
       path: 'boosts',
@@ -214,9 +243,9 @@ export const PANES: Pane[] = [
   },
   {
     id: 'plugins',
-    label: 'Plugins',
+    label: i18n('settingsWindowPanePlugins'),
     color: 'purple',
-    blurb: 'Plugins that fill live folders and show what’s new on your tabs.',
+    blurb: i18n('settingsWindowPanePluginsBlurb'),
     sections: [{
       tag: 'compass-plugins-page',
       path: 'plugins',
@@ -226,134 +255,250 @@ export const PANES: Pane[] = [
   },
   {
     id: 'ai',
-    label: 'AI',
+    label: i18n('settingsWindowPaneAi'),
     color: 'orange',
-    blurb: 'Claude in your browser: who answers, and what it may do for you.',
+    blurb: i18n('settingsWindowPaneAiBlurb'),
     sections: [{
       tag: 'compass-claude-page',
       path: 'ai',
       keywords: 'claude model api key memory assistant chat',
       searchRows: [
-        {id: 'connectionRow', label: 'Connection',
-         keywords: 'claude provider anthropic openai gemini chatgpt server ' +
-             'gateway endpoint base url test',
-         path: 'ai?view=connection'},
-        {id: 'apiKey', label: 'API key', keywords: 'claude key token',
-         path: 'ai?view=connection'},
-        {id: 'backend', label: 'Claude Code',
-         keywords: 'connect with subscription', path: 'ai?view=connection'},
-        {id: 'model', label: 'Model', keywords: 'claude opus sonnet haiku',
-         path: 'ai?view=connection'},
-        {id: 'browserScope', label: 'Let Claude use the whole browser',
-         keywords: 'tabs windows'},
-        {id: 'devtools', label: 'Let Claude use developer tools',
-         keywords: 'network storage'},
-        {id: 'boosts', label: 'Let Claude make Boosts',
-         keywords: 'css javascript'},
-        {id: 'plugins', label: 'Let Claude make plugins',
-         keywords: 'live folders'},
-        {id: 'sidebarRow', label: 'Claude in the sidebar',
-         keywords: 'tidy today name link folders shorter tab titles ' +
-             'command bar ask apple intelligence',
-         path: 'ai?view=sidebar'},
-        {id: 'filesRow', label: 'Files', keywords: 'claude folder save',
-         path: 'ai?view=files'},
-        {id: 'memoryRow', label: 'Memory', keywords: 'claude remember facts',
-         path: 'ai?view=memory'},
-        {id: 'mcpEnabled', label: 'Allow MCP clients',
-         keywords: 'claude code desktop mcp'},
+        {
+          id: 'connectionRow',
+          label: i18n('settingsWindowSearchConnection'),
+          keywords: 'claude provider anthropic openai gemini chatgpt server ' +
+              'gateway endpoint base url test',
+          path: 'ai?view=connection'
+        },
+        {
+          id: 'apiKey',
+          label: i18n('settingsWindowSearchApiKey'),
+          keywords: 'claude key token',
+          path: 'ai?view=connection'
+        },
+        {
+          id: 'backend',
+          label: 'Claude Code',
+          keywords: 'connect with subscription',
+          path: 'ai?view=connection'
+        },
+        {
+          id: 'model',
+          label: i18n('settingsWindowSearchModel'),
+          keywords: 'claude opus sonnet haiku',
+          path: 'ai?view=connection'
+        },
+        {
+          id: 'browserScope',
+          label: i18n('settingsWindowSearchBrowserScope'),
+          keywords: 'tabs windows'
+        },
+        {
+          id: 'devtools',
+          label: i18n('settingsWindowSearchDevtools'),
+          keywords: 'network storage'
+        },
+        {
+          id: 'boosts',
+          label: i18n('settingsWindowSearchClaudeBoosts'),
+          keywords: 'css javascript'
+        },
+        {
+          id: 'plugins',
+          label: i18n('settingsWindowSearchClaudePlugins'),
+          keywords: 'live folders'
+        },
+        {
+          id: 'sidebarRow',
+          label: i18n('settingsWindowSearchClaudeSidebar'),
+          keywords: 'tidy today name link folders shorter tab titles ' +
+              'command bar ask apple intelligence',
+          path: 'ai?view=sidebar'
+        },
+        {
+          id: 'filesRow',
+          label: i18n('settingsWindowSearchFiles'),
+          keywords: 'claude folder save',
+          path: 'ai?view=files'
+        },
+        {
+          id: 'memoryRow',
+          label: i18n('settingsWindowSearchMemory'),
+          keywords: 'claude remember facts',
+          path: 'ai?view=memory'
+        },
+        {
+          id: 'mcpEnabled',
+          label: i18n('settingsWindowSearchMcp'),
+          keywords: 'claude code desktop mcp'
+        },
       ],
     }],
     groups: [],
   },
   {
     id: 'privacy',
-    label: 'Privacy',
+    label: i18n('settingsWindowPanePrivacy'),
     color: 'blue',
-    blurb: 'Cookies, tracking, ad blocking, security and what sites may use.',
+    blurb: i18n('settingsWindowPanePrivacyBlurb'),
     sections: [{
       tag: 'compass-settings-privacy-pane',
       path: 'privacy',
       keywords: '',
       searchRows: [
-        {id: 'clearBrowserData', label: 'Clear browsing data',
-         keywords: 'delete history cache cookies'},
-        {id: 'cookies', label: 'Third-party cookies', keywords: 'tracking'},
-        {id: 'doNotTrack', label: 'Ask sites not to track you',
-         keywords: 'do not track dnt'},
-        {id: 'cleanLinks', label: 'Remove tracking from copied links',
-         keywords: 'clean links utm copy url'},
-        {id: 'adblockEnabled', label: 'Block ads and trackers',
-         keywords: 'ad blocker adblock content blocking trackers'},
-        {id: 'filterLists', label: 'Filter lists',
-         keywords: 'ad blocker adblock easylist easyprivacy cookie banners ' +
-             'ublock custom list'},
-        {id: 'safeBrowsing', label: 'Safe Browsing',
-         keywords: 'security dangerous malware phishing'},
-        {id: 'httpsOnly', label: 'Always use secure connections',
-         keywords: 'https'},
-        {id: 'secureDns', label: 'Use secure DNS', keywords: 'doh'},
-        {id: 'certificates', label: 'Manage certificates'},
-        {id: 'permissions', label: 'Site permissions',
-         keywords: 'location camera microphone notifications popups ' +
-             'javascript site settings'},
-        {id: 'sites', label: 'Sites with their own permissions',
-         keywords: 'site settings exceptions'},
-        {id: 'safetyCheck', label: 'Safety check',
-         keywords: 'safety hub compromised passwords extensions'},
+        {
+          id: 'clearBrowserData',
+          label: i18n('privacyPaneClearBrowsingData'),
+          keywords: 'delete history cache cookies'
+        },
+        {
+          id: 'cookies',
+          label: i18n('privacyPaneThirdPartyCookies'),
+          keywords: 'tracking'
+        },
+        {
+          id: 'doNotTrack',
+          label: i18n('privacyPaneDoNotTrack'),
+          keywords: 'do not track dnt'
+        },
+        {
+          id: 'cleanLinks',
+          label: i18n('privacyPaneCleanLinks'),
+          keywords: 'clean links utm copy url'
+        },
+        {
+          id: 'adblockEnabled',
+          label: i18n('privacyPaneBlockAds'),
+          keywords: 'ad blocker adblock content blocking trackers'
+        },
+        {
+          id: 'filterLists',
+          label: i18n('privacyPaneFilterLists'),
+          keywords: 'ad blocker adblock easylist easyprivacy cookie banners ' +
+              'ublock custom list'
+        },
+        {
+          id: 'safeBrowsing',
+          label: i18n('privacyPaneSafeBrowsing'),
+          keywords: 'security dangerous malware phishing'
+        },
+        {
+          id: 'httpsOnly',
+          label: i18n('privacyPaneHttpsOnly'),
+          keywords: 'https'
+        },
+        {id: 'secureDns', label: i18n('privacyPaneSecureDns'), keywords: 'doh'},
+        {id: 'certificates', label: i18n('privacyPaneManageCertificates')},
+        {
+          id: 'permissions',
+          label: i18n('privacyPaneSitePermissions'),
+          keywords: 'location camera microphone notifications popups ' +
+              'javascript site settings'
+        },
+        {
+          id: 'sites',
+          label: i18n('privacyPaneSitesWithPermissions'),
+          keywords: 'site settings exceptions'
+        },
+        {
+          id: 'safetyCheck',
+          label: i18n('privacyPaneSafetyCheck'),
+          keywords: 'safety hub compromised passwords extensions'
+        },
       ],
     }],
     groups: [],
   },
   {
     id: 'passwords',
-    label: 'Passwords',
+    label: i18n('settingsWindowPanePasswords'),
     color: 'green',
-    blurb: 'Passwords, cards and addresses that Compass fills in for you.',
+    blurb: i18n('settingsWindowPanePasswordsBlurb'),
     sections: [{
       tag: 'compass-settings-passwords-pane',
       path: 'passwords',
       keywords: '',
       searchRows: [
-        {id: 'offerToSave', label: 'Offer to save passwords and passkeys'},
-        {id: 'autoSignIn', label: 'Sign in automatically'},
-        {id: 'passwordManager', label: 'Password Manager',
-         keywords: 'checkup import export passkeys'},
-        {id: 'savedPasswords', label: 'Saved passwords',
-         keywords: 'login username', path: 'passwords?view=passwords'},
-        {id: 'saveCards', label: 'Save and fill payment methods',
-         keywords: 'credit card'},
-        {id: 'addCard', label: 'Add a card', keywords: 'credit card payment',
-         path: 'passwords?view=cards'},
-        {id: 'saveAddresses', label: 'Save and fill addresses',
-         keywords: 'autofill'},
-        {id: 'addAddress', label: 'Add an address',
-         keywords: 'autofill phone email', path: 'passwords?view=addresses'},
+        {id: 'offerToSave', label: i18n('passwordsPaneOfferToSave')},
+        {id: 'autoSignIn', label: i18n('passwordsPaneAutoSignIn')},
+        {
+          id: 'passwordManager',
+          label: i18n('passwordsPanePasswordManager'),
+          keywords: 'checkup import export passkeys'
+        },
+        {
+          id: 'savedPasswords',
+          label: i18n('passwordsPaneSavedPasswords'),
+          keywords: 'login username',
+          path: 'passwords?view=passwords'
+        },
+        {
+          id: 'saveCards',
+          label: i18n('passwordsPaneSaveCards'),
+          keywords: 'credit card'
+        },
+        {
+          id: 'addCard',
+          label: i18n('passwordsPaneAddCard'),
+          keywords: 'credit card payment',
+          path: 'passwords?view=cards'
+        },
+        {
+          id: 'saveAddresses',
+          label: i18n('passwordsPaneSaveAddresses'),
+          keywords: 'autofill'
+        },
+        {
+          id: 'addAddress',
+          label: i18n('passwordsPaneAddAddress'),
+          keywords: 'autofill phone email',
+          path: 'passwords?view=addresses'
+        },
       ],
     }],
     groups: [],
   },
   {
     id: 'advanced',
-    label: 'Advanced',
+    label: i18n('settingsWindowPaneAdvanced'),
     color: 'slate',
-    blurb: 'Performance, accessibility and tools for developers.',
+    blurb: i18n('settingsWindowPaneAdvancedBlurb'),
     sections: [
       {
         tag: 'compass-settings-advanced-pane',
         path: 'advanced',
         keywords: '',
         searchRows: [
-          {id: 'memorySaver', label: 'Memory saver', keywords: 'performance'},
-          {id: 'energySaver', label: 'Energy saver',
-           keywords: 'battery performance'},
-          {id: 'liveCaption', label: 'Live caption',
-           keywords: 'accessibility captions'},
-          {id: 'focusHighlight', label: 'Highlight the focused object',
-           keywords: 'accessibility'},
-          {id: 'caretBrowsing', label: 'Navigate pages with a text cursor',
-           keywords: 'caret browsing accessibility'},
-          {id: 'reset', label: 'Reset settings', keywords: 'restore defaults'},
+          {
+            id: 'memorySaver',
+            label: i18n('advancedPaneMemorySaver'),
+            keywords: 'performance'
+          },
+          {
+            id: 'energySaver',
+            label: i18n('advancedPaneEnergySaver'),
+            keywords: 'battery performance'
+          },
+          {
+            id: 'liveCaption',
+            label: i18n('advancedPaneLiveCaption'),
+            keywords: 'accessibility captions'
+          },
+          {
+            id: 'focusHighlight',
+            label: i18n('advancedPaneFocusHighlight'),
+            keywords: 'accessibility'
+          },
+          {
+            id: 'caretBrowsing',
+            label: i18n('advancedPaneCaretBrowsing'),
+            keywords: 'caret browsing accessibility'
+          },
+          {
+            id: 'reset',
+            label: i18n('advancedPaneResetSettings'),
+            keywords: 'restore defaults'
+          },
         ],
       },
       {
@@ -361,8 +506,8 @@ export const PANES: Pane[] = [
         path: 'devMode',
         keywords: 'development developer localhost devtools cache',
         subpage: {
-          group: 'Developers',
-          label: 'Development mode',
+          group: i18n('settingsWindowDevelopers'),
+          label: i18n('settingsWindowDevelopmentMode'),
           icon: 'code',
           color: 'slate',
         },
@@ -372,7 +517,7 @@ export const PANES: Pane[] = [
   },
   {
     id: 'about',
-    label: 'About',
+    label: i18n('settingsWindowPaneAbout'),
     color: 'blue',
     blurb: '',
     sections: [{
@@ -380,12 +525,21 @@ export const PANES: Pane[] = [
       path: 'about',
       keywords: '',
       searchRows: [
-        {id: 'updates', label: 'Check for updates',
-         keywords: 'version about compass update'},
-        {id: 'channel', label: 'Update channel',
-         keywords: 'beta canary stable'},
-        {id: 'licenses', label: 'Open-source licenses',
-         keywords: 'credits third party'},
+        {
+          id: 'updates',
+          label: i18n('settingsWindowSearchCheckForUpdates'),
+          keywords: 'version about compass update'
+        },
+        {
+          id: 'channel',
+          label: i18n('aboutPaneUpdateChannel'),
+          keywords: 'beta canary stable'
+        },
+        {
+          id: 'licenses',
+          label: i18n('aboutPaneLicenses'),
+          keywords: 'credits third party'
+        },
       ],
     }],
     groups: [],
@@ -409,7 +563,10 @@ export function resolvePath(path: string):
     const section = pane.sections.find(s => s.path === name) || null;
     if (pane.id === name || section) {
       // Its page, or scrolled to it, if it isn't the pane's own path.
-      return {pane, section: section && section.path !== pane.id ? section : null};
+      return {
+        pane,
+        section: section && section.path !== pane.id ? section : null
+      };
     }
   }
   return null;

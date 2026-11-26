@@ -9,6 +9,7 @@ import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {SidebarBrowserProxy} from './browser_proxy.js';
 import {getFaviconUrl} from './favicon.js';
+import {i18n, i18nF, i18nPlural} from './i18n.js';
 import './node.js';
 import './now_playing.js';
 import type {CompassSidebarPreviewElement} from './preview.js';
@@ -458,12 +459,11 @@ export class CompassSidebarAppElement extends CrLitElement {
     const hours = this.spaces_.find(space => this.isActiveSpace_(space))
                       ?.archiveAfterHours ?? 0;
     if (hours === 0) {
-      return 'Nothing archived. Auto-archive is off for this space.';
+      return i18n('sidebarArchiveOff');
     }
     const delay = ARCHIVE_DELAYS.find(delay => delay.hours === hours)?.label ??
-        `${hours} hours`;
-    return `Nothing archived yet. Today tabs you haven't looked at for ${
-        delay} come here.`;
+        i18nPlural('spaceOptionsHours', hours);
+    return i18nF('sidebarArchiveEmpty', delay);
   }
 
   // A split shows its panes' titles side by side.
@@ -528,7 +528,7 @@ export class CompassSidebarAppElement extends CrLitElement {
     const name = this.hasOtherProfiles_() ?
         `${space.name} · ${space.profileName}` :
         space.name;
-    return space.synced ? name : `${name} · On this device only`;
+    return space.synced ? name : i18nF('sidebarSpaceLocalOnly', name);
   }
 
   protected getSpaceInitial_(space: Space): string {
@@ -719,7 +719,16 @@ export class CompassSidebarAppElement extends CrLitElement {
   }
 
   protected getAudioLabel_(node: Node): string {
-    return this.isMuted_(node) ? 'Unmute tab' : 'Mute tab';
+    return this.isMuted_(node) ? i18n('sidebarUnmuteTab') :
+                                 i18n('sidebarMuteTab');
+  }
+
+  // A favorite's badge: a site's unread count, or a dot (-1) for new
+  // notifications it doesn't count.
+  protected getBadgeLabel_(node: Node): string {
+    return node.badgeCount < 0 ?
+        i18n('sidebarNewNotifications') :
+        i18nPlural('sidebarNotifications', node.badgeCount);
   }
 
   protected onTileAudioClick_(e: Event) {
@@ -821,7 +830,8 @@ export class CompassSidebarAppElement extends CrLitElement {
     const root = today ? this.today_ : this.pinned_;
     if (root) {
       this.browserProxy_.handler.addFolder(
-          root.id, today ? 0 : root.children.length, 'New Folder');
+          root.id, today ? 0 : root.children.length,
+          i18n('sidebarNewFolderName'));
     }
   }
 

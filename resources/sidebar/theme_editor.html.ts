@@ -5,6 +5,7 @@
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {PaletteColor, PaletteGradient} from './colors.js';
+import {i18n} from './i18n.js';
 import {SpaceAppearance} from './sidebar.mojom-webui.js';
 import type {SpaceColor} from './sidebar.mojom-webui.js';
 import type {CompassThemeEditorElement, DialTick, ModeOption} from './theme_editor.js';
@@ -12,7 +13,7 @@ import type {CompassThemeEditorElement, DialTick, ModeOption} from './theme_edit
 export function getHtml(this: CompassThemeEditorElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
-<div id="modes" role="radiogroup" aria-label="Appearance">
+<div id="modes" role="radiogroup" aria-label="${i18n('themeEditorAppearance')}">
   ${this.modes_.map((mode: ModeOption) => html`
     <button class="mode" role="radio" data-appearance="${mode.appearance}"
         title="${mode.label}" aria-label="${mode.label}"
@@ -32,7 +33,7 @@ export function getHtml(this: CompassThemeEditorElement) {
         </svg>`}`}
     </button>`)}
 </div>
-<div id="pad" role="group" aria-label="Colors" style="${this.getPadStyle_()}"
+<div id="pad" role="group" aria-label="${i18n('themeEditorColors')}" style="${this.getPadStyle_()}"
     @pointerdown="${this.onPadPointerdown_}"
     @pointermove="${this.onPadPointermove_}"
     @pointerup="${this.onPadPointerup_}"
@@ -46,19 +47,21 @@ export function getHtml(this: CompassThemeEditorElement) {
         @keydown="${this.onDotKeydown_}">
     </div>`)}
   <div id="count" @pointerdown="${this.onCountPointerdown_}">
-    <button id="removeColor" title="One color less"
-        aria-label="One color less" ?disabled="${!this.canRemoveColor_()}"
+    <button id="removeColor" title="${i18n('themeEditorFewerColors')}"
+        aria-label="${i18n('themeEditorFewerColors')}" ?disabled="${!this.canRemoveColor_()}"
         @click="${this.onRemoveColorClick_}">−</button>
-    <button id="addColor" title="One more color" aria-label="One more color"
+    <button id="addColor" title="${i18n('themeEditorMoreColors')}"
+        aria-label="${i18n('themeEditorMoreColors')}"
         ?disabled="${!this.canAddColor_()}"
         @click="${this.onAddColorClick_}">+</button>
   </div>
 </div>
 <div id="palette">
-  <button class="page" title="Colors" aria-label="Colors"
+  <button class="page" title="${i18n('themeEditorColors')}"
+      aria-label="${i18n('themeEditorColors')}"
       ?disabled="${this.isFirstPage_()}"
       @click="${this.onPreviousPageClick_}">‹</button>
-  <div id="swatches" role="group" aria-label="Palette">
+  <div id="swatches" role="group" aria-label="${i18n('themeEditorPalette')}">
     ${this.isFirstPage_() ? html`${this.paletteColors_.map(
         (entry: PaletteColor, index: number) => html`
       <button class="swatch" data-index="${index}" title="${entry.name}"
@@ -77,19 +80,20 @@ export function getHtml(this: CompassThemeEditorElement) {
             style="--swatch: ${this.getGradientCss_(gradient)}"
             @click="${this.onPaletteGradientClick_}">
         </button>`)}
-      <label class="swatch" id="customColor" title="Any color">
-        <input type="color" aria-label="Any color"
+      <label class="swatch" id="customColor" title="${i18n('themeEditorAnyColor')}">
+        <input type="color" aria-label="${i18n('themeEditorAnyColor')}"
             .value="${this.getCustomHex_()}"
             @input="${this.onCustomColorInput_}">
       </label>`}
   </div>
-  <button class="page" title="Gradients" aria-label="Gradients"
+  <button class="page" title="${i18n('themeEditorGradients')}"
+      aria-label="${i18n('themeEditorGradients')}"
       ?disabled="${!this.isFirstPage_()}"
       @click="${this.onNextPageClick_}">›</button>
 </div>
 <div id="controls">
-  <div id="wave" role="slider" tabindex="0" aria-label="Intensity"
-      title="Intensity" aria-valuemin="0" aria-valuemax="100"
+  <div id="wave" role="slider" tabindex="0" aria-label="${i18n('themeEditorIntensity')}"
+      title="${i18n('themeEditorIntensity')}" aria-valuemin="0" aria-valuemax="100"
       aria-valuenow="${this.getIntensityPercent_()}"
       @pointerdown="${this.onWavePointerdown_}"
       @pointermove="${this.onWavePointermove_}"
@@ -102,7 +106,8 @@ export function getHtml(this: CompassThemeEditorElement) {
     </svg>
     <div id="waveThumb" style="${this.getThumbStyle_()}"></div>
   </div>
-  <div id="dial" role="slider" tabindex="0" aria-label="Grain" title="Grain"
+  <div id="dial" role="slider" tabindex="0" aria-label="${i18n('themeEditorGrain')}"
+      title="${i18n('themeEditorGrain')}"
       aria-valuemin="0" aria-valuemax="100"
       aria-valuenow="${this.getGrainPercent_()}"
       @pointerdown="${this.onDialPointerdown_}"
@@ -116,8 +121,8 @@ export function getHtml(this: CompassThemeEditorElement) {
     <div id="knob" style="${this.getKnobStyle_()}"></div>
   </div>
 </div>
-<div id="translucency" role="slider" tabindex="0" aria-label="Translucency"
-    title="Translucency" aria-valuemin="0" aria-valuemax="100"
+<div id="translucency" role="slider" tabindex="0" aria-label="${i18n('themeEditorTranslucency')}"
+    title="${i18n('themeEditorTranslucency')}" aria-valuemin="0" aria-valuemax="100"
     aria-valuenow="${this.getTranslucencyPercent_()}"
     @pointerdown="${this.onTranslucencyPointerdown_}"
     @pointermove="${this.onTranslucencyPointermove_}"

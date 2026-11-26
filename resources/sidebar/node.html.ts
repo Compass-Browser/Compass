@@ -5,6 +5,7 @@
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {CompassSidebarNodeElement} from './node.js';
+import {i18n} from './i18n.js';
 import {speakerIcon} from './speaker_icon.js';
 import type {Node} from './sidebar.mojom-webui.js';
 
@@ -25,15 +26,14 @@ ${this.isTab_() ? html`
     ${this.isEditing_(this.node!) ? html`
       <input class="title-input tab-title-input" spellcheck="false"
           autocomplete="off"
-          .value="${this.getFullTitle_(this.node!)}" aria-label="Tab name"
+          .value="${this.getFullTitle_(this.node!)}" aria-label="${i18n('nodeTabName')}"
           @click="${this.onTitleInputClick_}"
           @dblclick="${this.onTitleInputDblclick_}"
           @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`
       <span class="title">${this.getTitle_(this.node!)}</span>`}
     ${this.node!.badgeCount ? html`
       <span class="tab-badge" role="status" ?dot="${this.node!.badgeCount < 0}"
-          aria-label="${this.node!.badgeCount < 0 ? 'New notifications' :
-                        `${this.node!.badgeCount} notifications`}"
+          aria-label="${this.getBadgeLabel_(this.node!)}"
           >${this.node!.badgeCount < 0 ? '' :
               this.node!.badgeCount > 99 ? '99+' :
               String(this.node!.badgeCount)}</span>` : nothing}
@@ -80,7 +80,7 @@ ${this.isSplit_() ? html`
         ${this.isEditing_(pane) ? html`
           <input class="title-input tab-title-input" spellcheck="false"
           autocomplete="off"
-              .value="${this.getFullTitle_(pane)}" aria-label="Tab name"
+              .value="${this.getFullTitle_(pane)}" aria-label="${i18n('nodeTabName')}"
               @click="${this.onTitleInputClick_}"
               @dblclick="${this.onTitleInputDblclick_}"
               @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`
@@ -120,7 +120,7 @@ ${this.isFolder_() ? html`
     ${this.isEditing_(this.node!) ? html`
       <input class="title-input folder-title-input" spellcheck="false"
           autocomplete="off" .value="${this.node!.title}"
-          aria-label="Folder name" @click="${this.onTitleInputClick_}"
+          aria-label="${i18n('nodeFolderName')}" @click="${this.onTitleInputClick_}"
           @keydown="${this.onTitleKeydown_}" @blur="${this.onTitleBlur_}">` : html`
       <span class="title" @dblclick="${this.onFolderTitleDblclick_}">
         ${this.node!.title}
@@ -141,9 +141,9 @@ ${this.isFolder_() ? html`
           title="${this.liveState_().error}"></span>` : nothing}
     ${this.isCollapsed_() && this.unseenCount_() ? html`
       <span class="live-unseen-count"
-          aria-label="${this.unseenCount_()} new">${this.unseenCount_()}</span>`
+          aria-label="${this.getUnseenLabel_(this.unseenCount_())}">${this.unseenCount_()}</span>`
       : nothing}
-    <button class="close" aria-label="Delete folder"
+    <button class="close" aria-label="${i18n('nodeDeleteFolder')}"
         @click="${this.onDeleteFolderClick_}">&times;</button>
   </div>
   ${!this.isCollapsed_() ? html`

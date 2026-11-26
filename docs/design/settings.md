@@ -78,4 +78,5 @@ Claude. `plugins?id=<id>` opens one. Through `SettingsHandler`
 
 ## Not done
 
-- Strings are English only, as on the standalone pages.
+- Settings search's extra `keywords:` (`panes.ts`) stay English; labels
+  are matched in the UI language.

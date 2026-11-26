@@ -226,58 +226,50 @@
   }
 </style>
 <div class="boosts-page">
-  <p class="boosts-lead">
-    Boosts change how sites look and work: CSS and JavaScript that Compass
-    adds to every page of a site, on all your devices. Make them here, or
-    ask Claude (turn on "Let Claude make Boosts" in Claude's settings).
-    JavaScript in a Boost can read and change the pages it runs on, so only
-    keep code you trust. Share a Boost as a link or a file; Boosts others
-    share with you are marked Shared.
-  </p>
+  <p class="boosts-lead">$i18n{boostsPageLead}</p>
   <ul id="boosts" class="boosts-list"></ul>
-  <p id="noBoosts" class="boosts-empty" hidden>No Boosts yet.</p>
+  <p id="noBoosts" class="boosts-empty" hidden>$i18n{boostsPageNoBoosts}</p>
   <form id="boostForm" class="boosts-form" hidden>
-    <label>Name
-      <input id="boostName" type="text" placeholder="Quieter GitHub"
+    <label>$i18n{boostsPageName}
+      <input id="boostName" type="text" placeholder="$i18n{boostsPageNamePlaceholder}"
           autocomplete="off" maxlength="100">
     </label>
-    <label>Site
+    <label>$i18n{boostsPageSite}
       <input id="boostMatch" type="text" placeholder="github.com"
           autocomplete="off" spellcheck="false">
-      <span class="boosts-hint">example.com (with www.), *.example.com
-        (with every subdomain), or a path: github.com/settings</span>
+      <span class="boosts-hint">$i18n{boostsPageSiteHint}</span>
     </label>
     <label>CSS
       <textarea id="boostCss" spellcheck="false"
           placeholder="header { display: none !important; }"></textarea>
-      <span class="boosts-hint">Added before the page draws.</span>
+      <span class="boosts-hint">$i18n{boostsPageCssHint}</span>
     </label>
     <label>JavaScript
       <textarea id="boostJs" spellcheck="false"></textarea>
-      <span class="boosts-hint">Runs once the page has loaded.</span>
+      <span class="boosts-hint">$i18n{boostsPageJsHint}</span>
     </label>
-    <label>JavaScript runs
+    <label>$i18n{boostsPageJsRuns}
       <select id="boostWorld">
-        <option value="isolated">Apart from the page's scripts</option>
-        <option value="main">With the page's scripts</option>
+        <option value="isolated">$i18n{boostsPageWorldIsolated}</option>
+        <option value="main">$i18n{boostsPageWorldMain}</option>
       </select>
     </label>
     <p id="boostNote" class="boosts-note" hidden></p>
     <div class="boosts-buttons">
-      <button id="saveBoost" type="submit">Save</button>
+      <button id="saveBoost" type="submit">$i18n{save}</button>
       <button id="cancelBoost" class="secondary" type="button">
-        Cancel
+        $i18n{cancel}
       </button>
     </div>
   </form>
   <section id="boostImport" class="boosts-import" hidden
       aria-labelledby="importHeading">
-    <h3 id="importHeading">Add a shared Boost</h3>
+    <h3 id="importHeading">$i18n{boostsPageAddShared}</h3>
     <div id="importDetails">
       <dl>
-        <dt>Name</dt>
+        <dt>$i18n{boostsPageName}</dt>
         <dd id="importName"></dd>
-        <dt>Site</dt>
+        <dt>$i18n{boostsPageSite}</dt>
         <dd id="importMatch"></dd>
       </dl>
       <p id="importWarning" class="boosts-warning" hidden></p>
@@ -293,12 +285,12 @@
     </div>
     <p id="importNote" class="boosts-note" hidden></p>
     <div class="boosts-buttons">
-      <button id="confirmImport">Add Boost</button>
-      <button id="cancelImport" class="secondary">Cancel</button>
+      <button id="confirmImport">$i18n{boostsPageAddBoost}</button>
+      <button id="cancelImport" class="secondary">$i18n{cancel}</button>
     </div>
   </section>
   <div class="boosts-buttons">
-    <button id="addBoost" class="secondary">Add Boost</button>
-    <button id="importBoost" class="secondary">Import…</button>
+    <button id="addBoost" class="secondary">$i18n{boostsPageAddBoost}</button>
+    <button id="importBoost" class="secondary">$i18n{boostsPageImport}</button>
   </div>
 </div>

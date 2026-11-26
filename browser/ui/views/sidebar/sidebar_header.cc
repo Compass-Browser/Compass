@@ -11,13 +11,14 @@
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/strings/utf_string_conversions.h"
+#include "cc/paint/paint_flags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_command_controller.h"
-#include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/tabs/tab_change_type.h"
@@ -38,39 +39,40 @@
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_content_settings_container.h"
 #include "chrome/common/webui_url_constants.h"
-#include "components/tabs/public/tab_interface.h"
-#include "components/omnibox/browser/location_bar_model.h"
-#include "components/security_state/core/security_state.h"
-#include "components/url_formatter/url_formatter.h"
-#include "content/public/browser/navigation_controller.h"
-#include "content/public/browser/navigation_entry.h"
-#include "content/public/browser/web_contents.h"
-#include "content/public/common/url_constants.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
 #include "compass/browser/ui/views/frame/window_frame.h"
 #include "compass/browser/ui/views/reader/reader_mode.h"
 #include "compass/browser/window_sync/empty_tab.h"
 #include "compass/common/compass_url.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "components/omnibox/browser/location_bar_model.h"
+#include "components/security_state/core/security_state.h"
+#include "components/tabs/public/tab_interface.h"
+#include "components/url_formatter/url_formatter.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/common/url_constants.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/window_open_disposition_utils.h"
+#include "ui/color/color_id.h"
+#include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
-#include "ui/gfx/animation/tween.h"
-#include "ui/base/window_open_disposition_utils.h"
-#include "ui/color/color_provider.h"
 #include "ui/events/event.h"
+#include "ui/gfx/animation/tween.h"
+#include "ui/gfx/canvas.h"
 #include "ui/gfx/color_palette.h"
+#include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/accessible_pane_view.h"
 #include "ui/views/background.h"
-#include "cc/paint/paint_flags.h"
-#include "ui/color/color_id.h"
-#include "ui/gfx/canvas.h"
-#include "ui/gfx/color_utils.h"
-#include "ui/gfx/geometry/rect_f.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/button.h"
@@ -282,13 +284,15 @@ SidebarHeader::SidebarHeader(
   pill->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   pill->SetBackground(std::make_unique<PillBackground>());
   pill->SetEnabledTextColors(kColorOmniboxText);
-  pill->SetTooltipText(u"Show URL and search");
+  pill->SetTooltipText(
+      l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_HEADER_PILL_TOOLTIP));
   pill_ = AddChildView(std::move(pill));
 
   // After the pill, so it gets events over it.
   auto site_info = views::CreateVectorImageButton(base::BindRepeating(
       &SidebarHeader::OnSiteInfoPressed, base::Unretained(this)));
-  site_info->SetTooltipText(u"View site information");
+  site_info->SetTooltipText(
+      l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_HEADER_SITE_INFO));
   site_info->SetProperty(views::kElementIdentifierKey,
                          kSiteInfoButtonElementId);
   site_info_ = AddChildView(std::move(site_info));
@@ -340,7 +344,7 @@ SidebarHeader* SidebarHeader::From(BrowserWindowInterface* browser) {
 // static
 std::u16string SidebarHeader::GetPillText(const GURL& url) {
   if (IsNewTabPage(url)) {
-    return u"Search or enter URL";
+    return l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_HEADER_NEW_TAB_PILL);
   }
   if (url.SchemeIsHTTPOrHTTPS() && url.has_host()) {
     return base::UTF8ToUTF16(url_formatter::StripWWW(std::string(url.host())));
@@ -919,7 +923,9 @@ void SidebarHeader::UpdateReaderButton() {
   views::SetImageFromVectorIconWithColor(reader_, kMenuBookIcon,
                                          kSiteInfoIconSize,
                                          views::IconColors(color, color));
-  const std::u16string tooltip = showing ? u"Hide Reader" : u"Show Reader";
+  const std::u16string tooltip = l10n_util::GetStringUTF16(
+      showing ? IDS_COMPASS_SIDEBAR_HEADER_HIDE_READER
+              : IDS_COMPASS_SIDEBAR_HEADER_SHOW_READER);
   reader_->SetTooltipText(tooltip);
   reader_->GetViewAccessibility().SetName(tooltip);
   reader_->SetVisible(show);

@@ -128,8 +128,10 @@ source_set("notifier") {
     "//url",
   ]
   deps = [
+    "//compass/strings:compass_strings",
     "//crypto",
     "//services/network/public/mojom",
+    "//ui/base",
   ]
 }
 

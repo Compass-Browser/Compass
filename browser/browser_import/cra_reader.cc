@@ -14,6 +14,8 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "compass/browser/browser_import/app_sidebar.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::browser_import {
 
@@ -156,8 +158,11 @@ class CraTree {
       if (children.empty()) {
         return std::nullopt;
       }
-      return MakeFolder(item_id, title.empty() ? u"Folder" : title,
-                        std::move(children));
+      return MakeFolder(
+          item_id,
+          title.empty() ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_FOLDER)
+                        : title,
+          std::move(children));
     }
     return std::nullopt;
   }
@@ -246,7 +251,9 @@ ImportedSidebar CraSidebar(const SourceProfile& profile,
       arc::Space out;
       out.id = base::StrCat({prefix, "space:", id});
       std::u16string name = base::UTF8ToUTF16(StringAt(space, "title"));
-      out.name = name.empty() ? u"Space" : std::move(name);
+      out.name = name.empty()
+                     ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_SPACE)
+                     : std::move(name);
       out.icon =
           AppSpaceIcon(StringAt(space, "emoji"), StringAt(space, "symbol"));
       ApplyCraTheme(space, out);

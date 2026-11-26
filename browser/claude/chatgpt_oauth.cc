@@ -15,10 +15,13 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "crypto/random.h"
 #include "crypto/sha2.h"
 #include "net/base/url_util.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::claude::chatgpt {
 
@@ -198,15 +201,14 @@ base::expected<std::string, std::string> ClientForCallback(
     if (callback.client_id.empty() ||
         callback.client_id == kDynamicClientId) {
       return base::unexpected(
-          "ChatGPT didn't finish registering Compass. Try signing in again.");
+          l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_NOT_REGISTERED));
     }
     return base::ok(callback.client_id);
   }
   // One registration per account and device: never replaced by another.
   if (!callback.client_id.empty() && callback.client_id != saved_client_id) {
     return base::unexpected(
-        "ChatGPT answered for another registration than Compass's. Try "
-        "signing in again.");
+        l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_OTHER_REGISTRATION));
   }
   return base::ok(std::string(saved_client_id));
 }
@@ -256,7 +258,7 @@ base::expected<TokenReply, TokenError> ParseTokenReply(int http_status,
   }
   TokenError error;
   if (http_status == 0) {
-    error.message = "Couldn't reach ChatGPT. Check the connection.";
+    error.message = l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_UNREACHABLE);
     return base::unexpected(std::move(error));
   }
   if (dict) {
@@ -272,19 +274,17 @@ base::expected<TokenReply, TokenError> ParseTokenReply(int http_status,
   }
   if (EndsSignIn(error.code)) {
     error.needs_sign_in = true;
-    error.message = "Your ChatGPT sign-in has ended. Sign in again.";
+    error.message = l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_SIGN_IN_ENDED);
   } else if (error.code == "invalid_client") {
     error.message =
-        "ChatGPT doesn't know Compass's registration any more. Sign in "
-        "again.";
+        l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_REGISTRATION_GONE);
     error.needs_sign_in = true;
   } else if (http_status >= 500) {
-    error.message = "ChatGPT's sign-in is unavailable right now. Try again "
-                    "in a moment.";
+    error.message =
+        l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_SIGN_IN_UNAVAILABLE);
   } else if (error.message.empty()) {
-    error.message = base::StrCat(
-        {"ChatGPT refused the sign-in (HTTP ",
-         base::NumberToString(http_status), ")."});
+    error.message = l10n_util::GetStringFUTF8(
+        IDS_COMPASS_CHATGPT_REFUSED_HTTP, base::NumberToString16(http_status));
   }
   return base::unexpected(std::move(error));
 }
@@ -396,37 +396,28 @@ std::optional<GURL> RevocationEndpoint(std::string_view discovery_json) {
 
 std::optional<std::string> PlanErrorMessage(std::string_view code) {
   if (code == "subscription_sharing_usage_limit_exceeded") {
-    return base::StrCat(
-        {"You've reached your ChatGPT plan's usage limit (or the limit you "
-         "set for Compass). See ",
-         kUsageUrl, ", or use an API key instead."});
+    return l10n_util::GetStringFUTF8(
+        IDS_COMPASS_CHATGPT_PLAN_LIMIT,
+        base::UTF8ToUTF16(std::string_view(kUsageUrl)));
   }
   if (code == "subscription_sharing_user_not_eligible") {
-    return std::string(
-        "Your ChatGPT plan can't be used in other apps. Use an OpenAI API "
-        "key instead.");
+    return l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_PLAN_NOT_ELIGIBLE);
   }
   if (code == "subscription_sharing_usage_unavailable" ||
       code == "subscription_sharing_user_unavailable") {
-    return std::string(
-        "ChatGPT plan usage is unavailable right now. Try again in a "
-        "moment.");
+    return l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_PLAN_UNAVAILABLE);
   }
   if (code == "subscription_sharing_invalid_user") {
-    return std::string(
-        "ChatGPT didn't accept your sign-in. If you disconnected Compass in "
-        "ChatGPT's settings, sign in again.");
+    return l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_PLAN_INVALID_USER);
   }
   if (code == "subscription_sharing_unsupported_capability") {
-    return std::string(
-        "This request uses something your ChatGPT plan doesn't support "
-        "here. Try another model, or an API key.");
+    return l10n_util::GetStringUTF8(IDS_COMPASS_CHATGPT_PLAN_UNSUPPORTED);
   }
   if (code == "subscription_sharing_route_not_supported" ||
       code == "chatpass_v2_scope_not_authorized" ||
       code == "chatpass_v2_invalid_authorization_context") {
-    return base::StrCat({"ChatGPT refused the request (", code,
-                         "). Try signing in with ChatGPT again."});
+    return l10n_util::GetStringFUTF8(IDS_COMPASS_CHATGPT_REQUEST_REFUSED,
+                                     base::UTF8ToUTF16(code));
   }
   return std::nullopt;
 }
@@ -437,15 +428,18 @@ std::string CallbackPage(bool ok, std::string_view message) {
       {"<!doctype html><html><head><meta charset=\"utf-8\">"
        "<meta name=\"viewport\" content=\"width=device-width\">"
        "<title>",
-       ok ? "Signed in to ChatGPT" : "ChatGPT sign-in failed",
+       l10n_util::GetStringUTF8(ok ? IDS_COMPASS_CHATGPT_CALLBACK_TITLE_OK
+                                   : IDS_COMPASS_CHATGPT_CALLBACK_TITLE_FAILED),
        "</title><style>"
        ":root{color-scheme:light dark}"
        "body{font:16px/1.5 system-ui,sans-serif;max-width:32em;"
        "margin:20vh auto;padding:0 16px;text-align:center}"
        "h1{font-size:22px;font-weight:600}"
        "</style></head><body><h1>",
-       ok ? "You're signed in" : "Sign-in didn't work", "</h1><p>", text,
-       "</p></body></html>"});
+       l10n_util::GetStringUTF8(
+           ok ? IDS_COMPASS_CHATGPT_CALLBACK_HEADING_OK
+              : IDS_COMPASS_CHATGPT_CALLBACK_HEADING_FAILED),
+       "</h1><p>", text, "</p></body></html>"});
 }
 
 }  // namespace compass::claude::chatgpt

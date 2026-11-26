@@ -5,13 +5,14 @@
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {CompassSidebarAppElement, Preview} from './app.js';
+import {i18n} from './i18n.js';
 import {speakerIcon} from './speaker_icon.js';
 import type {ArchivedEntry, Node, RoomNotice, Space} from './sidebar.mojom-webui.js';
 
 export function getHtml(this: CompassSidebarAppElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
-<div id="favorites" role="list" aria-label="Favorites"
+<div id="favorites" role="list" aria-label="${i18n('sidebarFavorites')}"
     ?empty="${this.isFavoritesEmpty_()}" ?dragging="${this.dragActive_}"
     @pointerover="${this.onSectionsPointerover_}"
     @pointerleave="${this.onSectionsPointerleave_}"
@@ -25,7 +26,7 @@ export function getHtml(this: CompassSidebarAppElement) {
     @drop="${this.onDrop_}" @dragend="${this.onDragend_}">
   ${this.isFavoritesEmpty_() ? html`
     <div class="hint" data-flip="favorites-hint">
-      Drop here to add to Favorites
+      ${i18n('sidebarFavoritesHint')}
     </div>` : nothing}
   ${repeat(this.getFavorites_(), (node: Node) => node.id, (node: Node) => html`
     <div class="tile" role="listitem" draggable="true" tabindex="-1"
@@ -35,8 +36,7 @@ export function getHtml(this: CompassSidebarAppElement) {
       <img class="favicon" alt="" src="${this.getFaviconUrl_(node.url, 32)}">
       ${node.badgeCount ? html`
         <span class="tile-badge" role="status"
-            aria-label="${node.badgeCount < 0 ? 'New notifications' :
-                          `${node.badgeCount} notifications`}"></span>` :
+            aria-label="${this.getBadgeLabel_(node)}"></span>` :
         nothing}
       ${this.hasAudio_(node) ? html`
         <button class="audio" data-node-id="${node.id}"
@@ -50,11 +50,11 @@ export function getHtml(this: CompassSidebarAppElement) {
 </div>
 <div id="stage">
   <div id="spacePane">
-    <div id="spaceName" title="Double-click to edit the space"
+    <div id="spaceName" title="${i18n('sidebarSpaceNameTooltip')}"
         @dblclick="${this.onSpaceNameDblclick_}">
       ${this.getActiveSpaceName_()}
     </div>
-    <div id="sections" tabindex="0" aria-label="Tabs"
+    <div id="sections" tabindex="0" aria-label="${i18n('sidebarTabs')}"
         @focusin="${this.onSectionsFocusin_}"
         @focusout="${this.onSectionsFocusout_}"
         @keydown="${this.onSectionsKeydown_}"
@@ -70,14 +70,15 @@ export function getHtml(this: CompassSidebarAppElement) {
       ${this.roomNotices_.map((notice: RoomNotice) => html`
         <div class="room-notice" role="status">
           <span>${notice.text}</span>
-          <button aria-label="Dismiss" data-room-id="${notice.roomId}"
+          <button aria-label="${i18n('sidebarDismiss')}" data-room-id="${notice.roomId}"
               @click="${this.onDismissRoomNoticeClick_}">&times;</button>
         </div>`)}
       ${this.hasPinned_ ? html`
         <div class="section-header" data-flip="pinned-header">
-          <span>Pinned</span>
+          <span>${i18n('sidebarPinned')}</span>
           <button id="newLiveFolder" class="new-folder"
-              aria-label="New live folder" title="New live folder"
+              aria-label="${i18n('sidebarNewLiveFolder')}"
+              title="${i18n('sidebarNewLiveFolder')}"
               @click="${this.onNewLiveFolderClick_}">
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M2 4.2a.7.7 0 0 1 .7-.7h3.1l1.4 1.5h6.1a.7.7 0 0 1 .7.7
@@ -86,7 +87,8 @@ export function getHtml(this: CompassSidebarAppElement) {
             </svg>
           </button>
           <button id="newEasel" class="new-folder"
-              aria-label="New Easel" title="New Easel"
+              aria-label="${i18n('sidebarNewEasel')}"
+              title="${i18n('sidebarNewEasel')}"
               @click="${this.onNewEaselClick_}">
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <rect x="2.5" y="2.5" width="11" height="7.5" rx="1"></rect>
@@ -94,7 +96,8 @@ export function getHtml(this: CompassSidebarAppElement) {
             </svg>
           </button>
           <button id="newFolder" class="new-folder" data-section="pinned"
-              aria-label="New folder" title="New folder"
+              aria-label="${i18n('sidebarNewFolder')}"
+              title="${i18n('sidebarNewFolder')}"
               @click="${this.onNewFolderClick_}">
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M8 3v10M3 8h10"></path>
@@ -104,7 +107,7 @@ export function getHtml(this: CompassSidebarAppElement) {
         <div id="pinned" class="section" role="tree">
           ${this.isPinnedEmpty_() ? html`
             <div class="hint" data-flip="pinned-hint">
-              Drag tabs here to pin them
+              ${i18n('sidebarPinnedHint')}
             </div>` : nothing}
           ${repeat(this.getPinned_(), (node: Node) => node.id,
                    (node: Node) => html`
@@ -115,26 +118,29 @@ export function getHtml(this: CompassSidebarAppElement) {
         <div class="divider" data-flip="divider"></div>
       ` : nothing}
       <div class="section-header" data-flip="today-header">
-        <span>Today</span>
+        <span>${i18n('sidebarToday')}</span>
         ${this.tidyAvailable_ ? html`
           <button id="tidyToday" ?busy="${this.tidyBusy_}"
               ?disabled="${!this.canTidy_()}"
-              title="${this.tidyBusy_ ? 'Claude is tidying Today' :
-                  'Group Today\'s tabs into folders with Claude'}"
+              title="${this.tidyBusy_ ? i18n('sidebarTidyingTooltip') :
+                  i18n('sidebarTidyTooltip')}"
               @click="${this.onTidyClick_}">${
-              this.tidyBusy_ ? 'Tidying\u2026' : 'Tidy'}</button>` : nothing}
+              this.tidyBusy_ ? i18n('sidebarTidying') :
+                  i18n('sidebarTidy')}</button>` : nothing}
         ${this.getToday_().length ? html`
-          <button id="clearToday" title="Close all Today tabs"
-              @click="${this.onClearTodayClick_}">Clear</button>` : nothing}
+          <button id="clearToday" title="${i18n('sidebarClearTodayTooltip')}"
+              @click="${this.onClearTodayClick_}">${i18n('sidebarClear')}</button>` :
+          nothing}
         <button id="newTodayFolder" class="new-folder" data-section="today"
-            aria-label="New folder in Today" title="New folder"
+            aria-label="${i18n('sidebarNewTodayFolder')}"
+            title="${i18n('sidebarNewFolder')}"
             @click="${this.onNewFolderClick_}">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M8 3v10M3 8h10"></path>
           </svg>
         </button>
-        <button id="archiveButton" aria-label="Archived tabs"
-            title="Archived tabs" aria-expanded="${this.archiveOpen_}"
+        <button id="archiveButton" aria-label="${i18n('sidebarArchivedTabs')}"
+            title="${i18n('sidebarArchivedTabs')}" aria-expanded="${this.archiveOpen_}"
             ?open="${this.archiveOpen_}"
             @click="${this.onArchiveButtonClick_}">
           <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -154,7 +160,7 @@ export function getHtml(this: CompassSidebarAppElement) {
       </div>
     </div>
     <button id="newTab" data-flip="new-tab" @click="${this.onNewTabClick_}">
-      <span class="plus">+</span>New Tab
+      <span class="plus">+</span>${i18n('sidebarNewTab')}
     </button>
   </div>
   ${repeat(this.previews_, (preview: Preview) => preview.space.id,
@@ -167,9 +173,12 @@ export function getHtml(this: CompassSidebarAppElement) {
     <div id="toast" role="status">
       <span class="text">${this.toast_.text}</span>
       ${this.toast_.undoTidyId ? html`
-        <button id="toastUndo" @click="${this.onToastUndoClick_}">Undo</button>
+        <button id="toastUndo" @click="${this.onToastUndoClick_}">
+          ${i18n('sidebarUndo')}
+        </button>
       ` : nothing}
-      <button id="toastClose" aria-label="Dismiss" title="Dismiss"
+      <button id="toastClose" aria-label="${i18n('sidebarDismiss')}"
+          title="${i18n('sidebarDismiss')}"
           @click="${this.onToastCloseClick_}">&times;</button>
     </div>` : nothing}
 </div>
@@ -179,12 +188,12 @@ ${this.liveEditor_ ? html`
       @close="${this.onLiveEditorClose_}">
   </compass-live-folder-editor>` : nothing}
 ${this.archiveOpen_ ? html`
-  <div id="archive" role="dialog" aria-label="Archived tabs"
+  <div id="archive" role="dialog" aria-label="${i18n('sidebarArchivedTabs')}"
       @keydown="${this.onArchiveKeydown_}">
     <div class="archive-header">
-      <span>Archived</span>
+      <span>${i18n('sidebarArchived')}</span>
       <button id="clearArchive" ?hidden="${this.isArchiveEmpty_()}"
-          @click="${this.onClearArchiveClick_}">Clear</button>
+          @click="${this.onClearArchiveClick_}">${i18n('sidebarClear')}</button>
     </div>
     ${this.isArchiveEmpty_() ? html`
       <div class="hint">${this.getArchiveHint_()}</div>` : nothing}
@@ -199,13 +208,13 @@ ${this.archiveOpen_ ? html`
           <span class="title">${this.getArchivedTitle_(entry)}</span>
           <span class="age">${this.getArchivedAge_(entry)}</span>
           <button class="close" data-archived-id="${entry.id}"
-              aria-label="Remove from archive"
+              aria-label="${i18n('sidebarRemoveFromArchive')}"
               @click="${this.onRemoveArchivedClick_}">&times;</button>
         </div>`)}
     </div>
   </div>` : nothing}
 <compass-now-playing .items="${this.nowPlaying_}"></compass-now-playing>
-<div id="spaces" role="tablist" aria-label="Spaces">
+<div id="spaces" role="tablist" aria-label="${i18n('sidebarSpaces')}">
   ${repeat(this.spaces_, (space: Space) => space.id, (space: Space) => html`
     <button class="space" role="tab" data-space-id="${space.id}"
         data-flip="space-${space.id}" draggable="true"
@@ -229,7 +238,8 @@ ${this.archiveOpen_ ? html`
         html`<span class="${this.getSpaceIconClass_(space)}">${
             this.getSpaceIconText_(space)}</span>`}
     </button>`)}
-  <button id="addSpace" aria-label="New space" title="New space"
+  <button id="addSpace" aria-label="${i18n('sidebarNewSpace')}"
+      title="${i18n('sidebarNewSpace')}"
       @click="${this.onAddSpaceClick_}">
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <path d="M8 3v10M3 8h10"></path>

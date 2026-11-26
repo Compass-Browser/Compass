@@ -78,13 +78,9 @@ bool UsesChatGPT(const PrefService& prefs);
 bool UsesOAuthToken(const Endpoint& endpoint);
 
 // Whether |endpoint|'s key is a subscription token the user hasn't accepted
-// the risks of: nothing is sent, and kTokenRisksMessage says why.
+// the risks of: nothing is sent, and IDS_COMPASS_AI_TOKEN_RISKS (or
+// IDS_COMPASS_AI_TOKEN_RISKS_ANDROID) says why.
 bool NeedsTokenRisksAccepted(const Endpoint& endpoint);
-
-inline constexpr char kTokenRisksMessage[] =
-    "This is a token from `claude setup-token`, which uses your Claude "
-    "subscription. To use it, turn on \"Accept the risks of subscription "
-    "tokens\" in Compass's Claude settings.";
 
 // The base URL the user typed, normalized: https (http only to this
 // computer, for local gateways and tests), no query or fragment, no trailing

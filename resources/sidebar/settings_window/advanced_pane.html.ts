@@ -4,6 +4,8 @@
 
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n} from '../i18n.js';
+
 import type {CompassSettingsAdvancedPaneElement} from './advanced_pane.js';
 import {PREF_CARET_BROWSING, PREF_ENERGY_SAVER, PREF_FOCUS_HIGHLIGHT, PREF_LIVE_CAPTION, PREF_MEMORY_SAVER} from './advanced_pane.js';
 
@@ -11,16 +13,16 @@ export function getHtml(this: CompassSettingsAdvancedPaneElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <section class="row-group" data-row="performance">
-  <h2 class="group-title">Performance</h2>
+  <h2 class="group-title">${i18n('advancedPanePerformance')}</h2>
   <div class="group">
     <label class="row control-row" data-row="memorySaver">
       <span class="tile" data-color="green">
         <compass-settings-icon name="leaf"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Memory saver</span>
+        <span class="row-label">${i18n('advancedPaneMemorySaver')}</span>
         <span class="row-detail">
-          Frees memory from tabs you haven't used in a while.
+          ${i18n('advancedPaneMemorySaverDetail')}
         </span>
       </span>
       <input type="checkbox" class="switch"
@@ -33,12 +35,12 @@ export function getHtml(this: CompassSettingsAdvancedPaneElement) {
         <compass-settings-icon name="bolt"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Energy saver</span>
+        <span class="row-label">${i18n('advancedPaneEnergySaver')}</span>
         <span class="row-detail">
-          Limits background activity and visual effects.
+          ${i18n('advancedPaneEnergySaverDetail')}
         </span>
       </span>
-      <select class="popup" aria-label="Energy saver"
+      <select class="popup" aria-label="${i18n('advancedPaneEnergySaver')}"
           ?disabled="${this.isEnforced_(PREF_ENERGY_SAVER)}"
           @change="${this.onEnergySaverChange_}">
         ${this.energySaverModes.map(mode => html`
@@ -52,15 +54,15 @@ export function getHtml(this: CompassSettingsAdvancedPaneElement) {
 </section>
 
 <section class="row-group" data-row="accessibility">
-  <h2 class="group-title">Accessibility</h2>
+  <h2 class="group-title">${i18n('advancedPaneAccessibility')}</h2>
   <div class="group">
     <label class="row control-row" data-row="liveCaption">
       <span class="tile" data-color="blue">
         <compass-settings-icon name="caption"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Live caption</span>
-        <span class="row-detail">Captions for audio and video in English.</span>
+        <span class="row-label">${i18n('advancedPaneLiveCaption')}</span>
+        <span class="row-detail">${i18n('advancedPaneLiveCaptionDetail')}</span>
       </span>
       <input type="checkbox" class="switch" data-pref="${PREF_LIVE_CAPTION}"
           .checked="${this.getBool_(PREF_LIVE_CAPTION)}"
@@ -72,7 +74,7 @@ export function getHtml(this: CompassSettingsAdvancedPaneElement) {
         <compass-settings-icon name="focus"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Highlight the focused object</span>
+        <span class="row-label">${i18n('advancedPaneFocusHighlight')}</span>
       </span>
       <input type="checkbox" class="switch" data-pref="${PREF_FOCUS_HIGHLIGHT}"
           .checked="${this.getBool_(PREF_FOCUS_HIGHLIGHT)}"
@@ -84,8 +86,8 @@ export function getHtml(this: CompassSettingsAdvancedPaneElement) {
         <compass-settings-icon name="cursor"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Navigate pages with a text cursor</span>
-        <span class="row-detail">Caret browsing; F7 turns it on or off.</span>
+        <span class="row-label">${i18n('advancedPaneCaretBrowsing')}</span>
+        <span class="row-detail">${i18n('advancedPaneCaretBrowsingDetail')}</span>
       </span>
       <input type="checkbox" class="switch" data-pref="${PREF_CARET_BROWSING}"
           .checked="${this.getBool_(PREF_CARET_BROWSING)}"
@@ -96,32 +98,32 @@ export function getHtml(this: CompassSettingsAdvancedPaneElement) {
 </section>
 
 <section class="row-group" data-row="reset">
-  <h2 class="group-title">Reset</h2>
+  <h2 class="group-title">${i18n('advancedPaneReset')}</h2>
   <div class="group">
     <div class="row control-row">
       <span class="tile" data-color="red">
         <compass-settings-icon name="reset"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Reset settings</span>
+        <span class="row-label">${i18n('advancedPaneResetSettings')}</span>
         <span class="row-detail">${this.getResetText_()}</span>
       </span>
       <button class="pill" ?hidden="${this.confirmingReset_}"
           ?disabled="${this.resetting_}" @click="${this.onResetClick_}">
-        Reset…
+        ${i18n('advancedPaneResetEllipsis')}
       </button>
     </div>
     <div class="row control-row confirm-row" ?hidden="${!this.confirmingReset_}">
       <span class="row-text">
         <span class="row-detail">
-          Resets the search engine, site permissions and other browser
-          settings, clears cookies and turns off extensions. Your spaces,
-          tabs, history and passwords stay.
+          ${i18n('advancedPaneResetConfirm')}
         </span>
       </span>
-      <button class="pill" @click="${this.onResetCancelClick_}">Cancel</button>
+      <button class="pill" @click="${this.onResetCancelClick_}">
+        ${i18n('cancel')}
+      </button>
       <button class="pill danger" @click="${this.onResetConfirmClick_}">
-        Reset
+        ${i18n('advancedPaneReset')}
       </button>
     </div>
   </div>

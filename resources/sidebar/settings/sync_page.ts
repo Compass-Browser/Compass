@@ -4,6 +4,7 @@
 
 import type {DataTypeState, Details, Device, Login, Pairing, ProfileMapping, ProfileMappingEntry, ServerPeople, ServerUpdate, Status} from '../compass_sync.mojom-webui.js';
 import {DataType, PageCallbackRouter, PageHandlerFactory, PageHandlerRemote, PairingStep, State} from '../compass_sync.mojom-webui.js';
+import {i18n, i18nF, i18nPlural} from '../i18n.js';
 
 import {CompassSettingsPage} from './page_base.js';
 import {getTemplate} from './sync_page.html.js';
@@ -17,17 +18,32 @@ import {getTemplate} from './sync_page.html.js';
 // of the chain's each one syncs with (slice 5). A server that asks for
 // company sign-in: the sign-in, its code, and who the chain is signed in as.
 
-// The switches, in the page's order: name and what they cover. Bookmarks
-// and the reading list have none: Compass has neither (ARCHITECTURE.md
-// D20), so those types keep their setting out of sight.
+// The switches, in the page's order: the keys of their name and of what
+// they cover. Bookmarks and the reading list have none: Compass has neither
+// (ARCHITECTURE.md D20), so those types keep their setting out of sight.
 const TYPE_LABELS = new Map<DataType, [string, string]>([
-  [DataType.kSpaces, ['Spaces', 'Spaces, pinned tabs, folders, favorites']],
-  [DataType.kPasswords, ['Passwords', 'Saved passwords and passkeys']],
-  [DataType.kHistory, ['History', 'Pages you visited']],
-  [DataType.kAutofill, ['Autofill', 'Addresses and form entries']],
-  [DataType.kExtensions, ['Extensions', 'Extensions and their settings']],
-  [DataType.kSettings, ['Settings', 'Settings and search engines']],
-  [DataType.kOpenTabs, ['Open tabs', 'Your tabs, for the other devices']],
+  [DataType.kSpaces, ['syncPageTypeSpaces', 'syncPageTypeSpacesDetail']],
+  [
+    DataType.kPasswords,
+    ['syncPageTypePasswords', 'syncPageTypePasswordsDetail'],
+  ],
+  [DataType.kHistory, ['syncPageTypeHistory', 'syncPageTypeHistoryDetail']],
+  [
+    DataType.kAutofill,
+    ['syncPageTypeAutofill', 'syncPageTypeAutofillDetail'],
+  ],
+  [
+    DataType.kExtensions,
+    ['syncPageTypeExtensions', 'syncPageTypeExtensionsDetail'],
+  ],
+  [
+    DataType.kSettings,
+    ['syncPageTypeSettings', 'syncPageTypeSettingsDetail'],
+  ],
+  [
+    DataType.kOpenTabs,
+    ['syncPageTypeOpenTabs', 'syncPageTypeOpenTabsDetail'],
+  ],
 ]);
 
 // The buttons that start setting sync up, disabled while a setup runs.
@@ -61,25 +77,24 @@ function stateName(state: State): string {
 // The settings window's row for Sync says this (settings_window/panes.ts).
 function rowDetail(status: Status, details: Details): string {
   if (status.deviceRemoved) {
-    return 'This device was removed';
+    return i18n('syncPageRemoved');
   }
   switch (status.state) {
     case State.kOn: {
       const count = details.devices.length;
-      return count === 1 ? 'On \u00b7 1 device' :
-          count > 1      ? `On \u00b7 ${count} devices` :
-                           'On';
+      return count > 0 ? i18nPlural('syncPageOnDevices', count) :
+                         i18n('syncPageOn');
     }
     case State.kStarting:
-      return 'Starting…';
+      return i18n('syncPageStarting');
     case State.kNeedsRestart:
-      return 'Restart Compass to finish';
+      return i18n('syncPageRestartToFinish');
     case State.kError:
-      return 'On \u00b7 Something went wrong';
+      return i18n('syncPageOnError');
     case State.kLoginRequired:
-      return 'Sign in to go on syncing';
+      return i18n('syncPageSignInToGoOn');
     default:
-      return 'Off';
+      return i18n('syncPageOff');
   }
 }
 
@@ -90,7 +105,7 @@ function lastSeen(ms: number): string {
   }
   const seconds = Math.max(0, (Date.now() - ms) / 1000);
   if (seconds < 120) {
-    return 'active now';
+    return i18n('syncPageActiveNow');
   }
   const format = new Intl.RelativeTimeFormat(undefined, {numeric: 'auto'});
   if (seconds < 3600) {
@@ -122,7 +137,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
   private peopleLoadedFor_ = '';
 
   protected get pageTitle() {
-    return 'Sync';
+    return i18n('syncPageTitle');
   }
 
   protected getPageTemplate() {
@@ -171,7 +186,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         $('offError').textContent = error;
         return;
       }
-      this.showWords_(words, 'I saved it');
+      this.showWords_(words, i18n('syncPageSaved'));
     });
 
     // docs/design/sync.md, "Inviting friends".
@@ -189,7 +204,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         return;
       }
       $<HTMLInputElement>('inviteJoinLink').value = '';
-      this.showWords_(words, 'I saved it');
+      this.showWords_(words, i18n('syncPageSaved'));
     });
 
     $('invite').addEventListener('click', async () => {
@@ -224,8 +239,9 @@ export class CompassSyncPageElement extends CompassSettingsPage {
       const link = this.$<HTMLInputElement>('inviteLink');
       try {
         await navigator.clipboard.writeText(link.value);
-        $('copyInvite').textContent = 'Copied';
-        setTimeout(() => $('copyInvite').textContent = 'Copy link', 2000);
+        $('copyInvite').textContent = i18n('syncPageCopied');
+        setTimeout(
+            () => $('copyInvite').textContent = i18n('syncPageCopyLink'), 2000);
       } catch {
         link.select();
       }
@@ -270,7 +286,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         $('offError').textContent = error;
         return;
       }
-      this.showWords_(words, 'I saved it');
+      this.showWords_(words, i18n('syncPageSaved'));
     });
 
     $('startCloudflare').addEventListener('click', async () => {
@@ -284,7 +300,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         return;
       }
       $<HTMLInputElement>('cloudflareToken').value = '';
-      this.showWords_(words, 'I saved it');
+      this.showWords_(words, i18n('syncPageSaved'));
     });
 
     $('showJoin').addEventListener('click', () => {
@@ -338,17 +354,15 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         $('wordsError').textContent = error;
         return;
       }
-      this.showWords_(words, 'Hide');
+      this.showWords_(words, i18n('syncPageHide'));
     });
 
     $('removedLeave').addEventListener('click', () => this.handler_.leave());
 
     $('leave').addEventListener('click', async () => {
       if (await this.confirmAction_(
-              'Leave sync?',
-              'This device keeps its data but stops syncing. Your other ' +
-                  'devices go on syncing. Compass restarts to finish.',
-              'Leave sync')) {
+              i18n('syncPageLeaveTitle'), i18n('syncPageLeaveText'),
+              i18n('syncPageLeave'))) {
         this.handler_.leave();
       }
     });
@@ -356,12 +370,8 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     $('reset').addEventListener('click', async () => {
       $('onError').textContent = '';
       if (!await this.confirmAction_(
-              'Reset sync?',
-              'Compass makes a new sync chain with a new recovery code, and ' +
-                  'this device\'s data goes up to it after a restart. Your ' +
-                  'other devices stay on the old chain until you add them ' +
-                  'again, and the old recovery code stops working here.',
-              'Reset sync')) {
+              i18n('syncPageResetTitle'), i18n('syncPageResetText'),
+              i18n('syncPageReset'), /*danger=*/ true)) {
         return;
       }
       const {ok, error, words} = await this.handler_.resetSync();
@@ -369,7 +379,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         $('onError').textContent = error;
         return;
       }
-      this.showWords_(words, 'I saved it');
+      this.showWords_(words, i18n('syncPageSaved'));
     });
 
     this.refresh_();
@@ -382,7 +392,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
       text.className = 'grow';
       const name = document.createElement('div');
       name.className = 'name';
-      name.textContent = device.name || 'Unnamed device';
+      name.textContent = device.name || i18n('syncPageUnnamedDevice');
       const details = document.createElement('div');
       details.className = 'details';
       details.textContent =
@@ -392,16 +402,19 @@ export class CompassSyncPageElement extends CompassSettingsPage {
       if (device.thisDevice) {
         const badge = document.createElement('span');
         badge.className = 'badge';
-        badge.textContent = 'This device';
+        badge.textContent = i18n('syncPageThisDevice');
         item.append(badge);
       }
       if (!device.thisDevice) {
         // docs/design/sync.md, "Removing a device".
         const remove = document.createElement('button');
         remove.className = 'secondary small';
-        remove.textContent = 'Remove';
+        remove.textContent = i18n('remove');
         remove.setAttribute(
-            'aria-label', `Remove ${device.name || 'Unnamed device'}`);
+            'aria-label',
+            i18nF(
+                'syncPageRemoveNamed',
+                device.name || i18n('syncPageUnnamedDevice')));
         remove.addEventListener('click', () => this.removeDevice_(device));
         item.append(remove);
       }
@@ -434,9 +447,8 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     }
     // What each version brings, for the versions the server lacks.
     const NEW_IN: Record<number, string> = {
-      2: 'sharing spaces, folders and easels with others',
-      3: 'notifications on phones when a tab is sent to them, through ' +
-          'Compass\'s push relay at push.compassbrowser.org',
+      2: i18n('syncPageNewInSharing'),
+      3: i18n('syncPageNewInPush'),
     };
     const added = [];
     for (let v = update.current + 1; v <= update.latest; ++v) {
@@ -445,8 +457,9 @@ export class CompassSyncPageElement extends CompassSettingsPage {
       }
     }
     this.$('serverUpdateNote').textContent =
-        (added.length ? `It adds ${added.join(', ')}. ` : '') +
-        'Your data and the people on it stay as they are.';
+        (added.length ? i18nF('syncPageUpdateAdds', added.join(', ')) + ' ' :
+                        '') +
+        i18n('syncPageUpdateKeeps');
   }
 
   // The friends and open invites of the server this chain owns; nothing on
@@ -463,63 +476,64 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         people.pushRelayAvailable && people.pushRelayHost !== '');
     this.$<HTMLInputElement>('pushRelay').checked = people.pushRelay;
     this.$('pushRelayDetails').textContent =
-        'When a tab is sent to an iPhone or Android phone, Compass\'s push ' +
-        `relay (${people.pushRelayHost}) tells it at once. It gets each ` +
-        'phone\'s notification token, never your tabs or data. Off, sent ' +
-        'tabs arrive when the phone next syncs.';
+        i18nF('syncPagePushDetails', people.pushRelayHost);
     const date = (ms: number) =>
         new Date(ms).toLocaleDateString(undefined, {dateStyle: 'medium'});
-    const row = (title: string, details: string, action: string,
-                 target: string, confirm: [string, string] | null) => {
-      const item = document.createElement('li');
-      const text = document.createElement('div');
-      text.className = 'grow';
-      const name = document.createElement('div');
-      name.className = 'name';
-      name.textContent = title;
-      const info = document.createElement('div');
-      info.className = 'details';
-      info.textContent = details;
-      text.append(name, info);
-      const button = document.createElement('button');
-      button.className = 'secondary small';
-      button.textContent = action;
-      button.setAttribute('aria-label', `${action} ${title}`);
-      button.addEventListener('click', async () => {
-        if (confirm &&
-            !await this.confirmAction_(confirm[0], confirm[1], 'Remove')) {
-          return;
-        }
-        this.$('peopleError').textContent = '';
-        const {ok, error} = await this.handler_.removeFromServer(target);
-        if (!ok) {
-          this.$('peopleError').textContent = error;
-        }
-        this.loadPeople_();
-      });
-      item.append(text, button);
-      return item;
-    };
+    const row =
+        (title: string, details: string, action: string, actionLabel: string,
+         target: string, confirm: [string, string]|null) => {
+          const item = document.createElement('li');
+          const text = document.createElement('div');
+          text.className = 'grow';
+          const name = document.createElement('div');
+          name.className = 'name';
+          name.textContent = title;
+          const info = document.createElement('div');
+          info.className = 'details';
+          info.textContent = details;
+          text.append(name, info);
+          const button = document.createElement('button');
+          button.className = 'secondary small';
+          button.textContent = action;
+          button.setAttribute('aria-label', actionLabel);
+          button.addEventListener('click', async () => {
+            if (confirm &&
+                !await this.confirmAction_(
+                    confirm[0], confirm[1], i18n('remove'), /*danger=*/ true)) {
+              return;
+            }
+            this.$('peopleError').textContent = '';
+            const {ok, error} = await this.handler_.removeFromServer(target);
+            if (!ok) {
+              this.$('peopleError').textContent = error;
+            }
+            this.loadPeople_();
+          });
+          item.append(text, button);
+          return item;
+        };
     const rows = [
       ...people.members.map(m => {
         // Their other profiles, and the chains they reset to.
         const profiles = m.linked > 0 ?
-            ` · ${m.linked} linked account${m.linked === 1 ? '' : 's'}` :
+            ` · ${i18nPlural('syncPageLinkedAccounts', m.linked)}` :
             '';
-        const title = m.name || 'Friend';
+        const title = m.name || i18n('syncPageFriend');
         return row(
-            title, `Joined ${date(m.addedMs)}${profiles}`, 'Remove', m.chain,
-            [
-              `Remove ${title}?`,
-              'They stop syncing on your server within a minute. Their ' +
-                  'data stays on their devices. You can invite them again.',
+            title, i18nF('syncPageJoined', date(m.addedMs)) + profiles,
+            i18n('remove'), i18nF('syncPageRemoveNamed', title), m.chain, [
+              i18nF('syncPageRemoveQuestion', title),
+              i18n('syncPageRemoveFriendText'),
             ]);
       }),
-      ...people.invites.map(
-          i => row(
-              i.name ? `Invite for ${i.name}` : 'Invite',
-              `Not used yet · expires ${date(i.expiresMs)}`, 'Revoke', i.code,
-              null)),
+      ...people.invites.map(i => {
+        const title = i.name ? i18nF('syncPageInviteFor', i.name) :
+                               i18n('syncPageInvite');
+        return row(
+            title, i18nF('syncPageNotUsedYet', date(i.expiresMs)),
+            i18n('syncPageRevoke'), i18nF('syncPageRevokeNamed', title), i.code,
+            null);
+      }),
     ];
     this.$('peopleList').replaceChildren(...rows);
     this.show('peopleList', rows.length > 0);
@@ -529,15 +543,12 @@ export class CompassSyncPageElement extends CompassSettingsPage {
   // Asks, then removes |device| from the chain on the server. The list
   // drops it once the browser side has; errors show under the list.
   private async removeDevice_(device: Device) {
-    const name = device.name || 'Unnamed device';
+    const name = device.name || i18n('syncPageUnnamedDevice');
     this.$('devicesError').textContent = '';
     if (!await this.confirmAction_(
-            `Remove ${name}?`,
-            'It stops syncing and disappears from your devices. What\'s on ' +
-                'it stays there, and it can join again with a pairing code. ' +
-                'Someone who has your recovery code can still join: to lock ' +
-                'everyone out, use Reset sync.',
-            'Remove')) {
+            i18nF('syncPageRemoveQuestion', name),
+            i18n('syncPageRemoveDeviceText'), i18n('remove'),
+            /*danger=*/ true)) {
       return;
     }
     const {ok, error} = await this.handler_.removeDevice(device.guid);
@@ -558,12 +569,12 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         text.htmlFor = `type-${type}`;
         const name = document.createElement('div');
         name.className = 'name';
-        name.textContent = label;
+        name.textContent = i18n(label);
         text.append(name);
         if (description) {
           const details = document.createElement('div');
           details.className = 'details';
-          details.textContent = description;
+          details.textContent = i18n(description);
           text.append(details);
         }
         const toggle = document.createElement('input');
@@ -592,7 +603,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     document.documentElement.dataset['menuLabel'] = status.menuLabel;
     this.$('statusDot').dataset['state'] = stateName(status.state);
     this.$('status').textContent = status.message ||
-        (status.state === State.kOff ? 'Sync is off.' : '');
+        (status.state === State.kOff ? i18n('syncPageIsOff') : '');
     this.setSubpageDetail(rowDetail(status, details));
     if (this.showingWords_) {
       return;
@@ -650,11 +661,10 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         .classList.toggle('error', pairing.step === PairingStep.kFailed);
     this.show('confirm', pairing.step === PairingStep.kConfirm);
     this.$('deviceName').textContent = pairing.deviceName;
-    this.$('cancelPairing').textContent =
-        pairing.step === PairingStep.kDone ||
+    this.$('cancelPairing').textContent = pairing.step === PairingStep.kDone ||
             pairing.step === PairingStep.kFailed ?
-        'Close' :
-        'Cancel';
+        i18n('close') :
+        i18n('cancel');
     if (pairing.step === PairingStep.kDone && state === State.kNeedsRestart) {
       this.show('restartPanel', true);
     }
@@ -669,10 +679,11 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     this.show(
         'loginRequired', state === State.kLoginRequired && !login.inProgress);
     this.$('startLogin').textContent =
-        provider ? `Sign in to ${provider}` : 'Sign in';
+        provider ? i18nF('syncPageSignInTo', provider) : i18n('syncPageSignIn');
     this.show('loginPanel', login.inProgress);
-    this.$('loginTitle').textContent =
-        provider ? `Sign in with ${provider}` : 'Sign in';
+    this.$('loginTitle').textContent = provider ?
+        i18nF('syncPageSignInWith', provider) :
+        i18n('syncPageSignIn');
     this.$('loginCode').textContent = login.userCode;
     this.$<HTMLButtonElement>('reopenLogin').disabled = !login.userCode;
     for (const id of
@@ -683,7 +694,8 @@ export class CompassSyncPageElement extends CompassSettingsPage {
         `${login.userName} (${login.userEmail})` :
         login.userName || login.userEmail;
     this.show('signedInAs', !!user);
-    this.$('signedInAs').textContent = user ? `Signed in as ${user}.` : '';
+    this.$('signedInAs').textContent =
+        user ? i18nF('syncPageSignedInAs', user) : '';
   }
 
   // "Expires in 4:12" under the code, once a second, while A shows it. At
@@ -706,8 +718,9 @@ export class CompassSyncPageElement extends CompassSettingsPage {
       const left = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
       const minutes = Math.floor(left / 60);
       const seconds = String(left % 60).padStart(2, '0');
-      line.textContent =
-          left > 0 ? `Expires in ${minutes}:${seconds}` : 'Expired';
+      line.textContent = left > 0 ?
+          i18nF('syncPageExpiresIn', `${minutes}:${seconds}`) :
+          i18n('syncPageExpired');
       line.classList.toggle('soon', left <= 30);
     };
     tick();
@@ -740,7 +753,7 @@ export class CompassSyncPageElement extends CompassSettingsPage {
     svg.setAttribute('viewBox', `0 0 ${extent} ${extent}`);
     svg.setAttribute('shape-rendering', 'crispEdges');
     svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', 'QR code to add a phone');
+    svg.setAttribute('aria-label', i18n('syncPageQrLabel'));
     const background = document.createElementNS(ns, 'rect');
     background.setAttribute('width', String(extent));
     background.setAttribute('height', String(extent));
@@ -780,10 +793,10 @@ export class CompassSyncPageElement extends CompassSettingsPage {
   private mappingRows_(mapping: ProfileMapping): HTMLElement[] {
     return mapping.local.map(local => {
       const row = document.createElement('label');
-      row.textContent = local.name + ' syncs with ';
+      row.textContent = i18nF('syncPageSyncsWith', local.name) + ' ';
       const select = document.createElement('select');
       select.dataset['localId'] = local.id;
-      select.append(new Option('a new profile', ''));
+      select.append(new Option(i18n('syncPageNewProfile'), ''));
       for (const profile of mapping.chain) {
         if (!profile.home) {
           select.append(new Option(profile.name, profile.uuid));
@@ -820,16 +833,16 @@ export class CompassSyncPageElement extends CompassSettingsPage {
   }
 
   // A modal question; resolves to whether the user confirmed.
-  private confirmAction_(title: string, text: string, ok: string):
-      Promise<boolean> {
+  private confirmAction_(
+      title: string, text: string, ok: string,
+      danger = false): Promise<boolean> {
     const dialog = this.$<HTMLDialogElement>('confirmDialog');
     const okButton = this.$('confirmOk');
     const cancelButton = this.$('confirmCancel');
     this.$('confirmTitle').textContent = title;
     this.$('confirmText').textContent = text;
     okButton.textContent = ok;
-    okButton.className =
-        ok === 'Reset sync' || ok === 'Remove' ? 'danger' : '';
+    okButton.className = danger ? 'danger' : '';
     return new Promise(resolve => {
       const done = (result: boolean) => {
         okButton.onclick = null;

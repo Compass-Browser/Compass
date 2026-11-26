@@ -2,18 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {i18n, i18nF, i18nPlural} from '../i18n.js';
 import {SettingsHandler} from '../sidebar.mojom-webui.js';
 import type {LiveConfigField, LivePluginPreview, PluginSettings} from '../sidebar.mojom-webui.js';
 
 import {CompassSettingsPage} from './page_base.js';
 import {getTemplate} from './plugins_page.html.js';
 
+// The labels' keys in loadTimeData.
 const SOURCE_LABELS: Record<string, string> = {
-  builtin: 'Built-in',
-  installed: 'Installed',
-  local: 'Local',
-  claude: 'Made by Claude',
+  builtin: 'pluginsPageSourceBuiltin',
+  installed: 'pluginsPageSourceInstalled',
+  local: 'pluginsPageSourceLocal',
+  claude: 'pluginsPageSourceClaude',
 };
+
+// What a plugin reaches, its hosts with "the address you enter" for those
+// the user types in.
+function hostList(hosts: string[]): string {
+  return hosts.join(', ').replace(
+      /\{(config|secret):[^}]+\}/g, i18n('pluginsPageAddressYouEnter'));
+}
 
 function element<K extends keyof HTMLElementTagNameMap>(
     tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -46,7 +55,7 @@ export class CompassPluginsPageElement extends CompassSettingsPage {
   private reviewed_: LivePluginPreview|null = null;
 
   protected get pageTitle() {
-    return 'Plugins';
+    return i18n('pluginsPageTitle');
   }
 
   protected getPageTemplate() {
@@ -127,17 +136,23 @@ export class CompassPluginsPageElement extends CompassSettingsPage {
         element('span', undefined, plugin.name),
         element(
             'span', 'plugin-meta',
-            `${SOURCE_LABELS[plugin.source] ?? plugin.source} · ` +
-                `version ${plugin.version}`));
+            i18nF(
+                'pluginsPageMeta',
+                SOURCE_LABELS[plugin.source] ?
+                    i18n(SOURCE_LABELS[plugin.source]!) :
+                    plugin.source,
+                plugin.version)));
     summary.append(name);
     if (plugin.folder) {
-      summary.append(element('span', 'plugin-chip', 'Live folder'));
+      summary.append(
+          element('span', 'plugin-chip', i18n('pluginsPageLiveFolder')));
     }
     if (plugin.preview) {
-      summary.append(element('span', 'plugin-chip', 'Tab preview'));
+      summary.append(
+          element('span', 'plugin-chip', i18n('pluginsPageTabPreview')));
     }
     if (plugin.badge) {
-      summary.append(element('span', 'plugin-chip', 'Badge'));
+      summary.append(element('span', 'plugin-chip', i18n('pluginsPageBadge')));
     }
     details.append(summary, this.renderBody_(plugin));
     row.append(details);
@@ -151,34 +166,31 @@ export class CompassPluginsPageElement extends CompassSettingsPage {
     }
 
     if (plugin.preview) {
-      body.append(element('h3', undefined, 'Tab preview'));
+      body.append(element('h3', undefined, i18n('pluginsPageTabPreview')));
       body.append(element(
           'p', 'plugin-hint',
-          `Reads pages on ${plugin.previewSites.join(', ')} to show what's ` +
-              'new when you hover their tabs' +
-              (plugin.badge ? ', and a count on their tabs in the sidebar' :
-                              '') +
-              '. It runs apart from the page and can\'t send what it reads ' +
-              'anywhere.'));
+          i18nF(
+              plugin.badge ? 'pluginsPagePreviewBadgeHint' :
+                             'pluginsPagePreviewHint',
+              plugin.previewSites.join(', '))));
       body.append(this.renderToggle_(
-          'Show its previews', plugin.previewEnabled,
+          i18n('pluginsPageShowPreviews'), plugin.previewEnabled,
           enabled => this.handler_.setPluginPreviewEnabled(plugin.id, enabled),
           `preview-${plugin.id}`));
       if (plugin.sessionSite) {
-        const reach = plugin.relatedHosts.length ?
-            ` It can also reach ${plugin.relatedHosts.join(', ')}, without ` +
-                'your login there.' :
-            '';
+        const reach = plugin.relatedHosts.length ? ' ' +
+                i18nF('pluginsPageSessionAlsoReaches',
+                      plugin.relatedHosts.join(', ')) :
+                                                   '';
         body.append(this.renderToggle_(
-            `Advanced: use your session on ${plugin.sessionSite}`,
+            i18nF('pluginsPageUseSession', plugin.sessionSite),
             plugin.sessionGranted,
-            granted => this.handler_.setPluginSessionGranted(plugin.id, granted),
+            granted =>
+                this.handler_.setPluginSessionGranted(plugin.id, granted),
             `session-${plugin.id}`));
         body.append(element(
             'p', 'plugin-hint',
-            `With this on, it can make requests to ${plugin.sessionSite} as ` +
-                'you, for what the page doesn\'t show (or when the tab ' +
-                `isn't loaded).${reach}`));
+            i18nF('pluginsPageSessionHint', plugin.sessionSite) + reach));
       }
       if (plugin.previewConfig.length) {
         body.append(this.renderConfig_(plugin));
@@ -186,25 +198,23 @@ export class CompassPluginsPageElement extends CompassSettingsPage {
     }
 
     if (plugin.folder) {
-      body.append(element('h3', undefined, 'Live folders'));
+      body.append(element('h3', undefined, i18n('pluginsPageLiveFolders')));
       const facts = [
-        plugin.folderCount === 1 ? 'Used by 1 folder' :
-                                   `Used by ${plugin.folderCount} folders`,
+        i18nPlural('pluginsPageUsedBy', plugin.folderCount),
       ];
       if (plugin.hosts.length) {
-        facts.push(`Reaches ${plugin.hosts.join(', ')}`.replace(
-            /\{(config|secret):[^}]+\}/g, 'the address you enter'));
+        facts.push(i18nF('pluginsPageReaches', hostList(plugin.hosts)));
       }
       if (plugin.cookieHosts.length) {
-        facts.push('Can use your login on those sites, if you allow it per ' +
-                   'folder');
+        facts.push(i18n('pluginsPageCanUseLogin'));
       }
       body.append(list(facts));
     }
 
-    body.append(element('h3', undefined, 'Developer'));
+    body.append(element('h3', undefined, i18n('pluginsPageDeveloper')));
     const actions = element('div', 'plugins-actions');
-    const viewSource = element('button', 'secondary', 'View source');
+    const viewSource =
+        element('button', 'secondary', i18n('pluginsPageViewSource'));
     const source = element('pre', 'plugin-source');
     source.hidden = true;
     viewSource.addEventListener('click', async () => {
@@ -219,17 +229,19 @@ export class CompassPluginsPageElement extends CompassSettingsPage {
     });
     actions.append(viewSource);
     if (plugin.source !== 'builtin') {
-      const remove = element('button', 'secondary', 'Remove');
+      const remove = element('button', 'secondary', i18n('remove'));
       remove.addEventListener('click', () => this.remove_(plugin));
       actions.append(remove);
     }
     body.append(actions, source);
     if (plugin.log.length) {
-      body.append(element('p', 'plugin-hint', 'Its last preview logged:'),
-                  element('pre', 'plugin-log', plugin.log.join('\n')));
+      body.append(
+          element('p', 'plugin-hint', i18n('pluginsPageLastLog')),
+          element('pre', 'plugin-log', plugin.log.join('\n')));
     }
     if (plugin.sourceUrl) {
-      body.append(element('p', 'plugin-hint', `From ${plugin.sourceUrl}`));
+      body.append(element(
+          'p', 'plugin-hint', i18nF('pluginsPageFrom', plugin.sourceUrl)));
     }
     return body;
   }
@@ -270,7 +282,7 @@ export class CompassPluginsPageElement extends CompassSettingsPage {
       row.append(input);
       form.append(row);
     }
-    const save = element('button', undefined, 'Save');
+    const save = element('button', undefined, i18n('save'));
     save.type = 'submit';
     const status = element('span', 'plugin-hint');
     const actions = element('div', 'plugins-actions');
@@ -293,7 +305,7 @@ export class CompassPluginsPageElement extends CompassSettingsPage {
       }
       const {error} = await this.handler_.setPluginPreviewConfig(
           plugin.id, JSON.stringify(config));
-      status.textContent = error || 'Saved';
+      status.textContent = error || i18n('pluginsPageSaved');
     });
     return form;
   }
@@ -339,12 +351,11 @@ export class CompassPluginsPageElement extends CompassSettingsPage {
   }
 
   private async remove_(plugin: PluginSettings) {
-    const folders = plugin.folderCount ?
-        ` ${plugin.folderCount} live folder${
-            plugin.folderCount === 1 ? '' : 's'} use it and will stop ` +
-            'refreshing.' :
-        '';
-    if (!confirm(`Remove ${plugin.name}?${folders}`)) {
+    const question = plugin.folderCount ?
+        i18nPlural(
+            'pluginsPageConfirmRemoveUsed', plugin.folderCount, plugin.name) :
+        i18nF('pluginsPageConfirmRemove', plugin.name);
+    if (!confirm(question)) {
       return;
     }
     await this.handler_.removePlugin(plugin.id);
@@ -368,34 +379,35 @@ export class CompassPluginsPageElement extends CompassSettingsPage {
     this.note_('');
     const {preview, error} = await this.handler_.previewPlugin(url);
     if (!preview) {
-      this.note_(error || 'That address doesn\'t have a plugin.');
+      this.note_(error || i18n('pluginsPageNoPlugin'));
       return;
     }
     this.reviewed_ = preview;
     const review = this.$('installReview');
     const facts: string[] = [];
     if (preview.previewSites.length) {
-      facts.push(`Reads pages on ${preview.previewSites.join(', ')} to show ` +
-                 'a tab preview');
+      facts.push(
+          i18nF('pluginsPageReviewReads', preview.previewSites.join(', ')));
     }
     if (preview.sessionSite) {
-      facts.push(`Can use your session on ${preview.sessionSite}, if you ` +
-                 'allow it');
+      facts.push(i18nF('pluginsPageReviewSession', preview.sessionSite));
     }
     if (preview.relatedHosts.length) {
-      facts.push(`Can also reach ${preview.relatedHosts.join(', ')}`);
+      facts.push(i18nF(
+          'pluginsPageReviewAlsoReaches', preview.relatedHosts.join(', ')));
     }
     if (preview.hosts.length) {
-      facts.push(`Live folders reach ${preview.hosts.join(', ')}`.replace(
-          /\{(config|secret):[^}]+\}/g, 'the address you enter'));
+      facts.push(
+          i18nF('pluginsPageReviewFoldersReach', hostList(preview.hosts)));
     }
     if (preview.cookieHosts.length) {
-      facts.push('Live folders can use your login, if you allow it per folder');
+      facts.push(i18n('pluginsPageReviewFoldersLogin'));
     }
     if (preview.secrets.length) {
-      facts.push(`Asks for: ${preview.secrets.join(', ')}`);
+      facts.push(i18nF('pluginsPageReviewAsksFor', preview.secrets.join(', ')));
     }
-    const install = element('button', undefined, 'Install');
+    const install =
+        element('button', undefined, i18n('pluginsPageInstallButton'));
     install.addEventListener('click', async () => {
       if (!this.reviewed_) {
         return;

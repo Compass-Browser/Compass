@@ -185,26 +185,21 @@
     white-space: pre-wrap;
   }
 </style>
-<p class="plugins-lead">
-  Plugins fill live folders in the sidebar and show what's new when you hover
-  a tab. They run apart from your pages and only reach the sites listed for
-  each.
-</p>
+<p class="plugins-lead">$i18n{pluginsPageLead}</p>
 <div class="plugins-row">
-  <label for="tabPreviewsEnabled">Show tab previews in hover cards</label>
+  <label for="tabPreviewsEnabled">$i18n{pluginsPageTabPreviews}</label>
   <input type="checkbox" id="tabPreviewsEnabled">
 </div>
 <div class="plugins-actions">
-  <button id="installPlugin" class="secondary">Install plugin…</button>
-  <button id="openPluginsFolder" class="secondary">Open plugins folder</button>
-  <button id="makeWithClaude" class="secondary" hidden>Make one with
-    Claude</button>
+  <button id="installPlugin" class="secondary">$i18n{pluginsPageInstall}</button>
+  <button id="openPluginsFolder" class="secondary">$i18n{pluginsPageOpenFolder}</button>
+  <button id="makeWithClaude" class="secondary" hidden>$i18n{pluginsPageMakeWithClaude}</button>
 </div>
 <form id="installForm" class="plugins-install" hidden>
-  <input type="url" id="installUrl" aria-label="Plugin address"
+  <input type="url" id="installUrl" aria-label="$i18n{pluginsPageAddressLabel}"
       placeholder="https://example.com/my-plugin/manifest.json">
-  <button type="submit">Review</button>
-  <button type="button" id="installCancel" class="secondary">Cancel</button>
+  <button type="submit">$i18n{pluginsPageReview}</button>
+  <button type="button" id="installCancel" class="secondary">$i18n{cancel}</button>
 </form>
 <div id="installReview" class="plugins-review" hidden></div>
 <p id="pluginsNote" class="plugins-note" hidden></p>

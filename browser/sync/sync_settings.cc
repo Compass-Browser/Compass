@@ -9,10 +9,12 @@
 #include "base/strings/strcat.h"
 #include "base/values.h"
 #include "compass/components/sync/pref_names.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/sync/service/sync_user_settings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::sync {
 
@@ -175,16 +177,16 @@ std::string GetDeviceKind(syncer::DeviceInfo::OsType os,
 
 std::u16string GetSyncMenuLabel(const SyncStatus& status) {
   if (status.device_removed) {
-    return u"Sync: device removed";
+    return l10n_util::GetStringUTF16(IDS_COMPASS_SYNC_MENU_DEVICE_REMOVED);
   }
   switch (status.limit) {
     case SyncLimit::kServerFull:
-      return u"Sync: server full";
+      return l10n_util::GetStringUTF16(IDS_COMPASS_SYNC_MENU_SERVER_FULL);
     case SyncLimit::kThrottled:
-      return u"Sync: paused by server";
+      return l10n_util::GetStringUTF16(IDS_COMPASS_SYNC_MENU_THROTTLED);
     case SyncLimit::kHistoryFull:
       if (status.state == SyncState::kOn) {
-        return u"Synced (history full)";
+        return l10n_util::GetStringUTF16(IDS_COMPASS_SYNC_MENU_HISTORY_FULL);
       }
       break;
     case SyncLimit::kNone:
@@ -192,19 +194,19 @@ std::u16string GetSyncMenuLabel(const SyncStatus& status) {
   }
   switch (status.state) {
     case SyncState::kOff:
-      return u"Sync is off";
+      return l10n_util::GetStringUTF16(IDS_COMPASS_SYNC_MENU_OFF);
     case SyncState::kNeedsRestart:
-      return u"Sync: restart to finish";
+      return l10n_util::GetStringUTF16(IDS_COMPASS_SYNC_MENU_NEEDS_RESTART);
     case SyncState::kStarting:
-      return u"Syncing…";
+      return l10n_util::GetStringUTF16(IDS_COMPASS_SYNC_MENU_STARTING);
     case SyncState::kOn:
-      return u"Synced";
+      return l10n_util::GetStringUTF16(IDS_COMPASS_SYNC_MENU_ON);
     case SyncState::kError:
-      return u"Sync error";
+      return l10n_util::GetStringUTF16(IDS_COMPASS_SYNC_MENU_ERROR);
     case SyncState::kLoginRequired:
-      return u"Sync: sign in needed";
+      return l10n_util::GetStringUTF16(IDS_COMPASS_SYNC_MENU_LOGIN_REQUIRED);
   }
-  return u"Sync";
+  return l10n_util::GetStringUTF16(IDS_COMPASS_SYNC_MENU_DEFAULT);
 }
 
 SyncLimit GetSyncLimit(bool throttled, bool server_full, bool history_full) {
@@ -229,21 +231,17 @@ void ApplySyncLimit(SyncLimit limit, SyncStatus& status) {
     case SyncLimit::kServerFull:
       status.state = SyncState::kError;
       status.message =
-          "The sync server is full for this chain: new changes stay on this "
-          "device. Remove data you don't need, or ask the server's owner to "
-          "raise its limits.";
+          l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_SERVER_FULL);
       return;
     case SyncLimit::kThrottled:
       status.state = SyncState::kError;
       status.message =
-          "The sync server is holding this device back (too many devices in "
-          "the chain, or too many requests). Compass tries again by itself.";
+          l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_THROTTLED);
       return;
     case SyncLimit::kHistoryFull:
       status.message = base::StrCat(
           {status.message, status.message.empty() ? "" : " ",
-           "History is full on the server: new visits stay on this device "
-           "until older ones expire."});
+           l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_HISTORY_FULL)});
       return;
     case SyncLimit::kNone:
       return;
@@ -255,22 +253,26 @@ SyncStatus StartingStatus(StartingStep step, bool stuck) {
   status.state = SyncState::kStarting;
   switch (step) {
     case StartingStep::kReadingKey:
-      status.message = "Starting: reading this device's sync key…";
+      status.message =
+          l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STARTING_READING_KEY);
       break;
     case StartingStep::kConnecting:
-      status.message = "Starting: connecting to the sync server…";
+      status.message =
+          l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STARTING_CONNECTING);
       break;
     case StartingStep::kEncryption:
-      status.message = "Starting: setting up encryption…";
+      status.message =
+          l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STARTING_ENCRYPTION);
       break;
     case StartingStep::kConfiguring:
-      status.message = "Starting: getting the data ready to sync…";
+      status.message =
+          l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STARTING_CONFIGURING);
       break;
   }
   if (stuck) {
     status.message = base::StrCat(
-        {status.message,
-         " This is taking long. Restart Compass if it doesn't change."});
+        {status.message, " ",
+         l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STARTING_STUCK)});
     status.offer_restart = true;
   }
   return status;
@@ -281,8 +283,7 @@ void ApplyDeviceRemoved(SyncStatus& status) {
   status.limit = SyncLimit::kNone;
   status.device_removed = true;
   status.message =
-      "This device was removed from sync on another device. Its data stays "
-      "here. Leave sync to set it up again.";
+      l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_DEVICE_REMOVED);
 }
 
 DeviceSignature GetDeviceSignature(const syncer::DeviceInfo& info) {

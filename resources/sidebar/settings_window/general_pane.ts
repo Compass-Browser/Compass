@@ -14,6 +14,7 @@ import {SettingsWindowBrowserProxy} from './browser_proxy.js';
 // [font name, display name].
 export type FontEntry = string[];
 import {getHtml} from './general_pane.html.js';
+import {i18n} from '../i18n.js';
 import type {PrefValue} from './prefs.js';
 import {prefs} from './prefs.js';
 import type {DefaultBrowserState, SearchEngine, SearchEngines} from '../sidebar.mojom-webui.js';
@@ -36,10 +37,22 @@ export interface FontPref {
 }
 
 export const FONT_PREFS: FontPref[] = [
-  {pref: 'webkit.webprefs.fonts.standard.Zyyy', label: 'Standard font'},
-  {pref: 'webkit.webprefs.fonts.serif.Zyyy', label: 'Serif font'},
-  {pref: 'webkit.webprefs.fonts.sansserif.Zyyy', label: 'Sans-serif font'},
-  {pref: 'webkit.webprefs.fonts.fixed.Zyyy', label: 'Fixed-width font'},
+  {
+    pref: 'webkit.webprefs.fonts.standard.Zyyy',
+    label: i18n('generalPaneStandardFont')
+  },
+  {
+    pref: 'webkit.webprefs.fonts.serif.Zyyy',
+    label: i18n('generalPaneSerifFont')
+  },
+  {
+    pref: 'webkit.webprefs.fonts.sansserif.Zyyy',
+    label: i18n('generalPaneSansSerifFont')
+  },
+  {
+    pref: 'webkit.webprefs.fonts.fixed.Zyyy',
+    label: i18n('generalPaneFixedWidthFont')
+  },
 ];
 
 const ALL_PREFS = [
@@ -62,28 +75,32 @@ export interface Choice {
 
 // Upstream's font sizes (appearance_page): the default font's size.
 export const FONT_SIZES: Choice[] = [
-  {value: 9, label: 'Very small'},
-  {value: 12, label: 'Small'},
-  {value: 16, label: 'Medium'},
-  {value: 20, label: 'Large'},
-  {value: 24, label: 'Very large'},
+  {value: 9, label: i18n('generalPaneFontSizeVerySmall')},
+  {value: 12, label: i18n('generalPaneFontSizeSmall')},
+  {value: 16, label: i18n('generalPaneFontSizeMedium')},
+  {value: 20, label: i18n('generalPaneFontSizeLarge')},
+  {value: 24, label: i18n('generalPaneFontSizeVeryLarge')},
 ];
 
-export const MINIMUM_FONT_SIZES: Choice[] =
-    [0, 6, 8, 10, 12, 14, 16, 18, 20, 24].map(
-        size => ({value: size, label: size ? `${size} pt` : 'None'}));
+export const MINIMUM_FONT_SIZES: Choice[] = [
+  0, 6, 8, 10, 12, 14, 16, 18, 20, 24
+].map(size => ({
+        value: size,
+        label: size ? `${size} pt` : i18n('generalPaneMinimumFontSizeNone')
+      }));
 
 // Upstream's zoom levels (as factors).
-export const ZOOM_FACTORS: number[] =
-    [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5,
-     3, 4, 5];
+export const ZOOM_FACTORS: number[] = [
+  0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4,
+  5
+];
 
 // General (docs/design/settings-window.md, phase 2): the default browser,
 // the search engine, downloads, appearance and fonts, languages and the
 // system, with a view of its own for managing search engines and site
 // search, on the window's handler (SettingsWindowHandler, which does what
-// upstream's settings handlers do) and its prefs (prefs.ts). Managing search engines and editing the languages list
-// still open upstream's sections.
+// upstream's settings handlers do) and its prefs (prefs.ts). Managing search
+// engines and editing the languages list still open upstream's sections.
 export class CompassSettingsGeneralPaneElement extends CrLitElement {
   static get is() {
     return 'compass-settings-general-pane';
@@ -154,11 +171,13 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
     });
     const router = SettingsWindowBrowserProxy.getInstance().callbackRouter;
     this.handler_.getDefaultBrowser().then(
-        ({state}: {state: DefaultBrowserState}) => this.defaultBrowser_ = state);
+        ({state}: {state: DefaultBrowserState}) => this.defaultBrowser_ =
+            state);
     router.defaultBrowserChanged.addListener(
         (state: DefaultBrowserState) => this.defaultBrowser_ = state);
     this.handler_.getSearchEngines().then(
-        ({engines}: {engines: SearchEngines}) => this.setSearchEngines_(engines));
+        ({engines}: {engines: SearchEngines}) =>
+            this.setSearchEngines_(engines));
     router.searchEnginesChanged.addListener(
         (engines: SearchEngines) => this.setSearchEngines_(engines));
     this.handler_.getFonts().then(
@@ -211,15 +230,15 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
       return '';
     }
     if (info.disabledByPolicy) {
-      return 'Your organization manages the default browser.';
+      return i18n('generalPaneDefaultBrowserManaged');
     }
     if (info.isDefault) {
-      return 'Compass is your default browser.';
+      return i18n('generalPaneDefaultBrowserIsDefault');
     }
     if (info.unknown || !info.canBeDefault) {
-      return 'Compass can\'t tell or change the default browser here.';
+      return i18n('generalPaneDefaultBrowserUnknown');
     }
-    return 'Compass isn\'t your default browser.';
+    return i18n('generalPaneDefaultBrowserNotDefault');
   }
 
   protected canMakeDefault_(): boolean {
@@ -274,7 +293,9 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
     }
     let names: Intl.DisplayNames|null = null;
     try {
-      names = new Intl.DisplayNames([navigator.language], {type: 'language'});
+      names = new Intl.DisplayNames(
+          [document.documentElement.lang || navigator.language],
+          {type: 'language'});
     } catch {
       // Codes, then.
     }
@@ -363,11 +384,14 @@ export class CompassSettingsGeneralPaneElement extends CrLitElement {
   // The Fonts row's detail: the standard, sans-serif and fixed-width fonts'
   // names ("Times · Helvetica · Courier").
   protected getFontsSummary_(): string {
-    const names = [0, 2, 3].map(index => {
-      const pref = FONT_PREFS[index]!.pref;
-      const value = this.getString_(pref);
-      return this.fonts_.find(f => f[0] === value)?.[1] || value;
-    }).filter(name => name);
+    const names =
+        [0, 2, 3]
+            .map(index => {
+              const pref = FONT_PREFS[index]!.pref;
+              const value = this.getString_(pref);
+              return this.fonts_.find(f => f[0] === value)?.[1] || value;
+            })
+            .filter(name => name);
     return names.join(' · ');
   }
 

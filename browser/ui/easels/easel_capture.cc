@@ -12,6 +12,7 @@
 #include "base/json/json_writer.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/strcat.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/values.h"
@@ -28,12 +29,14 @@
 #include "compass/browser/ui/easels/page_screenshot.h"
 #include "compass/browser/window_sync/tab_strip_bridge.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/menus/simple_menu_model.h"
 #include "url/gurl.h"
@@ -88,7 +91,8 @@ void OnAdded(base::WeakPtr<content::WebContents> contents,
     PinEaselTab(BrowserOf(contents.get()), *easel);
   }
   ShowToast(contents.get(),
-            base::StrCat({"Added to “", EaselTitleOf(*easel), "”"}));
+            l10n_util::GetStringFUTF8(IDS_COMPASS_EASEL_ADDED_TO,
+                                      base::UTF8ToUTF16(EaselTitleOf(*easel))));
 }
 
 }  // namespace
@@ -143,7 +147,8 @@ class CaptureSession : public content::WebContentsObserver,
 
   void OnStarted(base::Value started) {
     if (!started.is_bool() || !started.GetBool()) {
-      ShowToast(&GetWebContents(), "This page can't be captured.");
+      ShowToast(&GetWebContents(), l10n_util::GetStringUTF8(
+                                       IDS_COMPASS_EASEL_PAGE_NOT_CAPTURABLE));
       End();
       return;
     }
@@ -347,7 +352,7 @@ void NewEaselInWindow(BrowserWindowInterface* browser) {
           return;
         }
         base::expected<sync_pb::CompassEasel, std::string> easel =
-            store->CreateEasel(kNewEaselTitle);
+            store->CreateEasel(NewEaselTitle());
         if (!easel.has_value()) {
           return;
         }
@@ -374,10 +379,14 @@ void AppendPageContextMenuItems(content::WebContents* contents,
   }
   model->AddSeparator(ui::NORMAL_SEPARATOR);
   if (screenshot) {
-    model->AddItem(kCaptureScreenshotContextCommand, u"Capture Screenshot…");
+    model->AddItem(
+        kCaptureScreenshotContextCommand,
+        l10n_util::GetStringUTF16(IDS_COMPASS_CONTEXT_MENU_CAPTURE_SCREENSHOT));
   }
   if (easel) {
-    model->AddItem(kCaptureToEaselContextCommand, u"Capture to Easel…");
+    model->AddItem(
+        kCaptureToEaselContextCommand,
+        l10n_util::GetStringUTF16(IDS_COMPASS_CONTEXT_MENU_CAPTURE_TO_EASEL));
   }
 }
 

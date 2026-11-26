@@ -20,17 +20,19 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "compass/browser/claude/claude_prefs.h"
-#include "compass/browser/ui/views/claude/claude_panel.h"
-#include "components/tabs/public/tab_interface.h"
 #include "compass/browser/live_folders/live_plugin_package.h"
 #include "compass/browser/prefs/compass_prefs.h"
 #include "compass/browser/ui/live_folders/live_folder_service.h"
 #include "compass/browser/ui/live_folders/live_plugin_registry.h"
 #include "compass/browser/ui/live_folders/tab_preview_service.h"
+#include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/webui/settings/compass_settings_ui.h"
 #include "compass/browser/ui/webui/sidebar/live_plugin_mojo.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_service.h"
+#include "components/tabs/public/tab_interface.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 
 namespace compass {
@@ -154,13 +156,15 @@ void ShortcutsPageHandler::SetPluginPreviewConfig(
   LiveFolderService* service = LiveFolderService::Get(profile_);
   const LivePlugin* plugin = service ? service->registry().Find(id) : nullptr;
   if (!plugin || !plugin->manifest.preview) {
-    std::move(callback).Run("There's no such plugin.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_PLUGINS_NO_SUCH));
     return;
   }
   std::optional<base::Value> config =
       base::JSONReader::Read(config_json, base::JSON_PARSE_RFC);
   if (!config || !config->is_dict()) {
-    std::move(callback).Run("The settings aren't valid.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_PLUGINS_SETTINGS_INVALID));
     return;
   }
   auto validated =
@@ -231,7 +235,8 @@ void ShortcutsPageHandler::PreviewPlugin(const std::string& url,
                                          PreviewPluginCallback callback) {
   LiveFolderService* service = LiveFolderService::Get(profile_);
   if (!service) {
-    std::move(callback).Run(nullptr, "Plugins aren't available here.");
+    std::move(callback).Run(
+        nullptr, l10n_util::GetStringUTF8(IDS_COMPASS_PLUGINS_UNAVAILABLE));
     return;
   }
   service->PreviewPlugin(
@@ -254,7 +259,8 @@ void ShortcutsPageHandler::InstallPlugin(const std::string& url,
                                          InstallPluginCallback callback) {
   LiveFolderService* service = LiveFolderService::Get(profile_);
   if (!service) {
-    std::move(callback).Run("Plugins aren't available here.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_PLUGINS_UNAVAILABLE));
     return;
   }
   service->InstallPlugin(GURL(url), sha256, std::move(callback));

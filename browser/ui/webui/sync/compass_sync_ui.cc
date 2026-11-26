@@ -12,15 +12,18 @@
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "compass/browser/sync/compass_sync_service.h"
 #include "compass/browser/sync/compass_sync_service_factory.h"
+#include "compass/browser/ui/webui/localized_strings/localized_strings.h"
 #include "compass/browser/ui/webui/sync/compass_sync_page_handler.h"
 #include "compass/grit/compass_sidebar_resources.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/device_reauth/device_authenticator.h"
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/webui/webui_util.h"
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
@@ -41,6 +44,7 @@ CompassSyncUI::CompassSyncUI(content::WebUI* web_ui)
   // Shares the sidebar's resource pak; only the default page differs.
   webui::SetupWebUIDataSource(source, kCompassSidebarResources,
                               IDR_COMPASS_SIDEBAR_COMPASS_SYNC_HTML);
+  AddSidebarPakLocalizedStrings(source);
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 }
 
@@ -96,8 +100,9 @@ void SyncPageHandlerFactory::Reauthenticate(base::OnceCallback<void(bool)> done)
     return;
   }
   // macOS shows "Compass is trying to show your sync recovery code."
-  authenticator_->AuthenticateWithMessage(u"show your sync recovery code",
-                                          std::move(done));
+  authenticator_->AuthenticateWithMessage(
+      l10n_util::GetStringUTF16(IDS_COMPASS_SYNC_AUTH_SHOW_RECOVERY_CODE),
+      std::move(done));
 #else
   // No device authentication on this platform (as the password manager).
   std::move(done).Run(true);

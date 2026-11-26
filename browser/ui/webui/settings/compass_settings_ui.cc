@@ -31,12 +31,14 @@
 #include "compass/browser/sidebar/link_rules.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/browser/ui/webui/localized_strings/localized_strings.h"
 #include "compass/browser/ui/webui/settings/settings_sections.h"
 #include "compass/browser/ui/webui/settings/settings_window_handler.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/tab_strip_bridge.h"
 #include "compass/grit/compass_sidebar_resources.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_contents.h"
@@ -45,6 +47,7 @@
 #include "content/public/common/url_constants.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/shell_dialogs/selected_file_info.h"
@@ -168,15 +171,17 @@ Check CheckKeys(const std::vector<ListedShortcut>& listed,
                 const ui::Accelerator& accelerator) {
   Check check;
   if (!FindListed(listed, id)) {
-    check.error = "There's no such shortcut.";
+    check.error = l10n_util::GetStringUTF8(IDS_COMPASS_SHORTCUTS_ERROR_NO_SUCH);
     return check;
   }
   if (!IsValidShortcut(accelerator)) {
 #if BUILDFLAG(IS_MAC)
     // Command, Control or Option.
-    check.error = "Use the key with \u2318, \u2303 or \u2325.";
+    check.error =
+        l10n_util::GetStringUTF8(IDS_COMPASS_SHORTCUTS_ERROR_MODIFIERS_MAC);
 #else
-    check.error = "Use the key with Ctrl or Alt.";
+    check.error =
+        l10n_util::GetStringUTF8(IDS_COMPASS_SHORTCUTS_ERROR_MODIFIERS);
 #endif
     return check;
   }
@@ -184,7 +189,8 @@ Check CheckKeys(const std::vector<ListedShortcut>& listed,
   // Click-through is a global hot key, and those can't take the Windows key
   // here (PipWindows::UpdateListening()).
   if (id == kPipClickThroughShortcutId && accelerator.IsCmdDown()) {
-    check.error = "Use the key with Ctrl, Alt or Shift, not the Windows key.";
+    check.error =
+        l10n_util::GetStringUTF8(IDS_COMPASS_SHORTCUTS_ERROR_WINDOWS_KEY);
     return check;
   }
 #endif
@@ -198,7 +204,8 @@ Check CheckKeys(const std::vector<ListedShortcut>& listed,
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   if (std::optional<std::u16string> built_in =
           FindBuiltInShortcut(accelerator)) {
-    check.error = "Already used by " + base::UTF16ToUTF8(*built_in) + ".";
+    check.error = l10n_util::GetStringFUTF8(IDS_COMPASS_SHORTCUTS_ERROR_IN_USE,
+                                            *built_in);
   }
 #endif
   return check;
@@ -222,8 +229,8 @@ std::vector<ListedShortcut> ListShortcuts() {
   for (const CustomizableCommand& command : GetCustomizableCommands()) {
     ListedShortcut& shortcut = listed.emplace_back();
     shortcut.id = command.id;
-    shortcut.section = command.section;
-    shortcut.label = command.label;
+    shortcut.section = l10n_util::GetStringUTF8(command.section_id);
+    shortcut.label = l10n_util::GetStringUTF8(command.label_id);
     shortcut.keys = GetAccelerators(command.command);
     shortcut.default_keys = GetDefaultAccelerators(command.command);
     shortcut.customized = settings.IsCustomized(command.id);
@@ -233,8 +240,10 @@ std::vector<ListedShortcut> ListShortcuts() {
   {
     ListedShortcut& shortcut = listed.emplace_back();
     shortcut.id = kPipClickThroughShortcutId;
-    shortcut.section = "Compass";
-    shortcut.label = "Let clicks through picture-in-picture";
+    shortcut.section =
+        l10n_util::GetStringUTF8(IDS_COMPASS_SHORTCUTS_SECTION_COMPASS);
+    shortcut.label =
+        l10n_util::GetStringUTF8(IDS_COMPASS_SHORTCUTS_PIP_CLICK_THROUGH);
     shortcut.keys = GetPipClickThroughAccelerators();
     shortcut.default_keys = {GetDefaultPipClickThroughAccelerator()};
     shortcut.customized = settings.IsCustomized(shortcut.id);
@@ -243,8 +252,10 @@ std::vector<ListedShortcut> ListShortcuts() {
   for (int n = 0; n < kSpaceShortcutCount; ++n) {
     ListedShortcut& shortcut = listed.emplace_back();
     shortcut.id = SpaceShortcutId(n);
-    shortcut.section = "Spaces";
-    shortcut.label = "Switch to space " + base::NumberToString(n + 1);
+    shortcut.section =
+        l10n_util::GetStringUTF8(IDS_COMPASS_SHORTCUTS_SECTION_SPACES);
+    shortcut.label = l10n_util::GetStringFUTF8(
+        IDS_COMPASS_SHORTCUTS_SWITCH_TO_SPACE, base::NumberToString16(n + 1));
     shortcut.keys = GetSpaceAccelerators(n);
     shortcut.default_keys = {GetDefaultSpaceAccelerator(n)};
     shortcut.customized = settings.IsCustomized(shortcut.id);
@@ -266,6 +277,7 @@ CompassSettingsUI::CompassSettingsUI(content::WebUI* web_ui)
   // it names.
   webui::SetupWebUIDataSource(source, kCompassSidebarResources,
                               IDR_COMPASS_SIDEBAR_SETTINGS_WINDOW_HTML);
+  AddSidebarPakLocalizedStrings(source);
 
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 }
@@ -494,8 +506,10 @@ void ShortcutsPageHandler::GetLinkRules(GetLinkRulesCallback callback) {
       const SpaceModel& space = *list->spaces()[i];
       spaces.push_back(sidebar::mojom::LinkRuleSpace::New(
           space.id().AsLowercaseString(),
-          space.name().empty() ? "Space " + base::NumberToString(i + 1)
-                               : base::UTF16ToUTF8(space.name()),
+          space.name().empty()
+              ? l10n_util::GetStringFUTF8(IDS_COMPASS_SPACE_NUMBERED_NAME,
+                                          base::NumberToString16(i + 1))
+              : base::UTF16ToUTF8(space.name()),
           LinkRuleSpaceColor(space.color()), LinkRuleSpaceIcon(space.icon())));
     }
   }
@@ -580,14 +594,16 @@ void ShortcutsPageHandler::SaveBoost(sidebar::mojom::BoostPtr boost,
                                      SaveBoostCallback callback) {
   boosts::BoostStore* store = GetBoostStore();
   if (!store) {
-    std::move(callback).Run(nullptr, "Boosts aren't available here.");
+    std::move(callback).Run(
+        nullptr, l10n_util::GetStringUTF8(IDS_COMPASS_BOOSTS_UNAVAILABLE));
     return;
   }
   boosts::Boost edited;
   if (!boost->id.empty()) {
     const boosts::Boost* existing = store->Find(boost->id);
     if (!existing) {
-      std::move(callback).Run(nullptr, "This Boost was deleted.");
+      std::move(callback).Run(
+          nullptr, l10n_util::GetStringUTF8(IDS_COMPASS_BOOSTS_DELETED));
       return;
     }
     edited = *existing;
@@ -683,11 +699,13 @@ void ShortcutsPageHandler::SaveBoostFile(const std::string& id,
   save_callback_ = std::move(callback);
   ui::SelectFileDialog::FileTypeInfo types;
   types.extensions = {{FILE_PATH_LITERAL("compassboost")}};
-  types.extension_description_overrides = {u"Compass Boost"};
+  types.extension_description_overrides = {
+      l10n_util::GetStringUTF16(IDS_COMPASS_BOOSTS_FILE_TYPE)};
   file_dialog_ = ui::SelectFileDialog::Create(
       this, std::make_unique<ChromeSelectFilePolicy>(web_contents_.get()));
   file_dialog_->SelectFile(
-      ui::SelectFileDialog::SELECT_SAVEAS_FILE, u"Save Boost",
+      ui::SelectFileDialog::SELECT_SAVEAS_FILE,
+      l10n_util::GetStringUTF16(IDS_COMPASS_BOOSTS_SAVE_DIALOG_TITLE),
       DownloadPrefs::FromBrowserContext(profile_)->DownloadPath().Append(
           base::FilePath::FromUTF8Unsafe(boosts::ShareFileName(*boost))),
       &types, /*file_type_index=*/1, FILE_PATH_LITERAL("compassboost"),
@@ -702,12 +720,14 @@ void ShortcutsPageHandler::ChooseBoostFile(ChooseBoostFileCallback callback) {
   choose_callback_ = std::move(callback);
   ui::SelectFileDialog::FileTypeInfo types;
   types.extensions = {{FILE_PATH_LITERAL("compassboost")}};
-  types.extension_description_overrides = {u"Compass Boost"};
+  types.extension_description_overrides = {
+      l10n_util::GetStringUTF16(IDS_COMPASS_BOOSTS_FILE_TYPE)};
   types.include_all_files = true;
   file_dialog_ = ui::SelectFileDialog::Create(
       this, std::make_unique<ChromeSelectFilePolicy>(web_contents_.get()));
   file_dialog_->SelectFile(
-      ui::SelectFileDialog::SELECT_OPEN_FILE, u"Import a Boost",
+      ui::SelectFileDialog::SELECT_OPEN_FILE,
+      l10n_util::GetStringUTF16(IDS_COMPASS_BOOSTS_IMPORT_DIALOG_TITLE),
       DownloadPrefs::FromBrowserContext(profile_)->DownloadPath(), &types,
       /*file_type_index=*/1, base::FilePath::StringType(),
       web_contents_->GetTopLevelNativeWindow());
@@ -764,7 +784,8 @@ void ShortcutsPageHandler::PreviewSharedBoost(
     PreviewSharedBoostCallback callback) {
   boosts::BoostStore* store = GetBoostStore();
   if (!store) {
-    std::move(callback).Run(nullptr, "Boosts aren't available here.");
+    std::move(callback).Run(
+        nullptr, l10n_util::GetStringUTF8(IDS_COMPASS_BOOSTS_UNAVAILABLE));
     return;
   }
   base::expected<boosts::Boost, boosts::ShareError> boost =
@@ -774,11 +795,9 @@ void ShortcutsPageHandler::PreviewSharedBoost(
     return;
   }
   if (store->boosts().size() >= boosts::kMaxBoosts) {
-    std::move(callback).Run(
-        nullptr, base::StrCat({"There are already ",
-                               base::NumberToString(boosts::kMaxBoosts),
-                               " Boosts. Delete one that's no longer needed "
-                               "first."}));
+    std::move(callback).Run(nullptr, l10n_util::GetPluralStringFUTF8(
+                                         IDS_COMPASS_BOOSTS_TOO_MANY,
+                                         static_cast<int>(boosts::kMaxBoosts)));
     return;
   }
   std::move(callback).Run(ToMojo(*boost), std::string());
@@ -788,7 +807,8 @@ void ShortcutsPageHandler::AddSharedBoost(const std::string& payload,
                                           AddSharedBoostCallback callback) {
   boosts::BoostStore* store = GetBoostStore();
   if (!store) {
-    std::move(callback).Run(nullptr, "Boosts aren't available here.");
+    std::move(callback).Run(
+        nullptr, l10n_util::GetStringUTF8(IDS_COMPASS_BOOSTS_UNAVAILABLE));
     return;
   }
   base::expected<boosts::Boost, boosts::ShareError> boost =

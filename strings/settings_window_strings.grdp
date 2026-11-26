@@ -1,0 +1,1162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The settings window (resources/sidebar/settings_window/). -->
+<grit-part>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT" desc="Name of the settings pane about Compass (version, updates, licenses).">
+    About
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_AUTO_UPDATE_DETAIL" desc="Explains that updates are automatic, before any manual check.">
+    Compass checks for updates by itself.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_CHANNEL_BETA" desc="Update channel: releases that get features before Stable.">
+    Beta
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_CHANNEL_CANARY" desc="Update channel: daily, least tested releases. A name; usually not translated.">
+    Canary
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_CHANNEL_STABLE" desc="Update channel: the regular, tested releases.">
+    Stable
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_CHECKING" desc="Shown while Compass checks for a newer version.">
+    Checking for updates…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_CHECK_FAILED" desc="Update row label when the check for updates failed.">
+    Couldn't check for updates
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_CHECK_FAILED_DETAIL" desc="The check for updates failed and gave no reason.">
+    Couldn't check for updates.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_CHECK_FOR_UPDATES" desc="Button that checks for a newer version of Compass.">
+    Check for Updates
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_DEVELOPMENT_BUILD" desc="Shown instead of a version number for a Compass built by a developer.">
+    Development build
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_DOWNLOADING" desc="Shown while Compass downloads a new version.">
+    Downloading the update…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_DOWNLOADING_PROGRESS" desc="Shown while Compass downloads a new version, with how much is done, in percent.">
+    Downloading the update… <ph name="PERCENT">$1<ex>42</ex></ph>%
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_LICENSES" desc="Row that opens the open-source licenses of the software Compass uses.">
+    Open-source licenses
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_RELAUNCH_TO_UPDATE" desc="Button that restarts Compass to install a downloaded update.">
+    Relaunch to Update
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_UPDATES" desc="Title of the About pane's group about software updates, and the update row's label before any check.">
+    Updates
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_UPDATES_OFF" desc="Update row label when this copy of Compass can't update itself.">
+    Updates are off
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_UPDATES_OFF_DETAIL" desc="Explains that this copy of Compass (e.g. one built by a developer or a Linux package) has no updater.">
+    This build doesn't update itself.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_UPDATE_CHANNEL" desc="Label of the menu choosing which release channel (Stable, Beta, Canary) Compass updates from.">
+    Update channel
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_UPDATE_CHANNEL_DETAIL" desc="Explains the update channels. Beta and Canary are channel names.">
+    Beta and Canary get new features first, with more bugs.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_UPDATE_READY" desc="Update row label when a new version was downloaded.">
+    An update is ready
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_UPDATE_READY_DETAIL" desc="A downloaded update waits to be installed.">
+    The update is ready to install.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_UP_TO_DATE" desc="Update row label after a check found no newer version.">
+    Compass is up to date
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_UP_TO_DATE_DETAIL" desc="A check found no newer version.">
+    Compass is up to date.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_VERSION" desc="Compass's version, under its name in the About pane.">
+    Version <ph name="VERSION">$1<ex>20261125.1200</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_VERSION_READY" desc="A downloaded update waits to be installed.">
+    Version <ph name="VERSION">$1<ex>20261125.1200</ex></ph> is ready to install.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED" desc="Name of the settings pane for advanced settings.">
+    Advanced
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_ACCESSIBILITY" desc="Title of the Advanced pane's group of accessibility settings.">
+    Accessibility
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_BLURB" desc="Description under the Advanced pane's title.">
+    Performance, accessibility and tools for developers.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_CARET_BROWSING" desc="Setting for caret browsing.">
+    Navigate pages with a text cursor
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_CARET_BROWSING_DETAIL" desc="Explains caret browsing and its key, F7.">
+    Caret browsing; F7 turns it on or off.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_ENERGY_SAVER" desc="Setting that limits background activity to save battery.">
+    Energy saver
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_ENERGY_SAVER_ALWAYS" desc="Energy saver choice: always on.">
+    Always
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_ENERGY_SAVER_BATTERY_LOW" desc="Energy saver choice: on when the battery is low.">
+    When the battery is low
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_ENERGY_SAVER_DETAIL" desc="Explains the energy saver setting.">
+    Limits background activity and visual effects.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_ENERGY_SAVER_OFF" desc="Energy saver choice: never on.">
+    Off
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_ENERGY_SAVER_UNPLUGGED" desc="Energy saver choice: on when the computer runs on battery.">
+    When unplugged
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_FOCUS_HIGHLIGHT" desc="Setting that draws a ring around the focused item on pages.">
+    Highlight the focused object
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_LIVE_CAPTION" desc="Setting that shows captions for audio and video automatically.">
+    Live caption
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_LIVE_CAPTION_DETAIL" desc="Explains live caption, which only supports English speech.">
+    Captions for audio and video in English.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_MEMORY_SAVER" desc="Setting that frees memory from inactive tabs.">
+    Memory saver
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_MEMORY_SAVER_DETAIL" desc="Explains the memory saver setting.">
+    Frees memory from tabs you haven't used in a while.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_PERFORMANCE" desc="Title of the Advanced pane's group of performance settings.">
+    Performance
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_RESET" desc="Title of the Advanced pane's reset group, and the button confirming the reset of settings.">
+    Reset
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_RESETTING" desc="Shown while the settings are being reset.">
+    Resetting…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_RESET_CONFIRM" desc="Confirmation of what resetting the settings does, next to Cancel and Reset buttons.">
+    Resets the search engine, site permissions and other browser settings, clears cookies and turns off extensions. Your spaces, tabs, history and passwords stay.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_RESET_DONE" desc="Shown after the settings were reset.">
+    Settings were reset.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_RESET_ELLIPSIS" desc="Button that asks to confirm resetting the settings.">
+    Reset…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_RESET_SETTINGS" desc="Row that resets the browser's settings to their defaults.">
+    Reset settings
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ADVANCED_RESET_SETTINGS_DETAIL" desc="What resetting the settings resets.">
+    Search engine, permissions, startup and more.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_AI" desc="Name of the settings pane for Claude, the AI assistant.">
+    AI
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_AI_BLURB" desc="Description under the AI pane's title.">
+    Claude in your browser: who answers, and what it may do for you.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_BOOSTS" desc="Name of the settings pane for Boosts (a Compass feature: the user's own CSS and JavaScript for sites). Feature name; usually kept.">
+    Boosts
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_BOOSTS_BLURB" desc="Description under the Boosts pane's title.">
+    Your own CSS and JavaScript, added to the sites you pick.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_DEVELOPERS" desc="Title of the Advanced pane's group of developer rows.">
+    Developers
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_DEVELOPMENT_MODE" desc="Row opening the Development mode page (a Compass feature for web developers), and its title.">
+    Development mode
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_FILTER" desc="Placeholder of a field that filters a list (saved passwords, languages, search engines).">
+    Filter
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_APPEARANCE" desc="Title of the General pane's group of appearance settings.">
+    Appearance
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_BLURB" desc="Description under the General pane's title.">
+    How Compass opens, searches, downloads and shows pages.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_BROWSER" desc="Title of the General pane's group about the browser itself (default browser, search engine).">
+    Browser
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_CHANGE_ELLIPSIS" desc="Button that opens a dialog to choose another download folder.">
+    Change…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_DEFAULT_BROWSER" desc="Row about whether Compass is the system's default web browser.">
+    Default browser
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_DEFAULT_BROWSER_IS_DEFAULT" desc="Compass is the default web browser.">
+    Compass is your default browser.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_DEFAULT_BROWSER_MANAGED" desc="The default browser is set by an administrator's policy.">
+    Your organization manages the default browser.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_DEFAULT_BROWSER_NOT_DEFAULT" desc="Another browser is the default.">
+    Compass isn't your default browser.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_DEFAULT_BROWSER_UNKNOWN" desc="The system doesn't let Compass read or set the default browser.">
+    Compass can't tell or change the default browser here.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_DOWNLOADS" desc="Title of the General pane's group of download settings.">
+    Downloads
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_DOWNLOAD_LOCATION" desc="Row showing the folder downloads are saved in.">
+    Location
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_FIXED_WIDTH_FONT" desc="Setting for the font pages use for monospaced text (code).">
+    Fixed-width font
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_FONTS" desc="Row and subpage title for the fonts pages are shown in.">
+    Fonts
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_FONT_SIZE" desc="Setting for the default text size of pages.">
+    Font size
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_FONT_SIZE_LARGE" desc="Font size choice.">
+    Large
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_FONT_SIZE_MEDIUM" desc="Font size choice.">
+    Medium
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_FONT_SIZE_SMALL" desc="Font size choice.">
+    Small
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_FONT_SIZE_VERY_LARGE" desc="Font size choice.">
+    Very large
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_FONT_SIZE_VERY_SMALL" desc="Font size choice.">
+    Very small
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_HARDWARE_ACCELERATION" desc="Setting for hardware (GPU) acceleration.">
+    Use graphics acceleration when available
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_LANGUAGES" desc="Title of the General pane's group of language settings.">
+    Languages
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_MAKE_DEFAULT" desc="Button that makes Compass the default web browser.">
+    Make Default
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_MANAGE_SEARCH_ENGINES" desc="Row that opens the list of search engines and site search shortcuts.">
+    Manage search engines and site search
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_MINIMUM_FONT_SIZE" desc="Setting for the smallest text size pages may use.">
+    Minimum font size
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_MINIMUM_FONT_SIZE_NONE" desc="Minimum font size choice: no minimum.">
+    None
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_OFFER_TRANSLATE" desc="Setting: offer to translate pages in other languages.">
+    Offer to translate pages
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_OFFER_TRANSLATE_DETAIL" desc="Explains which pages get the offer to translate.">
+    In languages that aren't among your preferred ones.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_OPENS_SYSTEM_SETTINGS" desc="Tooltip on the proxy row's arrow icon.">
+    Opens your computer's settings
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_PAGE_ZOOM" desc="Setting for the default zoom level of pages.">
+    Page zoom
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_PAGE_ZOOM_DETAIL" desc="Explains that the default zoom doesn't change sites the user zoomed.">
+    For sites you haven't zoomed yourself.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_PIP" desc="Title of the General pane's group about picture-in-picture video.">
+    Picture-in-picture
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_PIP_ON_LEAVING_WINDOW" desc="Setting: picture-in-picture starts also when the user leaves the browser window (it always does on tab switches).">
+    Also when you leave the window
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_PIP_ON_LEAVING_WINDOW_DETAIL" desc="Explains the picture-in-picture setting.">
+    A playing video or a call goes into picture-in-picture when its window is covered or minimized, or you switch to another app.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_PREFERRED_LANGUAGES" desc="Row that opens the list of languages the user reads, in order.">
+    Preferred languages
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_PROMPT_FOR_DOWNLOAD" desc="Setting: ask for a location before each download.">
+    Ask where to save each file
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_PROXY" desc="Row that opens the system's proxy settings.">
+    Proxy settings
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_PROXY_DETAIL" desc="Explains that proxies are set in the operating system.">
+    In your computer's network settings.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_RELAUNCH" desc="Button that restarts Compass.">
+    Relaunch
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_RELAUNCH_NEEDED" desc="The changed setting needs a restart.">
+    Takes effect when Compass restarts.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_SANS_SERIF_FONT" desc="Setting for the font pages use for sans-serif text.">
+    Sans-serif font
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_SEARCH_ENGINE" desc="Setting for the default search engine.">
+    Search engine
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_SEARCH_ENGINE_DETAIL" desc="Explains the search engine setting. The command bar is where the user types addresses and searches.">
+    What the command bar searches with.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_SERIF_FONT" desc="Setting for the font pages use for serif text.">
+    Serif font
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_SPELLCHECK" desc="Setting for the spell checker.">
+    Check spelling as you type
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_STANDARD_FONT" desc="Setting for the font pages use by default.">
+    Standard font
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_SYSTEM" desc="Title of the General pane's group of system settings.">
+    System
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_GENERAL_TITLE" desc="Name of the General pane, on the button that goes back to it from a subpage.">
+    General
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_IMPORT" desc="Row opening the import page, and its title.">
+    Import from another browser
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_ADD" desc="Accessible name of the button adding a language to the preferred list.">
+    Add <ph name="LANGUAGE">$1<ex>Italian</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_ADD_LANGUAGE" desc="Title of the list of languages to add.">
+    Add a language
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_FILTER" desc="Accessible name of the field filtering the languages to add.">
+    Filter languages
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_MOVE_DOWN" desc="Accessible name of the button moving a language down in the preferred list.">
+    Move <ph name="LANGUAGE">$1<ex>Italian</ex></ph> down
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_MOVE_UP" desc="Accessible name of the button moving a language up in the preferred list.">
+    Move <ph name="LANGUAGE">$1<ex>Italian</ex></ph> up
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_OFFER_TO_TRANSLATE" desc="Accessible name of the switch offering to translate pages in the named language.">
+    Offer to translate <ph name="LANGUAGE">$1<ex>Italian</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_REMOVE" desc="Accessible name of the button removing a preferred language.">
+    Remove <ph name="LANGUAGE">$1<ex>Italian</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_TRANSLATE" desc="Label of the switch offering to translate pages in a language.">
+    Translate
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LINKS" desc="Name of the settings pane choosing which app or window opens links.">
+    Links
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LINKS_BLURB" desc="Description under the Links pane's title.">
+    Which app or window opens links to the sites you choose.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_NO_RESULTS" desc="Shown when searching the settings finds nothing.">
+    No settings match “<ph name="QUERY">$1<ex>cookies</ex></ph>”.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_OPENS_IN_TAB" desc="Tooltip on a row's arrow icon: clicking the row opens a page in a browser tab.">
+    Opens in a tab
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PAGE_TITLE" desc="Title of the settings window, and the accessible name of its toolbar of panes.">
+    Settings
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS" desc="Name of the settings pane for passwords, cards and addresses; also a row and group title there.">
+    Passwords
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_ADDRESSES" desc="Group, row and page title for saved addresses.">
+    Addresses
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_ADD_ADDRESS" desc="Title of the form for a new address.">
+    Add an address
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_ADD_ADDRESS_ELLIPSIS" desc="Button that opens the form for a new address.">
+    Add Address…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_ADD_CARD" desc="Title of the form for a new card.">
+    Add a card
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_ADD_CARD_ELLIPSIS" desc="Button that opens the form for a new card.">
+    Add Card…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_AUTO_SIGN_IN" desc="Setting for signing in to sites with saved passwords automatically.">
+    Sign in automatically
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_AUTO_SIGN_IN_DETAIL" desc="Explains automatic sign-in.">
+    On sites where you saved one password.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_BLURB" desc="Description under the Passwords pane's title.">
+    Passwords, cards and addresses that Compass fills in for you.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_CARDS" desc="Row and page title for saved payment cards.">
+    Cards
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_CARD_EXPIRES" desc="A saved card's expiration date (month/year).">
+    Expires <ph name="DATE">$1<ex>04/2029</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_CARD_NUMBER" desc="Card form field.">
+    Card number
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_CITY" desc="Address form field.">
+    City
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_COPIED" meaning="A password was copied" desc="Shown on the copy button after a password was copied.">
+    Copied
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_COUNTRY" desc="Address form field.">
+    Country
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_EDIT_ADDRESS" desc="Title of the form editing an address.">
+    Edit address
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_EDIT_CARD" desc="Title of the form editing a card, with its last four digits.">
+    Edit card •••• <ph name="LAST_FOUR">$1<ex>4242</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_EMAIL" desc="Address form field.">
+    Email
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_EXPIRES" desc="Card form field: expiration month and year.">
+    Expires
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_EXPIRY_MONTH" desc="Accessible name of the card's expiration month menu.">
+    Expiry month
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_EXPIRY_YEAR" desc="Accessible name of the card's expiration year menu.">
+    Expiry year
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_FILTER_LABEL" desc="Accessible name of the field that filters the saved passwords.">
+    Filter saved passwords
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_HIDE" desc="Button that hides a revealed password.">
+    Hide
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_NAME" desc="Address form field: the person's full name.">
+    Name
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_NAME_ON_CARD" desc="Card form field.">
+    Name on card
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_NICKNAME" desc="Card form field: a name the user gives the card.">
+    Nickname
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_NO_ADDRESSES" desc="Empty list of saved addresses.">
+    No saved addresses.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_NO_CARDS" desc="Empty list of saved cards.">
+    No saved cards.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_NO_PASSWORDS" desc="Empty list of saved passwords.">
+    No saved passwords.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_OFFER_TO_SAVE" desc="Setting for the password manager's save prompt.">
+    Offer to save passwords and passkeys
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_OPTIONAL" desc="Under a form field the user may leave empty.">
+    Optional.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_ORGANIZATION" desc="Address form field.">
+    Organization
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_PASSKEY" desc="Shown instead of a hidden password for a saved passkey.">
+    Passkey
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_PASSWORD_COUNT" desc="Caption of the saved passwords list: how many there are.">
+    {COUNT, plural, =1 {1 password} other {# passwords}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_PASSWORD_MANAGER" desc="Row that opens Chrome's Password Manager page.">
+    Password Manager
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_PASSWORD_MANAGER_DETAIL" desc="What the Password Manager page offers.">
+    Add and edit passwords, checkup, import and export.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_PAYMENT_METHODS" desc="Title of the Passwords pane's payment methods group.">
+    Payment methods
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_PHONE" desc="Address form field.">
+    Phone
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_POSTAL_CODE" desc="Address form field.">
+    Postal code
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_REMOVE_PASSWORD" desc="Accessible name of the button removing a saved password, with its site.">
+    Remove <ph name="SITE">$1<ex>example.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_SAVED_PASSWORDS" desc="Row and page title for the list of saved passwords.">
+    Saved passwords
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_SAVE_ADDRESSES" desc="Setting for saving and autofilling addresses.">
+    Save and fill addresses
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_SAVE_CARDS" desc="Setting for saving and autofilling credit cards.">
+    Save and fill payment methods
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_SHOW" desc="Button that reveals a saved password.">
+    Show
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_STATE" desc="Address form field.">
+    State, province or region
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PASSWORDS_STREET" desc="Address form field: street address.">
+    Street
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PLUGINS" desc="Name of the settings pane for live folder plugins.">
+    Plugins
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PLUGINS_BLURB" desc="Description under the Plugins pane's title. Live folders are sidebar folders filled automatically.">
+    Plugins that fill live folders and show what’s new on your tabs.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY" desc="Name of the settings pane for privacy and security.">
+    Privacy
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_ADD_LIST" desc="Row for adding a filter list by address.">
+    Add a list
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_ADD_LIST_DETAIL" desc="Explains what to type to add a filter list. Adblock Plus and uBlock Origin are product names.">
+    The address of an Adblock Plus or uBlock Origin list.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_AD_BLOCKER" desc="Title of the Privacy pane's ad blocker group.">
+    Ad blocker
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_ALLOW" desc="A choice for a permission or cookies: allowed.">
+    Allow
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_ALL_TIME" desc="Time range for clearing browsing data: everything.">
+    All time
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_ASK" desc="A permission choice: ask each time.">
+    Ask
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_BLOCK" desc="A choice for a permission or cookies: blocked.">
+    Block
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_BLOCK_ADS" desc="Setting that turns the ad blocker on.">
+    Block ads and trackers
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_BLOCK_ADS_DETAIL" desc="Explains where the ad blocker is on. &quot;Ads&quot; is the name of the site permission, translated the same way.">
+    On every site unless you turn it off for one, from the site's information or its permissions (Ads).
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_BLURB" desc="Description under the Privacy pane's title.">
+    Cookies, tracking, ad blocking, security and what sites may use.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_BREACH_CHECK_UNAVAILABLE" desc="Safety check: the saved passwords can't be checked against known data breaches.">
+    Whether they appeared in a data breach can't be checked online without a Google account.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_BROWSING_DATA" desc="Title of the Privacy pane's group about browsing data.">
+    Browsing data
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CHECKING" desc="Safety check: still checking.">
+    Checking…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CHECK_NOW" desc="Button that checks for updates now.">
+    Check Now
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAN_LINKS" desc="Setting that strips tracking parameters from copied links.">
+    Remove tracking from copied links
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAN_LINKS_DETAIL" desc="Explains removing tracking from copied links. Copy URL and Copy Link are menu commands.">
+    Copy URL and Copy Link leave out parameters that only track where a link was shared, using Firefox's list.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEARED" desc="Shown on the button after browsing data was cleared.">
+    Cleared
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEARING" desc="Shown on the button while browsing data is cleared.">
+    Clearing…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_BROWSING_DATA" desc="Title of the page for clearing browsing data.">
+    Clear browsing data
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_BROWSING_DATA_DETAIL" desc="What clearing browsing data can delete.">
+    History, cookies, cached images and files.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_BROWSING_DATA_ELLIPSIS" desc="Row that opens the page for clearing history, cookies and cache.">
+    Clear browsing data…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_CACHE" desc="Clear browsing data choice.">
+    Cached images and files
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_CACHE_DETAIL" desc="Explains the cache choice.">
+    Some sites may load more slowly next time.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_COOKIES" desc="Clear browsing data choice.">
+    Cookies and other site data
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_COOKIES_DETAIL" desc="Explains the cookies choice: clearing them signs the user out.">
+    Signs you out of most sites.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_DATA" desc="Button that clears the chosen browsing data.">
+    Clear Data
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_DOWNLOADS" desc="Clear browsing data choice.">
+    Download history
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_DOWNLOADS_DETAIL" desc="Explains the download history choice.">
+    The list of downloads; the files stay.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_FORM_DATA" desc="Clear browsing data choice.">
+    Autofill form data
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_FORM_DATA_DETAIL" desc="Explains the autofill choice.">
+    Addresses and other things you typed in forms.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_HISTORY" desc="Clear browsing data choice.">
+    Browsing history
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_HISTORY_DETAIL" desc="Explains the browsing history choice.">
+    Pages you visited, on this device and those you sync with.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_PASSWORDS" desc="Clear browsing data choice.">
+    Passwords and passkeys
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_PASSWORDS_DETAIL" desc="Explains the passwords choice.">
+    Saved in this profile.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_SITE_SETTINGS" desc="Clear browsing data choice: the sites' permissions.">
+    Site settings
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_CLEAR_SITE_SETTINGS_DETAIL" desc="Explains the site settings choice.">
+    Permissions you gave or refused sites.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_COMPROMISED" desc="Safety check: how many saved passwords were compromised. Joined with the other problems by commas.">
+    {COUNT, plural, =1 {1 compromised} other {# compromised}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_COOKIES_AND_TRACKING" desc="Title of the Privacy pane's group about cookies and tracking.">
+    Cookies and tracking
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_COOKIES_BLOCK_INCOGNITO" desc="Third-party cookies choice: blocked only in Incognito windows.">
+    Block in Incognito
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_DAYS_AGO" desc="When a filter list was last updated.">
+    {COUNT, plural, =1 {1 day ago} other {# days ago}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_DEFAULT" desc="A site permission choice: follow the default.">
+    Default
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_DEFAULT_WITH_VALUE" desc="A site permission choice: follow the default, with what the default is.">
+    Default (<ph name="VALUE">$1<ex>Allow</ex></ph>)
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_DELETE_SITE_DATA" desc="Button that deletes a site's cookies and storage.">
+    Delete Site Data
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_DO_NOT_TRACK" desc="Setting that sends the Do Not Track request.">
+    Ask sites not to track you
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_DO_NOT_TRACK_DETAIL" desc="Explains Do Not Track (a standard's name, usually not translated).">
+    Sends Do Not Track; sites may ignore it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_EXTENSIONS" desc="Safety check row about browser extensions.">
+    Extensions
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_FILTER_LISTS" desc="The ad blocker's lists of rules, a row and a page title.">
+    Filter lists
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_FILTER_LISTS_FOOTER" desc="Note under the filter lists.">
+    Lists are downloaded from their publishers and checked for updates once a day. Scriptlets and some uBlock Origin rules aren't supported.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_HARMFUL_EXTENSIONS" desc="Safety check: how many extensions were turned off as harmful.">
+    {COUNT, plural, =1 {1 turned off as harmful.} other {# turned off as harmful.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_HOURS_AGO" desc="When a filter list was last updated.">
+    {COUNT, plural, =1 {1 hour ago} other {# hours ago}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_HTTPS_ONLY" desc="Setting that upgrades sites to HTTPS.">
+    Always use secure connections
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_HTTPS_ONLY_DETAIL" desc="Explains the secure connections setting.">
+    Asks before loading a site that doesn't support HTTPS.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_JUST_NOW" desc="When a filter list was last updated, within the last minute. Lowercase: it follows other words.">
+    just now
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_LAST_15_MINUTES" desc="Time range for clearing browsing data.">
+    Last 15 minutes
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_LAST_24_HOURS" desc="Time range for clearing browsing data.">
+    Last 24 hours
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_LAST_4_WEEKS" desc="Time range for clearing browsing data.">
+    Last 4 weeks
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_LAST_7_DAYS" desc="Time range for clearing browsing data.">
+    Last 7 days
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_LAST_HOUR" desc="Time range for clearing browsing data.">
+    Last hour
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_LISTS_UPDATED" desc="The Filter lists row's detail: how many lists are on and when they were last updated.">
+    <ph name="LIST_COUNT">$1<ex>3 lists</ex></ph>, updated <ph name="TIME">$2<ex>2 hours ago</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_LIST_ADDRESS" desc="Accessible name of the field for a filter list's address.">
+    List address
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_LIST_COUNT" desc="How many filter lists are on.">
+    {COUNT, plural, =1 {1 list} other {# lists}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_LIST_UPDATED" desc="When a filter list was last updated, after its rule count. Lowercase: it follows other words.">
+    updated <ph name="TIME">$1<ex>2 hours ago</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_MANAGE" desc="Button that opens the extensions page.">
+    Manage
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_MANAGE_CERTIFICATES" desc="Row that opens the certificate manager.">
+    Manage certificates
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_MINUTES_AGO" desc="When a filter list was last updated.">
+    {COUNT, plural, =1 {1 minute ago} other {# minutes ago}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_NOT_DOWNLOADED" desc="A filter list that was never downloaded.">
+    Not downloaded yet
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_NO_EXTENSIONS" desc="Safety check: no extensions are installed.">
+    No extensions.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_NO_HARMFUL_EXTENSIONS" desc="Safety check: none of the installed extensions is known to be harmful; the count is how many are installed.">
+    {COUNT, plural, =1 {No harmful extensions among 1.} other {No harmful extensions among #.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_NO_PASSWORD_PROBLEMS" desc="Safety check: the saved passwords have no known problems.">
+    {COUNT, plural, =1 {No problems known with 1 saved password.} other {No problems known among # saved passwords.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_NO_SAVED_PASSWORDS" desc="Safety check: there are no saved passwords.">
+    No saved passwords.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_NO_SITES" desc="Empty list of sites with their own permissions.">
+    No site has permissions of its own.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PASSWORD_PROBLEMS" desc="Safety check: the problems found with saved passwords, as a sentence.">
+    <ph name="PROBLEMS">$1<ex>2 compromised, 3 weak</ex></ph>.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSIONS" desc="Row and page title for the default site permissions.">
+    Permissions
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSIONS_DETAIL" desc="Explains the Permissions page.">
+    What sites can use by default: location, camera, notifications…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_ADS" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Ads
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_AR" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Augmented reality
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_AUTO_PICTURE_IN_PICTURE" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Automatic picture-in-picture
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_BACKGROUND_SYNC" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Background sync
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_BLUETOOTH_SCANNING" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Bluetooth scanning
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_CLIPBOARD" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Clipboard
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_COUNT" desc="How many permissions a site has of its own.">
+    {COUNT, plural, =1 {1 permission} other {# permissions}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_FEDERATED_IDENTITY_API" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Third-party sign-in
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_FILE_SYSTEM_WRITE" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    File editing
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_HID_DEVICES" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    HID devices
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_IDLE_DETECTION" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Your device use
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_IMAGES" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Images
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_JAVASCRIPT" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    JavaScript
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_JAVASCRIPT_OPTIMIZER" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    JavaScript optimization
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_LOCAL_FONTS" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Fonts
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_LOCATION" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Location
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_MEDIA_STREAM_CAMERA" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Camera
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_MEDIA_STREAM_MIC" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Microphone
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_MIDI_SYSEX" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    MIDI devices
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_MIXED_SCRIPT" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Insecure content
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_MULTIPLE_AUTOMATIC_DOWNLOADS" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Automatic downloads
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_NOTIFICATIONS" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Notifications
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_PAYMENT_HANDLER" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Payment handlers
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_POPUPS" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Pop-ups and redirects
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_PROTECTED_CONTENT" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Protected content IDs
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_SENSORS" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Motion sensors
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_SERIAL_PORTS" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Serial ports
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_SMART_CARD_READERS" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Smart card readers
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_SOUND" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Sound
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_STORAGE_ACCESS" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Embedded content
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_USB_DEVICES" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    USB devices
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_VR" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Virtual reality
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_PERMISSION_WINDOW_MANAGEMENT" desc="Name of a site permission (what a site may use), in lists of permissions and their settings.">
+    Window management
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_RESET_PERMISSIONS" desc="Button that resets a site's permissions to the defaults.">
+    Reset Permissions
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_REUSED" desc="Safety check: how many saved passwords are used on several sites.">
+    {COUNT, plural, =1 {1 reused} other {# reused}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_REVIEW" desc="Button that opens the password checkup.">
+    Review
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_RULES_NOT_SUPPORTED" desc="How many of a filter list's rules the ad blocker can't use.">
+    {COUNT, plural, =1 {1 not supported} other {# not supported}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_RULE_COUNT" desc="How many rules a filter list has.">
+    {COUNT, plural, =1 {1 rule} other {# rules}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SAFETY_CHECK" desc="Row and page title for the safety check (updates, passwords, Safe Browsing, extensions).">
+    Safety check
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SAFETY_CHECK_DETAIL" desc="What the safety check checks.">
+    Updates, passwords, Safe Browsing and extensions.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SAFE_BROWSING" desc="Name of the Safe Browsing protection, as Chrome names it.">
+    Safe Browsing
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SAFE_BROWSING_DETAIL" desc="Explains Safe Browsing.">
+    Warns about dangerous sites, downloads and extensions.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SAFE_BROWSING_ENHANCED" desc="Safe Browsing level choice.">
+    Enhanced
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SAFE_BROWSING_OFF" desc="Safe Browsing level choice: no protection." meaning="Safe Browsing level">
+    Off
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SAFE_BROWSING_OFF_DETAIL" desc="Safety check: Safe Browsing is off.">
+    Off: nothing warns you about dangerous sites and downloads.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SAFE_BROWSING_ON" desc="Safety check: Safe Browsing is on.">
+    Dangerous sites, downloads and extensions are checked.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SAFE_BROWSING_STANDARD" desc="Safe Browsing level choice.">
+    Standard
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SECURE_DNS" desc="Setting for DNS over HTTPS.">
+    Use secure DNS
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SECURE_DNS_AUTOMATIC" desc="Explains secure DNS in automatic mode.">
+    Looks up sites over an encrypted connection when your provider supports it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SECURE_DNS_CUSTOM" desc="Secure DNS uses a provider chosen on Chrome's own settings page.">
+    With the provider chosen in Chrome settings.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SECURITY" desc="Title of the Privacy pane's security group.">
+    Security
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SITES" desc="Button going back to the list of sites, from one site's permissions.">
+    Sites
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SITES_WITH_OWN_COUNT" desc="Safety check: how many sites have permissions of their own.">
+    {COUNT, plural, =1 {1 site with its own.} other {# sites with their own.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SITES_WITH_PERMISSIONS" desc="Row and page title for the sites whose permissions differ from the defaults.">
+    Sites with their own permissions
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SITE_COUNT" desc="How many sites have permissions of their own.">
+    {COUNT, plural, =1 {1 site} other {# sites}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SITE_DATA_DELETED" desc="Button label after a site's data was deleted.">
+    Data Deleted
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SITE_PERMISSIONS" desc="Safety check row about sites' permissions.">
+    Site permissions
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_SITE_SETTINGS" desc="Title of the Privacy pane's group about what sites may do.">
+    Site settings
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_THIRD_PARTY_COOKIES" desc="Setting for cookies of sites other than the one being visited.">
+    Third-party cookies
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_THIRD_PARTY_COOKIES_DETAIL" desc="Explains the third-party cookies setting.">
+    Whether sites can follow you across the web.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_TIME_RANGE" desc="Menu choosing how far back clearing browsing data goes.">
+    Time range
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_TURN_ON" desc="Button that turns Safe Browsing on.">
+    Turn On
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_UPDATE_NOW" desc="Button that downloads the filter lists again now.">
+    Update Now
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_UPDATE_READY" desc="Safety check: a downloaded update waits for a restart.">
+    An update is ready: relaunch Compass to install it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_UPDATING" desc="Shown while filter lists are being downloaded again.">
+    Updating…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_USE_LIST" desc="Accessible name of the switch that turns a filter list on or off.">
+    Use <ph name="LIST_NAME">$1<ex>EasyList</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_WEAK" desc="Safety check: how many saved passwords are weak.">
+    {COUNT, plural, =1 {1 weak} other {# weak}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PRIVACY_YESTERDAY" desc="When a filter list was last updated. Lowercase: it follows other words.">
+    yesterday
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PROFILES" desc="Name of the settings pane for profiles, sync and import.">
+    Profiles
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PROFILES_BLURB" desc="Description under the Profiles pane's title.">
+    Separate people and accounts, each with their own spaces, sync and passwords.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PROFILE_CURRENT_PROFILE" desc="Detail of the profile the settings window belongs to, with its number of spaces.">
+    This window's profile · <ph name="SPACE_COUNT">$1<ex>3 spaces</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PROFILE_DELETE_CLOSES_WINDOW" desc="Added to the confirmation when deleting the settings window's own profile.">
+    This window closes too.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PROFILE_DELETE_CONFIRM" desc="Confirmation before deleting a profile; the count is how many spaces it has.">
+    {COUNT, plural, =0 {Deletes “<ph name="PROFILE_NAME">$1<ex>Personal</ex></ph>” with its tabs, history, passwords and other data on this device. Move spaces you want to keep to another profile first.} =1 {Deletes “<ph name="PROFILE_NAME">$1<ex>Personal</ex></ph>” with its space, its tabs, history, passwords and other data on this device. Move spaces you want to keep to another profile first.} other {Deletes “<ph name="PROFILE_NAME">$1<ex>Personal</ex></ph>” with its # spaces, its tabs, history, passwords and other data on this device. Move spaces you want to keep to another profile first.}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PROFILE_DELETE_ELLIPSIS" desc="Button that asks to confirm deleting a profile.">
+    Delete…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PROFILE_DELETE_PROFILE" desc="Accessible name of the button deleting a profile.">
+    Delete <ph name="PROFILE_NAME">$1<ex>Personal</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PROFILE_NAME_OF" desc="Accessible name of the field renaming a profile.">
+    Name of <ph name="PROFILE_NAME">$1<ex>Personal</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PROFILE_NEW_PROFILE" desc="Button that creates a profile.">
+    New profile
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_PROFILE_SPACE_COUNT" desc="How many spaces a profile has.">
+    {COUNT, plural, =1 {1 space} other {# spaces}}
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH" desc="Placeholder of the settings search field, and the window's title while searching.">
+    Search
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_API_KEY" desc="Settings search result: Claude's API key.">
+    API key
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_BROWSER_SCOPE" desc="Settings search result: a Claude permission.">
+    Let Claude use the whole browser
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_CHECK_FOR_UPDATES" desc="Settings search result: checking for a newer Compass.">
+    Check for updates
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_CLAUDE_BOOSTS" desc="Settings search result: a Claude permission. Boosts is a feature name.">
+    Let Claude make Boosts
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_CLAUDE_PLUGINS" desc="Settings search result: a Claude permission.">
+    Let Claude make plugins
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_CLAUDE_SIDEBAR" desc="Settings search result: Claude's sidebar features.">
+    Claude in the sidebar
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_CONNECTION" desc="Settings search result: how Compass connects to Claude.">
+    Connection
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_DEVTOOLS" desc="Settings search result: a Claude permission.">
+    Let Claude use developer tools
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_DOWNLOAD_LOCATION" desc="Settings search result: the download folder setting.">
+    Download location
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_EDIT_SPACES" desc="Settings search result: the spaces list.">
+    Edit spaces
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_ADD" desc="Title of the form adding a site search.">
+    Add site search
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_ADDRESS" desc="Search engine form field: its search URL.">
+    Address
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_ADDRESS_DETAIL" desc="Explains the search URL: the marker (%s, typed literally) stands for what the user searches.">
+    With <ph name="QUERY_MARKER">%s<ex>%s</ex></ph> where the query goes.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_ADD_ELLIPSIS" desc="Button that opens the form for a new site search.">
+    Add…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_EDIT" desc="Title of the form editing a search engine.">
+    Edit search engine
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_KEYWORD_DEFAULT" desc="Detail of the default search engine: its shortcut, then that it's the default.">
+    <ph name="KEYWORD">$1<ex>google.com</ex></ph> · Default
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_NAME" desc="Search engine form field: the engine's name.">
+    Name
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_NO_SITE_SEARCH" desc="Empty list of site searches.">
+    No site search yet. Sites you search on are added here.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_SHORTCUT" desc="Search engine form field: the keyword that picks it in the command bar.">
+    Shortcut
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_SHORTCUT_DETAIL" desc="Explains the search engine's shortcut (keyword).">
+    Type it in the command bar to search there.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_SITE_SEARCH" desc="Title of the list of sites' own search engines.">
+    Site search
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_TITLE" desc="Title of the list of search engines.">
+    Search engines
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_ENGINES_USE" desc="Accessible name of the switch turning a site search on or off.">
+    Use <ph name="ENGINE">$1<ex>Wikipedia</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_FILES" desc="Settings search result: where Claude saves files.">
+    Files
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_LABEL" desc="Accessible name of the settings search field.">
+    Search settings
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_MCP" desc="Settings search result: letting MCP clients (AI apps) control the browser. MCP is a protocol name.">
+    Allow MCP clients
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_MEMORY" desc="Settings search result: what Claude remembers.">
+    Memory
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_MODEL" desc="Settings search result: which Claude model answers.">
+    Model
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_PIP_ON_LEAVING_WINDOW" desc="Settings search result: picture-in-picture when leaving the window.">
+    Picture-in-picture when you leave the window
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_PROFILE_NAME" desc="Settings search result: renaming a profile.">
+    Profile name
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SHORTCUTS" desc="Name of the settings pane for keyboard shortcuts.">
+    Shortcuts
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SHORTCUTS_BLURB" desc="Description under the Shortcuts pane's title.">
+    Keyboard shortcuts for Compass’s commands.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES" desc="Name of the settings pane for spaces.">
+    Spaces
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_ARCHIVE_AFTER" desc="Setting: how long tabs stay in the Today section before they're archived. Followed by a duration menu.">
+    Archive Today tabs after
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_BLURB" desc="Description under the Spaces pane's title.">
+    Your spaces: their names, icons, themes and the profile each is in.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_DELETE_CONFIRM" desc="Confirmation before deleting a space.">
+    Deletes “<ph name="SPACE_NAME">$1<ex>Work</ex></ph>” with its pinned and Today tabs and its archive.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_DELETE_LAST_CONFIRM" desc="Confirmation before deleting a profile's last space. &quot;Profiles&quot; is the name of the settings pane.">
+    Deletes “<ph name="SPACE_NAME">$1<ex>Work</ex></ph>” with its pinned and Today tabs and its archive. It's <ph name="PROFILE_NAME">$2<ex>Personal</ex></ph>'s last space: the profile leaves the switcher, and stays in Profiles.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_DELETE_SPACE_ELLIPSIS" desc="Button that asks to confirm deleting a space.">
+    Delete space…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_DEVICE_ONLY" desc="A space that doesn't sync.">
+    On this device only
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_EDIT_ELLIPSIS" desc="Button that shows a space's settings.">
+    Edit…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_EDIT_THEME_ELLIPSIS" desc="Button that opens a space's theme editor.">
+    Edit theme…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_EMOJI" desc="Icon choice that opens the emoji picker.">
+    Emoji
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_EXPORT_ELLIPSIS" desc="Button that exports spaces to a bookmarks file.">
+    Export…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_EXPORT_SPACES" desc="Row for exporting every space to a bookmarks file.">
+    Export spaces
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_EXPORT_SPACES_DETAIL" desc="What exporting spaces writes.">
+    Every space's pinned and Today tabs, and the favorites, as a bookmarks file other browsers can import.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_ICON" desc="A space's icon setting.">
+    Icon
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_MOVE_DOWN" desc="Tooltip of the button moving a space down in the list.">
+    Move down
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_MOVE_SPACE_DOWN" desc="Accessible name of the button moving a space down.">
+    Move <ph name="SPACE_NAME">$1<ex>Work</ex></ph> down
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_MOVE_SPACE_UP" desc="Accessible name of the button moving a space up.">
+    Move <ph name="SPACE_NAME">$1<ex>Work</ex></ph> up
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_MOVE_UP" desc="Tooltip of the button moving a space up in the list.">
+    Move up
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_NAME_OF" desc="Accessible name of the field renaming a space.">
+    Name of <ph name="SPACE_NAME">$1<ex>Work</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_NEW_PROFILE_ELLIPSIS" desc="Menu choice that moves the space to a new profile.">
+    New profile…
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_NEW_SPACE" desc="Button that adds a space to a profile.">
+    New space
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_NEW_SPACE_IN" desc="Accessible name of the button adding a space to the named profile.">
+    New space in <ph name="PROFILE_NAME">$1<ex>Personal</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_NO_ICON" desc="Icon choice: the space shows its initial.">
+    No icon
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_NO_SPACES" desc="A profile has no spaces in the space switcher; adding one brings the profile back into it.">
+    No spaces in the switcher. A new space brings the profile in.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_PROFILE" desc="The profile a space is in.">
+    Profile
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_PROFILE_DETAIL" desc="What moving a space to another profile does. Pinned and Today are the sidebar's two sections.">
+    Its open tabs close; its pinned and Today tabs move with it.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_PROFILE_OF" desc="Accessible name of the menu choosing a space's profile.">
+    Profile of <ph name="SPACE_NAME">$1<ex>Work</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_SHARED" desc="A space the user shares with others.">
+    Shared
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_SHARED_VIEW_ONLY" desc="A space someone shared with the user, who can't edit it.">
+    Shared with you, view only
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_STOP_SYNCING" desc="Button that stops syncing a space.">
+    Stop syncing
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_SYNC" desc="Setting: the space syncs to the user's other devices.">
+    Sync to your other devices
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_THEME" desc="A space's theme (colors) setting.">
+    Theme
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SPACES_UNSYNC_CONFIRM" desc="Confirmation before a space stops syncing.">
+    “<ph name="SPACE_NAME">$1<ex>Work</ex></ph>” stays on this device and is removed from your other devices.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SYNC" desc="Row opening the Sync page, and its title.">
+    Sync
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_SYNC_AND_IMPORT" desc="Title of the Profiles pane's group of rows opening the Sync and Import pages.">
+    Sync and import
+  </message>
+</grit-part>

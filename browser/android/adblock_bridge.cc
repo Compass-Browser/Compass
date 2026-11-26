@@ -13,11 +13,13 @@
 #include "chrome/browser/browser_process.h"
 #include "compass/browser/adblock/adblock_prefs.h"
 #include "compass/browser/adblock/adblock_service.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 
 // Must come after the includes it uses.
 #include "compass/android/jni_headers/AdBlockBridge_jni.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass {
 
@@ -110,7 +112,8 @@ static void JNI_AdBlockBridge_SetListEnabled(JNIEnv* env,
 static std::string JNI_AdBlockBridge_AddList(JNIEnv* env,
                                              const std::string& url) {
   adblock::AdBlockService* service = Service();
-  return service ? service->AddList(url) : "The ad blocker isn't running";
+  return service ? service->AddList(url)
+                 : l10n_util::GetStringUTF8(IDS_COMPASS_ADBLOCK_NOT_RUNNING);
 }
 
 static void JNI_AdBlockBridge_RemoveList(JNIEnv* env, const std::string& id) {

@@ -104,6 +104,48 @@ from the same paks, so it follows.
 
 Tests: `tools/tests/test_rebrand_strings.py`.
 
+### Compass's own strings
+
+Compass's own UI text is in `strings/compass_strings.grd`, apart from the
+renamed copies above: one part (`.grdp`) per area (`common`, `browser`,
+`browser_ui`, `settings_sections`, `settings_window`, `sidebar`, `easel`),
+messages named `IDS_COMPASS_*`, with a `desc` for translators, `<ph>` for
+values and ICU plurals for counts. A sentence that names a kind of thing
+(space, folder, easel) is a message per kind, since Italian agrees with the
+noun's gender; the same English that needs two translations gets a
+`meaning` ("Copied" a link, "Copied" a password).
+
+- **Build:** `//compass/strings:compass_strings` (`grit_strings`) makes
+  `compass/strings/grit/compass_strings.h` and a pak per locale, which
+  `patches/chrome-chrome_repack_locales.gni.patch` adds to every locale
+  pak, desktop and Android. Its start ID is in
+  `patches/tools-gritsettings-resource_ids.spec.patch`.
+- **Native code:** `l10n_util` with `IDS_COMPASS_*`, plurals with
+  `GetPluralStringFUTF16`.
+- **WebUI:** `browser/ui/webui/localized_strings/` registers each area's
+  table; every data source serving the sidebar's pak calls
+  `AddSidebarPakLocalizedStrings()`, Easel `AddEaselLocalizedStrings()`.
+  Pages use `$i18n{}` in markup and `i18n()`, `i18nF()` and `i18nPlural()`
+  (`resources/sidebar/i18n.ts`, Easel's own copy) in code. A key that isn't
+  registered, or `$N` in a `$i18n{}` message, hits a CHECK.
+- **Translations:** Italian, `strings/translations/compass_strings_it.xtb`.
+  IDs are grit's fingerprints of the English, so changing a message's text
+  needs a new translation. `strings/update_translations.py --xtb <xtb>
+  <tsv>` (from `src/`) merges `NAME<TAB>translation` lines, checks
+  placeholders, drops stale IDs, and `--missing` lists what's left
+  (`tools/tests/test_update_translations.py`). Terms are the same on every
+  platform: docs/design/android.md and ios.md list them.
+- **Adding a string:** a message in the area's part, a row in its table
+  for WebUI, the Italian through the tool. Without a translation grit falls
+  back to English (`fallback_to_english`).
+- **Stays English:** what goes to the model (prompts, tool results),
+  logs, emoji names and keywords (`emoji_data.ts`, generated; search
+  matches them), settings search's extra `keywords:`, and Reader
+  (`common/reader/`, which iOS loads as is: needs its own design).
+- **Stored in the user's language:** a new Easel's title, new folders'
+  names. The first space is "Home" in every language, so the sync bridge's
+  check for an untouched default space and iOS's still match.
+
 ## Windows
 
 Windows keeps the product's identity apart from `BRANDING`: desktop and

@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/theme_source.h"
+#include "compass/browser/ui/webui/localized_strings/localized_strings.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_contents.h"
@@ -39,6 +40,7 @@ CompassPlaceholderUI::CompassPlaceholderUI(content::WebUI* web_ui)
   // Shares the sidebar's resource pak; only the default page differs.
   webui::SetupWebUIDataSource(source, kCompassSidebarResources,
                               IDR_COMPASS_SIDEBAR_PLACEHOLDER_HTML);
+  AddSidebarPakLocalizedStrings(source);
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 }
 

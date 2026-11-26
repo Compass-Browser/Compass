@@ -9,24 +9,26 @@
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
+#include "base/json/json_writer.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/functional/callback_helpers.h"
-#include "base/no_destructor.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
-#include "chrome/browser/platform_util.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
-#include "base/json/json_writer.h"
 #include "compass/browser/live_folders/live_result.h"
 #include "compass/browser/ui/live_folders/tab_preview_service.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/common/encryptor.h"
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass {
 
@@ -110,8 +112,10 @@ base::expected<LiveFolderHost::RunSpec, LiveError> MakeLiveRunSpec(
       own[field.key] = it->second;
       secrets_dict.Set(field.key, it->second);
     } else if (!field.optional) {
-      return base::unexpected(
-          LiveError{"missing_secret", field.label + " is not set"});
+      return base::unexpected(LiveError{
+          "missing_secret",
+          l10n_util::GetStringFUTF8(IDS_COMPASS_LIVE_FOLDER_SECRET_NOT_SET,
+                                    base::UTF8ToUTF16(field.label))});
     }
   }
   LiveFolderHost::RunSpec spec;
@@ -178,8 +182,9 @@ base::expected<base::DictValue, LiveError> NormalizePreviewSnapshot(
     page.Set("cookies", std::move(cookies));
   }
   if (base::WriteJson(page).value_or("").size() > kMaxPreviewSnapshotBytes) {
-    return base::unexpected(
-        LiveError{"response_too_large", "The page snapshot is too large"});
+    return base::unexpected(LiveError{
+        "response_too_large",
+        l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDER_SNAPSHOT_TOO_LARGE)});
   }
   return page;
 }
@@ -195,8 +200,9 @@ base::expected<LiveFolderHost::RunSpec, LiveError> MakeLivePreviewRunSpec(
     PreviewSessionFetcher::Limits limits) {
   const LivePluginManifest& manifest = plugin.manifest;
   if (!manifest.preview) {
-    return base::unexpected(
-        LiveError{"bad_plugin", "The plugin has no preview"});
+    return base::unexpected(LiveError{
+        "bad_plugin",
+        l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDER_NO_PREVIEW)});
   }
   const LivePluginManifest::Preview& preview = *manifest.preview;
   const bool granted = session_granted && preview.session.has_value();
@@ -353,10 +359,12 @@ base::expected<SidebarNode*, std::string> LiveFolderService::CreateLiveFolder(
     bool grant_cookies) {
   const LivePlugin* plugin = registry_->Find(plugin_id);
   if (!plugin) {
-    return base::unexpected("That plugin isn't installed.");
+    return base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDER_PLUGIN_NOT_INSTALLED));
   }
   if (!space.CanAddLiveFolder(parent)) {
-    return base::unexpected("Live folders go in Pinned.");
+    return base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDER_ONLY_IN_PINNED));
   }
   auto validated = ValidateLiveConfig(plugin->manifest, config);
   if (!validated.has_value()) {
@@ -367,7 +375,9 @@ base::expected<SidebarNode*, std::string> LiveFolderService::CreateLiveFolder(
     const bool given = it != secrets.end() && !it->second.empty();
     if (!field.optional && !given &&
         !store_.HasSecret(plugin_id, field.key)) {
-      return base::unexpected(field.label + " is required.");
+      return base::unexpected(
+          l10n_util::GetStringFUTF8(IDS_COMPASS_LIVE_FOLDER_FIELD_REQUIRED,
+                                    base::UTF8ToUTF16(field.label)));
     }
   }
   for (const auto& [key, value] : secrets) {
@@ -399,12 +409,14 @@ base::expected<void, std::string> LiveFolderService::EditLiveFolder(
   SpaceModel* space = nullptr;
   if (!folder || !folder->is_live_folder() ||
       !FindFolder(folder->id(), &space)) {
-    return base::unexpected("That folder isn't live anymore.");
+    return base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDER_NOT_LIVE));
   }
   const std::string plugin_id = folder->live_source()->plugin_id;
   const LivePlugin* plugin = registry_->Find(plugin_id);
   if (!plugin) {
-    return base::unexpected("That plugin isn't installed.");
+    return base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDER_PLUGIN_NOT_INSTALLED));
   }
   auto validated = ValidateLiveConfig(plugin->manifest, config);
   if (!validated.has_value()) {
@@ -489,13 +501,13 @@ void LiveFolderService::InstallPlugin(
               return;
             }
             if (package->sha256 != expected) {
-              std::move(callback).Run(
-                  "The plugin at that address has changed since. Review it "
-                  "again before installing.");
+              std::move(callback).Run(l10n_util::GetStringUTF8(
+                  IDS_COMPASS_LIVE_FOLDER_PLUGIN_CHANGED));
               return;
             }
             if (!service) {
-              std::move(callback).Run("Compass is closing.");
+              std::move(callback).Run(
+                  l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDER_CLOSING));
               return;
             }
             base::ThreadPool::PostTaskAndReplyWithResult(
@@ -508,8 +520,8 @@ void LiveFolderService::InstallPlugin(
                        base::OnceCallback<void(const std::string&)> callback,
                        bool written) {
                       if (!written) {
-                        std::move(callback).Run(
-                            "The plugin couldn't be saved on this device.");
+                        std::move(callback).Run(l10n_util::GetStringUTF8(
+                            IDS_COMPASS_LIVE_FOLDER_PLUGIN_NOT_SAVED));
                         return;
                       }
                       LivePluginRegistry::Get().AddInstalled(package);
@@ -640,8 +652,9 @@ void LiveFolderService::StartRefresh(const base::Uuid& folder_id) {
   const LivePlugin* plugin = registry_->Find(source.plugin_id);
   if (!plugin) {
     return Fail(folder_id,
-                {"plugin_missing", "The plugin " + source.plugin_id +
-                                       " isn't installed on this device"});
+                {"plugin_missing", l10n_util::GetStringFUTF8(
+                                       IDS_COMPASS_LIVE_FOLDER_PLUGIN_MISSING,
+                                       base::UTF8ToUTF16(source.plugin_id))});
   }
   const LivePluginManifest& manifest = plugin->manifest;
   const base::Time now = Now();

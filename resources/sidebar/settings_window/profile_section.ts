@@ -4,6 +4,7 @@
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n, i18nF, i18nPlural} from '../i18n.js';
 import type {ProfileDetails} from '../sidebar.mojom-webui.js';
 
 import {SettingsWindowBrowserProxy} from './browser_proxy.js';
@@ -75,9 +76,9 @@ export class CompassSettingsProfileSectionElement extends CrLitElement {
   }
 
   protected getSpaceCountText_(profile: ProfileDetails): string {
-    const count = profile.spaceCount;
-    const spaces = count === 1 ? '1 space' : `${count} spaces`;
-    return profile.current ? `This window's profile · ${spaces}` : spaces;
+    const spaces = i18nPlural('profileSectionSpaceCount', profile.spaceCount);
+    return profile.current ? i18nF('profileSectionCurrentProfile', spaces) :
+                             spaces;
   }
 
   protected canDelete_(): boolean {
@@ -89,14 +90,11 @@ export class CompassSettingsProfileSectionElement extends CrLitElement {
   }
 
   protected getDeleteText_(profile: ProfileDetails): string {
-    const count = profile.spaceCount;
-    const spaces = count === 0 ? '' :
-        count === 1           ? 'its space, ' :
-                                `its ${count} spaces, `;
-    const windows = profile.current ? ' This window closes too.' : '';
-    return `Deletes “${profile.name}” with ${spaces}its tabs, history, ` +
-        `passwords and other data on this device. Move spaces you want to ` +
-        `keep to another profile first.${windows}`;
+    const text = i18nPlural(
+        'profileSectionDeleteConfirm', profile.spaceCount, profile.name);
+    return profile.current ?
+        `${text} ${i18n('profileSectionDeleteClosesWindow')}` :
+        text;
   }
 
   private getProfileId_(e: Event): string {

@@ -22,15 +22,16 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "cc/paint/paint_flags.h"
+#include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/views/controls/hover_button.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
+#include "chrome/browser/ui/views/controls/hover_button.h"
 #include "compass/browser/ui/views/bubble_look.h"
 #include "compass/browser/ui/views/downloads_bubble/downloads_bubble_hooks.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "services/data_decoder/public/cpp/decode_image.h"
 #include "services/data_decoder/public/mojom/image_decoder.mojom.h"
@@ -39,28 +40,30 @@
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/l10n/time_format.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/text/bytes_formatting.h"
-#include "ui/color/color_variant.h"
-#include "ui/compositor/paint_recorder.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
+#include "ui/color/color_variant.h"
+#include "ui/compositor/paint_recorder.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/color_utils.h"
-#include "ui/gfx/shadow_value.h"
-#include "ui/gfx/skia_paint_util.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/scoped_canvas.h"
+#include "ui/gfx/shadow_value.h"
+#include "ui/gfx/skia_paint_util.h"
 #include "ui/menus/simple_menu_model.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
+#include "ui/views/context_menu_controller.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/focus_ring.h"
@@ -68,13 +71,12 @@
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/controls/scroll_view.h"
-#include "ui/views/context_menu_controller.h"
 #include "ui/views/drag_controller.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/fill_layout.h"
-#include "ui/views/style/typography.h"
 #include "ui/views/paint_info.h"
+#include "ui/views/style/typography.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/view_tracker.h"
 #include "ui/views/widget/widget.h"
@@ -166,21 +168,21 @@ BEGIN_METADATA(Hairline)
 END_METADATA
 
 #if BUILDFLAG(IS_MAC)
-constexpr char16_t kShowInFolderLabel[] = u"Show in Finder";
-constexpr char16_t kTrashLabel[] = u"Move to Trash";
+constexpr int kShowInFolderLabel = IDS_COMPASS_DOWNLOADS_SHOW_IN_FINDER;
+constexpr int kTrashLabel = IDS_COMPASS_DOWNLOADS_MOVE_TO_TRASH;
 #elif BUILDFLAG(IS_WIN)
-constexpr char16_t kShowInFolderLabel[] = u"Show in Folder";
-constexpr char16_t kTrashLabel[] = u"Move to Recycle Bin";
+constexpr int kShowInFolderLabel = IDS_COMPASS_DOWNLOADS_SHOW_IN_FOLDER;
+constexpr int kTrashLabel = IDS_COMPASS_DOWNLOADS_MOVE_TO_RECYCLE_BIN;
 #else
-constexpr char16_t kShowInFolderLabel[] = u"Show in Folder";
-constexpr char16_t kTrashLabel[] = u"Move to Trash";
+constexpr int kShowInFolderLabel = IDS_COMPASS_DOWNLOADS_SHOW_IN_FOLDER;
+constexpr int kTrashLabel = IDS_COMPASS_DOWNLOADS_MOVE_TO_TRASH;
 #endif
 
 // "Just now", "5 mins ago", "3 days ago", then the date.
 std::u16string When(base::Time added) {
   const base::TimeDelta age = base::Time::Now() - added;
   if (age < base::Minutes(1)) {
-    return u"Just now";
+    return l10n_util::GetStringUTF16(IDS_COMPASS_DOWNLOADS_JUST_NOW);
   }
   if (age < base::Days(7)) {
     return ui::TimeFormat::Simple(ui::TimeFormat::FORMAT_ELAPSED,
@@ -190,11 +192,11 @@ std::u16string When(base::Time added) {
 }
 
 std::u16string Subtitle(const FolderFile& file) {
-  return base::StrCat({file.is_directory
-                           ? std::u16string(u"Folder")
-                           : ui::FormatBytes(base::ByteSize(
-                                 static_cast<uint64_t>(file.size))),
-                       u" · ", When(file.added)});
+  return base::StrCat(
+      {file.is_directory
+           ? l10n_util::GetStringUTF16(IDS_COMPASS_DOWNLOADS_FOLDER)
+           : ui::FormatBytes(base::ByteSize(static_cast<uint64_t>(file.size))),
+       u" · ", When(file.added)});
 }
 
 std::u16string DisplayName(const base::FilePath& path) {
@@ -319,13 +321,14 @@ class FileActions : public ui::SimpleMenuModel::Delegate {
                 ui::mojom::MenuSourceType source_type) {
     source_.SetView(source);
     menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
-    menu_model_->AddItem(kOpen, u"Open");
-    menu_model_->AddItem(kShowInFolder, kShowInFolderLabel);
+    menu_model_->AddItem(kOpen, l10n_util::GetStringUTF16(IDS_COMPASS_OPEN));
+    menu_model_->AddItem(kShowInFolder,
+                         l10n_util::GetStringUTF16(kShowInFolderLabel));
     if (file_.kind == FileKind::kImage) {
-      menu_model_->AddItem(kCopy, u"Copy");
+      menu_model_->AddItem(kCopy, l10n_util::GetStringUTF16(IDS_COMPASS_COPY));
     }
     menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
-    menu_model_->AddItem(kTrash, kTrashLabel);
+    menu_model_->AddItem(kTrash, l10n_util::GetStringUTF16(kTrashLabel));
     menu_runner_ = std::make_unique<views::MenuRunner>(
         menu_model_.get(), views::MenuRunner::CONTEXT_MENU |
                                views::MenuRunner::HAS_MNEMONICS);
@@ -608,8 +611,12 @@ class TabStrip : public views::BoxLayoutView {
     SetBetweenChildSpacing(kTrackPadding);
     SetCrossAxisAlignment(views::BoxLayout::CrossAxisAlignment::kStretch);
     GetViewAccessibility().SetRole(ax::mojom::Role::kTabList);
-    downloads_ = AddTab(library, Tab::kDownloads, u"Downloads");
-    screenshots_ = AddTab(library, Tab::kScreenshots, u"Screenshots");
+    downloads_ =
+        AddTab(library, Tab::kDownloads,
+               l10n_util::GetStringUTF16(IDS_COMPASS_DOWNLOADS_TAB_DOWNLOADS));
+    screenshots_ = AddTab(
+        library, Tab::kScreenshots,
+        l10n_util::GetStringUTF16(IDS_COMPASS_DOWNLOADS_TAB_SCREENSHOTS));
   }
 
   void Select(Tab tab) {
@@ -789,16 +796,19 @@ DownloadsLibraryView::DownloadsLibraryView(
   list->SetOrientation(views::BoxLayout::Orientation::kVertical);
   list->SetCrossAxisAlignment(views::BoxLayout::CrossAxisAlignment::kStretch);
   list->SetInsideBorderInsets(gfx::Insets::TLBR(0, kCardInset, 8, kCardInset));
-  recent_caption_ = AddCaption(list.get(), u"Recent downloads");
+  recent_caption_ = AddCaption(
+      list.get(), l10n_util::GetStringUTF16(IDS_COMPASS_DOWNLOADS_RECENT));
   recent_card_ = AddCard(list.get());
   if (browser_rows) {
     browser_rows_ = recent_card_->AddChildView(std::move(browser_rows));
   }
-  folder_caption_ = AddCaption(list.get(), u"In your Downloads folder");
+  folder_caption_ = AddCaption(
+      list.get(), l10n_util::GetStringUTF16(IDS_COMPASS_DOWNLOADS_IN_FOLDER));
   auto* folder_card = AddCard(list.get());
   folder_rows_ = folder_card;
-  downloads_empty_ =
-      AddEmptyLabel(list.get(), u"Your Downloads folder is empty.");
+  downloads_empty_ = AddEmptyLabel(
+      list.get(),
+      l10n_util::GetStringUTF16(IDS_COMPASS_DOWNLOADS_FOLDER_EMPTY));
   downloads_scroll_ =
       downloads_page->AddChildView(MakeScroll(std::move(list)));
   if (downloads_footer) {
@@ -828,12 +838,13 @@ DownloadsLibraryView::DownloadsLibraryView(
   open_folder_ = folder_row->AddChildView(std::make_unique<views::LabelButton>(
       base::BindRepeating(&DownloadsLibraryView::OpenScreenshotFolder,
                           base::Unretained(this)),
+      l10n_util::GetStringUTF16(
 #if BUILDFLAG(IS_MAC)
-      u"Show in Finder"
+          IDS_COMPASS_DOWNLOADS_SHOW_IN_FINDER
 #else
-      u"Open Folder"
+          IDS_COMPASS_DOWNLOADS_OPEN_FOLDER
 #endif
-      ));
+          )));
   open_folder_->SetLabelStyle(views::style::STYLE_BODY_4_MEDIUM);
   open_folder_->SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(4, 10)));
   views::InstallRoundRectHighlightPathGenerator(open_folder_, gfx::Insets(),
@@ -850,7 +861,9 @@ DownloadsLibraryView::DownloadsLibraryView(
   grid_page->SetCrossAxisAlignment(
       views::BoxLayout::CrossAxisAlignment::kStretch);
   grid_page->AddChildView(std::move(grid));
-  screenshots_empty_ = AddEmptyLabel(grid_page.get(), u"No screenshots yet.");
+  screenshots_empty_ = AddEmptyLabel(
+      grid_page.get(),
+      l10n_util::GetStringUTF16(IDS_COMPASS_DOWNLOADS_NO_SCREENSHOTS));
   screenshots_scroll_ =
       screenshots_page->AddChildView(MakeScroll(std::move(grid_page)));
   screenshots_page->SetVisible(false);
@@ -1063,10 +1076,11 @@ void DownloadsLibraryView::RebuildScreenshots() {
   }
   grid_->SetVisible(!screenshot_files_.empty());
   screenshots_caption_->SetText(
-      base::StrCat({u"In ", FolderDisplayName(screenshot_folder_)}));
-  screenshots_empty_->SetText(base::StrCat(
-      {u"No screenshots yet. They're saved to ",
-       FolderDisplayName(screenshot_folder_), u"."}));
+      l10n_util::GetStringFUTF16(IDS_COMPASS_DOWNLOADS_SCREENSHOTS_IN,
+                                 FolderDisplayName(screenshot_folder_)));
+  screenshots_empty_->SetText(
+      l10n_util::GetStringFUTF16(IDS_COMPASS_DOWNLOADS_NO_SCREENSHOTS_SAVED_TO,
+                                 FolderDisplayName(screenshot_folder_)));
   screenshots_empty_->SetVisible(screenshot_files_.empty());
 }
 

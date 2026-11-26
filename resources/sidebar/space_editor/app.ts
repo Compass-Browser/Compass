@@ -17,6 +17,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {applyBubbleLook} from '../bubble_look.js';
 import {colorToCss} from '../colors.js';
+import {i18n} from '../i18n.js';
 import type {ProfileOption, Space} from '../sidebar.mojom-webui.js';
 import type {SpaceSymbol} from '../space_icons.js';
 import {SPACE_SYMBOL_VIEW_BOX, SPACE_SYMBOLS} from '../space_icons.js';
@@ -281,7 +282,8 @@ export class CompassSpaceEditorAppElement extends CrLitElement {
   }
 
   protected getShareLabel_(): string {
-    return this.space_?.shared ? 'Sharing…' : 'Share…';
+    return this.space_?.shared ? i18n('sidebarSharingMenu') :
+                                 i18n('sidebarShareMenu');
   }
 
   // The share bubble takes this one's place.

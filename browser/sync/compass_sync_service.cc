@@ -72,6 +72,7 @@
 #include "compass/components/sync/pref_names.h"
 #include "compass/components/sync/sync_credentials.h"
 #include "compass/components/sync/sync_hooks.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/common/encryptor.h"
 #include "components/pref_registry/pref_registry_syncable.h"
@@ -97,15 +98,19 @@
 #include "content/public/browser/storage_partition.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::sync {
 namespace {
 
-// What the sync page calls the device Compass runs on.
+// What the sync page says when this device's other profiles need matching
+// with the chain's, naming the device Compass runs on.
 #if BUILDFLAG(IS_MAC)
-constexpr char kThisDevice[] = "this Mac";
+constexpr int kMapProfilesStatus = IDS_COMPASS_SYNC_STATUS_MAP_PROFILES_MAC;
+constexpr int kMapProfilesPairing = IDS_COMPASS_SYNC_PAIRING_MAP_PROFILES_MAC;
 #else
-constexpr char kThisDevice[] = "this computer";
+constexpr int kMapProfilesStatus = IDS_COMPASS_SYNC_STATUS_MAP_PROFILES;
+constexpr int kMapProfilesPairing = IDS_COMPASS_SYNC_PAIRING_MAP_PROFILES;
 #endif
 
 // Focus and wake ask the server for changes at most this often.
@@ -132,19 +137,19 @@ constexpr base::TimeDelta kLoginCheckInterval = base::Seconds(30);
 std::string HostResultMessage(PairingHost::Result result) {
   switch (result) {
     case PairingHost::Result::kAdded:
-      return "Device added. It starts syncing after a restart.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_PAIRING_ADDED);
     case PairingHost::Result::kDenied:
-      return "Not added.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_PAIRING_DENIED);
     case PairingHost::Result::kWrongCode:
-      return "Wrong code. Try again with a new code.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_PAIRING_WRONG_CODE);
     case PairingHost::Result::kCanceled:
-      return "The other device canceled.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_PAIRING_CANCELED);
     case PairingHost::Result::kExpired:
-      return "The code expired. Try again with a new code.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_PAIRING_EXPIRED);
     case PairingHost::Result::kRateLimited:
-      return "The server is busy. Try again in a few minutes.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_PAIRING_RATE_LIMITED);
     case PairingHost::Result::kFailed:
-      return "Couldn't reach the server.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SERVER_UNREACHABLE);
   }
   return std::string();
 }
@@ -152,28 +157,27 @@ std::string HostResultMessage(PairingHost::Result result) {
 std::string JoinResultMessage(PairingJoiner::Result result) {
   switch (result) {
     case PairingJoiner::Result::kJoined:
-      return "Joined. Restart Compass to start syncing.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_JOIN_JOINED);
     case PairingJoiner::Result::kDenied:
-      return "Not added: the other device said no.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_JOIN_DENIED);
     case PairingJoiner::Result::kBadCode:
-      return "Enter the code as shown, like 7-482913.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_JOIN_BAD_CODE);
     case PairingJoiner::Result::kNoSuchCode:
-      return "No such code on this server, or it expired.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_JOIN_NO_SUCH_CODE);
     case PairingJoiner::Result::kCodeUsed:
-      return "That code was already used. Ask for a new one.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_JOIN_CODE_USED);
     case PairingJoiner::Result::kWrongCode:
-      return "Wrong code. Ask the other device for a new one.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_JOIN_WRONG_CODE);
     case PairingJoiner::Result::kCanceled:
-      return "The other device canceled. Ask for a new code.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_JOIN_CANCELED);
     case PairingJoiner::Result::kClosed:
-      return "The other device ended pairing. Check the code and ask for a "
-             "new one.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_JOIN_CLOSED);
     case PairingJoiner::Result::kExpired:
-      return "Code expired. Ask for a new one.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_JOIN_EXPIRED);
     case PairingJoiner::Result::kRateLimited:
-      return "Too many attempts. Try again in a few minutes.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_JOIN_RATE_LIMITED);
     case PairingJoiner::Result::kFailed:
-      return "Couldn't reach the server.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SERVER_UNREACHABLE);
   }
   return std::string();
 }
@@ -499,20 +503,18 @@ SyncStatus CompassSyncService::GetStatus() const {
   }
   const std::string finish_in_tab =
       flow && flow->started
-          ? base::StrCat({"Finish signing in in the tab that opened. Check "
-                          "that it shows the code ",
-                          flow->request.user_code, "."})
-          : "Starting sign-in…";
+          ? l10n_util::GetStringFUTF8(
+                IDS_COMPASS_SYNC_LOGIN_FINISH_IN_TAB,
+                base::UTF8ToUTF16(flow->request.user_code))
+          : l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_LOGIN_STARTING);
   if (left_) {
     status.state = SyncState::kNeedsRestart;
-    status.message = "Restart Compass to finish leaving sync.";
+    status.message = l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_LEFT);
     return status;
   }
   if (reset_) {
     status.state = SyncState::kNeedsRestart;
-    status.message =
-        "Restart Compass to start the new sync chain. Then add your other "
-        "devices again.";
+    status.message = l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_RESET);
     return status;
   }
   if (!HasSeed()) {
@@ -520,22 +522,25 @@ SyncStatus CompassSyncService::GetStatus() const {
     if (flow) {
       // Starting or joining a chain on a server that asks for sign-in.
       status.message = base::StrCat(
-          {"This server requires sign-in",
-           status.login.provider_name.empty()
-               ? std::string()
-               : base::StrCat({" with ", status.login.provider_name}),
-           ". ", finish_in_tab});
+          {status.login.provider_name.empty()
+               ? l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_LOGIN_REQUIRED)
+               : l10n_util::GetStringFUTF8(
+                     IDS_COMPASS_SYNC_LOGIN_REQUIRED_WITH,
+                     base::UTF8ToUTF16(status.login.provider_name)),
+           " ", finish_in_tab});
     }
     return status;
   }
   if (!sync_service_) {
     status.state = SyncState::kError;
-    status.message = "Sync is turned off for this profile.";
+    status.message =
+        l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_OFF_FOR_PROFILE);
     return status;
   }
   if (!sync_service_->IsLocalSyncEnabled()) {
     status.state = SyncState::kNeedsRestart;
-    status.message = "Restart Compass to start syncing.";
+    status.message =
+        l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_RESTART_TO_START);
     return status;
   }
   if (IsDeviceRemoved()) {
@@ -550,30 +555,28 @@ SyncStatus CompassSyncService::GetStatus() const {
     status.state = SyncState::kError;
     status.message =
         IsProfileAccount()
-            ? "The sync server refused this profile (it may serve only invited "
-              "people). Ask the server's owner to allow it."
-            : "The sync server refused this device's chain (it may serve only "
-              "invited people). Ask the server's owner to allow it.";
+            ? l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_PROFILE_REFUSED)
+            : l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_CHAIN_REFUSED);
     return status;
   }
   if (seed_unreadable_) {
     status.state = SyncState::kError;
     status.message =
-        "Couldn't read this device's sync key. Leave sync and join again.";
+        l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_KEY_UNREADABLE);
     return status;
   }
   if (passphrase_rejected_) {
     status.state = SyncState::kError;
     status.message =
-        "The data on the server is encrypted for another chain. Leave sync "
-        "and join again with the right code.";
+        l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_PASSPHRASE_REJECTED);
     return status;
   }
   if (sync_service_->HasUnrecoverableError()) {
     status.state = SyncState::kError;
-    status.message = base::StrCat(
-        {"Sync stopped: ",
-         sync_service_->GetUnrecoverableErrorMessageForDebugging()});
+    status.message = l10n_util::GetStringFUTF8(
+        IDS_COMPASS_SYNC_STATUS_STOPPED,
+        base::UTF8ToUTF16(
+            sync_service_->GetUnrecoverableErrorMessageForDebugging()));
     return status;
   }
   if (account_ && account_->login_required && seed_ && IsChainRunning()) {
@@ -584,7 +587,7 @@ SyncStatus CompassSyncService::GetStatus() const {
              : base::StrCat({login_error_.empty()
                                  ? std::string()
                                  : base::StrCat({login_error_, " "}),
-                             SignInPhrase(), " to sync."});
+                             SignInToSyncPhrase()});
     return status;
   }
   const syncer::SyncTokenStatus token =
@@ -592,14 +595,11 @@ SyncStatus CompassSyncService::GetStatus() const {
   if (token.connection_status == syncer::CONNECTION_SERVER_ERROR ||
       token.connection_status == syncer::CONNECTION_AUTH_ERROR) {
     status.state = SyncState::kError;
-    status.message =
-        base::StrCat({token.connection_status == syncer::CONNECTION_AUTH_ERROR
-                          ? "The server refused this device's key"
-                          : "Can't reach the server",
-                      " (",
-                      base::UTF16ToUTF8(base::TimeFormatShortDateAndTime(
-                          token.connection_status_update_time)),
-                      ")."});
+    status.message = l10n_util::GetStringFUTF8(
+        token.connection_status == syncer::CONNECTION_AUTH_ERROR
+            ? IDS_COMPASS_SYNC_STATUS_KEY_REFUSED_AT
+            : IDS_COMPASS_SYNC_STATUS_UNREACHABLE_AT,
+        base::TimeFormatShortDateAndTime(token.connection_status_update_time));
     return status;
   }
   if (!seed_ || types_held_ || setup_handle_ ||
@@ -617,17 +617,15 @@ SyncStatus CompassSyncService::GetStatus() const {
   }
   status.state = SyncState::kOn;
   if (GetProfileMapping().needed) {
-    status.message = base::StrCat({"Choose how ", kThisDevice, "'s other profiles sync."});
+    status.message = l10n_util::GetStringUTF8(kMapProfilesStatus);
     return status;
   }
   const base::Time last = sync_service_->GetLastSyncedTimeForDebugging();
   status.message =
       last.is_null()
-          ? "Syncing…"
-          : base::StrCat(
-                {"Last synced ",
-                 base::UTF16ToUTF8(base::TimeFormatShortDateAndTime(last)),
-                 "."});
+          ? l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_STATUS_SYNCING)
+          : l10n_util::GetStringFUTF8(IDS_COMPASS_SYNC_STATUS_LAST_SYNCED,
+                                      base::TimeFormatShortDateAndTime(last));
   // Slice 7: a server limit in the way turns this into its message.
   ApplySyncLimit(GetLimit(), status);
   return status;
@@ -722,18 +720,21 @@ void CompassSyncService::NotifyObservers() {
 void CompassSyncService::StartNewChain(const std::string& server_url,
                                        StartCallback callback) {
   if (HasSeed() || left_) {
-    std::move(callback).Run(false, "Sync is already set up. Restart first.",
-                            {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_ALREADY_RESTART),
+        {});
     return;
   }
   const GURL url = ParseServerUrl(server_url);
   if (!url.is_valid()) {
     std::move(callback).Run(
-        false, "Enter the server's URL, like https://sync.example.com/v2.", {});
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_BAD_URL), {});
     return;
   }
   if (login_ || setup_client_ || deployer_ || invite_client_) {
-    std::move(callback).Run(false, "Sync is being set up.", {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_IN_PROGRESS),
+        {});
     return;
   }
   StartNewChainWithSeed(url, GenerateSeed(), std::move(callback));
@@ -761,7 +762,11 @@ void CompassSyncService::StartNewChainWithSeed(const GURL& url,
                   }
                   if (!ok || self->HasSeed()) {
                     std::move(callback).Run(
-                        false, ok ? "Sync is already set up." : error, {});
+                        false,
+                        ok ? l10n_util::GetStringUTF8(
+                                 IDS_COMPASS_SYNC_SETUP_ALREADY)
+                           : error,
+                        {});
                     return;
                   }
                   // This profile is the home; the switcher's other profiles
@@ -800,23 +805,26 @@ void CompassSyncService::JoinWithRecoveryCode(const std::string& server_url,
                                               const std::string& words,
                                               DoneCallback callback) {
   if (HasSeed() || left_) {
-    std::move(callback).Run(false, "Sync is already set up. Restart first.");
+    std::move(callback).Run(false, l10n_util::GetStringUTF8(
+                                       IDS_COMPASS_SYNC_SETUP_ALREADY_RESTART));
     return;
   }
   const GURL url = ParseServerUrl(server_url);
   if (!url.is_valid()) {
     std::move(callback).Run(
-        false, "Enter the server's URL, like https://sync.example.com/v2.");
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_BAD_URL));
     return;
   }
   std::optional<Seed> seed = RecoveryCodeToSeed(words);
   if (!seed) {
     std::move(callback).Run(
-        false, "That recovery code isn't valid. Check the 12 words.");
+        false,
+        l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_BAD_RECOVERY_CODE));
     return;
   }
   if (login_ || setup_client_ || deployer_ || invite_client_) {
-    std::move(callback).Run(false, "Sync is being set up.");
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_IN_PROGRESS));
     return;
   }
   // As StartNewChain(): a chain the server wants signed in (no device of it
@@ -837,7 +845,9 @@ void CompassSyncService::JoinWithRecoveryCode(const std::string& server_url,
                   }
                   if (!ok || self->HasSeed()) {
                     std::move(callback).Run(
-                        false, ok ? "Sync is already set up." : error);
+                        false, ok ? l10n_util::GetStringUTF8(
+                                        IDS_COMPASS_SYNC_SETUP_ALREADY)
+                                  : error);
                     return;
                   }
                   // The chain's profiles aren't known before the first
@@ -877,7 +887,8 @@ void CompassSyncService::OnEncryptorForSave(
           ? encryptor->EncryptString(std::string(seed.begin(), seed.end()))
           : std::nullopt;
   if (!encrypted) {
-    std::move(callback).Run(false, "Couldn't store the sync key.");
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_KEY_NOT_STORED));
     return;
   }
   prefs_->SetString(prefs::kServerUrl, server_url.spec());
@@ -1435,7 +1446,10 @@ void CompassSyncService::AddDevice() {
   }
   const GURL server_url = GetServerUrl();
   if (!server_url.is_valid()) {
-    SetPairing({PairingStep::kFailed, {}, {}, "No server is set."});
+    SetPairing({PairingStep::kFailed,
+                {},
+                {},
+                l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_PAIRING_NO_SERVER)});
     return;
   }
   auto transport = std::make_unique<NetworkPairingTransport>(
@@ -1457,8 +1471,10 @@ void CompassSyncService::AddDevice() {
 
 void CompassSyncService::OnPairingCode(const std::string& code,
                                        base::TimeDelta expires_in) {
-  SetPairing({PairingStep::kShowingCode, code, {},
-              "Enter this code on the other device.",
+  SetPairing({PairingStep::kShowingCode,
+              code,
+              {},
+              l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_PAIRING_SHOW_CODE),
               base::Time::Now() + expires_in});
 }
 
@@ -1495,7 +1511,7 @@ void CompassSyncService::JoinWithPairingCode(const std::string& server_url,
     SetPairing({PairingStep::kFailed,
                 {},
                 {},
-                "Enter the server's URL, like https://sync.example.com/v2."});
+                l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_BAD_URL)});
     return;
   }
   SetPairing({PairingStep::kWorking, {}, {}, {}});
@@ -1519,15 +1535,17 @@ void CompassSyncService::StartJoin(const GURL& server_url,
               ->GetURLLoaderFactoryForBrowserProcess(),
           server_url, NetworkPairingTransport::TokenGetter()),
       std::string(server_url.host()), device_name);
-  joiner_->Start(code,
-                 base::BindOnce(&CompassSyncService::SetPairing,
-                                weak_factory_.GetWeakPtr(),
-                                PairingStatus{PairingStep::kWaitingForApproval,
-                                              {},
-                                              {},
-                                              "Confirm on the other device."}),
-                 base::BindOnce(&CompassSyncService::OnJoinFinished,
-                                weak_factory_.GetWeakPtr(), server_url));
+  joiner_->Start(
+      code,
+      base::BindOnce(&CompassSyncService::SetPairing,
+                     weak_factory_.GetWeakPtr(),
+                     PairingStatus{PairingStep::kWaitingForApproval,
+                                   {},
+                                   {},
+                                   l10n_util::GetStringUTF8(
+                                       IDS_COMPASS_SYNC_JOIN_WAITING)}),
+      base::BindOnce(&CompassSyncService::OnJoinFinished,
+                     weak_factory_.GetWeakPtr(), server_url));
 }
 
 void CompassSyncService::OnJoinFinished(const GURL& server_url,
@@ -1555,8 +1573,7 @@ void CompassSyncService::OnJoinFinished(const GURL& server_url,
     SetPairing({PairingStep::kWorking,
                 {},
                 {},
-                base::StrCat({"Choose how ", kThisDevice,
-                              "'s other profiles sync, then Continue."})});
+                l10n_util::GetStringUTF8(kMapProfilesPairing)});
     return;
   }
   // No other profile here (or a device that sent no list: they're mapped
@@ -1638,19 +1655,21 @@ std::string RemovalErrorMessage(DeviceRemover::Result result) {
     case DeviceRemover::Result::kRemoved:
       return std::string();
     case DeviceRemover::Result::kThisDevice:
-      return "That's this device. To stop syncing it, leave sync.";
+      return l10n_util::GetStringUTF8(
+          IDS_COMPASS_SYNC_REMOVE_DEVICE_THIS_DEVICE);
     case DeviceRemover::Result::kLoginRequired:
-      return "The sync server wants you to sign in again first.";
+      return l10n_util::GetStringUTF8(
+          IDS_COMPASS_SYNC_REMOVE_DEVICE_LOGIN_REQUIRED);
     case DeviceRemover::Result::kUnauthorized:
-      return "The sync server refused this device's key.";
+      return l10n_util::GetStringUTF8(
+          IDS_COMPASS_SYNC_REMOVE_DEVICE_UNAUTHORIZED);
     case DeviceRemover::Result::kDeviceRemoved:
-      return "This device was removed from sync on another device.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_REMOVE_DEVICE_REMOVED);
     case DeviceRemover::Result::kUnsupported:
-      return "This sync server can't remove devices. Update it, then try "
-             "again.";
+      return l10n_util::GetStringUTF8(
+          IDS_COMPASS_SYNC_REMOVE_DEVICE_UNSUPPORTED);
     case DeviceRemover::Result::kFailed:
-      return "Couldn't remove the device: the server didn't answer. Try "
-             "again.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_REMOVE_DEVICE_FAILED);
   }
   return std::string();
 }
@@ -1712,12 +1731,14 @@ void CompassSyncService::OnDeviceRemoved() {
 void CompassSyncService::RemoveDevice(const std::string& guid,
                                       DoneCallback callback) {
   if (!IsChainRunning() || !seed_ || IsDeviceRemoved()) {
-    std::move(callback).Run(false, "Sync isn't running on this device.");
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_NOT_RUNNING));
     return;
   }
   if (guid.empty() || guid == LocalGuid()) {
     std::move(callback).Run(
-        false, "That's this device. To stop syncing it, leave sync.");
+        false,
+        l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_REMOVE_DEVICE_THIS_DEVICE));
     return;
   }
   // The same device in this device's other profile accounts of the chain,
@@ -1866,7 +1887,8 @@ std::vector<std::string> CompassSyncService::GetRecoveryCode() const {
 
 void CompassSyncService::ResetChain(StartCallback callback) {
   if (!seed_ || !IsChainRunning()) {
-    std::move(callback).Run(false, "Sync isn't running on this device.", {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_NOT_RUNNING), {});
     return;
   }
   // The pref's URL, or --sync-url's.
@@ -1901,14 +1923,14 @@ void CompassSyncService::ResetChain(StartCallback callback) {
             if (result == AccountLinker::Result::kFailed) {
               std::move(callback).Run(
                   false,
-                  "Couldn't reach your sync server to move it to the new "
-                  "chain. Nothing changed; try again.",
+                  l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_RESET_UNREACHABLE),
                   {});
               return;
             }
             if (!self->seed_ || !self->IsChainRunning()) {
               std::move(callback).Run(
-                  false, "Sync isn't running on this device.", {});
+                  false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_NOT_RUNNING),
+                  {});
               return;
             }
             self->ResetChainWithSeed(server_url, seed, std::move(callback));
@@ -2593,12 +2615,13 @@ void CompassSyncService::SetProfileMapping(const ProfileMapping& mapping,
                                            DoneCallback callback) {
   const ProfileMappingStatus status = GetProfileMapping();
   if (!status.needed) {
-    std::move(callback).Run(false, "There's nothing to map.");
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_MAPPING_NOT_NEEDED));
     return;
   }
   if (!IsValidProfileMapping(mapping, status.chain, status.local)) {
     std::move(callback).Run(
-        false, "Each profile of the chain can go to one profile only.");
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_MAPPING_INVALID));
     return;
   }
   if (pending_join_) {
@@ -2725,10 +2748,12 @@ LoginClient* CompassSyncService::GetLoginClient() {
   return login_client_.get();
 }
 
-std::string CompassSyncService::SignInPhrase() const {
+std::string CompassSyncService::SignInToSyncPhrase() const {
   return server_login_ && !server_login_->name.empty()
-             ? base::StrCat({"Sign in to ", server_login_->name})
-             : std::string("Sign in");
+             ? l10n_util::GetStringFUTF8(
+                   IDS_COMPASS_SYNC_LOGIN_SIGN_IN_TO_SYNC_WITH,
+                   base::UTF8ToUTF16(server_login_->name))
+             : l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_LOGIN_SIGN_IN_TO_SYNC);
 }
 
 void CompassSyncService::RefreshLogin(bool force) {
@@ -2858,19 +2883,22 @@ int LoadSyncWorkerVersion() {
 void CompassSyncService::StartOnCloudflareSignIn(bool push_relay,
                                                  StartCallback callback) {
   if (HasSeed() || left_) {
-    std::move(callback).Run(false, "Sync is already set up. Restart first.",
-                            {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_ALREADY_RESTART),
+        {});
     return;
   }
   if (login_ || setup_client_ || deployer_ || invite_client_ ||
       cloudflare_sign_in_) {
-    std::move(callback).Run(false, "Sync is being set up.", {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_IN_PROGRESS),
+        {});
     return;
   }
   cloudflare_sign_in_ = std::make_unique<CloudflareSignIn>(
       profile_, profile_->GetDefaultStoragePartition()
                     ->GetURLLoaderFactoryForBrowserProcess());
-  server_setup_ = "Sign in to Cloudflare in the new tab and allow Compass…";
+  server_setup_ = l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_SIGN_IN);
   NotifyObservers();
   cloudflare_sign_in_->Start(base::BindOnce(
       [](base::WeakPtr<CompassSyncService> self, bool push_relay,
@@ -2896,24 +2924,30 @@ void CompassSyncService::StartOnCloudflare(const std::string& access_token,
                                            bool push_relay,
                                            StartCallback callback) {
   if (HasSeed() || left_) {
-    std::move(callback).Run(false, "Sync is already set up. Restart first.",
-                            {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_ALREADY_RESTART),
+        {});
     return;
   }
   const std::string token(
       base::TrimWhitespaceASCII(access_token, base::TRIM_ALL));
   if (token.empty()) {
-    std::move(callback).Run(false, "Paste your Cloudflare token.", {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_NO_TOKEN),
+        {});
     return;
   }
   if (login_ || setup_client_ || deployer_ || invite_client_) {
-    std::move(callback).Run(false, "Sync is being set up.", {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_IN_PROGRESS),
+        {});
     return;
   }
   std::string script = LoadSyncWorkerScript();
   if (script.empty()) {
-    std::move(callback).Run(false, "This build has no sync server to set up.",
-                            {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_NO_SCRIPT),
+        {});
     return;
   }
   // The chain comes first: the server is deployed with it as its owner, so
@@ -2925,7 +2959,8 @@ void CompassSyncService::StartOnCloudflare(const std::string& access_token,
       profile_->GetDefaultStoragePartition()
           ->GetURLLoaderFactoryForBrowserProcess(),
       token, std::move(script));
-  server_setup_ = "Connecting to Cloudflare…";
+  server_setup_ =
+      l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_CONNECTING);
   NotifyObservers();
   deployer_->Deploy(
       owner, push_relay,
@@ -2959,7 +2994,8 @@ void CompassSyncService::StartOnCloudflare(const std::string& access_token,
                                       .Set("account_id", d.account_id)
                                       .Set("script", d.script_name)
                                       .Set("subdomain", d.subdomain));
-            self->server_setup_ = "Starting sync…";
+            self->server_setup_ =
+                l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_STARTING);
             self->NotifyObservers();
             self->StartNewChainWithSeed(
                 d.server_url, seed,
@@ -3009,11 +3045,13 @@ void CompassSyncService::GetServerUpdate(ServerUpdateCallback callback) {
 void CompassSyncService::UpdateServer(const std::string& access_token,
                                       DoneCallback callback) {
   if (!seed_ || !IsChainRunning()) {
-    std::move(callback).Run(false, "Sync isn't running on this device.");
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_NOT_RUNNING));
     return;
   }
   if (deployer_ || cloudflare_sign_in_) {
-    std::move(callback).Run(false, "The server is being set up or updated.");
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_BUSY));
     return;
   }
   const std::string token(
@@ -3025,7 +3063,7 @@ void CompassSyncService::UpdateServer(const std::string& access_token,
   cloudflare_sign_in_ = std::make_unique<CloudflareSignIn>(
       profile_, profile_->GetDefaultStoragePartition()
                     ->GetURLLoaderFactoryForBrowserProcess());
-  server_setup_ = "Sign in to Cloudflare in the new tab and allow Compass…";
+  server_setup_ = l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_SIGN_IN);
   NotifyObservers();
   cloudflare_sign_in_->Start(base::BindOnce(
       [](base::WeakPtr<CompassSyncService> self, DoneCallback callback,
@@ -3053,14 +3091,17 @@ void CompassSyncService::UpdateServerWithToken(const std::string& access_token,
   std::string script = LoadSyncWorkerScript();
   const int latest = LoadSyncWorkerVersion();
   if (!name || script.empty() || latest <= 0) {
-    std::move(callback).Run(false, "This server can't be updated from here.");
+    std::move(callback).Run(
+        false,
+        l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_CANT_UPDATE));
     return;
   }
   deployer_ = std::make_unique<CloudflareDeployer>(
       profile_->GetDefaultStoragePartition()
           ->GetURLLoaderFactoryForBrowserProcess(),
       access_token, std::move(script));
-  server_setup_ = "Connecting to Cloudflare…";
+  server_setup_ =
+      l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_CONNECTING);
   NotifyObservers();
   deployer_->Update(
       name->script, name->subdomain, latest,
@@ -3104,21 +3145,25 @@ void CompassSyncService::UpdateServerWithToken(const std::string& access_token,
 void CompassSyncService::JoinWithInvite(const std::string& invite_link,
                                         StartCallback callback) {
   if (HasSeed() || left_) {
-    std::move(callback).Run(false, "Sync is already set up. Restart first.",
-                            {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_ALREADY_RESTART),
+        {});
     return;
   }
   const std::optional<InviteLink> link = ParseInviteLink(invite_link);
   if (!link) {
     std::move(callback).Run(
         false,
-        "Paste the whole invite link, like "
-        "https://compass-sync.example.workers.dev/invite#….",
+        l10n_util::GetStringFUTF8(
+            IDS_COMPASS_SYNC_INVITE_LINK_INVALID,
+            u"https://compass-sync.example.workers.dev/invite#\u2026"),
         {});
     return;
   }
   if (login_ || setup_client_ || deployer_ || invite_client_) {
-    std::move(callback).Run(false, "Sync is being set up.", {});
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SETUP_IN_PROGRESS),
+        {});
     return;
   }
   // The new chain joins the server's list with the code first, so its
@@ -3188,8 +3233,9 @@ void CompassSyncService::InviteFriend(const std::string& name,
   const std::optional<std::string> token =
       client ? credentials_->MakeToken(base::Time::Now()) : std::nullopt;
   if (!token) {
-    std::move(callback).Run(false, "Sync isn't running on this device.",
-                            std::string());
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_NOT_RUNNING),
+        std::string());
     return;
   }
   std::string trimmed(base::TrimWhitespaceASCII(name, base::TRIM_ALL));
@@ -3213,7 +3259,8 @@ void CompassSyncService::SetServerPushRelay(bool on, DoneCallback callback) {
   const std::optional<std::string> token =
       client ? credentials_->MakeToken(base::Time::Now()) : std::nullopt;
   if (!token) {
-    std::move(callback).Run(false, "Sync isn't running on this device.");
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_NOT_RUNNING));
     return;
   }
   client->SetPushRelay(
@@ -3232,7 +3279,8 @@ void CompassSyncService::RemoveFromServer(const std::string& target,
   const std::optional<std::string> token =
       client ? credentials_->MakeToken(base::Time::Now()) : std::nullopt;
   if (!token || target.empty()) {
-    std::move(callback).Run(false, "Sync isn't running on this device.");
+    std::move(callback).Run(
+        false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_NOT_RUNNING));
     return;
   }
   client->Remove(*token, target,
@@ -3334,22 +3382,25 @@ void CompassSyncService::OnLoginStarted(std::optional<LoginRequest> request,
         FinishLogin(true, std::string());
         return;
       case LoginError::kNetwork:
-        FinishLogin(false, "Couldn't reach the server.");
+        FinishLogin(false, l10n_util::GetStringUTF8(
+                               IDS_COMPASS_SYNC_SERVER_UNREACHABLE));
         return;
       case LoginError::kLoginUnavailable:
-        FinishLogin(false, base::StrCat({"Can't reach ",
-                                         server_login_ &&
-                                                 !server_login_->name.empty()
-                                             ? server_login_->name
-                                             : std::string("the sign-in service"),
-                                         " right now. Try again."}));
+        FinishLogin(
+            false,
+            server_login_ && !server_login_->name.empty()
+                ? l10n_util::GetStringFUTF8(
+                      IDS_COMPASS_SYNC_LOGIN_PROVIDER_UNAVAILABLE,
+                      base::UTF8ToUTF16(server_login_->name))
+                : l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_LOGIN_UNAVAILABLE));
         return;
       case LoginError::kRateLimited:
-        FinishLogin(false,
-                    "Too many sign-in attempts. Try again in a few minutes.");
+        FinishLogin(false, l10n_util::GetStringUTF8(
+                               IDS_COMPASS_SYNC_LOGIN_RATE_LIMITED));
         return;
       default:
-        FinishLogin(false, "The server couldn't start the sign-in.");
+        FinishLogin(false, l10n_util::GetStringUTF8(
+                               IDS_COMPASS_SYNC_LOGIN_START_FAILED));
         return;
     }
   }
@@ -3380,14 +3431,17 @@ void CompassSyncService::OnLoginResult(LoginResult result) {
       FinishLogin(true, std::string());
       return;
     case LoginState::kDenied:
-      FinishLogin(false, "Sign-in was denied.");
+      FinishLogin(false,
+                  l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_LOGIN_DENIED));
       return;
     case LoginState::kExpired:
-      FinishLogin(false, "The sign-in timed out.");
+      FinishLogin(false,
+                  l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_LOGIN_EXPIRED));
       return;
     case LoginState::kPending:
     case LoginState::kFailed:
-      FinishLogin(false, "Couldn't reach the server.");
+      FinishLogin(
+          false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_SERVER_UNREACHABLE));
       return;
   }
 }
@@ -3454,7 +3508,7 @@ void CompassSyncService::CancelLogin() {
     }
     return;
   }
-  FinishLogin(false, "Sign-in canceled.");
+  FinishLogin(false, l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_LOGIN_CANCELED));
   // Not an error to show.
   login_error_.clear();
   NotifyObservers();

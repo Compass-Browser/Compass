@@ -1,0 +1,22 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Compass's localized strings for its WebUI pages, by area
+# (localized_strings/localized_strings.h). Only tables of message IDs, so
+# Android's chrome://easel can use it too.
+source_set("localized_strings") {
+  sources = [
+    "localized_strings/common_strings.cc",
+    "localized_strings/easel_strings.cc",
+    "localized_strings/localized_strings.h",
+    "localized_strings/settings_sections_strings.cc",
+    "localized_strings/settings_window_strings.cc",
+    "localized_strings/sidebar_strings.cc",
+  ]
+  deps = [
+    "//compass/strings:compass_strings",
+    "//content/public/browser",
+    "//ui/base",
+  ]
+}

@@ -11,6 +11,8 @@
 #include "base/functional/bind.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "compass/browser/ui/live_folders/tab_preview_service.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/l10n/time_format.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
@@ -178,7 +180,9 @@ TabPreviewView::TabPreviewView(const TabPreview& preview,
 
 TabPreviewView::TabPreviewView() : loading_(true) {
   SetUpLayout(this);
-  AddChildView(MakeLine(u"Loading…", views::style::STYLE_BODY_5));
+  AddChildView(
+      MakeLine(l10n_util::GetStringUTF16(IDS_COMPASS_TAB_PREVIEW_LOADING),
+               views::style::STYLE_BODY_5));
 }
 
 TabPreviewView::~TabPreviewView() = default;

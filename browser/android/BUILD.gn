@@ -21,9 +21,9 @@ group("android") {
     ":peek_bridge",
     ":pip_bridge",
     ":reader",
+    ":rooms_bridge",
     ":spaces",
     ":split_bridge",
-    ":rooms_bridge",
     ":sync_bridge",
   ]
 }
@@ -43,19 +43,21 @@ source_set("claude_bridge") {
     "//base",
     "//base:i18n",
     "//chrome/browser/profiles:profile",
+    "//compass/android:jni_headers",
+    "//compass/browser/boosts",
+    "//compass/browser/claude",
+    "//compass/browser/claude:prefs",
+    "//compass/browser/sidebar",
+    "//compass/strings:compass_strings",
     "//components/download/public/common:public",
     "//components/history/core/browser",
     "//components/keyed_service/core",
     "//components/prefs",
     "//components/send_tab_to_self",
     "//components/sync_device_info",
-    "//compass/android:jni_headers",
-    "//compass/browser/boosts",
-    "//compass/browser/claude",
-    "//compass/browser/claude:prefs",
-    "//compass/browser/sidebar",
     "//content/public/browser",
     "//services/network/public/cpp",
+    "//ui/base",
     "//url",
   ]
 }
@@ -65,8 +67,6 @@ source_set("claude_bridge") {
 # (//compass/browser/ui/claude/sidebar_spaces.h), and their bridge.
 source_set("claude_sidebar") {
   sources = [
-    "claude_sidebar_bridge.cc",
-    "claude_sidebar_bridge.h",
     "//compass/browser/ui/claude/link_folder_namer.cc",
     "//compass/browser/ui/claude/link_folder_namer.h",
     "//compass/browser/ui/claude/short_titler.cc",
@@ -74,18 +74,24 @@ source_set("claude_sidebar") {
     "//compass/browser/ui/claude/sidebar_spaces.h",
     "//compass/browser/ui/claude/today_tidier.cc",
     "//compass/browser/ui/claude/today_tidier.h",
+    "claude_sidebar_bridge.cc",
+    "claude_sidebar_bridge.h",
   ]
   deps = [
     ":spaces",
     "//base",
     "//chrome/browser:browser_process",
     "//chrome/browser/profiles:profile",
-    "//components/keyed_service/core",
-    "//components/prefs",
     "//compass/android:jni_headers",
     "//compass/browser/claude",
     "//compass/browser/claude:prefs",
     "//compass/browser/sidebar",
+    "//components/keyed_service/core",
+    "//components/prefs",
+
+    # today_tidier.cc's messages.
+    "//compass/strings:compass_strings",
+    "//ui/base",
   ]
 }
 
@@ -93,9 +99,9 @@ source_set("claude_sidebar") {
 # (//compass/browser/sync) depends on it for COMPASS_SPACES.
 source_set("spaces") {
   sources = [
+    "profiles_bridge.cc",
     "spaces_android.cc",
     "spaces_android.h",
-    "profiles_bridge.cc",
     "spaces_bridge.cc",
     "spaces_bridge.h",
 
@@ -104,6 +110,7 @@ source_set("spaces") {
     "//compass/browser/window_sync/space_directory.cc",
     "//compass/browser/window_sync/space_directory.h",
   ]
+
   # The archiver asks Chrome's tab models which tabs play sound (their
   # headers come with //chrome/browser, which this links into).
   deps = [
@@ -154,6 +161,8 @@ source_set("rooms_bridge") {
     "//compass/browser/rooms",
     "//compass/browser/sidebar",
     "//compass/components/sync/rooms:client",
+    "//compass/strings:compass_strings",
+    "//ui/base",
   ]
 }
 
@@ -166,9 +175,9 @@ source_set("passwords_bridge") {
   deps = [
     "//base",
     "//chrome/browser/profiles:profile",
+    "//compass/android:jni_headers",
     "//components/keyed_service/core",
     "//components/password_manager/core/browser/password_store:password_store_interface",
-    "//compass/android:jni_headers",
   ]
 }
 
@@ -177,8 +186,8 @@ source_set("peek_bridge") {
   sources = [ "peek_bridge.cc" ]
   deps = [
     "//base",
-    "//components/blocked_content",
     "//compass/android:jni_headers",
+    "//components/blocked_content",
     "//content/public/browser",
   ]
 }
@@ -217,7 +226,9 @@ source_set("adblock_bridge") {
     "//compass/android:jni_headers",
     "//compass/browser/adblock:prefs",
     "//compass/browser/adblock:service",
+    "//compass/strings:compass_strings",
     "//components/prefs",
+    "//ui/base",
   ]
 }
 
@@ -256,11 +267,11 @@ source_set("pip_bridge") {
 # chrome_browser_interface_binders_webui_parts_android.cc).
 source_set("reader") {
   sources = [
+    "//compass/browser/ui/webui/reader/reader_untrusted_ui.cc",
+    "//compass/browser/ui/webui/reader/reader_untrusted_ui.h",
     "android_web_ui_configs.cc",
     "android_web_ui_configs.h",
     "reader_bridge.cc",
-    "//compass/browser/ui/webui/reader/reader_untrusted_ui.cc",
-    "//compass/browser/ui/webui/reader/reader_untrusted_ui.h",
   ]
   deps = [
     "//base",
@@ -268,9 +279,11 @@ source_set("reader") {
     "//compass/android:jni_headers",
     "//compass/browser/reader:assets",
     "//compass/browser/ui/webui/easel",
+    "//compass/strings:compass_strings",
     "//content/public/browser",
     "//content/public/common",
     "//services/network/public/mojom",
+    "//ui/base",
     "//ui/webui",
     "//url",
   ]
@@ -291,7 +304,9 @@ source_set("easel_bridge") {
     "//compass/browser/ui/easels:core",
     "//compass/browser/ui/easels:refresh",
     "//compass/browser/ui/easels:titles",
+    "//compass/strings:compass_strings",
     "//content/public/browser",
+    "//ui/base",
     "//url",
   ]
 }

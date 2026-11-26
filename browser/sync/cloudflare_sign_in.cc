@@ -10,6 +10,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
@@ -24,6 +25,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"  // nogncheck
 #include "chrome/browser/ui/navigator/browser_navigator.h"  // nogncheck
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"  // nogncheck
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #endif
@@ -61,14 +63,16 @@ void CloudflareSignIn::Start(Callback callback) {
     }
   }
   if (!model) {
-    Finish(std::nullopt, "Open a Compass window and try again.");
+    Finish(std::nullopt,
+           l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_NO_WINDOW));
     return;
   }
   tabs::TabInterface* tab = model->OpenTab(request_.url, model->GetTabCount(),
                                            /*foreground=*/true);
   content::WebContents* contents = tab ? tab->GetContents() : nullptr;
   if (!contents) {
-    Finish(std::nullopt, "Couldn't open Cloudflare's sign-in page.");
+    Finish(std::nullopt,
+           l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_PAGE_FAILED));
     return;
   }
   Observe(contents);
@@ -94,14 +98,16 @@ void CloudflareSignIn::Start(Callback callback) {
     window = any;
   }
   if (!window) {
-    Finish(std::nullopt, "Open a Compass window and try again.");
+    Finish(std::nullopt,
+           l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_NO_WINDOW));
     return;
   }
   NavigateParams params(window, request_.url, ui::PAGE_TRANSITION_LINK);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
   Navigate(&params);
   if (!params.navigated_or_inserted_contents) {
-    Finish(std::nullopt, "Couldn't open Cloudflare's sign-in page.");
+    Finish(std::nullopt,
+           l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_PAGE_FAILED));
     return;
   }
   Observe(params.navigated_or_inserted_contents);
@@ -126,7 +132,8 @@ void CloudflareSignIn::DidRedirectNavigation(
 void CloudflareSignIn::WebContentsDestroyed() {
   Observe(nullptr);
   if (!redirected_) {
-    Finish(std::nullopt, "Cloudflare sign-in was closed before it finished.");
+    Finish(std::nullopt,
+           l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_CLOSED));
   }
 }
 
@@ -144,10 +151,11 @@ void CloudflareSignIn::OnNavigation(const GURL& url) {
   const CloudflareAuthReply reply =
       ParseCloudflareRedirect(url, request_.state);
   if (!reply.code) {
-    Finish(std::nullopt, reply.error == "access_denied"
-                             ? "You didn't allow Compass on Cloudflare."
-                             : "Cloudflare sign-in didn't finish. Try "
-                               "again.");
+    Finish(std::nullopt,
+           reply.error == "access_denied"
+               ? l10n_util::GetStringUTF8(IDS_COMPASS_SYNC_CLOUDFLARE_DENIED)
+               : l10n_util::GetStringUTF8(
+                     IDS_COMPASS_SYNC_CLOUDFLARE_NOT_FINISHED));
     return;
   }
   exchange_ = std::make_unique<CloudflareTokenExchange>(factory_);
@@ -161,8 +169,8 @@ void CloudflareSignIn::OnNavigation(const GURL& url) {
             }
             if (!token) {
               self->Finish(std::nullopt,
-                           "Cloudflare didn't give Compass access. Try "
-                           "again.");
+                           l10n_util::GetStringUTF8(
+                               IDS_COMPASS_SYNC_CLOUDFLARE_NO_ACCESS));
               return;
             }
             self->Finish(std::move(token), std::string());

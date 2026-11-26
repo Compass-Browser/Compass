@@ -5,6 +5,7 @@
 // Space colors as the sidebar page handles them: compass::SpaceColor over
 // mojo (null for grey), the palette, and conversions.
 
+import {i18n} from './i18n.js';
 import type {SpaceColor} from './sidebar.mojom-webui.js';
 
 // The space menu's palette, as SidebarTint (sidebar_tint.cc) tints the region
@@ -16,14 +17,14 @@ export interface PaletteColor {
 }
 
 export const SPACE_COLORS: PaletteColor[] = [
-  {color: null, name: 'Grey'},
-  {color: {red: 59, green: 130, blue: 246}, name: 'Blue'},
-  {color: {red: 139, green: 92, blue: 246}, name: 'Purple'},
-  {color: {red: 236, green: 72, blue: 153}, name: 'Pink'},
-  {color: {red: 239, green: 68, blue: 68}, name: 'Red'},
-  {color: {red: 249, green: 115, blue: 22}, name: 'Orange'},
-  {color: {red: 234, green: 179, blue: 8}, name: 'Yellow'},
-  {color: {red: 34, green: 197, blue: 94}, name: 'Green'},
+  {color: null, name: i18n('themeEditorColorGrey')},
+  {color: {red: 59, green: 130, blue: 246}, name: i18n('themeEditorColorBlue')},
+  {color: {red: 139, green: 92, blue: 246}, name: i18n('themeEditorColorPurple')},
+  {color: {red: 236, green: 72, blue: 153}, name: i18n('themeEditorColorPink')},
+  {color: {red: 239, green: 68, blue: 68}, name: i18n('themeEditorColorRed')},
+  {color: {red: 249, green: 115, blue: 22}, name: i18n('themeEditorColorOrange')},
+  {color: {red: 234, green: 179, blue: 8}, name: i18n('themeEditorColorYellow')},
+  {color: {red: 34, green: 197, blue: 94}, name: i18n('themeEditorColorGreen')},
 ];
 
 
@@ -86,26 +87,26 @@ export interface PaletteGradient {
 }
 
 export const GRADIENT_PRESETS: PaletteGradient[] = [
-  {name: 'Lagoon', colors: [{red: 34, green: 197, blue: 160},
+  {name: i18n('themeEditorGradientLagoon'), colors: [{red: 34, green: 197, blue: 160},
                             {red: 56, green: 189, blue: 248}]},
-  {name: 'Dusk', colors: [{red: 139, green: 92, blue: 246},
+  {name: i18n('themeEditorGradientDusk'), colors: [{red: 139, green: 92, blue: 246},
                           {red: 236, green: 72, blue: 153}]},
-  {name: 'Ember', colors: [{red: 239, green: 68, blue: 68},
+  {name: i18n('themeEditorGradientEmber'), colors: [{red: 239, green: 68, blue: 68},
                            {red: 249, green: 115, blue: 22},
                            {red: 234, green: 179, blue: 8}]},
-  {name: 'Meadow', colors: [{red: 132, green: 204, blue: 22},
+  {name: i18n('themeEditorGradientMeadow'), colors: [{red: 132, green: 204, blue: 22},
                             {red: 34, green: 197, blue: 94}]},
-  {name: 'Ocean', colors: [{red: 30, green: 64, blue: 175},
+  {name: i18n('themeEditorGradientOcean'), colors: [{red: 30, green: 64, blue: 175},
                            {red: 59, green: 130, blue: 246},
                            {red: 34, green: 211, blue: 238}]},
-  {name: 'Peach', colors: [{red: 251, green: 146, blue: 60},
+  {name: i18n('themeEditorGradientPeach'), colors: [{red: 251, green: 146, blue: 60},
                            {red: 244, green: 114, blue: 182}]},
-  {name: 'Aurora', colors: [{red: 34, green: 197, blue: 94},
+  {name: i18n('themeEditorGradientAurora'), colors: [{red: 34, green: 197, blue: 94},
                             {red: 6, green: 182, blue: 212},
                             {red: 168, green: 85, blue: 247}]},
-  {name: 'Sand', colors: [{red: 214, green: 188, blue: 140},
+  {name: i18n('themeEditorGradientSand'), colors: [{red: 214, green: 188, blue: 140},
                           {red: 190, green: 150, blue: 110}]},
-  {name: 'Slate', colors: [{red: 71, green: 85, blue: 105},
+  {name: i18n('themeEditorGradientSlate'), colors: [{red: 71, green: 85, blue: 105},
                            {red: 100, green: 116, blue: 139}]},
 ];
 

@@ -34,6 +34,7 @@
 #include "chrome/browser/ui/webui/settings/settings_utils.h"
 #include "chrome/common/pref_names.h"
 #include "compass/browser/ui/webui/settings/settings_window_handler.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_service.h"
 #include "components/search_engines/choice_made_location.h"
 #include "components/search_engines/template_url.h"
@@ -42,6 +43,7 @@
 #include "components/translate/core/browser/translate_prefs.h"
 #include "content/public/browser/font_list_async.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/shell_dialogs/selected_file_info.h"
 
 namespace compass {
@@ -248,7 +250,8 @@ void SettingsWindowHandler::SaveSearchEngine(
     SaveSearchEngineCallback callback) {
   KeywordEditorController* editor = GetKeywordEditor();
   if (!editor) {
-    std::move(callback).Run("Search engines aren't loaded yet.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_SETTINGS_SEARCH_ENGINES_LOADING));
     return;
   }
   TemplateURL* engine = nullptr;
@@ -256,7 +259,8 @@ void SettingsWindowHandler::SaveSearchEngine(
     std::optional<TemplateURLID> engine_id = ParseEngineId(id);
     engine = engine_id ? editor->GetTemplateURL(*engine_id) : nullptr;
     if (!engine || !editor->CanEdit(engine)) {
-      std::move(callback).Run("This search engine can't be edited.");
+      std::move(callback).Run(l10n_util::GetStringUTF8(
+          IDS_COMPASS_SETTINGS_SEARCH_ENGINE_NOT_EDITABLE));
       return;
     }
   }
@@ -265,17 +269,18 @@ void SettingsWindowHandler::SaveSearchEngine(
   const std::u16string title = base::UTF8ToUTF16(name);
   const std::u16string shortcut = base::UTF8ToUTF16(keyword);
   if (!controller.IsTitleValid(title)) {
-    std::move(callback).Run("Give it a name.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_SETTINGS_SEARCH_ENGINE_NO_NAME));
     return;
   }
   if (!controller.IsKeywordValid(shortcut)) {
-    std::move(callback).Run(
-        "Use a shortcut without spaces that no other engine has.");
+    std::move(callback).Run(l10n_util::GetStringUTF8(
+        IDS_COMPASS_SETTINGS_SEARCH_ENGINE_BAD_KEYWORD));
     return;
   }
   if (!controller.IsURLValid(url)) {
     std::move(callback).Run(
-        "Use a web address; %s in it marks where the query goes.");
+        l10n_util::GetStringUTF8(IDS_COMPASS_SETTINGS_SEARCH_ENGINE_BAD_URL));
     return;
   }
   controller.AcceptAddOrEdit(title, shortcut, url);
@@ -406,7 +411,9 @@ void SettingsWindowHandler::ChooseDownloadLocation() {
   ui::SelectFileDialog::FileTypeInfo info;
   info.allowed_paths = ui::SelectFileDialog::FileTypeInfo::NATIVE_PATH;
   folder_dialog_->SelectFile(
-      ui::SelectFileDialog::SELECT_FOLDER, u"Download Location",
+      ui::SelectFileDialog::SELECT_FOLDER,
+      l10n_util::GetStringUTF16(
+          IDS_COMPASS_SETTINGS_DOWNLOAD_LOCATION_DIALOG_TITLE),
       DownloadPrefs::FromBrowserContext(profile_)->DownloadPath(), &info, 0,
       base::FilePath::StringType(), web_contents_->GetTopLevelNativeWindow());
 }

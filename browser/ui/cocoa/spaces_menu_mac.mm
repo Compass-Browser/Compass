@@ -16,8 +16,10 @@
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "ui/base/accelerators/accelerator.h"
 #import "ui/base/accelerators/platform_accelerator_cocoa.h"
+#include "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
 
@@ -79,16 +81,17 @@ char kControllerKey;
     [menu addItem:[NSMenuItem separatorItem]];
   }
   // Without a window to act on, New Space is there but greyed out.
-  NSMenuItem* add =
-      [[NSMenuItem alloc] initWithTitle:@"New Space"
-                                 action:browser ? @selector(newSpace:) : nil
-                          keyEquivalent:@""];
+  NSMenuItem* add = [[NSMenuItem alloc]
+      initWithTitle:l10n_util::GetNSString(IDS_COMPASS_SPACES_MENU_NEW_SPACE)
+             action:browser ? @selector(newSpace:) : nil
+      keyEquivalent:@""];
   add.target = self;
   [menu addItem:add];
   // One that stays on this Mac (docs/design/sync.md, "Spaces that don't
   // sync").
   NSMenuItem* add_local = [[NSMenuItem alloc]
-      initWithTitle:@"New Space on This Device"
+      initWithTitle:l10n_util::GetNSString(
+                        IDS_COMPASS_SPACES_MENU_NEW_LOCAL_SPACE)
              action:browser ? @selector(newLocalSpace:) : nil
       keyEquivalent:@""];
   add_local.target = self;
@@ -142,16 +145,18 @@ NSMenuItem* BuildSpacesMenu(NSApplication* nsapp,
   if (is_pwa) {
     return nil;
   }
-  NSMenu* menu = [[NSMenu alloc] initWithTitle:@"Spaces"];
+  NSMenu* menu = [[NSMenu alloc]
+      initWithTitle:l10n_util::GetNSString(IDS_COMPASS_SPACES_MENU_TITLE)];
   CompassSpacesMenuController* controller =
       [[CompassSpacesMenuController alloc] init];
   menu.delegate = controller;
   // The delegate is weak; the menu keeps it.
   objc_setAssociatedObject(menu, &kControllerKey, controller,
                            OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-  NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:@"Spaces"
-                                                action:nil
-                                         keyEquivalent:@""];
+  NSMenuItem* item = [[NSMenuItem alloc]
+      initWithTitle:l10n_util::GetNSString(IDS_COMPASS_SPACES_MENU_TITLE)
+             action:nil
+      keyEquivalent:@""];
   item.tag = kSpacesMenuTag;
   item.submenu = menu;
   return item;

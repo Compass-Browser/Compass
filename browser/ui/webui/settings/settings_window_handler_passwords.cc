@@ -20,6 +20,7 @@
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/ui/webui/settings/settings_window_handler.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
@@ -27,6 +28,7 @@
 #include "components/autofill/core/browser/data_quality/validation.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "extensions/browser/extension_registry.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass {
 
@@ -283,7 +285,8 @@ void SettingsWindowHandler::SaveCard(sidebar::mojom::CardDraftPtr draft,
                                      SaveCardCallback callback) {
   autofill::PersonalDataManager* data = GetPersonalDataManager();
   if (!data) {
-    std::move(callback).Run("Payment methods aren't available here.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_SETTINGS_CARDS_UNAVAILABLE));
     return;
   }
   autofill::PaymentsDataManager& payments = data->payments_data_manager();
@@ -292,7 +295,8 @@ void SettingsWindowHandler::SaveCard(sidebar::mojom::CardDraftPtr draft,
     const autofill::CreditCard* existing =
         payments.GetCreditCardByGUID(draft->guid);
     if (!existing || !autofill::CreditCard::IsLocalCard(existing)) {
-      std::move(callback).Run("This card can't be edited here.");
+      std::move(callback).Run(
+          l10n_util::GetStringUTF8(IDS_COMPASS_SETTINGS_CARD_NOT_EDITABLE));
       return;
     }
     card = *existing;
@@ -301,13 +305,15 @@ void SettingsWindowHandler::SaveCard(sidebar::mojom::CardDraftPtr draft,
     base::RemoveChars(base::UTF8ToUTF16(draft->number), u" -", &number);
     card.SetNumber(number);
     if (!card.HasValidCardNumber()) {
-      std::move(callback).Run("That card number isn't valid.");
+      std::move(callback).Run(
+          l10n_util::GetStringUTF8(IDS_COMPASS_SETTINGS_CARD_NUMBER_INVALID));
       return;
     }
   }
   if (!autofill::IsValidCreditCardExpirationDate(
           draft->expiration_year, draft->expiration_month, base::Time::Now())) {
-    std::move(callback).Run("Use an expiry date that hasn't passed.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_SETTINGS_CARD_EXPIRED));
     return;
   }
   card.SetRawInfo(autofill::CREDIT_CARD_NAME_FULL,
@@ -347,14 +353,16 @@ void SettingsWindowHandler::SaveAddress(sidebar::mojom::AddressDraftPtr draft,
                                         SaveAddressCallback callback) {
   autofill::PersonalDataManager* data = GetPersonalDataManager();
   if (!data) {
-    std::move(callback).Run("Addresses aren't available here.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_SETTINGS_ADDRESSES_UNAVAILABLE));
     return;
   }
   autofill::AddressDataManager& addresses = data->address_data_manager();
   const std::string country = base::ToUpperASCII(draft->country_code);
   if (country.size() != 2 || !base::IsAsciiAlpha(country[0]) ||
       !base::IsAsciiAlpha(country[1])) {
-    std::move(callback).Run("Pick a country.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_SETTINGS_ADDRESS_NO_COUNTRY));
     return;
   }
   autofill::AutofillProfile profile{autofill::AddressCountryCode(country)};
@@ -362,14 +370,16 @@ void SettingsWindowHandler::SaveAddress(sidebar::mojom::AddressDraftPtr draft,
     const autofill::AutofillProfile* existing =
         addresses.GetProfileByGUID(draft->guid);
     if (!existing) {
-      std::move(callback).Run("This address was removed.");
+      std::move(callback).Run(
+          l10n_util::GetStringUTF8(IDS_COMPASS_SETTINGS_ADDRESS_REMOVED));
       return;
     }
     profile = *existing;
   }
   if (draft->full_name.empty() && draft->street.empty() &&
       draft->email.empty() && draft->phone.empty()) {
-    std::move(callback).Run("Fill in at least a name or a street.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_SETTINGS_ADDRESS_EMPTY));
     return;
   }
   const std::string locale = g_browser_process->GetApplicationLocale();

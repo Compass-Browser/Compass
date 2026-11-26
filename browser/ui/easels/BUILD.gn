@@ -46,7 +46,11 @@ source_set("titles") {
     "//base",
     "//compass/browser/easels:store",
   ]
-  deps = [ "//compass/browser/sidebar" ]
+  deps = [
+    "//compass/browser/sidebar",
+    "//compass/strings:compass_strings",
+    "//ui/base",
+  ]
 }
 
 # What Capture to Easel and Refresh share, on the desktop and Android.
@@ -68,10 +72,12 @@ source_set("core") {
     "//chrome/common",
     "//compass/browser/easels:images",
     "//compass/browser/easels:store",
+    "//compass/strings:compass_strings",
     "//components/favicon/content",
     "//components/viz/common",
     "//content/public/browser",
     "//skia",
+    "//ui/base",
     "//ui/gfx",
   ]
 }
@@ -82,6 +88,10 @@ source_set("refresh") {
   public_deps = [ "//base" ]
   if (is_android) {
     sources += [ "easel_refresh_android.cc" ]
+    deps = [
+      "//compass/strings:compass_strings",
+      "//ui/base",
+    ]
   } else {
     sources += [ "easel_refresh.cc" ]
     deps = [
@@ -89,6 +99,7 @@ source_set("refresh") {
       "//chrome/browser/profiles:profile",
       "//compass/browser/easels:images",
       "//compass/browser/easels:store",
+      "//compass/strings:compass_strings",
       "//content/public/browser",
       "//skia",
       "//ui/base",
@@ -139,9 +150,11 @@ if (!is_android) {
       "//compass/browser/easels:store",
       "//compass/browser/sidebar",
       "//compass/browser/window_sync",
+      "//compass/strings:compass_strings",
       "//components/tabs:public",
       "//content/public/browser",
       "//skia",
+      "//ui/base",
       "//ui/base/clipboard",
       "//ui/gfx",
       "//ui/gfx/codec",

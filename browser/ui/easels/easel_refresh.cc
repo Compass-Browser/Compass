@@ -25,11 +25,13 @@
 #include "compass/browser/easels/easel_store.h"
 #include "compass/browser/ui/easels/easel_capture_core.h"
 #include "compass/browser/ui/easels/easel_geometry.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
@@ -138,7 +140,8 @@ class RefreshJob : public content::WebContentsObserver,
 
     timeout_.Start(FROM_HERE, kTimeout,
                    base::BindOnce(&RefreshJob::Finish, base::Unretained(this),
-                                  "The page took too long to load."));
+                                  l10n_util::GetStringUTF8(
+                                      IDS_COMPASS_EASEL_REFRESH_TIMEOUT)));
     load_cap_.Start(
         FROM_HERE, kLoadCap,
         base::BindOnce(&RefreshJob::Loaded, base::Unretained(this)));
@@ -151,7 +154,7 @@ class RefreshJob : public content::WebContentsObserver,
   void DidFinishNavigation(content::NavigationHandle* handle) override {
     if (handle->IsInPrimaryMainFrame() && handle->HasCommitted() &&
         handle->IsErrorPage()) {
-      Finish("The page couldn't be loaded.");
+      Finish(l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_REFRESH_LOAD_FAILED));
     }
   }
 
@@ -159,13 +162,13 @@ class RefreshJob : public content::WebContentsObserver,
 
   void PrimaryMainFrameRenderProcessGone(
       base::TerminationStatus status) override {
-    Finish("The page stopped working while it loaded.");
+    Finish(l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_REFRESH_CRASHED));
   }
 
   // ProfileObserver:
   void OnProfileWillBeDestroyed(Profile* profile) override {
     // The page can't outlive its profile.
-    Finish("The profile was closed.");
+    Finish(l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_PROFILE_CLOSED));
     Observe(nullptr);
     capture_.RunAndReset();
     contents_.reset();
@@ -207,7 +210,7 @@ class RefreshJob : public content::WebContentsObserver,
   void OnProbed(base::Value value) {
     const std::optional<PageView> view = PageViewFromValue(value);
     if (!view) {
-      Finish("The page couldn't be read.");
+      Finish(l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_REFRESH_READ_FAILED));
       return;
     }
     const sync_pb::CompassEaselCapture& capture = object_.capture();
@@ -243,7 +246,7 @@ class RefreshJob : public content::WebContentsObserver,
     }
     EaselStore* store = store_.get();
     if (!store) {
-      Finish("The profile was closed.");
+      Finish(l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_PROFILE_CLOSED));
       return;
     }
     base::expected<std::string, std::string> sha = store->AddAsset(
@@ -256,7 +259,8 @@ class RefreshJob : public content::WebContentsObserver,
     const sync_pb::CompassEaselObject* current =
         store->FindObject(object_.uuid());
     if (!current || !current->has_capture()) {
-      Finish("The capture was deleted.");
+      Finish(
+          l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_REFRESH_CAPTURE_DELETED));
       return;
     }
     sync_pb::CompassEaselObject updated = *current;
@@ -305,17 +309,20 @@ void RefreshCapture(Profile* profile,
                     base::OnceCallback<void(std::string error)> done) {
   EaselStore* store = profile ? EaselStore::Get(profile) : nullptr;
   if (!store) {
-    std::move(done).Run("Easels aren't available in this window.");
+    std::move(done).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_UNAVAILABLE));
     return;
   }
   const sync_pb::CompassEaselObject* object = store->FindObject(object_uuid);
   if (!object || !object->has_capture()) {
-    std::move(done).Run("There's no such capture.");
+    std::move(done).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_REFRESH_NO_CAPTURE));
     return;
   }
   const GURL url(object->capture().url());
   if (!url.is_valid() || !(url.SchemeIsHTTPOrHTTPS() || url.SchemeIsFile())) {
-    std::move(done).Run("This capture's page can't be loaded again.");
+    std::move(done).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_REFRESH_NOT_REFRESHABLE));
     return;
   }
   // Owned by itself until it's done.

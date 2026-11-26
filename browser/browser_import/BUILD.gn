@@ -34,10 +34,12 @@ source_set("browser_import") {
     "yab_reader.h",
   ]
   deps = [
+    "//compass/strings:compass_strings",
     "//components/sessions",
     "//components/tab_groups",
     "//crypto",
     "//sql",
+    "//ui/base",
   ]
   public_deps = [
     "//base",
@@ -99,10 +101,10 @@ source_set("unit_tests") {
     ":test_support",
     "//base",
     "//base/test:test_support",
-    "//components/sessions",
-    "//components/tab_groups",
     "//compass/browser/arc_import",
     "//compass/browser/sidebar",
+    "//components/sessions",
+    "//components/tab_groups",
     "//sql",
     "//sql:test_support",
     "//testing/gtest",

@@ -13,10 +13,12 @@
 #include "base/values.h"
 #include "compass/browser/claude/chatgpt_oauth.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_service.h"
 #include "net/base/url_util.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::claude {
 
@@ -295,8 +297,7 @@ std::string DescribeError(int http_status,
                           std::string_view body,
                           AIProvider provider) {
   if (http_status == 0) {
-    return "Couldn't reach the server. Check the connection and the "
-           "endpoint URL.";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_AI_ERROR_UNREACHABLE);
   }
   // Gemini's: [{"error": {…}}].
   if (std::optional<base::Value> list =
@@ -342,33 +343,30 @@ std::string DescribeError(int http_status,
   if (provider != AIProvider::kAnthropic) {
     switch (http_status) {
       case net::HTTP_UNAUTHORIZED:
-        return "The key was refused (401). Check it.";
+        return l10n_util::GetStringUTF8(IDS_COMPASS_AI_ERROR_KEY_REFUSED);
       case net::HTTP_SERVICE_UNAVAILABLE:
       case 529:
-        return base::StrCat({"The server is overloaded (",
-                             base::NumberToString(http_status),
-                             "). Try again in a moment."});
+        return l10n_util::GetStringFUTF8(IDS_COMPASS_AI_ERROR_OVERLOADED,
+                                         base::NumberToString16(http_status));
       default:
         break;
     }
   }
   switch (http_status) {
     case net::HTTP_UNAUTHORIZED:
-      return "The key was refused (401). Check it, and the auth style. A "
-             "token from `claude setup-token` may have expired: make a new "
-             "one.";
+      return l10n_util::GetStringUTF8(
+          IDS_COMPASS_AI_ERROR_ANTHROPIC_KEY_REFUSED);
     case net::HTTP_FORBIDDEN:
-      return "The key isn't allowed to do this (403).";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_AI_ERROR_FORBIDDEN);
     case net::HTTP_NOT_FOUND:
-      return "Nothing answers at that URL (404). Check the endpoint URL.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_AI_ERROR_NOT_FOUND);
     case net::HTTP_TOO_MANY_REQUESTS:
-      return "Too many requests (429). Wait a moment and try again.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_AI_ERROR_TOO_MANY_REQUESTS);
     case 529:
-      return "Claude is overloaded (529). Try again in a moment.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_AI_ERROR_CLAUDE_OVERLOADED);
     default:
-      return base::StrCat(
-          {"The server answered with HTTP ", base::NumberToString(http_status),
-           "."});
+      return l10n_util::GetStringFUTF8(IDS_COMPASS_AI_ERROR_HTTP,
+                                       base::NumberToString16(http_status));
   }
 }
 

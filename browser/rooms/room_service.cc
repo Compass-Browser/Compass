@@ -38,6 +38,7 @@
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/components/sync/pref_names.h"
 #include "compass/components/sync/sync_hooks.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/common/encryptor.h"
 #include "components/pref_registry/pref_registry_syncable.h"
@@ -47,6 +48,7 @@
 #include "components/sync_device_info/device_info_sync_service.h"
 #include "components/sync_device_info/local_device_info_provider.h"
 #include "content/public/browser/storage_partition.h"
+#include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "compass/browser/android/spaces_android.h"
@@ -131,44 +133,46 @@ std::string SecretText(const sync::rooms::InviteSecret& secret) {
 
 std::string ErrorText(const RoomError& error) {
   if (error.is_network()) {
-    return "Can't reach the sync server. Check your connection and try "
-           "again.";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_NETWORK);
   }
   if (error.is_login_required()) {
-    return "Sign in to your company's sync server first.";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_LOGIN_REQUIRED);
   }
   if (error.is_chain_not_allowed()) {
-    return "This sync server doesn't let this browser share.";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_CHAIN_NOT_ALLOWED);
   }
   if (error.is_gone()) {
-    return "You're no longer a member of this.";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_GONE);
   }
   if (error.is_forbidden()) {
-    return "Only the owner can do that.";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_FORBIDDEN);
   }
   if (error.is_quota_exceeded()) {
-    return "The owner's sync storage is full.";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_QUOTA);
   }
   if (error.code == "invite_expired") {
-    return "This invite link has expired.";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_INVITE_EXPIRED);
   }
   if (error.code == "invite_used_up") {
-    return "This invite link has been used up.";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_INVITE_USED_UP);
   }
   if (error.code == "invite_revoked" || error.code == "invite_invalid") {
-    return "This invite link no longer works.";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_INVITE_REVOKED);
   }
   if (error.code == "room_full") {
-    return "This is shared with as many people as it can be (50).";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_ROOM_FULL);
   }
   if (error.code == "owner_must_transfer") {
-    return "You own this: delete it for everyone instead.";
+    return l10n_util::GetStringUTF8(
+        IDS_COMPASS_ROOMS_ERROR_OWNER_MUST_TRANSFER);
   }
   if (error.code == "removed") {
-    return "You were removed. Ask for a new invite.";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_REMOVED);
   }
-  return error.code.empty() ? "Something went wrong."
-                            : "Something went wrong (" + error.code + ").";
+  return error.code.empty()
+             ? l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_UNKNOWN)
+             : l10n_util::GetStringFUTF8(IDS_COMPASS_ROOMS_ERROR_WITH_CODE,
+                                         base::UTF8ToUTF16(error.code));
 }
 
 std::map<uint32_t, RoomKey> KeysOf(const sync_pb::CompassRoomMount& mount) {
@@ -831,7 +835,8 @@ void RoomService::Unmount(const std::string& room_id,
   }
   VLOG(1) << "[compass-rooms] unmounting " << room_id;
   for (auto& join : it->second->joins) {
-    std::move(join).Run(std::string(), "The room went away.");
+    std::move(join).Run(std::string(), l10n_util::GetStringUTF8(
+                                           IDS_COMPASS_ROOMS_ERROR_ROOM_GONE));
   }
   rooms_.erase(it);
   if (notice) {
@@ -1244,8 +1249,28 @@ void RoomService::OnEaselsChanged() {
   NotifyLocalChange();
 }
 
+std::string RemovedNoticeText(const RemovedNotice& notice) {
+  int id;
+  if (!notice.name.empty()) {
+    id = notice.deleted ? IDS_COMPASS_ROOMS_NOTICE_NAMED_DELETED
+                        : IDS_COMPASS_ROOMS_NOTICE_NAMED_REMOVED;
+    return l10n_util::GetStringFUTF8(id, base::UTF8ToUTF16(notice.name));
+  }
+  if (notice.kind == "space") {
+    id = notice.deleted ? IDS_COMPASS_ROOMS_NOTICE_SPACE_DELETED
+                        : IDS_COMPASS_ROOMS_NOTICE_SPACE_REMOVED;
+  } else if (notice.kind == "easel") {
+    id = notice.deleted ? IDS_COMPASS_ROOMS_NOTICE_EASEL_DELETED
+                        : IDS_COMPASS_ROOMS_NOTICE_EASEL_REMOVED;
+  } else {
+    id = notice.deleted ? IDS_COMPASS_ROOMS_NOTICE_FOLDER_DELETED
+                        : IDS_COMPASS_ROOMS_NOTICE_FOLDER_REMOVED;
+  }
+  return l10n_util::GetStringUTF8(id);
+}
+
 std::string RoomService::TooltipOf(const Room& room) const {
-  std::string tooltip = "Shared";
+  std::string tooltip = l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_SHARED);
   if (room.info) {
     std::vector<std::string> names;
     for (const sync::rooms::RoomMember& member : room.info->members) {
@@ -1254,14 +1279,19 @@ std::string RoomService::TooltipOf(const Room& room) const {
                              : OpenProfile(room, member.profile,
                                            member.client_id);
       if (name.empty()) {
-        name = member.email.empty() ? "Someone" : member.email;
+        name = member.email.empty()
+                   ? l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_SOMEONE)
+                   : member.email;
       }
       names.push_back(name);
     }
-    tooltip = "Shared with " + base::JoinString(names, ", ");
+    tooltip = l10n_util::GetStringFUTF8(
+        IDS_COMPASS_ROOMS_SHARED_WITH,
+        base::UTF8ToUTF16(base::JoinString(names, ", ")));
   }
   if (room.mount.role() == sync::rooms::kRoleViewer) {
-    tooltip += " (view only)";
+    tooltip = l10n_util::GetStringFUTF8(IDS_COMPASS_ROOMS_VIEW_ONLY_TOOLTIP,
+                                        base::UTF8ToUTF16(tooltip));
   }
   return tooltip;
 }
@@ -1302,7 +1332,10 @@ SharedState RoomService::GetSpaceState(const std::string& space_uuid) const {
   }
   state.shared = true;
   state.read_only = room->mount.role() == sync::rooms::kRoleViewer;
-  state.tooltip = state.read_only ? "Shared (view only)" : "Shared";
+  state.tooltip =
+      state.read_only
+          ? l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_SHARED_VIEW_ONLY)
+          : l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_SHARED);
   return state;
 }
 
@@ -1317,7 +1350,10 @@ SharedState RoomService::GetEaselState(const std::string& easel_uuid) const {
     }
     state.shared = true;
     state.read_only = room->mount.role() == sync::rooms::kRoleViewer;
-    state.tooltip = state.read_only ? "Shared (view only)" : "Shared";
+    state.tooltip =
+        state.read_only
+            ? l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_SHARED_VIEW_ONLY)
+            : l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_SHARED);
     return state;
   }
   return state;
@@ -1340,9 +1376,9 @@ void RoomService::Share(
     const std::string& root_uuid,
     base::OnceCallback<void(const std::string&, const std::string&)> callback) {
   if (!IsAvailable()) {
-    std::move(callback).Run(std::string(),
-                            "Turn on sync to share. Sharing goes through "
-                            "your sync server.");
+    std::move(callback).Run(
+        std::string(),
+        l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_SHARE_NEEDS_SYNC));
     return;
   }
   if (const Room* room = FindRoomByRoot(root_uuid)) {
@@ -1350,7 +1386,8 @@ void RoomService::Share(
     return;
   }
   if (!sync::rooms::RoomKindFromName(kind)) {
-    std::move(callback).Run(std::string(), "This can't be shared.");
+    std::move(callback).Run(
+        std::string(), l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_CANT_SHARE));
     return;
   }
   const std::string name = NameOfItem(
@@ -1387,7 +1424,9 @@ void RoomService::Share(
             }
             std::optional<RoomId> id = ParseRoomId(result->id);
             if (!id) {
-              std::move(callback).Run(std::string(), "Something went wrong.");
+              std::move(callback).Run(
+                  std::string(),
+                  l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ERROR_UNKNOWN));
               return;
             }
             const std::string me = sync::GetChainId(*self->auth_key_);
@@ -1435,13 +1474,15 @@ void RoomService::CreateInviteLink(
     base::OnceCallback<void(const std::string&, const std::string&)> callback) {
   Room* room = FindRoom(room_id);
   if (!room || !IsAvailable()) {
-    std::move(callback).Run(std::string(), "Not shared.");
+    std::move(callback).Run(
+        std::string(), l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
     return;
   }
   const std::map<uint32_t, RoomKey> keys =
       room->sync ? room->sync->keys() : KeysOf(room->mount);
   if (keys.empty()) {
-    std::move(callback).Run(std::string(), "Not shared.");
+    std::move(callback).Run(
+        std::string(), l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
     return;
   }
   const uint32_t epoch =
@@ -1449,7 +1490,9 @@ void RoomService::CreateInviteLink(
                  : keys.rbegin()->first;
   auto key = keys.find(epoch);
   if (key == keys.end()) {
-    std::move(callback).Run(std::string(), "Try again in a moment.");
+    std::move(callback).Run(
+        std::string(),
+        l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_TRY_AGAIN_SOON));
     return;
   }
   const sync::rooms::InviteSecret secret = sync::rooms::GenerateInviteSecret();
@@ -1491,7 +1534,8 @@ void RoomService::CreateInviteLink(
                     sync::rooms::EncodeInviteLink(link);
                 if (!text) {
                   std::move(callback).Run(std::string(),
-                                          "Something went wrong.");
+                                          l10n_util::GetStringUTF8(
+                                              IDS_COMPASS_ROOMS_ERROR_UNKNOWN));
                   return;
                 }
                 std::move(callback).Run(*text, std::string());
@@ -1504,7 +1548,8 @@ void RoomService::RevokeInvite(const std::string& room_id,
                                Done callback) {
   Room* room = FindRoom(room_id);
   if (!room || !IsAvailable()) {
-    std::move(callback).Run("Not shared.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
     return;
   }
   ClientFor(room->mount.server_url())
@@ -1522,7 +1567,8 @@ void RoomService::GetRoomView(
     base::OnceCallback<void(std::optional<RoomView>, const std::string&)> callback) {
   Room* room = FindRoom(room_id);
   if (!room || !IsAvailable()) {
-    std::move(callback).Run(std::nullopt, "Not shared.");
+    std::move(callback).Run(
+        std::nullopt, l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
     return;
   }
   RoomClient* client = ClientFor(room->mount.server_url());
@@ -1535,7 +1581,9 @@ void RoomService::GetRoomView(
              RoomResult<RoomInfo> result) {
             Room* room = self ? self->FindRoom(room_id) : nullptr;
             if (!room) {
-              std::move(callback).Run(std::nullopt, "Not shared.");
+              std::move(callback).Run(
+                  std::nullopt,
+                  l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
               return;
             }
             if (!result.has_value()) {
@@ -1596,7 +1644,8 @@ void RoomService::InviteByEmail(const std::string& room_id,
                                 Done callback) {
   Room* room = FindRoom(room_id);
   if (!room || !IsAvailable()) {
-    std::move(callback).Run("Not shared.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
     return;
   }
   RoomClient* client = ClientFor(room->mount.server_url());
@@ -1608,7 +1657,8 @@ void RoomService::InviteByEmail(const std::string& room_id,
              RoomResult<std::vector<sync::rooms::DirectoryAccount>> result) {
             Room* room = self ? self->FindRoom(room_id) : nullptr;
             if (!room) {
-              std::move(callback).Run("Not shared.");
+              std::move(callback).Run(
+                  l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
               return;
             }
             if (!result.has_value()) {
@@ -1617,7 +1667,7 @@ void RoomService::InviteByEmail(const std::string& room_id,
             }
             if (result->empty()) {
               std::move(callback).Run(
-                  "Nobody with that email uses Compass on this server yet.");
+                  l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NO_SUCH_ACCOUNT));
               return;
             }
             const std::map<uint32_t, RoomKey> keys =
@@ -1641,7 +1691,8 @@ void RoomService::InviteByEmail(const std::string& room_id,
               members.push_back(std::move(member));
             }
             if (members.empty()) {
-              std::move(callback).Run("They're already a member.");
+              std::move(callback).Run(
+                  l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_ALREADY_MEMBER));
               return;
             }
             self->ClientFor(room->mount.server_url())
@@ -1674,7 +1725,8 @@ void RoomService::ChangeRole(const std::string& room_id,
                              Done callback) {
   Room* room = FindRoom(room_id);
   if (!room || !IsAvailable()) {
-    std::move(callback).Run("Not shared.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
     return;
   }
   ClientFor(room->mount.server_url())
@@ -1692,7 +1744,8 @@ void RoomService::RemoveMember(const std::string& room_id,
                                Done callback) {
   Room* room = FindRoom(room_id);
   if (!room || !IsAvailable()) {
-    std::move(callback).Run("Not shared.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
     return;
   }
   ClientFor(room->mount.server_url())
@@ -1722,7 +1775,8 @@ void RoomService::RemoveMember(const std::string& room_id,
 void RoomService::RotateKey(const std::string& room_id, Done callback) {
   Room* room = FindRoom(room_id);
   if (!room) {
-    std::move(callback).Run("Not shared.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
     return;
   }
   ClientFor(room->mount.server_url())
@@ -1733,7 +1787,8 @@ void RoomService::RotateKey(const std::string& room_id, Done callback) {
                  Done callback, RoomResult<RoomInfo> result) {
                 Room* room = self ? self->FindRoom(room_id) : nullptr;
                 if (!room) {
-                  std::move(callback).Run("Not shared.");
+                  std::move(callback).Run(
+                      l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
                   return;
                 }
                 if (!result.has_value()) {
@@ -1780,7 +1835,8 @@ void RoomService::RotateKey(const std::string& room_id, Done callback) {
 void RoomService::Leave(const std::string& room_id, Done callback) {
   Room* room = FindRoom(room_id);
   if (!room || !IsAvailable()) {
-    std::move(callback).Run("Not shared.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
     return;
   }
   ClientFor(room->mount.server_url())
@@ -1804,7 +1860,8 @@ void RoomService::Leave(const std::string& room_id, Done callback) {
 void RoomService::DeleteRoom(const std::string& room_id, Done callback) {
   Room* room = FindRoom(room_id);
   if (!room || !IsAvailable()) {
-    std::move(callback).Run("Not shared.");
+    std::move(callback).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_NOT_SHARED));
     return;
   }
   ClientFor(room->mount.server_url())
@@ -1847,13 +1904,15 @@ void RoomService::Join(
   std::optional<sync::rooms::InviteLink> link =
       sync::rooms::ParseInviteLink(text);
   if (!link) {
-    std::move(callback).Run(std::string(), "This invite link isn't valid.");
+    std::move(callback).Run(
+        std::string(),
+        l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_INVITE_INVALID));
     return;
   }
   if (!IsAvailable()) {
-    std::move(callback).Run(std::string(),
-                            "Turn on sync to join. Shared items sync "
-                            "through your sync account.");
+    std::move(callback).Run(
+        std::string(),
+        l10n_util::GetStringUTF8(IDS_COMPASS_ROOMS_JOIN_NEEDS_SYNC));
     return;
   }
   const std::string room_id = RoomIdText(link->room_id);

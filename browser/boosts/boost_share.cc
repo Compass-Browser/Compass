@@ -13,7 +13,9 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/values.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "third_party/zlib/zlib.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
 
@@ -30,13 +32,12 @@ constexpr char kFileNameFallback[] = "Boost";
 
 ShareError Invalid() {
   return {ShareError::Kind::kInvalid,
-          "This isn't a Boost that Compass can read. The link or file may "
-          "be incomplete."};
+          l10n_util::GetStringUTF8(IDS_COMPASS_BOOSTS_SHARE_INVALID)};
 }
 
 ShareError TooBig() {
   return {ShareError::Kind::kTooBig,
-          "This Boost is too big to add: shared Boosts are at most 512 KB."};
+          l10n_util::GetStringUTF8(IDS_COMPASS_BOOSTS_SHARE_TOO_BIG)};
 }
 
 std::string DeflateRaw(std::string_view data) {
@@ -170,9 +171,9 @@ base::expected<Boost, ShareError> ParseSharedJson(std::string_view json) {
     return base::unexpected(Invalid());
   }
   if (version->GetInt() != kShareVersion) {
-    return base::unexpected(ShareError{
-        ShareError::Kind::kNewer,
-        "This Boost was made by a newer Compass. Update Compass to add it."});
+    return base::unexpected(
+        ShareError{ShareError::Kind::kNewer,
+                   l10n_util::GetStringUTF8(IDS_COMPASS_BOOSTS_SHARE_NEWER)});
   }
   const std::string* match = dict.FindString("match");
   std::optional<std::string> name = OptionalString(dict, "name");

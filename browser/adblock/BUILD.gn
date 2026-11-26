@@ -41,6 +41,7 @@ source_set("lists") {
   deps = [
     ":prefs",
     "//base",
+    "//compass/strings:compass_strings",
     "//components/prefs",
     "//components/subresource_filter/core/common",
     "//components/subresource_filter/tools/rule_parser",
@@ -49,6 +50,7 @@ source_set("lists") {
     "//net",
     "//services/network/public/cpp",
     "//third_party/protobuf:protobuf_lite",
+    "//ui/base",
     "//url",
   ]
 }

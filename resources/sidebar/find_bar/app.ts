@@ -6,6 +6,7 @@ import {ColorChangeUpdater} from '//resources/cr_components/color_change_listene
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {ScrollKey} from '../find_bar.mojom-webui.js';
+import {i18n} from '../i18n.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
@@ -186,7 +187,7 @@ export class CompassFindBarAppElement extends CrLitElement {
       return '';
     }
     if (this.count_ === 0) {
-      return this.final_ ? 'No results' : '';
+      return this.final_ ? i18n('findBarNoResults') : '';
     }
     return `${this.active_}/${this.count_}`;
   }

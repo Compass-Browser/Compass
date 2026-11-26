@@ -26,7 +26,9 @@
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/easels/easel_capture_core.h"
 #include "compass/browser/ui/easels/easel_titles.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
 // Must come after the includes it uses.
@@ -97,16 +99,16 @@ static std::string JNI_EaselBridge_NewEasel(JNIEnv* env,
   easels::EaselStore* store =
       profile ? easels::EaselStore::Get(profile) : nullptr;
   if (!store) {
-    return Error("Easels aren't available here.");
+    return Error(l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_UNAVAILABLE));
   }
   base::expected<sync_pb::CompassEasel, std::string> easel =
-      store->CreateEasel(easels::kNewEaselTitle);
+      store->CreateEasel(easels::NewEaselTitle());
   if (!easel.has_value()) {
     return Error(easel.error());
   }
   SidebarNode* node = PinEaselTab(profile, space_id, *easel);
   if (!node) {
-    return Error("The sidebar is still loading. Try again in a moment.");
+    return Error(l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_SIDEBAR_LOADING));
   }
   return Json(base::DictValue()
                   .Set("nodeId", node->id().AsLowercaseString())
@@ -123,8 +125,8 @@ static void JNI_EaselBridge_Capture(JNIEnv* env,
                                     const JavaRef<jobject>& j_callback) {
   ScopedJavaGlobalRef<jobject> callback(j_callback);
   if (!contents) {
-    base::android::RunStringCallbackAndroid(callback,
-                                            Error("There's no page."));
+    base::android::RunStringCallbackAndroid(
+        callback, Error(l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_NO_PAGE)));
     return;
   }
   easels::RunPageScript(
@@ -137,7 +139,8 @@ static void JNI_EaselBridge_Capture(JNIEnv* env,
                 easels::PageViewFromValue(value);
             if (!contents || !view) {
               base::android::RunStringCallbackAndroid(
-                  callback, Error("This page can't be captured."));
+                  callback, Error(l10n_util::GetStringUTF8(
+                                IDS_COMPASS_EASELS_CANT_CAPTURE)));
               return;
             }
             easels::CaptureRequest request;
@@ -172,7 +175,8 @@ static void JNI_EaselBridge_Capture(JNIEnv* env,
                                 : nullptr;
                       if (!easel) {
                         base::android::RunStringCallbackAndroid(
-                            callback, Error("That Easel was deleted."));
+                            callback, Error(l10n_util::GetStringUTF8(
+                                          IDS_COMPASS_EASELS_DELETED)));
                         return;
                       }
                       if (new_easel) {

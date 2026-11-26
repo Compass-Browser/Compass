@@ -93,9 +93,11 @@ source_set("updates") {
       "//base",
       "//chrome/browser:browser_process",
       "//chrome/browser/upgrade_detector",
+      "//compass/strings:compass_strings",
       "//components/prefs",
       "//net",
       "//services/network/public/cpp",
+      "//ui/base",
     ]
   }
 }

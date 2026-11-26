@@ -29,6 +29,7 @@ source_set("shortcuts") {
     deps += [
       "//chrome/app:command_ids",
       "//compass/browser/ui:app_menu_hooks",
+      "//compass/strings:compass_strings",
     ]
   }
 }

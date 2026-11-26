@@ -4,6 +4,8 @@
 
 import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n} from '../i18n.js';
+
 import type {CompassClaudeTurnElement} from './turn.js';
 
 export function getHtml(this: CompassClaudeTurnElement) {
@@ -27,10 +29,12 @@ ${this.isUser_() ? html`
           <span class="memory-label"
               title="${this.getMemory_(item)!.text}">${this.getMemoryLabel_(item)}</span>
           ${this.getMemory_(item)!.undone ? html`
-            <span class="memory-undone">Undone</span>` : html`
+            <span class="memory-undone">${i18n('claudeChatUndone')}</span>` : html`
             ${this.getMemory_(item)!.undo !== undefined ? html`
               <button class="link" data-id="${item.id}"
-                  @click="${this.onUndoMemoryClick_}">Undo</button>` :
+                  @click="${this.onUndoMemoryClick_}">
+                ${i18n('sidebarUndo')}
+              </button>` :
               nothing}`}
         </div>` :
       html`${item.type === 'tool_use' ? html`
@@ -47,24 +51,25 @@ ${this.isUser_() ? html`
         </details>
         ${this.getTool_(item).image ? html`
           <img class="shot" src="${this.getTool_(item).image}"
-              alt="Screenshot Claude took">` : nothing}` :
+              alt="${i18n('claudeChatScreenshot')}">` : nothing}` :
       html`${this.showThinking_(item, index) ? html`
         <details class="thinking" ?open="${this.isLive_(index)}">
-          <summary>${this.isLive_(index) ? 'Thinking…' : 'Thought'}</summary>
+          <summary>${this.isLive_(index) ? i18n('claudeChatThinking') :
+                                          i18n('claudeChatThought')}</summary>
           <div class="thinking-text">${item.thinking}</div>
         </details>` : nothing}`}`}`}`)}
     ${this.isPending_() ? html`
-      <div class="pending" aria-label="Claude is answering">
+      <div class="pending" aria-label="${i18n('claudeChatAnswering')}">
         <span></span><span></span><span></span>
       </div>` : nothing}
     ${this.getStopReason_() === 'refusal' ? html`
-      <div class="notice">Claude declined to answer this.</div>` : nothing}
+      <div class="notice">${i18n('claudeChatRefused')}</div>` : nothing}
     ${this.getStopReason_() === 'max_tokens' ? html`
-      <div class="notice">The answer was cut off at its length limit.</div>` :
+      <div class="notice">${i18n('claudeChatCutOff')}</div>` :
       nothing}
     ${this.getError_() ? html`
       <div class="notice error">${this.getError_()}
-        <button class="link" @click="${this.onRetryClick_}">Retry</button>
+        <button class="link" @click="${this.onRetryClick_}">${i18n('claudeChatRetry')}</button>
       </div>` : nothing}
   </div>`}
 <!--_html_template_end_-->`;

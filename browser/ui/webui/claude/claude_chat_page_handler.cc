@@ -11,11 +11,11 @@
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/path_service.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
@@ -27,7 +27,6 @@
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "compass/browser/boosts/boost_injector.h"
 #include "compass/browser/boosts/boost_store.h"
-#include "compass/browser/ui/live_folders/claude_plugins.h"
 #include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_client.h"
@@ -39,13 +38,16 @@
 #include "compass/browser/claude/claude_request.h"
 #include "compass/browser/ui/claude/claude_files_config.h"
 #include "compass/browser/ui/claude/claude_tabs.h"
+#include "compass/browser/ui/live_folders/claude_plugins.h"
 #include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/webui/settings/settings_sections.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
 
@@ -202,7 +204,8 @@ void ClaudeChatPageHandler::GetActivePage(GetActivePageCallback callback) {
 void ClaudeChatPageHandler::ReadActivePage(ReadActivePageCallback callback) {
   tabs::TabInterface* tab = browser_->GetActiveTabInterface();
   if (!tab) {
-    std::move(callback).Run(nullptr, "No tab is open.");
+    std::move(callback).Run(
+        nullptr, l10n_util::GetStringUTF8(IDS_COMPASS_CLAUDE_NO_TAB));
     return;
   }
   ReadPageText(tab->GetContents(), kMaxPageChars,
@@ -232,7 +235,8 @@ void ClaudeChatPageHandler::Send(const std::string& messages_json) {
     std::optional<base::Value> messages =
         base::JSONReader::Read(messages_json, base::JSON_PARSE_RFC);
     if (!messages || !messages->is_list() || messages->GetList().empty()) {
-      page_->OnStreamDone("Nothing to send.");
+      page_->OnStreamDone(
+          l10n_util::GetStringUTF8(IDS_COMPASS_CLAUDE_NOTHING_TO_SEND));
       return;
     }
     SendToClaudeCode(std::move(*messages).TakeList());
@@ -260,7 +264,8 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   std::optional<base::Value> messages =
       base::JSONReader::Read(messages_json, base::JSON_PARSE_RFC);
   if (!messages || !messages->is_list() || messages->GetList().empty()) {
-    page_->OnStreamDone("Nothing to send.");
+    page_->OnStreamDone(
+        l10n_util::GetStringUTF8(IDS_COMPASS_CLAUDE_NOTHING_TO_SEND));
     return;
   }
   Profile* profile = browser_->GetProfile();
@@ -268,7 +273,7 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   Endpoint endpoint = EndpointFromPrefs(*prefs);
   endpoint.api_key = std::move(*key);
   if (NeedsTokenRisksAccepted(endpoint)) {
-    page_->OnStreamDone(kTokenRisksMessage);
+    page_->OnStreamDone(l10n_util::GetStringUTF8(IDS_COMPASS_AI_TOKEN_RISKS));
     return;
   }
 
@@ -280,7 +285,8 @@ void ClaudeChatPageHandler::OnKeyForSend(int request_id,
   options.model = prefs->GetString(prefs::CurrentPref(*prefs, prefs::kModel));
   if (options.model.empty()) {
     // An OpenAI-compatible server's models only it knows: the user types one.
-    page_->OnStreamDone("Enter a model ID in Compass's AI settings.");
+    page_->OnStreamDone(
+        l10n_util::GetStringUTF8(IDS_COMPASS_CLAUDE_ENTER_MODEL_ID));
     return;
   }
   options.claude_api = endpoint.base_url == GURL(kDefaultBaseUrl);
@@ -573,7 +579,8 @@ void ClaudeChatPageHandler::SendToClaudeCode(base::ListValue messages) {
   base::ListValue* content =
       last.is_dict() ? last.GetDict().FindList("content") : nullptr;
   if (!role || *role != "user" || !content) {
-    page_->OnStreamDone("Nothing to send.");
+    page_->OnStreamDone(
+        l10n_util::GetStringUTF8(IDS_COMPASS_CLAUDE_NOTHING_TO_SEND));
     return;
   }
   const PrefService* prefs = browser_->GetProfile()->GetPrefs();
@@ -632,13 +639,14 @@ void ClaudeChatPageHandler::OnClaudeCodeFound(
   if (!program) {
     claude_code_replying_ = false;
     page_->OnStreamDone(
-        browser_->GetProfile()->GetPrefs()->GetString(prefs::kClaudeCodePath)
+        browser_->GetProfile()
+                ->GetPrefs()
+                ->GetString(prefs::kClaudeCodePath)
                 .empty()
-            ? "Claude Code isn't installed where Compass looks. Install it "
-              "(claude.com/claude-code), or set its path in Compass's Claude "
-              "settings."
-            : "Claude Code isn't at the path set in Compass's Claude "
-              "settings.");
+            ? l10n_util::GetStringUTF8(
+                  IDS_COMPASS_CLAUDE_CODE_NOT_INSTALLED_SETTINGS)
+            : l10n_util::GetStringUTF8(
+                  IDS_COMPASS_CLAUDE_CODE_NOT_AT_SETTINGS_PATH));
     return;
   }
   Profile* profile = browser_->GetProfile();
@@ -681,8 +689,8 @@ void ClaudeChatPageHandler::OnClaudeCodeFound(
                      weak_factory_.GetWeakPtr()));
   if (!claude_code_) {
     claude_code_replying_ = false;
-    page_->OnStreamDone(base::StrCat(
-        {"Claude Code couldn't start (", program->AsUTF8Unsafe(), ")."}));
+    page_->OnStreamDone(l10n_util::GetStringFUTF8(
+        IDS_COMPASS_CLAUDE_CODE_NOT_STARTED, program->AsUTF16Unsafe()));
     return;
   }
   claude_code_->Write(std::move(line));

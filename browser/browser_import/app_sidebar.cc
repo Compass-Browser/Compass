@@ -14,6 +14,8 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::browser_import {
 
@@ -216,8 +218,12 @@ void FolderTreeBuilder::Add(const std::vector<FolderStep>& path,
     if (added) {
       Node folder;
       folder.folder = true;
-      folder.item = MakeFolder(base::StrCat({id_prefix_, "folder:", step.id}),
-                               step.name.empty() ? u"Folder" : step.name, {});
+      folder.item =
+          MakeFolder(base::StrCat({id_prefix_, "folder:", step.id}),
+                     step.name.empty()
+                         ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_FOLDER)
+                         : step.name,
+                     {});
       node->children.push_back(std::move(folder));
     }
     node = &node->children[it->second];

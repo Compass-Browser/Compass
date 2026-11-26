@@ -4,6 +4,7 @@
 
 import {html, nothing, repeat} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n} from './i18n.js';
 import type {CompassSidebarPreviewElement} from './preview.js';
 import type {Node} from './sidebar.mojom-webui.js';
 
@@ -16,7 +17,7 @@ ${this.tree ? html`
   <div id="sections">
     ${this.hasPinned_() ? html`
       <div class="section-header">
-        <span>Pinned</span>
+        <span>${i18n('sidebarPinned')}</span>
         <span id="newLiveFolder" class="new-folder">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M2 4.2a.7.7 0 0 1 .7-.7h3.1l1.4 1.5h6.1a.7.7 0 0 1 .7.7
@@ -38,7 +39,7 @@ ${this.tree ? html`
       </div>
       <div class="section">
         ${this.isPinnedEmpty_() ? html`
-          <div class="hint">Drag tabs here to pin them</div>` : nothing}
+          <div class="hint">${i18n('sidebarPinnedHint')}</div>` : nothing}
         ${repeat(this.getPinned_(), (node: Node) => node.id, (node: Node) => html`
           <compass-sidebar-node .node="${node}" .activeId="${this.getActiveId_()}"
               .profileId="${this.space?.profileId ?? null}">
@@ -47,7 +48,7 @@ ${this.tree ? html`
       <div class="divider"></div>
     ` : nothing}
     <div class="section-header">
-      <span>Today</span>
+      <span>${i18n('sidebarToday')}</span>
       <span id="newTodayFolder" class="new-folder">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <path d="M8 3v10M3 8h10"></path>
@@ -67,7 +68,7 @@ ${this.tree ? html`
         </compass-sidebar-node>`)}
     </div>
   </div>
-  <div id="newTab"><span class="plus">+</span>New Tab</div>` : nothing}
+  <div id="newTab"><span class="plus">+</span>${i18n('sidebarNewTab')}</div>` : nothing}
 <!--_html_template_end_-->`;
   // clang-format on
 }

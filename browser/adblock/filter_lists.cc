@@ -10,9 +10,11 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "compass/browser/adblock/adblock_prefs.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "crypto/hash.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
 namespace compass::adblock {
@@ -144,14 +146,14 @@ std::string ValidateCustomListUrl(const PrefService* local_state,
                                   std::string_view url_text) {
   GURL url(base::TrimWhitespaceASCII(url_text, base::TRIM_ALL));
   if (!url.is_valid() || !url.has_host()) {
-    return "Enter the list's full address, starting with https://";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ADBLOCK_LIST_BAD_URL);
   }
   if (!url.SchemeIs("https")) {
-    return "Only https:// lists can be added";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_ADBLOCK_LIST_NOT_HTTPS);
   }
   for (const FilterList& list : GetFilterLists(local_state)) {
     if (GURL(list.url) == url) {
-      return "That list is already added";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_ADBLOCK_LIST_EXISTS);
     }
   }
   return std::string();

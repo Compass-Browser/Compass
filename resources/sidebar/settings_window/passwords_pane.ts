@@ -7,6 +7,7 @@ import './icon.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n, i18nF, i18nPlural} from '../i18n.js';
 import type {AddressDraft, CardDraft, SavedAddress, SavedCard, SavedPassword} from '../sidebar.mojom-webui.js';
 
 import {SettingsWindowBrowserProxy} from './browser_proxy.js';
@@ -21,19 +22,19 @@ export const PREF_SAVE_ADDRESSES = 'autofill.profile_enabled';
 
 // ISO 3166-1 alpha-2 codes, for the address editor's country menu (named by
 // Intl.DisplayNames in the browser's language).
-const COUNTRY_CODES = (
-    'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI ' +
-    'BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN ' +
-    'CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK ' +
-    'FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM ' +
-    'HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN ' +
-    'KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ' +
-    'ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP ' +
-    'NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW ' +
-    'SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF ' +
-    'TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI ' +
-    'VN VU WF WS YE YT ZA ZM ZW')
-                           .split(' ');
+const COUNTRY_CODES =
+    ('AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI ' +
+     'BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN ' +
+     'CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK ' +
+     'FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM ' +
+     'HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN ' +
+     'KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ' +
+     'ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP ' +
+     'NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW ' +
+     'SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF ' +
+     'TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI ' +
+     'VN VU WF WS YE YT ZA ZM ZW')
+        .split(' ');
 
 export interface Country {
   code: string;
@@ -43,7 +44,9 @@ export interface Country {
 function listCountries(): Country[] {
   let names: Intl.DisplayNames|null = null;
   try {
-    names = new Intl.DisplayNames([navigator.language], {type: 'region'});
+    names = new Intl.DisplayNames(
+        [document.documentElement.lang || navigator.language],
+        {type: 'region'});
   } catch {
     // Codes, then.
   }
@@ -65,8 +68,8 @@ export type PasswordsView = 'main'|'passwords'|'cards'|'addresses';
 const VIEWS: PasswordsView[] = ['main', 'passwords', 'cards', 'addresses'];
 
 // The colors of the sites' letter tiles (window.css, .tile), picked by site.
-const SITE_COLORS = ['blue', 'green', 'orange', 'purple', 'pink', 'teal',
-                     'indigo'];
+const SITE_COLORS =
+    ['blue', 'green', 'orange', 'purple', 'pink', 'teal', 'indigo'];
 
 // How long a revealed password stays shown.
 const REVEAL_MILLISECONDS = 30000;
@@ -118,8 +121,8 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
 
   protected readonly countries = listCountries();
   protected readonly months = Array.from({length: 12}, (_, i) => i + 1);
-  protected readonly years = Array.from(
-      {length: 16}, (_, i) => new Date().getFullYear() + i);
+  protected readonly years =
+      Array.from({length: 16}, (_, i) => new Date().getFullYear() + i);
 
   private handler_ = SettingsWindowBrowserProxy.getInstance().handler;
   private prefListener_ = (_name: string, _pref: PrefValue) =>
@@ -136,17 +139,18 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
     super.connectedCallback();
     const params = new URLSearchParams(window.location.search);
     this.focus_ = params.get('focus') || '';
-    const view = params.get('view') as PasswordsView|null;
+    const view = params.get('view') as PasswordsView | null;
     if (view && VIEWS.includes(view)) {
       this.setView_(view);
     }
     prefs.addListener(this.prefListener_);
-    prefs.load([
-           PREF_OFFER_TO_SAVE,
-           PREF_AUTO_SIGN_IN,
-           PREF_SAVE_CARDS,
-           PREF_SAVE_ADDRESSES,
-         ])
+    prefs
+        .load([
+          PREF_OFFER_TO_SAVE,
+          PREF_AUTO_SIGN_IN,
+          PREF_SAVE_CARDS,
+          PREF_SAVE_ADDRESSES,
+        ])
         .then(() => this.prefsVersion_++);
     const router = SettingsWindowBrowserProxy.getInstance().callbackRouter;
     this.listenerIds_ = [
@@ -221,8 +225,7 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
 
   // The list's caption: "57 passwords", "1 password".
   protected getPasswordsTitle_(): string {
-    const count = this.passwords_.length;
-    return count === 1 ? '1 password' : `${count} passwords`;
+    return i18nPlural('passwordsPanePasswordCount', this.passwords_.length);
   }
 
   protected isRevealed_(password: SavedPassword): boolean {
@@ -231,17 +234,19 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
 
   protected getSecret_(password: SavedPassword): string {
     if (password.isPasskey) {
-      return 'Passkey';
+      return i18n('passwordsPanePasskey');
     }
     return this.revealed_[password.id] ?? '••••••••';
   }
 
   protected getRevealLabel_(password: SavedPassword): string {
-    return this.isRevealed_(password) ? 'Hide' : 'Show';
+    return this.isRevealed_(password) ? i18n('passwordsPaneHide') :
+                                        i18n('passwordsPaneShow');
   }
 
   protected getCopyLabel_(password: SavedPassword): string {
-    return this.copied_ === password.id ? 'Copied' : 'Copy';
+    return this.copied_ === password.id ? i18n('passwordsPaneCopied') :
+                                          i18n('copy');
   }
 
   protected getCardText_(card: SavedCard): string {
@@ -253,12 +258,14 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
   }
 
   protected getCardDraftTitle_(): string {
-    return this.isNewCard_() ? 'Add a card' :
-                               `Edit card •••• ${this.cardDraft_!.lastFour}`;
+    return this.isNewCard_() ?
+        i18n('passwordsPaneAddCard') :
+        i18nF('passwordsPaneEditCard', this.cardDraft_!.lastFour);
   }
 
   protected getAddressDraftTitle_(): string {
-    return this.addressDraft_?.guid ? 'Edit address' : 'Add an address';
+    return this.addressDraft_?.guid ? i18n('passwordsPaneEditAddress') :
+                                      i18n('passwordsPaneAddAddress');
   }
 
   protected getMonthLabel_(month: number): string {
@@ -353,7 +360,8 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
   // A text field of the card (data-field: nameOnCard, number, nickname).
   protected onCardInput_(e: Event) {
     const input = e.target as HTMLInputElement;
-    this.cardDraft_ = {...this.cardDraft_!, [input.dataset['field']!]: input.value};
+    this.cardDraft_ =
+        {...this.cardDraft_!, [input.dataset['field']!]: input.value};
     this.draftError_ = '';
   }
 
@@ -410,8 +418,8 @@ export class CompassSettingsPasswordsPaneElement extends CrLitElement {
 
   // A field of the address (data-field).
   protected onAddressInput_(e: Event) {
-    const input = e.target as HTMLInputElement | HTMLTextAreaElement |
-        HTMLSelectElement;
+    const input =
+        e.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
     this.addressDraft_ = {
       ...this.addressDraft_!,
       [input.dataset['field']!]: input.value,

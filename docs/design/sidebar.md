@@ -908,8 +908,8 @@ In incognito, which has no Pinned, Pin and Unpin are left out (see
   (`Page.StartRename(id)`), as a double-click does. **New Folder** adds
   "New Folder" at the end of the folder.
 
-Labels are English literals for now, like the rest of Compass's UI; they move
-to a grit file when the UI is localized.
+Labels are messages in `strings/sidebar_strings.grdp` (branding.md,
+"Compass's own strings").
 
 **Not yet:** menus for the section headers and empty space (New Folder, New
 Tab), Copy Link of a split, and opening in a new window.

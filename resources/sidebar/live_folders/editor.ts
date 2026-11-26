@@ -14,6 +14,7 @@
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {SidebarBrowserProxy} from '../browser_proxy.js';
+import {i18n, i18nF} from '../i18n.js';
 import type {LiveConfigField, LivePlugin, LivePluginPreview} from '../sidebar.mojom-webui.js';
 
 import {getHtml} from './editor.html.js';
@@ -113,7 +114,7 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
     }
     this.plugin = plugins.find(p => p.id === source.pluginId) ?? null;
     if (!this.plugin) {
-      this.error = 'This folder\'s plugin isn\'t installed on this device.';
+      this.error = i18n('liveFoldersPluginMissing');
       this.missingPluginUrl = source.pluginUrl;
       this.missingPluginSha256_ = source.pluginSha256;
       return;
@@ -134,26 +135,27 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
   }
 
   dialogLabel(): string {
-    return this.folderId ? 'Edit live folder' : 'New live folder';
+    return this.folderId ? i18n('liveFoldersEditFolder') :
+                           i18n('sidebarNewLiveFolder');
   }
 
   heading(): string {
     if (this.installOpen) {
-      return 'Install a Plugin';
+      return i18n('liveFoldersInstallTitle');
     }
     if (this.folderId) {
-      return 'Edit Source';
+      return i18n('liveFoldersEditSource');
     }
-    return this.plugin ? this.plugin.name : 'New Live Folder';
+    return this.plugin ? this.plugin.name : i18n('liveFoldersNewTitle');
   }
 
   // "{config:url}" reads as the address the user enters.
   describeHosts(hosts: string[]): string {
     if (!hosts.length) {
-      return 'nothing';
+      return i18n('liveFoldersHostsNone');
     }
     const named = hosts.map(
-        host => host.startsWith('{') ? 'the address you enter' : host);
+        host => host.startsWith('{') ? i18n('liveFoldersHostEntered') : host);
     return [...new Set(named)].join(', ');
   }
 
@@ -162,7 +164,8 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
   }
 
   fieldLabel(field: LiveConfigField): string {
-    return field.label + (field.optional ? ' (optional)' : '');
+    return field.optional ? i18nF('liveFoldersOptional', field.label) :
+                          field.label;
   }
 
   // The field's value: what the user entered, else the plugin's default.
@@ -297,8 +300,7 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
     }
     if (this.missingPluginSha256_ &&
         preview.sha256 !== this.missingPluginSha256_) {
-      this.error = 'The plugin at that address isn\'t the one this folder ' +
-          'was made with: it has changed since. Review it before installing.';
+      this.error = i18n('liveFoldersPluginChanged');
     }
     this.preview = preview;
   }

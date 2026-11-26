@@ -19,7 +19,11 @@ source_set("store") {
     "//components/keyed_service/core",
     "//components/sync/protocol",
   ]
-  deps = [ "//crypto" ]
+  deps = [
+    "//compass/strings:compass_strings",
+    "//crypto",
+    "//ui/base",
+  ]
 }
 
 # Images fitted to the store's limits, decoded out of process.
@@ -31,9 +35,11 @@ source_set("images") {
   public_deps = [ "//base" ]
   deps = [
     ":store",
+    "//compass/strings:compass_strings",
     "//services/data_decoder/public/cpp",
     "//services/data_decoder/public/mojom",
     "//skia",
+    "//ui/base",
     "//ui/gfx",
     "//ui/gfx/codec",
   ]

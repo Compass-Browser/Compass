@@ -8,6 +8,8 @@ import type {ProfileOption} from '../sidebar.mojom-webui.js';
 import type {SpaceSymbol} from '../space_icons.js';
 import type {ArchiveDelay} from '../space_options.js';
 
+import {i18n, i18nF} from '../i18n.js';
+
 import type {CompassSpaceEditorAppElement} from './app.js';
 
 export function getHtml(this: CompassSpaceEditorAppElement) {
@@ -15,11 +17,12 @@ export function getHtml(this: CompassSpaceEditorAppElement) {
   return html`<!--_html_template_start_-->
 ${this.space_ ? html`${this.view_ === 'theme' ? html`
 <header>
-  <button id="back" class="back" title="Back" aria-label="Back"
+  <button id="back" class="back" title="${i18n('back')}"
+      aria-label="${i18n('back')}"
       @click="${this.onBackClick_}">
     <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7.5 2L3.5 6l4 4"></path></svg>
   </button>
-  <h1>Theme</h1>
+  <h1>${i18n('spaceEditorTheme')}</h1>
 </header>
 <main>
   <div class="card padded">
@@ -28,11 +31,12 @@ ${this.space_ ? html`${this.view_ === 'theme' ? html`
   </div>
 </main>` : html`${this.view_ === 'emoji' ? html`
 <header>
-  <button id="back" class="back" title="Back" aria-label="Back"
+  <button id="back" class="back" title="${i18n('back')}"
+      aria-label="${i18n('back')}"
       @click="${this.onBackClick_}">
     <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7.5 2L3.5 6l4 4"></path></svg>
   </button>
-  <h1>Emoji</h1>
+  <h1>${i18n('spaceEditorEmoji')}</h1>
 </header>
 <main>
   <div class="card padded">
@@ -42,11 +46,12 @@ ${this.space_ ? html`${this.view_ === 'theme' ? html`
   </div>
 </main>` : html`
 <header>
-  <input id="name" aria-label="Space name" spellcheck="false"
+  <input id="name" aria-label="${i18n('spaceEditorName')}" spellcheck="false"
       autocomplete="off" .value="${this.space_.name}"
       ?disabled="${this.space_.viewOnly}"
       @keydown="${this.onNameKeydown_}" @change="${this.onNameChange_}">
-  <button id="close" title="Close" aria-label="Close"
+  <button id="close" title="${i18n('close')}"
+      aria-label="${i18n('close')}"
       @click="${this.onCloseClick_}">
     <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8"></path></svg>
   </button>
@@ -55,17 +60,18 @@ ${this.space_ ? html`${this.view_ === 'theme' ? html`
   <div class="card">
     <button id="theme" class="row link" ?disabled="${this.space_.viewOnly}"
         @click="${this.onThemeClick_}">
-      <span class="label">Theme</span>
+      <span class="label">${i18n('spaceEditorTheme')}</span>
       <span id="themeChip" style="${this.getThemeChipStyle_()}"></span>
       <svg class="chevron" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2l4 4-4 4"></path></svg>
     </button>
   </div>
 
-  <div class="caption">Icon</div>
+  <div class="caption">${i18n('spaceEditorIcon')}</div>
   <div class="card padded">
-    <div id="icons" role="radiogroup" aria-label="Icon">
+    <div id="icons" role="radiogroup" aria-label="${i18n('spaceEditorIcon')}">
       <button class="icon-choice" role="radio" data-symbol=""
-          title="No icon" aria-label="No icon"
+          title="${i18n('spaceEditorNoIcon')}"
+          aria-label="${i18n('spaceEditorNoIcon')}"
           aria-checked="${this.isIcon_('')}" ?selected="${this.isIcon_('')}"
           ?disabled="${this.space_.viewOnly}" @click="${this.onSymbolClick_}">
         ${this.getInitial_()}
@@ -80,8 +86,8 @@ ${this.space_ ? html`${this.view_ === 'theme' ? html`
             <path d="${symbol.path}"></path>
           </svg>
         </button>`)}
-      <button id="emojiButton" class="icon-choice" title="Emoji"
-          aria-label="Emoji" aria-haspopup="dialog"
+      <button id="emojiButton" class="icon-choice" title="${i18n('spaceEditorEmoji')}"
+          aria-label="${i18n('spaceEditorEmoji')}" aria-haspopup="dialog"
           ?selected="${!!this.getEmoji_()}" ?disabled="${this.space_.viewOnly}"
           @click="${this.onEmojiClick_}">
         ${this.getEmoji_() || html`
@@ -95,10 +101,10 @@ ${this.space_ ? html`${this.view_ === 'theme' ? html`
     </div>
   </div>
 
-  <div class="caption">Space</div>
+  <div class="caption">${i18n('spaceEditorSpace')}</div>
   <div class="card">
     <label id="archiveDelay" class="row">
-      <span class="label">Archive Today tabs after</span>
+      <span class="label">${i18n('spaceEditorArchiveAfter')}</span>
       <select @change="${this.onArchiveDelayChange_}">
         ${this.archiveDelays_.map((delay: ArchiveDelay) => html`
           <option value="${delay.hours}"
@@ -109,32 +115,33 @@ ${this.space_ ? html`${this.view_ === 'theme' ? html`
     </label>
     ${this.hasProfiles_() ? html`
       <label id="profile" class="row">
-        <span class="label">Profile</span>
+        <span class="label">${i18n('spaceEditorProfile')}</span>
         <select @change="${this.onProfileChange_}">
           ${this.profiles_.map((profile: ProfileOption) => html`
             <option value="${profile.id}"
                 ?selected="${profile.id === this.space_!.profileId}">
               ${profile.name}
             </option>`)}
-          <option value="">New profile…</option>
+          <option value="">${i18n('spaceEditorNewProfile')}</option>
         </select>
       </label>` : nothing}
     ${this.canChangeSync_() ? html`
       <div class="row">
-        <span class="label">Sync to your other devices</span>
+        <span class="label">${i18n('spaceEditorSync')}</span>
         <button id="sync" class="switch" role="switch"
-            aria-label="Sync to your other devices"
+            aria-label="${i18n('spaceEditorSync')}"
             aria-checked="${this.space_.synced}" ?checked="${this.space_.synced}"
             @click="${this.onSyncClick_}"></button>
       </div>
       ${this.confirming_ === 'unsync' ? html`
         <div class="confirm">
-          <p>Stop syncing “${this.space_.name}”? It’s removed from your other
-            devices and stays only on this one.</p>
+          <p>${i18nF('spaceEditorUnsyncConfirm', this.space_.name)}</p>
           <div class="buttons">
-            <button class="pill" @click="${this.onConfirmCancelClick_}">Cancel</button>
+            <button class="pill" @click="${this.onConfirmCancelClick_}">${i18n('cancel')}</button>
             <button id="confirmUnsync" class="pill danger-fill"
-                @click="${this.onUnsyncConfirmClick_}">Stop syncing</button>
+                @click="${this.onUnsyncConfirmClick_}">
+              ${i18n('spaceEditorStopSyncing')}
+            </button>
           </div>
         </div>` : nothing}` : nothing}
   </div>
@@ -146,17 +153,16 @@ ${this.space_ ? html`${this.view_ === 'theme' ? html`
       </button>` : nothing}
     <span class="spacer"></span>
     <button id="delete" class="pill danger" ?disabled="${!this.canDelete_}"
-        title="${this.canDelete_ ? '' : 'The last space can’t be deleted'}"
-        @click="${this.onDeleteClick_}">Delete space</button>
+        title="${this.canDelete_ ? '' : i18n('spaceEditorLastSpace')}"
+        @click="${this.onDeleteClick_}">${i18n('spaceEditorDelete')}</button>
   </div>
   ${this.confirming_ === 'delete' ? html`
     <div class="confirm">
-      <p>Delete “${this.space_.name}”? Its tabs close, and its pinned tabs and
-        folders are deleted with it.</p>
+      <p>${i18nF('spaceEditorDeleteConfirm', this.space_.name)}</p>
       <div class="buttons">
-        <button class="pill" @click="${this.onConfirmCancelClick_}">Cancel</button>
+        <button class="pill" @click="${this.onConfirmCancelClick_}">${i18n('cancel')}</button>
         <button id="confirmDelete" class="pill danger-fill"
-            @click="${this.onDeleteConfirmClick_}">Delete</button>
+            @click="${this.onDeleteConfirmClick_}">${i18n('delete')}</button>
       </div>
     </div>` : nothing}
 </main>`}`}` : ''}

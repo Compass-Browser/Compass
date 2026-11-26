@@ -21,6 +21,8 @@
 #include "base/types/expected_macros.h"
 #include "base/uuid.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
 #include "url/url_util.h"
@@ -134,7 +136,7 @@ base::expected<BoostMatch, std::string> BoostMatch::Parse(
     if (scheme != url::kHttpScheme && scheme != url::kHttpsScheme &&
         scheme != "*") {
       return base::unexpected(
-          "Boosts apply to web pages only (http and https).");
+          l10n_util::GetStringUTF8(IDS_COMPASS_BOOSTS_WEB_PAGES_ONLY));
     }
     rest.remove_prefix(scheme_end + 3);
   }
@@ -348,15 +350,15 @@ std::vector<const Boost*> BoostStore::ForUrl(const GURL& url) const {
 base::expected<Boost, std::string> BoostStore::Save(Boost boost) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!loaded_) {
-    return base::unexpected("Boosts are still loading. Try again in a moment.");
+    return base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_BOOSTS_LOADING));
   }
   boost.id = base::ToLowerASCII(boost.id);
   ASSIGN_OR_RETURN(Boost normalized, NormalizeBoost(std::move(boost)));
   if (normalized.id.empty()) {
     if (boosts_.size() >= kMaxBoosts) {
-      return base::unexpected(base::StrCat(
-          {"There are already ", base::NumberToString(kMaxBoosts),
-           " Boosts. Delete one that's no longer needed first."}));
+      return base::unexpected(l10n_util::GetPluralStringFUTF8(
+          IDS_COMPASS_BOOSTS_TOO_MANY, static_cast<int>(kMaxBoosts)));
     }
     normalized.id = base::Uuid::GenerateRandomV4().AsLowercaseString();
     normalized.created = normalized.updated = base::Time::Now();

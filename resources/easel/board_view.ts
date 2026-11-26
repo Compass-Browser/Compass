@@ -12,6 +12,7 @@ import {ObjectKind} from './easel.mojom-webui.js';
 import type {EaselObject} from './easel.mojom-webui.js';
 import type {Point, Rect} from './geometry.js';
 import {arrowGeometry, strokePath} from './geometry.js';
+import {i18n} from './i18n.js';
 import {assetUrl, DEFAULT_STROKE_WIDTH, hostOf, ShapeKind} from './model.js';
 
 export const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
@@ -289,7 +290,7 @@ function buildContent(object: EaselObject): Node {
     default:
       return el('div', {
         className: 'unknown',
-        text: 'Made with a newer version of Compass',
+        text: i18n('easelNewerVersion'),
       });
   }
 }

@@ -12,6 +12,7 @@
 #include "base/json/json_writer.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "net/base/net_errors.h"
 #include "net/base/url_util.h"
 #include "net/http/http_request_headers.h"
@@ -22,6 +23,7 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
 namespace compass::claude {
@@ -70,7 +72,7 @@ std::string StreamErrorMessage(std::string_view data) {
       }
     }
   }
-  return "Claude stopped with an error.";
+  return l10n_util::GetStringUTF8(IDS_COMPASS_AI_ERROR_STOPPED);
 }
 
 }  // namespace
@@ -106,13 +108,15 @@ std::unique_ptr<network::SimpleURLLoader> ClaudeClient::MakeLoader(
 
 void ClaudeClient::ListModels(ModelsCallback callback) {
   if (!endpoint_.base_url.is_valid()) {
-    std::move(callback).Run(base::unexpected("Enter the server's URL first."));
+    std::move(callback).Run(
+        base::unexpected(l10n_util::GetStringUTF8(IDS_COMPASS_AI_ENTER_URL)));
     return;
   }
   // An OpenAI-compatible server may take no key.
   if (endpoint_.api_key.empty() &&
       endpoint_.provider != AIProvider::kCompatible) {
-    std::move(callback).Run(base::unexpected("Enter an API key first."));
+    std::move(callback).Run(base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_CLAUDE_ENTER_API_KEY)));
     return;
   }
   models_loader_ = MakeLoader(ModelsUrl(endpoint_), "GET");
@@ -138,8 +142,7 @@ void ClaudeClient::OnModels(ModelsCallback callback,
       ParseModelList(*body, endpoint_.provider);
   if (!models) {
     std::move(callback).Run(base::unexpected(
-        "The server answered, but not with a list of models. Check the "
-        "endpoint URL."));
+        l10n_util::GetStringUTF8(IDS_COMPASS_AI_ERROR_NOT_MODEL_LIST)));
     return;
   }
   std::move(callback).Run(std::move(*models));
@@ -151,12 +154,14 @@ void ClaudeClient::StreamMessage(base::DictValue request,
                                  DoneCallback on_done) {
   Cancel();
   if (!endpoint_.base_url.is_valid()) {
-    std::move(on_done).Run("Enter the server's URL in Compass's AI settings.");
+    std::move(on_done).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_AI_ENTER_URL_IN_SETTINGS));
     return;
   }
   if (endpoint_.api_key.empty() &&
       endpoint_.provider != AIProvider::kCompatible) {
-    std::move(on_done).Run("Enter an API key in Compass's AI settings.");
+    std::move(on_done).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_AI_ENTER_KEY_IN_SETTINGS));
     return;
   }
   request.Set("stream", true);
@@ -171,7 +176,8 @@ void ClaudeClient::StreamMessage(base::DictValue request,
   }
   std::optional<std::string> body = base::WriteJson(request);
   if (!body) {
-    std::move(on_done).Run("The request couldn't be written.");
+    std::move(on_done).Run(
+        l10n_util::GetStringUTF8(IDS_COMPASS_AI_REQUEST_NOT_WRITTEN));
     return;
   }
   on_event_ = std::move(on_event);
@@ -264,7 +270,7 @@ void ClaudeClient::OnComplete(bool success) {
   } else if (!success) {
     FinishStream(DescribeError(0, "", endpoint_.provider));
   } else if (!saw_message_stop_) {
-    FinishStream("The reply was cut off. Try again.");
+    FinishStream(l10n_util::GetStringUTF8(IDS_COMPASS_AI_REPLY_CUT_OFF));
   } else {
     FinishStream(std::nullopt);
   }

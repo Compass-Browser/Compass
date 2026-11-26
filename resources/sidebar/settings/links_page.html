@@ -137,26 +137,20 @@
   }
 </style>
 <div class="links-page">
-  <p class="links-lead">
-    Links you open in other apps, such as Mail or Slack, open in a little
-    window. Give a site a space, and its links open there instead, as a new
-    tab in Today. A site's rule covers its subdomains; a rule for a
-    subdomain wins over its site's. Links you click inside Compass stay where
-    they are. Rules sync with your spaces.
-  </p>
+  <p class="links-lead">$i18n{linksPageLead}</p>
   <ul id="linkRules" class="links-list"></ul>
-  <p id="noLinkRules" class="links-empty" hidden>No sites yet.</p>
+  <p id="noLinkRules" class="links-empty" hidden>$i18n{linksPageNoSites}</p>
   <form id="linkRuleForm" class="links-form" hidden>
     <input id="linkDomain" type="text" placeholder="github.com"
-        aria-label="Site" autocomplete="off" spellcheck="false">
-    <select id="linkSpace" aria-label="Space"></select>
-    <button id="saveLinkRule" type="submit">Save</button>
+        aria-label="$i18n{linksPageSiteLabel}" autocomplete="off" spellcheck="false">
+    <select id="linkSpace" aria-label="$i18n{linksPageSpaceLabel}"></select>
+    <button id="saveLinkRule" type="submit">$i18n{save}</button>
     <button id="cancelLinkRule" class="secondary" type="button">
-      Cancel
+      $i18n{cancel}
     </button>
     <p id="linkNote" class="links-note" hidden></p>
   </form>
   <div class="links-buttons">
-    <button id="addLinkRule" class="secondary">Add Site</button>
+    <button id="addLinkRule" class="secondary">$i18n{linksPageAddSite}</button>
   </div>
 </div>

@@ -40,7 +40,7 @@ std::string_view ProviderId(AIProvider provider);
 std::optional<AIProvider> ParseProvider(std::string_view id);
 
 // "Anthropic", "OpenAI", "Google Gemini", "Other (OpenAI-compatible)".
-std::string_view ProviderDisplayName(AIProvider provider);
+std::string ProviderDisplayName(AIProvider provider);
 // What the UI calls the assistant: "Claude", "GPT", "Gemini", "AI".
 std::string_view AssistantName(AIProvider provider);
 
@@ -70,9 +70,9 @@ struct KnownModel {
 base::span<const KnownModel> KnownModels(AIProvider provider);
 
 // What a key looks like, for the field's placeholder.
-std::string_view KeyPlaceholder(AIProvider provider);
+std::string KeyPlaceholder(AIProvider provider);
 // Where what's sent goes, for the settings.
-std::string_view PrivacyNote(AIProvider provider);
+std::string PrivacyNote(AIProvider provider);
 
 }  // namespace compass::claude
 

@@ -9,6 +9,8 @@
 #include "base/strings/utf_string_conversions.h"
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::easels {
 
@@ -40,9 +42,13 @@ void Collect(SidebarNode* node,
 
 }  // namespace
 
+std::string NewEaselTitle() {
+  return l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_UNTITLED);
+}
+
 std::u16string EaselTabTitle(const sync_pb::CompassEasel& easel) {
-  return base::UTF8ToUTF16(easel.title().empty() ? kNewEaselTitle
-                                                  : easel.title());
+  return base::UTF8ToUTF16(easel.title().empty() ? NewEaselTitle()
+                                                 : easel.title());
 }
 
 size_t ApplyEaselTitle(SpaceModel& space,

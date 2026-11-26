@@ -1,0 +1,1078 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The sidebar and the pages around it: the command bar, Claude's chat,
+     the space editor, sharing, live folders, the find bar, the placeholder
+     (resources/sidebar/, but its settings; browser/ui/webui/localized_strings/
+     sidebar_strings.cc). -->
+<grit-part>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_MODEL" desc="Claude chat: menu of Claude models.">
+    Model
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_NEW_CHAT" desc="Claude chat: button that starts a new conversation.">
+    New chat
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_NO_KEY_LEAD" desc="Claude chat, before an API key is set: what the chat does.">
+    Chat with Claude about the page you're on.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_NO_KEY" desc="Claude chat, before an API key is set.">
+    Compass ships no key: add your own Anthropic API key in settings.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_ADD_KEY" desc="Claude chat: button that opens the settings to add an API key.">
+    Add an API key
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_EMPTY_LEAD" desc="Claude chat: shown before the first message.">
+    Ask about the page you're on, or anything else.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_USING_TOOLTIP" desc="Claude chat: tooltip of the chip showing the tab Claude is working in.">
+    Claude reads and acts in this tab
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_USING" desc="Claude chat: chip showing the tab Claude is working in.">
+    Using <ph name="TAB_TITLE">$1<ex>Inbox</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_MORE_WAITING" desc="Claude chat: how many more requests for permission wait after this one.">
+    {COUNT, plural, =1 {1 more waiting} other {# more waiting}}
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_DENY" desc="Claude chat: button that refuses Claude permission for an action.">
+    Deny
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_ALLOW_FOR_CHAT" desc="Claude chat: button that allows an action for the rest of the conversation.">
+    Allow for this chat
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_ALLOW" desc="Claude chat: button that allows an action once.">
+    Allow
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_QUEUED" desc="Claude chat: accessible name of the messages waiting to be sent.">
+    Queued messages
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_QUEUED_SENDS" desc="Claude chat: label of the queued messages while Claude replies.">
+    Sends after this reply
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_QUEUED_PAUSED" desc="Claude chat: label of the queued messages when nothing is running.">
+    Paused: send to go on
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_PLACEHOLDER" desc="Claude chat: placeholder of the message field.">
+    Ask Claude…
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_MESSAGE" desc="Claude chat: accessible name of the message field.">
+    Message to Claude
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_QUEUE_TOOLTIP" desc="Claude chat: tooltip of the button that queues a message, with its shortcut.">
+    Send after this reply (Enter)
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_QUEUE" desc="Claude chat: button that queues a message.">
+    Send after this reply
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_STOP_TOOLTIP" desc="Claude chat: tooltip of the button that stops Claude, with its shortcut.">
+    Stop (Esc)
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_STOP" desc="Claude chat: button that stops Claude.">
+    Stop
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_SEND_TOOLTIP" desc="Claude chat: tooltip of the send button, with its shortcut.">
+    Send (Enter)
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_SEND" desc="Claude chat: send button.">
+    Send
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_SUGGEST_SUMMARIZE" desc="Claude chat: a suggested first message, sent to Claude as written.">
+    Summarize this page
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_SUGGEST_KEY_POINTS" desc="Claude chat: a suggested first message, sent to Claude as written.">
+    What are the key points?
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_SUGGEST_EXPLAIN" desc="Claude chat: a suggested first message, sent to Claude as written.">
+    Explain this page simply
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_ATTACH_ON" desc="Claude chat: tooltip of the page chip when the page goes with the message.">
+    Claude gets this page's text with your message
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_ATTACH_OFF" desc="Claude chat: tooltip of the page chip when the page doesn't go with the message.">
+    Not sent
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOO_MANY_STEPS" desc="Claude chat: error when Claude took too many steps. &quot;go on&quot; is what the user can type; translate it.">
+    Claude stopped after <ph name="COUNT">$1<ex>50</ex></ph> steps. Send "go on" to let it continue.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_UNDONE" desc="Claude chat: a memory or Boost change the user undid.">
+    Undone
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_SCREENSHOT" desc="Claude chat: alt text of a screenshot Claude took.">
+    Screenshot Claude took
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_THINKING" desc="Claude chat: heading of Claude's reasoning while it thinks.">
+    Thinking…
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_THOUGHT" desc="Claude chat: heading of Claude's reasoning once done.">
+    Thought
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_ANSWERING" desc="Claude chat: accessible name of the dots shown while Claude answers.">
+    Claude is answering
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_REFUSED" desc="Claude chat: Claude refused to answer.">
+    Claude declined to answer this.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_CUT_OFF" desc="Claude chat: Claude's answer hit its length limit.">
+    The answer was cut off at its length limit.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_RETRY" desc="Claude chat: button that asks again after an error.">
+    Retry
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_BOOST_SAVED" desc="Claude chat: Claude saved a Boost (CSS and JavaScript for a site) for the sites shown.">
+    Saved Boost for <ph name="SITES">$1<ex>example.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_BOOST_UPDATED" desc="Claude chat: Claude changed a Boost.">
+    Updated Boost for <ph name="SITES">$1<ex>example.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_BOOST_DELETED" desc="Claude chat: Claude deleted a Boost.">
+    Deleted Boost for <ph name="SITES">$1<ex>example.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_PLUGIN_SAVED" desc="Claude chat: Claude saved a live folder plugin.">
+    Saved plugin <ph name="PLUGIN">$1<ex>rss</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_PLUGIN_UPDATED" desc="Claude chat: Claude changed a live folder plugin.">
+    Updated plugin <ph name="PLUGIN">$1<ex>rss</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_PLUGIN_DELETED" desc="Claude chat: Claude deleted a live folder plugin.">
+    Deleted plugin <ph name="PLUGIN">$1<ex>rss</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_MEMORY_SAVED" desc="Claude chat: Claude remembered something about the user, quoted.">
+    Saved to memory: <ph name="TEXT">$1<ex>Prefers metric units</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_MEMORY_UPDATED" desc="Claude chat: Claude changed something it remembered.">
+    Updated memory: <ph name="TEXT">$1<ex>Prefers metric units</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_MEMORY_FORGOT" desc="Claude chat: Claude forgot something it remembered.">
+    Forgot: <ph name="TEXT">$1<ex>Prefers metric units</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_READ_PAGE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Read the page
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_GET_PAGE_TEXT" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Read the page's text
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_FIND" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Find “<ph name="QUERY">$1<ex>Sign in</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_SCREENSHOT" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Screenshot
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_READ_CONSOLE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Read the console
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_RUN_JS" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Run JavaScript
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_CLICK" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Click
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_CLICK_REF" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. The placeholder is an element's reference.">
+    Click <ph name="ELEMENT">$1<ex>ref_12</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_CLICK_AT" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. The placeholder is a point's coordinates.">
+    Click at <ph name="POINT">$1<ex>120, 340</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_HOVER" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. Claude points the mouse at something.">
+    Point
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_HOVER_REF" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. Claude points the mouse at an element.">
+    Point at <ph name="ELEMENT">$1<ex>ref_12</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_HOVER_AT" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. Claude points the mouse at a point.">
+    Point at <ph name="POINT">$1<ex>120, 340</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_FILL" meaning="Filling in a form field" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. Claude fills in a form field.">
+    Fill
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_FILL_REF" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. Claude fills in a form field.">
+    Fill <ph name="ELEMENT">$1<ex>ref_12</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_FILL_AT" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. Claude fills in a form field at a point.">
+    Fill at <ph name="POINT">$1<ex>120, 340</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_TYPE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Type “<ph name="TEXT">$1<ex>hello</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_KEY" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. The placeholder is keys, like Enter.">
+    Press <ph name="KEYS">$1<ex>Enter</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_SCROLL" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. The placeholder is a direction in English (up, down, left, right).">
+    Scroll <ph name="DIRECTION">$1<ex>down</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_NAVIGATE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Go to <ph name="URL">$1<ex>example.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_WAIT" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. The placeholder is a number of seconds.">
+    Wait <ph name="SECONDS">$1<ex>2</ex></ph> s
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_REMEMBER" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Remember “<ph name="TEXT">$1<ex>Prefers metric units</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_UPDATE_MEMORY" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Update memory “<ph name="TEXT">$1<ex>Prefers metric units</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_FORGET" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Forget a memory
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_LIST_BOOSTS_FOR" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    List Boosts for <ph name="HOST">$1<ex>example.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_LIST_BOOSTS" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    List Boosts
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_SAVE_BOOST" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Save Boost for <ph name="SITES">$1<ex>example.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_DELETE_BOOST" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Delete a Boost
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_LIST_PLUGINS" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    List plugins
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_GET_PLUGIN" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Read plugin <ph name="PLUGIN">$1<ex>rss</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_TEST_FOLDER_PLUGIN" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Test a live folder plugin
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_TEST_PREVIEW_PLUGIN" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Test a tab preview
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_SAVE_PLUGIN" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Save a plugin
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_DELETE_PLUGIN" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Delete plugin <ph name="PLUGIN">$1<ex>rss</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_SAVE_FILE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Save “<ph name="FILE">$1<ex>notes.md</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_LIST_PATH" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    List “<ph name="PATH">$1<ex>docs</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_LIST_FOLDER" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    List the folder
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_READ_FILE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Read “<ph name="FILE">$1<ex>notes.md</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_WRITE_FILE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Write “<ph name="FILE">$1<ex>notes.md</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_EDIT_FILE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Edit “<ph name="FILE">$1<ex>notes.md</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_NETWORK_REQUESTS" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    List network requests
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_NETWORK_RESPONSE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Read request <ph name="REQUEST">$1<ex>42</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_INSPECT" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Inspect <ph name="ELEMENT">$1<ex>ref_12</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_PAGE_STORAGE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Read the site's storage
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_CLEAR_STORAGE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. The placeholder is a storage name like localStorage.">
+    Clear <ph name="STORE">$1<ex>localStorage</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_SET_STORAGE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. Sets an item in a site's storage (like localStorage).">
+    Set “<ph name="NAME">$1<ex>theme</ex></ph>” in <ph name="STORE">$2<ex>localStorage</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_REMOVE_STORAGE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. Removes an item from a site's storage (like localStorage).">
+    Remove “<ph name="NAME">$1<ex>theme</ex></ph>” in <ph name="STORE">$2<ex>localStorage</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_PERFORMANCE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Measure performance
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_STOP_EMULATING" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. Ends emulating a device.">
+    Stop emulating
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_EMULATE" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. Emulates a device; the placeholder is its name and may be empty.">
+    Emulate <ph name="DEVICE">$1<ex>iPhone 15</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_RUN" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. Runs a shell command.">
+    Run <ph name="COMMAND">$1<ex>ls</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_SEARCH_FILES" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Search files for “<ph name="PATTERN">$1<ex>TODO</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_FETCH" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Fetch <ph name="URL">$1<ex>example.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_SEARCH_WEB" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply.">
+    Search the web for “<ph name="QUERY">$1<ex>weather</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_TOOL_GENERIC" desc="Label of a step Claude (an AI assistant) took in the browser chat, shown in its reply. A step whose tool has no name.">
+    Tool
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_COLOR_GREY" desc="Name of a color a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Grey
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_COLOR_BLUE" desc="Name of a color a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Blue
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_COLOR_PURPLE" desc="Name of a color a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Purple
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_COLOR_PINK" desc="Name of a color a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Pink
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_COLOR_RED" desc="Name of a color a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Red
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_COLOR_ORANGE" desc="Name of a color a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Orange
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_COLOR_YELLOW" desc="Name of a color a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Yellow
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_COLOR_GREEN" desc="Name of a color a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Green
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_GRADIENT_LAGOON" desc="Name of a preset gradient (a set of colors) a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Lagoon
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_GRADIENT_DUSK" desc="Name of a preset gradient (a set of colors) a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Dusk
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_GRADIENT_EMBER" desc="Name of a preset gradient (a set of colors) a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Ember
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_GRADIENT_MEADOW" desc="Name of a preset gradient (a set of colors) a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Meadow
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_GRADIENT_OCEAN" desc="Name of a preset gradient (a set of colors) a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Ocean
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_GRADIENT_PEACH" desc="Name of a preset gradient (a set of colors) a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Peach
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_GRADIENT_AURORA" desc="Name of a preset gradient (a set of colors) a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Aurora
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_GRADIENT_SAND" desc="Name of a preset gradient (a set of colors) a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Sand
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_GRADIENT_SLATE" desc="Name of a preset gradient (a set of colors) a space can have, shown as the tooltip of its swatch in the theme editor.">
+    Slate
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ANSWERING" desc="Command bar: shown while Claude (an AI assistant) writes its answer.">
+    Claude is answering…
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ABOUT_PAGE_ON" desc="Command bar: tooltip of the &quot;About this page&quot; switch when on, with the page's title and site.">
+    Claude gets this tab's title and site: <ph name="PAGE">$1<ex>News - example.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ABOUT_PAGE_OFF" desc="Command bar: tooltip of the &quot;About this page&quot; switch when off.">
+    Only the question goes to Claude
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ABOUT_PAGE" desc="Command bar: switch on the Ask Claude row that also sends Claude the current page.">
+    About this page
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_PLACEHOLDER_NEW" desc="Placeholder of the command bar's field when it opens a new tab.">
+    Search or enter URL…
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_PLACEHOLDER" desc="Placeholder of the command bar's field.">
+    Search, enter URL or a command…
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ANSWER" desc="Accessible name of the area with Claude's answer in the command bar.">
+    Claude's answer
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ESC_TO_CLOSE" desc="Command bar: hint that the Esc key closes it.">
+    Esc to close
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_CONTINUE_IN_CHAT" desc="Command bar: button that continues the conversation with Claude in its chat panel.">
+    Continue in Chat
+  </message>
+  <message name="IDS_COMPASS_EMOJI_PICKER_SEARCH" desc="Placeholder and accessible name of the emoji picker's search field. Emoji names are searched in English.">
+    Search emoji
+  </message>
+  <message name="IDS_COMPASS_EMOJI_PICKER_CATEGORIES" desc="Accessible name of the emoji picker's category tabs.">
+    Emoji categories
+  </message>
+  <message name="IDS_COMPASS_EMOJI_PICKER_NO_RESULTS" desc="Shown in the emoji picker when the search finds nothing.">
+    No emoji found
+  </message>
+  <message name="IDS_COMPASS_EMOJI_PICKER_GROUP_SMILEYS" desc="Emoji category (Unicode's group).">
+    Smileys &amp; emotion
+  </message>
+  <message name="IDS_COMPASS_EMOJI_PICKER_GROUP_PEOPLE" desc="Emoji category (Unicode's group).">
+    People &amp; body
+  </message>
+  <message name="IDS_COMPASS_EMOJI_PICKER_GROUP_NATURE" desc="Emoji category (Unicode's group).">
+    Animals &amp; nature
+  </message>
+  <message name="IDS_COMPASS_EMOJI_PICKER_GROUP_FOOD" desc="Emoji category (Unicode's group).">
+    Food &amp; drink
+  </message>
+  <message name="IDS_COMPASS_EMOJI_PICKER_GROUP_TRAVEL" desc="Emoji category (Unicode's group).">
+    Travel &amp; places
+  </message>
+  <message name="IDS_COMPASS_EMOJI_PICKER_GROUP_ACTIVITIES" desc="Emoji category (Unicode's group).">
+    Activities
+  </message>
+  <message name="IDS_COMPASS_EMOJI_PICKER_GROUP_OBJECTS" desc="Emoji category (Unicode's group).">
+    Objects
+  </message>
+  <message name="IDS_COMPASS_EMOJI_PICKER_GROUP_SYMBOLS" desc="Emoji category (Unicode's group).">
+    Symbols
+  </message>
+  <message name="IDS_COMPASS_EMOJI_PICKER_GROUP_FLAGS" desc="Emoji category (Unicode's group).">
+    Flags
+  </message>
+  <message name="IDS_COMPASS_FIND_BAR_FIND_IN_PAGE" desc="Placeholder and accessible name of the find bar's text field.">
+    Find in page
+  </message>
+  <message name="IDS_COMPASS_FIND_BAR_PREVIOUS" desc="Accessible name of the find bar button that goes to the previous match.">
+    Previous match
+  </message>
+  <message name="IDS_COMPASS_FIND_BAR_PREVIOUS_TOOLTIP" desc="Tooltip of the find bar button that goes to the previous match, with its shortcut (Shift+Return).">
+    Previous match (⇧⏎)
+  </message>
+  <message name="IDS_COMPASS_FIND_BAR_NEXT" desc="Accessible name of the find bar button that goes to the next match.">
+    Next match
+  </message>
+  <message name="IDS_COMPASS_FIND_BAR_NEXT_TOOLTIP" desc="Tooltip of the find bar button that goes to the next match, with its shortcut (Return).">
+    Next match (⏎)
+  </message>
+  <message name="IDS_COMPASS_FIND_BAR_CLOSE_TOOLTIP" desc="Tooltip of the button that closes the find bar, with its shortcut.">
+    Close (Esc)
+  </message>
+  <message name="IDS_COMPASS_FIND_BAR_NO_RESULTS" desc="Shown in the find bar when the text isn't in the page.">
+    No results
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_HOME" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Home
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_WORK" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Work
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_PERSON" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Person
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_CODE" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Code
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_DATABASE" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Database
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_TOOLS" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Tools
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_SCHOOL" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    School
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_BOOK" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Book
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_IDEA" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Idea
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_ART" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Art
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_PHOTOS" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Photos
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_MUSIC" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Music
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_PODCAST" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Podcast
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_VIDEO" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Video
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_GAMES" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Games
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_TRAVEL" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Travel
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_WORLD" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    World
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_COMPASS" desc="Name of a symbol a space can have as its icon: a compass (the navigation instrument, not the browser). Shown as its tooltip and accessible name.">
+    Compass
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_CAR" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Car
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_SHOPPING" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Shopping
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_WALLET" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Wallet
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_FINANCE" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Finance
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_SCIENCE" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Science
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_LAW" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Law
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_SECURITY" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Security
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_PRIVATE" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Private
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_PARTY" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Party
+  </message>
+  <message name="IDS_COMPASS_SPACE_ICON_ENERGY" desc="Name of a symbol a space can have as its icon, shown as its tooltip and accessible name.">
+    Energy
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_PLUGIN_MISSING" desc="Live folder editor: error when the plugin that fills a synced live folder isn't installed here.">
+    This folder's plugin isn't installed on this device.
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_EDIT_FOLDER" desc="Live folder editor: accessible name of the dialog when editing a live folder.">
+    Edit live folder
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_INSTALL_TITLE" desc="Live folder editor: heading when installing a plugin from an address.">
+    Install a Plugin
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_EDIT_SOURCE" desc="Live folder editor: heading when changing what fills a live folder (its plugin's settings).">
+    Edit Source
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_NEW_TITLE" desc="Live folder editor: heading when choosing the plugin for a new live folder.">
+    New Live Folder
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_HOSTS_NONE" desc="Live folder editor: a plugin reaches no sites; completes &quot;Reaches: ...&quot;.">
+    nothing
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_HOST_ENTERED" desc="Live folder editor: stands for a site address the user enters in the plugin's settings, in a list of sites.">
+    the address you enter
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_OPTIONAL" desc="Live folder editor: label of an optional setting of a plugin.">
+    <ph name="LABEL">$1<ex>Token</ex></ph> (optional)
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_PLUGIN_CHANGED" desc="Live folder editor: warning when the plugin at an address isn't the one a synced folder was made with.">
+    The plugin at that address isn't the one this folder was made with: it has changed since. Review it before installing.
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_MANIFEST_ADDRESS" desc="Live folder editor: label of the field for a plugin's address. manifest.json is a file name.">
+    Address of the plugin's manifest.json
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_REACHES" desc="Live folder editor: the sites a plugin can fetch from.">
+    Reaches: <ph name="SITES">$1<ex>github.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_COOKIE_HOSTS" desc="Live folder editor: the sites whose cookies a plugin can ask for.">
+    Can ask for your cookies for: <ph name="SITES">$1<ex>github.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_ASKS_FOR" desc="Live folder editor: the secrets (tokens, passwords) a plugin asks for.">
+    Asks for: <ph name="SECRETS">$1<ex>API token</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_FROM" desc="Live folder editor: where a plugin comes from.">
+    From <ph name="SOURCE">$1<ex>example.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_INSTALL" desc="Live folder editor: button that installs a plugin.">
+    Install
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_REVIEW" desc="Live folder editor: button that fetches a plugin to review it before installing.">
+    Review
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_NAME" desc="Live folder editor: label of the folder's name field.">
+    Name
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_SECRET_SAVED" desc="Live folder editor: placeholder of a secret field that already has a value.">
+    Saved: leave blank to keep
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_SECRET_LOCAL" desc="Live folder editor: hint under a secret field: it isn't synced.">
+    Kept on this device only.
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_GRANT_COOKIES" desc="Live folder editor: checkbox that lets a plugin use the user's cookies for the sites shown.">
+    Send your cookies for <ph name="SITES">$1<ex>github.com</ex></ph>, so it can see what you see signed in
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_CREATE" desc="Live folder editor: button that creates the live folder.">
+    Create
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_INSTALL_MISSING" desc="Live folder editor: button that installs the plugin a synced folder needs.">
+    Install the plugin
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_LOCAL_TOOLTIP" desc="Live folder editor: tooltip of the Local tag of a plugin loaded from the plugins folder on disk.">
+    From the plugins folder: remove its folder to remove it
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_LOCAL" desc="Live folder editor: tag of a plugin loaded from the plugins folder on disk.">
+    Local
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_REMOVE_PLUGIN" desc="Live folder editor: button that uninstalls a plugin.">
+    Remove <ph name="PLUGIN">$1<ex>RSS</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_INSTALL_PLUGIN" desc="Live folder editor: button that installs a plugin from an address.">
+    Install a plugin…
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_OPEN_FOLDER_TOOLTIP" desc="Live folder editor: tooltip of the button that opens the plugins folder on disk.">
+    Put a plugin's folder, with its manifest.json, in it
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_OPEN_FOLDER" desc="Live folder editor: button that opens the plugins folder on disk.">
+    Open plugins folder
+  </message>
+  <message name="IDS_COMPASS_PLACEHOLDER_THIS_TAB" desc="Name shown for a tab that has neither a title nor a URL, on the page left where a tab moved to another window.">
+    This tab
+  </message>
+  <message name="IDS_COMPASS_PLACEHOLDER_OPEN_ELSEWHERE" desc="Shown in place of a tab that is open in another window of the browser.">
+    Open in another window
+  </message>
+  <message name="IDS_COMPASS_PLACEHOLDER_BRING_HERE" desc="Button that moves a tab open in another window into this one.">
+    Bring here
+  </message>
+  <message name="IDS_COMPASS_EMPTY_PAGE_HINT" desc="Shown on the empty page of a window with no tab open.">
+    Click anywhere to search or enter a URL
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_IMPORT_TITLE" desc="Title of the page that imports data from another browser.">
+    Import from Another Browser
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_BOOSTS_TITLE" desc="Title of the Boosts page. Boosts is the name of a feature (CSS and JavaScript for sites).">
+    Boosts
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_SYNC_TITLE" desc="Title of the sync page.">
+    Sync
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_SHORTCUTS_TITLE" desc="Title of the keyboard shortcuts page.">
+    Keyboard shortcuts
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_TITLE" desc="Title of the command bar, a popup for searching tabs, history and commands.">
+    Command bar
+  </message>
+  <message name="IDS_COMPASS_FIND_BAR_TITLE" desc="Title of the bar for finding text in the page.">
+    Find
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_TITLE" desc="Title of the bubble for editing a space (its name, icon and theme).">
+    Edit Space
+  </message>
+  <message name="IDS_COMPASS_SHARE_TITLE" desc="Title of the share sheet, a bubble for sharing a space, Easel or folder with other people.">
+    Share
+  </message>
+  <message name="IDS_COMPASS_SHARE_ITEM_GONE" desc="Share sheet: the item being shared was deleted.">
+    This item is no longer here.
+  </message>
+  <message name="IDS_COMPASS_SHARE_TITLE_ITEM" desc="Title of the share sheet for an item.">
+    Share “<ph name="NAME">$1<ex>Work</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_SHARE_UNTITLED" desc="Name shown for a shared item that has none.">
+    Untitled
+  </message>
+  <message name="IDS_COMPASS_SHARE_INVITE_SPACE" desc="Share sheet, before a space is shared.">
+    Invite people to this space. Everyone sees changes as they happen. It stays end-to-end encrypted: your sync server can’t read it.
+  </message>
+  <message name="IDS_COMPASS_SHARE_INVITE_EASEL" desc="Share sheet, before an Easel (a board of notes and images) is shared.">
+    Invite people to this Easel. Everyone sees changes as they happen. It stays end-to-end encrypted: your sync server can’t read it.
+  </message>
+  <message name="IDS_COMPASS_SHARE_INVITE_FOLDER" desc="Share sheet, before a folder of tabs is shared.">
+    Invite people to this folder. Everyone sees changes as they happen. It stays end-to-end encrypted: your sync server can’t read it.
+  </message>
+  <message name="IDS_COMPASS_SHARE_START" desc="Button that starts sharing an item.">
+    Start sharing
+  </message>
+  <message name="IDS_COMPASS_SHARE_NEEDS_SYNC" desc="Share sheet note when sync is off.">
+    Turn on sync to share. Sharing goes through your sync server.
+  </message>
+  <message name="IDS_COMPASS_SHARE_SHARED_ON" desc="Share sheet: the sync server a shared item is on.">
+    Shared on <ph name="SERVER">$1<ex>sync.example.com</ex></ph>.
+  </message>
+  <message name="IDS_COMPASS_SHARE_VIEW_ONLY" desc="Share sheet: the user can only view the shared item.">
+    You can view it.
+  </message>
+  <message name="IDS_COMPASS_SHARE_ENCRYPTED" desc="Share sheet: the shared item is end-to-end encrypted.">
+    End-to-end encrypted.
+  </message>
+  <message name="IDS_COMPASS_SHARE_ROLE_OWNER" desc="Role of the person who shared an item.">
+    Owner
+  </message>
+  <message name="IDS_COMPASS_SHARE_ROLE_EDITOR" desc="Role of a person who can edit a shared item; also a choice in a menu of roles.">
+    Can edit
+  </message>
+  <message name="IDS_COMPASS_SHARE_ROLE_VIEWER" desc="Role of a person who can only view a shared item; also a choice in a menu of roles.">
+    Can view
+  </message>
+  <message name="IDS_COMPASS_SHARE_EXPIRES_7_DAYS" desc="Choice for when an invite link expires.">
+    Expires in 7 days
+  </message>
+  <message name="IDS_COMPASS_SHARE_EXPIRES_1_DAY" desc="Choice for when an invite link expires.">
+    Expires in 1 day
+  </message>
+  <message name="IDS_COMPASS_SHARE_NEVER_EXPIRES" desc="Choice for an invite link that never expires.">
+    Never expires
+  </message>
+  <message name="IDS_COMPASS_SHARE_USES_ANY" desc="Choice for how many people an invite link can be used by.">
+    Any number of people
+  </message>
+  <message name="IDS_COMPASS_SHARE_USES_ONE" desc="Choice for how many people an invite link can be used by.">
+    One person
+  </message>
+  <message name="IDS_COMPASS_SHARE_USES_UP_TO" desc="Choice for how many people an invite link can be used by.">
+    Up to <ph name="COUNT">$1<ex>5</ex></ph> people
+  </message>
+  <message name="IDS_COMPASS_SHARE_NO_LINK" desc="Placeholder of the invite link field before a link is made.">
+    No link yet
+  </message>
+  <message name="IDS_COMPASS_SHARE_COPY_INVITE_LINK" desc="Button that makes an invite link and copies it.">
+    Copy invite link
+  </message>
+  <message name="IDS_COMPASS_SHARE_COPIED" desc="Shown on the button for a moment after the link was copied.">
+    Copied
+  </message>
+  <message name="IDS_COMPASS_SHARE_INVITE_WITH_LINK" desc="Heading of the invite link options.">
+    Invite with a link
+  </message>
+  <message name="IDS_COMPASS_SHARE_LINK_NOTE" desc="Note under the invite link options.">
+    Anyone with the link can join until it expires or you revoke it.
+  </message>
+  <message name="IDS_COMPASS_SHARE_EMAIL_PLACEHOLDER" desc="Example email address in the email field of the invite form.">
+    name@company.com
+  </message>
+  <message name="IDS_COMPASS_SHARE_INVITE" desc="Button that invites the email address entered.">
+    Invite
+  </message>
+  <message name="IDS_COMPASS_SHARE_INVITE_BY_EMAIL" desc="Heading of the invite by email form.">
+    Invite by email
+  </message>
+  <message name="IDS_COMPASS_SHARE_SOMEONE" desc="Name shown for a member who has neither a name nor an email address.">
+    Someone
+  </message>
+  <message name="IDS_COMPASS_SHARE_MEMBER_YOU" desc="A member of a shared item who is the user.">
+    <ph name="NAME">$1<ex>Alex</ex></ph> (you)
+  </message>
+  <message name="IDS_COMPASS_SHARE_MEMBER_INVITED" desc="A member who was invited and hasn't joined yet.">
+    <ph name="NAME">$1<ex>Alex</ex></ph> · invited
+  </message>
+  <message name="IDS_COMPASS_SHARE_REMOVE_MEMBER_CONFIRM" desc="Question before removing a member from a shared item.">
+    Remove <ph name="NAME">$1<ex>Alex</ex></ph>? They keep a copy of what was shared, but won’t see new changes.
+  </message>
+  <message name="IDS_COMPASS_SHARE_PEOPLE" desc="Heading of the list of members of a shared item, with their number.">
+    People (<ph name="COUNT">$1<ex>3</ex></ph>)
+  </message>
+  <message name="IDS_COMPASS_SHARE_INVITE_EXPIRES" desc="When an open invite link expires.">
+    expires <ph name="DATE">$1<ex>12/31/2026</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SHARE_INVITE_NEVER_EXPIRES" desc="An open invite link that never expires.">
+    never expires
+  </message>
+  <message name="IDS_COMPASS_SHARE_INVITE_USES_LEFT" desc="How many more times an invite link can be used.">
+    {COUNT, plural, =1 {1 use left} other {# uses left}}
+  </message>
+  <message name="IDS_COMPASS_SHARE_REVOKE" desc="Button that revokes an invite link.">
+    Revoke
+  </message>
+  <message name="IDS_COMPASS_SHARE_INVITE_LINKS" desc="Heading of the open invite links.">
+    Invite links
+  </message>
+  <message name="IDS_COMPASS_SHARE_YOUR_NAME" desc="Heading of the field for the name other members see.">
+    Your name for sharing
+  </message>
+  <message name="IDS_COMPASS_SHARE_YOUR_NAME_NOTE" desc="Note under the field for the name other members see.">
+    What the people you share with see, unless your company’s sign-in gives your name.
+  </message>
+  <message name="IDS_COMPASS_SHARE_DELETE_FOR_EVERYONE" desc="Button with which the owner stops sharing an item.">
+    Delete for everyone
+  </message>
+  <message name="IDS_COMPASS_SHARE_LEAVE" desc="Button with which a member leaves a shared item.">
+    Leave
+  </message>
+  <message name="IDS_COMPASS_SHARE_STOP_CONFIRM_SPACE" desc="Question before the owner stops sharing a space.">
+    Stop sharing this space and remove it from everyone else? You keep it.
+  </message>
+  <message name="IDS_COMPASS_SHARE_STOP_CONFIRM_EASEL" desc="Question before the owner stops sharing an Easel.">
+    Stop sharing this Easel and remove it from everyone else? You keep it.
+  </message>
+  <message name="IDS_COMPASS_SHARE_STOP_CONFIRM_FOLDER" desc="Question before the owner stops sharing a folder.">
+    Stop sharing this folder and remove it from everyone else? You keep it.
+  </message>
+  <message name="IDS_COMPASS_SHARE_LEAVE_CONFIRM_SPACE" desc="Question before a member leaves a shared space.">
+    Leave this space? You keep a copy, but won’t see new changes.
+  </message>
+  <message name="IDS_COMPASS_SHARE_LEAVE_CONFIRM_EASEL" desc="Question before a member leaves a shared Easel.">
+    Leave this Easel? You keep a copy, but won’t see new changes.
+  </message>
+  <message name="IDS_COMPASS_SHARE_LEAVE_CONFIRM_FOLDER" desc="Question before a member leaves a shared folder.">
+    Leave this folder? You keep a copy, but won’t see new changes.
+  </message>
+  <message name="IDS_COMPASS_SHARE_BAD_LINK_TITLE" desc="Title of the join page when the invite link is broken.">
+    This invite link doesn’t work
+  </message>
+  <message name="IDS_COMPASS_SHARE_BAD_LINK" desc="Join page text when the invite link is broken.">
+    It may have been copied only in part. Ask for a new one.
+  </message>
+  <message name="IDS_COMPASS_SHARE_JOIN_TITLE" desc="Title of the page for joining a shared item.">
+    Join “<ph name="NAME">$1<ex>Trip</ex></ph>”
+  </message>
+  <message name="IDS_COMPASS_SHARE_JOIN_INVITED_SPACE" desc="Join page text for a shared space.">
+    You’ve been invited to a shared space on <ph name="SERVER">$1<ex>sync.example.com</ex></ph>. The person who shared it decides whether you can edit it or only view it.
+  </message>
+  <message name="IDS_COMPASS_SHARE_JOIN_INVITED_EASEL" desc="Join page text for a shared Easel.">
+    You’ve been invited to a shared Easel on <ph name="SERVER">$1<ex>sync.example.com</ex></ph>. The person who shared it decides whether you can edit it or only view it.
+  </message>
+  <message name="IDS_COMPASS_SHARE_JOIN_INVITED_FOLDER" desc="Join page text for a shared folder.">
+    You’ve been invited to a shared folder on <ph name="SERVER">$1<ex>sync.example.com</ex></ph>. The person who shared it decides whether you can edit it or only view it.
+  </message>
+  <message name="IDS_COMPASS_SHARE_ALREADY_JOINED" desc="Join page text when the user already joined.">
+    You’ve already joined it.
+  </message>
+  <message name="IDS_COMPASS_SHARE_PUT_IT_IN" desc="Heading of the menu of spaces the joined item goes in.">
+    Put it in
+  </message>
+  <message name="IDS_COMPASS_SHARE_JOIN" desc="Button that joins a shared item.">
+    Join
+  </message>
+  <message name="IDS_COMPASS_SHARE_JOINING" desc="Shown on the join button while joining.">
+    Joining…
+  </message>
+  <message name="IDS_COMPASS_SHARE_JOINED" desc="Title of the join page once joined.">
+    Joined
+  </message>
+  <message name="IDS_COMPASS_SHARE_JOINED_IN_SIDEBAR" desc="Join page text once joined.">
+    “<ph name="NAME">$1<ex>Trip</ex></ph>” is in your sidebar.
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_FAVORITES" desc="Accessible name of the sidebar's Favorites: the row of site tiles at its top, shared by every space.">
+    Favorites
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_FAVORITES_HINT" desc="Shown in the empty Favorites row while a tab is dragged.">
+    Drop here to add to Favorites
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_SPACE_NAME_TOOLTIP" desc="Tooltip of the space's name at the top of the sidebar.">
+    Double-click to edit the space
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_TABS" desc="Accessible name of the sidebar's list of tabs.">
+    Tabs
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_DISMISS" desc="Button that dismisses a notice in the sidebar.">
+    Dismiss
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_PINNED" desc="Heading of the sidebar section of pinned tabs and folders, which stay until removed.">
+    Pinned
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_NEW_LIVE_FOLDER" desc="Button that creates a live folder: a folder a plugin fills with links (from a feed, GitHub...).">
+    New live folder
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_NEW_EASEL" desc="Button that creates an Easel (a board of notes, images and links). Easel is a feature name.">
+    New Easel
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_NEW_FOLDER" desc="Button that creates a folder in the sidebar.">
+    New folder
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_NEW_FOLDER_NAME" desc="The name a new folder in the sidebar gets.">
+    New Folder
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_NEW_TODAY_FOLDER" desc="Accessible name of the button that creates a folder in the Today section.">
+    New folder in Today
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_PINNED_HINT" desc="Shown in the empty Pinned section.">
+    Drag tabs here to pin them
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_TODAY" desc="Heading of the sidebar section of open tabs, which are archived after a while.">
+    Today
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_TIDYING_TOOLTIP" desc="Tooltip of the Tidy button while Claude (an AI assistant) groups the tabs.">
+    Claude is tidying Today
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_TIDY_TOOLTIP" desc="Tooltip of the Tidy button.">
+    Group Today's tabs into folders with Claude
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_TIDYING" desc="The Tidy button while Claude groups the tabs.">
+    Tidying…
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_TIDY" desc="Button that has Claude group the Today tabs into folders.">
+    Tidy
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_CLEAR_TODAY_TOOLTIP" desc="Tooltip of the button that closes every tab in Today.">
+    Close all Today tabs
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_CLEAR" desc="Button that empties a list (the Today tabs, the archive).">
+    Clear
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_ARCHIVED_TABS" desc="Button and popup of the space's archived tabs.">
+    Archived tabs
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_ARCHIVED" desc="Heading of the popup of archived tabs.">
+    Archived
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_REMOVE_FROM_ARCHIVE" desc="Button that removes a tab from the archive.">
+    Remove from archive
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_ARCHIVE_OFF" desc="Shown in the empty archive of a space that doesn't archive tabs.">
+    Nothing archived. Auto-archive is off for this space.
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_ARCHIVE_EMPTY" desc="Shown in the empty archive, with how long until tabs are archived.">
+    Nothing archived yet. Today tabs you haven't looked at for <ph name="DELAY">$1<ex>12 hours</ex></ph> come here.
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_NEW_TAB" desc="Button that opens a new tab; also the name of a tab with no title.">
+    New Tab
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_UNDO" desc="Button in a notice that undoes what was just done.">
+    Undo
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_SPACES" desc="Accessible name of the row of spaces at the bottom of the sidebar.">
+    Spaces
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_NEW_SPACE" desc="Button that creates a space.">
+    New space
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_SPACE_LOCAL_ONLY" desc="Tooltip of a space that isn't synced to the user's other devices.">
+    <ph name="SPACE_NAME">$1<ex>Work</ex></ph> · On this device only
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MUTE_TAB" desc="Button that mutes a tab playing sound.">
+    Mute tab
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_UNMUTE_TAB" desc="Button that unmutes a muted tab.">
+    Unmute tab
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_NEW_NOTIFICATIONS" desc="Accessible name of the dot on a tab whose site has new notifications.">
+    New notifications
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_NOTIFICATIONS" desc="Accessible name of the count of unread notifications on a tab.">
+    {COUNT, plural, =1 {1 notification} other {# notifications}}
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_SHARE_MENU" desc="Button that opens the share sheet for an item that isn't shared yet.">
+    Share…
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_SHARING_MENU" desc="Button that opens the share sheet for an item that is shared.">
+    Sharing…
+  </message>
+  <message name="IDS_COMPASS_NODE_TAB_NAME" desc="Accessible name of the field for renaming a tab.">
+    Tab name
+  </message>
+  <message name="IDS_COMPASS_NODE_FOLDER_NAME" desc="Accessible name of the field for renaming a folder.">
+    Folder name
+  </message>
+  <message name="IDS_COMPASS_NODE_DELETE_FOLDER" desc="Button that deletes a folder.">
+    Delete folder
+  </message>
+  <message name="IDS_COMPASS_NODE_UNSEEN" desc="Accessible name of the count of new links in a collapsed live folder.">
+    {COUNT, plural, =1 {1 new} other {# new}}
+  </message>
+  <message name="IDS_COMPASS_NODE_UNLOAD_TAB" desc="Button on a loaded pinned tab that unloads it; the tab stays in the sidebar.">
+    Unload tab
+  </message>
+  <message name="IDS_COMPASS_NODE_CLOSE_TAB" desc="Button that closes a tab.">
+    Close tab
+  </message>
+  <message name="IDS_COMPASS_NODE_CLICK_AGAIN_TO_CLOSE" desc="Tooltip of a tab's close button after a first click, asking for a second one.">
+    Click again to close
+  </message>
+  <message name="IDS_COMPASS_NODE_CLICK_AGAIN_TO_REMOVE" desc="Tooltip of an unloaded tab's remove button after a first click, asking for a second one.">
+    Click again to remove
+  </message>
+  <message name="IDS_COMPASS_NOW_PLAYING_PICTURE_IN_PICTURE" desc="Button that plays the video in picture-in-picture (a floating window).">
+    Picture in picture
+  </message>
+  <message name="IDS_COMPASS_NOW_PLAYING_GO_TO" desc="Accessible name of the button that shows the tab playing media.">
+    Go to <ph name="TITLE">$1<ex>Song - YouTube</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_NOW_PLAYING_PREVIOUS" desc="Media control: previous track.">
+    Previous
+  </message>
+  <message name="IDS_COMPASS_NOW_PLAYING_NEXT" desc="Media control: next track.">
+    Next
+  </message>
+  <message name="IDS_COMPASS_NOW_PLAYING_PLAY" desc="Media control: play.">
+    Play
+  </message>
+  <message name="IDS_COMPASS_NOW_PLAYING_PAUSE" desc="Media control: pause.">
+    Pause
+  </message>
+  <message name="IDS_COMPASS_NOW_PLAYING_MUTE" desc="Media control: mute.">
+    Mute
+  </message>
+  <message name="IDS_COMPASS_NOW_PLAYING_UNMUTE" desc="Media control: unmute.">
+    Unmute
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_THEME" desc="Space editor: the row and page for a space's theme (its colors).">
+    Theme
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_EMOJI" desc="Space editor: the button and page for picking an emoji as the space's icon.">
+    Emoji
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_NAME" desc="Accessible name of the space editor's name field.">
+    Space name
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_ICON" desc="Space editor: heading of the choice of icons for the space.">
+    Icon
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_NO_ICON" desc="Space editor: the choice of no icon (the space shows its initial).">
+    No icon
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_SPACE" desc="Space editor: heading of the space's options.">
+    Space
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_ARCHIVE_AFTER" desc="Space editor: label of the menu of how long until tabs in the Today section are archived.">
+    Archive Today tabs after
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_PROFILE" desc="Space editor: label of the menu of the browser profile the space uses.">
+    Profile
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_NEW_PROFILE" desc="Space editor: menu choice that creates a new browser profile for the space.">
+    New profile…
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_SYNC" desc="Space editor: switch that syncs the space to the user's other devices.">
+    Sync to your other devices
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_UNSYNC_CONFIRM" desc="Question before a space stops syncing.">
+    Stop syncing “<ph name="SPACE_NAME">$1<ex>Work</ex></ph>”? It’s removed from your other devices and stays only on this one.
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_STOP_SYNCING" desc="Button that confirms a space stops syncing.">
+    Stop syncing
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_LAST_SPACE" desc="Tooltip of the disabled delete button when only one space is left.">
+    The last space can’t be deleted
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_DELETE" desc="Button that deletes the space.">
+    Delete space
+  </message>
+  <message name="IDS_COMPASS_SPACE_EDITOR_DELETE_CONFIRM" desc="Question before a space is deleted.">
+    Delete “<ph name="SPACE_NAME">$1<ex>Work</ex></ph>”? Its tabs close, and its pinned tabs and folders are deleted with it.
+  </message>
+  <message name="IDS_COMPASS_SPACE_OPTIONS_HOURS" desc="A number of hours, a choice of how long until a space's Today tabs are archived.">
+    {COUNT, plural, =1 {1 hour} other {# hours}}
+  </message>
+  <message name="IDS_COMPASS_SPACE_OPTIONS_DAYS" desc="A number of days, a choice of how long until a space's Today tabs are archived.">
+    {COUNT, plural, =1 {1 day} other {# days}}
+  </message>
+  <message name="IDS_COMPASS_SPACE_OPTIONS_NEVER" desc="The choice of never archiving a space's Today tabs.">
+    Never
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_MATCH_SYSTEM" desc="Theme editor: appearance choice that follows the system's light or dark mode.">
+    Match the system
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_LIGHT" desc="Theme editor: the light appearance.">
+    Light
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_DARK" desc="Theme editor: the dark appearance.">
+    Dark
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_MAIN_COLOR" desc="Theme editor: accessible name of the dot for the space's main color on the color pad.">
+    Main color
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_GRADIENT_COLOR" desc="Theme editor: accessible name of the dot for another color of the space's gradient, with its number.">
+    Gradient color <ph name="NUMBER">$1<ex>2</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_APPEARANCE" desc="Theme editor: accessible name of the choice between light, dark and the system's appearance.">
+    Appearance
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_COLORS" desc="Theme editor: the color pad and the page of plain colors.">
+    Colors
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_FEWER_COLORS" desc="Theme editor: button that removes a color from the space's gradient.">
+    One color less
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_MORE_COLORS" desc="Theme editor: button that adds a color to the space's gradient.">
+    One more color
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_PALETTE" desc="Theme editor: accessible name of the swatches of colors to pick from.">
+    Palette
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_ANY_COLOR" desc="Theme editor: swatch that opens a picker for any color.">
+    Any color
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_GRADIENTS" desc="Theme editor: the page of preset gradients.">
+    Gradients
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_INTENSITY" desc="Theme editor: slider for how strong the space's tint is.">
+    Intensity
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_GRAIN" desc="Theme editor: dial for how much noise texture (film grain) the space's tint has.">
+    Grain
+  </message>
+  <message name="IDS_COMPASS_THEME_EDITOR_TRANSLUCENCY" desc="Theme editor: slider for how see-through the sidebar is.">
+    Translucency
+  </message>
+</grit-part>

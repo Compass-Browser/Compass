@@ -21,8 +21,10 @@ source_set("arc_import") {
   deps = [
     # EaselUrl() for an easel's tab.
     "//compass/browser/easels:store",
+    "//compass/strings:compass_strings",
     "//crypto",
     "//sql",
+    "//ui/base",
 
     # Arc's Firestore cache (arc_easels.cc).
     "//third_party/leveldatabase",

@@ -9,13 +9,15 @@
 #include <utility>
 
 #include "base/files/scoped_temp_dir.h"
-#include "base/strings/string_util.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "sql/database.h"
 #include "sql/statement.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::browser_import {
 
@@ -51,8 +53,11 @@ std::vector<arc::Item> Children(const base::DictValue& list,
         base::StrCat({id_prefix, "bookmark:", StringOr(*node, "WebBookmarkUUID")});
     if (type == kList) {
       std::u16string title = base::UTF8ToUTF16(StringOr(*node, "Title"));
-      items.push_back(MakeFolder(id, title.empty() ? u"Folder" : title,
-                                 Children(*node, id_prefix)));
+      items.push_back(MakeFolder(
+          id,
+          title.empty() ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_FOLDER)
+                        : title,
+          Children(*node, id_prefix)));
     } else if (type == kLeaf) {
       const GURL url(StringOr(*node, "URLString"));
       if (!IsRestorableURL(url) || url.SchemeIs("javascript")) {
@@ -253,13 +258,20 @@ std::vector<arc::Item> ParseSafariBookmarks(const base::DictValue& plist,
     } else if (children.empty()) {
       continue;
     } else if (title == "BookmarksMenu") {
-      folders.insert(folders.begin(),
-                     MakeFolder(id, u"Bookmarks Menu", std::move(children)));
+      folders.insert(
+          folders.begin(),
+          MakeFolder(
+              id, l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_BOOKMARKS_MENU),
+              std::move(children)));
     } else if (title == "com.apple.ReadingList") {
-      reading_list = MakeFolder(id, u"Reading List", std::move(children));
+      reading_list = MakeFolder(
+          id, l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_READING_LIST),
+          std::move(children));
     } else {
       folders.push_back(MakeFolder(
-          id, title.empty() ? u"Folder" : base::UTF8ToUTF16(title),
+          id,
+          title.empty() ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_FOLDER)
+                        : base::UTF8ToUTF16(title),
           std::move(children)));
     }
   }
@@ -421,7 +433,10 @@ ImportedSidebar SafariSidebar(const SourceProfile& profile,
         base::StrCat({prefix, "tabgroup:", group.id, ":"});
     arc::Space group_space;
     group_space.id = base::StrCat({prefix, "tabgroup:", group.id});
-    group_space.name = group.name.empty() ? u"Tab Group" : group.name;
+    group_space.name =
+        group.name.empty()
+            ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_TAB_GROUP)
+            : group.name;
     if (!group.profile.empty()) {
       group_space.name =
           base::StrCat({group_space.name, u" – ", group.profile});

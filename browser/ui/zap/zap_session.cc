@@ -21,11 +21,13 @@
 #include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/boosts/zap.h"
 #include "compass/browser/ui/zap/zap_page_js.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
 namespace compass::zap {
@@ -150,7 +152,8 @@ class ZapSession : public content::WebContentsObserver,
                    const std::vector<std::string>& selectors) {
     boosts::BoostStore* store = StoreFor(contents);
     if (!store || !store->loaded()) {
-      ShowToast(contents, "Zaps can't be kept in this window.");
+      ShowToast(contents,
+                l10n_util::GetStringUTF8(IDS_COMPASS_ZAP_UNAVAILABLE));
       return;
     }
     base::expected<boosts::Boost, std::string> saved =
@@ -160,9 +163,9 @@ class ZapSession : public content::WebContentsObserver,
       ShowToast(contents, saved.error());
       return;
     }
-    ShowToast(contents,
-              base::StrCat({"Hidden on ", site, " from now on (Boost “",
-                            saved->name, "”)"}));
+    ShowToast(contents, l10n_util::GetStringFUTF8(
+                            IDS_COMPASS_ZAP_SAVED, base::UTF8ToUTF16(site),
+                            base::UTF8ToUTF16(saved->name)));
   }
 
   void GiveUp() {

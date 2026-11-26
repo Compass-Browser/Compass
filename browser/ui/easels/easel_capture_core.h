@@ -50,7 +50,7 @@ void CopyPageRegion(content::WebContents* contents,
 
 // A region the user picked on a page, and the board it goes to.
 struct CaptureRequest {
-  // Empty: a new board (kNewEaselTitle), made once the image is ready, so
+  // Empty: a new board (NewEaselTitle()), made once the image is ready, so
   // a capture that fails leaves no empty board behind.
   std::string easel_uuid;
   // CSS pixels of the layout viewport, as |view| was.
@@ -74,7 +74,7 @@ std::string GetLastUsedEasel(Profile* profile);
 void SetLastUsedEasel(Profile* profile, std::string_view easel_uuid);
 std::vector<const sync_pb::CompassEasel*> EaselsForPicker(Profile* profile);
 
-// A board's title for messages: its own, or kNewEaselTitle.
+// A board's title for messages: its own, or NewEaselTitle().
 std::string EaselTitleOf(const sync_pb::CompassEasel& easel);
 
 }  // namespace compass::easels

@@ -7,6 +7,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {Result} from '../command_bar.mojom-webui.js';
 import {Mode, ResultKind} from '../command_bar.mojom-webui.js';
+import {i18n, i18nF} from '../i18n.js';
 import type {SpaceSymbol} from '../space_icons.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX} from '../space_icons.js';
 
@@ -269,7 +270,7 @@ export class CompassCommandBarAppElement extends CrLitElement {
     if (this.answer_) {
       return this.answer_;
     }
-    return this.answerDone_ ? '' : 'Claude is answering…';
+    return this.answerDone_ ? '' : i18n('commandBarAnswering');
   }
 
   private clearAnswer_() {
@@ -290,8 +291,8 @@ export class CompassCommandBarAppElement extends CrLitElement {
 
   protected getAboutTitle_(result: Result): string {
     return this.aboutPage_ ?
-        `Claude gets this tab's title and site: ${result.aboutPage}` :
-        'Only the question goes to Claude';
+        i18nF('commandBarAboutPageOn', result.aboutPage) :
+        i18n('commandBarAboutPageOff');
   }
 
   // Tab: the field's inline completion becomes typed text, caret at its end;
@@ -337,8 +338,8 @@ export class CompassCommandBarAppElement extends CrLitElement {
   }
 
   protected getPlaceholder_(): string {
-    return this.mode_ === Mode.kNewEntry ? 'Search or enter URL…' :
-                                           'Search, enter URL or a command…';
+    return this.mode_ === Mode.kNewEntry ? i18n('commandBarPlaceholderNew') :
+                                           i18n('commandBarPlaceholder');
   }
 
   protected isSelected_(index: number): boolean {

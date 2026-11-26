@@ -35,6 +35,8 @@
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/window_features.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass {
 
@@ -356,7 +358,8 @@ void SettingsWindowHandler::ExportSpaces(
   // What the spaces hold now: the file is written when the user has picked
   // where.
   SpaceExport input;
-  std::u16string name = u"Compass Spaces";
+  std::u16string name =
+      l10n_util::GetStringUTF16(IDS_COMPASS_SPACES_EXPORT_FILE_NAME);
   if (space_id) {
     SpaceDirectory::Entry entry = FindAnySpace(*space_id);
     if (!entry.space) {
@@ -389,7 +392,8 @@ void SettingsWindowHandler::ExportSpaces(
   }
   base::TrimWhitespace(file_name, base::TRIM_ALL, &file_name);
   if (file_name.empty()) {
-    file_name = u"Space";
+    file_name =
+        l10n_util::GetStringUTF16(IDS_COMPASS_SPACES_EXPORT_FALLBACK_FILE_NAME);
   }
   const base::FilePath default_path =
       DownloadPrefs::FromBrowserContext(profile_)->DownloadPath().Append(
@@ -400,10 +404,14 @@ void SettingsWindowHandler::ExportSpaces(
   ui::SelectFileDialog::FileTypeInfo info;
   info.extensions = {{FILE_PATH_LITERAL("html")}};
   info.allowed_paths = ui::SelectFileDialog::FileTypeInfo::NATIVE_PATH;
-  folder_dialog_->SelectFile(ui::SelectFileDialog::SELECT_SAVEAS_FILE,
-                             space_id ? u"Export Space" : u"Export Spaces",
-                             default_path, &info, 1, FILE_PATH_LITERAL("html"),
-                             web_contents_->GetTopLevelNativeWindow());
+  folder_dialog_->SelectFile(
+      ui::SelectFileDialog::SELECT_SAVEAS_FILE,
+      space_id ? l10n_util::GetStringUTF16(
+                     IDS_COMPASS_SPACES_EXPORT_SPACE_DIALOG_TITLE)
+               : l10n_util::GetStringUTF16(
+                     IDS_COMPASS_SPACES_EXPORT_SPACES_DIALOG_TITLE),
+      default_path, &info, 1, FILE_PATH_LITERAL("html"),
+      web_contents_->GetTopLevelNativeWindow());
 }
 
 }  // namespace compass

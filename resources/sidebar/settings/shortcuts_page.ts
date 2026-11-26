@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {i18n, i18nF} from '../i18n.js';
 import type {Shortcut, ShortcutKeys} from '../sidebar.mojom-webui.js';
 import {SettingsHandler} from '../sidebar.mojom-webui.js';
 
@@ -33,7 +34,7 @@ function element<K extends keyof HTMLElementTagNameMap>(
 }
 
 function describeKeys(keys: string[]): string {
-  return keys.length ? keys.join('   ') : 'None';
+  return keys.length ? keys.join('   ') : i18n('shortcutsPageNone');
 }
 
 export class CompassShortcutsPageElement extends CompassSettingsPage {
@@ -44,7 +45,7 @@ export class CompassShortcutsPageElement extends CompassSettingsPage {
   private messages_ = new Map<string, Message>();
 
   protected get pageTitle() {
-    return 'Keyboard shortcuts';
+    return i18n('shortcutsPageTitle');
   }
 
   protected getPageTemplate() {
@@ -122,17 +123,19 @@ export class CompassShortcutsPageElement extends CompassSettingsPage {
     text.append(element('div', '', shortcut.label));
     if (shortcut.customized) {
       text.append(element(
-          'div', 'default', `Default: ${describeKeys(shortcut.defaultKeys)}`));
+          'div', 'default',
+          i18nF('shortcutsPageDefault', describeKeys(shortcut.defaultKeys))));
     }
 
     const recording = this.recordingId_ === shortcut.id;
     const keys = element(
         'button', 'keys',
-        recording ? 'Press keys…' : describeKeys(shortcut.keys));
+        recording ? i18n('shortcutsPagePressKeys') :
+                    describeKeys(shortcut.keys));
     keys.classList.toggle('none', !recording && !shortcut.keys.length);
     keys.classList.toggle('recording', recording);
-    keys.title = recording ? 'Esc cancels, Delete removes the shortcut' :
-                             'Click to change';
+    keys.title = recording ? i18n('shortcutsPageRecordingTooltip') :
+                             i18n('shortcutsPageClickToChange');
     keys.addEventListener('click', () => {
       if (recording) {
         this.stopRecording_();
@@ -141,7 +144,7 @@ export class CompassShortcutsPageElement extends CompassSettingsPage {
       }
     });
 
-    const reset = element('button', 'link', 'Reset');
+    const reset = element('button', 'link', i18n('shortcutsPageReset'));
     reset.classList.toggle('hidden', !shortcut.customized);
     reset.addEventListener('click', async () => {
       this.messages_.delete(shortcut.id);
@@ -159,9 +162,9 @@ export class CompassShortcutsPageElement extends CompassSettingsPage {
       note.classList.toggle('error', message.error);
       if (message.take) {
         const take = message.take;
-        const use = element('button', 'link', 'Use here');
+        const use = element('button', 'link', i18n('shortcutsPageUseHere'));
         use.addEventListener('click', () => this.apply_(shortcut.id, take));
-        const cancel = element('button', 'link', 'Cancel');
+        const cancel = element('button', 'link', i18n('cancel'));
         cancel.addEventListener('click', () => {
           this.messages_.delete(shortcut.id);
           this.render_();
@@ -243,8 +246,7 @@ export class CompassShortcutsPageElement extends CompassSettingsPage {
     this.stopRecording_();
     if (check.conflictId) {
       this.messages_.set(id, {
-        text: `${check.text} is the shortcut for “${check.conflictLabel}”. ` +
-            'Use it here instead?',
+        text: i18nF('shortcutsPageConflict', check.text, check.conflictLabel),
         error: false,
         take: keys,
       });

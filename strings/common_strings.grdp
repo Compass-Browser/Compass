@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Words and buttons every area of Compass uses. -->
+<grit-part>
+  <message name="IDS_COMPASS_ADD" desc="Button that adds the item being edited (a site, a shortcut, a folder).">
+    Add
+  </message>
+  <message name="IDS_COMPASS_BACK" desc="Button that goes back to the previous step or page.">
+    Back
+  </message>
+  <message name="IDS_COMPASS_CANCEL" desc="Button that closes a dialog or form without saving.">
+    Cancel
+  </message>
+  <message name="IDS_COMPASS_CLOSE" desc="Button or menu item that closes a panel, bubble or window.">
+    Close
+  </message>
+  <message name="IDS_COMPASS_CONTINUE" desc="Button that goes on to the next step.">
+    Continue
+  </message>
+  <message name="IDS_COMPASS_COPY" desc="Button that copies text (a link, a code) to the clipboard.">
+    Copy
+  </message>
+  <message name="IDS_COMPASS_DELETE" desc="Button or menu item that deletes an item for good.">
+    Delete
+  </message>
+  <message name="IDS_COMPASS_DONE" desc="Button that closes a dialog after the user finished, keeping their changes.">
+    Done
+  </message>
+  <message name="IDS_COMPASS_EDIT" desc="Button or menu item that opens an item for editing.">
+    Edit
+  </message>
+  <message name="IDS_COMPASS_OPEN" desc="Button or menu item that opens an item (a file, a link, a page).">
+    Open
+  </message>
+  <message name="IDS_COMPASS_REMOVE" desc="Button or menu item that removes an item from a list.">
+    Remove
+  </message>
+  <message name="IDS_COMPASS_RENAME" desc="Button or menu item that lets the user rename an item.">
+    Rename
+  </message>
+  <message name="IDS_COMPASS_SAVE" desc="Button that saves the changes made in a form.">
+    Save
+  </message>
+  <message name="IDS_COMPASS_TRY_AGAIN" desc="Button that repeats an action that failed.">
+    Try again
+  </message>
+</grit-part>

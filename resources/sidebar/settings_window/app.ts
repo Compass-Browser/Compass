@@ -22,6 +22,7 @@ import './spaces_pane.js';
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n} from '../i18n.js';
 import type {SpaceColor} from '../sidebar.mojom-webui.js';
 
 import {getHtml} from './app.html.js';
@@ -136,7 +137,8 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
   }
 
   protected getTitle_(): string {
-    return this.isSearching_() ? 'Search' : this.pane_.label;
+    return this.isSearching_() ? i18n('settingsWindowSearch') :
+                                 this.pane_.label;
   }
 
   protected isSelected_(pane: Pane): boolean {
@@ -255,7 +257,8 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
   private async showPath_(path: string) {
     let resolved = resolvePath(path);
     if (!resolved) {
-      resolved = resolvePath(readLastPane()) || {pane: PANES[0]!, section: null};
+      resolved =
+          resolvePath(readLastPane()) || {pane: PANES[0]!, section: null};
       path = resolved.pane.id;
     }
     const {pane, section} = resolved;
@@ -293,8 +296,8 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
     const container = this.querySelector<HTMLElement>('#sections')!;
     const elements = pane.sections.map(section => {
       const element = this.sectionFor_(section);
-      element.hidden = this.subpage_ ? section !== this.subpage_ :
-                                       !!section.subpage;
+      element.hidden =
+          this.subpage_ ? section !== this.subpage_ : !!section.subpage;
       return element;
     });
     container.replaceChildren(...elements);
@@ -403,8 +406,9 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
         this.flash_(row);
       }
     } else {
-      const section = resolvePath(result.path)?.pane.sections.find(
-          s => s.path === result.path.split('?')[0]);
+      const section =
+          resolvePath(result.path)
+              ?.pane.sections.find(s => s.path === result.path.split('?')[0]);
       const element = section && this.sections_.get(section.tag);
       if (element) {
         this.flash_(element);
@@ -449,10 +453,10 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
         }
         const element = this.sections_.get(section.tag);
         const title = section.subpage?.label ||
-            element?.querySelector('.compass-title')?.textContent ||
-            pane.label;
-        const text = [title, pane.label, section.keywords,
-                      element?.textContent || ''].join(' ');
+            element?.querySelector('.compass-title')?.textContent || pane.label;
+        const text = [
+          title, pane.label, section.keywords, element?.textContent || ''
+        ].join(' ');
         if (matches(text)) {
           results.push({
             pane,
@@ -465,8 +469,10 @@ export class CompassSettingsWindowAppElement extends CrLitElement {
       }
       for (const group of pane.groups) {
         for (const row of group.rows) {
-          if (matches([row.label, row.detail, row.keywords || '',
-                       group.title, pane.label].join(' '))) {
+          if (matches([
+                row.label, row.detail, row.keywords || '', group.title,
+                pane.label
+              ].join(' '))) {
             results.push({
               pane,
               label: row.label,

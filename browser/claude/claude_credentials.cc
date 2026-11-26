@@ -17,9 +17,11 @@
 #include "compass/browser/claude/chatgpt_account.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_prefs.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/common/encryptor.h"
 #include "components/prefs/pref_service.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::claude {
 
@@ -168,10 +170,9 @@ std::string ClaudeCredentials::MissingKeyMessage(Profile* profile) {
     }
   }
   if (HasApiKey(profile)) {
-    return "The saved key can't be read any more. Enter it again in "
-           "Compass's AI settings.";
+    return l10n_util::GetStringUTF8(IDS_COMPASS_AI_KEY_UNREADABLE_SETTINGS);
   }
-  return "Add your API key in Compass's AI settings.";
+  return l10n_util::GetStringUTF8(IDS_COMPASS_AI_ADD_KEY_IN_SETTINGS);
 }
 
 }  // namespace compass::claude

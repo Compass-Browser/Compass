@@ -113,6 +113,10 @@ struct RemovedNotice {
   bool deleted = false;
 };
 
+// What the sidebar says about |notice|: "“Trip” is no longer shared. Your
+// copy stays here."
+std::string RemovedNoticeText(const RemovedNotice& notice);
+
 // The model's state for a sidebar node or space.
 struct SharedState {
   bool shared = false;

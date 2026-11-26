@@ -28,7 +28,11 @@ source_set("sidebar") {
     "//skia",
     "//url",
   ]
-  deps = [ "//net" ]
+  deps = [
+    "//compass/strings:compass_strings",
+    "//net",
+    "//ui/base",
+  ]
 }
 
 source_set("unit_tests") {

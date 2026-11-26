@@ -561,8 +561,8 @@ class CompassSyncService : public KeyedService,
   void OpenLoginPage(const GURL& url);
   // Closes the page's tab if it still shows |page_url|'s origin.
   void CloseLoginPage(const GURL& page_url);
-  // "Sign in to Acme SSO".
-  std::string SignInPhrase() const;
+  // "Sign in to Acme SSO to sync."
+  std::string SignInToSyncPhrase() const;
 
   // StartOnCloudflare(): the deploy that runs, and its progress line.
   std::unique_ptr<CloudflareDeployer> deployer_;

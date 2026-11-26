@@ -1,0 +1,1296 @@
+<?xml version="1.0" encoding="utf-8"?>
+<grit-part>
+  <message name="IDS_COMPASS_SYNC_MENU_DEVICE_REMOVED" desc="Sync status in the app menu and on the sync page: another device removed this one from sync.">
+    Sync: device removed
+  </message>
+  <message name="IDS_COMPASS_SYNC_MENU_SERVER_FULL" desc="Sync status in the app menu: the sync server has no room left.">
+    Sync: server full
+  </message>
+  <message name="IDS_COMPASS_SYNC_MENU_THROTTLED" desc="Sync status in the app menu: the sync server asked Compass to slow down.">
+    Sync: paused by server
+  </message>
+  <message name="IDS_COMPASS_SYNC_MENU_HISTORY_FULL" desc="Sync status in the app menu: sync works, but browsing history no longer fits on the server.">
+    Synced (history full)
+  </message>
+  <message name="IDS_COMPASS_SYNC_MENU_OFF" desc="Sync status in the app menu: sync isn&#x27;t turned on.">
+    Sync is off
+  </message>
+  <message name="IDS_COMPASS_SYNC_MENU_NEEDS_RESTART" desc="Sync status in the app menu: Compass must restart to finish turning sync on or off.">
+    Sync: restart to finish
+  </message>
+  <message name="IDS_COMPASS_SYNC_MENU_STARTING" desc="Sync status in the app menu: sync is starting.">
+    Syncing…
+  </message>
+  <message name="IDS_COMPASS_SYNC_MENU_ON" desc="Sync status in the app menu: everything is synced.">
+    Synced
+  </message>
+  <message name="IDS_COMPASS_SYNC_MENU_ERROR" desc="Sync status in the app menu: sync stopped because of an error.">
+    Sync error
+  </message>
+  <message name="IDS_COMPASS_SYNC_MENU_LOGIN_REQUIRED" desc="Sync status in the app menu: the sync server wants the user to sign in again.">
+    Sync: sign in needed
+  </message>
+  <message name="IDS_COMPASS_SYNC_MENU_DEFAULT" desc="App menu item that opens sync settings, when there&#x27;s no status to show.">
+    Sync
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_SERVER_FULL" desc="Sync status on the sync settings page: the sync server has no room left for this group of synced devices (the &quot;chain&quot;).">
+    The sync server is full for this chain: new changes stay on this device. Remove data you don't need, or ask the server's owner to raise its limits.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_THROTTLED" desc="Sync status on the sync settings page: the server is slowing this device down.">
+    The sync server is holding this device back (too many devices in the chain, or too many requests). Compass tries again by itself.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_HISTORY_FULL" desc="Sync status on the sync settings page, after the last-synced time: browsing history no longer fits on the server.">
+    History is full on the server: new visits stay on this device until older ones expire.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STARTING_READING_KEY" desc="Sync status while sync starts: reading the device&#x27;s encryption key.">
+    Starting: reading this device's sync key…
+  </message>
+  <message name="IDS_COMPASS_SYNC_STARTING_CONNECTING" desc="Sync status while sync starts: connecting to the server.">
+    Starting: connecting to the sync server…
+  </message>
+  <message name="IDS_COMPASS_SYNC_STARTING_ENCRYPTION" desc="Sync status while sync starts: setting up encryption.">
+    Starting: setting up encryption…
+  </message>
+  <message name="IDS_COMPASS_SYNC_STARTING_CONFIGURING" desc="Sync status while sync starts: preparing the data types.">
+    Starting: getting the data ready to sync…
+  </message>
+  <message name="IDS_COMPASS_SYNC_STARTING_STUCK" desc="Added after a starting sync status when it has taken a long time.">
+    This is taking long. Restart Compass if it doesn't change.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_DEVICE_REMOVED" desc="Sync status on the sync settings page: another device removed this one from sync.">
+    This device was removed from sync on another device. Its data stays here. Leave sync to set it up again.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_FINISH_IN_TAB" desc="Sync status while the user signs in to the sync server in a browser tab. USER_CODE is a short code the sign-in page also shows.">
+    Finish signing in in the tab that opened. Check that it shows the code <ph name="USER_CODE">$1<ex>WDJB-MJHT</ex></ph>.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_STARTING" desc="Sync status while sign-in to the sync server starts.">
+    Starting sign-in…
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_LEFT" desc="Sync status after the user left sync, until Compass restarts.">
+    Restart Compass to finish leaving sync.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_RESET" desc="Sync status after the user reset sync (started a new group of synced devices, a &quot;chain&quot;).">
+    Restart Compass to start the new sync chain. Then add your other devices again.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_REQUIRED" desc="Sync status: the sync server asks the user to sign in. Followed by how to finish signing in.">
+    This server requires sign-in.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_REQUIRED_WITH" desc="Sync status: the sync server asks the user to sign in with an identity provider. Followed by how to finish signing in.">
+    This server requires sign-in with <ph name="PROVIDER">$1<ex>Acme SSO</ex></ph>.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_OFF_FOR_PROFILE" desc="Sync status: sync can&#x27;t run for this browser profile.">
+    Sync is turned off for this profile.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_RESTART_TO_START" desc="Sync status: sync is set up and starts after a restart.">
+    Restart Compass to start syncing.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_PROFILE_REFUSED" desc="Sync error: the sync server doesn&#x27;t allow this browser profile&#x27;s account.">
+    The sync server refused this profile (it may serve only invited people). Ask the server's owner to allow it.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_CHAIN_REFUSED" desc="Sync error: the sync server doesn&#x27;t allow this group of synced devices (the &quot;chain&quot;).">
+    The sync server refused this device's chain (it may serve only invited people). Ask the server's owner to allow it.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_KEY_UNREADABLE" desc="Sync error: the encryption key stored on this device can&#x27;t be read.">
+    Couldn't read this device's sync key. Leave sync and join again.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_PASSPHRASE_REJECTED" desc="Sync error: the data on the server was encrypted with another key.">
+    The data on the server is encrypted for another chain. Leave sync and join again with the right code.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_STOPPED" desc="Sync error: sync stopped. ERROR is a technical description of the error, in English.">
+    Sync stopped: <ph name="ERROR">$1<ex>Datatype error</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_KEY_REFUSED_AT" desc="Sync error: the server refused this device&#x27;s key. TIME is when it happened.">
+    The server refused this device's key (<ph name="TIME">$1<ex>Nov 26, 2026, 10:42 AM</ex></ph>).
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_UNREACHABLE_AT" desc="Sync error: the server couldn&#x27;t be reached. TIME is when it happened.">
+    Can't reach the server (<ph name="TIME">$1<ex>Nov 26, 2026, 10:42 AM</ex></ph>).
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_SYNCING" desc="Sync status: syncing, not finished yet.">
+    Syncing…
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_LAST_SYNCED" desc="Sync status: when this device last synced.">
+    Last synced <ph name="TIME">$1<ex>Nov 26, 2026, 10:42 AM</ex></ph>.
+  </message>
+  <message name="IDS_COMPASS_SYNC_PAIRING_ADDED" desc="Shown on the device that added another one to sync.">
+    Device added. It starts syncing after a restart.
+  </message>
+  <message name="IDS_COMPASS_SYNC_PAIRING_DENIED" desc="Shown on the device that was asked to add another one, after the user said no.">
+    Not added.
+  </message>
+  <message name="IDS_COMPASS_SYNC_PAIRING_WRONG_CODE" desc="Pairing error: the other device entered a wrong code.">
+    Wrong code. Try again with a new code.
+  </message>
+  <message name="IDS_COMPASS_SYNC_PAIRING_CANCELED" desc="Pairing error: the other device stopped pairing.">
+    The other device canceled.
+  </message>
+  <message name="IDS_COMPASS_SYNC_PAIRING_EXPIRED" desc="Pairing error: the pairing code is no longer valid.">
+    The code expired. Try again with a new code.
+  </message>
+  <message name="IDS_COMPASS_SYNC_PAIRING_RATE_LIMITED" desc="Pairing error: the sync server is busy.">
+    The server is busy. Try again in a few minutes.
+  </message>
+  <message name="IDS_COMPASS_SYNC_SERVER_UNREACHABLE" desc="Sync error: the sync server didn&#x27;t answer.">
+    Couldn't reach the server.
+  </message>
+  <message name="IDS_COMPASS_SYNC_JOIN_JOINED" desc="Shown on a device that joined sync with a pairing code.">
+    Joined. Restart Compass to start syncing.
+  </message>
+  <message name="IDS_COMPASS_SYNC_JOIN_DENIED" desc="Pairing error: the other device didn&#x27;t allow this one.">
+    Not added: the other device said no.
+  </message>
+  <message name="IDS_COMPASS_SYNC_JOIN_BAD_CODE" desc="Pairing error: the code the user typed isn&#x27;t in the right format. 7-482913 is an example code, keep it as is.">
+    Enter the code as shown, like 7-482913.
+  </message>
+  <message name="IDS_COMPASS_SYNC_JOIN_NO_SUCH_CODE" desc="Pairing error: the server doesn&#x27;t know the code.">
+    No such code on this server, or it expired.
+  </message>
+  <message name="IDS_COMPASS_SYNC_JOIN_CODE_USED" desc="Pairing error: the code was already used.">
+    That code was already used. Ask for a new one.
+  </message>
+  <message name="IDS_COMPASS_SYNC_JOIN_WRONG_CODE" desc="Pairing error: the code is wrong.">
+    Wrong code. Ask the other device for a new one.
+  </message>
+  <message name="IDS_COMPASS_SYNC_JOIN_CANCELED" desc="Pairing error: the other device stopped pairing.">
+    The other device canceled. Ask for a new code.
+  </message>
+  <message name="IDS_COMPASS_SYNC_JOIN_CLOSED" desc="Pairing error: the other device ended pairing.">
+    The other device ended pairing. Check the code and ask for a new one.
+  </message>
+  <message name="IDS_COMPASS_SYNC_JOIN_EXPIRED" desc="Pairing error: the code expired.">
+    Code expired. Ask for a new one.
+  </message>
+  <message name="IDS_COMPASS_SYNC_JOIN_RATE_LIMITED" desc="Pairing error: too many attempts.">
+    Too many attempts. Try again in a few minutes.
+  </message>
+  <message name="IDS_COMPASS_SYNC_SETUP_ALREADY_RESTART" desc="Sync setup error: sync is already set up on this device.">
+    Sync is already set up. Restart first.
+  </message>
+  <message name="IDS_COMPASS_SYNC_SETUP_BAD_URL" desc="Sync setup error: the server address isn&#x27;t valid. Keep the example URL as is.">
+    Enter the server's URL, like https://sync.example.com/v2.
+  </message>
+  <message name="IDS_COMPASS_SYNC_SETUP_IN_PROGRESS" desc="Sync setup error: another setup is running.">
+    Sync is being set up.
+  </message>
+  <message name="IDS_COMPASS_SYNC_SETUP_ALREADY" desc="Sync setup error: sync is already set up on this device.">
+    Sync is already set up.
+  </message>
+  <message name="IDS_COMPASS_SYNC_SETUP_BAD_RECOVERY_CODE" desc="Sync setup error: the 12-word recovery code isn&#x27;t valid.">
+    That recovery code isn't valid. Check the 12 words.
+  </message>
+  <message name="IDS_COMPASS_SYNC_SETUP_KEY_NOT_STORED" desc="Sync setup error: the encryption key couldn&#x27;t be saved on this device.">
+    Couldn't store the sync key.
+  </message>
+  <message name="IDS_COMPASS_SYNC_PAIRING_NO_SERVER" desc="Pairing error: no sync server is set.">
+    No server is set.
+  </message>
+  <message name="IDS_COMPASS_SYNC_PAIRING_SHOW_CODE" desc="Shown next to the pairing code the user types on their other device.">
+    Enter this code on the other device.
+  </message>
+  <message name="IDS_COMPASS_SYNC_JOIN_WAITING" desc="Shown while a joining device waits for the other one to allow it.">
+    Confirm on the other device.
+  </message>
+  <message name="IDS_COMPASS_SYNC_REMOVE_DEVICE_THIS_DEVICE" desc="Error when removing a device from sync: it&#x27;s the device the user is on.">
+    That's this device. To stop syncing it, leave sync.
+  </message>
+  <message name="IDS_COMPASS_SYNC_REMOVE_DEVICE_LOGIN_REQUIRED" desc="Error when removing a device from sync: the server wants the user to sign in.">
+    The sync server wants you to sign in again first.
+  </message>
+  <message name="IDS_COMPASS_SYNC_REMOVE_DEVICE_UNAUTHORIZED" desc="Error when removing a device from sync: the server refused this device&#x27;s key.">
+    The sync server refused this device's key.
+  </message>
+  <message name="IDS_COMPASS_SYNC_REMOVE_DEVICE_REMOVED" desc="Error when removing a device from sync: this device itself was removed.">
+    This device was removed from sync on another device.
+  </message>
+  <message name="IDS_COMPASS_SYNC_REMOVE_DEVICE_UNSUPPORTED" desc="Error when removing a device from sync: the server is too old.">
+    This sync server can't remove devices. Update it, then try again.
+  </message>
+  <message name="IDS_COMPASS_SYNC_REMOVE_DEVICE_FAILED" desc="Error when removing a device from sync: the server didn&#x27;t answer.">
+    Couldn't remove the device: the server didn't answer. Try again.
+  </message>
+  <message name="IDS_COMPASS_SYNC_NOT_RUNNING" desc="Sync error for an action that needs sync running.">
+    Sync isn't running on this device.
+  </message>
+  <message name="IDS_COMPASS_SYNC_RESET_UNREACHABLE" desc="Error when resetting sync: the server couldn&#x27;t be reached.">
+    Couldn't reach your sync server to move it to the new chain. Nothing changed; try again.
+  </message>
+  <message name="IDS_COMPASS_SYNC_MAPPING_NOT_NEEDED" desc="Error when matching this device&#x27;s browser profiles with the synced ones: nothing to match.">
+    There's nothing to map.
+  </message>
+  <message name="IDS_COMPASS_SYNC_MAPPING_INVALID" desc="Error when matching this device&#x27;s browser profiles with the synced ones: one synced profile was picked twice.">
+    Each profile of the chain can go to one profile only.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_SIGN_IN_TO_SYNC" desc="Sync status: the user must sign in to the sync server.">
+    Sign in to sync.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_SIGN_IN_TO_SYNC_WITH" desc="Sync status: the user must sign in to the sync server with an identity provider.">
+    Sign in to <ph name="PROVIDER">$1<ex>Acme SSO</ex></ph> to sync.
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_SIGN_IN" desc="Shown while setting up a free sync server on Cloudflare: the user signs in in a new tab.">
+    Sign in to Cloudflare in the new tab and allow Compass…
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_NO_TOKEN" desc="Error when setting up a sync server on Cloudflare: no access token was pasted.">
+    Paste your Cloudflare token.
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_NO_SCRIPT" desc="Error when setting up a sync server on Cloudflare: this Compass build doesn&#x27;t include the server.">
+    This build has no sync server to set up.
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_CONNECTING" desc="Shown while setting up a sync server on Cloudflare.">
+    Connecting to Cloudflare…
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_STARTING" desc="Shown while setting up a sync server on Cloudflare, once the server is up.">
+    Starting sync…
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_BUSY" desc="Error: the sync server is already being set up or updated.">
+    The server is being set up or updated.
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_CANT_UPDATE" desc="Error: Compass can&#x27;t update this sync server.">
+    This server can't be updated from here.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_RATE_LIMITED" desc="Sign-in error: too many attempts.">
+    Too many sign-in attempts. Try again in a few minutes.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_START_FAILED" desc="Sign-in error: the server couldn&#x27;t start signing in.">
+    The server couldn't start the sign-in.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_DENIED" desc="Sign-in error: the identity provider denied sign-in.">
+    Sign-in was denied.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_EXPIRED" desc="Sign-in error: the user took too long.">
+    The sign-in timed out.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_CANCELED" desc="Sign-in error: the user canceled.">
+    Sign-in canceled.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_PROVIDER_UNAVAILABLE" desc="Sign-in error: the identity provider can&#x27;t be reached.">
+    Can't reach <ph name="PROVIDER">$1<ex>Acme SSO</ex></ph> right now. Try again.
+  </message>
+  <message name="IDS_COMPASS_SYNC_LOGIN_UNAVAILABLE" desc="Sign-in error: the sign-in service can&#x27;t be reached.">
+    Can't reach the sign-in service right now. Try again.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_MAP_PROFILES_MAC" desc="Sync status on a Mac: the user must choose which synced profile each of this Mac&#x27;s other browser profiles syncs with.">
+    Choose how this Mac's other profiles sync.
+  </message>
+  <message name="IDS_COMPASS_SYNC_STATUS_MAP_PROFILES" desc="Sync status on Windows and Linux: the user must choose which synced profile each of this computer&#x27;s other browser profiles syncs with.">
+    Choose how this computer's other profiles sync.
+  </message>
+  <message name="IDS_COMPASS_SYNC_PAIRING_MAP_PROFILES_MAC" desc="Shown on a Mac after it joined sync, above a list of its browser profiles; Continue is the button below.">
+    Choose how this Mac's other profiles sync, then Continue.
+  </message>
+  <message name="IDS_COMPASS_SYNC_PAIRING_MAP_PROFILES" desc="Shown on Windows and Linux after the computer joined sync, above a list of its browser profiles; Continue is the button below.">
+    Choose how this computer's other profiles sync, then Continue.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_NETWORK" desc="Error when sharing a folder, space or Easel with other people: the sync server couldn&#x27;t be reached.">
+    Can't reach the sync server. Check your connection and try again.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_LOGIN_REQUIRED" desc="Sharing error: the user must sign in to their company&#x27;s sync server.">
+    Sign in to your company's sync server first.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_CHAIN_NOT_ALLOWED" desc="Sharing error: the sync server doesn&#x27;t allow sharing from this browser.">
+    This sync server doesn't let this browser share.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_GONE" desc="Sharing error: the user was removed from a shared item.">
+    You're no longer a member of this.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_FORBIDDEN" desc="Sharing error: only the person who shared the item can do this.">
+    Only the owner can do that.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_QUOTA" desc="Sharing error: the sharer&#x27;s sync storage is full.">
+    The owner's sync storage is full.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_INVITE_EXPIRED" desc="Sharing error: an invite link expired.">
+    This invite link has expired.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_INVITE_USED_UP" desc="Sharing error: an invite link was used as many times as allowed.">
+    This invite link has been used up.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_INVITE_REVOKED" desc="Sharing error: an invite link was revoked.">
+    This invite link no longer works.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_ROOM_FULL" desc="Sharing error: a shared item has the most members it can have.">
+    This is shared with as many people as it can be (50).
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_OWNER_MUST_TRANSFER" desc="Sharing error: the owner tried to leave their own shared item.">
+    You own this: delete it for everyone instead.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_REMOVED" desc="Sharing error: the user was removed from a shared item.">
+    You were removed. Ask for a new invite.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_UNKNOWN" desc="Generic sharing error.">
+    Something went wrong.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_WITH_CODE" desc="Generic sharing error with a technical error code.">
+    Something went wrong (<ph name="ERROR_CODE">$1<ex>bad_request</ex></ph>).
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ERROR_ROOM_GONE" desc="Sharing error: the shared item was removed while joining it.">
+    The room went away.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_SHARED" desc="Tooltip of a sidebar item shared with other people.">
+    Shared
+  </message>
+  <message name="IDS_COMPASS_ROOMS_SHARED_VIEW_ONLY" desc="Tooltip of a sidebar item someone shared with the user, who can only view it.">
+    Shared (view only)
+  </message>
+  <message name="IDS_COMPASS_ROOMS_SOMEONE" desc="Stands for a member of a shared item whose name isn&#x27;t known, in a list of names.">
+    Someone
+  </message>
+  <message name="IDS_COMPASS_ROOMS_SHARED_WITH" desc="Tooltip of a sidebar item shared with other people. NAMES is a comma-separated list of their names.">
+    Shared with <ph name="NAMES">$1<ex>Anna, Marco</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_ROOMS_VIEW_ONLY_TOOLTIP" desc="Tooltip of a shared sidebar item the user can only view. TOOLTIP is the tooltip saying who it&#x27;s shared with.">
+    <ph name="TOOLTIP">$1<ex>Shared with Anna, Marco</ex></ph> (view only)
+  </message>
+  <message name="IDS_COMPASS_ROOMS_SHARE_NEEDS_SYNC" desc="Error when the user tries to share an item without sync turned on.">
+    Turn on sync to share. Sharing goes through your sync server.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_JOIN_NEEDS_SYNC" desc="Error when the user opens an invite link without sync turned on.">
+    Turn on sync to join. Shared items sync through your sync account.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_CANT_SHARE" desc="Sharing error: this kind of item can&#x27;t be shared.">
+    This can't be shared.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_NOT_SHARED" desc="Sharing error: the item isn&#x27;t shared (any more).">
+    Not shared.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_TRY_AGAIN_SOON" desc="Sharing error: Compass is still busy; the user should retry shortly.">
+    Try again in a moment.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_NO_SUCH_ACCOUNT" desc="Error when inviting someone by email to a shared item: nobody uses that email on the sync server.">
+    Nobody with that email uses Compass on this server yet.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_ALREADY_MEMBER" desc="Error when inviting someone to a shared item: they&#x27;re already a member.">
+    They're already a member.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_INVITE_INVALID" desc="Error when the user pastes something that isn&#x27;t an invite link.">
+    This invite link isn't valid.
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_SECTION_COMPASS" meaning="Shortcuts section heading" desc="Heading of a group of keyboard shortcuts in Settings: Compass&#x27;s own commands. Compass is the product name.">
+    Compass
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_SECTION_TABS" desc="Heading of a group of keyboard shortcuts in Settings: commands for tabs.">
+    Tabs
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_SECTION_WINDOWS" desc="Heading of a group of keyboard shortcuts in Settings: commands for browser windows.">
+    Windows
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_SECTION_BROWSER" desc="Heading of a group of keyboard shortcuts in Settings: commands that open browser pages (history, downloads, settings).">
+    Browser
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_SECTION_DEVELOPER" desc="Heading of a group of keyboard shortcuts in Settings: web developer commands.">
+    Developer
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_SECTION_SPACES" desc="Heading of a group of keyboard shortcuts in Settings: switching between spaces (groups of tabs).">
+    Spaces
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_NEW_TAB" desc="Keyboard shortcut name in Settings: opens a new tab through the command bar.">
+    New tab (command bar)
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_OPEN_LOCATION" desc="Keyboard shortcut name in Settings: edit the current page&#x27;s address.">
+    Edit the page's address
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_TOGGLE_SIDEBAR" desc="Keyboard shortcut name in Settings.">
+    Show or hide the sidebar
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_COPY_URL" desc="Keyboard shortcut name in Settings: copies the current page&#x27;s link.">
+    Copy the page's link
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_LITTLE_WINDOW" desc="Keyboard shortcut name in Settings: opens a little window, a small temporary browser window.">
+    New little window
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_CLAUDE" desc="Keyboard shortcut name in Settings: opens the chat with Claude, the AI assistant.">
+    Chat with Claude
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_READER" desc="Keyboard shortcut name in Settings: turns reader mode on or off.">
+    Reader mode
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_RESTORE_TAB" desc="Keyboard shortcut name in Settings.">
+    Reopen closed tab
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_UNDO_CLOSE_TAB" desc="Keyboard shortcut name in Settings on macOS: undoes closing a tab, when the focus isn&#x27;t in a text field.">
+    Undo closing a tab (outside text)
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_REDO_CLOSE_TAB" desc="Keyboard shortcut name in Settings on macOS: redoes closing a tab, when the focus isn&#x27;t in a text field.">
+    Redo closing a tab (outside text)
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_NEXT_TAB" desc="Keyboard shortcut name in Settings.">
+    Next tab
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_PREVIOUS_TAB" desc="Keyboard shortcut name in Settings.">
+    Previous tab
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_MUTE_TAB" desc="Keyboard shortcut name in Settings.">
+    Mute or unmute the tab
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_RELOAD" desc="Keyboard shortcut name in Settings: reloads the page.">
+    Reload
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_HARD_RELOAD" desc="Keyboard shortcut name in Settings: reloads the page, ignoring cached files.">
+    Reload without the cache
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_BACK" desc="Keyboard shortcut name in Settings: goes back to the previous page.">
+    Back
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_FORWARD" desc="Keyboard shortcut name in Settings: goes forward to the next page.">
+    Forward
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_FIND" desc="Keyboard shortcut name in Settings.">
+    Find on page
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_ZOOM_IN" desc="Keyboard shortcut name in Settings.">
+    Zoom in
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_ZOOM_OUT" desc="Keyboard shortcut name in Settings.">
+    Zoom out
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_ZOOM_RESET" desc="Keyboard shortcut name in Settings: resets zoom to 100%.">
+    Actual size
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_PRINT" desc="Keyboard shortcut name in Settings.">
+    Print
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_SAVE_PAGE" desc="Keyboard shortcut name in Settings: saves the page to a file.">
+    Save page as
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_NEW_WINDOW" desc="Keyboard shortcut name in Settings.">
+    New window
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_NEW_INCOGNITO_WINDOW" desc="Keyboard shortcut name in Settings.">
+    New incognito window
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_FULLSCREEN" desc="Keyboard shortcut name in Settings.">
+    Enter or exit full screen
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_HISTORY" desc="Keyboard shortcut name in Settings: opens browsing history.">
+    History
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_DOWNLOADS" desc="Keyboard shortcut name in Settings: opens the downloads.">
+    Downloads
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_EXTENSIONS" desc="Keyboard shortcut name in Settings: opens the extensions page.">
+    Extensions
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_SETTINGS" desc="Keyboard shortcut name in Settings: opens Settings.">
+    Settings
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_CLEAR_BROWSING_DATA" desc="Keyboard shortcut name in Settings.">
+    Clear browsing data
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_DEVTOOLS" desc="Keyboard shortcut name in Settings.">
+    Developer tools
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_CONSOLE" desc="Keyboard shortcut name in Settings.">
+    JavaScript console
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_INSPECT" desc="Keyboard shortcut name in Settings: picks an element of the page to inspect in developer tools.">
+    Inspect elements
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_VIEW_SOURCE" desc="Keyboard shortcut name in Settings: shows the page&#x27;s HTML source.">
+    View source
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_DEV_MODE" desc="Keyboard shortcut name in Settings: turns Compass&#x27;s development mode on or off for the current site.">
+    Development mode for this site
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_PIP_CLICK_THROUGH" desc="Keyboard shortcut name in Settings: makes picture-in-picture windows let mouse clicks through to what&#x27;s below.">
+    Let clicks through picture-in-picture
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_SWITCH_TO_SPACE" desc="Keyboard shortcut name in Settings: switches to the space at that position in the sidebar.">
+    Switch to space <ph name="NUMBER">$1<ex>3</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SPACE_NUMBERED_NAME" desc="Name shown for a space (a group of tabs) that has no name of its own, by its position.">
+    Space <ph name="NUMBER">$1<ex>2</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_IN_USE_BY_BROWSER" desc="Completes &quot;Already used by …&quot; when the user records keys that another, non-customizable browser shortcut uses.">
+    another browser shortcut
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_IN_USE_BY_BUILT_IN" desc="Completes &quot;Already used by …&quot; on macOS when the user records keys that a built-in shortcut uses.">
+    a built-in shortcut
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_ERROR_IN_USE" desc="Error when the user records keys for a shortcut that something else uses. SHORTCUT is a menu item&#x27;s name or &quot;another browser shortcut&quot;.">
+    Already used by <ph name="SHORTCUT">$1<ex>New Tab</ex></ph>.
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_ERROR_NO_SUCH" desc="Error when changing a keyboard shortcut that doesn&#x27;t exist.">
+    There's no such shortcut.
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_ERROR_MODIFIERS_MAC" desc="Error on macOS when a recorded shortcut lacks a modifier key; the symbols are Command, Control and Option.">
+    Use the key with ⌘, ⌃ or ⌥.
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_ERROR_MODIFIERS" desc="Error on Windows and Linux when a recorded shortcut lacks a modifier key.">
+    Use the key with Ctrl or Alt.
+  </message>
+  <message name="IDS_COMPASS_SHORTCUTS_ERROR_WINDOWS_KEY" desc="Error on Windows when the picture-in-picture shortcut uses the Windows key.">
+    Use the key with Ctrl, Alt or Shift, not the Windows key.
+  </message>
+  <message name="IDS_COMPASS_BOOSTS_FILE_TYPE" desc="File type name in file dialogs for a saved Boost (a site&#x27;s custom CSS and JavaScript). Boost is a feature name.">
+    Compass Boost
+  </message>
+  <message name="IDS_COMPASS_BOOSTS_SAVE_DIALOG_TITLE" desc="Title of the dialog that saves a Boost (a site&#x27;s custom CSS and JavaScript) to a file.">
+    Save Boost
+  </message>
+  <message name="IDS_COMPASS_BOOSTS_IMPORT_DIALOG_TITLE" desc="Title of the dialog that opens a Boost file to add it.">
+    Import a Boost
+  </message>
+  <message name="IDS_COMPASS_BOOSTS_UNAVAILABLE" desc="Error: Boosts can&#x27;t be used in this profile.">
+    Boosts aren't available here.
+  </message>
+  <message name="IDS_COMPASS_BOOSTS_DELETED" desc="Error when saving a Boost that was deleted meanwhile.">
+    This Boost was deleted.
+  </message>
+  <message name="IDS_COMPASS_BOOSTS_TOO_MANY" desc="Error when adding a Boost: the user already has the most they can have.">
+    {COUNT, plural, =1 {There's already 1 Boost. Delete it first.} other {There are already # Boosts. Delete one that's no longer needed first.}}
+  </message>
+  <message name="IDS_COMPASS_ROOMS_NOTICE_NAMED_DELETED" desc="Notice in the sidebar: the owner stopped sharing an item the user had joined. NAME is the item&#x27;s name.">
+    “<ph name="NAME">$1<ex>Trip</ex></ph>” is no longer shared. Your copy stays here.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_NOTICE_NAMED_REMOVED" desc="Notice in the sidebar: the owner removed the user from a shared item. NAME is the item&#x27;s name.">
+    “<ph name="NAME">$1<ex>Trip</ex></ph>”: you were removed. Your copy stays here.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_NOTICE_SPACE_DELETED" desc="Notice in the sidebar: the owner stopped sharing a space (a group of tabs) the user had joined.">
+    A shared space is no longer shared. Your copy stays here.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_NOTICE_SPACE_REMOVED" desc="Notice in the sidebar: the owner removed the user from a shared space.">
+    A shared space: you were removed. Your copy stays here.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_NOTICE_FOLDER_DELETED" desc="Notice in the sidebar: the owner stopped sharing a folder the user had joined.">
+    A shared folder is no longer shared. Your copy stays here.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_NOTICE_FOLDER_REMOVED" desc="Notice in the sidebar: the owner removed the user from a shared folder.">
+    A shared folder: you were removed. Your copy stays here.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_NOTICE_EASEL_DELETED" desc="Notice in the sidebar: the owner stopped sharing an Easel (a board of notes and links) the user had joined. Easel is a feature name.">
+    A shared easel is no longer shared. Your copy stays here.
+  </message>
+  <message name="IDS_COMPASS_ROOMS_NOTICE_EASEL_REMOVED" desc="Notice in the sidebar: the owner removed the user from a shared Easel. Easel is a feature name.">
+    A shared easel: you were removed. Your copy stays here.
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_MOVE_TO_SPACE" desc="Sidebar context menu: submenu listing the other spaces (groups of tabs) to move the item to.">
+    Move to Space
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_SEND_TO_DEVICES" desc="Sidebar context menu: submenu listing the user&#x27;s other synced devices to send the tab to.">
+    Send to Your Devices
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_REFRESH_LIVE_FOLDER" desc="Sidebar context menu of a live folder (a folder a plugin fills with links): fetch its links again.">
+    Refresh
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_EDIT_LIVE_SOURCE" desc="Sidebar context menu of a live folder: edit where its links come from.">
+    Edit Source…
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_MARK_ALL_SEEN" desc="Sidebar context menu of a live folder: mark every new link in it as seen.">
+    Mark All Seen
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_CONVERT_TO_FOLDER" desc="Sidebar context menu of a live folder: turn it into an ordinary folder that keeps its links.">
+    Convert to Normal Folder
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_CONTEXT_NEW_FOLDER" desc="Name of a folder the user just created in the sidebar, and the context menu item that creates one.">
+    New Folder
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_NEW_LIVE_FOLDER" desc="Sidebar context menu: create a live folder (a folder a plugin fills with links).">
+    New Live Folder…
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_DESCRIBE_LIVE_FOLDER" desc="Sidebar context menu: ask Claude, the AI assistant, to make a live folder plugin.">
+    Describe a Live Folder to Claude…
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_UNDO_NAME" desc="Sidebar context menu: go back to the name the item had before Claude renamed it.">
+    Undo Name
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_SUGGEST_NAME" desc="Sidebar context menu: ask Claude to suggest a name for the folder.">
+    Suggest a Name
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_UNPIN" desc="Sidebar context menu: move the item out of the Pinned section.">
+    Unpin
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_PIN" desc="Sidebar context menu: move the item into the Pinned section, where it stays.">
+    Pin
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_SHARING" desc="Sidebar context menu of an item already shared with other people: open its sharing settings.">
+    Sharing…
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_SHARE" desc="Sidebar context menu: share the item with other people.">
+    Share…
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_DELETE_FOLDER" desc="Sidebar context menu of a folder.">
+    Delete Folder
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_SEPARATE_TABS" desc="Sidebar context menu of a split view: make its tabs separate tabs again.">
+    Separate Tabs
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_OPEN_IN_SPLIT" desc="Sidebar context menu of a tab: show it side by side with the current tab.">
+    Open in Split View
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_COPY_LINK" desc="Sidebar context menu of a tab.">
+    Copy Link
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_SHARE_EASEL" desc="Sidebar context menu of an Easel (a board of notes and links): share it with other people. Easel is a feature name.">
+    Share Easel…
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_DUPLICATE" desc="Sidebar context menu of a tab.">
+    Duplicate
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_SET_FAVORITE_URL" desc="Sidebar context menu of a favorite tab that navigated away: make the current page its saved address.">
+    Use This Page as Favorite URL
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_SET_PINNED_URL" desc="Sidebar context menu of a pinned tab that navigated away: make the current page its saved address.">
+    Use This Page as Pinned URL
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_BACK_TO_FAVORITE_URL" desc="Sidebar context menu of a favorite tab that navigated away: go back to its saved address.">
+    Back to Favorite URL
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_BACK_TO_PINNED_URL" desc="Sidebar context menu of a pinned tab that navigated away: go back to its saved address.">
+    Back to Pinned URL
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_MAKE_PREVIEW" desc="Sidebar context menu: ask Claude to make a plugin that previews this site&#x27;s pages on hover. SITE is the site&#x27;s host name.">
+    Make a Preview for <ph name="SITE">$1<ex>github.com</ex></ph>…
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_RELOAD" desc="Sidebar context menu of a tab.">
+    Reload
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_UNMUTE_TAB" desc="Sidebar context menu of a tab.">
+    Unmute Tab
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_MUTE_TAB" desc="Sidebar context menu of a tab.">
+    Mute Tab
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_ADD_TO_FAVORITES" desc="Sidebar context menu of a tab: add it to the favorites at the top of the sidebar.">
+    Add to Favorites
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_CLOSE_SPLIT" desc="Sidebar context menu of a split view (tabs side by side): close all of its tabs.">
+    Close Split
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_CLOSE_TAB" desc="Sidebar context menu of a tab.">
+    Close Tab
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_REMOVE_FROM_FAVORITES" desc="Sidebar context menu of a favorite.">
+    Remove from Favorites
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_MENU_REMOVE_FROM_PINNED" desc="Sidebar context menu of a pinned tab.">
+    Remove from Pinned
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_TIDIED_TOAST" desc="Message after Claude sorted the tabs of Today into folders; an Undo button follows.">
+    {COUNT, plural, =1 {Tidied into 1 folder} other {Tidied into # folders}}
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_UNAVAILABLE" desc="Error: live folders (folders plugins fill with links) can&#x27;t be used in this profile.">
+    Live folders aren't available here.
+  </message>
+  <message name="IDS_COMPASS_LIVE_FOLDERS_SETTINGS_UNREADABLE" desc="Error saving a live folder: its settings are malformed.">
+    The settings couldn't be read.
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_NEW_SPACE" desc="Command bar command: create a space (a group of tabs with its own sidebar). The user can type its words to find it.">
+    New space
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_NEW_LOCAL_SPACE" desc="Command bar command: create a space that doesn&#x27;t sync to the user&#x27;s other devices.">
+    New space on this device
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_PIN_TAB" desc="Command bar command: move the current tab into the sidebar&#x27;s Pinned section.">
+    Pin tab
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_UNPIN_TAB" desc="Command bar command: move the current tab out of the Pinned section.">
+    Unpin tab
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ADD_FAVORITE" desc="Command bar command: add the current tab to the favorites at the top of the sidebar.">
+    Add to Favorites
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_REMOVE_FAVORITE" desc="Command bar command: remove the current tab from the favorites.">
+    Remove from Favorites
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ROUTE_SITE" desc="Command bar command: always open this site&#x27;s links in a chosen space.">
+    Route this site to space…
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_BOOST_SITE" desc="Command bar command: create a Boost (custom CSS and JavaScript) for this site. Boost is a feature name, used as a verb here.">
+    Boost this site…
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ZAP_SITE" desc="Command bar command: pick elements of the page to hide on this site for good.">
+    Zap elements on this site…
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_COPY_URL" desc="Command bar command: copy the current page&#x27;s address.">
+    Copy URL
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_RELOAD" desc="Command bar command: reload the page.">
+    Reload
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_HISTORY" desc="Command bar command: open browsing history.">
+    History
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_DOWNLOADS" desc="Command bar command: open the downloads.">
+    Downloads
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_EXTENSIONS" desc="Command bar command: open the extensions page.">
+    Extensions
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_SETTINGS" desc="Command bar command: open Settings.">
+    Settings
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_IMPORT" desc="Command bar command: import data from another browser.">
+    Import from Another Browser
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_KEYBOARD_SHORTCUTS" desc="Command bar command: open the keyboard shortcuts settings.">
+    Keyboard shortcuts
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_TIDY_TODAY" desc="Command bar command: have Claude sort the tabs of the sidebar&#x27;s Today section into folders.">
+    Tidy Today
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_NEW_EASEL" desc="Command bar command: create an Easel (a board of notes, links and captures). Easel is a feature name.">
+    New Easel
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_CAPTURE_TO_EASEL" desc="Command bar command: capture part of the page onto an Easel.">
+    Capture to Easel…
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_CAPTURE_SCREENSHOT" desc="Command bar command: take a screenshot of part of the page.">
+    Capture Screenshot…
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_READER_MODE" desc="Command bar command: show the page in reader mode.">
+    Reader Mode
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_LEAVE_READER_MODE" desc="Command bar command: leave reader mode.">
+    Leave Reader Mode
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_DEV_MODE" desc="Command bar command: turn on Compass&#x27;s development mode for the current site.">
+    Development Mode for This Site
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_LEAVE_DEV_MODE" desc="Command bar command: turn off development mode.">
+    Leave Development Mode
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ACTION_RUN" desc="Label at the end of a command bar row: pressing Enter runs the command.">
+    Run
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ACTION_ASK" desc="Label at the end of a command bar row: pressing Enter asks Claude the typed question.">
+    Ask
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ACTION_ANSWER" desc="Label at the end of a command bar row: pressing Enter has Claude answer the question in the command bar.">
+    Answer
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ACTION_SEARCH" desc="Label at the end of a command bar row: pressing Enter searches the web.">
+    Search
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ACTION_SWITCH_TO_TAB" desc="Label at the end of a command bar row: pressing Enter switches to the open tab.">
+    Switch to tab
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ACTION_SWITCH_TO_SPACE" desc="Label at the end of a command bar row: pressing Enter switches to the space.">
+    Switch to space
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ACTION_SWITCH_TO_SPACE_IN" desc="Label at the end of a command bar row: pressing Enter switches to a space of another browser profile. PROFILE is that profile&#x27;s name.">
+    Switch to space in <ph name="PROFILE">$1<ex>Work</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_CHAT_WITH_CLAUDE" desc="Command bar command: open the chat with Claude, the AI assistant. The user can type its words to find it.">
+    Chat with Claude
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ASK_IN_CHAT" desc="Command bar row: send the typed question to the chat with Claude.">
+    Ask in Chat
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_ASK_CLAUDE" desc="Command bar row: ask Claude the typed question.">
+    Ask Claude
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_NO_ANSWER" desc="Shown in the command bar when Claude returned an empty answer.">
+    Claude gave no answer.
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_FAVORITE_SUBTITLE" desc="Second line of a command bar row for a favorite tab. URL is its address.">
+    Favorites · <ph name="URL">$1<ex>github.com/</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_OTHER_DEVICE_SUBTITLE" desc="Second line of a command bar row for a tab open on another of the user&#x27;s devices.">
+    On <ph name="DEVICE">$1<ex>iPhone</ex></ph> · <ph name="URL">$2<ex>github.com/</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_EASELS_LOADING" desc="Error: Easels (boards of notes and links) haven&#x27;t finished loading. Easel is a feature name.">
+    Easels are still loading. Try again in a moment.
+  </message>
+  <message name="IDS_COMPASS_EASELS_TOO_MANY" desc="Error when creating an Easel: the user has the most they can have.">
+    There are already 200 Easels. Delete one that's no longer needed first.
+  </message>
+  <message name="IDS_COMPASS_EASELS_EXISTS" desc="Error when creating an Easel that already exists.">
+    That Easel already exists.
+  </message>
+  <message name="IDS_COMPASS_EASELS_NO_SUCH" desc="Error: the Easel was deleted or doesn&#x27;t exist.">
+    There's no such Easel.
+  </message>
+  <message name="IDS_COMPASS_EASELS_FULL" desc="Error when adding to an Easel that has the most objects it can hold.">
+    This Easel is full (1,000 objects). Delete some first.
+  </message>
+  <message name="IDS_COMPASS_EASELS_IMAGE_TOO_LARGE" desc="Error when adding an image to an Easel.">
+    The image is too large.
+  </message>
+  <message name="IDS_COMPASS_EASELS_IMAGE_TYPE" desc="Error when adding an image of an unsupported format to an Easel.">
+    Only PNG, JPEG and WebP images can be added.
+  </message>
+  <message name="IDS_COMPASS_EASELS_IMAGES_FULL" desc="Error when adding an image: the space for Easels&#x27; images is used up.">
+    Easels hold 64 MB of images, which is used up. Delete some images first.
+  </message>
+  <message name="IDS_COMPASS_EASELS_IMAGE_UNREADABLE" desc="Error when adding an image to an Easel: it couldn&#x27;t be decoded.">
+    The image couldn't be read.
+  </message>
+  <message name="IDS_COMPASS_EASELS_IMAGE_NOT_ENCODED" desc="Error when adding an image to an Easel: it couldn&#x27;t be converted.">
+    The image couldn't be encoded.
+  </message>
+  <message name="IDS_COMPASS_UPDATES_UNREACHABLE" desc="Update error on Windows, in Settings&#x27; About section.">
+    Couldn't reach the update server.
+  </message>
+  <message name="IDS_COMPASS_UPDATES_DOWNLOAD_FAILED" desc="Update error on Windows, in Settings&#x27; About section.">
+    The update didn't download.
+  </message>
+  <message name="IDS_COMPASS_UPDATES_VERIFY_FAILED" desc="Update error on Windows: the downloaded update failed its signature or integrity checks.">
+    The update didn't pass its checks.
+  </message>
+  <message name="IDS_COMPASS_UPDATES_INSTALL_FAILED" desc="Update error on Windows, in Settings&#x27; About section.">
+    The update didn't install.
+  </message>
+  <message name="IDS_COMPASS_UPDATES_NOT_SUPPORTED" desc="Shown in Settings&#x27; About section on builds that don&#x27;t update themselves.">
+    This build doesn't update itself.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CARDS_UNAVAILABLE" desc="Error in Settings: saved payment cards can&#x27;t be used in this profile.">
+    Payment methods aren't available here.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CARD_NOT_EDITABLE" desc="Error in Settings when editing a payment card.">
+    This card can't be edited here.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CARD_NUMBER_INVALID" desc="Error in Settings when saving a payment card.">
+    That card number isn't valid.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_CARD_EXPIRED" desc="Error in Settings when saving a payment card with a past expiry date.">
+    Use an expiry date that hasn't passed.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_ADDRESSES_UNAVAILABLE" desc="Error in Settings: saved addresses can&#x27;t be used in this profile.">
+    Addresses aren't available here.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_ADDRESS_NO_COUNTRY" desc="Error in Settings when saving an address without a country.">
+    Pick a country.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_ADDRESS_REMOVED" desc="Error in Settings when editing an address removed meanwhile.">
+    This address was removed.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_ADDRESS_EMPTY" desc="Error in Settings when saving an empty address.">
+    Fill in at least a name or a street.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SEARCH_ENGINES_LOADING" desc="Error in Settings: the search engines haven&#x27;t loaded yet.">
+    Search engines aren't loaded yet.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SEARCH_ENGINE_NOT_EDITABLE" desc="Error in Settings when editing a built-in search engine.">
+    This search engine can't be edited.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SEARCH_ENGINE_NO_NAME" desc="Error in Settings when saving a search engine without a name.">
+    Give it a name.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SEARCH_ENGINE_BAD_KEYWORD" desc="Error in Settings: a search engine&#x27;s shortcut (the keyword typed in the address bar) has spaces or is taken.">
+    Use a shortcut without spaces that no other engine has.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_SEARCH_ENGINE_BAD_URL" desc="Error in Settings: a search engine&#x27;s address isn&#x27;t valid. Keep %s as is: it&#x27;s what the user types in the address.">
+    Use a web address; <ph name="QUERY">%s<ex>%s</ex></ph> in it marks where the query goes.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_DOWNLOAD_LOCATION_DIALOG_TITLE" desc="Title of the dialog that picks the folder downloads go to.">
+    Download Location
+  </message>
+  <message name="IDS_COMPASS_SPACES_EXPORT_FILE_NAME" desc="Default file name (without extension) when exporting all spaces (groups of tabs) as a bookmarks file.">
+    Compass Spaces
+  </message>
+  <message name="IDS_COMPASS_SPACES_EXPORT_FALLBACK_FILE_NAME" desc="Default file name (without extension) when exporting a space whose name can&#x27;t be a file name.">
+    Space
+  </message>
+  <message name="IDS_COMPASS_SPACES_EXPORT_SPACE_DIALOG_TITLE" desc="Title of the dialog that saves one space as a bookmarks file.">
+    Export Space
+  </message>
+  <message name="IDS_COMPASS_SPACES_EXPORT_SPACES_DIALOG_TITLE" desc="Title of the dialog that saves all spaces as a bookmarks file.">
+    Export Spaces
+  </message>
+  <message name="IDS_COMPASS_ADBLOCK_NOT_RUNNING" desc="Error when adding a filter list: the ad blocker isn&#x27;t running.">
+    The ad blocker isn't running
+  </message>
+  <message name="IDS_COMPASS_PLUGINS_NO_SUCH" desc="Error in Settings: the live folder plugin doesn&#x27;t exist.">
+    There's no such plugin.
+  </message>
+  <message name="IDS_COMPASS_PLUGINS_SETTINGS_INVALID" desc="Error in Settings when saving a plugin&#x27;s settings.">
+    The settings aren't valid.
+  </message>
+  <message name="IDS_COMPASS_PLUGINS_UNAVAILABLE" desc="Error in Settings: plugins can&#x27;t be used in this profile.">
+    Plugins aren't available here.
+  </message>
+  <message name="IDS_COMPASS_SYNC_ALREADY_ASKING" desc="Error on the sync page: Compass is already asking for Touch ID or the password.">
+    Already asking.
+  </message>
+  <message name="IDS_COMPASS_SHARE_NO_ROLE" desc="Error when creating an invite link without picking whether people can edit or only view.">
+    Choose a role.
+  </message>
+  <message name="IDS_COMPASS_SYNC_AUTH_SHOW_RECOVERY_CODE" desc="macOS shows it in the Touch ID or password prompt as &quot;Compass is trying to &lt;this&gt;.&quot;, so it starts in lower case and has no period.">
+    show your sync recovery code
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_KEY_UNREADABLE" desc="Error when testing the AI connection in Settings: the saved API key can&#x27;t be decrypted.">
+    The saved key can't be read any more. Enter it again.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_ENTER_BASE_URL" desc="Error when testing an OpenAI-compatible AI server in Settings without its address.">
+    Enter the server's base URL first.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_ENTER_API_KEY" desc="Error when testing the AI connection in Settings without an API key.">
+    Enter an API key first.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CODE_NOT_INSTALLED_SET_PATH" desc="Error in Settings: the Claude Code command-line tool wasn&#x27;t found. Keep claude.com/claude-code as is.">
+    Claude Code isn't installed where Compass looks. Install it (claude.com/claude-code), or set its path.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CODE_NOT_AT_PATH" desc="Error in Settings: the Claude Code path the user set has no Claude Code.">
+    There's no Claude Code at that path.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CODE_NOT_INSTALLED_SETTINGS" desc="Error in the chat with Claude: the Claude Code command-line tool wasn&#x27;t found.">
+    Claude Code isn't installed where Compass looks. Install it (claude.com/claude-code), or set its path in Compass's Claude settings.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CODE_NOT_AT_SETTINGS_PATH" desc="Error in the chat with Claude: the Claude Code path set in Settings has no Claude Code.">
+    Claude Code isn't at the path set in Compass's Claude settings.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CODE_NOT_STARTED" desc="Error in the chat with Claude: the Claude Code program couldn&#x27;t be started. PATH is the program&#x27;s path.">
+    Claude Code couldn't start (<ph name="PATH">$1<ex>/usr/local/bin/claude</ex></ph>).
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_APPLE_INTELLIGENCE_UNAVAILABLE" desc="Error in Settings: Apple&#x27;s on-device AI can&#x27;t be used on this Mac. Apple Intelligence is a product name.">
+    Apple Intelligence isn't available here.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_FOLDER_DIALOG_TITLE" desc="Title of the dialog that picks a folder Claude can read and write files in.">
+    Choose a folder for Claude
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_MEMORY_UNAVAILABLE" desc="Error in Settings: Claude&#x27;s memory can&#x27;t be used in this profile.">
+    Memory isn't available in this profile.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_NO_TAB" desc="Error in the chat with Claude: there&#x27;s no tab to read.">
+    No tab is open.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_NOTHING_TO_SEND" desc="Error in the chat with Claude: the message is empty.">
+    Nothing to send.
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_ENTER_MODEL_ID" desc="Error in the chat: the AI server needs a model ID set in Settings.">
+    Enter a model ID in Compass's AI settings.
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_DENIED" desc="Error when setting up a sync server on Cloudflare: the user didn&#x27;t allow access.">
+    You didn't allow Compass on Cloudflare.
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_NOT_FINISHED" desc="Error when setting up a sync server on Cloudflare: sign-in failed.">
+    Cloudflare sign-in didn't finish. Try again.
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_NO_ACCESS" desc="Error when setting up a sync server on Cloudflare: no access token came back.">
+    Cloudflare didn't give Compass access. Try again.
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_NO_WINDOW" desc="Error when setting up a sync server on Cloudflare: there&#x27;s no browser window to open the sign-in page in.">
+    Open a Compass window and try again.
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_PAGE_FAILED" desc="Error when setting up a sync server on Cloudflare.">
+    Couldn't open Cloudflare's sign-in page.
+  </message>
+  <message name="IDS_COMPASS_SYNC_CLOUDFLARE_CLOSED" desc="Error when setting up a sync server on Cloudflare: the user closed the sign-in tab.">
+    Cloudflare sign-in was closed before it finished.
+  </message>
+  <message name="IDS_COMPASS_EASELS_UNAVAILABLE_IN_WINDOW" desc="Error in an Easel: Easels can&#x27;t be used in this window (e.g. incognito).">
+    Easels aren't available in this window.
+  </message>
+  <message name="IDS_COMPASS_EASELS_VIEW_ONLY" desc="Error when editing an Easel someone shared with the user for viewing only.">
+    You can only view this shared easel.
+  </message>
+  <message name="IDS_COMPASS_EASELS_OBJECT_ELSEWHERE" desc="Error when editing an object that belongs to another Easel.">
+    The object is on another Easel.
+  </message>
+  <message name="IDS_COMPASS_SYNC_NOT_SUPPORTED" desc="Error for a sync action on a platform that doesn&#x27;t support it.">
+    Not supported here.
+  </message>
+  <message name="IDS_COMPASS_ADBLOCK_LIST_BAD_URL" desc="Error when adding a filter list to the ad blocker: the address isn&#x27;t complete.">
+    Enter the list's full address, starting with https://
+  </message>
+  <message name="IDS_COMPASS_ADBLOCK_LIST_NOT_HTTPS" desc="Error when adding a filter list to the ad blocker with an http address.">
+    Only https:// lists can be added
+  </message>
+  <message name="IDS_COMPASS_ADBLOCK_LIST_EXISTS" desc="Error when adding a filter list the ad blocker already has.">
+    That list is already added
+  </message>
+  <message name="IDS_COMPASS_DEFAULT_SPACE_NAME" meaning="Default space name" desc="Name of the space (a group of tabs with its own sidebar) a new profile starts with. The user can rename it.">
+    Home
+  </message>
+  <message name="IDS_COMPASS_TAB_GROUP_FOLDER_NAME" desc="Name of a sidebar folder made from a tab group that had no name (e.g. a group an extension created).">
+    Group
+  </message>
+  <message name="IDS_COMPASS_IMPORT_FOLDER" desc="Name of an imported folder that had no name in the other browser.">
+    Folder
+  </message>
+  <message name="IDS_COMPASS_IMPORT_SPACE" desc="Name of an imported space (a group of tabs) that had no name in the other browser.">
+    Space
+  </message>
+  <message name="IDS_COMPASS_IMPORT_WORKSPACE" desc="Name of a space imported from a browser&#x27;s workspace that had no name.">
+    Workspace
+  </message>
+  <message name="IDS_COMPASS_IMPORT_TAB_GROUP" desc="Name of a space imported from a Safari tab group that had no name.">
+    Tab Group
+  </message>
+  <message name="IDS_COMPASS_IMPORT_PERSONAL" desc="Name of the first space imported from a browser that names it Personal by default.">
+    Personal
+  </message>
+  <message name="IDS_COMPASS_IMPORT_CHROMIUM_OTHER_BOOKMARKS" desc="Name of the imported folder holding a Chromium-based browser&#x27;s &quot;Other bookmarks&quot;.">
+    Other bookmarks
+  </message>
+  <message name="IDS_COMPASS_IMPORT_CHROMIUM_MOBILE_BOOKMARKS" desc="Name of the imported folder holding a Chromium-based browser&#x27;s &quot;Mobile bookmarks&quot;.">
+    Mobile bookmarks
+  </message>
+  <message name="IDS_COMPASS_IMPORT_BOOKMARKS_MENU" desc="Name of the imported folder holding Safari&#x27;s or Firefox&#x27;s Bookmarks Menu.">
+    Bookmarks Menu
+  </message>
+  <message name="IDS_COMPASS_IMPORT_READING_LIST" desc="Name of the imported folder holding Safari&#x27;s Reading List.">
+    Reading List
+  </message>
+  <message name="IDS_COMPASS_IMPORT_FIREFOX_OTHER_BOOKMARKS" desc="Name of the imported folder holding Firefox&#x27;s &quot;Other Bookmarks&quot;.">
+    Other Bookmarks
+  </message>
+  <message name="IDS_COMPASS_IMPORT_FIREFOX_MOBILE_BOOKMARKS" desc="Name of the imported folder holding Firefox&#x27;s &quot;Mobile Bookmarks&quot;.">
+    Mobile Bookmarks
+  </message>
+  <message name="IDS_COMPASS_IMPORT_EASEL" desc="Name of an Easel imported from Arc that had no name. Easel is a feature name.">
+    Easel
+  </message>
+  <message name="IDS_COMPASS_BOOSTS_SHARE_INVALID" desc="Error when opening a shared Boost (a site&#x27;s custom CSS and JavaScript) link or file that&#x27;s damaged. Boost is a feature name.">
+    This isn't a Boost that Compass can read. The link or file may be incomplete.
+  </message>
+  <message name="IDS_COMPASS_BOOSTS_SHARE_TOO_BIG" desc="Error when opening a shared Boost that&#x27;s too large.">
+    This Boost is too big to add: shared Boosts are at most 512 KB.
+  </message>
+  <message name="IDS_COMPASS_BOOSTS_SHARE_NEWER" desc="Error when opening a Boost shared from a newer version of Compass.">
+    This Boost was made by a newer Compass. Update Compass to add it.
+  </message>
+  <message name="IDS_COMPASS_BOOSTS_WEB_PAGES_ONLY" desc="Error when saving a Boost whose site pattern isn&#x27;t a web address.">
+    Boosts apply to web pages only (http and https).
+  </message>
+  <message name="IDS_COMPASS_BOOSTS_LOADING" desc="Error: Boosts haven&#x27;t finished loading.">
+    Boosts are still loading. Try again in a moment.
+  </message>
+  <message name="IDS_COMPASS_BOOSTS_ZAP_NAME" desc="Name of the Boost made when the user hides (&quot;zaps&quot;) elements on a site. SITE is the site&#x27;s host.">
+    Zapped on <ph name="SITE">$1<ex>example.com</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_AI_ERROR_UNREACHABLE" desc="Error in the AI chat or settings: the AI server couldn&#x27;t be reached.">
+    Couldn't reach the server. Check the connection and the endpoint URL.
+  </message>
+  <message name="IDS_COMPASS_AI_ERROR_KEY_REFUSED" desc="Error from an AI server: the API key was refused (HTTP 401).">
+    The key was refused (401). Check it.
+  </message>
+  <message name="IDS_COMPASS_AI_ERROR_OVERLOADED" desc="Error from an AI server: it&#x27;s overloaded. CODE is the HTTP status code.">
+    The server is overloaded (<ph name="CODE">$1<ex>503</ex></ph>). Try again in a moment.
+  </message>
+  <message name="IDS_COMPASS_AI_ERROR_ANTHROPIC_KEY_REFUSED" desc="Error from Anthropic&#x27;s API: the key was refused. Keep `claude setup-token` as is (a command).">
+    The key was refused (401). Check it, and the auth style. A token from `claude setup-token` may have expired: make a new one.
+  </message>
+  <message name="IDS_COMPASS_AI_ERROR_FORBIDDEN" desc="Error from an AI server (HTTP 403).">
+    The key isn't allowed to do this (403).
+  </message>
+  <message name="IDS_COMPASS_AI_ERROR_NOT_FOUND" desc="Error from an AI server (HTTP 404).">
+    Nothing answers at that URL (404). Check the endpoint URL.
+  </message>
+  <message name="IDS_COMPASS_AI_ERROR_TOO_MANY_REQUESTS" desc="Error from an AI server (HTTP 429).">
+    Too many requests (429). Wait a moment and try again.
+  </message>
+  <message name="IDS_COMPASS_AI_ERROR_CLAUDE_OVERLOADED" desc="Error from Anthropic&#x27;s API (HTTP 529). Claude is the AI assistant&#x27;s name.">
+    Claude is overloaded (529). Try again in a moment.
+  </message>
+  <message name="IDS_COMPASS_AI_ERROR_HTTP" desc="Error from an AI server with an unexpected HTTP status. CODE is the status.">
+    The server answered with HTTP <ph name="CODE">$1<ex>500</ex></ph>.
+  </message>
+  <message name="IDS_COMPASS_AI_ERROR_NOT_MODEL_LIST" desc="Error when testing an AI server in Settings: it didn&#x27;t return a list of models.">
+    The server answered, but not with a list of models. Check the endpoint URL.
+  </message>
+  <message name="IDS_COMPASS_AI_ERROR_STOPPED" desc="Error in the chat: Claude&#x27;s reply stopped with an error that has no description.">
+    Claude stopped with an error.
+  </message>
+  <message name="IDS_COMPASS_AI_ENTER_URL" desc="Error when testing an AI server without its address.">
+    Enter the server's URL first.
+  </message>
+  <message name="IDS_COMPASS_AI_ENTER_URL_IN_SETTINGS" desc="Error in the chat: the AI server&#x27;s address isn&#x27;t set.">
+    Enter the server's URL in Compass's AI settings.
+  </message>
+  <message name="IDS_COMPASS_AI_ENTER_KEY_IN_SETTINGS" desc="Error in the chat: the API key isn&#x27;t set.">
+    Enter an API key in Compass's AI settings.
+  </message>
+  <message name="IDS_COMPASS_AI_REQUEST_NOT_WRITTEN" desc="Error in the chat: the request to the AI couldn&#x27;t be prepared.">
+    The request couldn't be written.
+  </message>
+  <message name="IDS_COMPASS_AI_REPLY_CUT_OFF" desc="Error in the chat: the AI&#x27;s reply stopped unexpectedly.">
+    The reply was cut off. Try again.
+  </message>
+  <message name="IDS_COMPASS_AI_REPLY_FAILED" desc="Error in the chat: the AI&#x27;s reply failed without a reason.">
+    The reply failed.
+  </message>
+  <message name="IDS_COMPASS_AI_KEY_UNREADABLE_SETTINGS" desc="Error in the chat: the saved API key can&#x27;t be decrypted.">
+    The saved key can't be read any more. Enter it again in Compass's AI settings.
+  </message>
+  <message name="IDS_COMPASS_AI_ADD_KEY_IN_SETTINGS" desc="Error in the chat: no API key is set.">
+    Add your API key in Compass's AI settings.
+  </message>
+  <message name="IDS_COMPASS_AI_PROVIDER_COMPATIBLE" desc="Name of the AI provider choice for any server with OpenAI&#x27;s API, in Settings.">
+    Other (OpenAI-compatible)
+  </message>
+  <message name="IDS_COMPASS_AI_KEY_PLACEHOLDER_COMPATIBLE" desc="Placeholder of the API key field for an OpenAI-compatible AI server.">
+    Key (if the server needs one)
+  </message>
+  <message name="IDS_COMPASS_AI_PRIVACY_ANTHROPIC" desc="Note under the AI provider choice in Settings: where chats are sent.">
+    Chats and the sidebar's requests go to Anthropic, or the endpoint under Advanced.
+  </message>
+  <message name="IDS_COMPASS_AI_PRIVACY_OPENAI" desc="Note under the AI provider choice in Settings: where chats are sent.">
+    Chats and the sidebar's requests go to OpenAI, under its terms, instead of Anthropic.
+  </message>
+  <message name="IDS_COMPASS_AI_PRIVACY_GEMINI" desc="Note under the AI provider choice in Settings: where chats are sent.">
+    Chats and the sidebar's requests go to Google, under the Gemini API's terms, instead of Anthropic.
+  </message>
+  <message name="IDS_COMPASS_AI_PRIVACY_COMPATIBLE" desc="Note under the AI provider choice in Settings: where chats are sent.">
+    Chats and the sidebar's requests go to the server below, instead of Anthropic.
+  </message>
+  <message name="IDS_COMPASS_AI_ON_DEVICE_UNSUPPORTED" desc="Shown when Apple Intelligence (Apple&#x27;s on-device AI, a product name) can&#x27;t run on this Mac.">
+    This Mac can't run Apple Intelligence: it needs macOS 26 or later on a Mac with Apple silicon.
+  </message>
+  <message name="IDS_COMPASS_AI_ON_DEVICE_DISABLED" desc="Shown when Apple Intelligence is off in macOS settings.">
+    Apple Intelligence is turned off in System Settings.
+  </message>
+  <message name="IDS_COMPASS_AI_ON_DEVICE_NOT_READY" desc="Shown while Apple Intelligence&#x27;s model is still downloading.">
+    Apple Intelligence is still downloading. Try again later.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_SIGN_IN_TIMED_OUT" desc="Error when signing in with a ChatGPT account in Settings.">
+    The sign-in timed out. Try again.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_SIGN_IN_CANCELED" desc="Shown when the user canceled signing in with ChatGPT.">
+    The sign-in was cancelled.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_NO_LISTENER" desc="Error signing in with ChatGPT: Compass couldn&#x27;t open a local port for the sign-in reply.">
+    Compass couldn't listen for ChatGPT's answer on this device.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_CALLBACK_WRONG_SIGN_IN" desc="Shown on the page ChatGPT&#x27;s sign-in returns to, when it&#x27;s from an old sign-in attempt.">
+    This page isn't from Compass's current sign-in. Go back to Compass and try again.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_DENIED" desc="Error signing in with ChatGPT: the user denied access.">
+    You didn't allow Compass to use ChatGPT.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_REFUSED" desc="Error signing in with ChatGPT. ERROR is a technical error code.">
+    ChatGPT refused the sign-in (<ph name="ERROR">$1<ex>server_error</ex></ph>).
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_NO_CODE" desc="Error signing in with ChatGPT: its reply had no authorization code.">
+    ChatGPT's answer had no sign-in code. Try again.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_CODE_REFUSED" desc="Error signing in with ChatGPT: the authorization code was refused.">
+    The sign-in code was refused. Try again.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_NO_PLAN_SCOPE" desc="Error signing in with ChatGPT: the user&#x27;s ChatGPT plan can&#x27;t be used by Compass.">
+    ChatGPT signed you in, but didn't let Compass use your plan. Sign in again and allow it, or check that your plan includes using it in other apps.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_NO_REFRESH_TOKEN" desc="Error signing in with ChatGPT: no long-lived sign-in came back.">
+    ChatGPT didn't give Compass a lasting sign-in. Try again.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_NOT_STORED" desc="Error signing in with ChatGPT: the OS keychain refused to store it.">
+    The sign-in couldn't be stored: the system's secure storage refused it.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_CALLBACK_SIGNED_IN" desc="Shown on the page ChatGPT&#x27;s sign-in returns to, after signing in.">
+    Compass can now use your ChatGPT plan. You can close this tab.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_SIGN_IN_IN_SETTINGS" desc="Error in the chat when using a ChatGPT plan without being signed in.">
+    Sign in with ChatGPT in Compass's AI settings.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_SESSION_UNREADABLE" desc="Error in the chat: the saved ChatGPT sign-in can&#x27;t be decrypted.">
+    Your ChatGPT sign-in can't be read any more. Sign in again in Compass's AI settings.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_SESSION_ENDED" desc="Error in the chat: the ChatGPT sign-in expired or was revoked.">
+    Your ChatGPT sign-in has ended. Sign in again in Compass's AI settings.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_NOT_REGISTERED" desc="Error signing in with ChatGPT: Compass&#x27;s app registration didn&#x27;t finish.">
+    ChatGPT didn't finish registering Compass. Try signing in again.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_OTHER_REGISTRATION" desc="Error signing in with ChatGPT: the reply was for another app registration.">
+    ChatGPT answered for another registration than Compass's. Try signing in again.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_UNREACHABLE" desc="Error: ChatGPT&#x27;s servers couldn&#x27;t be reached.">
+    Couldn't reach ChatGPT. Check the connection.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_SIGN_IN_ENDED" desc="Error: the ChatGPT sign-in expired or was revoked.">
+    Your ChatGPT sign-in has ended. Sign in again.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_REGISTRATION_GONE" desc="Error: ChatGPT no longer knows Compass&#x27;s app registration.">
+    ChatGPT doesn't know Compass's registration any more. Sign in again.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_SIGN_IN_UNAVAILABLE" desc="Error: ChatGPT&#x27;s sign-in service is down.">
+    ChatGPT's sign-in is unavailable right now. Try again in a moment.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_REFUSED_HTTP" desc="Error: ChatGPT refused signing in. CODE is the HTTP status.">
+    ChatGPT refused the sign-in (HTTP <ph name="CODE">$1<ex>400</ex></ph>).
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_PLAN_LIMIT" desc="Error in the chat: the user&#x27;s ChatGPT plan reached its usage limit. URL is the page showing usage.">
+    You've reached your ChatGPT plan's usage limit (or the limit you set for Compass). See <ph name="URL">$1<ex>https://chatgpt.com/settings/usage</ex></ph>, or use an API key instead.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_PLAN_NOT_ELIGIBLE" desc="Error in the chat: the user&#x27;s ChatGPT plan can&#x27;t be used outside ChatGPT.">
+    Your ChatGPT plan can't be used in other apps. Use an OpenAI API key instead.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_PLAN_UNAVAILABLE" desc="Error in the chat: ChatGPT plan usage is temporarily unavailable.">
+    ChatGPT plan usage is unavailable right now. Try again in a moment.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_PLAN_INVALID_USER" desc="Error in the chat: ChatGPT didn&#x27;t accept the sign-in.">
+    ChatGPT didn't accept your sign-in. If you disconnected Compass in ChatGPT's settings, sign in again.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_PLAN_UNSUPPORTED" desc="Error in the chat: the request uses a feature the ChatGPT plan doesn&#x27;t support.">
+    This request uses something your ChatGPT plan doesn't support here. Try another model, or an API key.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_REQUEST_REFUSED" desc="Error in the chat: ChatGPT refused the request. CODE is a technical error code.">
+    ChatGPT refused the request (<ph name="CODE">$1<ex>chatpass_v2_scope_not_authorized</ex></ph>). Try signing in with ChatGPT again.
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_CALLBACK_TITLE_OK" desc="Title of the page ChatGPT&#x27;s sign-in returns to, after signing in.">
+    Signed in to ChatGPT
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_CALLBACK_TITLE_FAILED" desc="Title of the page ChatGPT&#x27;s sign-in returns to, when signing in failed.">
+    ChatGPT sign-in failed
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_CALLBACK_HEADING_OK" desc="Heading of the page ChatGPT&#x27;s sign-in returns to, after signing in.">
+    You're signed in
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_CALLBACK_HEADING_FAILED" desc="Heading of the page ChatGPT&#x27;s sign-in returns to, when signing in failed.">
+    Sign-in didn't work
+  </message>
+  <message name="IDS_COMPASS_AI_TOKEN_RISKS" desc="Error in Compass&#x27;s AI settings and chat: the key is a Claude subscription token, which needs a switch turned on. Keep `claude setup-token` as is; the quoted switch name must match its label in Settings.">
+    This is a token from `claude setup-token`, which uses your Claude subscription. To use it, turn on "Accept the risks of subscription tokens" in Compass's Claude settings.
+  </message>
+  <message name="IDS_COMPASS_AI_TOKEN_RISKS_ANDROID" desc="On Android, error in the Claude sheet: the key is a Claude subscription token, which needs a switch turned on.">
+    This is a token from `claude setup-token`, which uses your Claude subscription. To use it, turn on "Accept the risks of subscription tokens" in the Claude sheet's menu (Settings).
+  </message>
+  <message name="IDS_COMPASS_CHATGPT_SIGNED_OUT_NOT_REVOKED" desc="On Android, note after signing out of ChatGPT when OpenAI didn&#x27;t confirm revoking access.">
+    Signed out of Compass. OpenAI didn't confirm revoking the sign-in: you can disconnect Compass in ChatGPT's settings.
+  </message>
+  <message name="IDS_COMPASS_AI_ADD_PROVIDER_KEY" desc="On Android, error in the Claude sheet: no API key for the chosen AI provider. PROVIDER is its name.">
+    Add your <ph name="PROVIDER">$1<ex>OpenAI</ex></ph> API key first.
+  </message>
+  <message name="IDS_COMPASS_AI_NOTICE_MAX_TOKENS" desc="Notice in the chat: the AI&#x27;s answer hit its length limit.">
+    The answer was cut off at its length limit.
+  </message>
+  <message name="IDS_COMPASS_AI_NOTICE_REFUSAL" desc="Notice in the chat: Claude refused to answer.">
+    Claude declined to answer this.
+  </message>
+  <message name="IDS_COMPASS_AI_BASE_URL_INVALID" desc="On Android, error testing an AI server&#x27;s address.">
+    That URL isn't usable: it must be https (http only to this device), without a query.
+  </message>
+  <message name="IDS_COMPASS_AI_CONNECTED_MODELS" desc="On Android, result of testing the AI connection: how many models the server offers.">
+    {COUNT, plural, =1 {Connected: 1 model available.} other {Connected: # models available.}}
+  </message>
+  <message name="IDS_COMPASS_AI_KEY_NOT_SAVED" desc="On Android, error saving the AI API key.">
+    Couldn't save the key.
+  </message>
+  <message name="IDS_COMPASS_AI_ENTER_URL_IN_SETTINGS_ANDROID" desc="On Android, error in the chat: the AI server&#x27;s address isn&#x27;t set.">
+    Enter the server's URL in Settings first.
+  </message>
+  <message name="IDS_COMPASS_AI_ENTER_MODEL_IN_SETTINGS_ANDROID" desc="On Android, error in the chat: the AI server&#x27;s model isn&#x27;t set.">
+    Enter the server's model ID in Settings first.
+  </message>
+  <message name="IDS_COMPASS_AI_TOO_MANY_TOOL_ROUNDS" desc="Error in the chat: Claude kept using tools for too many rounds.">
+    Claude used tools for too long; ask again to go on.
+  </message>
+  <message name="IDS_COMPASS_AI_MEMORY_NOT_ADDED" desc="On Android, error adding a fact to Claude&#x27;s memory.">
+    Couldn't add the memory.
+  </message>
+  <message name="IDS_COMPASS_AI_MEMORY_NOT_CHANGED" desc="On Android, error changing a fact in Claude&#x27;s memory.">
+    Couldn't change the memory.
+  </message>
+  <message name="IDS_COMPASS_READER_PAGE_UNREADABLE" desc="On Android, error in reader mode: the page&#x27;s text couldn&#x27;t be extracted.">
+    This page couldn't be read (it may still be loading).
+  </message>
+  <message name="IDS_COMPASS_ROOMS_SHARING_UNAVAILABLE" desc="On Android, error: sharing with other people isn&#x27;t available.">
+    Sharing isn't available.
+  </message>
+  <message name="IDS_COMPASS_EASELS_UNAVAILABLE" desc="On Android, error: Easels can&#x27;t be used here. Easel is a feature name.">
+    Easels aren't available here.
+  </message>
+  <message name="IDS_COMPASS_EASELS_SIDEBAR_LOADING" desc="On Android, error creating an Easel before the sidebar loaded.">
+    The sidebar is still loading. Try again in a moment.
+  </message>
+  <message name="IDS_COMPASS_EASELS_NO_PAGE" desc="On Android, error capturing to an Easel without a page open.">
+    There's no page.
+  </message>
+  <message name="IDS_COMPASS_EASELS_CANT_CAPTURE" desc="On Android, error: this page can&#x27;t be captured to an Easel.">
+    This page can't be captured.
+  </message>
+  <message name="IDS_COMPASS_EASELS_DELETED" desc="On Android, error: the Easel was deleted meanwhile.">
+    That Easel was deleted.
+  </message>
+  <message name="IDS_COMPASS_SYNC_INVITE_LINK_INVALID" desc="Error in sync settings when the text pasted as an invite link to someone's sync chain isn't one. The placeholder is an example link.">
+    Paste the whole invite link, like <ph name="EXAMPLE_LINK">$1<ex>https://compass-sync.example.workers.dev/invite#…</ex></ph>.
+  </message>
+</grit-part>

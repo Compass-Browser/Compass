@@ -7,6 +7,7 @@ import './icon.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n, i18nF, i18nPlural} from '../i18n.js';
 import type {FilterList, PermissionDefault, SafetyCheckResult, SitePermission, SiteSummary} from '../sidebar.mojom-webui.js';
 import {PermissionValue, UpdateState} from '../sidebar.mojom-webui.js';
 
@@ -38,44 +39,44 @@ export const CLEAR_CHOICES: ClearChoice[] = [
   {
     key: 'history',
     pref: 'browser.clear_data.browsing_history',
-    label: 'Browsing history',
-    detail: 'Pages you visited, on this device and those you sync with.',
+    label: i18n('privacyPaneClearHistory'),
+    detail: i18n('privacyPaneClearHistoryDetail'),
   },
   {
     key: 'downloads',
     pref: 'browser.clear_data.download_history',
-    label: 'Download history',
-    detail: 'The list of downloads; the files stay.',
+    label: i18n('privacyPaneClearDownloads'),
+    detail: i18n('privacyPaneClearDownloadsDetail'),
   },
   {
     key: 'cookies',
     pref: 'browser.clear_data.cookies',
-    label: 'Cookies and other site data',
-    detail: 'Signs you out of most sites.',
+    label: i18n('privacyPaneClearCookies'),
+    detail: i18n('privacyPaneClearCookiesDetail'),
   },
   {
     key: 'cache',
     pref: 'browser.clear_data.cache',
-    label: 'Cached images and files',
-    detail: 'Some sites may load more slowly next time.',
+    label: i18n('privacyPaneClearCache'),
+    detail: i18n('privacyPaneClearCacheDetail'),
   },
   {
     key: 'passwords',
     pref: 'browser.clear_data.passwords',
-    label: 'Passwords and passkeys',
-    detail: 'Saved in this profile.',
+    label: i18n('privacyPaneClearPasswords'),
+    detail: i18n('privacyPaneClearPasswordsDetail'),
   },
   {
     key: 'formData',
     pref: 'browser.clear_data.form_data',
-    label: 'Autofill form data',
-    detail: 'Addresses and other things you typed in forms.',
+    label: i18n('privacyPaneClearFormData'),
+    detail: i18n('privacyPaneClearFormDataDetail'),
   },
   {
     key: 'siteSettings',
     pref: 'browser.clear_data.site_settings',
-    label: 'Site settings',
-    detail: 'Permissions you gave or refused sites.',
+    label: i18n('privacyPaneClearSiteSettings'),
+    detail: i18n('privacyPaneClearSiteSettingsDetail'),
   },
 ];
 
@@ -86,63 +87,64 @@ export interface Choice {
 
 // browsing_data::TimePeriod.
 export const TIME_PERIODS: Choice[] = [
-  {value: 6, label: 'Last 15 minutes'},
-  {value: 0, label: 'Last hour'},
-  {value: 1, label: 'Last 24 hours'},
-  {value: 2, label: 'Last 7 days'},
-  {value: 3, label: 'Last 4 weeks'},
-  {value: 4, label: 'All time'},
+  {value: 6, label: i18n('privacyPaneLast15Minutes')},
+  {value: 0, label: i18n('privacyPaneLastHour')},
+  {value: 1, label: i18n('privacyPaneLast24Hours')},
+  {value: 2, label: i18n('privacyPaneLast7Days')},
+  {value: 3, label: i18n('privacyPaneLast4Weeks')},
+  {value: 4, label: i18n('privacyPaneAllTime')},
 ];
 
 // content_settings::CookieControlsMode.
 export const COOKIE_MODES: Choice[] = [
-  {value: 0, label: 'Allow'},
-  {value: 2, label: 'Block in Incognito'},
-  {value: 1, label: 'Block'},
+  {value: 0, label: i18n('privacyPaneAllow')},
+  {value: 2, label: i18n('privacyPaneCookiesBlockIncognito')},
+  {value: 1, label: i18n('privacyPaneBlock')},
 ];
 
 // safe_browsing::SafeBrowsingState.
 export const SAFE_BROWSING_LEVELS: Choice[] = [
-  {value: 2, label: 'Enhanced'},
-  {value: 1, label: 'Standard'},
-  {value: 0, label: 'Off'},
+  {value: 2, label: i18n('privacyPaneSafeBrowsingEnhanced')},
+  {value: 1, label: i18n('privacyPaneSafeBrowsingStandard')},
+  {value: 0, label: i18n('privacyPaneSafeBrowsingOff')},
 ];
 
 // The permissions by upstream's group names, as the window names them.
 const PERMISSION_LABELS: Record<string, string> = {
-  'location': 'Location',
-  'media-stream-camera': 'Camera',
-  'media-stream-mic': 'Microphone',
-  'notifications': 'Notifications',
-  'popups': 'Pop-ups and redirects',
-  'javascript': 'JavaScript',
-  'javascript-optimizer': 'JavaScript optimization',
-  'images': 'Images',
-  'sound': 'Sound',
-  'multiple-automatic-downloads': 'Automatic downloads',
-  'clipboard': 'Clipboard',
-  'sensors': 'Motion sensors',
-  'midi-sysex': 'MIDI devices',
-  'usb-devices': 'USB devices',
-  'serial-ports': 'Serial ports',
-  'hid-devices': 'HID devices',
-  'bluetooth-scanning': 'Bluetooth scanning',
-  'file-system-write': 'File editing',
-  'window-management': 'Window management',
-  'local-fonts': 'Fonts',
-  'protected-content': 'Protected content IDs',
-  'mixed-script': 'Insecure content',
-  'background-sync': 'Background sync',
-  'payment-handler': 'Payment handlers',
-  'idle-detection': 'Your device use',
-  'storage-access': 'Embedded content',
-  'federated-identity-api': 'Third-party sign-in',
-  'auto-picture-in-picture': 'Automatic picture-in-picture',
+  'location': i18n('privacyPanePermissionLocation'),
+  'media-stream-camera': i18n('privacyPanePermissionMediaStreamCamera'),
+  'media-stream-mic': i18n('privacyPanePermissionMediaStreamMic'),
+  'notifications': i18n('privacyPanePermissionNotifications'),
+  'popups': i18n('privacyPanePermissionPopups'),
+  'javascript': i18n('privacyPanePermissionJavascript'),
+  'javascript-optimizer': i18n('privacyPanePermissionJavascriptOptimizer'),
+  'images': i18n('privacyPanePermissionImages'),
+  'sound': i18n('privacyPanePermissionSound'),
+  'multiple-automatic-downloads':
+      i18n('privacyPanePermissionMultipleAutomaticDownloads'),
+  'clipboard': i18n('privacyPanePermissionClipboard'),
+  'sensors': i18n('privacyPanePermissionSensors'),
+  'midi-sysex': i18n('privacyPanePermissionMidiSysex'),
+  'usb-devices': i18n('privacyPanePermissionUsbDevices'),
+  'serial-ports': i18n('privacyPanePermissionSerialPorts'),
+  'hid-devices': i18n('privacyPanePermissionHidDevices'),
+  'bluetooth-scanning': i18n('privacyPanePermissionBluetoothScanning'),
+  'file-system-write': i18n('privacyPanePermissionFileSystemWrite'),
+  'window-management': i18n('privacyPanePermissionWindowManagement'),
+  'local-fonts': i18n('privacyPanePermissionLocalFonts'),
+  'protected-content': i18n('privacyPanePermissionProtectedContent'),
+  'mixed-script': i18n('privacyPanePermissionMixedScript'),
+  'background-sync': i18n('privacyPanePermissionBackgroundSync'),
+  'payment-handler': i18n('privacyPanePermissionPaymentHandler'),
+  'idle-detection': i18n('privacyPanePermissionIdleDetection'),
+  'storage-access': i18n('privacyPanePermissionStorageAccess'),
+  'federated-identity-api': i18n('privacyPanePermissionFederatedIdentityApi'),
+  'auto-picture-in-picture': i18n('privacyPanePermissionAutoPictureInPicture'),
   // Blocked: the ad blocker is on for the site (docs/design/ad-blocker.md).
-  'ads': 'Ads',
-  'vr': 'Virtual reality',
-  'ar': 'Augmented reality',
-  'smart-card-readers': 'Smart card readers',
+  'ads': i18n('privacyPanePermissionAds'),
+  'vr': i18n('privacyPanePermissionVr'),
+  'ar': i18n('privacyPanePermissionAr'),
+  'smart-card-readers': i18n('privacyPanePermissionSmartCardReaders'),
 };
 
 // The permissions' order in the lists: the common ones first, as in the
@@ -164,17 +166,18 @@ export type View =
 function timeAgo(ms: number): string {
   const minutes = Math.round((Date.now() - ms) / 60000);
   if (minutes < 1) {
-    return 'just now';
+    return i18n('privacyPaneJustNow');
   }
   if (minutes < 60) {
-    return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+    return i18nPlural('privacyPaneMinutesAgo', minutes);
   }
   const hours = Math.round(minutes / 60);
   if (hours < 24) {
-    return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+    return i18nPlural('privacyPaneHoursAgo', hours);
   }
   const days = Math.round(hours / 24);
-  return days === 1 ? 'yesterday' : `${days} days ago`;
+  return days === 1 ? i18n('privacyPaneYesterday') :
+                      i18nPlural('privacyPaneDaysAgo', days);
 }
 
 // Privacy (docs/design/settings-window.md, phase 3): clearing browsing data,
@@ -263,28 +266,31 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
     this.focus_ = params.get('focus') || '';
     if (site) {
       this.openSite_(site);
-    } else if (view === 'clear' || view === 'permissions' ||
-               view === 'sites' || view === 'safety' || view === 'adblock') {
+    } else if (
+        view === 'clear' || view === 'permissions' || view === 'sites' ||
+        view === 'safety' || view === 'adblock') {
       this.setView_(view);
     } else {
       this.loadView_();
     }
     prefs.addListener(this.prefListener_);
-    prefs.load([
-      PREF_COOKIE_CONTROLS,
-      PREF_DO_NOT_TRACK,
-      PREF_HTTPS_ONLY,
-      PREF_SECURE_DNS,
-      PREF_CLEAN_LINKS,
-      PREF_ADBLOCK,
-      PREF_SAFE_BROWSING,
-      PREF_SAFE_BROWSING_ENHANCED,
-      PREF_CLEAR_PERIOD,
-      ...CLEAR_CHOICES.map(c => c.pref),
-    ]).then(() => {
-      this.resetClearChoices_();
-      this.prefsVersion_++;
-    });
+    prefs
+        .load([
+          PREF_COOKIE_CONTROLS,
+          PREF_DO_NOT_TRACK,
+          PREF_HTTPS_ONLY,
+          PREF_SECURE_DNS,
+          PREF_CLEAN_LINKS,
+          PREF_ADBLOCK,
+          PREF_SAFE_BROWSING,
+          PREF_SAFE_BROWSING_ENHANCED,
+          PREF_CLEAR_PERIOD,
+          ...CLEAR_CHOICES.map(c => c.pref),
+        ])
+        .then(() => {
+          this.resetClearChoices_();
+          this.prefsVersion_++;
+        });
     const router = SettingsWindowBrowserProxy.getInstance().callbackRouter;
     this.contentListenerId_ = router.contentSettingsChanged.addListener(
         () => this.onContentSettingsChanged_());
@@ -293,17 +299,17 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
           this.updateState_ = state;
           this.updateMessage_ = message;
         });
-    this.filterListsListenerId_ = router.filterListsChanged.addListener(
-        () => this.loadFilterLists_());
+    this.filterListsListenerId_ =
+        router.filterListsChanged.addListener(() => this.loadFilterLists_());
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     prefs.removeListener(this.prefListener_);
     const router = SettingsWindowBrowserProxy.getInstance().callbackRouter;
-    for (const id of
-             [this.contentListenerId_, this.updateListenerId_,
-              this.filterListsListenerId_]) {
+    for (const id
+             of [this.contentListenerId_, this.updateListenerId_,
+                 this.filterListsListenerId_]) {
       if (id !== null) {
         router.removeListener(id);
       }
@@ -332,20 +338,20 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
 
   protected getUpdatesText_(): string {
     if (!this.canUpdate_) {
-      return 'This build doesn\'t update itself.';
+      return i18n('aboutPaneUpdatesOffDetail');
     }
     switch (this.updateState_) {
       case UpdateState.kChecking:
       case UpdateState.kUpdating:
-        return 'Checking for updates…';
+        return i18n('aboutPaneChecking');
       case UpdateState.kReady:
-        return 'An update is ready: relaunch Compass to install it.';
+        return i18n('privacyPaneUpdateReady');
       case UpdateState.kUpToDate:
-        return 'Compass is up to date.';
+        return i18n('aboutPaneUpToDateDetail');
       case UpdateState.kFailed:
-        return this.updateMessage_ || 'Couldn\'t check for updates.';
+        return this.updateMessage_ || i18n('aboutPaneCheckFailedDetail');
       default:
-        return 'Compass checks for updates by itself.';
+        return i18n('aboutPaneAutoUpdateDetail');
     }
   }
 
@@ -356,24 +362,25 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
   protected getPasswordsText_(): string {
     const safety = this.safety_;
     if (!safety) {
-      return 'Checking…';
+      return i18n('privacyPaneChecking');
     }
     const problems: string[] = [];
     if (safety.compromisedPasswords) {
-      problems.push(`${safety.compromisedPasswords} compromised`);
+      problems.push(
+          i18nPlural('privacyPaneCompromised', safety.compromisedPasswords));
     }
     if (safety.weakPasswords) {
-      problems.push(`${safety.weakPasswords} weak`);
+      problems.push(i18nPlural('privacyPaneWeak', safety.weakPasswords));
     }
     if (safety.reusedPasswords) {
-      problems.push(`${safety.reusedPasswords} reused`);
+      problems.push(i18nPlural('privacyPaneReused', safety.reusedPasswords));
     }
     if (problems.length) {
-      return problems.join(', ') + '.';
+      return i18nF('privacyPanePasswordProblems', problems.join(', '));
     }
     return safety.savedPasswords ?
-        `No problems known among ${safety.savedPasswords} saved passwords.` :
-        'No saved passwords.';
+        i18nPlural('privacyPaneNoPasswordProblems', safety.savedPasswords) :
+        i18n('privacyPaneNoSavedPasswords');
   }
 
   protected isPasswordsOk_(): boolean {
@@ -384,21 +391,22 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
 
   protected getSafeBrowsingText_(): string {
     return this.getSafeBrowsingLevel_() ?
-        'Dangerous sites, downloads and extensions are checked.' :
-        'Off: nothing warns you about dangerous sites and downloads.';
+        i18n('privacyPaneSafeBrowsingOn') :
+        i18n('privacyPaneSafeBrowsingOffDetail');
   }
 
   protected getExtensionsText_(): string {
     const safety = this.safety_;
     if (!safety) {
-      return 'Checking…';
+      return i18n('privacyPaneChecking');
     }
     if (safety.blocklistedExtensions) {
-      return `${safety.blocklistedExtensions} turned off as harmful.`;
+      return i18nPlural(
+          'privacyPaneHarmfulExtensions', safety.blocklistedExtensions);
     }
     return safety.enabledExtensions ?
-        `No harmful extensions among ${safety.enabledExtensions}.` :
-        'No extensions.';
+        i18nPlural('privacyPaneNoHarmfulExtensions', safety.enabledExtensions) :
+        i18n('privacyPaneNoExtensions');
   }
 
   protected isExtensionsOk_(): boolean {
@@ -409,25 +417,26 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
 
   protected getFilterListsDetail_(): string {
     const enabled = this.filterLists_.filter(list => list.enabled);
-    const count = enabled.length === 1 ? '1 list' : `${enabled.length} lists`;
+    const count = i18nPlural('privacyPaneListCount', enabled.length);
     const updated = Math.max(0, ...enabled.map(list => list.updatedMs));
-    return updated ? `${count}, updated ${timeAgo(updated)}` : count;
+    return updated ? i18nF('privacyPaneListsUpdated', count, timeAgo(updated)) :
+                     count;
   }
 
   protected getFilterListDetail_(list: FilterList): string {
     if (list.updating) {
-      return 'Updating…';
+      return i18n('privacyPaneUpdating');
     }
     if (!list.updatedMs) {
-      return list.error || 'Not downloaded yet';
+      return list.error || i18n('privacyPaneNotDownloaded');
     }
     const rules = list.urlRules + list.cssRules;
     const parts = [
-      `${rules.toLocaleString()} rules`,
-      `updated ${timeAgo(list.updatedMs)}`,
+      i18nPlural('privacyPaneRuleCount', rules),
+      i18nF('privacyPaneListUpdated', timeAgo(list.updatedMs)),
     ];
     if (list.skipped) {
-      parts.push(`${list.skipped.toLocaleString()} not supported`);
+      parts.push(i18nPlural('privacyPaneRulesNotSupported', list.skipped));
     }
     return parts.join(' · ');
   }
@@ -473,11 +482,13 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
   }
 
   protected getBackLabel_(): string {
-    return this.view_ === 'site' ? 'Sites' : 'Privacy';
+    return this.view_ === 'site' ? i18n('privacyPaneSites') :
+                                   i18n('settingsWindowPanePrivacy');
   }
 
   protected getSiteDataButtonText_(): string {
-    return this.siteDataCleared_ ? 'Data Deleted' : 'Delete Site Data';
+    return this.siteDataCleared_ ? i18n('privacyPaneSiteDataDeleted') :
+                                   i18n('privacyPaneDeleteSiteData');
   }
 
   protected getBool_(name: string): boolean {
@@ -512,9 +523,8 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
 
   protected getSecureDnsDetail_(): string {
     return this.getSecureDnsMode_() === 'secure' ?
-        'With the provider chosen in Chrome settings.' :
-        'Looks up sites over an encrypted connection when your provider ' +
-            'supports it.';
+        i18n('privacyPaneSecureDnsCustom') :
+        i18n('privacyPaneSecureDnsAutomatic');
   }
 
   protected getPermissionLabel_(type: string): string {
@@ -525,13 +535,13 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
   protected getValueLabel_(value: PermissionValue): string {
     switch (value) {
       case PermissionValue.kAllow:
-        return 'Allow';
+        return i18n('privacyPaneAllow');
       case PermissionValue.kBlock:
-        return 'Block';
+        return i18n('privacyPaneBlock');
       case PermissionValue.kAsk:
-        return 'Ask';
+        return i18n('privacyPaneAsk');
       default:
-        return 'Default';
+        return i18n('privacyPaneDefault');
     }
   }
 
@@ -545,8 +555,8 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
         permission.effective :
         this.defaults_.find(d => d.type === permission.type)?.value;
     return effective === undefined ?
-        'Default' :
-        `Default (${this.getValueLabel_(effective)})`;
+        i18n('privacyPaneDefault') :
+        i18nF('privacyPaneDefaultWithValue', this.getValueLabel_(effective));
   }
 
   protected getSiteChoices_(permission: SitePermission): PermissionValue[] {
@@ -554,14 +564,16 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
   }
 
   protected getSitesDetail_(): string {
-    const count = this.sites_.length;
-    return count === 1 ? '1 site' : `${count} sites`;
+    return i18nPlural('privacyPaneSiteCount', this.sites_.length);
+  }
+
+  // Safety check's row: how many sites have permissions of their own.
+  protected getSitesWithOwnText_(): string {
+    return i18nPlural('privacyPaneSitesWithOwnCount', this.sites_.length);
   }
 
   protected getPermissionCountText_(site: SiteSummary): string {
-    return site.permissionCount === 1 ?
-        '1 permission' :
-        `${site.permissionCount} permissions`;
+    return i18nPlural('privacyPanePermissionCount', site.permissionCount);
   }
 
   protected isClearChecked_(choice: ClearChoice): boolean {
@@ -574,9 +586,10 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
 
   protected getClearButtonText_(): string {
     if (this.clearing_) {
-      return 'Clearing…';
+      return i18n('privacyPaneClearing');
     }
-    return this.cleared_ ? 'Cleared' : 'Clear Data';
+    return this.cleared_ ? i18n('privacyPaneCleared') :
+                           i18n('privacyPaneClearData');
   }
 
   // Events.
@@ -600,7 +613,8 @@ export class CompassSettingsPrivacyPaneElement extends CrLitElement {
   }
 
   protected onCookieModeChange_(e: Event) {
-    prefs.set(PREF_COOKIE_CONTROLS, Number((e.target as HTMLSelectElement).value));
+    prefs.set(
+        PREF_COOKIE_CONTROLS, Number((e.target as HTMLSelectElement).value));
   }
 
   protected onSafeBrowsingChange_(e: Event) {

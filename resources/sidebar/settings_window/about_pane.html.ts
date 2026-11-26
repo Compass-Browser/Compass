@@ -4,6 +4,8 @@
 
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n} from '../i18n.js';
+
 import type {CompassSettingsAboutPaneElement} from './about_pane.js';
 import {PREF_UPDATE_CHANNEL} from './about_pane.js';
 
@@ -18,7 +20,7 @@ export function getHtml(this: CompassSettingsAboutPaneElement) {
 </header>
 
 <section class="row-group">
-  <h2 class="group-title">Updates</h2>
+  <h2 class="group-title">${i18n('aboutPaneUpdates')}</h2>
   <div class="group">
     <div class="row control-row" data-row="updates">
       <span class="tile" data-color="${this.getUpdateColor_()}">
@@ -32,11 +34,11 @@ export function getHtml(this: CompassSettingsAboutPaneElement) {
       </span>
       <button class="pill" ?hidden="${!this.canCheck_()}"
           @click="${this.onCheckClick_}">
-        Check for Updates
+        ${i18n('aboutPaneCheckForUpdates')}
       </button>
       <button class="pill accent" ?hidden="${!this.isUpdateReady_()}"
           @click="${this.onInstallClick_}">
-        Relaunch to Update
+        ${i18n('aboutPaneRelaunchToUpdate')}
       </button>
     </div>
     <div class="row control-row" data-row="channel">
@@ -44,12 +46,12 @@ export function getHtml(this: CompassSettingsAboutPaneElement) {
         <compass-settings-icon name="pulse"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Update channel</span>
+        <span class="row-label">${i18n('aboutPaneUpdateChannel')}</span>
         <span class="row-detail">
-          Beta and Canary get new features first, with more bugs.
+          ${i18n('aboutPaneUpdateChannelDetail')}
         </span>
       </span>
-      <select class="popup" aria-label="Update channel"
+      <select class="popup" aria-label="${i18n('aboutPaneUpdateChannel')}"
           ?disabled="${this.isEnforced_(PREF_UPDATE_CHANNEL)}"
           @change="${this.onChannelChange_}">
         ${this.updateChannels.map(channel => html`
@@ -69,10 +71,10 @@ export function getHtml(this: CompassSettingsAboutPaneElement) {
         <compass-settings-icon name="doc"></compass-settings-icon>
       </span>
       <span class="row-text">
-        <span class="row-label">Open-source licenses</span>
+        <span class="row-label">${i18n('aboutPaneLicenses')}</span>
       </span>
       <compass-settings-icon class="row-trail" name="external"
-          title="Opens in a tab">
+          title="${i18n('settingsWindowOpensInTab')}">
       </compass-settings-icon>
     </button>
   </div>

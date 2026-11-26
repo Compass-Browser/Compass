@@ -20,10 +20,11 @@ class SpaceModel;
 
 namespace easels {
 
-// What a board without a title is called (a new one, until it's named).
-inline constexpr char kNewEaselTitle[] = "Untitled Easel";
+// What a board without a title is called (a new one, until it's named), in
+// the browser's language.
+std::string NewEaselTitle();
 
-// A board's title as its tab shows it: its own, or kNewEaselTitle.
+// A board's title as its tab shows it: its own, or NewEaselTitle().
 std::u16string EaselTabTitle(const sync_pb::CompassEasel& easel);
 
 // Gives |space|'s tab entries of the board |easel_uuid| (by their URL or

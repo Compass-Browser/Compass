@@ -6,6 +6,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {SidebarBrowserProxy} from './browser_proxy.js';
 import {getFaviconUrl} from './favicon.js';
+import {i18n, i18nPlural} from './i18n.js';
 import {getHtml} from './node.html.js';
 import type {LiveFolderState, Node} from './sidebar.mojom-webui.js';
 import {AudioState, NodeType} from './sidebar.mojom-webui.js';
@@ -118,7 +119,8 @@ export class CompassSidebarNodeElement extends CrLitElement {
 
   // The row's tooltip and what Rename starts from: never the short title.
   protected getFullTitle_(node: Node): string {
-    return node.customTitle || node.title || node.url || 'New Tab';
+    return node.customTitle || node.title || node.url ||
+        i18n('sidebarNewTab');
   }
 
   protected isEditing_(node: Node): boolean {
@@ -132,9 +134,9 @@ export class CompassSidebarNodeElement extends CrLitElement {
 
   protected getCloseLabel_(node: Node): string {
     if (this.unloads_(node)) {
-      return 'Unload tab';
+      return i18n('nodeUnloadTab');
     }
-    return node.live ? 'Close tab' : 'Remove';
+    return node.live ? i18n('nodeCloseTab') : i18n('remove');
   }
 
   // − where the button unloads, × where it closes or removes.
@@ -148,7 +150,8 @@ export class CompassSidebarNodeElement extends CrLitElement {
 
   protected getCloseTitle_(node: Node): string {
     return this.isCloseArmed_(node) ?
-        `Click again to ${node.live ? 'close' : 'remove'}` :
+        (node.live ? i18n('nodeClickAgainToClose') :
+                     i18n('nodeClickAgainToRemove')) :
         this.getCloseLabel_(node);
   }
 
@@ -163,7 +166,18 @@ export class CompassSidebarNodeElement extends CrLitElement {
   }
 
   protected getAudioLabel_(node: Node): string {
-    return this.isMuted_(node) ? 'Unmute tab' : 'Mute tab';
+    return this.isMuted_(node) ? i18n('sidebarUnmuteTab') :
+                                 i18n('sidebarMuteTab');
+  }
+
+  protected getBadgeLabel_(node: Node): string {
+    return node.badgeCount < 0 ?
+        i18n('sidebarNewNotifications') :
+        i18nPlural('sidebarNotifications', node.badgeCount);
+  }
+
+  protected getUnseenLabel_(count: number): string {
+    return i18nPlural('nodeUnseen', count);
   }
 
   protected getFaviconUrl_(node: Node): string {

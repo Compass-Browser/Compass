@@ -4,6 +4,8 @@
 
 import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n, i18nF, i18nPlural} from '../i18n.js';
+
 import type {CompassClaudeChatAppElement} from './app.js';
 
 export function getHtml(this: CompassClaudeChatAppElement) {
@@ -12,7 +14,8 @@ export function getHtml(this: CompassClaudeChatAppElement) {
 <header>
   <span class="logo" aria-hidden="true"></span>
   <span class="title">Claude</span>
-  <select class="model" id="model" title="Model" aria-label="Model"
+  <select class="model" id="model" title="${i18n('claudeChatModel')}"
+      aria-label="${i18n('claudeChatModel')}"
       ?disabled="${this.streaming_}" @change="${this.onModelChange_}">
     ${this.getModels_().map(m => html`
       <option value="${m.id}" .selected="${m.id === this.model_}">
@@ -20,13 +23,15 @@ export function getHtml(this: CompassClaudeChatAppElement) {
       </option>`)}
   </select>
   <span class="spacer"></span>
-  <button class="icon" id="newChat" title="New chat" aria-label="New chat"
+  <button class="icon" id="newChat" title="${i18n('claudeChatNewChat')}"
+      aria-label="${i18n('claudeChatNewChat')}"
       ?disabled="${!this.hasTurns_()}" @click="${this.onNewChatClick_}">
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <path d="M8 3.5v9M3.5 8h9"></path>
     </svg>
   </button>
-  <button class="icon" id="close" title="Close" aria-label="Close"
+  <button class="icon" id="close" title="${i18n('close')}"
+      aria-label="${i18n('close')}"
       @click="${this.onCloseClick_}">
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path>
@@ -37,14 +42,14 @@ export function getHtml(this: CompassClaudeChatAppElement) {
 <main id="messages" @click="${this.onMessagesClick_}">
   ${!this.hasKey_ ? html`
     <div class="empty">
-      <p class="lead">Chat with Claude about the page you're on.</p>
-      <p>Compass ships no key: add your own Anthropic API key in settings.</p>
+      <p class="lead">${i18n('claudeChatNoKeyLead')}</p>
+      <p>${i18n('claudeChatNoKey')}</p>
       <button id="openSettings" @click="${this.onOpenSettingsClick_}">
-        Add an API key
+        ${i18n('claudeChatAddKey')}
       </button>
     </div>` : html`${!this.hasTurns_() ? html`
     <div class="empty">
-      <p class="lead">Ask about the page you're on, or anything else.</p>
+      <p class="lead">${i18n('claudeChatEmptyLead')}</p>
       ${this.pageReadable_ ? html`
         <div class="suggestions">
           ${this.suggestions_.map(text => html`
@@ -60,9 +65,9 @@ export function getHtml(this: CompassClaudeChatAppElement) {
 
 <footer>
   ${this.streaming_ && this.taskTitle_ ? html`
-    <div id="using" class="chip using" title="Claude reads and acts in this tab">
+    <div id="using" class="chip using" title="${i18n('claudeChatUsingTooltip')}">
       <span class="pulse" aria-hidden="true"></span>
-      <span class="chip-text">Using ${this.taskTitle_}</span>
+      <span class="chip-text">${i18nF('claudeChatUsing', this.taskTitle_)}</span>
     </div>` : html`${this.pageReadable_ ? html`
     <button id="attach" class="chip" ?on="${this.attachPage_}"
         aria-pressed="${this.attachPage_}" title="${this.getAttachTitle_()}"
@@ -82,28 +87,30 @@ export function getHtml(this: CompassClaudeChatAppElement) {
       <div class="approval-buttons">
         ${this.approvals_.length > 1 ? html`
           <span class="approval-more">
-            ${this.approvals_.length - 1} more waiting
+            ${i18nPlural('claudeChatMoreWaiting', this.approvals_.length - 1)}
           </span>` : nothing}
         <span class="spacer"></span>
         <button class="approval-button" id="deny"
-            @click="${this.onDenyClick_}">Deny</button>
+            @click="${this.onDenyClick_}">${i18n('claudeChatDeny')}</button>
         <button class="approval-button" id="allowForChat"
-            @click="${this.onAllowForChatClick_}">Allow for this chat</button>
+            @click="${this.onAllowForChatClick_}">
+          ${i18n('claudeChatAllowForChat')}
+        </button>
         <button class="approval-button primary" id="allow"
-            @click="${this.onAllowClick_}">Allow</button>
+            @click="${this.onAllowClick_}">${i18n('claudeChatAllow')}</button>
       </div>
     </div>` : nothing}
   ${this.queued_.length ? html`
-    <div class="queued" id="queued" aria-label="Queued messages">
+    <div class="queued" id="queued" aria-label="${i18n('claudeChatQueued')}">
       <div class="queued-label">${this.getQueuedLabel_()}</div>
       ${this.queued_.map((item, index) => html`
         <div class="queued-item">
           <button class="queued-text" data-index="${index}"
-              title="Edit" @click="${this.onQueuedEditClick_}">
+              title="${i18n('edit')}" @click="${this.onQueuedEditClick_}">
             ${item.text}
           </button>
           <button class="icon queued-remove" data-index="${index}"
-              title="Remove" aria-label="Remove"
+              title="${i18n('remove')}" aria-label="${i18n('remove')}"
               @click="${this.onQueuedRemoveClick_}">
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M5 5l6 6M11 5l-6 6"></path>
@@ -112,25 +119,27 @@ export function getHtml(this: CompassClaudeChatAppElement) {
         </div>`)}
     </div>` : nothing}
   <div class="composer">
-    <textarea id="input" rows="1" placeholder="Ask Claude…"
-        aria-label="Message to Claude" ?disabled="${!this.hasKey_}"
+    <textarea id="input" rows="1" placeholder="${i18n('claudeChatPlaceholder')}"
+        aria-label="${i18n('claudeChatMessage')}" ?disabled="${!this.hasKey_}"
         @input="${this.onInputInput_}"
         @keydown="${this.onInputKeydown_}"></textarea>
     ${this.canQueue_() ? html`
-      <button class="send" id="queue" title="Send after this reply (Enter)"
-          aria-label="Send after this reply" @click="${this.onQueueClick_}">
+      <button class="send" id="queue" title="${i18n('claudeChatQueueTooltip')}"
+          aria-label="${i18n('claudeChatQueue')}" @click="${this.onQueueClick_}">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <path d="M8 12.5v-9M4 7.5l4-4 4 4"></path>
         </svg>
       </button>` : nothing}
     ${this.streaming_ ? html`
-      <button class="send" id="stop" title="Stop (Esc)" aria-label="Stop"
+      <button class="send" id="stop" title="${i18n('claudeChatStopTooltip')}"
+          aria-label="${i18n('claudeChatStop')}"
           @click="${this.onStopClick_}">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <rect x="4.5" y="4.5" width="7" height="7" rx="1"></rect>
         </svg>
       </button>` : html`
-      <button class="send" id="send" title="Send (Enter)" aria-label="Send"
+      <button class="send" id="send" title="${i18n('claudeChatSendTooltip')}"
+          aria-label="${i18n('claudeChatSend')}"
           ?disabled="${!this.canSend_()}" @click="${this.onSendClick_}">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <path d="M8 12.5v-9M4 7.5l4-4 4 4"></path>

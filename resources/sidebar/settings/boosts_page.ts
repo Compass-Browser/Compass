@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {i18n, i18nF} from '../i18n.js';
 import type {Boost} from '../sidebar.mojom-webui.js';
 import {SettingsHandler} from '../sidebar.mojom-webui.js';
 
@@ -14,10 +15,10 @@ function siteOf(match: string): string {
   return match.replace(/^\*\./, '').split('/')[0] || match;
 }
 
-// What a Boost's author shows as.
+// What a Boost's author shows as: its key in loadTimeData.
 const BADGES: Record<string, string> = {
-  claude: 'by Claude',
-  shared: 'Shared',
+  claude: 'boostsPageByClaude',
+  shared: 'boostsPageShared',
 };
 
 // Boosts: compass://settings/boosts (docs/design/boosts.md). The profile's
@@ -39,7 +40,7 @@ export class CompassBoostsPageElement extends CompassSettingsPage {
   private sharing_ = '';
 
   protected get pageTitle() {
-    return 'Boosts';
+    return i18n('boostsPageTitle');
   }
 
   protected getPageTemplate() {
@@ -134,7 +135,7 @@ export class CompassBoostsPageElement extends CompassSettingsPage {
     const enabled = document.createElement('input');
     enabled.type = 'checkbox';
     enabled.checked = boost.enabled;
-    enabled.setAttribute('aria-label', `Turn on ${boost.name}`);
+    enabled.setAttribute('aria-label', i18nF('boostsPageTurnOn', boost.name));
     enabled.addEventListener('change', async () => {
       await this.handler_.setBoostEnabled(boost.id, enabled.checked);
       await this.refresh_();
@@ -153,18 +154,18 @@ export class CompassBoostsPageElement extends CompassSettingsPage {
             .join(' + ');
 
     row.append(enabled, name, kinds);
-    const badgeText = BADGES[boost.author];
-    if (badgeText) {
+    const badgeKey = BADGES[boost.author];
+    if (badgeKey) {
       const badge = document.createElement('span');
       badge.className = 'boosts-badge';
-      badge.textContent = badgeText;
+      badge.textContent = i18n(badgeKey);
       row.append(badge);
     }
 
     const share = document.createElement('button');
     share.className = 'secondary boosts-share-button';
-    share.textContent = 'Share';
-    share.setAttribute('aria-label', `Share ${boost.name}`);
+    share.textContent = i18n('boostsPageShare');
+    share.setAttribute('aria-label', i18nF('boostsPageShareBoost', boost.name));
     share.setAttribute('aria-expanded', String(this.sharing_ === boost.id));
     share.addEventListener('click', () => {
       this.sharing_ = this.sharing_ === boost.id ? '' : boost.id;
@@ -173,13 +174,14 @@ export class CompassBoostsPageElement extends CompassSettingsPage {
 
     const edit = document.createElement('button');
     edit.className = 'secondary';
-    edit.textContent = 'Edit';
+    edit.textContent = i18n('edit');
     edit.addEventListener('click', () => this.openForm_(boost));
 
     const remove = document.createElement('button');
     remove.className = 'secondary';
-    remove.textContent = 'Delete';
-    remove.setAttribute('aria-label', `Delete ${boost.name}`);
+    remove.textContent = i18n('delete');
+    remove.setAttribute(
+        'aria-label', i18nF('boostsPageDeleteBoost', boost.name));
     remove.addEventListener('click', async () => {
       await this.handler_.deleteBoost(boost.id);
       if (this.editing_ === boost.id) {
@@ -202,20 +204,21 @@ export class CompassBoostsPageElement extends CompassSettingsPage {
 
     const copy = document.createElement('button');
     copy.className = 'secondary';
-    copy.textContent = 'Copy Link';
+    copy.textContent = i18n('boostsPageCopyLink');
     copy.hidden = true;
     copy.addEventListener('click', async () => {
       const {copied} = await this.handler_.copyBoostShareLink(boost.id);
-      note.textContent = copied ? 'Link copied.' : 'Couldn’t copy the link.';
+      note.textContent =
+          copied ? i18n('boostsPageLinkCopied') : i18n('boostsPageCopyFailed');
     });
 
     const save = document.createElement('button');
     save.className = 'secondary';
-    save.textContent = 'Save File…';
+    save.textContent = i18n('boostsPageSaveFile');
     save.addEventListener('click', async () => {
       const {saved} = await this.handler_.saveBoostFile(boost.id);
       if (saved) {
-        note.textContent = 'File saved.';
+        note.textContent = i18n('boostsPageFileSaved');
       }
     });
 
@@ -223,8 +226,7 @@ export class CompassBoostsPageElement extends CompassSettingsPage {
       copy.hidden = !link;
       item.dataset['link'] = link;
       if (!link) {
-        note.textContent =
-            'This Boost is too big for a link. Share it as a file.';
+        note.textContent = i18n('boostsPageTooBig');
       }
     });
     item.append(copy, save, note);
@@ -247,7 +249,7 @@ export class CompassBoostsPageElement extends CompassSettingsPage {
     let boost: Boost|null = null;
     if (!error) {
       if (!payload) {
-        error = 'This Boost link is broken: part of it may be missing.';
+        error = i18n('boostsPageBrokenLink');
       } else {
         ({boost, error} = await this.handler_.previewSharedBoost(payload));
       }
@@ -267,16 +269,12 @@ export class CompassBoostsPageElement extends CompassSettingsPage {
       this.$('importJs').textContent = boost.js;
       const hasJs = !!boost.js.trim();
       this.show('importJsBlock', hasJs);
-      this.$('importWarning').textContent = hasJs ?
-          `This Boost runs JavaScript on ${boost.match}. Only add it if ` +
-              'you trust whoever shared it.' :
-          '';
+      this.$('importWarning').textContent =
+          hasJs ? i18nF('boostsPageJsWarning', boost.match) : '';
       this.show('importWarning', hasJs);
       this.$('importWorld').textContent = boost.jsWorld === 'main' ?
-          'It runs with the page’s own scripts, so it can see and change ' +
-              'everything they do.' :
-          'It runs apart from the page’s scripts, with access to the ' +
-              'page itself.';
+          i18n('boostsPageRunsWithPage') :
+          i18n('boostsPageRunsApart');
     }
     this.show('boostImport', true);
     this.show('addBoost', false);

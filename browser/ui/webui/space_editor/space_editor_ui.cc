@@ -19,6 +19,7 @@
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/views/share_bubble/share_bubble.h"
 #include "compass/browser/ui/webui/bubble/bubble_look_mojo.h"
+#include "compass/browser/ui/webui/localized_strings/localized_strings.h"
 #include "compass/browser/ui/webui/sidebar/space_mojo.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/window_features.h"
@@ -60,6 +61,7 @@ CompassSpaceEditorUI::CompassSpaceEditorUI(content::WebUI* web_ui,
       content::WebUIDataSource::CreateAndAdd(profile, kCompassSpaceEditorHost);
   webui::SetupWebUIDataSource(source, kCompassSidebarResources,
                               IDR_COMPASS_SIDEBAR_SPACE_EDITOR_HTML);
+  AddSidebarPakLocalizedStrings(source);
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 }
 

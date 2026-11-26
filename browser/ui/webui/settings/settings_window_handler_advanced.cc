@@ -18,7 +18,9 @@
 #include "chrome/browser/profiles/profile.h"
 #include "compass/browser/ui/webui/settings/settings_window_handler.h"
 #include "compass/browser/updates/update_hooks.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/version_info/version_info.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass {
 
@@ -55,8 +57,9 @@ void SettingsWindowHandler::GetAbout(GetAboutCallback callback) {
 void SettingsWindowHandler::CheckForUpdates() {
   updates::Updater* updater = updates::GetUpdater();
   if (!updater) {
-    page_->UpdateStatusChanged(sidebar::mojom::UpdateState::kFailed, -1,
-                               "This build doesn't update itself.");
+    page_->UpdateStatusChanged(
+        sidebar::mojom::UpdateState::kFailed, -1,
+        l10n_util::GetStringUTF8(IDS_COMPASS_UPDATES_NOT_SUPPORTED));
     return;
   }
   updater->CheckNow(base::BindRepeating(

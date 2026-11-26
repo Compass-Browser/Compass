@@ -29,6 +29,7 @@
 #include "compass/browser/updates/update_hooks.h"
 #include "compass/browser/updates/update_manifest.h"
 #include "compass/browser/updates/update_prefs.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "net/base/load_flags.h"
@@ -36,6 +37,7 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
+#include "ui/base/l10n/l10n_util.h"
 
 // Windows updates: Compass reads its channel's manifest, downloads the newer
 // installer (Chromium's mini_installer), checks its size, hash and Ed25519
@@ -180,7 +182,8 @@ class WinUpdater : public Updater {
 
   void OnManifest(std::optional<std::string> body) {
     if (!body) {
-      Finish(CheckStatus::kFailed, u"Couldn't reach the update server.");
+      Finish(CheckStatus::kFailed,
+             l10n_util::GetStringUTF16(IDS_COMPASS_UPDATES_UNREACHABLE));
       return;
     }
     std::optional<ManifestEntry> entry = ParseChannelManifest(*body, "win");
@@ -236,7 +239,8 @@ class WinUpdater : public Updater {
 
   void OnDownloaded(base::FilePath path) {
     if (path.empty()) {
-      Finish(CheckStatus::kFailed, u"The update didn't download.");
+      Finish(CheckStatus::kFailed,
+             l10n_util::GetStringUTF16(IDS_COMPASS_UPDATES_DOWNLOAD_FAILED));
       return;
     }
     base::ThreadPool::PostTaskAndReplyWithResult(
@@ -252,7 +256,8 @@ class WinUpdater : public Updater {
                  << " doesn't match its manifest; not installing it";
       base::ThreadPool::PostTask(FROM_HERE, {base::MayBlock()},
                                  base::GetDeleteFileCallback(path));
-      Finish(CheckStatus::kFailed, u"The update didn't pass its checks.");
+      Finish(CheckStatus::kFailed,
+             l10n_util::GetStringUTF16(IDS_COMPASS_UPDATES_VERIFY_FAILED));
       return;
     }
     base::ThreadPool::PostTaskAndReplyWithResult(
@@ -267,7 +272,8 @@ class WinUpdater : public Updater {
     base::ThreadPool::PostTask(FROM_HERE, {base::MayBlock()},
                                base::GetDeleteFileCallback(path));
     if (exit_code < 0) {
-      Finish(CheckStatus::kFailed, u"The update didn't install.");
+      Finish(CheckStatus::kFailed,
+             l10n_util::GetStringUTF16(IDS_COMPASS_UPDATES_INSTALL_FAILED));
       return;
     }
     // setup.exe's success codes vary (NEW_VERSION_UPDATED, IN_USE_UPDATED,

@@ -6,6 +6,9 @@
 
 #include <utility>
 
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
+
 namespace compass::easels {
 
 // A page renders on Android only in a view attached to a window
@@ -15,7 +18,8 @@ namespace compass::easels {
 void RefreshCapture(Profile* profile,
                     const std::string& object_uuid,
                     base::OnceCallback<void(std::string error)> done) {
-  std::move(done).Run("Refresh isn't available on Android yet.");
+  std::move(done).Run(
+      l10n_util::GetStringUTF8(IDS_COMPASS_EASEL_REFRESH_ANDROID));
 }
 
 }  // namespace compass::easels

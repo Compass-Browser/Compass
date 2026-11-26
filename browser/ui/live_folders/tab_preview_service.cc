@@ -30,11 +30,13 @@
 #include "compass/browser/ui/live_folders/live_plugin_registry.h"
 #include "compass/browser/ui/live_folders/preview_session_fetcher.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 
 namespace compass {
@@ -414,7 +416,8 @@ void TabPreviewService::OnRun(std::string key,
       preview = it->second;
       preview->stale = true;
       preview->result.footer =
-          u"Last seen " + base::TimeFormatTimeOfDay(preview->time);
+          l10n_util::GetStringFUTF16(IDS_COMPASS_TAB_PREVIEW_LAST_SEEN,
+                                     base::TimeFormatTimeOfDay(preview->time));
     }
   }
   Finish(key, std::move(preview));

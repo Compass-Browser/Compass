@@ -66,6 +66,7 @@ source_set("sync") {
     "//compass/components/sync:controllers_hook",
     "//compass/components/sync:engine",
     "//compass/components/sync:notifier",
+    "//compass/strings:compass_strings",
     "//components/favicon/core",
     "//components/favicon_base",
     "//components/history/core/browser",
@@ -104,6 +105,7 @@ source_set("sync") {
     deps += [
       "//chrome/browser/gcm",
       "//compass/browser/android:spaces",
+
       # The sync server Compass sets up on Cloudflare (StartOnCloudflare()),
       # in chrome://easel's pak, the Compass pak Android ships.
       "//compass/resources/easel:resources",
@@ -114,10 +116,10 @@ source_set("sync") {
   } else {
     deps += [
       # The sync server Compass sets up on Cloudflare (StartOnCloudflare()).
-      "//compass/resources/sidebar:resources",
       "//chrome/browser/ui:browser_manager_service",
       "//chrome/browser/ui/navigator",
       "//chrome/browser/ui/tabs:tab_strip",
+      "//compass/resources/sidebar:resources",
     ]
   }
 }
@@ -141,8 +143,10 @@ source_set("settings") {
   ]
   deps = [
     "//compass/components/sync:engine",
+    "//compass/strings:compass_strings",
     "//components/prefs",
     "//components/sync/service",
+    "//ui/base",
   ]
 }
 

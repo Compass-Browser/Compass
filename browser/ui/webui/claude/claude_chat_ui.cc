@@ -10,6 +10,7 @@
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "compass/browser/ui/webui/claude/claude_chat_page_handler.h"
+#include "compass/browser/ui/webui/localized_strings/localized_strings.h"
 #include "compass/grit/compass_sidebar_resources.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
 #include "content/public/browser/url_data_source.h"
@@ -32,6 +33,7 @@ ClaudeChatUI::ClaudeChatUI(content::WebUI* web_ui)
       content::WebUIDataSource::CreateAndAdd(profile, kClaudeChatHost);
   webui::SetupWebUIDataSource(source, kCompassSidebarResources,
                               IDR_COMPASS_SIDEBAR_CLAUDE_CHAT_HTML);
+  AddSidebarPakLocalizedStrings(source);
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 }
 

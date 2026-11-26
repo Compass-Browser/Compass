@@ -7,6 +7,7 @@ import './icon.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n, i18nF} from '../i18n.js';
 import type {AboutInfo} from '../sidebar.mojom-webui.js';
 import {UpdateState} from '../sidebar.mojom-webui.js';
 
@@ -23,9 +24,9 @@ export interface Choice<T> {
 }
 
 export const UPDATE_CHANNELS: Array<Choice<string>> = [
-  {value: 'stable', label: 'Stable'},
-  {value: 'beta', label: 'Beta'},
-  {value: 'canary', label: 'Canary'},
+  {value: 'stable', label: i18n('aboutPaneChannelStable')},
+  {value: 'beta', label: i18n('aboutPaneChannelBeta')},
+  {value: 'canary', label: i18n('aboutPaneChannelCanary')},
 ];
 
 // About (docs/design/settings-window.md): Compass's icon, name and version,
@@ -72,19 +73,20 @@ export class CompassSettingsAboutPaneElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    this.focus_ = new URLSearchParams(window.location.search).get('focus') || '';
+    this.focus_ =
+        new URLSearchParams(window.location.search).get('focus') || '';
     prefs.addListener(this.prefListener_);
     prefs.load([PREF_UPDATE_CHANNEL]).then(() => this.prefsVersion_++);
     this.handler_.getAbout().then(
         ({about}: {about: AboutInfo}) => this.about_ = about);
-    this.listenerId_ = SettingsWindowBrowserProxy.getInstance()
-                           .callbackRouter.updateStatusChanged.addListener(
-                               (state: UpdateState, progress: number,
-                                message: string) => {
-                                 this.updateState_ = state;
-                                 this.updateProgress_ = progress;
-                                 this.updateMessage_ = message;
-                               });
+    this.listenerId_ =
+        SettingsWindowBrowserProxy.getInstance()
+            .callbackRouter.updateStatusChanged.addListener(
+                (state: UpdateState, progress: number, message: string) => {
+                  this.updateState_ = state;
+                  this.updateProgress_ = progress;
+                  this.updateMessage_ = message;
+                });
   }
 
   override disconnectedCallback() {
@@ -130,8 +132,8 @@ export class CompassSettingsAboutPaneElement extends CrLitElement {
     const channel = this.getChannelLabel_();
     // Development builds have no version of their own.
     const version = this.about_.compassVersion ?
-        `Version ${this.about_.compassVersion}` :
-        'Development build';
+        i18nF('aboutPaneVersion', this.about_.compassVersion) :
+        i18n('aboutPaneDevelopmentBuild');
     return version + (channel ? ` · ${channel}` : '');
   }
 
@@ -141,47 +143,47 @@ export class CompassSettingsAboutPaneElement extends CrLitElement {
 
   protected getUpdateLabel_(): string {
     if (this.about_ && !this.about_.canUpdate) {
-      return 'Updates are off';
+      return i18n('aboutPaneUpdatesOff');
     }
     if (this.isUpdateReady_()) {
-      return 'An update is ready';
+      return i18n('aboutPaneUpdateReady');
     }
     switch (this.updateState_) {
       case UpdateState.kChecking:
-        return 'Checking for updates…';
+        return i18n('aboutPaneChecking');
       case UpdateState.kUpdating:
-        return 'Downloading the update…';
+        return i18n('aboutPaneDownloading');
       case UpdateState.kUpToDate:
-        return 'Compass is up to date';
+        return i18n('aboutPaneUpToDate');
       case UpdateState.kFailed:
-        return 'Couldn\'t check for updates';
+        return i18n('aboutPaneCheckFailed');
       default:
-        return 'Updates';
+        return i18n('aboutPaneUpdates');
     }
   }
 
   protected getUpdateText_(): string {
     if (this.about_ && !this.about_.canUpdate) {
-      return 'This build doesn\'t update itself.';
+      return i18n('aboutPaneUpdatesOffDetail');
     }
     if (this.about_?.pendingVersion && this.updateState_ === null) {
-      return `Version ${this.about_.pendingVersion} is ready to install.`;
+      return i18nF('aboutPaneVersionReady', this.about_.pendingVersion);
     }
     switch (this.updateState_) {
       case UpdateState.kChecking:
-        return 'Checking for updates…';
+        return i18n('aboutPaneChecking');
       case UpdateState.kUpdating:
         return this.updateProgress_ >= 0 ?
-            `Downloading the update… ${this.updateProgress_}%` :
-            'Downloading the update…';
+            i18nF('aboutPaneDownloadingProgress', this.updateProgress_) :
+            i18n('aboutPaneDownloading');
       case UpdateState.kReady:
-        return 'The update is ready to install.';
+        return i18n('aboutPaneUpdateReadyDetail');
       case UpdateState.kUpToDate:
-        return 'Compass is up to date.';
+        return i18n('aboutPaneUpToDateDetail');
       case UpdateState.kFailed:
-        return this.updateMessage_ || 'Couldn\'t check for updates.';
+        return this.updateMessage_ || i18n('aboutPaneCheckFailedDetail');
       default:
-        return 'Compass checks for updates by itself.';
+        return i18n('aboutPaneAutoUpdateDetail');
     }
   }
 

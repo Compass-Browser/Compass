@@ -10,11 +10,13 @@
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
-#include "base/rand_util.h"
 #include "base/logging.h"
+#include "base/rand_util.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
-#include "base/strings/strcat.h"
+#include "base/strings/utf_string_conversions.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
@@ -22,6 +24,7 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::sync {
 namespace {
@@ -197,28 +200,26 @@ std::string CloudflareDeployer::Describe(const Result& result) {
       return std::string();
     case Error::kUnauthorized:
       return base::StrCat(
-          {"Cloudflare didn't accept the token. Check that it's complete "
-           "and can edit Workers.",
+          {l10n_util::GetStringUTF8(IDS_COMPASS_CLOUDFLARE_UNAUTHORIZED),
            result.detail.empty() && result.step.empty() ? "" : " (",
            result.step, result.step.empty() ? "" : ": ",
            base::NumberToString(result.status),
            result.detail.empty() ? "" : " ", result.detail,
            result.detail.empty() && result.step.empty() ? "" : ")"});
     case Error::kNoAccount:
-      return "The token can't use any Cloudflare account.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_CLOUDFLARE_NO_ACCOUNT);
     case Error::kApi:
       return result.detail.empty()
-                 ? "Cloudflare refused to set up the server."
-                 : base::StrCat({"Cloudflare refused: ", result.detail});
+                 ? l10n_util::GetStringUTF8(IDS_COMPASS_CLOUDFLARE_REFUSED)
+                 : l10n_util::GetStringFUTF8(
+                       IDS_COMPASS_CLOUDFLARE_REFUSED_WITH_DETAIL,
+                       base::UTF8ToUTF16(result.detail));
     case Error::kNetwork:
-      return "Couldn't reach Cloudflare. Check your connection and try "
-             "again.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_CLOUDFLARE_NETWORK);
     case Error::kNotReachable:
-      return "The server is set up but doesn't answer yet. Try again in a "
-             "few minutes.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_CLOUDFLARE_NOT_REACHABLE);
     case Error::kNotFound:
-      return "Your server isn't in the Cloudflare account you signed in "
-             "with. Sign in with the account it was set up in.";
+      return l10n_util::GetStringUTF8(IDS_COMPASS_CLOUDFLARE_NOT_FOUND);
   }
 }
 
@@ -233,7 +234,7 @@ void CloudflareDeployer::Update(const std::string& script_name,
   deployment_.subdomain = subdomain;
   progress_ = std::move(progress);
   callback_ = std::move(callback);
-  Progress("Finding your server on Cloudflare…");
+  Progress(l10n_util::GetStringUTF8(IDS_COMPASS_CLOUDFLARE_PROGRESS_FINDING));
   Call("GET", "/accounts?per_page=50", std::string(), std::string(),
        base::BindOnce(&CloudflareDeployer::OnAccounts,
                       weak_factory_.GetWeakPtr()));
@@ -247,7 +248,7 @@ void CloudflareDeployer::Deploy(const std::string& owner_chain_id,
   push_relay_ = push_relay;
   progress_ = std::move(progress);
   callback_ = std::move(callback);
-  Progress("Checking your Cloudflare account…");
+  Progress(l10n_util::GetStringUTF8(IDS_COMPASS_CLOUDFLARE_PROGRESS_CHECKING));
   Call("GET", "/accounts?per_page=50", std::string(), std::string(),
        base::BindOnce(&CloudflareDeployer::OnAccounts,
                       weak_factory_.GetWeakPtr()));
@@ -394,7 +395,7 @@ void CloudflareDeployer::OnSubdomain(int status,
 }
 
 void CloudflareDeployer::CreateSubdomain(int attempt) {
-  Progress("Making your workers.dev address…");
+  Progress(l10n_util::GetStringUTF8(IDS_COMPASS_CLOUDFLARE_PROGRESS_SUBDOMAIN));
   const std::string name = base::StrCat({"compass-", RandomLetters(8)});
   Call("PUT",
        base::StrCat({"/accounts/", deployment_.account_id,
@@ -477,8 +478,9 @@ void CloudflareDeployer::OnScripts(int status,
   const std::string migration_tag =
       existing == scripts.end() ? std::string() : existing->second;
 
-  Progress(update_ ? "Uploading the new version…"
-                   : "Uploading the sync server…");
+  Progress(l10n_util::GetStringUTF8(
+      update_ ? IDS_COMPASS_CLOUDFLARE_PROGRESS_UPLOADING_UPDATE
+              : IDS_COMPASS_CLOUDFLARE_PROGRESS_UPLOADING));
   const std::string boundary =
       base::StrCat({"compass-", RandomLetters(24)});
   std::string body;
@@ -531,8 +533,9 @@ void CloudflareDeployer::OnRouteEnabled(int status,
   deployment_.server_url =
       GURL(base::StrCat({"https://", deployment_.script_name, ".",
                          deployment_.subdomain, ".workers.dev/v2"}));
-  Progress(update_ ? "Waiting for the new version to answer…"
-                   : "Waiting for the server to come online…");
+  Progress(l10n_util::GetStringUTF8(
+      update_ ? IDS_COMPASS_CLOUDFLARE_PROGRESS_WAITING_UPDATE
+              : IDS_COMPASS_CLOUDFLARE_PROGRESS_WAITING));
   health_deadline_ = base::TimeTicks::Now() + health_timeout_;
   CheckHealth();
 }

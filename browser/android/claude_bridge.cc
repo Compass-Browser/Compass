@@ -9,30 +9,32 @@
 
 #include "base/android/jni_string.h"
 #include "base/files/file_util.h"
-#include "base/task/thread_pool.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
-#include "base/time/time.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/browser/android/claude_tabs_android.h"
+#include "compass/browser/boosts/boost_injector.h"
+#include "compass/browser/boosts/boost_store.h"
 #include "compass/browser/claude/ai_provider.h"
+#include "compass/browser/claude/chatgpt_account.h"
 #include "compass/browser/claude/claude_api.h"
 #include "compass/browser/claude/claude_client.h"
-#include "compass/browser/claude/chatgpt_account.h"
 #include "compass/browser/claude/claude_credentials.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "compass/browser/claude/claude_quick.h"
 #include "compass/browser/claude/claude_request.h"
 #include "compass/browser/claude/claude_tools.h"
-#include "compass/browser/android/claude_tabs_android.h"
-#include "compass/browser/boosts/boost_injector.h"
-#include "compass/browser/boosts/boost_store.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
@@ -40,6 +42,7 @@
 
 // Must come after the class declaration.
 #include "compass/android/jni_headers/ClaudeBridge_jni.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass {
 
@@ -131,11 +134,6 @@ base::FilePath PublicDownloads() {
       Java_ClaudeBridge_publicDownloads(jni_zero::AttachCurrentThread()));
 }
 
-// claude::kTokenRisksMessage, with where the switch is on Android.
-constexpr char kAndroidTokenRisksMessage[] =
-    "This is a token from `claude setup-token`, which uses your Claude "
-    "subscription. To use it, turn on \"Accept the risks of subscription "
-    "tokens\" in the Claude sheet's menu (Settings).";
 
 // Tool rounds for one question, at most.
 constexpr int kMaxToolRounds = 40;
@@ -445,7 +443,9 @@ void ClaudeBridge::SetApiKey(JNIEnv* env, const std::string& key) {
             if (!self) {
               return;
             }
-            self->error_ = saved ? std::string() : "Couldn't save the key.";
+            self->error_ =
+                saved ? std::string()
+                      : l10n_util::GetStringUTF8(IDS_COMPASS_AI_KEY_NOT_SAVED);
             self->Changed();
           },
           weak_factory_.GetWeakPtr()));
@@ -486,9 +486,8 @@ void ClaudeBridge::SignOutOfChatGPT(JNIEnv* env) {
         }
         self->chatgpt_note_ =
             revoked ? std::string()
-                    : "Signed out of Compass. OpenAI didn't confirm revoking "
-                      "the sign-in: you can disconnect Compass in ChatGPT's "
-                      "settings.";
+                    : l10n_util::GetStringUTF8(
+                          IDS_COMPASS_CHATGPT_SIGNED_OUT_NOT_REVOKED);
         self->Changed();
       },
       weak_factory_.GetWeakPtr()));
@@ -562,17 +561,20 @@ void ClaudeBridge::OnKey(std::string content, std::optional<std::string> key) {
                                    claude::AIProvider::kCompatible)) {
     Finish(endpoint.chatgpt || !key
                ? claude::ClaudeCredentials::MissingKeyMessage(profile_)
-               : base::StrCat({"Add your ",
-                               claude::ProviderDisplayName(endpoint.provider),
-                               " API key first."}));
+               : l10n_util::GetStringFUTF8(
+                     IDS_COMPASS_AI_ADD_PROVIDER_KEY,
+                     base::UTF8ToUTF16(
+                         claude::ProviderDisplayName(endpoint.provider))));
     return;
   }
   if (!endpoint.base_url.is_valid()) {
-    Finish("Enter the server's URL in Settings first.");
+    Finish(
+        l10n_util::GetStringUTF8(IDS_COMPASS_AI_ENTER_URL_IN_SETTINGS_ANDROID));
     return;
   }
   if (ChatModel(*profile_->GetPrefs()).empty()) {
-    Finish("Enter the server's model ID in Settings first.");
+    Finish(l10n_util::GetStringUTF8(
+        IDS_COMPASS_AI_ENTER_MODEL_IN_SETTINGS_ANDROID));
     return;
   }
   endpoint.api_key = *key;
@@ -581,7 +583,7 @@ void ClaudeBridge::OnKey(std::string content, std::optional<std::string> key) {
   // subscription tokens" on, as on the desktop and iOS (claude.md,
   // "Settings"); then as Claude Code, its line first in the system prompt.
   if (claude::NeedsTokenRisksAccepted(endpoint)) {
-    Finish(kAndroidTokenRisksMessage);
+    Finish(l10n_util::GetStringUTF8(IDS_COMPASS_AI_TOKEN_RISKS_ANDROID));
     return;
   }
   oauth_token_ = claude::UsesOAuthToken(endpoint);
@@ -858,10 +860,11 @@ void ClaudeBridge::OnDone(std::optional<std::string> error) {
   }
   // Why a reply ended early, as the desktop's and iOS's chats say.
   if (stop_reason_ == "refusal") {
-    messages_.push_back({"notice", "Claude declined to answer this."});
+    messages_.push_back(
+        {"notice", l10n_util::GetStringUTF8(IDS_COMPASS_AI_NOTICE_REFUSAL)});
   } else if (stop_reason_ == "max_tokens") {
     messages_.push_back(
-        {"notice", "The answer was cut off at its length limit."});
+        {"notice", l10n_util::GetStringUTF8(IDS_COMPASS_AI_NOTICE_MAX_TOKENS)});
   }
   if (content.empty()) {
     Finish(std::nullopt);
@@ -876,7 +879,7 @@ void ClaudeBridge::OnDone(std::optional<std::string> error) {
   }
   if (++rounds_ > kMaxToolRounds) {
     TrimConversation();
-    Finish("Claude used tools for too long; ask again to go on.");
+    Finish(l10n_util::GetStringUTF8(IDS_COMPASS_AI_TOO_MANY_TOOL_ROUNDS));
     return;
   }
   tool_results_ = base::ListValue();
@@ -1152,7 +1155,7 @@ void ClaudeBridge::UndoMemory(JNIEnv* env, int32_t undo_id) {
 void ClaudeBridge::AddMemory(JNIEnv* env, const std::string& text) {
   if (claude::ClaudeMemory* store = claude::ClaudeMemory::Get(profile_)) {
     if (!store->Add(text).has_value()) {
-      error_ = "Couldn't add the memory.";
+      error_ = l10n_util::GetStringUTF8(IDS_COMPASS_AI_MEMORY_NOT_ADDED);
       Changed();
     }
   }
@@ -1163,7 +1166,7 @@ void ClaudeBridge::UpdateMemory(JNIEnv* env,
                                 const std::string& text) {
   if (claude::ClaudeMemory* store = claude::ClaudeMemory::Get(profile_)) {
     if (!store->Update(id, text).has_value()) {
-      error_ = "Couldn't change the memory.";
+      error_ = l10n_util::GetStringUTF8(IDS_COMPASS_AI_MEMORY_NOT_CHANGED);
       Changed();
     }
   }
@@ -1244,9 +1247,7 @@ bool ClaudeBridge::SetEndpoint(JNIEnv* env,
     std::optional<GURL> url = claude::ParseBaseUrl(text, provider);
     if (!url) {
       test_ok_ = false;
-      test_result_ =
-          "That URL isn't usable: it must be https (http only to this "
-          "device), without a query.";
+      test_result_ = l10n_util::GetStringUTF8(IDS_COMPASS_AI_BASE_URL_INVALID);
       Changed();
       return false;
     }
@@ -1294,16 +1295,18 @@ void ClaudeBridge::TestConnection(JNIEnv* env) {
               fail(endpoint.chatgpt
                        ? claude::ClaudeCredentials::MissingKeyMessage(
                              self->profile_)
-                       : std::string("Enter an API key first."));
+                       : l10n_util::GetStringUTF8(
+                             IDS_COMPASS_CLAUDE_ENTER_API_KEY));
               return;
             }
             if (!endpoint.base_url.is_valid()) {
-              fail("Enter the server's URL first.");
+              fail(l10n_util::GetStringUTF8(IDS_COMPASS_AI_ENTER_URL));
               return;
             }
             endpoint.api_key = std::move(*key);
             if (claude::NeedsTokenRisksAccepted(endpoint)) {
-              fail(kAndroidTokenRisksMessage);
+              fail(
+                  l10n_util::GetStringUTF8(IDS_COMPASS_AI_TOKEN_RISKS_ANDROID));
               return;
             }
             self->test_client_ = std::make_unique<claude::ClaudeClient>(
@@ -1322,9 +1325,9 @@ void ClaudeBridge::TestConnection(JNIEnv* env) {
                   if (models.has_value()) {
                     self->api_models_ = std::move(*models);
                     const size_t count = self->api_models_.size();
-                    self->test_result_ = base::StrCat(
-                        {"Connected: ", base::NumberToString(count),
-                         count == 1 ? " model available." : " models available."});
+                    self->test_result_ = l10n_util::GetPluralStringFUTF8(
+                        IDS_COMPASS_AI_CONNECTED_MODELS,
+                        static_cast<int>(count));
                   } else {
                     self->test_result_ = models.error();
                   }

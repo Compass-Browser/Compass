@@ -9,12 +9,12 @@
 
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/no_destructor.h"
+#include "base/path_service.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/path_service.h"
-#include "base/memory/ref_counted.h"
-#include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -23,11 +23,13 @@
 #include "chrome/common/chrome_paths.h"
 #include "compass/browser/ui/claude/mcp_listener.h"
 #include "compass/browser/ui/claude/mcp_tabs.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "ui/base/base_window.h"
 #include "ui/base/interaction/element_identifier.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/views/widget/widget.h"
 
@@ -287,29 +289,32 @@ void McpBridge::Ask(Profile* profile,
   pending->done = std::move(done);
   const std::u16string name = base::UTF8ToUTF16(client);
   // With more than one profile, the one it asks about.
-  std::u16string title = name + u" wants to control Compass";
-  if (profiles_.size() > 1) {
-    title += u" in " + base::UTF8ToUTF16(McpTabs::NameOf(profile));
-  }
+  const bool several_profiles = profiles_.size() > 1;
+  const std::u16string title =
+      several_profiles
+          ? l10n_util::GetStringFUTF16(
+                IDS_COMPASS_MCP_DIALOG_TITLE_IN_PROFILE, name,
+                base::UTF8ToUTF16(McpTabs::NameOf(profile)))
+          : l10n_util::GetStringFUTF16(IDS_COMPASS_MCP_DIALOG_TITLE, name);
   std::unique_ptr<ui::DialogModel> model =
       ui::DialogModel::Builder()
           .SetTitle(title)
           .AddParagraph(ui::DialogModelLabel(
-              name +
-              u" is an app on this computer that uses Claude's tools in "
-              u"Compass. Allowed, it can read your tabs, take screenshots, "
-              u"read their consoles, run JavaScript, and click and type in "
-              u"them, signed in as you. Allow only apps you trust."))
+              l10n_util::GetStringFUTF16(IDS_COMPASS_MCP_DIALOG_BODY, name)))
           .AddCheckbox(kAlwaysAllowCheckbox,
-                       ui::DialogModelLabel(profiles_.size() > 1
-                                                ? u"Always allow " + name +
-                                                      u" in this profile"
-                                                : u"Always allow " + name))
-          .AddOkButton(base::BindOnce(&Pending::Allow, pending),
-                       ui::DialogModel::Button::Params().SetLabel(u"Allow"))
+                       ui::DialogModelLabel(l10n_util::GetStringFUTF16(
+                           several_profiles
+                               ? IDS_COMPASS_MCP_DIALOG_ALWAYS_ALLOW_IN_PROFILE
+                               : IDS_COMPASS_MCP_DIALOG_ALWAYS_ALLOW,
+                           name)))
+          .AddOkButton(
+              base::BindOnce(&Pending::Allow, pending),
+              ui::DialogModel::Button::Params().SetLabel(
+                  l10n_util::GetStringUTF16(IDS_COMPASS_MCP_DIALOG_ALLOW)))
           .AddCancelButton(
               base::BindOnce(&Pending::Answer, pending, McpApproval::kDeny),
-              ui::DialogModel::Button::Params().SetLabel(u"Deny"))
+              ui::DialogModel::Button::Params().SetLabel(
+                  l10n_util::GetStringUTF16(IDS_COMPASS_MCP_DIALOG_DENY)))
           .SetCloseActionCallback(
               base::BindOnce(&Pending::Answer, pending, McpApproval::kDeny))
           .Build();

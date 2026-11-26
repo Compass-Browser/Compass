@@ -24,8 +24,10 @@
 #include "build/build_config.h"
 #include "compass/browser/sidebar/sidebar_serializer.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "sql/database.h"
 #include "sql/statement.h"
+#include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_POSIX)
 #include <fcntl.h>
@@ -214,10 +216,11 @@ class ZenTreeBuilder {
         continue;
       }
       std::u16string name = base::UTF8ToUTF16(StringOr(folder, "name"));
-      arc::Item item =
-          MakeFolder(base::StrCat({id_prefix_, "folder:", entry.folder}),
-                     name.empty() ? u"Folder" : std::move(name),
-                     std::move(children));
+      arc::Item item = MakeFolder(
+          base::StrCat({id_prefix_, "folder:", entry.folder}),
+          name.empty() ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_FOLDER)
+                       : std::move(name),
+          std::move(children));
       if (folder.FindBool("splitViewGroup").value_or(false)) {
         item.kind = arc::Item::Kind::kSplit;
       }
@@ -465,8 +468,11 @@ std::vector<arc::Item> ReadFirefoxBookmarks(const base::FilePath& places,
       const std::string id = base::StrCat({id_prefix, "bookmark:", row.guid});
       if (row.type == 2) {
         std::u16string title = base::UTF8ToUTF16(row.title);
-        out.push_back(MakeFolder(id, title.empty() ? u"Folder" : title,
-                                 self(self, row.id)));
+        out.push_back(MakeFolder(
+            id,
+            title.empty() ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_FOLDER)
+                          : title,
+            self(self, row.id)));
       } else if (row.type == 1) {
         GURL url(row.url);
         if (!IsRestorableURL(url) || url.SchemeIs("place") ||
@@ -484,20 +490,21 @@ std::vector<arc::Item> ReadFirefoxBookmarks(const base::FilePath& places,
   }
   struct Root {
     const char* guid;
-    const char16_t* name;
+    int name_id;
   };
-  for (const Root root : {Root{"menu________", u"Bookmarks Menu"},
-                          Root{"unfiled_____", u"Other Bookmarks"},
-                          Root{"mobile______", u"Mobile Bookmarks"}}) {
+  for (const Root root :
+       {Root{"menu________", IDS_COMPASS_IMPORT_BOOKMARKS_MENU},
+        Root{"unfiled_____", IDS_COMPASS_IMPORT_FIREFOX_OTHER_BOOKMARKS},
+        Root{"mobile______", IDS_COMPASS_IMPORT_FIREFOX_MOBILE_BOOKMARKS}}) {
     const auto it = roots.find(root.guid);
     if (it == roots.end()) {
       continue;
     }
     std::vector<arc::Item> entries = build(build, it->second);
     if (!entries.empty()) {
-      items.push_back(MakeFolder(base::StrCat({id_prefix, "bookmark:",
-                                               root.guid}),
-                                 root.name, std::move(entries)));
+      items.push_back(MakeFolder(
+          base::StrCat({id_prefix, "bookmark:", root.guid}),
+          l10n_util::GetStringUTF16(root.name_id), std::move(entries)));
     }
   }
   return items;
@@ -714,7 +721,9 @@ ImportedSidebar ZenSidebar(const SourceProfile& profile,
       arc::Space out;
       out.id = base::StrCat({prefix, "space:", uuid});
       std::u16string name = base::UTF8ToUTF16(StringOr(*space, "name"));
-      out.name = name.empty() ? u"Space" : std::move(name);
+      out.name = name.empty()
+                     ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_SPACE)
+                     : std::move(name);
       // An emoji; Zen's own icons are chrome:// paths.
       const std::string icon = StringOr(*space, "icon");
       if (!icon.empty() && icon.find_first_of(":/") == std::string::npos) {

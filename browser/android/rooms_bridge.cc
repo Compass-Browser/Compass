@@ -20,6 +20,8 @@
 
 // Must come after the class declaration.
 #include "compass/android/jni_headers/RoomsBridge_jni.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass {
 
@@ -61,16 +63,9 @@ std::string RoomsBridge::Snapshot(JNIEnv* env) {
   base::ListValue notices;
   if (rooms_) {
     for (const rooms::RemovedNotice& notice : rooms_->GetRemovedNotices()) {
-      const std::string name =
-          notice.name.empty() ? "A shared " + notice.kind
-                              : "“" + notice.name + "”";
       notices.Append(base::DictValue()
                          .Set("room_id", notice.room_id)
-                         .Set("text", name +
-                                          (notice.deleted
-                                               ? " is no longer shared."
-                                               : ": you were removed.") +
-                                          " Your copy stays here."));
+                         .Set("text", rooms::RemovedNoticeText(notice)));
     }
   }
   snapshot.Set("notices", std::move(notices));
@@ -162,7 +157,9 @@ void RoomsBridge::Share(JNIEnv* env,
                         const std::string& kind,
                         const std::string& id) {
   if (!rooms_) {
-    Answer(request, base::DictValue().Set("error", "Sharing isn't available."));
+    Answer(request, base::DictValue().Set(
+                        "error", l10n_util::GetStringUTF8(
+                                     IDS_COMPASS_ROOMS_SHARING_UNAVAILABLE)));
     return;
   }
   rooms_->Share(kind, id,
@@ -182,7 +179,9 @@ void RoomsBridge::GetRoom(JNIEnv* env,
                           int32_t request,
                           const std::string& room_id) {
   if (!rooms_) {
-    Answer(request, base::DictValue().Set("error", "Not shared."));
+    Answer(request,
+           base::DictValue().Set("error", l10n_util::GetStringUTF8(
+                                              IDS_COMPASS_ROOMS_NOT_SHARED)));
     return;
   }
   rooms_->GetRoomView(
@@ -239,7 +238,9 @@ void RoomsBridge::CreateInviteLink(JNIEnv* env,
                                    int32_t uses) {
   if (!rooms_ || (role != sync::rooms::kRoleEditor &&
                   role != sync::rooms::kRoleViewer)) {
-    Answer(request, base::DictValue().Set("error", "Not shared."));
+    Answer(request,
+           base::DictValue().Set("error", l10n_util::GetStringUTF8(
+                                              IDS_COMPASS_ROOMS_NOT_SHARED)));
     return;
   }
   rooms_->CreateInviteLink(
@@ -343,7 +344,9 @@ void RoomsBridge::Join(JNIEnv* env,
                        const std::string& link,
                        const std::string& space_id) {
   if (!rooms_) {
-    Answer(request, base::DictValue().Set("error", "Sharing isn't available."));
+    Answer(request, base::DictValue().Set(
+                        "error", l10n_util::GetStringUTF8(
+                                     IDS_COMPASS_ROOMS_SHARING_UNAVAILABLE)));
     return;
   }
   rooms_->Join(link, space_id,

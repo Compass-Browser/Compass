@@ -18,7 +18,11 @@ source_set("store") {
     "//chrome/browser/profiles:profile",
     "//components/keyed_service/core",
   ]
-  deps = [ "//url" ]
+  deps = [
+    "//compass/strings:compass_strings",
+    "//ui/base",
+    "//url",
+  ]
 }
 
 # Sharing: a Boost as a link or a file, and back (docs/design/boosts.md,
@@ -31,7 +35,9 @@ source_set("share") {
   public_deps = [ ":store" ]
   deps = [
     "//base",
+    "//compass/strings:compass_strings",
     "//third_party/zlib",
+    "//ui/base",
     "//url",
   ]
 }

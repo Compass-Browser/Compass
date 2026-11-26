@@ -7,12 +7,15 @@ import './icon.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {i18n} from '../i18n.js';
+
 import {getHtml} from './advanced_pane.html.js';
 import {SettingsWindowBrowserProxy} from './browser_proxy.js';
 import type {PrefValue} from './prefs.js';
 import {prefs} from './prefs.js';
 
-export const PREF_MEMORY_SAVER = 'performance_tuning.high_efficiency_mode.state';
+export const PREF_MEMORY_SAVER =
+    'performance_tuning.high_efficiency_mode.state';
 export const PREF_ENERGY_SAVER = 'performance_tuning.battery_saver_mode.state';
 export const PREF_LIVE_CAPTION = 'accessibility.captions.live_caption_enabled';
 export const PREF_FOCUS_HIGHLIGHT = 'settings.a11y.focus_highlight';
@@ -25,10 +28,10 @@ export interface Choice<T> {
 
 // performance_manager::user_tuning::prefs::BatterySaverModeState.
 export const ENERGY_SAVER_MODES: Array<Choice<number>> = [
-  {value: 0, label: 'Off'},
-  {value: 1, label: 'When the battery is low'},
-  {value: 2, label: 'When unplugged'},
-  {value: 3, label: 'Always'},
+  {value: 0, label: i18n('advancedPaneEnergySaverOff')},
+  {value: 1, label: i18n('advancedPaneEnergySaverBatteryLow')},
+  {value: 2, label: i18n('advancedPaneEnergySaverUnplugged')},
+  {value: 3, label: i18n('advancedPaneEnergySaverAlways')},
 ];
 
 // Advanced (docs/design/settings-window.md, phase 5): performance,
@@ -72,15 +75,17 @@ export class CompassSettingsAdvancedPaneElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    this.focus_ = new URLSearchParams(window.location.search).get('focus') || '';
+    this.focus_ =
+        new URLSearchParams(window.location.search).get('focus') || '';
     prefs.addListener(this.prefListener_);
-    prefs.load([
-           PREF_MEMORY_SAVER,
-           PREF_ENERGY_SAVER,
-           PREF_LIVE_CAPTION,
-           PREF_FOCUS_HIGHLIGHT,
-           PREF_CARET_BROWSING,
-         ])
+    prefs
+        .load([
+          PREF_MEMORY_SAVER,
+          PREF_ENERGY_SAVER,
+          PREF_LIVE_CAPTION,
+          PREF_FOCUS_HIGHLIGHT,
+          PREF_CARET_BROWSING,
+        ])
         .then(() => this.prefsVersion_++);
   }
 
@@ -119,16 +124,17 @@ export class CompassSettingsAdvancedPaneElement extends CrLitElement {
 
   protected getResetText_(): string {
     if (this.resetting_) {
-      return 'Resetting…';
+      return i18n('advancedPaneResetting');
     }
-    return this.resetDone_ ? 'Settings were reset.' :
-                             'Search engine, permissions, startup and more.';
+    return this.resetDone_ ? i18n('advancedPaneResetDone') :
+                             i18n('advancedPaneResetSettingsDetail');
   }
 
   // Events.
 
   protected onMemorySaverChange_(e: Event) {
-    prefs.set(PREF_MEMORY_SAVER, (e.target as HTMLInputElement).checked ? 2 : 0);
+    prefs.set(
+        PREF_MEMORY_SAVER, (e.target as HTMLInputElement).checked ? 2 : 0);
   }
 
   protected onEnergySaverChange_(e: Event) {

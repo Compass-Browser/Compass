@@ -18,6 +18,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/webui/theme_source.h"
+#include "compass/browser/ui/webui/localized_strings/localized_strings.h"
 #include "components/tabs/public/tab_interface.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -65,6 +66,7 @@ CompassArcImportUI::CompassArcImportUI(content::WebUI* web_ui)
   // Shares the sidebar's resource pak; only the default page differs.
   webui::SetupWebUIDataSource(source, kCompassSidebarResources,
                               IDR_COMPASS_SIDEBAR_ARC_IMPORT_HTML);
+  AddSidebarPakLocalizedStrings(source);
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 }
 

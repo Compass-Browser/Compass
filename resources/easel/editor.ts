@@ -16,19 +16,25 @@ import type {Point, Rect} from './geometry.js';
 import {boxAround, distance, intersects, rectFromPoints, rectOf, scalePoints, unionRects} from './geometry.js';
 import type {Change} from './history.js';
 import {History} from './history.js';
+import {i18n, i18nF} from './i18n.js';
 import {icon} from './icons.js';
 import {asWebUrl, blankObject, byZ, cloneObject, colorOf, COLORS, DEFAULT_STROKE_WIDTH, FONTS, hasColor, MAX_OBJECTS, MAX_TEXT_CHARS, maxZ, minZ, newUuid, PALETTES, paletteOf, ShapeKind, TEXT_STYLES, urlOf} from './model.js';
 
 type Tool = 'select'|'text'|'rectangle'|'circle'|'arrow'|'pen';
 
 const TOOLS: Array<{tool: Tool, name: string, key: string}> = [
-  {tool: 'select', name: 'Select', key: 'v'},
-  {tool: 'text', name: 'Text', key: 't'},
-  {tool: 'rectangle', name: 'Rectangle', key: 'r'},
-  {tool: 'circle', name: 'Circle', key: 'o'},
-  {tool: 'arrow', name: 'Arrow', key: 'a'},
-  {tool: 'pen', name: 'Pen', key: 'p'},
+  {tool: 'select', name: i18n('easelToolSelect'), key: 'v'},
+  {tool: 'text', name: i18n('easelToolText'), key: 't'},
+  {tool: 'rectangle', name: i18n('easelToolRectangle'), key: 'r'},
+  {tool: 'circle', name: i18n('easelToolCircle'), key: 'o'},
+  {tool: 'arrow', name: i18n('easelToolArrow'), key: 'a'},
+  {tool: 'pen', name: i18n('easelToolPen'), key: 'p'},
 ];
+
+// A button's label with its shortcut: "Pen (P)".
+function withKey(label: string, key: string): string {
+  return i18nF('easelWithShortcut', label, key);
+}
 
 // Copied objects, on the clipboard beside their text.
 const CLIPBOARD_TYPE = 'application/x-compass-easel';
@@ -226,7 +232,7 @@ export class Editor {
     this.root_.toggleAttribute('view-only', this.viewOnly_);
     if (this.titleInput_) {
       this.titleInput_.readOnly = this.viewOnly_;
-      this.titleInput_.title = this.viewOnly_ ? 'View only' : '';
+      this.titleInput_.title = this.viewOnly_ ? i18n('easelViewOnly') : '';
     }
     if (this.paletteSelect_) {
       this.paletteSelect_.disabled = this.viewOnly_;
@@ -272,20 +278,19 @@ export class Editor {
 
   private showMissing_(state: EaselState) {
     this.loaded_ = false;
-    document.title = 'Easel';
+    document.title = i18n('easelName');
     const message = state === EaselState.kUnavailable ?
-        'Easels aren\'t available in Incognito and Guest windows.' :
-        'This Easel isn\'t on this device. It may have been deleted, or ' +
-            'not synced here yet.';
+        i18n('easelUnavailable') :
+        i18n('easelMissing');
     this.root_.replaceChildren(el('div', {className: 'missing'}, [
       el('p', {text: message}),
-      el('a', {text: 'All Easels', attrs: {'href': '/'}}),
+      el('a', {text: i18n('easelAllEasels'), attrs: {'href': '/'}}),
     ]));
     this.view_ = null;
   }
 
   private updateDocumentTitle_() {
-    document.title = this.title_ || 'Untitled Easel';
+    document.title = this.title_ || i18n('easelUntitled');
   }
 
   private sorted_(): EaselObject[] {
@@ -298,7 +303,7 @@ export class Editor {
   private build_() {
     const viewport = el('div', {
       className: 'viewport',
-      attrs: {'tabindex': '0', 'aria-label': 'Easel'},
+      attrs: {'tabindex': '0', 'aria-label': i18n('easelName')},
     });
     this.view_ = new BoardView(viewport);
 
@@ -328,15 +333,15 @@ export class Editor {
   private buildHeader_(): HTMLElement {
     const back = el('a', {
       className: 'back',
-      text: 'Easels',
-      attrs: {'href': '/', 'title': 'All Easels'},
+      text: i18n('easelList'),
+      attrs: {'href': '/', 'title': i18n('easelAllEasels')},
     });
     const title = el('input', {
       className: 'title',
       attrs: {
         'type': 'text',
-        'aria-label': 'Title',
-        'placeholder': 'Untitled Easel',
+        'aria-label': i18n('easelTitleLabel'),
+        'placeholder': i18n('easelUntitled'),
         'maxlength': '200',
         'spellcheck': 'false',
       },
@@ -359,7 +364,10 @@ export class Editor {
 
     const palette = el('select', {
       className: 'palette',
-      attrs: {'aria-label': 'Background', 'title': 'Background'},
+      attrs: {
+        'aria-label': i18n('easelBackground'),
+        'title': i18n('easelBackground'),
+      },
     });
     for (const p of PALETTES) {
       palette.appendChild(el('option', {text: p.name, attrs: {'value': p.value}}));
@@ -371,11 +379,12 @@ export class Editor {
     });
     this.paletteSelect_ = palette;
 
-    this.zoomLabel_ = button('Zoom to 100%', 'zoom', () => {
+    this.zoomLabel_ = button(i18n('easelZoomTo100'), 'zoom', () => {
       this.zoomAround_(this.viewportCenterClient_(), 1);
     });
-    const fit = button('Fit (Shift+1)', 'icon-button', () => this.fit_(),
-                       icon('fit'));
+    const fit = button(
+        withKey(i18n('easelFit'), `${i18n('easelShiftKey')}+1`),
+        'icon-button', () => this.fit_(), icon('fit'));
 
     return el('header', {className: 'topbar'}, [
       back,
@@ -390,12 +399,12 @@ export class Editor {
   private buildToolbar_(): HTMLElement {
     const tools = el('div', {className: 'group', attrs: {'role': 'toolbar'}});
     for (const {tool, name, key} of TOOLS) {
-      const b = button(`${name} (${key.toUpperCase()})`, 'icon-button',
+      const b = button(withKey(name, key.toUpperCase()), 'icon-button',
                        () => this.setTool_(tool), icon(tool));
       this.toolButtons_.set(tool, b);
       tools.appendChild(b);
     }
-    tools.appendChild(button('Image (I)', 'icon-button',
+    tools.appendChild(button(withKey(i18n('easelToolImage'), 'I'), 'icon-button',
                              () => this.fileInput_?.click(), icon('image')));
 
     const colors = el('div', {className: 'group colors'});
@@ -412,14 +421,14 @@ export class Editor {
     }
 
     // Shown for a selection.
-    this.styleSelect_ = el('select', {attrs: {'aria-label': 'Text style'}});
+    this.styleSelect_ = el('select', {attrs: {'aria-label': i18n('easelTextStyle')}});
     for (const s of TEXT_STYLES) {
       this.styleSelect_.appendChild(
           el('option', {text: s.name, attrs: {'value': s.value}}));
     }
     this.styleSelect_.addEventListener(
         'change', () => this.setTextField_('style', this.styleSelect_!.value));
-    this.fontSelect_ = el('select', {attrs: {'aria-label': 'Font'}});
+    this.fontSelect_ = el('select', {attrs: {'aria-label': i18n('easelFont')}});
     for (const f of FONTS) {
       this.fontSelect_.appendChild(
           el('option', {text: f.name, attrs: {'value': f.value}}));
@@ -429,23 +438,26 @@ export class Editor {
     this.textBar_ = el('div', {className: 'group'},
                        [this.styleSelect_, this.fontSelect_]);
     this.fillButton_ =
-        button('Fill', 'icon-button', () => this.toggleFill_(), icon('fill'));
+        button(
+        i18n('easelFill'), 'icon-button', () => this.toggleFill_(), icon('fill'));
     this.arrangeBar_ = el('div', {className: 'group'}, [
       this.fillButton_,
-      button('Bring to front (])', 'icon-button', () => this.arrange_(true),
+      button(withKey(i18n('easelBringToFront'), ']'), 'icon-button', () => this.arrange_(true),
              icon('front')),
-      button('Send to back ([)', 'icon-button', () => this.arrange_(false),
+      button(withKey(i18n('easelSendToBack'), '['), 'icon-button', () => this.arrange_(false),
              icon('back')),
-      button('Duplicate (⌘D)', 'icon-button', () => this.duplicate_(),
+      button(withKey(i18n('easelDuplicate'), '⌘D'), 'icon-button', () => this.duplicate_(),
              icon('duplicate')),
-      button('Delete (⌫)', 'icon-button', () => this.deleteSelection_(),
+      button(withKey(i18n('easelDelete'), '⌫'), 'icon-button', () => this.deleteSelection_(),
              icon('delete')),
     ]);
 
     this.undoButton_ =
-        button('Undo (⌘Z)', 'icon-button', () => this.undo_(), icon('undo'));
+        button(withKey(i18n('easelUndo'), '⌘Z'), 'icon-button',
+               () => this.undo_(), icon('undo'));
     this.redoButton_ =
-        button('Redo (⇧⌘Z)', 'icon-button', () => this.redo_(), icon('redo'));
+        button(withKey(i18n('easelRedo'), '⇧⌘Z'), 'icon-button',
+               () => this.redo_(), icon('redo'));
     const history =
         el('div', {className: 'group'}, [this.undoButton_, this.redoButton_]);
 
@@ -1255,26 +1267,26 @@ export class Editor {
     if (only && selected.length === 1) {
       const url = urlOf(only);
       if (url) {
-        items.push(['Open', () => this.proxy_.handler.openUrl(url)]);
+        items.push([i18n('easelOpen'), () => this.proxy_.handler.openUrl(url)]);
       }
       if (only.kind === ObjectKind.kCapture) {
-        items.push(['Refresh', () => void this.refreshCapture_(only.uuid)]);
+        items.push([i18n('easelMenuRefresh'), () => void this.refreshCapture_(only.uuid)]);
       }
       if (only.kind === ObjectKind.kText) {
-        items.push(['Edit Text', () => this.startEditing_(only.uuid, false)]);
+        items.push([i18n('easelMenuEditText'), () => this.startEditing_(only.uuid, false)]);
       }
     }
     if (selected.length) {
-      items.push(['Bring to Front', () => this.arrange_(true)]);
-      items.push(['Send to Back', () => this.arrange_(false)]);
-      items.push(['Duplicate', () => this.duplicate_()]);
-      items.push(['Delete', () => this.deleteSelection_()]);
+      items.push([i18n('easelMenuBringToFront'), () => this.arrange_(true)]);
+      items.push([i18n('easelMenuSendToBack'), () => this.arrange_(false)]);
+      items.push([i18n('easelDuplicate'), () => this.duplicate_()]);
+      items.push([i18n('easelDelete'), () => this.deleteSelection_()]);
     } else {
-      items.push(['Add Text Here', () => this.addText_(
+      items.push([i18n('easelMenuAddTextHere'), () => this.addText_(
                                          this.view_!.toBoard(
                                              e.clientX, e.clientY))]);
-      items.push(['Add Image…', () => this.fileInput_?.click()]);
-      items.push(['Fit', () => this.fit_()]);
+      items.push([i18n('easelMenuAddImage'), () => this.fileInput_?.click()]);
+      items.push([i18n('easelFit'), () => this.fit_()]);
     }
     this.showMenu_(e.clientX, e.clientY, items);
   }
@@ -1305,9 +1317,9 @@ export class Editor {
   }
 
   private async refreshCapture_(uuid: string) {
-    toast('Refreshing…');
+    toast(i18n('easelRefreshing'));
     const {error} = await this.proxy_.handler.refreshCapture(uuid);
-    toast(error || 'Refreshed');
+    toast(error || i18n('easelRefreshed'));
     this.scheduleRefresh_(0);
   }
 
@@ -1428,7 +1440,7 @@ export class Editor {
 
   private add_(objects: EaselObject[], select = true) {
     if (this.objects_.size + objects.length > MAX_OBJECTS) {
-      toast('This Easel is full (1,000 objects). Delete some first.');
+      toast(i18nF('easelFull', MAX_OBJECTS.toLocaleString()));
       return;
     }
     this.commit_(objects.map(o => ({before: null, after: o})));
@@ -1637,7 +1649,7 @@ export class Editor {
         continue;
       }
       if (file.size > 32 * 1024 * 1024) {
-        toast('The image is too large.');
+        toast(i18n('easelImageTooLarge'));
         continue;
       }
       const bytes = new Uint8Array(await file.arrayBuffer());
@@ -1662,7 +1674,7 @@ export class Editor {
   }
 
   private async addLink_(url: string, at: Point) {
-    toast('Adding link…');
+    toast(i18n('easelAddingLink'));
     const {link} = await this.proxy_.handler.addLink(url);
     if (!link) {
       this.addText_(at, url);

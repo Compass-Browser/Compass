@@ -60,6 +60,7 @@ source_set("rooms") {
     "//chrome/browser/sync:factories",
     "//compass/browser/easels:store",
     "//compass/components/sync:engine",
+    "//compass/strings:compass_strings",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
     "//components/pref_registry",
@@ -67,6 +68,7 @@ source_set("rooms") {
     "//components/sync_device_info",
     "//content/public/browser",
     "//services/network/public/cpp",
+    "//ui/base",
   ]
   if (is_android) {
     deps += [ "//compass/browser/android:spaces" ]

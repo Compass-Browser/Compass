@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- chrome://easel: the list of Easels and a board's editor
+(resources/easel/, browser/ui/webui/localized_strings/easel_strings.cc). -->
+<grit-part>
+  <message name="IDS_COMPASS_EASEL_ADDING_LINK" desc="Message shown briefly at the bottom of a board while a pasted or dropped link becomes a link card.">
+    Adding link…
+  </message>
+  <message name="IDS_COMPASS_EASEL_ALL_EASELS" desc="Link (and its tooltip) from a board back to the list of all the user's Easels (Compass's whiteboards).">
+    All Easels
+  </message>
+  <message name="IDS_COMPASS_EASEL_BACKGROUND" desc="Accessible name and tooltip of the menu that picks a board's background (paper, grid, dots, dark).">
+    Background
+  </message>
+  <message name="IDS_COMPASS_EASEL_BRING_TO_FRONT" desc="Tooltip of the toolbar button that moves the selected objects above every other object on the board.">
+    Bring to front
+  </message>
+  <message name="IDS_COMPASS_EASEL_CANCEL" desc="Button that closes the dialog asking whether to delete an Easel, without deleting it.">
+    Cancel
+  </message>
+  <message name="IDS_COMPASS_EASEL_COLOR_BLUE" desc="Name of a color for text and shapes on a board.">
+    Blue
+  </message>
+  <message name="IDS_COMPASS_EASEL_COLOR_GREEN" desc="Name of a color for text and shapes on a board.">
+    Green
+  </message>
+  <message name="IDS_COMPASS_EASEL_COLOR_GREY" desc="Name of a color for text and shapes on a board.">
+    Grey
+  </message>
+  <message name="IDS_COMPASS_EASEL_COLOR_INK" desc="Name of the default color for text and shapes on a board: dark on a light background, light on a dark one.">
+    Ink
+  </message>
+  <message name="IDS_COMPASS_EASEL_COLOR_ORANGE" desc="Name of a color for text and shapes on a board.">
+    Orange
+  </message>
+  <message name="IDS_COMPASS_EASEL_COLOR_PURPLE" desc="Name of a color for text and shapes on a board.">
+    Purple
+  </message>
+  <message name="IDS_COMPASS_EASEL_COLOR_RED" desc="Name of a color for text and shapes on a board.">
+    Red
+  </message>
+  <message name="IDS_COMPASS_EASEL_COLOR_YELLOW" desc="Name of a color for text and shapes on a board.">
+    Yellow
+  </message>
+  <message name="IDS_COMPASS_EASEL_DELETE" desc="Button or menu item that deletes an Easel, or the selected objects on a board.">
+    Delete
+  </message>
+  <message name="IDS_COMPASS_EASEL_DELETE_DETAIL" desc="Detail in the dialog asking whether to delete an Easel (a board): what deleting it does.">
+    Its text, drawings, images and links are deleted on every device. Tabs that show it stay, and say it's gone.
+  </message>
+  <message name="IDS_COMPASS_EASEL_DELETE_QUESTION" desc="Question in the dialog asking whether to delete an Easel (a board), with its title.">
+    Delete “<ph name="EASEL_TITLE">$1<ex>Moodboard</ex></ph>”?
+  </message>
+  <message name="IDS_COMPASS_EASEL_DUPLICATE" desc="Button or menu item that makes a copy of the selected objects on a board.">
+    Duplicate
+  </message>
+  <message name="IDS_COMPASS_EASEL_FILL" desc="Tooltip of the toolbar button that fills the selected shapes with their color, or empties them.">
+    Fill
+  </message>
+  <message name="IDS_COMPASS_EASEL_FIT" desc="Button or menu item that zooms a board so all its objects fit in the window.">
+    Fit
+  </message>
+  <message name="IDS_COMPASS_EASEL_FONT" desc="Accessible name of the menu that picks the font of the selected text.">
+    Font
+  </message>
+  <message name="IDS_COMPASS_EASEL_FONT_HAND" desc="Name of a handwriting-like font for text on a board.">
+    Hand
+  </message>
+  <message name="IDS_COMPASS_EASEL_FONT_MONO" desc="Name of a monospaced font for text on a board.">
+    Mono
+  </message>
+  <message name="IDS_COMPASS_EASEL_FONT_SANS" desc="Name of a sans-serif font for text on a board.">
+    Sans
+  </message>
+  <message name="IDS_COMPASS_EASEL_FONT_SERIF" desc="Name of a serif font for text on a board.">
+    Serif
+  </message>
+  <message name="IDS_COMPASS_EASEL_FULL" desc="Message shown at the bottom of a board when adding objects would go over the most a board can hold.">
+    This Easel is full (<ph name="MAX_OBJECTS">$1<ex>1,000</ex></ph> objects). Delete some first.
+  </message>
+  <message name="IDS_COMPASS_EASEL_IMAGE_TOO_LARGE" desc="Message shown at the bottom of a board when an image added to it is over the size limit.">
+    The image is too large.
+  </message>
+  <message name="IDS_COMPASS_EASEL_ITEM_COUNT" desc="How many objects (texts, shapes, images, links) a board has, in the list of Easels.">
+    {COUNT, plural, =1 {1 item} other {# items}}
+  </message>
+  <message name="IDS_COMPASS_EASEL_LIST" desc="Title of the page that lists the user's Easels (Compass's whiteboards), and the link back to it from a board.">
+    Easels
+  </message>
+  <message name="IDS_COMPASS_EASEL_MENU_ADD_IMAGE" desc="Context menu item on an empty part of a board that picks image files to add.">
+    Add Image…
+  </message>
+  <message name="IDS_COMPASS_EASEL_MENU_ADD_TEXT_HERE" desc="Context menu item on an empty part of a board that adds a text where the user clicked.">
+    Add Text Here
+  </message>
+  <message name="IDS_COMPASS_EASEL_MENU_BRING_TO_FRONT" desc="Context menu item that moves the selected objects above every other object on the board.">
+    Bring to Front
+  </message>
+  <message name="IDS_COMPASS_EASEL_MENU_EDIT_TEXT" desc="Context menu item that starts editing the selected text on a board.">
+    Edit Text
+  </message>
+  <message name="IDS_COMPASS_EASEL_MENU_REFRESH" desc="Context menu item that takes a new picture of the web page a live capture on a board shows.">
+    Refresh
+  </message>
+  <message name="IDS_COMPASS_EASEL_MENU_SEND_TO_BACK" desc="Context menu item that moves the selected objects below every other object on the board.">
+    Send to Back
+  </message>
+  <message name="IDS_COMPASS_EASEL_MISSING" desc="Message shown instead of a board that isn't on this device.">
+    This Easel isn't on this device. It may have been deleted, or not synced here yet.
+  </message>
+  <message name="IDS_COMPASS_EASEL_NAME" desc="Title of a board's page while it has no title yet, and the accessible name of the board's drawing area. Easel is the feature's name (a whiteboard).">
+    Easel
+  </message>
+  <message name="IDS_COMPASS_EASEL_NEWER_VERSION" desc="Shown on a board in place of an object of a kind this version of Compass can't show.">
+    Made with a newer version of Compass
+  </message>
+  <message name="IDS_COMPASS_EASEL_NEW_EASEL" desc="Button that makes a new, empty Easel (a whiteboard) and opens it.">
+    New Easel
+  </message>
+  <message name="IDS_COMPASS_EASEL_NO_EASELS" desc="Shown in the list of Easels when the user has none.">
+    No Easels yet. Make one to collect text, drawings, images and links on a board.
+  </message>
+  <message name="IDS_COMPASS_EASEL_OPEN" desc="Context menu item that opens the web page of the selected link or capture on a board.">
+    Open
+  </message>
+  <message name="IDS_COMPASS_EASEL_PALETTE_DARK" desc="Name of a dark board background.">
+    Dark
+  </message>
+  <message name="IDS_COMPASS_EASEL_PALETTE_DOTS" desc="Name of a board background with a pattern of dots.">
+    Dots
+  </message>
+  <message name="IDS_COMPASS_EASEL_PALETTE_GRID" desc="Name of a board background with a grid of lines.">
+    Grid
+  </message>
+  <message name="IDS_COMPASS_EASEL_PALETTE_PAPER" desc="Name of a plain, light board background.">
+    Paper
+  </message>
+  <message name="IDS_COMPASS_EASEL_REDO" desc="Tooltip of the toolbar button that redoes the last change undone on a board.">
+    Redo
+  </message>
+  <message name="IDS_COMPASS_EASEL_REFRESHED" desc="Message shown briefly when a live capture on a board has a new picture of its web page.">
+    Refreshed
+  </message>
+  <message name="IDS_COMPASS_EASEL_REFRESHING" desc="Message shown briefly while a live capture on a board takes a new picture of its web page.">
+    Refreshing…
+  </message>
+  <message name="IDS_COMPASS_EASEL_RENAME" desc="Button in the list of Easels that lets the user rename one.">
+    Rename
+  </message>
+  <message name="IDS_COMPASS_EASEL_SEND_TO_BACK" desc="Tooltip of the toolbar button that moves the selected objects below every other object on the board.">
+    Send to back
+  </message>
+  <message name="IDS_COMPASS_EASEL_SHIFT_KEY" desc="Name of the Shift key on the keyboard, in a button's shortcut (Shift+1).">
+    Shift
+  </message>
+  <message name="IDS_COMPASS_EASEL_STYLE_BODY" desc="Name of the text style for ordinary text on a board.">
+    Body
+  </message>
+  <message name="IDS_COMPASS_EASEL_STYLE_CAPTION" desc="Name of the text style for small text, like a caption, on a board.">
+    Caption
+  </message>
+  <message name="IDS_COMPASS_EASEL_STYLE_HEADING" desc="Name of the text style for a heading on a board.">
+    Heading
+  </message>
+  <message name="IDS_COMPASS_EASEL_STYLE_TITLE" desc="Name of the text style for a board's largest text, a title.">
+    Title
+  </message>
+  <message name="IDS_COMPASS_EASEL_TEXT_STYLE" desc="Accessible name of the menu that picks the style (title, heading, body, caption) of the selected text.">
+    Text style
+  </message>
+  <message name="IDS_COMPASS_EASEL_TITLE_LABEL" desc="Accessible name of the field where the user types an Easel's title.">
+    Title
+  </message>
+  <message name="IDS_COMPASS_EASEL_TOOL_ARROW" desc="Name of the board tool that draws arrows.">
+    Arrow
+  </message>
+  <message name="IDS_COMPASS_EASEL_TOOL_CIRCLE" desc="Name of the board tool that draws circles and ellipses.">
+    Circle
+  </message>
+  <message name="IDS_COMPASS_EASEL_TOOL_IMAGE" desc="Name of the toolbar button that picks image files to add to a board.">
+    Image
+  </message>
+  <message name="IDS_COMPASS_EASEL_TOOL_PEN" desc="Name of the board tool that draws freehand lines.">
+    Pen
+  </message>
+  <message name="IDS_COMPASS_EASEL_TOOL_RECTANGLE" desc="Name of the board tool that draws rectangles.">
+    Rectangle
+  </message>
+  <message name="IDS_COMPASS_EASEL_TOOL_SELECT" desc="Name of the board tool that selects, moves and resizes objects.">
+    Select
+  </message>
+  <message name="IDS_COMPASS_EASEL_TOOL_TEXT" desc="Name of the board tool that adds text.">
+    Text
+  </message>
+  <message name="IDS_COMPASS_EASEL_PAGE_UNAVAILABLE" desc="Shown instead of the list of Easels, or a board, in an Incognito or Guest window.">
+    Easels aren't available in Incognito and Guest windows.
+  </message>
+  <message name="IDS_COMPASS_EASEL_UNDO" desc="Tooltip of the toolbar button that undoes the last change on a board.">
+    Undo
+  </message>
+  <message name="IDS_COMPASS_EASEL_PAGE_UNTITLED" desc="Title of an Easel (a whiteboard) the user hasn't named, and the placeholder of its title field.">
+    Untitled Easel
+  </message>
+  <message name="IDS_COMPASS_EASEL_VIEW_ONLY" desc="Tooltip of a board's title when the user can't change the board (it's shared with them to view).">
+    View only
+  </message>
+  <message name="IDS_COMPASS_EASEL_WITH_SHORTCUT" desc="Tooltip of a board's toolbar button: its name, then its keyboard shortcut in parentheses.">
+    <ph name="LABEL">$1<ex>Pen</ex></ph> (<ph name="SHORTCUT">$2<ex>P</ex></ph>)
+  </message>
+  <message name="IDS_COMPASS_EASEL_ZOOM_TO_100" desc="Tooltip of the button, showing the board's zoom level, that zooms the board to its actual size.">
+    Zoom to 100%
+  </message>
+</grit-part>

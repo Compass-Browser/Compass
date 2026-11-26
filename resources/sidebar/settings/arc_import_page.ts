@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import '../settings_window/icon.js';
+
+import {i18n, i18nF, i18nPlural} from '../i18n.js';
 import type {ArcImportProfile, ArcImportSpace, ArcImportState, BrowserImportChoice, BrowserImportProfile, BrowserImportSummary} from '../sidebar.mojom-webui.js';
 import {ArcImportHandler} from '../sidebar.mojom-webui.js';
-
-import '../settings_window/icon.js';
 
 import {getTemplate} from './arc_import_page.html.js';
 import {CompassSettingsPage} from './page_base.js';
@@ -28,13 +29,9 @@ function isMac(): boolean {
   return navigator.userAgent.includes('Mac');
 }
 
-function plural(count: number, one: string, many: string): string {
-  return count === 1 ? `1 ${one}` : `${count} ${many}`;
-}
-
 function describe(profile: ArcImportProfile): string {
-  return `${plural(profile.spaces.length, 'space', 'spaces')} · ${
-      plural(profile.tabCount, 'tab', 'tabs')}`;
+  return `${i18nPlural('arcImportPageSpaceCount', profile.spaces.length)} · ${
+      i18nPlural('arcImportPageTabCount', profile.tabCount)}`;
 }
 
 // A letter tile's color for a browser without an icon (window.css, .tile).
@@ -112,11 +109,10 @@ function profileLabel(profile: BrowserImportProfile): string {
                         profile.browser;
 }
 
-// "Chrome, Firefox and Safari".
+// "Chrome, Firefox and Safari", in the page's language.
 function listNames(names: string[]): string {
-  return names.length <= 1 ?
-      names.join('') :
-      `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return new Intl.ListFormat(i18n('language'), {type: 'conjunction'})
+      .format(names);
 }
 
 function checkbox(className: string, value: string): HTMLInputElement {
@@ -136,7 +132,7 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
   private chosen_: BrowserImportProfile|null = null;
 
   protected get pageTitle() {
-    return 'Import from Another Browser';
+    return i18n('arcImportPageTitle');
   }
 
   protected getPageTemplate() {
@@ -232,8 +228,8 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
       names.push('Arc');
     }
     this.setSubpageDetail(
-        names.length ? `${listNames(names)} found` :
-                       'No other browsers found');
+        names.length ? i18nF('arcImportPageFound', listNames(names)) :
+                       i18n('arcImportPageNoneFound'));
   }
 
   // Other browsers: the list ------------------------------------------------
@@ -255,11 +251,11 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
 
   private describeBrowser_(profile: BrowserImportProfile): string {
     const counts = [
-      plural(profile.bookmarkCount, 'bookmark', 'bookmarks'),
-      plural(profile.tabCount, 'open tab', 'open tabs'),
+      i18nPlural('arcImportPageBookmarkCount', profile.bookmarkCount),
+      i18nPlural('arcImportPageOpenTabCount', profile.tabCount),
     ];
     if (profile.spaces.length > 1) {
-      counts.push(plural(profile.spaces.length, 'space', 'spaces'));
+      counts.push(i18nPlural('arcImportPageSpaceCount', profile.spaces.length));
     }
     return profile.note || counts.join(' \u00b7 ');
   }
@@ -272,8 +268,8 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     row.dataset['id'] = profile.id;
     row.classList.toggle('unavailable', !available);
     const why = profile.running ?
-        `${profile.browser} is open. Quit it to import from it.` :
-        !available ? 'Imported already.' :
+        i18nF('arcImportPageBrowserOpen', profile.browser) :
+        !available ? i18n('arcImportPageImportedAlready') :
                      '';
     const text = rowText(profileLabel(profile), this.describeBrowser_(profile));
     if (why) {
@@ -349,24 +345,22 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     this.show('modeGroup', profile.asProfile);
     if (profile.asProfile) {
       let profileDescription = profile.importedAsProfile ?
-          `Imported already, as the profile ${profile.importedAsProfile}.` :
-          profile.asProfileBrings ||
-              'Kept apart, with its cookies, history, passwords, ' +
-                  'extensions and settings: you stay signed in to sites.';
+          i18nF('arcImportPageImportedAsProfile', profile.importedAsProfile) :
+          profile.asProfileBrings || i18n('arcImportPageKeptApart');
       if (asProfile && profile.newerVersion) {
-        profileDescription += ` ${profile.browser} ${
-            profile.newerVersion} is newer than Compass, so some of it ` +
-            'may not come along.';
+        profileDescription += ' ' +
+            i18nF('arcImportPageNewerVersion', profile.browser,
+                  profile.newerVersion);
       }
       modes.append(
           this.renderMode_(
-              'space', 'sidebar', 'purple', 'A space in this profile',
+              'space', 'sidebar', 'purple', i18n('arcImportPageAsSpace'),
               profile.imported ?
-                  'Imported already.' :
-                  `A new space called ${profile.browser}, next to yours.`,
+                  i18n('arcImportPageImportedAlready') :
+                  i18nF('arcImportPageNewSpaceCalled', profile.browser),
               asSpace, asSpace),
           this.renderMode_(
-              'profile', 'profiles', 'blue', 'A new profile',
+              'profile', 'profiles', 'blue', i18n('arcImportPageAsProfile'),
               profileDescription, asProfile, !asSpace && asProfile));
       for (const radio of modes.querySelectorAll<HTMLInputElement>(
                '.mode-radio')) {
@@ -377,19 +371,21 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     const options = this.$('options');
     options.replaceChildren(
         this.renderOption_(
-            'bookmarks', 'bookmark', 'blue', 'Bookmarks',
-            `${plural(profile.bookmarkCount, 'tab', 'tabs')}, in Pinned`),
+            'bookmarks', 'bookmark', 'blue', i18n('arcImportPageBookmarks'),
+            i18nPlural(
+                'arcImportPageTabsInPinnedOption', profile.bookmarkCount)),
         this.renderOption_(
-            'tabs', 'sidebar', 'purple', 'Open tabs',
-            `${plural(profile.tabCount, 'tab', 'tabs')}, in Today`));
+            'tabs', 'sidebar', 'purple', i18n('arcImportPageOpenTabs'),
+            i18nPlural('arcImportPageTabsInTodayOption', profile.tabCount)));
     if (profile.history) {
       options.append(this.renderOption_(
-          'history', 'pulse', 'teal', 'History', 'The pages you visited'));
+          'history', 'pulse', 'teal', i18n('arcImportPageHistory'),
+          i18n('arcImportPageHistoryDetail')));
     }
     if (profile.passwords) {
       options.append(this.renderOption_(
-          'passwords', 'passwords', 'gray', 'Passwords',
-          'Your saved passwords'));
+          'passwords', 'passwords', 'gray', i18n('arcImportPagePasswords'),
+          i18n('arcImportPagePasswordsDetail')));
     }
     this.show(
         'keychainNotice',
@@ -448,55 +444,53 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
   private describeSummary_(summary: BrowserImportSummary): HTMLElement {
     const parts = [];
     if (summary.profile) {
-      parts.push(`New profile ${summary.profile}`);
+      parts.push(i18nF('arcImportPageNewProfileNamed', summary.profile));
     }
     if (summary.spaces.length) {
-      parts.push(`${summary.spaces.length === 1 ? 'Space' : 'Spaces'} ${
-          summary.spaces.join(', ')}`);
+      parts.push(i18nPlural(
+          'arcImportPageSpacesNamed', summary.spaces.length,
+          summary.spaces.join(', ')));
     }
     if (summary.pinned) {
-      parts.push(`${plural(summary.pinned, 'tab', 'tabs')} in Pinned`);
+      parts.push(i18nPlural('arcImportPageTabsInPinned', summary.pinned));
     }
     if (summary.today) {
-      parts.push(`${plural(summary.today, 'tab', 'tabs')} in Today`);
+      parts.push(i18nPlural('arcImportPageTabsInToday', summary.today));
     }
     if (summary.favorites) {
-      parts.push(plural(summary.favorites, 'favorite', 'favorites'));
+      parts.push(i18nPlural('arcImportPageFavoriteCount', summary.favorites));
     }
     if (summary.profile) {
-      parts.push(
-          summary.brought ||
-          'cookies, history, passwords, extensions and settings');
+      parts.push(summary.brought || i18n('arcImportPageProfileBrought'));
       if (summary.brought && summary.history > 0) {
-        parts.push(plural(summary.history, 'history page', 'history pages'));
+        parts.push(i18nPlural('arcImportPageHistoryCount', summary.history));
       }
     } else {
       if (summary.history > 0) {
-        parts.push(plural(summary.history, 'history page', 'history pages'));
+        parts.push(i18nPlural('arcImportPageHistoryCount', summary.history));
       } else if (summary.history < 0) {
-        parts.push('history');
+        parts.push(i18n('arcImportPageHistoryBrought'));
       }
       if (summary.passwords > 0) {
-        parts.push(plural(summary.passwords, 'password', 'passwords'));
+        parts.push(i18nPlural('arcImportPagePasswordCount', summary.passwords));
       } else if (summary.passwords < 0) {
-        parts.push('passwords');
+        parts.push(i18n('arcImportPagePasswordsBrought'));
       }
     }
     const problems = [...summary.problems];
     if (summary.passwordsSkipped) {
-      problems.push(`${
-          plural(summary.passwordsSkipped, 'password', 'passwords')} ` +
-          'couldn\'t be decrypted and stayed behind.');
+      problems.push(i18nPlural(
+          'arcImportPagePasswordsSkipped', summary.passwordsSkipped));
     }
     if (summary.cookiesDropped) {
-      problems.push(`${
-          plural(summary.cookiesDropped, 'cookie', 'cookies')} couldn't ` +
-          'come along: you may have to sign in again on some sites.');
+      problems.push(
+          i18nPlural('arcImportPageCookiesDropped', summary.cookiesDropped));
     }
     const row = element('div', 'row summary');
     const text = rowText(
         summary.name,
-        parts.length ? parts.join(' \u00b7 ') : 'Nothing was imported.');
+        parts.length ? parts.join(' \u00b7 ') :
+                       i18n('arcImportPageNothingImported'));
     for (const problem of problems) {
       text.append(element('span', 'row-detail warning', problem));
     }
@@ -558,12 +552,17 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     input.addEventListener('change', () => this.updateImportButton_());
     const name = document.createElement('span');
     name.className = 'space-name';
-    name.textContent =
-        space.imported ? `${space.name} (imported)` : space.name;
+    name.textContent = space.imported ?
+        i18nF('arcImportPageImportedName', space.name) :
+        space.name;
     const details = document.createElement('span');
     details.className = 'details';
-    details.textContent = plural(space.tabCount, 'tab', 'tabs') +
-        (space.archivedCount ? ` · ${space.archivedCount} archived` : '');
+    details.textContent = i18nPlural('arcImportPageTabCount', space.tabCount) +
+        (space.archivedCount ?
+             ` · ${
+                 i18nPlural(
+                     'arcImportPageArchivedCount', space.archivedCount)}` :
+             '');
     label.append(input, name, details);
     item.append(label);
     return item;
@@ -582,13 +581,13 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     const text = document.createElement('div');
     const name = document.createElement('div');
     name.className = 'name';
-    name.textContent =
-        profile.imported ? `${profile.name} (imported)` : profile.name;
+    name.textContent = profile.imported ?
+        i18nF('arcImportPageImportedName', profile.name) :
+        profile.name;
     const details = document.createElement('div');
     details.className = 'details';
     details.textContent = profile.imported && newSpaces ?
-        `${plural(newSpaces, 'new space', 'new spaces')} to add. Its ` +
-            'cookies, history and passwords stay as first imported.' :
+        i18nPlural('arcImportPageNewSpacesToAdd', newSpaces) :
         describe(profile);
     text.append(name, details);
     label.append(input, text);
@@ -627,9 +626,11 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     const spaces = state.profiles.reduce(
         (count, profile) => count + profile.spaces.length, 0);
     this.$('arcDetail').textContent = state.arcRunning ?
-        'Arc is open. Quit it to import from it.' :
-        `${plural(state.profiles.length, 'profile', 'profiles')} \u00b7 ${
-            plural(spaces, 'space', 'spaces')}`;
+        i18n('arcImportPageArcOpenShort') :
+        `${
+            i18nPlural(
+                'arcImportPageProfileCount', state.profiles.length)} \u00b7 ${
+            i18nPlural('arcImportPageSpaceCount', spaces)}`;
     this.updateDetail_();
     this.show('notFound', !state.found);
     this.show('chooser', state.found);
@@ -659,30 +660,26 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     this.show('done', true);
     const sentences = [];
     if (imported.length) {
-      sentences.push(`Imported ${imported.join(', ')}.`);
+      sentences.push(
+          i18nF('arcImportPageImportedProfiles', imported.join(', ')));
     }
     if (updated.length) {
-      sentences.push(`Added new spaces to ${updated.join(', ')}.`);
+      sentences.push(i18nF('arcImportPageAddedSpaces', updated.join(', ')));
     }
     if (easels) {
-      sentences.push(`Brought over ${plural(easels, 'Easel', 'Easels')}.`);
+      sentences.push(i18nPlural('arcImportPageBroughtEasels', easels));
     }
     if (undecryptable) {
-      sentences.push(`${
-          plural(undecryptable, 'cookie or password',
-                 'cookies and passwords')} couldn't be decrypted and ` +
-          'stayed behind: you may have to sign in again on some sites.');
+      sentences.push(i18nPlural('arcImportPageUndecryptable', undecryptable));
     }
-    this.$('doneText').textContent =
-        sentences.length ? sentences.join(' ') : 'Nothing was imported.';
+    this.$('doneText').textContent = sentences.length ?
+        sentences.join(' ') :
+        i18n('arcImportPageNothingImported');
     this.show('failedText', failed.length > 0);
     this.$('failedText').textContent = failed.length ?
-        `Couldn't import ${
-            failed.length === 1 ? 'one profile' :
-                                  `${failed.length} profiles`}` +
-            (isMac() ? '. Check that Arc is closed and that Compass was ' +
-                     'allowed to use "Arc Safe Storage", then try again.' :
-                       '. Check that Arc is closed, then try again.') :
+        i18nPlural(
+            isMac() ? 'arcImportPageFailedMac' : 'arcImportPageFailed',
+            failed.length) :
         '';
     this.show('open', imported.length > 0 || updated.length > 0);
     this.showMissingEasels_(easelsMissing);
@@ -693,12 +690,8 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
   private showMissingEasels_(missing: number) {
     this.show('easelsText', missing > 0);
     this.show('importEasels', missing > 0);
-    this.$('easelsText').textContent = missing ?
-        `${plural(missing, 'Easel', 'Easels')} came over empty: Arc ` +
-            'hasn\'t downloaded ' + (missing === 1 ? 'it' : 'them') +
-            ' to this Mac. Open ' + (missing === 1 ? 'it' : 'them') +
-            ' in Arc, then import again.' :
-        '';
+    this.$('easelsText').textContent =
+        missing ? i18nPlural('arcImportPageEaselsEmpty', missing) : '';
   }
 
   private async importEasels_() {
@@ -709,7 +702,7 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     if (!quit) {
       button.disabled = false;
       this.$('easelsText').textContent =
-          'Quit Arc, then choose Import Easels Again.';
+          i18n('arcImportPageQuitThenImportEasels');
       return;
     }
     const {arcRunning, easels, easelsMissing} =
@@ -717,16 +710,16 @@ export class CompassArcImportPageElement extends CompassSettingsPage {
     button.disabled = false;
     if (arcRunning) {
       this.$('easelsText').textContent =
-          'Quit Arc, then choose Import Easels Again.';
+          i18n('arcImportPageQuitThenImportEasels');
       return;
     }
     this.showMissingEasels_(easelsMissing);
     if (easels) {
       const done = this.$('doneText');
-      done.textContent = `${done.textContent ?? ''} Brought over ${
-          plural(easels, 'Easel', 'Easels')}.`;
+      done.textContent = `${done.textContent ?? ''} ${
+          i18nPlural('arcImportPageBroughtEasels', easels)}`;
     } else if (!easelsMissing) {
-      this.$('easelsText').textContent = 'Nothing new to bring over.';
+      this.$('easelsText').textContent = i18n('arcImportPageNothingNew');
       this.show('easelsText', true);
     }
   }

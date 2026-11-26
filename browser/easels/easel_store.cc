@@ -20,7 +20,9 @@
 #include "base/types/expected_macros.h"
 #include "base/uuid.h"
 #include "chrome/browser/profiles/profile.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "crypto/hash.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::easels {
 
@@ -434,17 +436,18 @@ base::expected<sync_pb::CompassEasel, std::string> EaselStore::CreateEasel(
     std::string uuid) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!loaded_) {
-    return base::unexpected("Easels are still loading. Try again in a moment.");
+    return base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_LOADING));
   }
   if (easels_.size() >= kMaxEasels) {
     return base::unexpected(
-        "There are already 200 Easels. Delete one that's no longer needed "
-        "first.");
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_TOO_MANY));
   }
   uuid = uuid.empty() ? base::Uuid::GenerateRandomV4().AsLowercaseString()
                       : base::ToLowerASCII(uuid);
   if (!IsLowerUuid(uuid) || easels_.contains(uuid)) {
-    return base::unexpected("That Easel already exists.");
+    return base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_EXISTS));
   }
   sync_pb::CompassEasel easel;
   easel.set_uuid(uuid);
@@ -523,7 +526,8 @@ base::expected<std::vector<sync_pb::CompassEaselObject>, std::string>
 EaselStore::SaveObjects(std::vector<sync_pb::CompassEaselObject> objects) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!loaded_) {
-    return base::unexpected("Easels are still loading. Try again in a moment.");
+    return base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_LOADING));
   }
   // Checked first, all or nothing.
   std::vector<sync_pb::CompassEaselObject> normalized;
@@ -532,7 +536,8 @@ EaselStore::SaveObjects(std::vector<sync_pb::CompassEaselObject> objects) {
     ASSIGN_OR_RETURN(sync_pb::CompassEaselObject checked,
                      NormalizeObject(std::move(object)));
     if (!easels_.contains(checked.easel_uuid())) {
-      return base::unexpected("There's no such Easel.");
+      return base::unexpected(
+          l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_NO_SUCH));
     }
     if (checked.uuid().empty() || !objects_.contains(checked.uuid())) {
       if (!checked.uuid().empty() && !IsLowerUuid(checked.uuid())) {
@@ -542,7 +547,7 @@ EaselStore::SaveObjects(std::vector<sync_pb::CompassEaselObject> objects) {
                            ++added_per_easel[checked.easel_uuid()];
       if (count > kMaxObjectsPerEasel) {
         return base::unexpected(
-            "This Easel is full (1,000 objects). Delete some first.");
+            l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_FULL));
       }
     }
     std::set<std::string> images;
@@ -600,13 +605,16 @@ base::expected<std::string, std::string> EaselStore::AddAsset(
     std::string mime_type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!loaded_) {
-    return base::unexpected("Easels are still loading. Try again in a moment.");
+    return base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_LOADING));
   }
   if (data.empty() || data.size() > kMaxAssetBytes) {
-    return base::unexpected("The image is too large.");
+    return base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_IMAGE_TOO_LARGE));
   }
   if (!IsKnownMime(mime_type)) {
-    return base::unexpected("Only PNG, JPEG and WebP images can be added.");
+    return base::unexpected(
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_IMAGE_TYPE));
   }
   std::string sha = Sha256Hex(data);
   if (assets_.contains(sha)) {
@@ -614,8 +622,7 @@ base::expected<std::string, std::string> EaselStore::AddAsset(
   }
   if (AssetBytes() + data.size() > kMaxAssetBytesTotal) {
     return base::unexpected(
-        "Easels hold 64 MB of images, which is used up. Delete some images "
-        "first.");
+        l10n_util::GetStringUTF8(IDS_COMPASS_EASELS_IMAGES_FULL));
   }
   sync_pb::CompassEaselAsset asset;
   asset.set_uuid(AssetUuid(sha));

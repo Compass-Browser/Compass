@@ -16,7 +16,9 @@
 #include "compass/browser/sidebar/sidebar_serializer.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "crypto/sha2.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::arc {
 
@@ -95,10 +97,13 @@ class Builder {
     if (!board.is_valid()) {
       return nullptr;
     }
-    SidebarNode* tab = model_->AddTab(
-        parent, parent->children().size(),
-        GURL(easels::EaselUrl(board.AsLowercaseString())),
-        item.saved_title.empty() ? u"Easel" : item.saved_title, IdFor(item));
+    SidebarNode* tab =
+        model_->AddTab(parent, parent->children().size(),
+                       GURL(easels::EaselUrl(board.AsLowercaseString())),
+                       item.saved_title.empty()
+                           ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_EASEL)
+                           : item.saved_title,
+                       IdFor(item));
     return tab ? SetUp(tab, item) : nullptr;
   }
 
@@ -131,7 +136,10 @@ class Builder {
         }
         SidebarNode* folder = model_->AddFolder(
             parent, parent->children().size(),
-            item.title.empty() ? u"Folder" : item.title, IdFor(item));
+            item.title.empty()
+                ? l10n_util::GetStringUTF16(IDS_COMPASS_IMPORT_FOLDER)
+                : item.title,
+            IdFor(item));
         if (folder) {
           AddAll(folder, item.children);
         }

@@ -93,22 +93,13 @@
   }
 </style>
 <div class="dev-mode-page">
-  <p class="dev-mode-lead">
-    On these sites, reload always gets a fresh copy instead of using the
-    cache, and a bar above the page shows the full address with buttons for
-    the console, the network panel, inspecting an element and copying the
-    address. The network panel also lists the requests made before you
-    opened it. A site covers every port, so localhost covers
-    localhost:3000; *.example.com also covers its subdomains. You can also
-    turn development mode on or off from the site information popup, the
-    command bar, or with Cmd+Shift+D (Ctrl+Shift+D on Windows and Linux).
-  </p>
+  <p class="dev-mode-lead">$i18n{devModePageLead}</p>
   <ul id="devModeHosts" class="dev-mode-list"></ul>
-  <p id="noDevModeHosts" class="dev-mode-empty" hidden>No sites yet.</p>
+  <p id="noDevModeHosts" class="dev-mode-empty" hidden>$i18n{devModePageNoSites}</p>
   <form id="devModeForm" class="dev-mode-form">
     <input id="devModeHost" type="text" placeholder="localhost"
-        aria-label="Site" autocomplete="off" spellcheck="false">
-    <button id="addDevModeHost" type="submit">Add Site</button>
+        aria-label="$i18n{devModePageSiteLabel}" autocomplete="off" spellcheck="false">
+    <button id="addDevModeHost" type="submit">$i18n{devModePageAddSite}</button>
     <p id="devModeNote" class="dev-mode-note" hidden></p>
   </form>
 </div>

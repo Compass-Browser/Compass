@@ -14,8 +14,8 @@
 #include "base/auto_reset.h"
 #include "base/base64.h"
 #include "base/check.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/functional/bind.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
@@ -25,13 +25,21 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
-#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/webui_url_constants.h"
+#include "compass/browser/sidebar/closed_entries.h"
+#include "compass/browser/sidebar/link_folders.h"
+#include "compass/browser/sidebar/sidebar_serializer.h"
+#include "compass/browser/window_sync/empty_tab.h"
+#include "compass/browser/window_sync/live_tab_registry.h"
+#include "compass/browser/window_sync/restored_tab_matcher.h"
+#include "compass/browser/window_sync/window_features.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "components/sessions/core/tab_restore_service.h"
 #include "components/split_tabs/split_tab_visual_data.h"
 #include "components/tab_groups/tab_group_visual_data.h"
@@ -42,20 +50,14 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
-#include "compass/browser/sidebar/closed_entries.h"
-#include "compass/browser/sidebar/link_folders.h"
-#include "compass/browser/sidebar/sidebar_serializer.h"
-#include "compass/browser/window_sync/empty_tab.h"
-#include "compass/browser/window_sync/live_tab_registry.h"
-#include "compass/browser/window_sync/restored_tab_matcher.h"
-#include "compass/browser/window_sync/window_features.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/range/range.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/gfx/range/range.h"
 
 namespace compass {
 
@@ -644,7 +646,10 @@ void TabStripBridge::ConvertGroups() {
       }
       const std::u16string& title = group->visual_data()->title();
       SidebarNode* folder = space_model_->AddFolder(
-          today, today->GetIndexOf(place), title.empty() ? u"Group" : title);
+          today, today->GetIndexOf(place),
+          title.empty()
+              ? l10n_util::GetStringUTF16(IDS_COMPASS_TAB_GROUP_FOLDER_NAME)
+              : title);
       for (SidebarNode* entry : entries) {
         space_model_->Move(entry, folder, folder->children().size());
       }

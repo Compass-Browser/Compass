@@ -12,6 +12,8 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "compass/browser/claude/chatgpt_oauth.h"
+#include "compass/strings/grit/compass_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace compass::claude::openai {
 
@@ -527,7 +529,9 @@ std::vector<SseParser::Event> ChatStream::Feed(std::string_view data) {
         failure->is_dict() ? failure->GetDict().FindString("message")
                            : (failure->is_string() ? &failure->GetString()
                                                    : nullptr);
-    error_ = message && !message->empty() ? *message : "The reply failed.";
+    error_ = message && !message->empty()
+                 ? *message
+                 : l10n_util::GetStringUTF8(IDS_COMPASS_AI_REPLY_FAILED);
     ended_ = true;
     return events;
   }
@@ -818,14 +822,19 @@ std::vector<SseParser::Event> ResponsesStream::Feed(std::string_view data) {
         event->FindStringByDottedPath("response.error.code");
     std::optional<std::string> plan =
         code ? chatgpt::PlanErrorMessage(*code) : std::nullopt;
-    error_ = plan ? *plan : (message ? *message : "The reply failed.");
+    error_ =
+        plan
+            ? *plan
+            : (message ? *message
+                       : l10n_util::GetStringUTF8(IDS_COMPASS_AI_REPLY_FAILED));
     ended_ = true;
   } else if (type == "error") {
     const std::string* message = event->FindString("message");
     if (!message) {
       message = event->FindStringByDottedPath("error.message");
     }
-    error_ = message ? *message : "The reply failed.";
+    error_ = message ? *message
+                     : l10n_util::GetStringUTF8(IDS_COMPASS_AI_REPLY_FAILED);
     ended_ = true;
   }
   return events;

@@ -16,16 +16,19 @@
 #include "compass/browser/sidebar/sidebar_node.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/ui/webui/bubble/bubble_look_mojo.h"
+#include "compass/browser/ui/webui/localized_strings/localized_strings.h"
 #include "compass/browser/window_sync/space_service.h"
+#include "compass/components/sync/rooms/room_invite_link.h"
 #include "compass/grit/compass_sidebar_resources.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
-#include "compass/components/sync/rooms/room_invite_link.h"
+#include "compass/strings/grit/compass_strings.h"
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/webui/webui_util.h"
 
 namespace compass {
@@ -86,6 +89,7 @@ CompassShareUI::CompassShareUI(content::WebUI* web_ui)
       content::WebUIDataSource::CreateAndAdd(profile, kCompassShareHost);
   webui::SetupWebUIDataSource(source, kCompassSidebarResources,
                               IDR_COMPASS_SIDEBAR_SHARE_HTML);
+  AddSidebarPakLocalizedStrings(source);
   content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 }
 
@@ -188,7 +192,8 @@ void SharePageHandler::CreateInviteLink(const std::string& room_id,
                                         int32_t uses,
                                         CreateInviteLinkCallback callback) {
   if (role != sync::rooms::kRoleEditor && role != sync::rooms::kRoleViewer) {
-    std::move(callback).Run(std::string(), "Choose a role.");
+    std::move(callback).Run(
+        std::string(), l10n_util::GetStringUTF8(IDS_COMPASS_SHARE_NO_ROLE));
     return;
   }
   rooms_->CreateInviteLink(room_id, role,

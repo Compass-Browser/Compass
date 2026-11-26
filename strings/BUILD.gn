@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/locales.gni")
 import("//compass/strings/strings.gni")
 import("//tools/grit/grit_rule.gni")
 
@@ -51,4 +52,11 @@ action("rebranded_grds") {
       rebase_path(_out_dir, root_build_dir),
     ]
   }
+}
+
+# Compass's own strings (compass_strings.grd), in every locale's pak
+# (patches/chrome-chrome_repack_locales.gni.patch).
+grit_strings("compass_strings") {
+  source = "compass_strings.grd"
+  outputs = [ "grit/compass_strings.h" ]
 }
