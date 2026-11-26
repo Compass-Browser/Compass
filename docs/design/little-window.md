@@ -71,6 +71,14 @@ mix) opens as upstream does.
   relativeTo:`), as macOS raises every window of an app it activates; again
   300 ms later and on `NSApplicationDidBecomeActiveNotification` for 2 s, in
   case activation comes later.
+- Closing it goes back to the opener's app (`ReturnToOpenerOnClose()`, its
+  process from the same window list). Otherwise macOS makes Compass's next
+  window key, and the main window came over the app the link came from. On
+  `NSWindowWillCloseNotification`, if the little window (or one of its
+  bubbles) is key and Compass active, Compass yields activation to that
+  app (macOS 14) and activates it. Not once another Compass window has been
+  key after the little window was: the user went on in Compass, or "Open
+  in" moved the page into a space and activated that window.
 - A little window is upstream's popup `Browser` (`TYPE_POPUP`: location-only
   toolbar, page info, find, permission prompts, JS dialogs, downloads), made
   with `omit_from_session_restore` and without triggering session restore.

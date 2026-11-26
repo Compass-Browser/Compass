@@ -66,6 +66,16 @@ void ReorderBehind(NSWindow* little, NSInteger opener) {
   [little orderFront:nil];
 }
 
+// |window| is |root| or one of its child windows (a bubble, a prompt).
+bool IsWithin(NSWindow* window, NSWindow* root) {
+  for (; window; window = window.parentWindow) {
+    if (window == root) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 std::optional<OpenerWindow> FindOpenerWindow() {
@@ -84,9 +94,10 @@ std::optional<OpenerWindow> FindOpenerWindow() {
     }
     // CoreGraphics' global coordinates, like gfx's screen coordinates on
     // macOS, start at the primary display's top left.
-    return OpenerWindow{gfx::Rect(rect),
-                        static_cast<int>(
-                            [info[(id)kCGWindowNumber] integerValue])};
+    return OpenerWindow{
+        gfx::Rect(rect),
+        static_cast<int>([info[(id)kCGWindowNumber] integerValue]),
+        [info[(id)kCGWindowOwnerPID] intValue]};
   }
   return std::nullopt;
 }
@@ -115,6 +126,63 @@ void KeepOtherWindowsBehind(views::Widget* little, const OpenerWindow& opener) {
       dispatch_get_main_queue(), ^{
         [NSNotificationCenter.defaultCenter removeObserver:observer];
       });
+}
+
+void ReturnToOpenerOnClose(views::Widget* little, const OpenerWindow& opener) {
+  NSWindow* window = little->GetNativeWindow().GetNativeNSWindow();
+  const pid_t pid = opener.pid;
+  if (!window || pid <= 0 || pid == getpid()) {
+    return;
+  }
+  NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
+  __block id became_key = nil;
+  __block id will_close = nil;
+  void (^stop)() = ^{
+    [center removeObserver:became_key];
+    [center removeObserver:will_close];
+    became_key = nil;
+    will_close = nil;
+  };
+  __weak NSWindow* weak_window = window;
+  // Another Compass window key (not one of the little window's bubbles):
+  // the user went on in Compass. Only once the little window has been key:
+  // as the link's activation comes in, macOS may first make the window that
+  // was key before it key again.
+  __block bool shown = window.keyWindow;
+  became_key = [center
+      addObserverForName:NSWindowDidBecomeKeyNotification
+                  object:nil
+                   queue:nil
+              usingBlock:^(NSNotification* note) {
+                if (IsWithin(note.object, weak_window)) {
+                  shown = true;
+                } else if (shown) {
+                  stop();
+                }
+              }];
+  will_close = [center
+      addObserverForName:NSWindowWillCloseNotification
+                  object:window
+                   queue:nil
+              usingBlock:^(NSNotification* note) {
+                const bool key =
+                    NSApp.active && IsWithin(NSApp.keyWindow, note.object);
+                stop();
+                if (!key) {
+                  return;
+                }
+                NSRunningApplication* app = [NSRunningApplication
+                    runningApplicationWithProcessIdentifier:pid];
+                if (!app || app.terminated) {
+                  return;
+                }
+                // Since macOS 14 an app activates another only by yielding
+                // to it first.
+                if (@available(macOS 14, *)) {
+                  [NSApp yieldActivationToApplication:app];
+                }
+                [app activateWithOptions:0];
+              }];
 }
 
 }  // namespace compass

@@ -88,12 +88,15 @@ namespace compass {
 struct OpenerWindow {
   gfx::Rect bounds;
   int number = 0;
+  int pid = 0;
 };
 std::optional<OpenerWindow> FindOpenerWindow() {
   return std::nullopt;
 }
 void KeepOtherWindowsBehind(views::Widget* little,
                             const OpenerWindow& opener) {}
+void ReturnToOpenerOnClose(views::Widget* little, const OpenerWindow& opener) {
+}
 #endif
 
 namespace {
@@ -741,10 +744,11 @@ BrowserWindowInterface* CreateLittleWindow(
   Navigate(&navigate);
 
   // Over the app the link came from, which stays over Compass's other
-  // windows.
+  // windows, and which closing the window goes back to.
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
   if (opener && browser_view && browser_view->GetWidget()) {
     KeepOtherWindowsBehind(browser_view->GetWidget(), *opener);
+    ReturnToOpenerOnClose(browser_view->GetWidget(), *opener);
   }
   return browser;
 }
