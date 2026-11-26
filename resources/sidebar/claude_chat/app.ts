@@ -18,6 +18,12 @@ import type {AssistantTurn, ContentBlock, MemoryView, ToolView, UserTurn} from '
 import {Conversation, pageBlock} from './conversation.js';
 import './turn.js';
 
+const ASSISTANT_NAMES: Record<string, string> = {
+  anthropic: 'Claude',
+  openai: 'GPT',
+  gemini: 'Gemini',
+};
+
 // A message written while Claude was replying, sent when the reply ends.
 interface Queued {
   text: string;
@@ -309,6 +315,14 @@ export class CompassClaudeChatAppElement extends CrLitElement {
 
   // The queue's label. It waits for the reply; with none, it waits for the
   // user (the last task failed or there's no key).
+  // "Ask Claude…", "Ask GPT…", "Ask Gemini…", or "Ask AI…" for a server
+  // with no name of its own (the desktop's AssistantName()).
+  protected getPlaceholder_(): string {
+    const name = ASSISTANT_NAMES[this.provider_];
+    return name ? i18nF('claudeChatPlaceholder', name) :
+                  i18n('claudeChatPlaceholderAi');
+  }
+
   protected getQueuedLabel_(): string {
     return this.streaming_ ? i18n('claudeChatQueuedSends') :
                              i18n('claudeChatQueuedPaused');

@@ -152,7 +152,7 @@
     AI
   </message>
   <message name="IDS_COMPASS_SETTINGS_WINDOW_AI_BLURB" desc="Description under the AI pane's title.">
-    Claude in your browser: who answers, and what it may do for you.
+    AI in your browser: who answers, and what it may do for you.
   </message>
   <message name="IDS_COMPASS_SETTINGS_WINDOW_BOOSTS" desc="Name of the settings pane for Boosts (a Compass feature: the user's own CSS and JavaScript for sites). Feature name; usually kept.">
     Boosts
@@ -962,25 +962,25 @@
     API key
   </message>
   <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_BROWSER_SCOPE" desc="Settings search result: a Claude permission.">
-    Let Claude use the whole browser
+    Let the AI use the whole browser
   </message>
   <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_CHECK_FOR_UPDATES" desc="Settings search result: checking for a newer Compass.">
     Check for updates
   </message>
   <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_CLAUDE_BOOSTS" desc="Settings search result: a Claude permission. Boosts is a feature name.">
-    Let Claude make Boosts
+    Let the AI make Boosts
   </message>
   <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_CLAUDE_PLUGINS" desc="Settings search result: a Claude permission.">
-    Let Claude make plugins
+    Let the AI make plugins
   </message>
   <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_CLAUDE_SIDEBAR" desc="Settings search result: Claude's sidebar features.">
-    Claude in the sidebar
+    AI in the sidebar
   </message>
   <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_CONNECTION" desc="Settings search result: how Compass connects to Claude.">
     Connection
   </message>
   <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_DEVTOOLS" desc="Settings search result: a Claude permission.">
-    Let Claude use developer tools
+    Let the AI use developer tools
   </message>
   <message name="IDS_COMPASS_SETTINGS_WINDOW_SEARCH_DOWNLOAD_LOCATION" desc="Settings search result: the download folder setting.">
     Download location

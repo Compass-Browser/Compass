@@ -482,15 +482,16 @@ void CommandBarPageHandler::Rebuild() {
     AddCommandItems(items);
   } else {
     const AutocompleteResult& result = autocomplete_->result();
-    // A question leads, with "Ask Claude", when its feature is on.
+    // A question leads, with "Ask Claude" (or GPT, Gemini, AI), when its
+    // feature is on.
     ask_row_ = IsAskAvailable() &&
                claude::LooksLikeQuestion(
                    text_, g_browser_process->GetApplicationLocale());
     if (ask_row_) {
       Item item;
       item.kind = ResultKind::kAskClaude;
-      item.title =
-          l10n_util::GetStringUTF16(IDS_COMPASS_COMMAND_BAR_ASK_CLAUDE);
+      item.title = claude::AskTitle(
+          claude::prefs::CurrentProvider(*browser_->GetProfile()->GetPrefs()));
       item.subtitle =
           std::u16string(base::TrimWhitespace(text_, base::TRIM_ALL));
       item.action =
@@ -716,11 +717,12 @@ void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items,
     items.push_back(std::move(item));
   }
 
-  // Claude, last: "Chat with Claude" for no text or text naming it, else
-  // "Ask Claude" with the text as the question. Named ("chat"), it leads
-  // with the other named commands.
-  const std::u16string chat =
-      l10n_util::GetStringUTF16(IDS_COMPASS_COMMAND_BAR_CHAT_WITH_CLAUDE);
+  // The AI, last: "Chat with Claude" (or GPT, Gemini, AI) for no text or
+  // text naming it, else "Ask Claude" with the text as the question. Named
+  // ("chat"), it leads with the other named commands.
+  const claude::AIProvider provider =
+      claude::prefs::CurrentProvider(*browser_->GetProfile()->GetPrefs());
+  const std::u16string chat = claude::ChatWithTitle(provider);
   if (!IsCommandAvailable(CommandBarCommand::kAskClaude) || !takes(chat)) {
     return;
   }
@@ -739,7 +741,7 @@ void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items,
     item.subtitle = question;
     item.action = l10n_util::GetStringUTF8(IDS_COMPASS_COMMAND_BAR_ACTION_ASK);
   } else {
-    item.title = l10n_util::GetStringUTF16(IDS_COMPASS_COMMAND_BAR_ASK_CLAUDE);
+    item.title = claude::AskTitle(provider);
     item.subtitle = question;
     item.action = l10n_util::GetStringUTF8(IDS_COMPASS_COMMAND_BAR_ACTION_ASK);
   }

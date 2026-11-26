@@ -164,6 +164,17 @@ public class CompassBar implements CompassBarUi.Actions {
     private @Nullable TabModelSelectorTabModelObserver mReaderTabsObserver;
     // Claude in the sidebar and the command bar (docs/design/ai-sidebar.md), on the regular profile.
     private @Nullable ClaudeSidebarBridge mClaudeSidebar;
+
+    /** Who answers Ask (ProviderId(): "anthropic", "openai"…), for its title (AiNames). */
+    String aiProvider() {
+        if (mClaudeSidebar == null) return "anthropic";
+        try {
+            return new org.json.JSONObject(mClaudeSidebar.snapshot())
+                    .optString("provider", "anthropic");
+        } catch (org.json.JSONException e) {
+            return "anthropic";
+        }
+    }
     private ActivityTabProvider.@Nullable ActivityTabTabObserver mTabObserver;
     private @Nullable TabModel mTabs;
     private final Callback<Integer> mTabCountObserver =

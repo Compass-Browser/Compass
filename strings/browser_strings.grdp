@@ -396,8 +396,8 @@
   <message name="IDS_COMPASS_SHORTCUTS_LITTLE_WINDOW" desc="Keyboard shortcut name in Settings: opens a little window, a small temporary browser window.">
     New little window
   </message>
-  <message name="IDS_COMPASS_SHORTCUTS_CLAUDE" desc="Keyboard shortcut name in Settings: opens the chat with Claude, the AI assistant.">
-    Chat with Claude
+  <message name="IDS_COMPASS_SHORTCUTS_CLAUDE" desc="Keyboard shortcut name in Settings: opens the chat with the AI assistant.">
+    Chat with AI
   </message>
   <message name="IDS_COMPASS_SHORTCUTS_READER" desc="Keyboard shortcut name in Settings: turns reader mode on or off.">
     Reader mode
@@ -768,17 +768,23 @@
   <message name="IDS_COMPASS_COMMAND_BAR_ACTION_SWITCH_TO_SPACE_IN" desc="Label at the end of a command bar row: pressing Enter switches to a space of another browser profile. PROFILE is that profile&#x27;s name.">
     Switch to space in <ph name="PROFILE">$1<ex>Work</ex></ph>
   </message>
-  <message name="IDS_COMPASS_COMMAND_BAR_CHAT_WITH_CLAUDE" desc="Command bar command: open the chat with Claude, the AI assistant. The user can type its words to find it.">
-    Chat with Claude
+  <message name="IDS_COMPASS_COMMAND_BAR_CHAT_WITH_ASSISTANT" desc="Command bar command: open the chat with the AI assistant. ASSISTANT is its name: Claude, GPT or Gemini. The user can type its words to find it.">
+    Chat with <ph name="ASSISTANT">$1<ex>Claude</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_CHAT_WITH_AI" desc="Command bar command: open the chat with the AI assistant (one with no name of its own: an OpenAI-compatible server). The user can type its words to find it.">
+    Chat with AI
   </message>
   <message name="IDS_COMPASS_COMMAND_BAR_ASK_IN_CHAT" desc="Command bar row: send the typed question to the chat with Claude.">
     Ask in Chat
   </message>
-  <message name="IDS_COMPASS_COMMAND_BAR_ASK_CLAUDE" desc="Command bar row: ask Claude the typed question.">
-    Ask Claude
+  <message name="IDS_COMPASS_COMMAND_BAR_ASK_ASSISTANT" desc="Command bar row: ask the AI assistant the typed question. ASSISTANT is its name: Claude, GPT or Gemini.">
+    Ask <ph name="ASSISTANT">$1<ex>Claude</ex></ph>
   </message>
-  <message name="IDS_COMPASS_COMMAND_BAR_NO_ANSWER" desc="Shown in the command bar when Claude returned an empty answer.">
-    Claude gave no answer.
+  <message name="IDS_COMPASS_COMMAND_BAR_ASK_AI" desc="Command bar row: ask the AI assistant (one with no name of its own: an OpenAI-compatible server) the typed question.">
+    Ask AI
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_NO_ANSWER" desc="Shown in the command bar when the AI assistant returned an empty answer.">
+    No answer came.
   </message>
   <message name="IDS_COMPASS_COMMAND_BAR_FAVORITE_SUBTITLE" desc="Second line of a command bar row for a favorite tab. URL is its address.">
     Favorites · <ph name="URL">$1<ex>github.com/</ex></ph>

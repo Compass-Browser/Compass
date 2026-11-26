@@ -135,7 +135,7 @@ private fun PageMenuSheet(state: PageMenuState, listener: PageMenuUi.Listener) {
             ) {
                 listener.onReader()
             }
-            if (!state.incognito) Tile(stringResource(R.string.compass_menu_ask_claude), R.drawable.compass_sym_auto_awesome) { listener.onAskClaude() }
+            if (!state.incognito) Tile(state.askTitle, R.drawable.compass_sym_auto_awesome) { listener.onAskClaude() }
             Tile(
                 stringResource(if (state.pinned) R.string.compass_menu_unpin else R.string.compass_menu_pin),
                 if (state.pinned) R.drawable.compass_sym_keep_off else R.drawable.compass_sym_keep,

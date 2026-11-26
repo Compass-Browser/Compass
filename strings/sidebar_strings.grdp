@@ -49,8 +49,11 @@
   <message name="IDS_COMPASS_CLAUDE_CHAT_QUEUED_PAUSED" desc="Claude chat: label of the queued messages when nothing is running.">
     Paused: send to go on
   </message>
-  <message name="IDS_COMPASS_CLAUDE_CHAT_PLACEHOLDER" desc="Claude chat: placeholder of the message field.">
-    Ask Claude…
+  <message name="IDS_COMPASS_CLAUDE_CHAT_PLACEHOLDER" desc="AI chat: placeholder of the message field. ASSISTANT is the AI assistant's name: Claude, GPT or Gemini.">
+    Ask <ph name="ASSISTANT">$1<ex>Claude</ex></ph>…
+  </message>
+  <message name="IDS_COMPASS_CLAUDE_CHAT_PLACEHOLDER_AI" desc="AI chat: placeholder of the message field, for an assistant with no name of its own (an OpenAI-compatible server).">
+    Ask AI…
   </message>
   <message name="IDS_COMPASS_CLAUDE_CHAT_MESSAGE" desc="Claude chat: accessible name of the message field.">
     Message to Claude
@@ -355,14 +358,14 @@
   <message name="IDS_COMPASS_THEME_EDITOR_GRADIENT_SLATE" desc="Name of a preset gradient (a set of colors) a space can have, shown as the tooltip of its swatch in the theme editor.">
     Slate
   </message>
-  <message name="IDS_COMPASS_COMMAND_BAR_ANSWERING" desc="Command bar: shown while Claude (an AI assistant) writes its answer.">
-    Claude is answering…
+  <message name="IDS_COMPASS_COMMAND_BAR_ANSWERING" desc="Command bar: shown while the AI assistant writes its answer.">
+    Answering…
   </message>
   <message name="IDS_COMPASS_COMMAND_BAR_ABOUT_PAGE_ON" desc="Command bar: tooltip of the &quot;About this page&quot; switch when on, with the page's title and site.">
-    Claude gets this tab's title and site: <ph name="PAGE">$1<ex>News - example.com</ex></ph>
+    Sends this tab's title and site: <ph name="PAGE">$1<ex>News - example.com</ex></ph>
   </message>
   <message name="IDS_COMPASS_COMMAND_BAR_ABOUT_PAGE_OFF" desc="Command bar: tooltip of the &quot;About this page&quot; switch when off.">
-    Only the question goes to Claude
+    Only the question is sent
   </message>
   <message name="IDS_COMPASS_COMMAND_BAR_ABOUT_PAGE" desc="Command bar: switch on the Ask Claude row that also sends Claude the current page.">
     About this page
@@ -373,8 +376,8 @@
   <message name="IDS_COMPASS_COMMAND_BAR_PLACEHOLDER" desc="Placeholder of the command bar's field.">
     Search, enter URL or a command…
   </message>
-  <message name="IDS_COMPASS_COMMAND_BAR_ANSWER" desc="Accessible name of the area with Claude's answer in the command bar.">
-    Claude's answer
+  <message name="IDS_COMPASS_COMMAND_BAR_ANSWER" desc="Accessible name of the area with the AI assistant's answer in the command bar.">
+    Answer
   </message>
   <message name="IDS_COMPASS_COMMAND_BAR_ESC_TO_CLOSE" desc="Command bar: hint that the Esc key closes it.">
     Esc to close

@@ -123,13 +123,17 @@ public class CommandBar
         // Ask: never in incognito; "About this page" for a web page (its title and host only).
         clearAnswer();
         mAskEnabled = false;
+        String provider = "anthropic";
         if (!incognito && mClaude != null) {
             try {
-                mAskEnabled = new org.json.JSONObject(mClaude.snapshot()).optBoolean("ask");
+                org.json.JSONObject snapshot = new org.json.JSONObject(mClaude.snapshot());
+                mAskEnabled = snapshot.optBoolean("ask");
+                provider = snapshot.optString("provider", provider);
             } catch (org.json.JSONException e) {
                 // Not offered.
             }
         }
+        mState.setAskTitle(AiNames.askTitle(mActivity.getResources(), provider));
         GURL page = tab != null ? tab.getUrl() : GURL.emptyGURL();
         boolean web =
                 tab != null

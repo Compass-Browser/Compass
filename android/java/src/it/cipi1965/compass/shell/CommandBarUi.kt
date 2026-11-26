@@ -273,7 +273,7 @@ private fun Results(state: CommandBarState, listener: CommandBarUi.Listener) {
             item(key = "ask") {
                 Card(Modifier.padding(bottom = 8.dp)) {
                     CardRow(
-                        stringResource(R.string.compass_menu_ask_claude),
+                        state.askTitle,
                         subtitle = text,
                         first = true,
                         trailing = R.drawable.compass_sym_keyboard_return,

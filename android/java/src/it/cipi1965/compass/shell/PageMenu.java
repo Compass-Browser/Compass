@@ -43,6 +43,7 @@ public class PageMenu implements PageMenuUi.Listener {
         mState.setCanGoBack(tab != null && tab.canGoBack());
         mState.setCanGoForward(tab != null && tab.canGoForward());
         mState.setIncognito(tab != null && tab.isIncognito());
+        mState.setAskTitle(AiNames.askTitle(mActivity.getResources(), mBar.aiProvider()));
         mState.setPinned(tab != null && mBar.pinnedNodeFor(tab.getId()) != null);
         mState.setInReader(mBar.inReader());
         mState.setTint(mBar.spaceTint());

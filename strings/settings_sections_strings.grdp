@@ -11,7 +11,7 @@
     This Boost link is broken: part of it may be missing.
   </message>
   <message name="IDS_COMPASS_SETTINGS_BOOSTS_BY_CLAUDE" desc="Tag on a Boost Claude made.">
-    by Claude
+    by AI
   </message>
   <message name="IDS_COMPASS_SETTINGS_BOOSTS_COPY_FAILED" desc="Shown when a Boost&#x27;s link couldn&#x27;t be copied.">
     Couldn’t copy the link.
@@ -41,7 +41,7 @@
     This Boost runs JavaScript on <ph name="SITE">$1<ex>github.com</ex></ph>. Only add it if you trust whoever shared it.
   </message>
   <message name="IDS_COMPASS_SETTINGS_BOOSTS_LEAD" desc="Explains Boosts at the top of their settings section. &quot;Let Claude make Boosts&quot; is the name of a setting; &quot;Shared&quot; is a tag shown on Boosts others shared.">
-    Boosts change how sites look and work: CSS and JavaScript that Compass adds to every page of a site, on all your devices. Make them here, or ask Claude (turn on "Let Claude make Boosts" in Claude's settings). JavaScript in a Boost can read and change the pages it runs on, so only keep code you trust. Share a Boost as a link or a file; Boosts others share with you are marked Shared.
+    Boosts change how sites look and work: CSS and JavaScript that Compass adds to every page of a site, on all your devices. Make them here, or ask the AI (turn on "Make Boosts" in AI settings). JavaScript in a Boost can read and change the pages it runs on, so only keep code you trust. Share a Boost as a link or a file; Boosts others share with you are marked Shared.
   </message>
   <message name="IDS_COMPASS_SETTINGS_BOOSTS_LINK_COPIED" desc="Shown after a Boost&#x27;s link was copied.">
     Link copied.
@@ -119,7 +119,7 @@
     Apple Intelligence (on this Mac)
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_APPLE_INTELLIGENCE_DETAIL" desc="Explains Apple Intelligence answering the sidebar&#x27;s tasks. The names in it are the names of those tasks, as shown below it.">
-    The model built into macOS answers Name Link Folders, Tidy Today and Shorter Tab Titles, with no key and in Claude Code mode too; titles and sites never leave this Mac. It's smaller than Claude: its names are plainer, and Tidy leaves more tabs loose. Answer Questions in the Command Bar stays with the provider above.
+    The model built into macOS answers Name Link Folders, Tidy Today and Shorter Tab Titles, with no key and in Claude Code mode too; titles and sites never leave this Mac. It's smaller than the provider's models: its names are plainer, and Tidy leaves more tabs loose. Answer Questions in the Command Bar stays with the provider above.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_AUTH_API_KEY" desc="Menu item: send the key in the x-api-key header, as the Claude API wants. x-api-key is an HTTP header name.">
     x-api-key (Claude API)
@@ -137,7 +137,7 @@
     Base URL
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_CAN_DO_FOOTER" desc="Warning under the switches for what Claude may do.">
-    Claude asks before JavaScript it adds, plugins it saves and cookies it changes. Web pages can try to give Claude instructions of their own; it's told to ignore them, but only turn these on for tasks you watch and pages you trust.
+    The AI asks before JavaScript it adds, plugins it saves and cookies it changes. Web pages can try to give the AI instructions of their own; it's told to ignore them, but only turn these on for tasks you watch and pages you trust.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_CHATGPT_HINT" desc="Explains signing in with ChatGPT.">
     Sign in with your ChatGPT account to use your ChatGPT plan instead of an API key: its usage limits apply, shared with your other apps, and you can see or cap what Compass uses in ChatGPT's settings. While you're signed in, the key below isn't used.
@@ -170,10 +170,10 @@
     Answer Questions in the Command Bar
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_COMMAND_BAR_ASK_DETAIL" desc="Explains the Answer Questions task. &quot;Ask Claude&quot;, &quot;Continue in Chat&quot; and &quot;About this page&quot; are names shown in the command bar.">
-    A question typed in the command bar gets an "Ask Claude" row; its short answer shows right there, and "Continue in Chat" takes it to the chat. Only the question goes, with the current tab's title and site when "About this page" is on.
+    A question typed in the command bar gets an "Ask" row (Ask Claude, Ask GPT…); its short answer shows right there, and "Continue in Chat" takes it to the chat. Only the question goes, with the current tab's title and site when "About this page" is on.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_CONFIRM_DELETE_ALL" desc="Asks before deleting every memory.">
-    Delete everything Claude remembers about you, on all your devices?
+    Delete everything the AI remembers about you, on all your devices?
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_CONNECTED" desc="Shown when the connection works, with how many models the provider has.">
     {COUNT, plural, =1 {Connected: 1 model available.} other {Connected: # models available.}}
@@ -185,7 +185,7 @@
     Connection
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_CONNECTION_LEAD" desc="Explains the Connection view. console.anthropic.com is a website.">
-    Chat with Claude about the page you're on. Claude can read it, its JavaScript console, and click and type in it. Compass ships no key: use your own API key from console.anthropic.com, or a gateway's, or your own Claude Code.
+    Chat with an AI about the page you're on. It can read the page, its JavaScript console, and click and type in it. Compass ships no key: use your own API key from Anthropic, OpenAI or Google, or a gateway's, or your own Claude Code.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_CONNECT_WITH" desc="Heading of the choice between an API key and Claude Code.">
     Connect with
@@ -224,10 +224,10 @@
     Files
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_FILES_ASK" desc="Explains that Claude asks before each file it saves. &quot;Allow&quot;, &quot;Allow for this chat&quot; and &quot;Deny&quot; are the names of the buttons in the chat.">
-    Claude asks before each file it saves or changes, in the chat: Allow, Allow for this chat, or Deny.
+    The AI asks before each file it saves or changes, in the chat: Allow, Allow for this chat, or Deny.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_FILES_OFF_DETAIL" desc="Explains the Off choice for files.">
-    Claude can't use files on this computer.
+    The AI can't use files on this computer.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_FINISH_SIGN_IN" desc="Shown while the user signs in to ChatGPT in another tab.">
     Finish signing in in the tab that opened, then come back.
@@ -239,7 +239,7 @@
     Found automatically
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_IN_SIDEBAR" desc="Row and heading of the view of small tasks Claude does in the sidebar.">
-    Claude in the sidebar
+    AI in the sidebar
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_KEY_HELP_ANTHROPIC" desc="Explains how the Anthropic API key is stored. &quot;claude setup-token&quot; is a command.">
     Stored encrypted on this device only; it never syncs, and pages never see it. To use your Claude subscription, connect with Claude Code instead, or, with the risks below accepted, use a token from <ph name="BEGIN_CODE">&lt;code&gt;</ph>claude setup-token<ph name="END_CODE">&lt;/code&gt;</ph>.
@@ -260,10 +260,10 @@
     Key removed.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_LET_CLAUDE_SAVE" desc="Checkbox: Claude may save memories itself.">
-    Let Claude save memories
+    Let the AI save memories
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_LET_CLAUDE_SAVE_DETAIL" desc="Explains letting Claude save memories. Undo is the name of a button in the chat.">
-    Claude saves what it thinks will help in later chats, and shows each save in the chat, with Undo. Off, only you add them, here.
+    The AI saves what it thinks will help in later chats, and shows each save in the chat, with Undo. Off, only you add them, here.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_MAKE_BOOSTS" desc="Switch: Claude may make Boosts (CSS and JavaScript added to a site&#x27;s pages). Boosts is a feature name.">
     Make Boosts
@@ -308,7 +308,7 @@
     Name Link Folders
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_NAME_LINK_FOLDERS_DETAIL" desc="Explains the Name Link Folders task. &quot;Suggest a Name&quot; is the name of a menu item.">
-    Claude names the folders that gather a page's links, from their tabs' titles and sites, and folder menus offer "Suggest a Name". Each new name can be undone from the folder's menu.
+    The AI names the folders that gather a page's links, from their tabs' titles and sites, and folder menus offer "Suggest a Name". Each new name can be undone from the folder's menu.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_NEEDS_KEY" desc="Shown when the sidebar&#x27;s tasks can&#x27;t run: no key.">
     These need an API key (or a gateway's) above. Claude Code mode doesn't do them yet.
@@ -365,7 +365,7 @@
     Save files
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_SAVE_FILES_DETAIL" desc="Explains the &quot;Save files&quot; choice.">
-    Claude can save new files it makes for you, like notes or a table, in one folder. It doesn't read or replace your files.
+    The AI can save new files it makes for you, like notes or a table, in one folder. It doesn't read or replace your files.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_SEND_KEY_AS" desc="Label of the menu for which HTTP header carries the API key.">
     Send the key as
@@ -386,7 +386,7 @@
     Long tab titles read as short ones in the sidebar, from the titles and sites of your tabs. Hover cards keep the full title, and a name you give a tab always wins.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_SIDEBAR_HINT" desc="Explains the small tasks Claude does in the sidebar and what they send.">
-    Small tasks Claude does in the sidebar, each with its own switch and model. Only tabs' titles and sites are sent, to the endpoint above, never what pages contain; incognito windows never. At most 30 automatic requests an hour.
+    Small tasks the AI does in the sidebar, each with its own switch and model. Only tabs' titles and sites are sent, to the endpoint above, never what pages contain; incognito windows never. At most 30 automatic requests an hour.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_SIGNED_IN" desc="Shown when signed in to ChatGPT and the account&#x27;s email isn&#x27;t known.">
     Signed in
@@ -410,10 +410,10 @@
     Tidy Today
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_TIDY_TODAY_DETAIL" desc="Explains the Tidy Today task. &quot;Tidy&quot; is the name of a button; Today is the sidebar&#x27;s section of open tabs.">
-    "Tidy" in Today's header and the command bar asks Claude to group Today's loose tabs into named folders, from their titles and sites. Nothing is closed, and Undo puts every tab back.
+    "Tidy" in Today's header and the command bar asks the AI to group Today's loose tabs into named folders, from their titles and sites. Nothing is closed, and Undo puts every tab back.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_TITLE" desc="Heading of the Claude settings section. Claude is a product name.">
-    Claude
+    AI
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_TOKEN_RISKS_DETAIL" desc="Explains the risks of subscription tokens. &quot;claude setup-token&quot; is a command and sk-ant-oat… how such a token starts.">
     Lets the key be a token from <ph name="BEGIN_CODE">&lt;code&gt;</ph>claude setup-token<ph name="END_CODE">&lt;/code&gt;</ph> (sk-ant-oat…), which uses your Claude subscription. Compass then sends it as Claude Code does, saying it's Claude Code. Anthropic doesn't offer these tokens for other apps: they can stop working at any time, and using them this way may go against the terms of your subscription. Off, such a token is refused.
@@ -425,16 +425,16 @@
     Use a folder
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_USE_FOLDER_DETAIL" desc="Explains the &quot;Use a folder&quot; choice.">
-    Claude can list, read and write files in one folder you choose, and nowhere else.
+    The AI can list, read and write files in one folder you choose, and nowhere else.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_USE_MEMORY" desc="Checkbox: Claude keeps short facts about the user between chats.">
     Use memory
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_USE_MEMORY_DETAIL" desc="Explains Claude&#x27;s memory.">
-    Claude keeps short facts about you, like how you like answers, and starts each new chat with them. They sync with your spaces, end-to-end encrypted. Off, Claude neither sees nor saves them; what's saved stays until you delete it.
+    The AI keeps short facts about you, like how you like answers, and starts each new chat with them. They sync with your spaces, end-to-end encrypted. Off, the AI neither sees nor saves them; what's saved stays until you delete it.
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_WHAT_CLAUDE_CAN_DO" desc="Heading of the switches for what Claude may do in the browser.">
-    What Claude can do
+    What the AI can do
   </message>
   <message name="IDS_COMPASS_SETTINGS_CLAUDE_WHOLE_BROWSER" desc="Switch: Claude may use every tab and window, not only the one it works on.">
     Use the whole browser
@@ -761,7 +761,7 @@
     Live folders
   </message>
   <message name="IDS_COMPASS_SETTINGS_PLUGINS_MAKE_WITH_CLAUDE" desc="Button that asks Claude to write a new plugin.">
-    Make one with Claude
+    Make one with AI
   </message>
   <message name="IDS_COMPASS_SETTINGS_PLUGINS_META" desc="Under a plugin&#x27;s name: where it comes from and its version.">
     <ph name="SOURCE">$1<ex>Built-in</ex></ph> · version <ph name="VERSION">$2<ex>1.2</ex></ph>
@@ -818,7 +818,7 @@
     Built-in
   </message>
   <message name="IDS_COMPASS_SETTINGS_PLUGINS_SOURCE_CLAUDE" desc="Where a plugin comes from: Claude wrote it.">
-    Made by Claude
+    Made by AI
   </message>
   <message name="IDS_COMPASS_SETTINGS_PLUGINS_SOURCE_INSTALLED" desc="Where a plugin comes from: the user installed it from an address.">
     Installed

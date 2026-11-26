@@ -6,6 +6,7 @@
 
 #include "base/functional/callback.h"
 #include "base/strings/strcat.h"
+#include "base/strings/utf_string_conversions.h"
 #include "compass/strings/grit/compass_strings.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
@@ -80,6 +81,24 @@ std::string_view AssistantName(AIProvider provider) {
       return "AI";
   }
   return "AI";
+}
+
+std::u16string AskTitle(AIProvider provider) {
+  if (provider == AIProvider::kCompatible) {
+    return l10n_util::GetStringUTF16(IDS_COMPASS_COMMAND_BAR_ASK_AI);
+  }
+  return l10n_util::GetStringFUTF16(
+      IDS_COMPASS_COMMAND_BAR_ASK_ASSISTANT,
+      base::UTF8ToUTF16(AssistantName(provider)));
+}
+
+std::u16string ChatWithTitle(AIProvider provider) {
+  if (provider == AIProvider::kCompatible) {
+    return l10n_util::GetStringUTF16(IDS_COMPASS_COMMAND_BAR_CHAT_WITH_AI);
+  }
+  return l10n_util::GetStringFUTF16(
+      IDS_COMPASS_COMMAND_BAR_CHAT_WITH_ASSISTANT,
+      base::UTF8ToUTF16(AssistantName(provider)));
 }
 
 bool UsesOpenAIFormat(AIProvider provider) {

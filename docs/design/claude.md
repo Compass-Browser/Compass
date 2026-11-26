@@ -201,7 +201,7 @@ Claude can save files, or work in a folder, on the user's computer, and in
 Claude Code mode use Claude Code's own tools. Off by default; the user
 approves each write.
 
-- **The setting** (Settings, Claude, "Files"; `compass.claude.files_access`, an int, and `compass.claude.files_folder`, a path; none sync):
+- **The setting** (Settings, AI, "Files"; `compass.claude.files_access`, an int, and `compass.claude.files_folder`, a path; none sync):
   - **Off** (0, the default): the file tools refuse ("Not permitted…", which says where to turn it on).
   - **Save files** (1): `save_file` only, into the folder (Downloads when it's empty: `DownloadPrefs::DownloadPath()`).
   - **Use a folder** (2): `save_file` (into the folder), `list_files`, `read_file` and `write_file`, inside the folder only. Without a folder chosen, as Off.
@@ -235,7 +235,7 @@ approves each write.
 
 ### Settings
 
-- **Section "Claude"**, in the settings window's AI pane (docs/design/settings-window.md, docs/design/settings.md): `resources/sidebar/settings/claude_page.{ts,html}` on `CompassSettingsPage`.
+- **Section "AI"** (it was "Claude"; Compass also answers with OpenAI, Gemini and compatible servers, so settings say "the AI" for the assistant and keep "Claude" only for Anthropic's products: Claude Code, the Claude API, a Claude subscription), in the settings window's AI pane (docs/design/settings-window.md, docs/design/settings.md): `resources/sidebar/settings/claude_page.{ts,html}` on `CompassSettingsPage`.
   - The handler is bound in `browser/ui/webui/settings/settings_sections.cc`, for chrome://compass-settings.
 - **Fields:**
   - an API key (password field showing only `sk-ant-…last4` once saved, plus a Remove button);
@@ -275,7 +275,7 @@ Claude can inspect the tab it acts on as the browser's developer tools do:
 its requests, styles, storage and performance, and emulate other devices.
 Off by default. Desktop through the DevTools protocol; iOS, whose web view has none, with its own means ("On iOS" below).
 
-- **The setting** (Settings, Claude, "Let Claude use developer tools"; `compass.claude.devtools`, a bool, off, doesn't sync), with a warning about pages' own instructions.
+- **The setting** (Settings, AI, "Use developer tools"; `compass.claude.devtools`, a bool, off, doesn't sync), with a warning about pages' own instructions.
 - **Tools** (`tools.json`, `scope: "devtools"`, `platforms: ["desktop", "android", "ios"]`): page tools that need the setting. `ClaudeTools::CheckDevTools()` refuses them while it's off (`SetDevTools()`'s callback reads the pref at each call), for the chat and MCP clients alike; `run_js` and `read_console` stay page tools.
   - **Sent only while on**, unlike the browser and file tools: `Definitions(…, devtools)`. The API chat adds them when the setting is on and keeps them for the rest of the chat (`chat_devtools_`), so a conversation's tools only grow; Claude Code mode resumes its session in a new process when the setting changes (Claude Code lists Compass's tools as it starts); MCP clients get them in `tools/list` while it's on in any profile the connection serves, and each call checks the profile it acts in.
   - **The context** says whether they're on; the system prompt's "Developer tools" section has the rules (secrets, page content as data, changes approved by the user).
@@ -313,7 +313,7 @@ for what's missing.
 
 Claude can make and change Boosts, per-site CSS and JavaScript
 (docs/design/boosts.md, "Claude"), with "Let Claude make Boosts"
-(`compass.claude.boosts`, off, doesn't sync; Settings, Claude).
+(`compass.claude.boosts`, off, doesn't sync; Settings, AI).
 
 - **Tools** (`tools.json`, `scope: "boosts"`, `platforms: ["desktop",
   "android", "ios"]`): `list_boosts {host?}`, `save_boost {id?, name, match, css?, js?,
@@ -336,7 +336,7 @@ Claude can make and change Boosts, per-site CSS and JavaScript
 
 Claude can write, test and save plugins for live folders and tab previews
 (docs/design/live-folders.md), with "Let Claude make plugins"
-(`compass.claude.plugins`, off, doesn't sync; Settings, Claude). Desktop
+(`compass.claude.plugins`, off, doesn't sync; Settings, AI). Desktop
 only.
 
 - **Tools** (`tools.json`, `scope: "plugins"`, `platforms: ["desktop"]`):
@@ -432,7 +432,7 @@ name "Always allow" stores.
   - Approval is per profile: the first `tools/call` that acts in a profile asks, in a dialog on that profile's last active window (brought to the front: the user is working in the client): "<client> wants to control Compass" (with " in <profile>" when more than one profile allows MCP clients), with Allow, Deny and "Always allow <client>" (`compass.claude.mcp_allowed_clients`, that profile's; settings list them, with Forget). Denying in one profile doesn't affect the others. Listing tools asks nothing. Closing the dialog denies. A profile with no window (kept loaded by the space list) can't ask: the call fails with what to do, and the next call there asks again, unless the client is always allowed there. A question in another profile than the front window's brings its window forward, but the page tools keep following the tab the user was on until they change window or tab. Turning MCP off in a profile while its question is open closes the dialog (`McpBridge` keeps the open ones) and refuses the call waiting on it ("… stopped allowing MCP clients"); a late answer is ignored. A call running there is answered the same way. Until the client is allowed in at least one profile, errors don't name profiles. The client's name is what it declares in `initialize`; the security boundary is the per-user socket.
   - "Let Claude use the whole browser" applies to MCP as to the chat, checked against the profile each call acts in.
   - The click indicator shows. There's no Stop button for MCP: turning the setting off takes the profile out of the sessions, and ends them in the last profile that had it on.
-- **Settings** (Claude section): the toggle; while on, the command to copy, `claude mcp add compass -- <the app>/Contents/MacOS/compass-mcp`, with `--user-data-dir=…` when it isn't the default one (development builds), and the always-allowed clients.
+- **Settings** (AI section): the toggle; while on, the command to copy, `claude mcp add compass -- <the app>/Contents/MacOS/compass-mcp`, with `--user-data-dir=…` when it isn't the default one (development builds), and the always-allowed clients.
 - **No API key.** MCP clients bring their own model.
 - **Tests** (`browser/ui/claude/mcp_bridge_browsertest.cc`, a scripted client on the real socket): initialize, tools/list, calls (text, a screenshot as an MCP image), asked once per connection, browser tools refused without the setting, ping, unknown methods; Deny, and "Always allow" remembered for the next connection; turning it off closes the connection and removes the socket; a connection serving two profiles (`ServesEveryEnabledProfile`: both listed, ids routing calls, `profile` narrowing `list_tabs`, a split across profiles refused, asked per profile with a Deny that stays in its profile, and one profile turned off without closing the connection), the target's profile winning for the page and developer tools and `send_tab_to_device` (`TargetsProfileWins`), and a profile turned off while its question is open, its call refused (`TurningOffDropsTheQuestion`); and the real `compass-mcp` relaying, and answering errors while nothing listens. The test's temporary directory makes the socket path too long, so the link is tested too.
 
@@ -443,7 +443,7 @@ their Claude subscription, instead of the Claude API with a key. Claude
 Code runs the conversation and its tool loop; Compass's tools reach it as
 an MCP server. The API key stays the other choice.
 
-- **The choice.** Settings, Claude, "Connect with": API key or Claude Code (`compass.claude.backend`, 0 or 1). Claude Code's path (`compass.claude.claude_code_path`) is empty to look where its installers put it (`FindClaudeCode()`: `~/.local/bin/claude`, `~/.claude/local/claude`, then Homebrew's and `/usr/local/bin`; a GUI app doesn't get the shell's PATH). Test connection runs `claude --version` and `claude auth status` and says the version and the account, or that it isn't signed in (`DescribeClaudeCodeStatus()`). The model picker is the same; its id goes as `--model`.
+- **The choice.** Settings, AI, "Connect with": API key or Claude Code (`compass.claude.backend`, 0 or 1). Claude Code's path (`compass.claude.claude_code_path`) is empty to look where its installers put it (`FindClaudeCode()`: `~/.local/bin/claude`, `~/.claude/local/claude`, then Homebrew's and `/usr/local/bin`; a GUI app doesn't get the shell's PATH). Test connection runs `claude --version` and `claude auth status` and says the version and the account, or that it isn't signed in (`DescribeClaudeCodeStatus()`). The model picker is the same; its id goes as `--model`.
 - **The process** (`ClaudeCodeProcess`, `browser/claude/claude_code_process.{h,cc}`): one `claude` per chat, started at its first message and kept for the next ones, in `<profile>/Claude Code/` (an empty folder, so it finds none of the user's projects). stdin takes stream-json user messages; stdout and stderr share a pipe, read a line at a time on a blocking thread.
   - The arguments (`ClaudeCodeArgs()`): `-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --max-turns 40 --system-prompt <SystemPromptText()> --tools "" (or its own, "Files") --setting-sources "" --strict-mcp-config --model <pref> --mcp-config <compass only> --allowedTools mcp__compass`, and `--resume <session>` when it goes on.
   - So Claude Code has none of its own tools (no files, shell or web), none of the user's MCP servers, hooks or settings, and Compass's tools without asking (Compass checks each call itself).

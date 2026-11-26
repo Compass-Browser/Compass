@@ -659,7 +659,8 @@
   <!-- PageMenuUi.kt -->
   <string name="compass_menu_find">Trova</string>
   <string name="compass_menu_reader">Lettura</string>
-  <string name="compass_menu_ask_claude">Chiedi a Claude</string>
+  <string name="compass_ask_named">Chiedi a %1$s</string>
+  <string name="compass_ask_ai">Chiedi all’AI</string>
   <string name="compass_menu_unpin">Non fissare</string>
   <string name="compass_menu_downloads">Download</string>
   <string name="compass_menu_history">Cronologia</string>
@@ -674,7 +675,7 @@
   <string name="compass_command_new_incognito_tab">Nuova scheda in incognito</string>
   <string name="compass_command_new_tab_in">Nuova scheda in %1$s</string>
   <string name="compass_command_this_space">questo spazio</string>
-  <string name="compass_command_claude_answering">Claude sta rispondendo…</string>
+  <string name="compass_command_claude_answering">Risposta in corso…</string>
   <string name="compass_command_continue_in_chat">Continua nella chat</string>
   <string name="compass_command_about_this_page">Su questa pagina: %1$s</string>
   <string name="compass_command_open_address">Apri indirizzo</string>
@@ -687,7 +688,7 @@
   <string name="compass_command_on_device">Su %1$s · %2$s</string>
   <string name="compass_command_favorites">Preferiti</string>
   <string name="compass_command_pinned">Fissate</string>
-  <string name="compass_command_claude_not_set_up">Claude non è configurato.</string>
+  <string name="compass_command_claude_not_set_up">L’AI non è configurata.</string>
   <!-- CompassBarUi.kt -->
   <string name="compass_bar_new_incognito_tab">Nuova scheda in incognito</string>
   <string name="compass_bar_copy_url">Copia URL</string>

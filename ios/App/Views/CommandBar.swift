@@ -430,7 +430,7 @@ struct CommandBar: View {
       })
     }
     if !app.isIncognito {
-      list.append(Command(title: String(localized: "Chat with \(ClaudeSettings.shared.provider.assistantName)", comment: "Command bar command; the assistant's name, e.g. Chat with Claude."),
+      list.append(Command(title: ClaudeSettings.shared.provider.chatTitle,
                           subtitle: String(localized: "Open the chat", comment: "Command bar subtitle of Chat with Claude."),
                           symbol: "bubble.left.and.text.bubble.right", color: .orange) {
         present { app.showingClaude = true }

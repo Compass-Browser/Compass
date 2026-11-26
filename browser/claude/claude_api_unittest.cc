@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 
+#include "compass/browser/claude/ai_provider.h"
 #include "compass/browser/claude/claude_prefs.h"
 #include "components/prefs/testing_pref_service.h"
 #include "net/http/http_request_headers.h"
@@ -392,4 +393,15 @@ TEST(ClaudeApiTest, KeyHint) {
 }
 
 }  // namespace
+// The command bar's and page menu's titles name the assistant; a server
+// with no name of its own is "AI".
+TEST(AIProviderTest, AskAndChatTitles) {
+  EXPECT_EQ(AskTitle(AIProvider::kAnthropic), u"Ask Claude");
+  EXPECT_EQ(AskTitle(AIProvider::kOpenAI), u"Ask GPT");
+  EXPECT_EQ(AskTitle(AIProvider::kGemini), u"Ask Gemini");
+  EXPECT_EQ(AskTitle(AIProvider::kCompatible), u"Ask AI");
+  EXPECT_EQ(ChatWithTitle(AIProvider::kAnthropic), u"Chat with Claude");
+  EXPECT_EQ(ChatWithTitle(AIProvider::kCompatible), u"Chat with AI");
+}
+
 }  // namespace compass::claude

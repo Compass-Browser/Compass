@@ -119,7 +119,7 @@ export function getHtml(this: CompassClaudeChatAppElement) {
         </div>`)}
     </div>` : nothing}
   <div class="composer">
-    <textarea id="input" rows="1" placeholder="${i18n('claudeChatPlaceholder')}"
+    <textarea id="input" rows="1" placeholder="${this.getPlaceholder_()}"
         aria-label="${i18n('claudeChatMessage')}" ?disabled="${!this.hasKey_}"
         @input="${this.onInputInput_}"
         @keydown="${this.onInputKeydown_}"></textarea>

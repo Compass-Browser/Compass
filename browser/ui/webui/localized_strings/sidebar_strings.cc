@@ -34,6 +34,7 @@ void AddSidebarLocalizedStrings(content::WebUIDataSource *source) {
       {"claudeChatNoKey", IDS_COMPASS_CLAUDE_CHAT_NO_KEY},
       {"claudeChatNoKeyLead", IDS_COMPASS_CLAUDE_CHAT_NO_KEY_LEAD},
       {"claudeChatPlaceholder", IDS_COMPASS_CLAUDE_CHAT_PLACEHOLDER},
+      {"claudeChatPlaceholderAi", IDS_COMPASS_CLAUDE_CHAT_PLACEHOLDER_AI},
       {"claudeChatPluginDeleted", IDS_COMPASS_CLAUDE_CHAT_PLUGIN_DELETED},
       {"claudeChatPluginSaved", IDS_COMPASS_CLAUDE_CHAT_PLUGIN_SAVED},
       {"claudeChatPluginUpdated", IDS_COMPASS_CLAUDE_CHAT_PLUGIN_UPDATED},

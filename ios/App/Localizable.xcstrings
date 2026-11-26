@@ -743,7 +743,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "IA"
+            "value" : "AI"
           }
         }
       }
@@ -753,7 +753,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L’IA può"
+            "value" : "L’AI può"
           }
         }
       }
@@ -763,7 +763,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "IA nella barra laterale"
+            "value" : "AI nella barra laterale"
           }
         }
       }
@@ -925,7 +925,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aggiungi una chiave API in Impostazioni → IA."
+            "value" : "Aggiungi una chiave API in Impostazioni → AI."
           }
         }
       }
@@ -1338,7 +1338,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apple Intelligence si occupa di Dai un nome alle cartelle di link, Riordina Oggi e Titoli delle schede più brevi su questo dispositivo: non serve alcuna chiave e titoli e siti non lasciano mai il dispositivo. È più piccola dell’IA qui sopra, quindi i nomi sono più semplici e Riordina lascia più schede sparse. Rispondi alle domande resta all’IA qui sopra, che riceve solo le tue domande; mai l’incognito."
+            "value" : "Apple Intelligence si occupa di Dai un nome alle cartelle di link, Riordina Oggi e Titoli delle schede più brevi su questo dispositivo: non serve alcuna chiave e titoli e siti non lasciano mai il dispositivo. È più piccola dell’AI qui sopra, quindi i nomi sono più semplici e Riordina lascia più schede sparse. Rispondi alle domande resta all’AI qui sopra, che riceve solo le tue domande; mai l’incognito."
           }
         }
       }
@@ -1829,17 +1829,6 @@
         }
       }
     },
-    "Chat with %@" : {
-      "comment" : "Command bar command; the assistant's name, e.g. Chat with Claude.",
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chatta con %@"
-          }
-        }
-      }
-    },
     "Check for Updates" : {
       "localizations" : {
         "it" : {
@@ -1928,7 +1917,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Scegli la cartella che l’IA può usare."
+            "value" : "Scegli la cartella che l’AI può usare."
           }
         }
       }
@@ -2768,7 +2757,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eliminare tutto ciò che l’IA ricorda di te, su tutti i tuoi dispositivi?"
+            "value" : "Eliminare tutto ciò che l’AI ricorda di te, su tutti i tuoi dispositivi?"
           }
         }
       }
@@ -3586,7 +3575,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Per Amazon Bedrock, Google Vertex IA o un gateway compatibile. Se vuoto, si usa l’API di Claude."
+            "value" : "Per Amazon Bedrock, Google Vertex AI o un gateway compatibile. Se vuoto, si usa l’API di Claude."
           }
         }
       }
@@ -4585,7 +4574,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Consenti all’IA di creare Boost"
+            "value" : "Consenti all’AI di creare Boost"
           }
         }
       }
@@ -4595,7 +4584,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Consenti all’IA di salvare ricordi"
+            "value" : "Consenti all’AI di salvare ricordi"
           }
         }
       }
@@ -4605,7 +4594,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Consenti all’IA di usare gli strumenti per sviluppatori"
+            "value" : "Consenti all’AI di usare gli strumenti per sviluppatori"
           }
         }
       }
@@ -4615,7 +4604,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Consenti all’IA di usare tutto il browser"
+            "value" : "Consenti all’AI di usare tutto il browser"
           }
         }
       }
@@ -5044,7 +5033,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Serve configurare l’IA: salva una chiave API (o un server) qui sopra."
+            "value" : "Serve configurare l’AI: salva una chiave API (o un server) qui sopra."
           }
         }
       }
@@ -5648,7 +5637,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Disattivato: l’IA lavora solo con la pagina di cui stai parlando. Attivato: può anche leggere e aprire le altre schede. Le pagine web possono contenere testo scritto per ingannarla, quindi attivalo solo quando ti serve."
+            "value" : "Disattivato: l’AI lavora solo con la pagina di cui stai parlando. Attivato: può anche leggere e aprire le altre schede. Le pagine web possono contenere testo scritto per ingannarla, quindi attivalo solo quando ti serve."
           }
         }
       }
@@ -8016,7 +8005,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Piccoli compiti che l’IA svolge per te, ognuno con il suo interruttore e il suo modello. Vengono inviati all’endpoint qui sopra solo i titoli e i siti delle schede (e le domande che fai), mai il contenuto delle pagine; mai l’incognito. Al massimo 30 richieste automatiche all’ora."
+            "value" : "Piccoli compiti che l’AI svolge per te, ognuno con il suo interruttore e il suo modello. Vengono inviati all’endpoint qui sopra solo i titoli e i siti delle schede (e le domande che fai), mai il contenuto delle pagine; mai l’incognito. Al massimo 30 richieste automatiche all’ora."
           }
         }
       }
@@ -8496,7 +8485,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L’IA può ispezionare la pagina su cui lavora come farebbe uno sviluppatore web: le richieste e le loro risposte, gli stili, i cookie e lo spazio di archiviazione, le prestazioni, e provarla come se fosse un altro dispositivo. Le modifiche a cookie o archiviazione ti vengono chieste prima. Quando è attivo, Compass registra le richieste delle pagine e fa passare le connessioni dei tuoi profili da un proxy nell’app, che vede dove vanno ma mai cosa contengono. Le pagine web possono contenere testo scritto per ingannarla, quindi attivalo solo quando ti serve."
+            "value" : "L’AI può ispezionare la pagina su cui lavora come farebbe uno sviluppatore web: le richieste e le loro risposte, gli stili, i cookie e lo spazio di archiviazione, le prestazioni, e provarla come se fosse un altro dispositivo. Le modifiche a cookie o archiviazione ti vengono chieste prima. Quando è attivo, Compass registra le richieste delle pagine e fa passare le connessioni dei tuoi profili da un proxy nell’app, che vede dove vanno ma mai cosa contengono. Le pagine web possono contenere testo scritto per ingannarla, quindi attivalo solo quando ti serve."
           }
         }
       }
@@ -8507,7 +8496,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L’IA può elencare e leggere i file nella cartella, e salvarli e modificarli dopo che hai consentito ciascuno. I file possono contenere testo scritto per ingannarla: usa una cartella con solo ciò che serve al compito."
+            "value" : "L’AI può elencare e leggere i file nella cartella, e salvarli e modificarli dopo che hai consentito ciascuno. I file possono contenere testo scritto per ingannarla: usa una cartella con solo ciò che serve al compito."
           }
         }
       }
@@ -8517,7 +8506,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L’IA può cambiare lo stile di un sito per te con un Boost, CSS che si applica a ogni visita, e modificare i Boost che ha creato. Il CSS viene salvato subito, con Annulla nella chat. Per JavaScript ti chiede sempre prima, mostrando il codice. I Boost si sincronizzano con i tuoi spazi, con crittografia end-to-end."
+            "value" : "L’AI può cambiare lo stile di un sito per te con un Boost, CSS che si applica a ogni visita, e modificare i Boost che ha creato. Il CSS viene salvato subito, con Annulla nella chat. Per JavaScript ti chiede sempre prima, mostrando il codice. I Boost si sincronizzano con i tuoi spazi, con crittografia end-to-end."
           }
         }
       }
@@ -8528,7 +8517,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L’IA può salvare nella cartella nuovi file che crea per te, come note o una tabella; non ne sostituisce mai uno. Vedi ogni file e lo consenti prima."
+            "value" : "L’AI può salvare nella cartella nuovi file che crea per te, come note o una tabella; non ne sostituisce mai uno. Vedi ogni file e lo consenti prima."
           }
         }
       }
@@ -8539,7 +8528,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L’IA non può salvare, leggere o scrivere file."
+            "value" : "L’AI non può salvare, leggere o scrivere file."
           }
         }
       }
@@ -8549,7 +8538,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L’IA conserva brevi informazioni su di te, come il modo in cui preferisci le risposte, e inizia ogni nuova chat con queste. Ogni salvataggio appare nella chat, con Annulla. I ricordi si sincronizzano con i tuoi spazi, con crittografia end-to-end."
+            "value" : "L’AI conserva brevi informazioni su di te, come il modo in cui preferisci le risposte, e inizia ogni nuova chat con queste. Ogni salvataggio appare nella chat, con Annulla. I ricordi si sincronizzano con i tuoi spazi, con crittografia end-to-end."
           }
         }
       }
@@ -8560,7 +8549,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L’IA dà un nome alle cartelle che raccolgono i link di una pagina, in base ai titoli e ai siti delle schede, e i menu delle cartelle offrono “Suggerisci un nome”. Ogni nuovo nome si può annullare dal menu della cartella."
+            "value" : "L’AI dà un nome alle cartelle che raccolgono i link di una pagina, in base ai titoli e ai siti delle schede, e i menu delle cartelle offrono “Suggerisci un nome”. Ogni nuovo nome si può annullare dal menu della cartella."
           }
         }
       }
@@ -9221,7 +9210,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L’intestazione di Oggi offre “Riordina”: l’IA raggruppa le schede sparse di Oggi in cartelle con un nome, in base a titoli e siti. “Annulla” rimette tutto com’era."
+            "value" : "L’intestazione di Oggi offre “Riordina”: l’AI raggruppa le schede sparse di Oggi in cartelle con un nome, in base a titoli e siti. “Annulla” rimette tutto com’era."
           }
         }
       }

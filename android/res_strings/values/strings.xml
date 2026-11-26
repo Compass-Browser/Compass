@@ -664,7 +664,9 @@
   <!-- PageMenuUi.kt -->
   <string name="compass_menu_find">Find</string>
   <string name="compass_menu_reader">Reader</string>
-  <string name="compass_menu_ask_claude">Ask Claude</string>
+  <!-- "Ask Claude", "Ask GPT", "Ask Gemini" (AiNames.kt); "Ask AI" for a server with no name of its own. -->
+  <string name="compass_ask_named">Ask %1$s</string>
+  <string name="compass_ask_ai">Ask AI</string>
   <string name="compass_menu_unpin">Unpin</string>
   <string name="compass_menu_downloads">Downloads</string>
   <string name="compass_menu_history">History</string>
@@ -679,7 +681,7 @@
   <string name="compass_command_new_incognito_tab">New incognito tab</string>
   <string name="compass_command_new_tab_in">New tab in %1$s</string>
   <string name="compass_command_this_space">this space</string>
-  <string name="compass_command_claude_answering">Claude is answering…</string>
+  <string name="compass_command_claude_answering">Answering…</string>
   <string name="compass_command_continue_in_chat">Continue in Chat</string>
   <string name="compass_command_about_this_page">About this page: %1$s</string>
   <string name="compass_command_open_address">Open address</string>
@@ -693,7 +695,7 @@
   <string name="compass_command_on_device">On %1$s · %2$s</string>
   <string name="compass_command_favorites">Favorites</string>
   <string name="compass_command_pinned">Pinned</string>
-  <string name="compass_command_claude_not_set_up">Claude isn\'t set up.</string>
+  <string name="compass_command_claude_not_set_up">The AI isn\'t set up.</string>
   <!-- CompassBarUi.kt -->
   <string name="compass_bar_new_incognito_tab">New Incognito Tab</string>
   <string name="compass_bar_copy_url">Copy URL</string>

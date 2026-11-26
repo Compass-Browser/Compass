@@ -78,6 +78,8 @@ class CommandBarState {
     // Ask in the command bar (docs/design/ai-sidebar.md, "Ask in the command bar").
     /** The typed text reads as a question and Ask is on: "Ask Claude" comes first. */
     var askOffered by mutableStateOf(false)
+    /** That row's title: "Ask Claude", "Ask GPT"… (AiNames.askTitle()). */
+    var askTitle by mutableStateOf("")
     /** The page "About this page" names (its title), or empty when there's no web page. */
     var aboutPageTitle by mutableStateOf("")
     /** "About this page": the page's title and host go with the question. On by default. */

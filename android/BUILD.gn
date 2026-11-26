@@ -110,6 +110,7 @@ android_library("java") {
     "java/src/it/cipi1965/compass/shell/DownloadsScreen.java",
     "java/src/it/cipi1965/compass/shell/DownloadsUi.kt",
     "java/src/it/cipi1965/compass/shell/CommandBar.java",
+    "java/src/it/cipi1965/compass/shell/AiNames.kt",
     "java/src/it/cipi1965/compass/shell/CommandBarState.kt",
     "java/src/it/cipi1965/compass/shell/CommandBarUi.kt",
     "java/src/it/cipi1965/compass/shell/CopyLinkBridge.java",

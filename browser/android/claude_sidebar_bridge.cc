@@ -72,6 +72,9 @@ std::string ClaudeSidebarBridge::Snapshot(JNIEnv* env) {
   snapshot.Set("suggest_names",
                quick_ && quick_->IsEnabled(claude::prefs::kNameLinkFolders));
   snapshot.Set("ask", quick_ && quick_->IsEnabled(claude::prefs::kCommandBarAsk));
+  // Who answers (ProviderId()), for "Ask Claude", "Ask GPT"…
+  snapshot.Set("provider", claude::ProviderId(claude::prefs::CurrentProvider(
+                               *profile_->GetPrefs())));
   TodayTidier* tidier = tidier_observation_.GetSource();
   snapshot.Set("tidy", tidier && tidier->IsEnabled());
   base::ListValue busy;

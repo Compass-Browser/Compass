@@ -2,12 +2,45 @@
   "sourceLanguage" : "en",
   "strings" : {
     "Ask %@" : {
-      "comment" : "Command bar row, page menu and chat field: Ask Claude, Ask GPT, Ask Gemini, Ask AI. The argument is the assistant's name.",
+      "comment" : "Command bar row, page menu and chat field: Ask Claude, Ask GPT, Ask Gemini. The argument is the assistant's name.",
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chiedi a %@"
+          }
+        }
+      }
+    },
+    "Ask AI" : {
+      "comment" : "Command bar row, page menu and chat field, for an assistant with no name of its own (an OpenAI-compatible server).",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiedi all’AI"
+          }
+        }
+      }
+    },
+    "Chat with %@" : {
+      "comment" : "Command bar command that opens the chat: Chat with Claude, Chat with GPT, Chat with Gemini. The argument is the assistant's name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chatta con %@"
+          }
+        }
+      }
+    },
+    "Chat with AI" : {
+      "comment" : "Command bar command that opens the chat, for an assistant with no name of its own (an OpenAI-compatible server).",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chatta con l’AI"
           }
         }
       }
@@ -260,7 +293,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Questo è un token di `claude setup-token`, che usa il tuo abbonamento a Claude. Per usarlo, attiva “Accetta i rischi dei token di abbonamento” in Impostazioni → IA."
+            "value" : "Questo è un token di `claude setup-token`, che usa il tuo abbonamento a Claude. Per usarlo, attiva “Accetta i rischi dei token di abbonamento” in Impostazioni → AI."
           }
         }
       }

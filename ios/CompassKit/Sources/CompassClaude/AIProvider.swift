@@ -36,9 +36,22 @@ public enum AIProvider: String, CaseIterable, Sendable, Identifiable {
     }
   }
 
-  /// "Ask Claude", "Ask GPT", "Ask Gemini", "Ask AI".
+  /// "Ask Claude", "Ask GPT", "Ask Gemini", "Ask AI". AI has keys of its
+  /// own: languages put an article before it ("Chiedi all’AI") but not
+  /// before a name ("Chiedi a Claude").
   public var askTitle: String {
-    String(localized: "Ask \(assistantName)", bundle: .module, comment: "Command bar row, page menu and chat field: Ask Claude, Ask GPT, Ask Gemini, Ask AI. The argument is the assistant's name.")
+    if self == .compatible {
+      return String(localized: "Ask AI", bundle: .module, comment: "Command bar row, page menu and chat field, for an assistant with no name of its own (an OpenAI-compatible server).")
+    }
+    return String(localized: "Ask \(assistantName)", bundle: .module, comment: "Command bar row, page menu and chat field: Ask Claude, Ask GPT, Ask Gemini. The argument is the assistant's name.")
+  }
+
+  /// "Chat with Claude", "Chat with GPT", "Chat with Gemini", "Chat with AI".
+  public var chatTitle: String {
+    if self == .compatible {
+      return String(localized: "Chat with AI", bundle: .module, comment: "Command bar command that opens the chat, for an assistant with no name of its own (an OpenAI-compatible server).")
+    }
+    return String(localized: "Chat with \(assistantName)", bundle: .module, comment: "Command bar command that opens the chat: Chat with Claude, Chat with GPT, Chat with Gemini. The argument is the assistant's name.")
   }
 
   /// Chat Completions rather than the Messages API.

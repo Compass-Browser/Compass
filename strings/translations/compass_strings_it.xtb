@@ -21,6 +21,8 @@
 <translation id="1079314764977154308">Il server di sincronizzazione ha rifiutato la chiave di questo dispositivo.</translation>
 <translation id="1100341197968771382">una scorciatoia integrata</translation>
 <translation id="1102848279370483337">Freccia</translation>
+<translation id="1113115104689692419">Creane uno con l’AI</translation>
+<translation id="1114788533563426430">L’AI salva ciò che ritiene utile per le chat successive e mostra ogni salvataggio nella chat, con Annulla. Se l’opzione è disattivata, puoi aggiungerli solo tu, qui.</translation>
 <translation id="1116694919640316211">Info</translation>
 <translation id="1122068467107743258">Lavoro</translation>
 <translation id="1128591060186966949">Modifica motore di ricerca</translation>
@@ -39,6 +41,7 @@
 <translation id="1196284192395670363">Chiunque abbia il link può unirsi finché non scade o non lo revochi.</translation>
 <translation id="1196959502276349371">Versione <ph name="VERSION"/></translation>
 <translation id="1197088940767939838">Arancione</translation>
+<translation id="1198999884271776907">L’AI conserva brevi informazioni su di te, ad esempio come preferisci le risposte, e inizia ogni nuova chat con queste. Si sincronizzano con i tuoi spazi, con crittografia end-to-end. Se l’opzione è disattivata, l’AI non le vede né le salva; ciò che è già salvato resta finché non lo elimini.</translation>
 <translation id="1201402288615127009">Successivo</translation>
 <translation id="1213901923716093606">Gli elenchi vengono scaricati dai rispettivi autori e aggiornati una volta al giorno. Gli scriptlet e alcune regole di uBlock Origin non sono supportati.</translation>
 <translation id="1218019973480401406">Filtra le lingue</translation>
@@ -70,7 +73,6 @@
 <translation id="1358515537560885005">I tuoi spazi, password, cronologia e altro su tutti i tuoi dispositivi, criptati su ogni dispositivo: il server non può leggerli.</translation>
 <translation id="1361051044821341372">Link di invito</translation>
 <translation id="136408604613645594">Adatta</translation>
-<translation id="1365183120575005337">Consenti a Claude di usare l’intero browser</translation>
 <translation id="1366434559813307610">Browser su questo computer</translation>
 <translation id="1372069034909497644">Persona invitata</translation>
 <translation id="1373048445933639277">Acquisisci in un Easel…</translation>
@@ -131,9 +133,11 @@
 <translation id="1603149561072820996">Trovato automaticamente</translation>
 <translation id="1617978453340422212">{COUNT, plural, =1 {1 nuovo spazio da aggiungere. Cookie, cronologia e password restano quelli della prima importazione.} other {# nuovi spazi da aggiungere. Cookie, cronologia e password restano quelli della prima importazione.}}</translation>
 <translation id="1620510694547887537">Fotocamera</translation>
+<translation id="1622758337054019046">Piccole attività che l’AI svolge nella barra laterale, ciascuna con la propria opzione e il proprio modello. Vengono inviati all’endpoint indicato sopra solo i titoli e i siti delle schede, mai il contenuto delle pagine; nulla dalle finestre di navigazione in incognito. Al massimo 30 richieste automatiche all’ora.</translation>
 <translation id="1637433031333799671">Apri <ph name="BEGIN_LINK"/>API Tokens<ph name="END_LINK"/>, scegli Create Token e usa il modello Edit Cloudflare Workers.</translation>
 <translation id="1639239939417640764">Messaggi in coda</translation>
 <translation id="1641113438599504367">Navigazione sicura</translation>
+<translation id="164166365630241275">L’AI assegna un nome alle cartelle che raccolgono i link di una pagina, in base ai titoli e ai siti delle loro schede, e i menu delle cartelle offrono “Suggerisci un nome”. Ogni nuovo nome si può annullare dal menu della cartella.</translation>
 <translation id="1642803015383835462">{COUNT, plural, =1 {1 Easel è stato importato vuoto: Arc non l’ha scaricato su questo Mac. Aprilo in Arc, poi importa di nuovo.} other {# Easel sono stati importati vuoti: Arc non li ha scaricati su questo Mac. Aprili in Arc, poi importa di nuovo.}}</translation>
 <translation id="1644574205037202324">Cronologia</translation>
 <translation id="164527716186311604">{COUNT, plural, =1 {1 scheda} other {# schede}}</translation>
@@ -157,7 +161,6 @@
 <translation id="1717218214683051432">Sensori di movimento</translation>
 <translation id="1718312936116502287">Usa un indirizzo web; <ph name="QUERY"/> indica dove va inserita la ricerca.</translation>
 <translation id="1718835860248848330">Ultima ora</translation>
-<translation id="1719155640779180584">Claude assegna un nome alle cartelle che raccolgono i link di una pagina, in base ai titoli e ai siti delle loro schede, e i menu delle cartelle offrono “Suggerisci un nome”. Ogni nuovo nome si può annullare dal menu della cartella.</translation>
 <translation id="1726070693250684801">Ricerca di “<ph name="PATTERN"/>” nei file</translation>
 <translation id="1742469581923031760">Connessione in corso…</translation>
 <translation id="1744073868469054263">Memoria aggiornata: <ph name="TEXT"/></translation>
@@ -171,6 +174,7 @@
 <translation id="1772781099353424961">Ripristina il motore di ricerca, le autorizzazioni dei siti e altre impostazioni del browser, cancella i cookie e disattiva le estensioni. Spazi, schede, cronologia e password restano.</translation>
 <translation id="177582131200841128">Invito per <ph name="NAME"/></translation>
 <translation id="178257554673717028">Accedi a Cloudflare nella nuova scheda e autorizza Compass…</translation>
+<translation id="1786034644209935553">Chatta con un’AI della pagina in cui ti trovi. Può leggerla, leggerne la console JavaScript, e fare clic e digitare al suo interno. Compass non include una chiave: usa la tua chiave API di Anthropic, OpenAI o Google, quella di un gateway o il tuo Claude Code.</translation>
 <translation id="1791662854739702043">Installato</translation>
 <translation id="1798894493733626822">Ripristina…</translation>
 <translation id="1800089879373399523">Ancora nessuna scheda archiviata. Qui arrivano le schede di Oggi che non guardi da <ph name="DELAY"/>.</translation>
@@ -188,10 +192,10 @@
 <translation id="1860716946105260011">Impossibile modificare il ricordo.</translation>
 <translation id="1861809086989666790">Il tuo accesso a ChatGPT è terminato. Accedi di nuovo.</translation>
 <translation id="1873447984796773960">Continua nella chat</translation>
-<translation id="1873978780782615601">Claude salva ciò che ritiene utile per le chat successive e mostra ogni salvataggio nella chat, con Annulla. Se l’opzione è disattivata, puoi aggiungerli solo tu, qui.</translation>
+<translation id="1874363929250970277">Consenti all’AI di usare gli strumenti per sviluppatori</translation>
 <translation id="1875052912139969227">Impossibile leggere la pagina.</translation>
 <translation id="187664296676578073">Sincronizzazione interrotta: <ph name="ERROR"/></translation>
-<translation id="188465562592017050">Inserisci una chiave API nelle impostazioni IA di Compass.</translation>
+<translation id="188465562592017050">Inserisci una chiave API nelle impostazioni AI di Compass.</translation>
 <translation id="1887635021273599496">Questo elemento non può essere condiviso.</translation>
 <translation id="1889805316255692534">Importazione in corso… Ci vorrà un momento per ogni profilo.</translation>
 <translation id="1897988508016833746">Il codice è scaduto. Riprova con un nuovo codice.</translation>
@@ -223,11 +227,12 @@
 <translation id="1990916714738683953">Cloudflare ha rifiutato di configurare il server.</translation>
 <translation id="1993533557217563576">Aggiungere <ph name="BEGIN_DEVICE"/><ph name="END_DEVICE"/> alla sincronizzazione?</translation>
 <translation id="1995759641353982113">Gli Easel sono ancora in caricamento. Riprova tra un attimo.</translation>
-<translation id="2011624535782086931">Il tuo accesso a ChatGPT è terminato. Accedi di nuovo nelle impostazioni IA di Compass.</translation>
+<translation id="2011624535782086931">Il tuo accesso a ChatGPT è terminato. Accedi di nuovo nelle impostazioni AI di Compass.</translation>
+<translation id="2020136133686097253">Viene inviata solo la domanda</translation>
 <translation id="2025115093177348061">Realtà aumentata</translation>
 <translation id="2025891858974379949">Contenuti non sicuri</translation>
 <translation id="2038146667522155575">Impossibile raggiungere il server di sincronizzazione. Controlla la connessione e riprova.</translation>
-<translation id="204896945852119825">Inserisci l’URL del server nelle impostazioni IA di Compass.</translation>
+<translation id="204896945852119825">Inserisci l’URL del server nelle impostazioni AI di Compass.</translation>
 <translation id="2052159075154647808">Digita il dominio di un sito, come github.com.</translation>
 <translation id="2062461507577434820">Tempo per l’accesso scaduto. Riprova.</translation>
 <translation id="2074527029802029717">Stacca scheda</translation>
@@ -238,6 +243,7 @@
 <translation id="2091887806945687916">Audio</translation>
 <translation id="2105857072994477303">{COUNT, plural, =1 {Usato da 1 cartella} other {Usato da # cartelle}}</translation>
 <translation id="2111667253253405468">Usa il tasto con Ctrl o Alt.</translation>
+<translation id="2111698544734884454">L’AI non può usare i file su questo computer.</translation>
 <translation id="2113150052970693856">Partecipi già.</translation>
 <translation id="2117709249300211717">Boost di Compass</translation>
 <translation id="212236741882030893">Accedi con il tuo account ChatGPT per usare il tuo piano ChatGPT invece di una chiave API: si applicano i suoi limiti di utilizzo, condivisi con le tue altre app, e puoi vedere o limitare l’uso di Compass nelle impostazioni di ChatGPT. Finché hai eseguito l’accesso, la chiave qui sotto non viene usata.</translation>
@@ -258,7 +264,6 @@
 <translation id="2192212960838585968">Uno spazio in questo profilo</translation>
 <translation id="2202057704625763805">Modifica di “<ph name="FILE"/>”</translation>
 <translation id="2202117102068727733">I client MCP non sono ancora supportati su questo sistema.</translation>
-<translation id="2203289420843146554">Consenti a Claude di salvare ricordi</translation>
 <translation id="221304065368879777">Solo il proprietario del server può farlo.</translation>
 <translation id="2215727959747642672">Modifica dei file</translation>
 <translation id="2216997518590449058">Questo link di invito non è valido.</translation>
@@ -271,22 +276,20 @@
 <translation id="2234784981527240207">Le schede fissate e di Oggi di ogni spazio, e i preferiti, in un file di preferiti che gli altri browser possono importare.</translation>
 <translation id="223530923557420737">Accedi con Cloudflare</translation>
 <translation id="2250468294632951220">Raggruppa in cartelle le schede di Oggi con Claude</translation>
-<translation id="2264456405595798343">Claude non può usare i file su questo computer.</translation>
 <translation id="2277348798695860037">Accesso a ChatGPT effettuato</translation>
 <translation id="2283340219607151381">Salva e compila gli indirizzi</translation>
 <translation id="2283599456633275070">Viaggi</translation>
-<translation id="2285525114867537926">Claude chiede conferma prima di aggiungere JavaScript, salvare plug-in e modificare cookie. Le pagine web possono provare a dare istruzioni proprie a Claude; gli viene detto di ignorarle, ma attiva queste opzioni solo per attività che controlli e pagine di cui ti fidi.</translation>
 <translation id="2288100614902888354">Modifica spazi</translation>
 <translation id="2288188466226482423">{COUNT, plural, =1 {Un’altra in attesa} other {Altre # in attesa}}</translation>
 <translation id="2291643155573394834">Scheda successiva</translation>
 <translation id="2295788919150706251">Annullato</translation>
 <translation id="2299825101240957277">{COUNT, plural, =1 {Impossibile importare un profilo. Verifica che Arc sia chiuso, poi riprova.} other {Impossibile importare # profili. Verifica che Arc sia chiuso, poi riprova.}}</translation>
+<translation id="2306432108706967023">L’AI chiede conferma prima di aggiungere JavaScript, salvare plug-in e modificare cookie. Le pagine web possono provare a darle istruzioni proprie; le viene detto di ignorarle, ma attiva queste opzioni solo per attività che controlli e pagine di cui ti fidi.</translation>
 <translation id="2319862493440755760">Inserisci prima l’URL del server nelle Impostazioni.</translation>
 <translation id="2325644576656946775">Cosa importare</translation>
 <translation id="2326728993064066455">Su un dispositivo che si sincronizza, apri Sincronizzazione e scegli Aggiungi un dispositivo.</translation>
 <translation id="2329738511948994408">Un nuovo spazio chiamato <ph name="BROWSER"/>, accanto ai tuoi.</translation>
 <translation id="2332729967144811638">Incolla qui il token.</translation>
-<translation id="2334164713754534019">Chiedi a Claude</translation>
 <translation id="2337752761229532342">Chiudi tutte le schede di Oggi</translation>
 <translation id="2342637294302022028">Stato, provincia o regione</translation>
 <translation id="2344699840450629255">Nessuna pagina.</translation>
@@ -309,6 +312,7 @@
 <translation id="2435202688523773060">Cerca emoji</translation>
 <translation id="2437924896641693061">Al momento non è possibile raggiungere il servizio di accesso. Riprova.</translation>
 <translation id="2446221595326742890">Impossibile salvare la chiave.</translation>
+<translation id="2448450494989951910">Una domanda digitata nella barra dei comandi ottiene una riga “Chiedi” (Chiedi a Claude, Chiedi a GPT…); la breve risposta compare lì e “Continua nella chat” la porta nella chat. Viene inviata solo la domanda, con il titolo e il sito della scheda corrente quando “Su questa pagina” è attivo.</translation>
 <translation id="2451193039076617922">Una chiave API Gemini di aistudio.google.com. Archiviata criptata solo su questo dispositivo; non viene mai sincronizzata e le pagine non la vedono mai. I prompt e gli strumenti di Compass sono pensati per Claude: altri modelli potrebbero usare il browser meno bene.</translation>
 <translation id="245149360020447338">Questo Boost è stato creato con una versione più recente di Compass. Aggiorna Compass per aggiungerlo.</translation>
 <translation id="2453519211527718830">La pagina non ha dimensioni da acquisire.</translation>
@@ -324,7 +328,6 @@
 <translation id="2513159485214879817">Compass non è riuscito a ricevere la risposta di ChatGPT su questo dispositivo.</translation>
 <translation id="2515342739599806825">Persone e corpo</translation>
 <translation id="2527534273079849152">L’elenco dei download; i file restano.</translation>
-<translation id="2528475582092237523">Claude non ha dato una risposta.</translation>
 <translation id="2535256981849533703">Ricerca del tuo server su Cloudflare…</translation>
 <translation id="2541809433776696819">Invita altre persone in questo spazio. Tutti vedono le modifiche nel momento in cui vengono fatte. Resta crittografato end-to-end: il tuo server di sincronizzazione non può leggerlo.</translation>
 <translation id="2542239467206868968">Una persona</translation>
@@ -355,7 +358,7 @@
 <translation id="2631006050119455616">Salvato</translation>
 <translation id="2638999420593278928">Ancora nessun link</translation>
 <translation id="2644773890821360680">Importazione in corso… Ci vorrà un momento.</translation>
-<translation id="2663729932539936894">Inserisci un ID modello nelle impostazioni IA di Compass.</translation>
+<translation id="2663729932539936894">Inserisci un ID modello nelle impostazioni AI di Compass.</translation>
 <translation id="266545237358295961">Per aggiungere Compass a Claude Code, esegui:</translation>
 <translation id="2665647207431876759">Scaduto</translation>
 <translation id="2671347274617297424">La risposta non è riuscita.</translation>
@@ -384,7 +387,7 @@
 <translation id="2799223571221894425">Riavvia</translation>
 <translation id="2819825363981426447">Impossibile leggere l’immagine.</translation>
 <translation id="2822534109256647529">Didascalia</translation>
-<translation id="2831729213311964725">Una domanda digitata nella barra dei comandi ottiene una riga “Chiedi a Claude”; la breve risposta compare lì e “Continua nella chat” la porta nella chat. Viene inviata solo la domanda, con il titolo e il sito della scheda corrente quando “Su questa pagina” è attivo.</translation>
+<translation id="2822885248135586738">Consenti all’AI di salvare ricordi</translation>
 <translation id="2832138096992940995">Inserisci prima l’URL del server.</translation>
 <translation id="2834460781496504983">Sposta qui</translation>
 <translation id="2839967611360501711">Questa scorciatoia non esiste.</translation>
@@ -418,7 +421,6 @@
 <translation id="2989850807876889692">Un profilo a sé, con i suoi cookie, la cronologia e le estensioni: gli accessi ai siti restano attivi. Le password di Crest restano in Crest.</translation>
 <translation id="2990280804783109804">Copia il link della pagina</translation>
 <translation id="2992007599568802153">Installa plug-in…</translation>
-<translation id="2995263831886681915">Chatta con Claude</translation>
 <translation id="3000189694978729670">La barra laterale è ancora in caricamento. Riprova tra un momento.</translation>
 <translation id="3013274495814806889">Sincronizzazione e importazione</translation>
 <translation id="3013291976881901233">Dispositivi MIDI</translation>
@@ -476,7 +478,6 @@
 <translation id="3319851601097956013">Creazione del tuo indirizzo workers.dev…</translation>
 <translation id="3321495423948739063">Impossibile salvare la chiave di sincronizzazione.</translation>
 <translation id="3326655241685890930">Spazi</translation>
-<translation id="3329205189166892436">I Boost cambiano l’aspetto e il funzionamento dei siti: sono CSS e JavaScript che Compass aggiunge a ogni pagina di un sito, su tutti i tuoi dispositivi. Creali qui o chiedi a Claude (attiva “Creare Boost” nelle impostazioni di Claude). Il JavaScript di un Boost può leggere e modificare le pagine su cui viene eseguito, quindi tieni solo codice di cui ti fidi. Condividi un Boost come link o come file; i Boost che altri condividono con te sono contrassegnati come Condiviso.</translation>
 <translation id="3333903155344263385">Raggiunge <ph name="HOSTS"/></translation>
 <translation id="3339224848699918930">Digita un sito, come localhost o example.com.</translation>
 <translation id="3344495279093630693">Lettura del plug-in <ph name="PLUGIN"/></translation>
@@ -490,23 +491,22 @@
 <translation id="3381641607663174390">In <ph name="FOLDER"/></translation>
 <translation id="338933939216479625">Avvio: connessione al server di sincronizzazione…</translation>
 <translation id="3408919886384412254">Apri pannello Rete</translation>
-<translation id="3415540129166659161">Impossibile leggere il tuo accesso a ChatGPT. Accedi di nuovo nelle impostazioni IA di Compass.</translation>
+<translation id="3415540129166659161">Impossibile leggere il tuo accesso a ChatGPT. Accedi di nuovo nelle impostazioni AI di Compass.</translation>
 <translation id="3420952443422016139">Lettura dello spazio di archiviazione del sito</translation>
 <translation id="3425350316255462907">Esporta spazi</translation>
 <translation id="3435738964857648380">Sicurezza</translation>
 <translation id="3436730192282757783">Risultato precedente</translation>
-<translation id="3456663424595418461">Il modello integrato in macOS gestisce Nomi delle cartelle di link, Riordina Oggi e Titoli delle schede più brevi, senza chiave e anche in modalità Claude Code; titoli e siti non lasciano mai questo Mac. È più piccolo di Claude: i suoi nomi sono più semplici e Riordina lascia più schede sparse. Risposte nella barra dei comandi resta al provider indicato sopra.</translation>
 <translation id="3466804934534685134">Interrompere la condivisione di questo spazio e rimuoverlo per tutti gli altri? Tu lo conservi.</translation>
 <translation id="3469641531337589611">Abbandonare questo Easel? Ne conservi una copia, ma non vedrai le nuove modifiche.</translation>
 <translation id="3469883420924901622">Ancora nessun sito.</translation>
 <translation id="3474194546298224304">Sposta questa pagina in una scheda (Ctrl+O)</translation>
-<translation id="3489651715590448983">Creato da Claude</translation>
 <translation id="3493935134779436761">Ricerca dei browser in corso…</translation>
 <translation id="3500789566361530026">Cerchio</translation>
 <translation id="3504489423755279894">la condivisione di spazi, cartelle ed Easel con altre persone</translation>
 <translation id="351152300840026870">Carattere a spaziatura fissa</translation>
 <translation id="3527085408025491307">Cartella</translation>
 <translation id="3528461872297515689">I dati sul server sono crittografati per un’altra catena. Esci dalla sincronizzazione e unisciti di nuovo con il codice corretto.</translation>
+<translation id="3530897567848484208">Consenti all’AI di creare plug-in</translation>
 <translation id="3538517678782606024">Già importato.</translation>
 <translation id="3547954654003013442">Impostazioni proxy</translation>
 <translation id="3548542983669789793">Codice di recupero</translation>
@@ -550,10 +550,8 @@
 <translation id="3744507655719483519">Nessun altro browser trovato</translation>
 <translation id="3746910100611277349">Impossibile salvare il plug-in su questo dispositivo.</translation>
 <translation id="375277956288153311">Assegna un nome.</translation>
-<translation id="3755620446088536121">Consenti a Claude di creare Boost</translation>
 <translation id="3758664181343534511">Tempo per l’accesso scaduto.</translation>
 <translation id="376496549735496273">Aperta in un’altra finestra</translation>
-<translation id="3767387038410778795">Claude può elencare, leggere e scrivere file in una cartella che scegli tu, e da nessun’altra parte.</translation>
 <translation id="3778003001552564357">Nuovo spazio</translation>
 <translation id="3778480000181598963">Chiede conferma prima di caricare un sito che non supporta HTTPS.</translation>
 <translation id="3782558568939869343">L’immagine è troppo grande.</translation>
@@ -567,7 +565,6 @@
 <translation id="3810838688059735925">Video</translation>
 <translation id="3810973564298564668">Gestisci</translation>
 <translation id="3826050100957962900">Accesso di terze parti</translation>
-<translation id="3828001131425052356">di Claude</translation>
 <translation id="3835233591525155343">Utilizzo del dispositivo</translation>
 <translation id="3841356782900714251">Lettori di smart card</translation>
 <translation id="38418030515519930">Incolla prima una chiave.</translation>
@@ -579,6 +576,7 @@
 <translation id="3872834068356954457">Scienza</translation>
 <translation id="3876659954022176793">Sposta questa pagina in una scheda (⌘O)</translation>
 <translation id="3882548411886400243">Nascosti su <ph name="SITE"/> d’ora in poi (Boost “<ph name="BOOST_NAME"/>”)</translation>
+<translation id="388423098448918407">L’AI chiede conferma nella chat prima di salvare o modificare ogni file: Consenti, Consenti per questa chat o Nega.</translation>
 <translation id="3895389602475075402">Lettura del testo della pagina</translation>
 <translation id="3897110455190554242">È il nome che vedono le persone con cui condividi, a meno che non sia l’accesso della tua azienda a fornirlo.</translation>
 <translation id="3905637528818647466">Inserisci l’indirizzo completo dell’elenco, che inizia con https://</translation>
@@ -599,7 +597,7 @@
 <translation id="3977921325079596652">Importa un Boost</translation>
 <translation id="3982251972836761625">Risultato successivo (⏎)</translation>
 <translation id="3984243879892620878">La pagina di accesso a Cloudflare è stata chiusa prima del completamento.</translation>
-<translation id="3986082989454912832">Rispondi</translation>
+<translation id="3986082989454912832">Risposta</translation>
 <translation id="3987993985790029246">Copia link</translation>
 <translation id="3989635538409502728">Esci</translation>
 <translation id="3992684624889376114">Su questa pagina</translation>
@@ -612,6 +610,7 @@
 <translation id="4044929084474216639">L’accesso a ChatGPT non è al momento disponibile. Riprova tra un momento.</translation>
 <translation id="4046084456592330949">L’accesso è stato negato.</translation>
 <translation id="4062996612351474197">{COUNT, plural, =1 {1 debole} other {# deboli}}</translation>
+<translation id="4064252728734893499">L’AI può elencare, leggere e scrivere file in una cartella che scegli tu, e da nessun’altra parte.</translation>
 <translation id="4081229677441005803">Controlla</translation>
 <translation id="4089454752816997326">Aggiungi e modifica password, controllo, importazione ed esportazione.</translation>
 <translation id="4090161315042748984"><ph name="APP_NAME"/> vuole controllare Compass in <ph name="PROFILE_NAME"/></translation>
@@ -641,6 +640,7 @@
 <translation id="4220082354669868794">{COUNT, plural, =1 {1 scheda aperta} other {# schede aperte}}</translation>
 <translation id="4221165203939924940">Rimuovi <ph name="LANGUAGE"/></translation>
 <translation id="4232026224982054408">Usare una cartella</translation>
+<translation id="4233690893904524304">Chiedi a <ph name="ASSISTANT"/></translation>
 <translation id="4245189249765776805">Sincronizzazione: dispositivo rimosso</translation>
 <translation id="4246329686954300426">Fino a <ph name="COUNT"/> persone</translation>
 <translation id="4246990954032621369">Claude Code non si trova in quel percorso.</translation>
@@ -656,6 +656,7 @@
 <translation id="4303341404047911726">Non è stato trovato nessun altro browser su questo computer.</translation>
 <translation id="4304713468139749426">Gestore delle password</translation>
 <translation id="4306414566928973863">Sposta <ph name="SPACE_NAME"/> su</translation>
+<translation id="4308718001970679543">L’AI nel tuo browser: chi risponde e cosa può fare per te.</translation>
 <translation id="4334139056767785807">Uscire dalla sincronizzazione?</translation>
 <translation id="4349466300610158888">Elimina…</translation>
 <translation id="4350065043422286972">Fissate</translation>
@@ -693,6 +694,7 @@
 <translation id="4513254372973087794">Boost salvato per <ph name="SITES"/></translation>
 <translation id="4516904298421534459">Elenchi di filtri</translation>
 <translation id="4528407285708411437">ChatGPT ha effettuato l’accesso, ma non ha consentito a Compass di usare il tuo piano. Accedi di nuovo e consentilo, oppure verifica che il tuo piano includa l’uso in altre app.</translation>
+<translation id="4528448763417055244">Chiedi all’AI</translation>
 <translation id="4535475264768641510">Compass è aggiornato</translation>
 <translation id="4539417570731651636">Nessun server impostato.</translation>
 <translation id="4542557837759258099">Richiesta già in corso.</translation>
@@ -713,6 +715,7 @@
 <translation id="4632889395592666446">Avvio in corso…</translation>
 <translation id="4638353747024801099">Rilascia qui per aggiungere ai Preferiti</translation>
 <translation id="4646758246986174269">Interrompere la sincronizzazione di “<ph name="SPACE_NAME"/>”? Verrà rimosso dagli altri tuoi dispositivi e resterà solo su questo.</translation>
+<translation id="464735696551417059">Invia il titolo e il sito di questa scheda: <ph name="PAGE"/></translation>
 <translation id="4652991094312810850">Compass è il tuo browser predefinito.</translation>
 <translation id="4654024592953227750">Riordina Oggi</translation>
 <translation id="4657078271879474376">Interrompere la condivisione di questo Easel e rimuoverlo per tutti gli altri? Tu lo conservi.</translation>
@@ -761,6 +764,7 @@
 <translation id="4896320978860084010">Quale app o finestra apre i link ai siti che scegli.</translation>
 <translation id="4902389902722737380">Dalla cartella dei plug-in: rimuovi la sua cartella per rimuoverlo</translation>
 <translation id="4905602899512927174">Su tutti i siti, a meno che tu non lo disattivi per un sito dalle sue informazioni o dalle sue autorizzazioni (Annunci).</translation>
+<translation id="491448776290667375">dell’AI</translation>
 <translation id="4922806180807147926">Su un iPhone, inquadralo con la fotocamera oppure digita il codice qui sotto in Compass.</translation>
 <translation id="4930424917292931043">Avvia la sincronizzazione</translation>
 <translation id="4930447554870711875">Sviluppatori</translation>
@@ -771,7 +775,6 @@
 <translation id="4943872375798546930">Nessun risultato</translation>
 <translation id="4948769655744853815">Le cartelle live possono usare il tuo accesso, se lo consenti per ogni cartella</translation>
 <translation id="497039234800043109">Chiave rimossa.</translation>
-<translation id="4975588801186144826">Claude può salvare in una cartella i nuovi file che crea per te, come note o una tabella. Non legge né sostituisce i tuoi file.</translation>
 <translation id="4977358359323523614">Ci sono già 200 Easel. Prima eliminane uno che non ti serve più.</translation>
 <translation id="49817956437618857">Alcuni browser sono aperti. Chiudili per importare i loro dati: i loro file sono in uso mentre sono in esecuzione.</translation>
 <translation id="4985509611418653372">Esegui</translation>
@@ -781,7 +784,6 @@
 <translation id="499811756104546330">Il server ha risposto con HTTP <ph name="CODE"/>.</translation>
 <translation id="4999822975158475993">Gruppo di schede</translation>
 <translation id="5001526427543320409">Cookie di terze parti</translation>
-<translation id="5004562876870100270">Claude riceve il titolo e il sito di questa scheda: <ph name="PAGE"/></translation>
 <translation id="5006288952892180801">Scade tra 7 giorni</translation>
 <translation id="5006994362912142396">Codice di recupero (12 parole)</translation>
 <translation id="5007392906805964215">Controlla</translation>
@@ -799,11 +801,9 @@
 <translation id="5039804452771397117">Consenti</translation>
 <translation id="5040262127954254034">Privacy</translation>
 <translation id="5042228492976329882">Aggiungi carta…</translation>
-<translation id="5043107738712434084">Consenti a Claude di creare plug-in</translation>
 <translation id="5044650336409315939">Ancora nessuno screenshot. Vengono salvati in <ph name="FOLDER"/>.</translation>
 <translation id="5053779442470016830">Arc non è stato trovato su questo computer.</translation>
 <translation id="5054046778350227343">Nuovo Easel</translation>
-<translation id="5054688718330031130">Chiedi a Claude…</translation>
 <translation id="5060191499175291909">Profilo di questa finestra · <ph name="SPACE_COUNT"/></translation>
 <translation id="5065406184210743213">Aggiungi a</translation>
 <translation id="5074560320185948050">Unisciti e avvia la sincronizzazione</translation>
@@ -826,6 +826,7 @@
 <translation id="5154917547274118687">Memoria</translation>
 <translation id="5157232177709630894">Compilazione in <ph name="POINT"/></translation>
 <translation id="5158379787760635260">Podcast</translation>
+<translation id="5160070380527172756">“Riordina” nell’intestazione di Oggi e nella barra dei comandi chiede all’AI di raggruppare le schede sparse di Oggi in cartelle con un nome, in base ai loro titoli e siti. Non viene chiuso nulla e Annulla rimette ogni scheda al suo posto.</translation>
 <translation id="5168405288243844861">Il server ha risposto, ma non con un elenco di modelli. Controlla l’URL dell’endpoint.</translation>
 <translation id="5178222043222938163">Musica</translation>
 <translation id="5185059804220019158">Sincronizzazione: sospesa dal server</translation>
@@ -848,6 +849,7 @@
 <translation id="526081135417232724">Avvio dell’accesso…</translation>
 <translation id="527605719918376753">Disattiva audio della scheda</translation>
 <translation id="5300589172476337783">Mostra</translation>
+<translation id="5313215542612761905">Creato dall’AI</translation>
 <translation id="5315233384122056570">Nessuna cartella scelta</translation>
 <translation id="5317780077021120954">Salva</translation>
 <translation id="5327248766486351172">Nome</translation>
@@ -857,6 +859,7 @@
 <translation id="5336126575388085039">Codice</translation>
 <translation id="5337035808300170502">Dimensioni effettive</translation>
 <translation id="534150898202214027">Nessuna protezione</translation>
+<translation id="5343789601014392900">Eliminare tutto ciò che l’AI ricorda di te, su tutti i tuoi dispositivi?</translation>
 <translation id="5354304169792802839">Estensioni e relative impostazioni</translation>
 <translation id="5362131260535812663">Uscita da Compass effettuata. OpenAI non ha confermato la revoca dell’accesso: puoi scollegare Compass nelle impostazioni di ChatGPT.</translation>
 <translation id="5364612966696267668">Categorie di emoji</translation>
@@ -867,7 +870,6 @@
 <translation id="5400836586163650660">Grigio</translation>
 <translation id="5415534064746984831">Questo invito è già stato usato o è scaduto. Chiedine uno nuovo.</translation>
 <translation id="5418612632702608336">Scegli un paese.</translation>
-<translation id="5424873172307329045">Claude chiede conferma nella chat prima di salvare o modificare ogni file: Consenti, Consenti per questa chat o Nega.</translation>
 <translation id="5425415739723940355">Nessuno spazio nel selettore. Un nuovo spazio aggiunge il profilo al selettore.</translation>
 <translation id="5433865420958136693">Usa l’accelerazione grafica quando disponibile</translation>
 <translation id="5435349107599040905">Questa build non si aggiorna automaticamente.</translation>
@@ -890,6 +892,7 @@
 <translation id="5546865291508181392">Trova</translation>
 <translation id="5548146753858777506">Attiva <ph name="BOOST"/></translation>
 <translation id="5548606607480005320">Controllo di sicurezza</translation>
+<translation id="5551479839463277216">Chiedi all’AI…</translation>
 <translation id="5555773769661061344">Quando una scheda viene inviata a un iPhone o a un telefono Android, il relay push di Compass (push.compassbrowser.org) lo avvisa subito. Riceve il token di notifica di ogni telefono, mai le tue schede o i tuoi dati. Se l’opzione è disattivata, le schede inviate arrivano alla successiva sincronizzazione del telefono. Puoi modificare questa impostazione in seguito.</translation>
 <translation id="5556459405103347317">Ricarica</translation>
 <translation id="5569181977303135595">Nuovi spazi aggiunti a <ph name="PROFILES"/>.</translation>
@@ -921,7 +924,6 @@
 <translation id="5712913960202771320">Troppi tentativi. Riprova tra qualche minuto.</translation>
 <translation id="5713631723570454188">Modifica origine…</translation>
 <translation id="5721659181579575326">Crea un link di invito</translation>
-<translation id="5734842009827880698">Consenti a Claude di usare gli strumenti per sviluppatori</translation>
 <translation id="5736283693588084847">Rimuovi dai preferiti</translation>
 <translation id="5739458112391494395">Molto grande</translation>
 <translation id="574392208103952083">Media</translation>
@@ -943,7 +945,7 @@
 <translation id="5793906123099213857">Solo su questo dispositivo</translation>
 <translation id="5798575164677122762">Aggiungi testo qui</translation>
 <translation id="5804241973901381774">Autorizzazioni</translation>
-<translation id="5805614150408341582">Impossibile leggere la chiave salvata. Inseriscila di nuovo nelle impostazioni IA di Compass.</translation>
+<translation id="5805614150408341582">Impossibile leggere la chiave salvata. Inseriscila di nuovo nelle impostazioni AI di Compass.</translation>
 <translation id="5805974011681542221">Scegli come sincronizzare gli altri profili di questo Mac.</translation>
 <translation id="5807427080183870259">Locale</translation>
 <translation id="5809090008577139505">Aurora</translation>
@@ -1012,8 +1014,10 @@
 <translation id="6180222530473431863"><ph name="LABEL"/> (<ph name="SHORTCUT"/>)</translation>
 <translation id="6190316998508814711">Rimuovi <ph name="PLUGIN"/></translation>
 <translation id="6193577991277737415">La sincronizzazione è già configurata. Prima riavvia.</translation>
+<translation id="6202630802089497441">Il modello integrato in macOS gestisce Nomi delle cartelle di link, Riordina Oggi e Titoli delle schede più brevi, senza chiave e anche in modalità Claude Code; titoli e siti non lasciano mai questo Mac. È più piccolo dei modelli del provider: i suoi nomi sono più semplici e Riordina lascia più schede sparse. Risposte nella barra dei comandi resta al provider indicato sopra.</translation>
 <translation id="6205606074670697815">Via</translation>
 <translation id="6209361871048310598">Da <ph name="URL"/></translation>
+<translation id="621527480680373562">Chiedi a <ph name="ASSISTANT"/>…</translation>
 <translation id="6216696360484424239">Accedi automaticamente</translation>
 <translation id="6233818009514043932">Il blocco annunci non è in esecuzione</translation>
 <translation id="6235740675267446435">Insieme agli script della pagina</translation>
@@ -1101,12 +1105,11 @@
 <translation id="6607079801118129550">L’accesso è stato annullato.</translation>
 <translation id="6608801712304220826">Questo link di invito non funziona più.</translation>
 <translation id="6609098745428970350">Questo dispositivo mantiene i suoi dati ma smette di sincronizzarsi. Gli altri tuoi dispositivi continuano a sincronizzarsi. Compass si riavvia per completare.</translation>
-<translation id="6610609148695525457">Claude nel tuo browser: chi risponde e cosa può fare per te.</translation>
 <translation id="6612241242102911023">Riavvia Compass per completare l’uscita dalla sincronizzazione.</translation>
-<translation id="661649452026549278">Claude</translation>
 <translation id="6621639333161417145">Accedi con <ph name="PROVIDER"/></translation>
 <translation id="6624219055418309072">Blocca in modalità di navigazione in incognito</translation>
 <translation id="6624701652940508013">Sincronizzato</translation>
+<translation id="6630027143142370556">Nessuna risposta.</translation>
 <translation id="6631992316714657703">Questo Easel non esiste.</translation>
 <translation id="6634433369859044165">Aggiornamento…</translation>
 <translation id="6643016212128521049">Cancella</translation>
@@ -1190,7 +1193,6 @@
 <translation id="6989203575407990875">Qualsiasi colore</translation>
 <translation id="6991907988182965217">Il server è sovraccarico (<ph name="CODE"/>). Riprova tra un momento.</translation>
 <translation id="6992183190326957015">Token API di Cloudflare</translation>
-<translation id="7007275767856497826">Claude conserva brevi informazioni su di te, ad esempio come preferisci le risposte, e inizia ogni nuova chat con queste. Si sincronizzano con i tuoi spazi, con crittografia end-to-end. Se l’opzione è disattivata, Claude non le vede né le salva; ciò che è già salvato resta finché non lo elimini.</translation>
 <translation id="70108172336006022">Cloudflare non ha accettato il token. Controlla che sia completo e che possa modificare i Workers.</translation>
 <translation id="7022476106034185850">Impossibile riordinare Oggi.</translation>
 <translation id="7029809446516969842">Password</translation>
@@ -1201,7 +1203,6 @@
 <translation id="7069842113264201829">Inserisci prima una chiave API.</translation>
 <translation id="7071537931615749605">Le pagine che hai visitato, su questo dispositivo e su quelli sincronizzati.</translation>
 <translation id="7085869380505383647">Su questo sistema Claude Code può chattare della pagina che alleghi, ma non può ancora usare gli strumenti della pagina.</translation>
-<translation id="7086915948544119418">Eliminare tutto ciò che Claude ricorda di te, su tutti i tuoi dispositivi?</translation>
 <translation id="709070703247193920">Invia la richiesta Do Not Track; i siti potrebbero ignorarla.</translation>
 <translation id="7095611235714992124">Chiudi Arc</translation>
 <translation id="7096097777977140023">mostrare il codice di recupero della sincronizzazione</translation>
@@ -1224,7 +1225,6 @@
 <translation id="7162984768817228027">Invia questo link alla persona che vuoi invitare. Funziona una sola volta, entro 7 giorni. In Compass, dovrà scegliere Sincronizzazione, poi Ho un invito.</translation>
 <translation id="7168109975831002660">Dimensione minima carattere</translation>
 <translation id="7170202440643260274">L’oggetto si trova in un altro Easel.</translation>
-<translation id="7176384340127360635">Cosa può fare Claude</translation>
 <translation id="7180611975245234373">Aggiorna</translation>
 <translation id="7195498039601481720">Compass non è il tuo browser predefinito.</translation>
 <translation id="7199775805030822672">Easel senza titolo</translation>
@@ -1236,7 +1236,6 @@
 <translation id="7233885569012610139">{COUNT, plural, =1 {Impossibile importare un profilo. Verifica che Arc sia chiuso e che Compass sia autorizzato a usare “Arc Safe Storage”, poi riprova.} other {Impossibile importare # profili. Verifica che Arc sia chiuso e che Compass sia autorizzato a usare “Arc Safe Storage”, poi riprova.}}</translation>
 <translation id="72393384879519786">Intestazione</translation>
 <translation id="7240392505102507087">Colore sfumatura <ph name="NUMBER"/></translation>
-<translation id="7249219074340321959">Risposta di Claude</translation>
 <translation id="7268243244514377721">Il server ha rifiutato questo dispositivo.</translation>
 <translation id="7275274450247495401">Per tutti i profili su questo dispositivo.</translation>
 <translation id="728175971438949689">Usa la memoria</translation>
@@ -1264,13 +1263,15 @@
 <translation id="7366362069757178916">Gestori di pagamento</translation>
 <translation id="7366909168761621528">Dati di navigazione</translation>
 <translation id="7368834076925537932">L’aggiornamento è pronto per l’installazione.</translation>
+<translation id="7372509729467126439">I Boost cambiano l’aspetto e il funzionamento dei siti: sono CSS e JavaScript che Compass aggiunge a ogni pagina di un sito, su tutti i tuoi dispositivi. Creali qui o chiedi all’AI (attiva “Creare Boost” nelle impostazioni dell’AI). Il JavaScript di un Boost può leggere e modificare le pagine su cui viene eseguito, quindi tieni solo codice di cui ti fidi. Condividi un Boost come link o come file; i Boost che altri condividono con te sono contrassegnati come Condiviso.</translation>
 <translation id="7374157779560569797">Accesso a ChatGPT non riuscito</translation>
 <translation id="7385536216722631628">Un Easel condiviso non è più condiviso. La tua copia resta qui.</translation>
-<translation id="738840791756723657">IA</translation>
+<translation id="738840791756723657">AI</translation>
 <translation id="7393376631934755721">Consenti client MCP</translation>
 <translation id="7419565702166471774">Usa sempre connessioni sicure</translation>
 <translation id="7425628554107002768">In attesa che la nuova versione risponda…</translation>
 <translation id="7428599227295070770">Questo URL non è utilizzabile: deve essere https (http solo verso questo dispositivo) e senza parametri di query.</translation>
+<translation id="7429049669803660932">AI nella barra laterale</translation>
 <translation id="7429061679214919642">Recupero di <ph name="URL"/></translation>
 <translation id="7434509671034404296">Sviluppatore</translation>
 <translation id="7443758233909311824">Compass non include una chiave: aggiungi la tua chiave API Anthropic nelle impostazioni.</translation>
@@ -1308,7 +1309,7 @@
 <translation id="757941033127302446">Accesso eseguito</translation>
 <translation id="7579873081974322025">ChatGPT non riconosce più la registrazione di Compass. Accedi di nuovo.</translation>
 <translation id="7580882273601391802">Questo server non può essere aggiornato da qui.</translation>
-<translation id="7583436053078418709">Accedi con ChatGPT nelle impostazioni IA di Compass.</translation>
+<translation id="7583436053078418709">Accedi con ChatGPT nelle impostazioni AI di Compass.</translation>
 <translation id="7585418164575067110">Il plug-in a quell’indirizzo è cambiato nel frattempo. Esaminalo di nuovo prima di installarlo.</translation>
 <translation id="7597622525967669386">Ancora nessun Easel. Creane uno per raccogliere testi, disegni, immagini e link su una lavagna.</translation>
 <translation id="7602258109737525975">Le autorizzazioni che hai concesso o negato ai siti.</translation>
@@ -1345,15 +1346,16 @@
 <translation id="7719367874908701697">Zoom pagina</translation>
 <translation id="7726868193114633669">Hai raggiunto il limite di utilizzo del tuo piano ChatGPT (o il limite che hai impostato per Compass). Vedi <ph name="URL"/> oppure usa una chiave API.</translation>
 <translation id="7727767323564772013">Passa allo spazio in <ph name="PROFILE"/></translation>
+<translation id="7738229778050710943">Cosa può fare l’AI</translation>
 <translation id="7740996059027112821">Protezione standard</translation>
 <translation id="7741186643569134904">Questo è un token di `claude setup-token`, che usa il tuo abbonamento a Claude. Per usarlo, attiva “Accetta i rischi dei token di abbonamento” nel menu del pannello di Claude (Impostazioni).</translation>
 <translation id="7742823318685035397">Risolve gli indirizzi dei siti tramite una connessione criptata quando il tuo provider lo supporta.</translation>
 <translation id="7745027336158917280">{COUNT, plural, =1 {Connesso: 1 modello disponibile.} other {Connesso: # modelli disponibili.}}</translation>
 <translation id="7748528009589593815">Scheda precedente</translation>
+<translation id="77500115973946281">Chatta con <ph name="ASSISTANT"/></translation>
 <translation id="7750228210027921155">Picture in picture</translation>
 <translation id="7754741045574622661">Crittografia end-to-end.</translation>
 <translation id="7758884017823246335">Aggiungi ricerca sui siti</translation>
-<translation id="7767805908349771364">Claude nella barra laterale</translation>
 <translation id="7769672763586021400">ID modello</translation>
 <translation id="7771623002908559441">Compass configura un server di sincronizzazione nel tuo account Cloudflare. È gratuito e possono usarlo solo i tuoi dispositivi e le persone che inviti.</translation>
 <translation id="7776655046049081920">Il server di sincronizzazione è pieno per questa catena: le nuove modifiche restano su questo dispositivo. Rimuovi i dati che non ti servono o chiedi al proprietario del server di aumentarne i limiti.</translation>
@@ -1398,7 +1400,6 @@
 <translation id="796281803081951391">Usa il tasto con Ctrl, Alt o Maiusc, non con il tasto Windows.</translation>
 <translation id="797373157200374638">Inserisci l’URL del server, ad esempio https://sync.example.com/v2.</translation>
 <translation id="7977037237260541008">Una cartella condivisa: non fai più parte della condivisione. La tua copia resta qui.</translation>
-<translation id="7980285718986000415">A Claude arriva solo la domanda</translation>
 <translation id="7981618239258666414">I metodi di pagamento non sono disponibili qui.</translation>
 <translation id="798675201183004721">Questo codice è già stato usato. Chiedine uno nuovo.</translation>
 <translation id="7990196946418362116">un’altra scorciatoia del browser</translation>
@@ -1412,6 +1413,7 @@
 <translation id="8026334261755873520">Cancella dati di navigazione</translation>
 <translation id="8035152190676905274">Penna</translation>
 <translation id="8037713009824540257">Aggiungi sito</translation>
+<translation id="8048509848464187445">Consenti all’AI di creare Boost</translation>
 <translation id="805181077187484544">Chiedi nella chat</translation>
 <translation id="8054237048964238968">{COUNT, plural, =1 {1 password} other {# password}}</translation>
 <translation id="8061060515697549685">Gli Easel non sono disponibili nelle finestre di navigazione in incognito e Ospite.</translation>
@@ -1423,6 +1425,7 @@
 <translation id="8100066750428135993">Unisciti a “<ph name="NAME"/>”</translation>
 <translation id="810278524783785480">Ricerca sul web di “<ph name="QUERY"/>”</translation>
 <translation id="8103186246529958600">ChatGPT ha rifiutato l’accesso (<ph name="ERROR"/>).</translation>
+<translation id="8106024110623051095">Chatta con l’AI</translation>
 <translation id="8111142250381622108">Integrato</translation>
 <translation id="8114748585010498570">Questo plug-in non esiste.</translation>
 <translation id="8120105058480869583">Nelle impostazioni di rete del computer.</translation>
@@ -1459,7 +1462,6 @@
 <translation id="8268597460038610895">Ricerca di aggiornamenti in corso…</translation>
 <translation id="8275038454117074363">Importa</translation>
 <translation id="8275374125384859332">Libera la memoria occupata dalle schede che non usi da un po’.</translation>
-<translation id="8280569675303295750">“Riordina” nell’intestazione di Oggi e nella barra dei comandi chiede a Claude di raggruppare le schede sparse di Oggi in cartelle con un nome, in base ai loro titoli e siti. Non viene chiuso nulla e Annulla rimette ogni scheda al suo posto.</translation>
 <translation id="8290530410213615062">Impossibile acquisire questa pagina.</translation>
 <translation id="8298695361254434964">Nuovo spazio</translation>
 <translation id="830247782007612376">Invita altre persone in questo Easel. Tutti vedono le modifiche nel momento in cui vengono fatte. Resta crittografato end-to-end: il tuo server di sincronizzazione non può leggerlo.</translation>
@@ -1471,16 +1473,17 @@
 <translation id="8341676022749656704">Il tuo server non è nell’account Cloudflare con cui hai eseguito l’accesso. Accedi con l’account in cui è stato configurato.</translation>
 <translation id="8350528915702776841">Sottotitoli per audio e video in inglese.</translation>
 <translation id="8351360009969548307">Le cartelle live vanno tra le Fissate.</translation>
-<translation id="8352738892886978161">Claude sta rispondendo…</translation>
 <translation id="8355868920847152686">Compass controlla automaticamente la presenza di aggiornamenti.</translation>
 <translation id="8361063900365781893">Le chat e le richieste della barra laterale vengono inviate a Google, secondo i termini dell’API Gemini, anziché ad Anthropic.</translation>
 <translation id="8361561710528318587">Porta sullo sfondo</translation>
 <translation id="8362834414749413363">Motore di ricerca, autorizzazioni, avvio e altro.</translation>
 <translation id="8363277452449582220">Oceano</translation>
 <translation id="8364128140894476573">Usa un URL https:// (http:// solo verso questo computer), senza query.</translation>
+<translation id="8378700355051703741">Consenti all’AI di usare l’intero browser</translation>
 <translation id="8381271682459941874"><ph name="NAME"/> · invito inviato</translation>
 <translation id="8385500265431723580">Grana</translation>
 <translation id="8390458944898117985">Configura e avvia la sincronizzazione</translation>
+<translation id="8396800432334765796">L’AI può salvare in una cartella i nuovi file che crea per te, come note o una tabella. Non legge né sostituisce i tuoi file.</translation>
 <translation id="8399216072420872376">La cartella Download è vuota.</translation>
 <translation id="8406956725893220738">Stile del testo</translation>
 <translation id="8407020161007589814">Limita l’attività in background e gli effetti visivi.</translation>
@@ -1574,11 +1577,10 @@
 <translation id="8969400708948035547">Questa acquisizione non esiste.</translation>
 <translation id="8970887620466824814">Si è verificato un problema.</translation>
 <translation id="8971545611707025079">Controlla di nuovo</translation>
-<translation id="8971609256674073996">Creane uno con Claude</translation>
 <translation id="897169307670417321">Impostazioni e motori di ricerca</translation>
 <translation id="897223055171908363">Hai ricevuto un invito a uno spazio condiviso su <ph name="SERVER"/>. La persona che l’ha condiviso decide se puoi modificarlo o solo visualizzarlo.</translation>
 <translation id="8973278202283893640">Un colore in meno</translation>
-<translation id="8973340033933075450">Aggiungi la tua chiave API nelle impostazioni IA di Compass.</translation>
+<translation id="8973340033933075450">Aggiungi la tua chiave API nelle impostazioni AI di Compass.</translation>
 <translation id="89752048262566563">Puoi aggiungere solo immagini PNG, JPEG e WebP.</translation>
 <translation id="8975236366668379102">{COUNT, plural, =1 {C’è già 1 Boost. Prima eliminalo.} other {Ci sono già # Boost. Prima eliminane uno che non ti serve più.}}</translation>
 <translation id="8985404158302914257">L’Easel è stato eliminato.</translation>
@@ -1618,12 +1620,12 @@
 <translation id="9107556185885624016">Ispeziona un elemento</translation>
 <translation id="9111369260826717714">Il plug-in non ha un’anteprima</translation>
 <translation id="9119576041302273322">{COUNT, plural, =1 {Spazio <ph name="SPACES"/>} other {Spazi <ph name="SPACES"/>}}</translation>
+<translation id="9123765890101703993">Risposta in corso…</translation>
 <translation id="91385883005153514">Indirizzo dell’elenco</translation>
 <translation id="9139318394846604261">Shopping</translation>
 <translation id="9140685640092424747">Claude si è interrotto con un errore.</translation>
 <translation id="9142099284621707158">Il tuo CSS e JavaScript, aggiunti ai siti che scegli.</translation>
 <translation id="9142564384294931737"><ph name="APP_NAME"/> è un’app su questo computer che usa gli strumenti di Claude in Compass. Se la autorizzi, può leggere le tue schede, acquisire screenshot, leggerne le console, eseguire JavaScript e fare clic e digitare al loro interno, con i tuoi accessi. Autorizza solo le app di cui ti fidi.</translation>
-<translation id="9146270936320119482">Chatta con Claude della pagina in cui ti trovi. Claude può leggerla, leggerne la console JavaScript, e fare clic e digitare al suo interno. Compass non include una chiave: usa la tua chiave API di console.anthropic.com, quella di un gateway o il tuo Claude Code.</translation>
 <translation id="9158940989862011837">Chatta con Claude della pagina in cui ti trovi.</translation>
 <translation id="9159638582305559665">I Boost non sono disponibili qui.</translation>
 <translation id="9173024898238803623">Risultato successivo</translation>
@@ -1644,7 +1646,6 @@
 <translation id="932327136139879170">Casa</translation>
 <translation id="934621439145216398">Sposta nello spazio</translation>
 <translation id="939736085109172342">Nuova cartella</translation>
-<translation id="940444053400125242">Piccole attività che Claude svolge nella barra laterale, ciascuna con la propria opzione e il proprio modello. Vengono inviati all’endpoint indicato sopra solo i titoli e i siti delle schede, mai il contenuto delle pagine; nulla dalle finestre di navigazione in incognito. Al massimo 30 richieste automatiche all’ora.</translation>
 <translation id="953528549361617206">La pagina ha smesso di funzionare durante il caricamento.</translation>
 <translation id="96982639703746113">Legge</translation>
 <translation id="970001844932067105">Digitala nella barra dei comandi per cercare su quel sito.</translation>

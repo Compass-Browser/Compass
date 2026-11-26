@@ -43,6 +43,11 @@ std::optional<AIProvider> ParseProvider(std::string_view id);
 std::string ProviderDisplayName(AIProvider provider);
 // What the UI calls the assistant: "Claude", "GPT", "Gemini", "AI".
 std::string_view AssistantName(AIProvider provider);
+// "Ask Claude", "Ask GPT", "Ask Gemini", "Ask AI", and "Chat with …", in the
+// UI's language. AI has messages of its own: languages put an article
+// before it ("Chiedi all'AI") but not before a name ("Chiedi a Claude").
+std::u16string AskTitle(AIProvider provider);
+std::u16string ChatWithTitle(AIProvider provider);
 
 // Chat Completions or the Responses API, not the Messages API.
 bool UsesOpenAIFormat(AIProvider provider);

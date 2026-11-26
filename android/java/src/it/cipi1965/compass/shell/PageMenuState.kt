@@ -16,6 +16,8 @@ class PageMenuState {
     var canGoBack by mutableStateOf(false)
     var canGoForward by mutableStateOf(false)
     var incognito by mutableStateOf(false)
+    /** The Ask tile's title: "Ask Claude", "Ask GPT"… (AiNames.askTitle()). */
+    var askTitle by mutableStateOf("")
     /** The page is a pinned entry or a favorite. */
     var pinned by mutableStateOf(false)
     /** Reader mode: the tab is in Reader (the tile is selected). */
