@@ -75,6 +75,7 @@
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/label_button.h"
+#include "ui/gfx/geometry/insets.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/view.h"
@@ -413,6 +414,20 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, HoldsTheToolbarControls) {
   EXPECT_GE(menu_bounds.x(), pill->GetBoundsInScreen().right());
   EXPECT_EQ(menu_bounds.CenterPoint().y(),
             pill->GetBoundsInScreen().CenterPoint().y());
+  // The extensions and pinned actions in a row under the pill, however wide
+  // the sidebar is.
+  for (views::View* view : {toolbar_controls()[0], toolbar_controls()[1]}) {
+    if (view->IsDrawn()) {
+      EXPECT_GE(view->GetBoundsInScreen().y(),
+                pill->GetBoundsInScreen().bottom());
+    }
+  }
+  // No divider after the pinned actions: it takes no room.
+  views::View* divider = FindByElementId(
+      browser_view(), kPinnedToolbarActionsContainerDividerElementId);
+  ASSERT_TRUE(divider);
+  EXPECT_TRUE(divider->GetPreferredSize().IsEmpty());
+  EXPECT_EQ(*divider->GetProperty(views::kMarginsKey), gfx::Insets());
   // Bubbles that ask for the app menu anchor in the sidebar.
   EXPECT_EQ(browser_view_impl()
                 ->toolbar_button_provider()

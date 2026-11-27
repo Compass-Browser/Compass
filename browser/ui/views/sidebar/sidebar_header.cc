@@ -111,8 +111,6 @@ constexpr int kPillHorizontalPadding = 12;
 constexpr int kSiteInfoSize = 24;
 constexpr int kSiteInfoInset = 4;
 constexpr int kSiteInfoIconSize = 16;
-// Below this the extensions and pinned actions leave the pill's row.
-constexpr int kPillMinWidth = 120;
 
 // Arc's URL pill: a faint wash over the sidebar's tint, so the space's
 // color shows through it, darker in light mode and lighter in dark
@@ -152,10 +150,10 @@ bool IsNewTabPage(const GURL& url) {
          IsEmptyTabURL(chrome_url);
 }
 
-// The toolbar's child with |id| as its element identifier, or null.
-views::View* FindToolbarChild(ToolbarView* toolbar,
-                              ui::ElementIdentifier id) {
-  for (views::View* child : toolbar->children()) {
+// |parent|'s child with |id| as its element identifier, or null.
+views::View* FindChildWithElementId(views::View* parent,
+                                    ui::ElementIdentifier id) {
+  for (views::View* child : parent->children()) {
     if (child->GetProperty(views::kElementIdentifierKey) == id) {
       return child;
     }
@@ -458,8 +456,8 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
     x += size.width() + kButtonGap;
   }
 
-  // The pill's row: [pill][extensions][pinned actions][app menu], with the
-  // middle two on a row of their own when they leave the pill too narrow.
+  // The pill's row: [pill][app menu]; the extensions and pinned actions
+  // (downloads among them) on a row of their own under it, aligned right.
   const int pill_y = bottom + kPillMargin;
   const int pill_center_y = pill_y + kPillHeight / 2;
   // The extensions and pinned actions size themselves to the space their
@@ -486,30 +484,19 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
     return visible ? right_edge - size.width() - kButtonGap : right_edge;
   };
 
-  int pill_right = place(app_menu_slot_, width, pill_center_y, width);
-  int trailing_width = 0;
-  int trailing_height = 0;
-  for (views::View* slot : {extensions_slot_.get(), pinned_actions_slot_.get()}) {
-    const gfx::Size size = GetSlotSize(slot);
-    if (!size.IsEmpty()) {
-      trailing_width += size.width() + kButtonGap;
-      trailing_height = std::max(trailing_height, size.height());
-    }
+  const int pill_right = place(app_menu_slot_, width, pill_center_y, width);
+  int row_height = 0;
+  for (views::View* slot :
+       {extensions_slot_.get(), pinned_actions_slot_.get()}) {
+    row_height = std::max(row_height, GetSlotSize(slot).height());
   }
   int content_bottom = pill_y + kPillHeight;
-  if (pill_right - trailing_width >= kPillMinWidth) {
-    pill_right = place(pinned_actions_slot_, pill_right, pill_center_y,
-                       pinned_available);
-    pill_right = place(extensions_slot_, pill_right, pill_center_y,
-                       extensions_available);
-  } else {
-    // A row under the pill, aligned right.
-    const int row_center_y =
-        content_bottom + kPillMargin + trailing_height / 2;
-    place(extensions_slot_,
-          place(pinned_actions_slot_, width, row_center_y, pinned_available),
-          row_center_y, extensions_available);
-    content_bottom += kPillMargin + trailing_height;
+  const int row_center_y = content_bottom + kPillMargin + row_height / 2;
+  place(extensions_slot_,
+        place(pinned_actions_slot_, width, row_center_y, pinned_available),
+        row_center_y, extensions_available);
+  if (row_height > 0) {
+    content_bottom += kPillMargin + row_height;
   }
   // place() leaves a gap after the last slot it placed.
   const int pill_width = pill_right == width ? width : pill_right + kButtonGap;
@@ -816,9 +803,10 @@ void SidebarHeader::TakeToolbarControls() {
     return;
   }
   const std::array<std::pair<views::View*, views::View*>, 3> moves = {{
-      {FindToolbarChild(toolbar_, kToolbarExtensionsContainerElementId),
+      {FindChildWithElementId(toolbar_, kToolbarExtensionsContainerElementId),
        extensions_slot_},
-      {FindToolbarChild(toolbar_, kPinnedToolbarActionsContainerElementId),
+      {FindChildWithElementId(toolbar_,
+                              kPinnedToolbarActionsContainerElementId),
        pinned_actions_slot_},
       {toolbar_->GetViewByID(VIEW_ID_APP_MENU), app_menu_slot_},
   }};
@@ -829,6 +817,22 @@ void SidebarHeader::TakeToolbarControls() {
     moved_views_.push_back({view, toolbar_->GetIndexOf(view).value()});
     slot->AddChildView(view);
   }
+  // No separator after the pinned actions: in their own row, nothing follows
+  // them. Their layout shows and hides the divider, so it takes no room
+  // instead.
+  if (!pinned_actions_slot_->children().empty()) {
+    pinned_divider_ =
+        FindChildWithElementId(pinned_actions_slot_->children().front(),
+                               kPinnedToolbarActionsContainerDividerElementId);
+  }
+  if (pinned_divider_) {
+    pinned_divider_size_ = pinned_divider_->GetPreferredSize();
+    const gfx::Insets* margins =
+        pinned_divider_->GetProperty(views::kMarginsKey);
+    pinned_divider_margins_ = margins ? *margins : gfx::Insets();
+    pinned_divider_->SetPreferredSize(gfx::Size());
+    pinned_divider_->SetProperty(views::kMarginsKey, gfx::Insets());
+  }
   UpdateForActiveTab();
   // Lays out BrowserView too, which shows or hides the toolbar.
   toolbar_->InvalidateLayout();
@@ -838,6 +842,11 @@ void SidebarHeader::TakeToolbarControls() {
 void SidebarHeader::ReturnToolbarControls() {
   if (!toolbar_ || !HoldsToolbarControls()) {
     return;
+  }
+  if (pinned_divider_) {
+    pinned_divider_->SetPreferredSize(pinned_divider_size_);
+    pinned_divider_->SetProperty(views::kMarginsKey, pinned_divider_margins_);
+    pinned_divider_ = nullptr;
   }
   // In reverse, so each index is the one the view had.
   for (auto it = moved_views_.rbegin(); it != moved_views_.rend(); ++it) {

@@ -308,8 +308,8 @@ appear in the sidebar with no further change:
 
 | View | Found by | Goes to |
 |---|---|---|
-| Extensions container (pinned extensions and the extensions button) | `kToolbarExtensionsContainerElementId` | the pill's row, or a row under it |
-| Pinned toolbar actions (downloads while there are any, actions the user pinned) | `kPinnedToolbarActionsContainerElementId` | next to the extensions |
+| Extensions container (pinned extensions and the extensions button) | `kToolbarExtensionsContainerElementId` | a row under the pill |
+| Pinned toolbar actions (downloads while there are any, actions the user pinned) | `kPinnedToolbarActionsContainerElementId` | next to the extensions, without upstream's divider after them |
 | App menu button | `VIEW_ID_APP_MENU` | the end of the pill's row |
 
 The profile menu is a submenu of the app menu, so the avatar button stays in
@@ -406,9 +406,12 @@ Collapsed, the header isn't drawn, so neither works (window-frame.md).
 
 ### Layout
 
-Expanded: the pill row is `[pill][extensions][pinned actions][app menu]`.
-If that leaves the pill narrower than 120 DIPs, the extensions and pinned
-actions move to a row of their own under the pill, aligned right.
+Expanded: the pill row is `[pill][app menu]`, and the extensions and pinned
+actions (downloads among them) always have a row of their own under it,
+aligned right; without any, there's no row. The pinned actions' divider,
+which upstream puts before the app menu, is squeezed to no size while the
+header holds them (their layout shows and hides it) and given back its size
+and margins with the toolbar.
 Collapsed, the region hides the header (window-frame.md); while it narrows
 toward that, below `kCollapseSnapWidth`, the header lays out collapsed:
 only the app menu, centered in a row under upstream's layout, and under it

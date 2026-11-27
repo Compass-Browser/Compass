@@ -23,6 +23,8 @@
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/slide_animation.h"
+#include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
 class BackForwardButton;
@@ -244,6 +246,11 @@ class SidebarHeader : public VerticalTabStripTopContainer,
 
   raw_ptr<ToolbarView> toolbar_ = nullptr;
   std::vector<MovedView> moved_views_;
+  // The pinned actions' divider, squeezed to nothing while they're here (no
+  // separator before the app menu), and its size and margins in the toolbar.
+  raw_ptr<views::View> pinned_divider_ = nullptr;
+  gfx::Size pinned_divider_size_;
+  gfx::Insets pinned_divider_margins_;
   std::vector<std::unique_ptr<WatchedButton>> watched_buttons_;
   std::unique_ptr<ExpandOnHoverLock> expand_lock_;
   base::CallbackListSubscription mode_subscription_;
