@@ -1,8 +1,8 @@
 diff --git a/third_party/wayland/BUILD.gn b/third_party/wayland/BUILD.gn
-index d18530686678bead2f51129802a2a79244dd2c1d..d299611e1fb91b6ac9161cf755b3a0f68202bb53 100644
+index f6c0c1e3948e99d979d28abd1664f004780d47ca..46ee20a9a34b5a942d670e61eb9010cdecfd4e9d 100644
 --- a/third_party/wayland/BUILD.gn
 +++ b/third_party/wayland/BUILD.gn
-@@ -288,6 +288,11 @@ config("wayland_scanner_config") {
+@@ -352,6 +352,11 @@ config("wayland_scanner_config") {
    ]
  
    include_dirs = [ "include/" ]

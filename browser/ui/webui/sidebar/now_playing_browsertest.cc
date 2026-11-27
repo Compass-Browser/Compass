@@ -65,7 +65,7 @@ class NowPlayingBrowserTest : public InProcessBrowserTest {
         chrome_test_utils::GetTestUrl(
             base::FilePath(FILE_PATH_LITERAL("media/picture-in-picture")),
             base::FilePath(FILE_PATH_LITERAL("autopip-no-register.html"))),
-        WindowOpenDisposition::NEW_FOREGROUND_TAB,
+        WindowOpenDisposition::kNewForegroundTab,
         ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
     content::WebContents* contents =
         browser()->tab_strip_model()->GetActiveWebContents();
@@ -82,7 +82,7 @@ class NowPlayingBrowserTest : public InProcessBrowserTest {
   void OpenBlankTab() {
     ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
         browser(), GURL("data:text/html,<title>Blank</title>"),
-        WindowOpenDisposition::NEW_FOREGROUND_TAB,
+        WindowOpenDisposition::kNewForegroundTab,
         ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   }
 

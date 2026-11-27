@@ -197,7 +197,7 @@ IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, LinkInANewTab) {
   const int before = tabs()->count();
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL(ShareLink(MakeBoost())),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_NO_WAIT);
   content::WebContents* preview = WaitForPreview(browser()->GetProfile());
   ASSERT_TRUE(preview);
@@ -208,7 +208,7 @@ IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, LinkInANewTab) {
 IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, BrokenLink) {
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("chrome://settings/boosts?import=bm90IGEgYm9vc3Q"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_NO_WAIT);
   content::WebContents* contents = WaitForPreview(browser()->GetProfile());
   ASSERT_TRUE(contents);
@@ -226,7 +226,7 @@ IN_PROC_BROWSER_TEST_F(BoostShareBrowserTest, IncognitoOpensANormalWindow) {
   BrowserWindowInterface* incognito = CreateIncognitoBrowser();
   ui_test_utils::NavigateToURLWithDisposition(
       incognito, GURL(ShareLink(MakeBoost())),
-      WindowOpenDisposition::CURRENT_TAB, ui_test_utils::BROWSER_TEST_NO_WAIT);
+      WindowOpenDisposition::kCurrentTab, ui_test_utils::BROWSER_TEST_NO_WAIT);
   content::WebContents* preview = WaitForPreview(browser()->GetProfile());
   ASSERT_TRUE(preview);
   EXPECT_FALSE(preview->GetBrowserContext()->IsOffTheRecord());

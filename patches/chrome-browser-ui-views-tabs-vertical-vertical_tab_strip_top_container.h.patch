@@ -1,10 +1,10 @@
 diff --git a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h
-index c03539ffa6f8cbc5203c6bc55f1153143166de49..fe3c23a376f1ff2f5d9ecc5acf071fb39506ffa3 100644
+index a3e0df8e5f7af72b6bd6ed15725ebf505c933ffd..2b32af6d9d5f1ec665071654377af14676590bbb 100644
 --- a/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h
 +++ b/chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h
-@@ -67,7 +67,7 @@ class VerticalTabStripTopContainer : public views::View,
- 
-   void UpdateControlsVisibility();
+@@ -65,7 +65,7 @@ class VerticalTabStripTopContainer : public views::View,
+   TabStripComboButton* GetComboButton();
+   views::LabelButton* GetCollapseButton() { return collapse_button_; }
  
 -  bool IsPositionInWindowCaption(const gfx::Point& point);
 +  virtual bool IsPositionInWindowCaption(const gfx::Point& point);

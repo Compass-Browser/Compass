@@ -1,8 +1,8 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ui/RootUiCoordinator.java b/chrome/android/java/src/org/chromium/chrome/browser/ui/RootUiCoordinator.java
-index c63c6cf19de662eb2be070f9b2af4cebbcde688b..70ddb400bebc86064934219b1306407221004daf 100644
+index 2f64fe2e3b3dc24b456171a4632338b6131647ea..c3bf80ff8133a2b94c51b47661f69bf67465ec6d 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/ui/RootUiCoordinator.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/ui/RootUiCoordinator.java
-@@ -3063,6 +3063,11 @@ public class RootUiCoordinator
+@@ -3071,6 +3071,11 @@ public class RootUiCoordinator
          return mBottomControlsStacker;
      }
  

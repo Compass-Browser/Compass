@@ -1,8 +1,8 @@
 diff --git a/chrome/common/BUILD.gn b/chrome/common/BUILD.gn
-index 6f5f891dc689a2e7628cf731b7863264cc0ac0ab..13b6cd76b36b5a3333360b3277ffbc75fde0bbf6 100644
+index df6966f61bb0045511ffb0dd267f7e09965df353..2302a01692ea72cf8ebc7f532298dcb650485220 100644
 --- a/chrome/common/BUILD.gn
 +++ b/chrome/common/BUILD.gn
-@@ -263,6 +263,7 @@ static_library("common_lib") {
+@@ -264,6 +264,7 @@ static_library("common_lib") {
    ]
  
    deps = [
@@ -10,7 +10,7 @@ index 6f5f891dc689a2e7628cf731b7863264cc0ac0ab..13b6cd76b36b5a3333360b3277ffbc75
      "//components/cdm/common:buildflags",
      "//components/crash/core/app",
      "//components/google/core/common",
-@@ -610,6 +611,7 @@ static_library("constants") {
+@@ -611,6 +612,7 @@ static_library("constants") {
    }
    if (is_mac) {
      sources += [ "chrome_paths_mac.mm" ]

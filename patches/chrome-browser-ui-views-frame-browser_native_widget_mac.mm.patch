@@ -1,17 +1,17 @@
 diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
-index 73a8db26c25b7848f6f51bf1ac9ebb89dd6fbae2..edcc355735e6a7fe6cb618612927248f10a91c90 100644
+index 261d99025282d4150b4a158a76e4f343ffa8df45..fd54c85658902d93c809ec78383945c2a412eda1 100644
 --- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
-@@ -49,6 +49,8 @@
+@@ -50,6 +50,8 @@
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #include "chrome/common/pref_names.h"
  #include "chrome/grit/generated_resources.h"
 +#include "compass/browser/ui/views/frame/window_frame.h"
 +#include "compass/browser/ui/views/little_window/little_window.h"
  #include "components/bookmarks/common/bookmark_pref_names.h"
- #include "components/dom_distiller/content/browser/distillable_page_utils.h"
- #include "components/dom_distiller/core/url_utils.h"
-@@ -275,6 +277,20 @@ int32_t BrowserNativeWidgetMac::SheetOffsetY() {
+ #include "components/input/native_web_keyboard_event.h"
+ #include "components/lens/lens_features.h"
+@@ -276,6 +278,20 @@ int32_t BrowserNativeWidgetMac::SheetOffsetY() {
  void BrowserNativeWidgetMac::GetWindowFrameTitlebarHeight(
      bool* override_titlebar_height,
      float* titlebar_height) {
@@ -32,7 +32,7 @@ index 73a8db26c25b7848f6f51bf1ac9ebb89dd6fbae2..edcc355735e6a7fe6cb618612927248f
    if (browser_view_ && browser_view_->browser_widget() &&
        browser_view_->browser_widget()->GetFrameView()) {
      *override_titlebar_height = true;
-@@ -735,15 +751,18 @@ void BrowserNativeWidgetMac::PopulateCreateWindowParams(
+@@ -747,15 +763,18 @@ void BrowserNativeWidgetMac::PopulateCreateWindowParams(
                           NSWindowStyleMaskTitled | NSWindowStyleMaskResizable;
      params->window_title_hidden = true;
    } else if (browser_view_->GetIsNormalType() ||
@@ -54,7 +54,7 @@ index 73a8db26c25b7848f6f51bf1ac9ebb89dd6fbae2..edcc355735e6a7fe6cb618612927248f
        params->window_title_hidden = true;
      }
    } else {
-@@ -764,6 +783,17 @@ NativeWidgetMacNSWindow* BrowserNativeWidgetMac::CreateNSWindow(
+@@ -776,6 +795,17 @@ NativeWidgetMacNSWindow* BrowserNativeWidgetMac::CreateNSWindow(
    return ns_window;
  }
  

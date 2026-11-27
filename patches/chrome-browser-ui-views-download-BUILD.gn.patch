@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/download/BUILD.gn b/chrome/browser/ui/views/download/BUILD.gn
-index 8135562ac6876b102eec35bcfa3b3e4c01aab972..5729df3e44cb7d7940969f633763d28123c88e69 100644
+index 869d40b63b2616111d0aa829f003b3cee1cc8053..2ad6a0c13e25f10a5b17efe525841af072277949 100644
 --- a/chrome/browser/ui/views/download/BUILD.gn
 +++ b/chrome/browser/ui/views/download/BUILD.gn
 @@ -96,6 +96,9 @@ source_set("download") {

@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/sync/BUILD.gn b/chrome/browser/ui/sync/BUILD.gn
-index 8a146b9585dcb507a2e1438fe7bc3b39c79cca5d..d78ee02e58d899856c3afb7026d2180ef8039ea2 100644
+index 2ce6b46bc91653d9abb7b2a16a6b32a2c4c81955..733c7ef8aabd1072775146b751f3c7e2b966c4c1 100644
 --- a/chrome/browser/ui/sync/BUILD.gn
 +++ b/chrome/browser/ui/sync/BUILD.gn
 @@ -60,6 +60,8 @@ source_set("impl") {

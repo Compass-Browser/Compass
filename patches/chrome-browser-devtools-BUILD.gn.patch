@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/devtools/BUILD.gn b/chrome/browser/devtools/BUILD.gn
-index 9011cb9983878fbd6c14914586f9f5baaf32ba55..a5a7a0a6ffbb9c4825b063b1ffc3084a86354f2d 100644
+index 6cab394b73be101177e9b31d523fb3d722741456..d305f4f52264df3c5cd89e7718ea7556519f9703 100644
 --- a/chrome/browser/devtools/BUILD.gn
 +++ b/chrome/browser/devtools/BUILD.gn
-@@ -245,6 +245,9 @@ static_library("devtools") {
+@@ -249,6 +249,9 @@ static_library("devtools") {
        "//chrome/browser/ui/browser_window",
        "//chrome/browser/ui/hats",
        "//chrome/browser/ui/prefs",

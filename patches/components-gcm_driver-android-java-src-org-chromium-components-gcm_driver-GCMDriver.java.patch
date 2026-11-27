@@ -1,5 +1,5 @@
 diff --git a/components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java b/components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
-index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..2fae6aa5259745c6f2b7e07e4676de61e891f820 100644
+index 10bfebe534ddfd53d3f0d8d298a458b479bb669b..d75a2eb1ff5506fa3c451ce931571557327d038c 100644
 --- a/components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
 +++ b/components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
 @@ -58,8 +58,11 @@ public class GCMDriver {
@@ -14,8 +14,8 @@ index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..2fae6aa5259745c6f2b7e07e4676de61
 +            return new GCMDriver(nativeGCMDriverAndroid);
          }
          sInstance = new GCMDriver(nativeGCMDriverAndroid);
-         // TODO(crbug.com/40620351): This has been in added in M75 to migrate the
-@@ -75,8 +78,9 @@ public class GCMDriver {
+         return sInstance;
+@@ -71,8 +74,9 @@ public class GCMDriver {
       */
      @CalledByNative
      private void destroy() {

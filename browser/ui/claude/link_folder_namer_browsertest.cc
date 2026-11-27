@@ -139,7 +139,7 @@ class LinkFolderNamerBrowserTest : public InProcessBrowserTest {
                           ui::PAGE_TRANSITION_LINK);
     params.source_contents =
         browser()->tab_strip_model()->GetActiveWebContents();
-    params.disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
+    params.disposition = WindowOpenDisposition::kNewBackgroundTab;
     Navigate(&params);
     ASSERT_TRUE(params.navigated_or_inserted_contents);
     EXPECT_TRUE(

@@ -1401,7 +1401,8 @@ TEST_F(SidebarPageHandlerTest, SendsEntriesToDevicesFromTheMenu) {
                                 : syncer::DeviceInfo::FormFactor::kDesktop,
                          i == 0 ? syncer::DeviceInfo::OsType::kIOS
                                 : syncer::DeviceInfo::OsType::kMac,
-                         base::Time::Now());
+                         base::Time::Now(),
+                         /*has_high_precision_timestamp=*/false);
   }
   model.SetTargetDeviceInfoSortedList(devices);
   std::vector<std::pair<GURL, std::string>> sent;

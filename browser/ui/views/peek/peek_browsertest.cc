@@ -129,7 +129,7 @@ IN_PROC_BROWSER_TEST_F(PeekBrowserTest, OpenFileOpensItAsATab) {
 
 IN_PROC_BROWSER_TEST_F(PeekBrowserTest, SwitchingTabsCloses) {
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("about:blank"), WindowOpenDisposition::NEW_BACKGROUND_TAB,
+      browser(), GURL("about:blank"), WindowOpenDisposition::kNewBackgroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_NO_FATAL_FAILURE(PeekAtLink());
   tabs()->ActivateTabAt(tabs()->active_index() == 0 ? 1 : 0);

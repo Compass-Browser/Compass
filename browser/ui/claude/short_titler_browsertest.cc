@@ -210,7 +210,7 @@ class ShortTitlerBrowserTest : public InProcessBrowserTest {
   const SidebarNode* OpenFox() {
     NavigateParams params(browser(), embedded_test_server()->GetURL("/fox/1"),
                           ui::PAGE_TRANSITION_TYPED);
-    params.disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
+    params.disposition = WindowOpenDisposition::kNewBackgroundTab;
     Navigate(&params);
     EXPECT_TRUE(params.navigated_or_inserted_contents);
     EXPECT_TRUE(

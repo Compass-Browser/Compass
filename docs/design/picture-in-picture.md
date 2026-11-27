@@ -330,7 +330,7 @@ other condition.
 
 `common/picture_in_picture/call_pip.js` is shared with iOS. On the desktop,
 `compass::AttachCallPip()` (`browser/picture_in_picture/call_pip.cc`,
-attached to every tab in the `tab_helpers.cc` patch) runs it in an
+attached to every tab in the `tab_features.cc` patch) runs it in an
 isolated world (`ISOLATED_WORLD_ID_CHROME_INTERNAL`) at `DOMContentLoaded`
 of each frame of the shown page whose own URL is on the hosts above
 (`IsCallPipURL()`; the script checks again): Zoom's web client runs the

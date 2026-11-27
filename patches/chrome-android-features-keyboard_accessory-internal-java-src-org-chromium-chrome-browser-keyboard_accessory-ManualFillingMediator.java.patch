@@ -1,26 +1,26 @@
 diff --git a/chrome/android/features/keyboard_accessory/internal/java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingMediator.java b/chrome/android/features/keyboard_accessory/internal/java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingMediator.java
-index c712920173012fb21bc2663677205a3cb3470c55..6cddecc463f12b83bde5da25f278d7dc9778aba3 100644
+index 2fa22f2bdffde448f64ec2502d1c563121b03b36..b209b67666db8f24699293de146be7fe88c742af 100644
 --- a/chrome/android/features/keyboard_accessory/internal/java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingMediator.java
 +++ b/chrome/android/features/keyboard_accessory/internal/java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingMediator.java
-@@ -539,7 +539,7 @@ class ManualFillingMediator
-     }
+@@ -566,7 +566,7 @@ class ManualFillingMediator
  
      private void onAtMemoryClicked() {
+         assert isInitialized();
 -        WebContents webContents = mActivity.getCurrentWebContents();
 +        WebContents webContents = currentWebContents();
          if (webContents != null && !webContents.isDestroyed()) {
              ManualFillingMetricsRecorder.recordActionSelected(
                      AccessoryAction.SHOW_AT_MEMORY_BOTTOMSHEET);
-@@ -555,7 +555,7 @@ class ManualFillingMediator
-     }
+@@ -583,7 +583,7 @@ class ManualFillingMediator
  
      private void updateAtMemoryEnablement() {
--        WebContents webContents = mActivity != null ? mActivity.getCurrentWebContents() : null;
+         assert isInitialized();
+-        WebContents webContents = mActivity.getCurrentWebContents();
 +        WebContents webContents = currentWebContents();
          boolean enabled = false;
          if (webContents != null && !webContents.isDestroyed()) {
              enabled = ManualFillingComponentBridge.isAtMemoryEnabled(webContents);
-@@ -586,7 +586,7 @@ class ManualFillingMediator
+@@ -614,7 +614,7 @@ class ManualFillingMediator
          // TODO(crbug.com/458644290): Confirm if space checks work correctly when dynamic
          // positioning is used.
  
@@ -29,7 +29,7 @@ index c712920173012fb21bc2663677205a3cb3470c55..6cddecc463f12b83bde5da25f278d7dc
          if (webContents == null || webContents.isDestroyed()) return false;
          float height = webContents.getHeight(); // In dip. Already insetted by top/bottom controls.
  
-@@ -856,8 +856,9 @@ class ManualFillingMediator
+@@ -893,8 +893,9 @@ class ManualFillingMediator
  
      @Override
      public void onBarFadeInAnimationEnd() {
@@ -41,7 +41,7 @@ index c712920173012fb21bc2663677205a3cb3470c55..6cddecc463f12b83bde5da25f278d7dc
          }
      }
  
-@@ -1231,6 +1232,14 @@ class ManualFillingMediator
+@@ -1288,6 +1289,14 @@ class ManualFillingMediator
          return tab.getContentView();
      }
  
@@ -55,17 +55,17 @@ index c712920173012fb21bc2663677205a3cb3470c55..6cddecc463f12b83bde5da25f278d7dc
 +
      /**
       * Shorthand to get the activity tab.
-      * @return The currently visible {@link Tab}, if any.
-@@ -1313,7 +1322,7 @@ class ManualFillingMediator
-         // TODO(bokan): Once mApplicationViewportInsetSupplier includes browser controls, we can use
+      *
+@@ -1375,7 +1384,7 @@ class ManualFillingMediator
          // CompositorViewHolder instead of WebContents and simply apply the viewVisibleHeightInset
          // to it, rather than awkwardly undoing the webContentsHeightInset.
+         assert isInitialized();
 -        WebContents webContents = mActivity.getCurrentWebContents();
 +        WebContents webContents = currentWebContents();
          if (webContents == null || webContents.isDestroyed()) return;
          float density = mWindowAndroid.getDisplay().getDipScale();
          // Ensure the sheet height is adjusted, if needed, to leave a minimal amount of WebContents
-@@ -1353,7 +1362,7 @@ class ManualFillingMediator
+@@ -1415,7 +1424,7 @@ class ManualFillingMediator
      private void refreshTabs() {
          if (!isInitialized()) return;
          TraceEvent.begin("ManualFillingMediator#refreshTabs");
@@ -73,4 +73,4 @@ index c712920173012fb21bc2663677205a3cb3470c55..6cddecc463f12b83bde5da25f278d7dc
 +        ManualFillingState state = mStateCache.getStateFor(currentWebContents());
          state.notifyObservers();
          updateAtMemoryEnablement();
-         // For contenteditable fields, provide empty tabs so that only the AtMemory
+         // For unstructured fields (e.g., contenteditable and textarea), provide empty tabs so that

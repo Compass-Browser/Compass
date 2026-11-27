@@ -795,8 +795,8 @@ void CommandBarPageHandler::AcceptMatch(const AutocompleteMatch& match,
   const WindowOpenDisposition disposition =
       new_entry || mode_ == Mode::kNewEntry ||
               !browser_->GetActiveTabInterface()
-          ? WindowOpenDisposition::NEW_FOREGROUND_TAB
-          : WindowOpenDisposition::CURRENT_TAB;
+          ? WindowOpenDisposition::kNewForegroundTab
+          : WindowOpenDisposition::kCurrentTab;
   if (line) {
     LogMatch(match, *line, disposition);
   }
@@ -837,7 +837,7 @@ void CommandBarPageHandler::LogMatch(const AutocompleteMatch& match,
       match.destination_url, profile->IsOffTheRecord(), input.IsZeroSuggest(),
       match.session);
   // Only a load in place knows its tab yet.
-  if (disposition == WindowOpenDisposition::CURRENT_TAB) {
+  if (disposition == WindowOpenDisposition::kCurrentTab) {
     if (tabs::TabInterface* tab = browser_->GetActiveTabInterface()) {
       log.tab_id = sessions::SessionTabHelper::IdForTab(tab->GetContents());
     }
@@ -896,7 +896,7 @@ void CommandBarPageHandler::AcceptOtherDeviceTab(const GURL& url) {
   // A new foreground tab is a new Today entry of the window's space
   // (TabStripBridge), whatever the bar's mode.
   NavigateParams params(browser_, url, ui::PAGE_TRANSITION_AUTO_BOOKMARK);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.disposition = WindowOpenDisposition::kNewForegroundTab;
   params.window_action = NavigateParams::WindowAction::kShowWindow;
   Navigate(&params);
 }

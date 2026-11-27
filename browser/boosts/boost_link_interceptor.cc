@@ -80,8 +80,8 @@ class BoostLinkInterceptor
     web_contents()->OpenURL(
         content::OpenURLParams(
             preview, content::Referrer(),
-            fresh ? WindowOpenDisposition::CURRENT_TAB
-                  : WindowOpenDisposition::NEW_FOREGROUND_TAB,
+            fresh ? WindowOpenDisposition::kCurrentTab
+                  : WindowOpenDisposition::kNewForegroundTab,
             ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
             /*is_renderer_initiated=*/false),
         /*navigation_handle_callback=*/{});

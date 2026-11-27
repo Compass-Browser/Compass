@@ -19,6 +19,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_variant.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/views/bubble/bubble_anchor.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/webview/webview.h"
@@ -38,7 +39,8 @@ class CompassBubbleView : public WebUIBubbleDialogView {
                     const gfx::Rect& anchor,
                     views::BubbleBorder::Arrow arrow,
                     std::optional<SkColor> tint)
-      : WebUIBubbleDialogView(nullptr, contents->GetWeakPtr(), anchor, arrow),
+      : WebUIBubbleDialogView(views::BubbleAnchor(), contents->GetWeakPtr(),
+                              anchor, arrow),
         contents_(std::move(contents)),
         tint_(tint) {}
   CompassBubbleView(const CompassBubbleView&) = delete;

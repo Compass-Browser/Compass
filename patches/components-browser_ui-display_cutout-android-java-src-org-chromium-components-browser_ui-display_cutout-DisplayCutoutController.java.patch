@@ -1,5 +1,5 @@
 diff --git a/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java b/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java
-index 4ca18055922cb14c5ba2dbc971ba9cf40113527f..747a47761a75ac1736af4f91118b2952eb31d86b 100644
+index 2a327f44e91e2cb86504fc14b8906e1b7f63ca6b..468a0a32765d72816425e19768cc6005dffbf351 100644
 --- a/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java
 +++ b/components/browser_ui/display_cutout/android/java/src/org/chromium/components/browser_ui/display_cutout/DisplayCutoutController.java
 @@ -41,6 +41,13 @@ import org.chromium.ui.base.WindowAndroid;
@@ -75,7 +75,7 @@ index 4ca18055922cb14c5ba2dbc971ba9cf40113527f..747a47761a75ac1736af4f91118b2952
          removeObservers();
      }
  
-@@ -402,7 +447,12 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
+@@ -396,7 +441,12 @@ public class DisplayCutoutController implements InsetObserver.WindowInsetObserve
          if (webContents.getTopLevelNativeWindow() == null) return;
  
          mCachedSafeAreaInsets = area;

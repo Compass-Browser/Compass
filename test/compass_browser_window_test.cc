@@ -53,7 +53,7 @@ void CompassBrowserWindowTest::AddTab(BrowserWindowInterface* browser,
                                       const GURL& url) {
   NavigateParams params(browser, url, ui::PAGE_TRANSITION_TYPED);
   params.tabstrip_index = 0;
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.disposition = WindowOpenDisposition::kNewForegroundTab;
   Navigate(&params);
   CommitPendingLoad(&params.navigated_or_inserted_contents->GetController());
 }

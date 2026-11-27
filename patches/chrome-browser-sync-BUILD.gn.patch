@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/sync/BUILD.gn b/chrome/browser/sync/BUILD.gn
-index 3137b9ad6d6aeb9a995051ebce955bbd6cb94520..54045dae9eb2ddfc5d6288fadf17fdb1c6d6b71f 100644
+index 6f8be3059939f075bed7cf5592974752d9284c8b..d4995d0834ef1bc27b89fa5f19ff865e1d48b87b 100644
 --- a/chrome/browser/sync/BUILD.gn
 +++ b/chrome/browser/sync/BUILD.gn
 @@ -84,6 +84,8 @@ source_set("sync") {

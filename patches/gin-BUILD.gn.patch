@@ -1,5 +1,5 @@
 diff --git a/gin/BUILD.gn b/gin/BUILD.gn
-index ac87f68f7ed7cb3eb20d505a59b5edb9f74b4280..ea2537948c93dda37fde1aafdd8e78a511357f54 100644
+index 6f77e78807aba80eeebdcb47ebbd77a2a617a4eb..308f46280b78b8e23a8a87c35ad0e689c075fe02 100644
 --- a/gin/BUILD.gn
 +++ b/gin/BUILD.gn
 @@ -115,6 +115,17 @@ component("gin") {

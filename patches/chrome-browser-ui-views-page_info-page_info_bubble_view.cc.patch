@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/page_info/page_info_bubble_view.cc b/chrome/browser/ui/views/page_info/page_info_bubble_view.cc
-index 72e4e2e06d895e3ef9471da1789d8ddb0807bbac..e205b0858e224aca920e5c3cbb90c5e40ea6ba68 100644
+index d17d6bfd09cefb526a0c9f7517b740c99ee6a11e..77ec4b3818fca7e766e7ad1bd795936279340441 100644
 --- a/chrome/browser/ui/views/page_info/page_info_bubble_view.cc
 +++ b/chrome/browser/ui/views/page_info/page_info_bubble_view.cc
 @@ -22,6 +22,7 @@
@@ -7,10 +7,10 @@ index 72e4e2e06d895e3ef9471da1789d8ddb0807bbac..e205b0858e224aca920e5c3cbb90c5e4
  #include "chrome/browser/ui/views/page_info/page_info_security_content_view.h"
  #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
 +#include "compass/browser/ui/views/page_info_look/page_info_look.h"
- #include "components/dom_distiller/core/url_constants.h"
- #include "components/dom_distiller/core/url_utils.h"
  #include "components/page_info/core/features.h"
-@@ -234,6 +235,8 @@ PageInfoBubbleView::PageInfoBubbleView(
+ #include "components/privacy_sandbox/privacy_sandbox_features.h"
+ #include "components/strings/grit/components_branded_strings.h"
+@@ -237,6 +238,8 @@ PageInfoBubbleView::PageInfoBubbleView(
    }
  
    views::BubbleDialogDelegateView::CreateBubble(this);

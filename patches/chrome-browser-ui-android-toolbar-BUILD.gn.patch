@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/android/toolbar/BUILD.gn b/chrome/browser/ui/android/toolbar/BUILD.gn
-index 55277fd80c0bbf894ac93c5c962bdf11c3d2a7f9..cd53014263d18d19ef31e02105fd3dfc395737aa 100644
+index 363cfea029f741d55a5158f9e305fc03dea3e462..f1233262783def971b619b172b5ab97aaed64845 100644
 --- a/chrome/browser/ui/android/toolbar/BUILD.gn
 +++ b/chrome/browser/ui/android/toolbar/BUILD.gn
-@@ -234,6 +234,8 @@ android_library("core_java") {
+@@ -236,6 +236,8 @@ android_library("core_java") {
    ]
  
    deps = [

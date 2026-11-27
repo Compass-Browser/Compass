@@ -186,7 +186,7 @@ class CompassCallPipBrowserTest : public InProcessBrowserTest {
   content::WebContents* OpenCall(const GURL& url) {
     AllowMedia(url);
     EXPECT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-        browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+        browser(), url, WindowOpenDisposition::kNewForegroundTab,
         ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
     content::WebContents* contents =
         browser()->tab_strip_model()->GetActiveWebContents();
@@ -211,7 +211,7 @@ class CompassCallPipBrowserTest : public InProcessBrowserTest {
   void OpenBlankTab() {
     ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
         browser(), GURL("data:text/html,<title>Blank</title>"),
-        WindowOpenDisposition::NEW_FOREGROUND_TAB,
+        WindowOpenDisposition::kNewForegroundTab,
         ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   }
 
@@ -312,7 +312,7 @@ IN_PROC_BROWSER_TEST_F(CompassCallPipBrowserTest, CallInAFrame) {
   AllowMedia(https_.GetURL("teams.microsoft.com", "/"));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), https_.GetURL("teams.microsoft.com", "/framed"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   content::WebContents* call =
       browser()->tab_strip_model()->GetActiveWebContents();

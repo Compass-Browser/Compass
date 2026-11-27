@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/unload_controller.cc b/chrome/browser/ui/unload_controller.cc
-index 02ae74168cb077798c27404b6e7fda0fe5bfb6f7..1fbb90104a4e4b8338a8cb0d038cffb5d1932856 100644
+index e359e9cc62b7ed934bb44b4c7fe7aeec0b799e12..9ad88bbbacd0f43c329018a6087136a9135a87c3 100644
 --- a/chrome/browser/ui/unload_controller.cc
 +++ b/chrome/browser/ui/unload_controller.cc
 @@ -4,6 +4,8 @@
@@ -11,7 +11,7 @@ index 02ae74168cb077798c27404b6e7fda0fe5bfb6f7..1fbb90104a4e4b8338a8cb0d038cffb5
  #include <algorithm>
  
  #include "base/functional/bind.h"
-@@ -637,7 +639,10 @@ void UnloadController::OnTabStripModelChanged(
+@@ -688,7 +690,10 @@ void UnloadController::OnTabStripModelChanged(
  void UnloadController::TabStripEmpty() {
    // Set state_ here, so that extensions, etc, do not attempt to add tabs to the
    // browser before it closes.

@@ -443,8 +443,8 @@ content::WebContents* ClaudeTabs::OpenTabIn(BrowserWindowInterface* window,
   }
   // A new tab is a new Today entry of the window's space (TabStripBridge).
   NavigateParams params(window, url, ui::PAGE_TRANSITION_LINK);
-  params.disposition = active ? WindowOpenDisposition::NEW_FOREGROUND_TAB
-                              : WindowOpenDisposition::NEW_BACKGROUND_TAB;
+  params.disposition = active ? WindowOpenDisposition::kNewForegroundTab
+                              : WindowOpenDisposition::kNewBackgroundTab;
   Navigate(&params);
   return params.navigated_or_inserted_contents;
 }

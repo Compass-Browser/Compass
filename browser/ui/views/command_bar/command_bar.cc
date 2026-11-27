@@ -37,6 +37,7 @@
 #include "compass/browser/window_sync/undo_close.h"
 #include "compass/common/compass_url.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/views/bubble/bubble_anchor.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/webview/webview.h"
@@ -112,7 +113,7 @@ void CommandBar::Show(Mode mode) {
 
   WebUIContentsWrapper* contents = GetOrCreateContents();
   auto bubble = std::make_unique<WebUIBubbleDialogView>(
-      nullptr, contents->GetWeakPtr(), anchor,
+      views::BubbleAnchor(), contents->GetWeakPtr(), anchor,
       views::BubbleBorder::TOP_CENTER);
   bubble->set_parent_window(platform_util::GetViewForWindow(
       browser_->GetWindow()->GetNativeWindow()));

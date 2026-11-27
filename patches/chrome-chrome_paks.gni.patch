@@ -1,8 +1,8 @@
 diff --git a/chrome/chrome_paks.gni b/chrome/chrome_paks.gni
-index 150c570d3ea9756dd068bd919a57b722a4c7e056..b7f1a8cf86b82d4dea1d32fd0883f7a675d12b10 100644
+index 631fbe890387273504642e03bcf1df1d056c836a..94c01e11c40719d2efe09cf2ce2c34d2eea22d16 100644
 --- a/chrome/chrome_paks.gni
 +++ b/chrome/chrome_paks.gni
-@@ -194,6 +194,14 @@ template("chrome_extra_paks") {
+@@ -210,6 +210,14 @@ template("chrome_extra_paks") {
      if (defined(invoker.additional_paks)) {
        sources += invoker.additional_paks
      }

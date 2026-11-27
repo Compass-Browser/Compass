@@ -366,7 +366,7 @@ IN_PROC_BROWSER_TEST_F(CompassShortcutsBrowserTest, UndoCloseTab) {
       browser(), GURL("data:text/html,<input id=field value=typed>")));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("data:text/html,second"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   TabStripModel* strip = browser()->tab_strip_model();
   const int count = strip->count();

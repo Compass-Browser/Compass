@@ -99,7 +99,7 @@ class TabStripBridgeTest : public CompassBrowserWindowTest {
     NavigateParams params(browser(), GURL("https://" + host + "/"),
                           ui::PAGE_TRANSITION_TYPED);
     params.tabstrip_index = index;
-    params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+    params.disposition = WindowOpenDisposition::kNewForegroundTab;
     Navigate(&params);
     CommitPendingLoad(&params.navigated_or_inserted_contents->GetController());
     Settle();
@@ -110,7 +110,7 @@ class TabStripBridgeTest : public CompassBrowserWindowTest {
     NavigateParams params(browser(), GURL("https://" + host + "/"),
                           ui::PAGE_TRANSITION_LINK);
     params.source_contents = tab_strip_model()->GetActiveWebContents();
-    params.disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
+    params.disposition = WindowOpenDisposition::kNewBackgroundTab;
     Navigate(&params);
     CommitPendingLoad(&params.navigated_or_inserted_contents->GetController());
     Settle();
@@ -444,7 +444,7 @@ TEST_F(TabStripBridgeTest, ForegroundAndTypedTabsDontMakeFolders) {
   OpenTabAt(1, "b.test");
   NavigateParams params(browser(), GURL("https://c.test/"),
                         ui::PAGE_TRANSITION_LINK);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.disposition = WindowOpenDisposition::kNewForegroundTab;
   Navigate(&params);
   Settle();
 
@@ -938,7 +938,7 @@ TEST_F(TabStripBridgeTwoWindowTest, PlaceholderClosesWhenItsNodeIsRemoved) {
   // A background tab keeps the window open once the placeholder goes.
   NavigateParams params(browser(), GURL("https://e.test/"),
                         ui::PAGE_TRANSITION_TYPED);
-  params.disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
+  params.disposition = WindowOpenDisposition::kNewBackgroundTab;
   Navigate(&params);
   CommitPendingLoad(&params.navigated_or_inserted_contents->GetController());
   Settle();

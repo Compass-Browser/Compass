@@ -693,7 +693,7 @@ BrowserWindowInterface* OpenLinkInSpace(Profile* profile,
   }
   // A new tab, which the strip's bridge makes a Today entry of the space.
   NavigateParams navigate(target, url, ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-  navigate.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  navigate.disposition = WindowOpenDisposition::kNewForegroundTab;
   navigate.window_action = NavigateParams::WindowAction::kShowWindow;
   Navigate(&navigate);
   target->GetWindow()->Show();
@@ -739,7 +739,7 @@ BrowserWindowInterface* CreateLittleWindow(
   }
 
   NavigateParams navigate(browser, url, ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-  navigate.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  navigate.disposition = WindowOpenDisposition::kNewForegroundTab;
   navigate.window_action = NavigateParams::WindowAction::kShowWindow;
   Navigate(&navigate);
 
@@ -846,7 +846,7 @@ BrowserWindowInterface* OpenLittleWindowAt(Profile* profile,
     return nullptr;
   }
   NavigateParams navigate(browser, url, ui::PAGE_TRANSITION_AUTO_BOOKMARK);
-  navigate.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  navigate.disposition = WindowOpenDisposition::kNewForegroundTab;
   navigate.window_action = NavigateParams::WindowAction::kShowWindow;
   Navigate(&navigate);
   return browser;

@@ -1,0 +1,49 @@
+diff --git a/chrome/browser/ui/tabs/tab_features.cc b/chrome/browser/ui/tabs/tab_features.cc
+index aaef65951a4b1dda3c098c4fd34d8b43e99d731f..688d8d558f789527d01b57bb6a9b4daa18b3b2bc 100644
+--- a/chrome/browser/ui/tabs/tab_features.cc
++++ b/chrome/browser/ui/tabs/tab_features.cc
+@@ -199,6 +199,11 @@
+ #include "chrome/browser/ui/web_applications/pwa_install_page_action.h"
+ #include "chrome/browser/ui/webui/webui_embedding_context.h"
+ #include "chrome/browser/ui/webui_browser/webui_browser.h"
++#include "compass/browser/boosts/boost_link_interceptor.h"
++#include "compass/browser/dev_mode/network_log.h"
++#include "compass/browser/picture_in_picture/call_pip.h"
++#include "compass/browser/rooms/room_link_interceptor.h"
++#include "compass/browser/web_store/web_store_branding.h"
+ #include "components/autofill/core/common/autofill_payments_features.h"
+ #include "components/contextual_tasks/public/features.h"
+ #include "components/download/content/factory/navigation_monitor_factory.h"
+@@ -416,6 +421,16 @@ std::optional<int64_t> GetPageContentAnnotationsTabId(
+   return std::nullopt;
+ }
+ 
++// Compass: its tab helpers, for a tab's contents and for the contents that
++// replace a discarded tab's (as TabHelpers::AttachTabHelpers() did until 159).
++void AttachCompassTabHelpers(content::WebContents* web_contents) {
++  compass::AttachCallPip(web_contents);
++  compass::boosts::AttachBoostLinkInterceptor(web_contents);
++  compass::dev_mode::AttachDevModeTabHelper(web_contents);
++  compass::rooms::AttachRoomLinkInterceptor(web_contents);
++  compass::AttachWebStoreBranding(web_contents);
++}
++
+ }  // namespace
+ 
+ TabFeatures::TabFeatures() = default;
+@@ -435,6 +450,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
+   tab_subscriptions_.push_back(webui::InitEmbeddingContext(&tab));
+ 
+   CreateSessionServiceTabHelper(tab.GetContents());
++  AttachCompassTabHelpers(tab.GetContents());
+ 
+   zoom::ZoomController::CreateForWebContents(tab.GetContents());
+ 
+@@ -1525,6 +1541,7 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
+   Profile* profile = tab->GetBrowserWindowInterface()->GetProfile();
+ 
+   CreateSessionServiceTabHelper(new_contents);
++  AttachCompassTabHelpers(new_contents);
+ 
+   zoom::ZoomController::CreateForWebContents(new_contents);
+ 

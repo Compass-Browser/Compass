@@ -1,0 +1,14 @@
+diff --git a/base/version_info/nix/version_extra_utils.cc b/base/version_info/nix/version_extra_utils.cc
+index bbdbe3a74ca688aa2273cf2094adae5f68721d87..f775216b27ee50217f286eb27f32ae02e39e2865 100644
+--- a/base/version_info/nix/version_extra_utils.cc
++++ b/base/version_info/nix/version_extra_utils.cc
+@@ -116,7 +116,8 @@ std::string GetDesktopName(base::Environment& env) {
+   if (!name.empty()) {
+     return name;
+   }
+-  return "chromium-browser.desktop";
++  // Compass: the Linux package's (installer/linux/compass.desktop.in).
++  return "compass.desktop";
+ #endif
+ }
+ 

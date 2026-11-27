@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/process_singleton_posix.cc b/chrome/browser/process_singleton_posix.cc
-index 9a83a1d2d2f9bf68ac8b832744b34fbe00ca724e..f3f5c8e64b5ac4e8997dda90e6b177378a86ed9d 100644
+index 827a8a94b0a185638678d63e3e8f9f5e380cca28..9a15f23f95f481d5e4500cc3b9f95140034fc9c2 100644
 --- a/chrome/browser/process_singleton_posix.cc
 +++ b/chrome/browser/process_singleton_posix.cc
 @@ -386,9 +386,13 @@ bool IsChromeProcess(pid_t pid) {

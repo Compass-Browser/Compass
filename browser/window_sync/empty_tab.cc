@@ -38,7 +38,7 @@ bool IsEmptyTab(const tabs::TabInterface* tab) {
 void OpenEmptyTab(BrowserWindowInterface* browser) {
   NavigateParams params(browser, GURL(kEmptyURL),
                         ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.disposition = WindowOpenDisposition::kNewForegroundTab;
   Navigate(&params);
 }
 

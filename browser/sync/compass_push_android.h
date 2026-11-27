@@ -90,8 +90,6 @@ class CompassPushAndroid : public gcm::GCMAppHandler {
   void OnSendError(
       const std::string& app_id,
       const gcm::GCMClient::SendErrorDetails& send_error_details) override;
-  void OnSendAcknowledged(const std::string& app_id,
-                          const std::string& message_id) override;
 
  private:
   void OnToken(const std::string& token, instance_id::InstanceID::Result result);

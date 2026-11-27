@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/side_panel/side_panel_toolbar_pinning_controller.cc b/chrome/browser/ui/views/side_panel/side_panel_toolbar_pinning_controller.cc
-index 812dd960ff1543c48fd602727b74af291168612c..7a5b6081ed3d9ba5d8616616043e7c16c4a9e50f 100644
+index a86f5b13a3bcc0bc930c9dfa170136a9a70d9ce9..03e1c033bbf12a5447669cae758be2ea27e870da 100644
 --- a/chrome/browser/ui/views/side_panel/side_panel_toolbar_pinning_controller.cc
 +++ b/chrome/browser/ui/views/side_panel/side_panel_toolbar_pinning_controller.cc
-@@ -201,7 +201,11 @@ void SidePanelToolbarPinningController::UpdateActiveState(
+@@ -209,7 +209,11 @@ void SidePanelToolbarPinningController::UpdateActiveState(
  
      std::optional<actions::ActionId> action_id =
          SidePanelEntryIdToActionId(target_id);

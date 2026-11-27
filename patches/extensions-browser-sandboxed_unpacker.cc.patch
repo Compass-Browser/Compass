@@ -1,8 +1,8 @@
 diff --git a/extensions/browser/sandboxed_unpacker.cc b/extensions/browser/sandboxed_unpacker.cc
-index f590c5f00affaf0c0f19fb8764adc56927b4b9bb..129d2f744ee25d6178a9a44798b10da3b92fbf59 100644
+index 0639cbab1bd30f0092c257811d1d1d4a32b0ef86..fd5bd1210d9fd99c5338b4ce79675e42fb5dc1f2 100644
 --- a/extensions/browser/sandboxed_unpacker.cc
 +++ b/extensions/browser/sandboxed_unpacker.cc
-@@ -946,8 +946,14 @@ bool SandboxedUnpacker::ValidateSignature(
+@@ -958,8 +958,14 @@ bool SandboxedUnpacker::ValidateSignature(
            SandboxedUnpackerFailureReason::CRX_EXPECTED_HASH_INVALID);
        break;
      case crx_file::VerifierResult::ERROR_REQUIRED_PROOF_MISSING:

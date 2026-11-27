@@ -324,7 +324,7 @@ Upstream asks for `kCurrentProfileIconVersion` to go up when
 The Chrome Web Store is a web page, so its "Add to Chrome" button isn't in
 any of upstream's strings. `compass::AttachWebStoreBranding()`
 (`browser/web_store/`, attached to every tab by a one-line hook in
-`TabHelpers::AttachTabHelpers()`) runs a script on
+`TabFeatures::Init()`) runs a script on
 `https://chromewebstore.google.com` pages at `DOMContentLoaded`, in an
 isolated world (`ISOLATED_WORLD_ID_CHROME_INTERNAL`): it shares the page's
 DOM, not its JavaScript, and the page can't see or undo it.

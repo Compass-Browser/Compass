@@ -1,8 +1,8 @@
 diff --git a/third_party/blink/renderer/core/html/html_anchor_element.cc b/third_party/blink/renderer/core/html/html_anchor_element.cc
-index a9f2c1b74fe90cc30b2a2cf54f77c1cf7bf946a8..14a129d9ce6f98cbd7f2e01b46b46fd315d59b33 100644
+index 72f1f82cdf16e0e9e09b3b70a49bb097af877d99..ec5a3f914e38d0e483d3652baf5e6576d6883f44 100644
 --- a/third_party/blink/renderer/core/html/html_anchor_element.cc
 +++ b/third_party/blink/renderer/core/html/html_anchor_element.cc
-@@ -519,7 +519,6 @@ void HTMLAnchorElementBase::HandleClick(MouseEvent& event) {
+@@ -529,7 +529,6 @@ void HTMLAnchorElementBase::HandleClick(MouseEvent& event) {
        request, FastGetAttribute(html_names::kReferrerpolicyAttr),
        link_relations_, GetDocument());
  
@@ -10,7 +10,7 @@ index a9f2c1b74fe90cc30b2a2cf54f77c1cf7bf946a8..14a129d9ce6f98cbd7f2e01b46b46fd3
    NavigationPolicy navigation_policy = NavigationPolicyFromEvent(&event);
  
    // Respect the download attribute only if we can read the content, and the
-@@ -541,18 +540,10 @@ void HTMLAnchorElementBase::HandleClick(MouseEvent& event) {
+@@ -551,18 +550,10 @@ void HTMLAnchorElementBase::HandleClick(MouseEvent& event) {
        std::move(request), navigation_policy, event.isTrusted(),
        event.PlatformTimeStamp(), std::move(completed_url));
  

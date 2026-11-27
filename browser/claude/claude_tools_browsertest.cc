@@ -368,7 +368,7 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, WorksInABackgroundTab) {
   // The user opens another tab; Claude keeps working on its own.
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), embedded_test_server()->GetURL("/other.html"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_NE(contents(), target);
 
@@ -452,7 +452,7 @@ IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, StopEndsWhatRuns) {
 IN_PROC_BROWSER_TEST_F(ClaudeToolsBrowserTest, TabClosed) {
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), embedded_test_server()->GetURL("/other.html"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   tools_->SetTarget(contents());
   EXPECT_FALSE(Run("get_page_text").is_error);

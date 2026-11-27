@@ -204,7 +204,4 @@ void CompassPushAndroid::OnSendError(
     const std::string& app_id,
     const gcm::GCMClient::SendErrorDetails& send_error_details) {}
 
-void CompassPushAndroid::OnSendAcknowledged(const std::string& app_id,
-                                            const std::string& message_id) {}
-
 }  // namespace compass::sync

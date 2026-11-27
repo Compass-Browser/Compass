@@ -1,8 +1,8 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/tab/TabContextMenuItemDelegate.java b/chrome/android/java/src/org/chromium/chrome/browser/tab/TabContextMenuItemDelegate.java
-index 452ed08a773049d435f98df50a561fa9b5794902..82ae984b78739aea10b1e6ca0658b9f73c26ca56 100644
+index cb6f90434646468810aa27b5fd4933babdefefa4..58dc4054aa21d3f4bb71e8017f7eda660e5e46a8 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/tab/TabContextMenuItemDelegate.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/tab/TabContextMenuItemDelegate.java
-@@ -482,6 +482,12 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
+@@ -476,6 +476,12 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
              GURL url,
              String title,
              @Nullable AdditionalNavigationParams additionalNavigationParams) {

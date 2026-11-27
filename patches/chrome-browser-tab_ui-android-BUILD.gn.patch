@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/tab_ui/android/BUILD.gn b/chrome/browser/tab_ui/android/BUILD.gn
+index b1ccad885a4434345a14cee5d2d7a0273637d293..542deae4e87df8548034e320957c62a05289022d 100644
+--- a/chrome/browser/tab_ui/android/BUILD.gn
++++ b/chrome/browser/tab_ui/android/BUILD.gn
+@@ -52,6 +52,8 @@ android_library("java") {
+     "java/src/org/chromium/chrome/browser/tab_ui/undo_tab_close_snackbar/UndoClosureRestorer.java",
+   ]
+   deps = [
++    # Compass: its shell's undo toast replaces the undo bar (docs/design/android.md).
++    "//compass/android:hook_java",
+     ":java_resources",
+     "//base:base_java",
+     "//base:metrics_java",

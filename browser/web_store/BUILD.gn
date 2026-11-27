@@ -3,9 +3,9 @@
 # found in the LICENSE file.
 
 # The Chrome Web Store's buttons say Compass. Upstream's tab helpers
-# (//chrome/browser/ui:tab_helpers_impl) depend on this target (see
+# (//chrome/browser/ui/tabs:impl) depend on this target (see
 # patches/chrome-browser-ui-BUILD.gn.patch and
-# patches/chrome-browser-ui-tab_helpers.cc.patch).
+# patches/chrome-browser-ui-tabs-tab_features.cc.patch).
 source_set("web_store") {
   sources = [
     "web_store_branding.cc",

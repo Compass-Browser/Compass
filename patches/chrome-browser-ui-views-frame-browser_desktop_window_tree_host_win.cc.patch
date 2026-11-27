@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
-index bf13db120fc1e011f2562c7e9a9e8074c81cc0b0..f061e3e9a6edaa6ca4206e895e059c010bd7e92f 100644
+index 234e7a390abf8ea6129503181a9f682767e87c6e..c7b0c53df343901676e2f339c0f34d5b2c626108 100644
 --- a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
 +++ b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
 @@ -37,6 +37,7 @@
@@ -10,7 +10,7 @@ index bf13db120fc1e011f2562c7e9a9e8074c81cc0b0..f061e3e9a6edaa6ca4206e895e059c01
  #include "components/policy/core/common/policy_pref_names.h"
  #include "components/prefs/pref_service.h"
  #include "content/public/browser/browser_thread.h"
-@@ -538,7 +539,9 @@ bool BrowserDesktopWindowTreeHostWin::ShouldUseNativeFrame() const {
+@@ -544,7 +545,9 @@ bool BrowserDesktopWindowTreeHostWin::ShouldUseNativeFrame() const {
  bool BrowserDesktopWindowTreeHostWin::ShouldWindowContentsBeTransparent()
      const {
    CHECK(browser_view_);
@@ -21,7 +21,7 @@ index bf13db120fc1e011f2562c7e9a9e8074c81cc0b0..f061e3e9a6edaa6ca4206e895e059c01
  }
  
  void BrowserDesktopWindowTreeHostWin::ClientDestroyedWidget() {
-@@ -628,6 +631,10 @@ SkBitmap GetBadgedIconBitmapForProfile(Profile* profile) {
+@@ -634,6 +637,10 @@ SkBitmap GetBadgedIconBitmapForProfile(Profile* profile) {
  }
  
  void BrowserDesktopWindowTreeHostWin::SetWindowIcon(bool badged) {

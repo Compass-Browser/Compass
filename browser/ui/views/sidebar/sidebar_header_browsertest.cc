@@ -287,7 +287,7 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, PillFollowsTheActiveTab) {
   EXPECT_EQ(pill_text(), u"a.test");
 
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("about:blank"), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      browser(), GURL("about:blank"), WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   EXPECT_EQ(pill_text(), u"Search or enter URL");
 
@@ -436,10 +436,12 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, SiteInfoOpensPageInfo) {
 
   Click(site_info);
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
-    return PageInfoBubbleViewBase::GetPageInfoBubbleForTesting();
+    return PageInfoBubbleViewBase::GetPageInfoBubbleForTesting(
+          browser()->tab_strip_model()->GetActiveWebContents());
   }));
   views::BubbleDialogDelegateView* bubble =
-      PageInfoBubbleViewBase::GetPageInfoBubbleForTesting();
+      PageInfoBubbleViewBase::GetPageInfoBubbleForTesting(
+          browser()->tab_strip_model()->GetActiveWebContents());
   EXPECT_EQ(bubble->GetAnchorView(), site_info);
 
   // The downloads bubble's look (compass::InstallPageInfoLook()): the
@@ -475,10 +477,12 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, PageInfoSiteSettings) {
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return site_info->IsDrawn(); }));
   Click(site_info);
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
-    return PageInfoBubbleViewBase::GetPageInfoBubbleForTesting();
+    return PageInfoBubbleViewBase::GetPageInfoBubbleForTesting(
+          browser()->tab_strip_model()->GetActiveWebContents());
   }));
   views::View* row =
-      PageInfoBubbleViewBase::GetPageInfoBubbleForTesting()->GetViewByID(
+      PageInfoBubbleViewBase::GetPageInfoBubbleForTesting(
+          browser()->tab_strip_model()->GetActiveWebContents())->GetViewByID(
           PageInfoViewFactory::VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_SITE_SETTINGS);
   ASSERT_TRUE(row);
   auto count_windows = [] {
@@ -527,10 +531,12 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, PageInfoTakesTheSpaceTint) {
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] { return site_info->IsDrawn(); }));
   Click(site_info);
   ASSERT_TRUE(RunUntilLaidOut(browser_view(), [&] {
-    return PageInfoBubbleViewBase::GetPageInfoBubbleForTesting();
+    return PageInfoBubbleViewBase::GetPageInfoBubbleForTesting(
+          browser()->tab_strip_model()->GetActiveWebContents());
   }));
   views::BubbleDialogDelegateView* bubble =
-      PageInfoBubbleViewBase::GetPageInfoBubbleForTesting();
+      PageInfoBubbleViewBase::GetPageInfoBubbleForTesting(
+          browser()->tab_strip_model()->GetActiveWebContents());
   ASSERT_TRUE(GetBubbleTint(browser()));
   const BubbleLook tinted =
       ComputeBubbleLook(bubble->GetColorProvider(), GetBubbleTint(browser()));

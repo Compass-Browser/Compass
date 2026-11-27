@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/webui/help/BUILD.gn b/chrome/browser/ui/webui/help/BUILD.gn
-index 17d8d3e2832c4d572054a7c866690703e9fe87a2..af56f1fc8dd6c1f749de11c36715400e2f276a66 100644
+index 45aa60407f87a07de21eec49145ffd78db903903..5ff9a427791c247fb30b3b353c5eda0d22fa4ed2 100644
 --- a/chrome/browser/ui/webui/help/BUILD.gn
 +++ b/chrome/browser/ui/webui/help/BUILD.gn
-@@ -43,6 +43,7 @@ source_set("help") {
+@@ -47,6 +47,7 @@ source_set("help") {
        "//chrome/app:generated_resources_grit",
        "//chrome/browser/updater",
        "//chrome/updater:browser_sources",
@@ -10,7 +10,7 @@ index 17d8d3e2832c4d572054a7c866690703e9fe87a2..af56f1fc8dd6c1f749de11c36715400e
        "//ui/base",
      ]
      frameworks = [ "Foundation.framework" ]
-@@ -63,11 +64,13 @@ source_set("help") {
+@@ -67,11 +68,13 @@ source_set("help") {
        ]
      } else {
        sources = [ "version_updater_basic.cc" ]

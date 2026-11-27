@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/lifetime/application_lifetime_desktop.cc b/chrome/browser/lifetime/application_lifetime_desktop.cc
-index fbf902d9c2564467214a259596f1415e4c17ed7b..b74e76be52957b5ec8532c36cdde6087bdf5aec3 100644
+index ab271623858b911655296dbe21d530a2f515f25b..bcbcbd4205e54922a564024ca3f1734af3c04f04 100644
 --- a/chrome/browser/lifetime/application_lifetime_desktop.cc
 +++ b/chrome/browser/lifetime/application_lifetime_desktop.cc
 @@ -47,6 +47,7 @@
@@ -10,7 +10,7 @@ index fbf902d9c2564467214a259596f1415e4c17ed7b..b74e76be52957b5ec8532c36cdde6087
  #include "components/keep_alive_registry/keep_alive_registry.h"
  #include "components/keep_alive_registry/keep_alive_types.h"
  #include "components/prefs/pref_service.h"
-@@ -286,6 +287,13 @@ void AttemptRestartInternal(IgnoreUnloadHandlers ignore_unload_handlers,
+@@ -324,6 +325,13 @@ void AttemptRestartInternal(IgnoreUnloadHandlers ignore_unload_handlers,
    content::GetUIThreadTaskRunner({})->PostTask(
        FROM_HERE, base::BindOnce(&ExitIgnoreUnloadHandlers));
  #else   // !BUILDFLAG(IS_CHROMEOS).

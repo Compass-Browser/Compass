@@ -930,7 +930,7 @@ void SidebarPageHandler::OnHoverPreviewClicked(const std::string& id,
       ui::DispositionFromEventFlags(event_flags);
   // Cmd (Ctrl) or a middle click on a row with a link: a new tab, as a link
   // on the page would open.
-  if (!url.is_empty() && disposition != WindowOpenDisposition::CURRENT_TAB) {
+  if (!url.is_empty() && disposition != WindowOpenDisposition::kCurrentTab) {
     NavigateParams params(browser_, url, ui::PAGE_TRANSITION_LINK);
     params.disposition = disposition;
     Navigate(&params);
@@ -1494,29 +1494,8 @@ void SidebarPageHandler::SendNodeToDevice(
   model->SendEntry(
       node->url(), base::UTF16ToUTF8(title), device.cache_guid,
       send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory(),
-      base::BindOnce(
-          [](base::WeakPtr<content::WebContents> contents,
-             std::string device_name,
-             syncer::DeviceInfo::FormFactor form_factor,
-             send_tab_to_self::SendTabToSelfResult result) {
-            if (!contents) {
-              return;
-            }
-            switch (result) {
-              case send_tab_to_self::SendTabToSelfResult::kSuccess:
-                send_tab_to_self::ShowTabSentSuccessToast(
-                    contents.get(), device_name, form_factor);
-                break;
-              case send_tab_to_self::SendTabToSelfResult::kSuccessThrottled:
-                send_tab_to_self::ShowTabSentThrottledToast(
-                    contents.get(), device_name, form_factor);
-                break;
-              default:
-                send_tab_to_self::ShowTabSentFailure(contents.get(), result);
-                break;
-            }
-          },
-          shown, device.device_name, device.form_factor),
+      base::BindOnce(&send_tab_to_self::OnSendTabToDeviceComplete, shown,
+                     device.device_name, device.form_factor),
       send_tab_to_self::ShareEntryPoint::kTabMenu);
 }
 

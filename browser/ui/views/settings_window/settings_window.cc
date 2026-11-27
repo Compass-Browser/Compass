@@ -420,9 +420,9 @@ bool SettingsWindow::IsDraggableAt(const gfx::Point& point) const {
 void SettingsWindow::OpenInBrowser(const GURL& url,
                                    WindowOpenDisposition disposition) {
   NavigateParams params(profile_.get(), url, ui::PAGE_TRANSITION_LINK);
-  params.disposition = disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB
+  params.disposition = disposition == WindowOpenDisposition::kNewBackgroundTab
                            ? disposition
-                           : WindowOpenDisposition::NEW_FOREGROUND_TAB;
+                           : WindowOpenDisposition::kNewForegroundTab;
   params.window_action = NavigateParams::WindowAction::kShowWindow;
   Navigate(&params);
 }
@@ -434,7 +434,7 @@ content::WebContents* SettingsWindow::OpenURLFromTab(
         navigation_handle_callback) {
   // The page's own navigations (between panes, a reload) stay here; links
   // out of it open in a browser window.
-  if (params.disposition == WindowOpenDisposition::CURRENT_TAB &&
+  if (params.disposition == WindowOpenDisposition::kCurrentTab &&
       params.url.SchemeIs(content::kChromeUIScheme) &&
       params.url.host() == kSettingsHost) {
     content::NavigationController::LoadURLParams load(params);

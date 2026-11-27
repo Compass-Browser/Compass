@@ -1,8 +1,8 @@
 diff --git a/chrome/android/BUILD.gn b/chrome/android/BUILD.gn
-index 271801af5323ad07e60e701d575e3f16b7d2f58f..13c7b0158b0ecf475b0edbe7953dc06e2f16b0fa 100644
+index 31655cd27510814d640298abf29b6cd18017cfc0..08dbaab05bc4859aacd579e12f8e05823ee5332e 100644
 --- a/chrome/android/BUILD.gn
 +++ b/chrome/android/BUILD.gn
-@@ -312,6 +312,8 @@ if (_is_default_toolchain) {
+@@ -288,6 +288,8 @@ if (_is_default_toolchain) {
  
    android_library("chrome_java") {
      deps = [
@@ -11,7 +11,7 @@ index 271801af5323ad07e60e701d575e3f16b7d2f58f..13c7b0158b0ecf475b0edbe7953dc06e
        ":base_module_java",
        ":chrome_app_java_resources",
        ":chrome_public_apk_template_resources",
-@@ -3332,7 +3334,12 @@ template("libchrome_impl") {
+@@ -3138,7 +3140,12 @@ template("libchrome_impl") {
        deps += invoker.deps
      }
  

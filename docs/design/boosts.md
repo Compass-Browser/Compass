@@ -227,7 +227,7 @@ JavaScript asks as usual. Claude has no tool to share or import.
   browser writes the clipboard), `SaveBoostFile()`.
 - *Links.* `BoostLinkInterceptor` (`boost_link_interceptor.{h,cc}`, target
   `:link`), a tab helper attached by upstream's `TabHelpers` (the existing
-  `patches/chrome-browser-ui-tab_helpers.cc.patch` and
+  `patches/chrome-browser-ui-tabs-tab_features.cc.patch` and
   `chrome-browser-ui-BUILD.gn.patch` call and depend on it), watches each
   tab's primary main frame navigations (start and redirects). A share link
   is stopped before it loads, and `chrome://settings/boosts?import=<payload>`

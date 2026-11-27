@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/startup/BUILD.gn b/chrome/browser/ui/startup/BUILD.gn
-index d554afbea2e9361d7d1214de373204adff0f6f5f..47698cc9629367f399b530cb3219180507007357 100644
+index 8318ebe4beafe71d27db917e70eb2029a162fa61..57d01947f9c2ddd8087d60a1a053c902d5a00c09 100644
 --- a/chrome/browser/ui/startup/BUILD.gn
 +++ b/chrome/browser/ui/startup/BUILD.gn
-@@ -190,6 +190,10 @@ source_set("impl") {
+@@ -191,6 +191,10 @@ source_set("impl") {
      "//ui/gfx:native_ui_types",
      "//url",
    ]

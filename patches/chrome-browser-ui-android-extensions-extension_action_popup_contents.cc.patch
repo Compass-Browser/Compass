@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/android/extensions/extension_action_popup_contents.cc b/chrome/browser/ui/android/extensions/extension_action_popup_contents.cc
-index d3b2b4b48d3e1948432423903ab2167d8f84033f..631aafad5e8f1117524e9036387040b6b628d549 100644
+index d26cb84ce48cc9aee3effd248d5a6a3745aa0d3a..3a8334fc94f4f3a32cffab3cd70b6371a4bd3918 100644
 --- a/chrome/browser/ui/android/extensions/extension_action_popup_contents.cc
 +++ b/chrome/browser/ui/android/extensions/extension_action_popup_contents.cc
 @@ -4,6 +4,8 @@

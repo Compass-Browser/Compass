@@ -1,8 +1,8 @@
 diff --git a/components/sync/service/sync_service_impl.cc b/components/sync/service/sync_service_impl.cc
-index 1f03761e1860c29035701b17b703654bd6243f2c..e8ee806a54a5594c44c7d00e99f92156357163cb 100644
+index 1be14eb4365a52bfb332467c8345a0602a17c2b4..ab0faf06fe7927cb2a39a0af736507441ac2772d 100644
 --- a/components/sync/service/sync_service_impl.cc
 +++ b/components/sync/service/sync_service_impl.cc
-@@ -69,6 +69,7 @@
+@@ -68,6 +68,7 @@
  #include "components/sync/service/sync_service_utils.h"
  #include "components/sync/service/trusted_vault_histograms.h"
  #include "components/sync/service/trusted_vault_synthetic_field_trial.h"
@@ -10,7 +10,7 @@ index 1f03761e1860c29035701b17b703654bd6243f2c..e8ee806a54a5594c44c7d00e99f92156
  #include "google_apis/gaia/google_service_auth_error.h"
  #include "services/network/public/cpp/shared_url_loader_factory.h"
  
-@@ -640,7 +641,18 @@ void SyncServiceImpl::TryStartImpl(
+@@ -622,7 +623,18 @@ void SyncServiceImpl::TryStartImpl(
  
    params.sync_manager_factory =
        std::make_unique<SyncManagerFactory>(network_connection_tracker_);

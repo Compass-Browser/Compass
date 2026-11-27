@@ -4,11 +4,11 @@
 
 #include "compass/components/sync/engine_components_factory.h"
 
-#include <map>
 #include <optional>
 #include <utility>
 
 #include "base/check.h"
+#include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -272,7 +272,7 @@ class RetryableScheduler : public syncer::SyncScheduler {
     scheduler_->OnReceivedPollIntervalUpdate(new_interval);
   }
   void OnReceivedCustomNudgeDelays(
-      const std::map<syncer::DataType, base::TimeDelta>& nudge_delays)
+      const base::flat_map<syncer::DataType, base::TimeDelta>& nudge_delays)
       override {
     scheduler_->OnReceivedCustomNudgeDelays(nudge_delays);
   }

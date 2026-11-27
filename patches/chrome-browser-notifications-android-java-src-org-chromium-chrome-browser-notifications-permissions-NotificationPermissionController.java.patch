@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java b/chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java
-index 30095386a94782613f203ffe9a3d51e809a4ecb5..0f631354ff5e02b1682f6f6a941dc1b6d2932a19 100644
+index c65654414f9cf3a7b0f40f12b805293df9a16b4d..c1a9b7d86ac5006ca5c0fbd29fd000b7db42be2c 100644
 --- a/chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java
 +++ b/chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java
-@@ -178,6 +178,8 @@ public class NotificationPermissionController {
+@@ -202,6 +202,8 @@ public class NotificationPermissionController {
          if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || DeviceInfo.isRetailDemoMode()) {
              return false;
          }

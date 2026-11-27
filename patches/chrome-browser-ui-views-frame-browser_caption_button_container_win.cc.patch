@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc b/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc
-index d0f0f711eaa58b43837d69c62dbe5e15301dea95..c45549ac293d31ba29195c816b017862d6a3b083 100644
+index 63687a86918b64dfb21e8fb151443a78d8c0b706..09b1f0eec1afff8315f3adf4790c365dc8363aa4 100644
 --- a/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc
 +++ b/chrome/browser/ui/views/frame/browser_caption_button_container_win.cc
 @@ -16,6 +16,7 @@

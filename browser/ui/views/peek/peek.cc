@@ -14,14 +14,18 @@
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
+#include "chrome/browser/content_settings/page_specific_content_settings_delegate.h"
 #include "chrome/browser/file_select_helper.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
+#include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/autofill/autofill_client_provider.h"
+#include "chrome/browser/ui/autofill/autofill_client_provider_factory.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_desktop.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
-#include "chrome/browser/ui/tab_helpers.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -29,10 +33,17 @@
 #include "compass/browser/window_sync/tab_strip_bridge.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "compass/strings/grit/compass_strings.h"
+#include "components/content_settings/browser/page_specific_content_settings.h"
 #include "components/download/public/common/download_url_parameters.h"
+#include "components/infobars/content/content_infobar_manager.h"
 #include "components/input/native_web_keyboard_event.h"
+#include "components/javascript_dialogs/tab_modal_dialog_manager.h"
+#include "components/permissions/permission_recovery_success_rate_tracker.h"
+#include "components/permissions/permission_request_manager.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/vector_icons/vector_icons.h"
+#include "components/web_modal/web_contents_modal_dialog_manager.h"
+#include "components/zoom/zoom_controller.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/file_select_listener.h"
@@ -43,6 +54,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/referrer.h"
+#include "extensions/buildflags/buildflags.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -70,17 +82,44 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/widget/widget_delegate.h"
 
-// TabHelpers lets only a few classes give a WebContents the tab helpers of a
-// tab. Upstream's Link Preview, a Peek of its own since removed, was one of
-// them, as `PreviewTab`; Peek takes its place. The page needs the helpers
-// for everything a tab does (permissions, autofill, find, ...) and keeps them
-// when it becomes one.
-class PreviewTab {
- public:
-  static void AttachTabHelpers(content::WebContents* contents) {
-    TabHelpers::AttachTabHelpers(contents);
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "chrome/browser/extensions/tab_helper.h"
+#endif
+
+namespace {
+
+// The helpers a page needs for what a tab does while it is peeked at
+// (permissions, autofill and passwords, zoom, dialogs, infobars, extensions).
+// Since 159 there is no TabHelpers::AttachTabHelpers() for a WebContents that
+// isn't a tab; when the page becomes one, TabFeatures::Init() adds the rest.
+// Each Create*() is a no-op on a WebContents that has the helper already.
+void AttachPeekHelpers(content::WebContents* contents) {
+  Profile* profile =
+      Profile::FromBrowserContext(contents->GetBrowserContext());
+  content_settings::PageSpecificContentSettings::CreateForWebContents(
+      contents, std::make_unique<PageSpecificContentSettingsDelegate>(contents));
+  permissions::PermissionRequestManager::CreateForWebContents(contents);
+  permissions::PermissionRecoverySuccessRateTracker::CreateForWebContents(
+      contents);
+  autofill::AutofillClientProvider& autofill_client_provider =
+      autofill::AutofillClientProviderFactory::GetForProfile(profile);
+  autofill_client_provider.CreateClientForWebContents(contents);
+  if (!autofill_client_provider.uses_platform_autofill()) {
+    ChromePasswordManagerClient::CreateForWebContents(contents);
   }
-};
+  zoom::ZoomController::CreateForWebContents(contents);
+  infobars::ContentInfoBarManager::CreateForWebContents(contents);
+  javascript_dialogs::TabModalDialogManager::CreateForWebContents(
+      contents,
+      std::make_unique<JavaScriptTabModalDialogManagerDelegateDesktop>(
+          contents));
+  web_modal::WebContentsModalDialogManager::CreateForWebContents(contents);
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  extensions::TabHelper::CreateForWebContents(contents);
+#endif
+}
+
+}  // namespace
 
 namespace compass {
 
@@ -430,7 +469,7 @@ void Peek::Open(content::WebContents* source,
   if (!contents_) {
     content::WebContents::CreateParams create(browser_->GetProfile());
     contents_ = content::WebContents::Create(create);
-    PreviewTab::AttachTabHelpers(contents_.get());
+    AttachPeekHelpers(contents_.get());
     contents_->SetDelegate(this);
   }
   contents_->GetController().LoadURLWithParams(load);
@@ -466,7 +505,7 @@ void Peek::Adopt(content::WebContents* source,
   }
   contents_ = std::move(contents);
   // Safe on a WebContents that has them already.
-  PreviewTab::AttachTabHelpers(contents_.get());
+  AttachPeekHelpers(contents_.get());
   contents_->SetDelegate(this);
 
   source_tab_ = tabs::TabInterface::MaybeGetFromContents(source);
@@ -630,10 +669,10 @@ content::WebContents* Peek::OpenURLFromTab(
     base::OnceCallback<void(content::NavigationHandle&)>
         navigation_handle_callback) {
   // Plain clicks, and Option+clicks, stay in the card.
-  if (params.disposition == WindowOpenDisposition::CURRENT_TAB ||
-      params.disposition == WindowOpenDisposition::SAVE_TO_DISK) {
+  if (params.disposition == WindowOpenDisposition::kCurrentTab ||
+      params.disposition == WindowOpenDisposition::kSaveToDisk) {
     content::NavigationController::LoadURLParams load(params);
-    if (params.disposition == WindowOpenDisposition::SAVE_TO_DISK) {
+    if (params.disposition == WindowOpenDisposition::kSaveToDisk) {
       load.frame_tree_node_id = content::FrameTreeNodeId();
     }
     base::WeakPtr<content::NavigationHandle> handle =
@@ -782,7 +821,7 @@ content::WebContents* MaybePeekNewContents(
     WindowOpenDisposition disposition,
     bool user_gesture) {
   if (!source || !user_gesture ||
-      disposition != WindowOpenDisposition::NEW_FOREGROUND_TAB ||
+      disposition != WindowOpenDisposition::kNewForegroundTab ||
       browser->GetType() != BrowserWindowInterface::TYPE_NORMAL) {
     return nullptr;
   }

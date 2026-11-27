@@ -1,8 +1,8 @@
 diff --git a/components/history/core/browser/history_service.cc b/components/history/core/browser/history_service.cc
-index f3058ade218d6adab7965a1d752bbce8a9fb961d..ff865480fe282d12efbcf9e3a9bcdf2bb3496b81 100644
+index 24acbc3e64932b32c62cff26d7bcdf631d2706f4..d3cd2c561b78f688c3c487a36c698c6c78de01fe 100644
 --- a/components/history/core/browser/history_service.cc
 +++ b/components/history/core/browser/history_service.cc
-@@ -1792,6 +1792,12 @@ void HistoryService::DeleteLocalAndRemoteHistoryBetween(
+@@ -1849,6 +1849,12 @@ void HistoryService::DeleteLocalAndRemoteHistoryBetween(
      web_history->ExpireHistoryBetween(
          /*restrict_urls=*/{}, begin_time, end_time, base::DoNothing(),
          partial_traffic_annotation);
@@ -15,7 +15,7 @@ index f3058ade218d6adab7965a1d752bbce8a9fb961d..ff865480fe282d12efbcf9e3a9bcdf2b
    }
    ExpireHistoryBetween(/*restrict_urls=*/{}, app_id, begin_time, end_time,
                         /*user_initiated=*/true, std::move(callback), tracker);
-@@ -1831,6 +1837,9 @@ void HistoryService::DeleteLocalAndRemoteUrl(WebHistoryService* web_history,
+@@ -1888,6 +1894,9 @@ void HistoryService::DeleteLocalAndRemoteUrl(WebHistoryService* web_history,
      web_history->ExpireHistoryBetween(
          /*restrict_urls=*/{url}, base::Time(), base::Time::Max(),
          base::DoNothing(), partial_traffic_annotation);

@@ -38,11 +38,13 @@ IN_PROC_BROWSER_TEST_F(CopyLinkSettingsBrowserTest, LicensesPage) {
       browser(), GURL("chrome://compass-settings/licenses.html")));
   EXPECT_EQ(
       content::EvalJs(contents(), "document.querySelectorAll('pre').length"),
-      2);
+      3);
   const std::string text =
       content::EvalJs(contents(), "document.body.innerText").ExtractString();
   EXPECT_NE(text.find("Mozilla Public License Version 2.0"), std::string::npos);
   EXPECT_NE(text.find("GNU LESSER GENERAL PUBLIC LICENSE"), std::string::npos);
+  // The space emoji picker's emoji and annotations.
+  EXPECT_NE(text.find("UNICODE LICENSE V3"), std::string::npos);
   EXPECT_NE(text.find("Firefox's strip-on-share list"), std::string::npos);
 }
 

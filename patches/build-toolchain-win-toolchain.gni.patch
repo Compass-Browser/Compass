@@ -1,5 +1,5 @@
 diff --git a/build/toolchain/win/toolchain.gni b/build/toolchain/win/toolchain.gni
-index c62562f5f4507575bfd8ca8441589563a0b55f4d..074b2feec90f0d6606522ae05654026423315913 100644
+index 9b32ec89dfc80c7cc9dcc8c378c8876965aaaf67..2e1b2efe42454fd5c884bf015d9033ef019b8d66 100644
 --- a/build/toolchain/win/toolchain.gni
 +++ b/build/toolchain/win/toolchain.gni
 @@ -12,7 +12,9 @@ import("//build/toolchain/rbe.gni")

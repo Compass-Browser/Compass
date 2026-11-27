@@ -1106,7 +1106,7 @@ def cmd_sync_server(layout: Layout, args) -> None:
 
 
 # Google Play (docs/building.md, "Android releases (Google Play)").
-PLAY_VERSION_CODE_ARG = 'android_override_version_code'
+PLAY_VERSION_CODE_ARG = 'compass_android_version_code'
 PLAY_CPU = 'android-arm64'
 # Where the release machine keeps the service account's key, next to the
 # upload keystore.
@@ -1189,7 +1189,7 @@ def cmd_play(layout: Layout, args) -> None:
     return
   if args.action == 'prepare':
     # The release build's versionCode, for the APK and every module of the
-    # bundle (android_override_version_code). versionName stays Chromium's
+    # bundle (compass_android_version_code). versionName stays Chromium's
     # version: on Android, version_info reads it from the manifest, so it's
     # the browser's version for the user agent, extensions and the Web
     # Store. The Compass version names the Play release instead.

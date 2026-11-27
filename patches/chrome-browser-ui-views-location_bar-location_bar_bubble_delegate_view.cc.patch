@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.cc b/chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.cc
-index d472cb9cba6ca3190c0e585a74375890d5fdde2c..1f31c68368fa192e2fbd925a91c085a9d44dbf4e 100644
+index bd2a5fe5e1ece5d2e6be7e58a77893b91b1770f4..23d8ed58718348d2d84b6b4080e30bf5c36713c8 100644
 --- a/chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.cc
 +++ b/chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.cc
 @@ -4,6 +4,8 @@

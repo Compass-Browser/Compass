@@ -1,5 +1,5 @@
 diff --git a/BUILD.gn b/BUILD.gn
-index 516aa805059c1af3e03dff6271a8a95626cfea97..f4efce5841ed77f05aa68a6f5b62385653cd9128 100644
+index cdea26b74d26ab500923e545ea8551d316aaecfc..9cd5f44a1d6ac60917ffcd35f8f5f8c4b9ef92b9 100644
 --- a/BUILD.gn
 +++ b/BUILD.gn
 @@ -124,6 +124,10 @@ group("gn_all") {
@@ -26,7 +26,7 @@ index 516aa805059c1af3e03dff6271a8a95626cfea97..f4efce5841ed77f05aa68a6f5b623856
          "//third_party/breakpad:dump_syms($host_system_allocator_toolchain)",
          "//third_party/breakpad:microdump_stackwalk($host_system_allocator_toolchain)",
          "//third_party/breakpad:minidump_dump($host_system_allocator_toolchain)",
-@@ -1571,7 +1581,8 @@ group("chromium_builder_perf") {
+@@ -1575,7 +1585,8 @@ group("chromium_builder_perf") {
        data_deps += [ "//chrome/test:performance_browser_tests" ]
      }
  
@@ -36,7 +36,7 @@ index 516aa805059c1af3e03dff6271a8a95626cfea97..f4efce5841ed77f05aa68a6f5b623856
        data_deps += [ "//third_party/breakpad:minidump_stackwalk($host_system_allocator_toolchain)" ]
      }
    }
-@@ -1621,7 +1632,9 @@ if (!is_ios && !is_android && !is_castos && !is_cronet_build) {
+@@ -1625,7 +1636,9 @@ if (!is_ios && !is_android && !is_castos && !is_cronet_build) {
    }
  }
  

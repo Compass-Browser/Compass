@@ -1,8 +1,8 @@
 diff --git a/content/renderer/render_frame_impl.cc b/content/renderer/render_frame_impl.cc
-index 1348b5a6bc592553901ebc748d3ebee1c3fcfc05..8556af10eccf919cca5ab4ae0cd7b1c2cd075f12 100644
+index ca04d96bd8681ffb68f8fb0ac1f505c6916622bb..cb238872ae9426c900caf37707c5dd2dda96590d 100644
 --- a/content/renderer/render_frame_impl.cc
 +++ b/content/renderer/render_frame_impl.cc
-@@ -5812,6 +5812,12 @@ void RenderFrameImpl::BeginNavigation(
+@@ -5840,6 +5840,12 @@ void RenderFrameImpl::BeginNavigation(
    // that will end up in a different tab/window, and BeginNavigation handles
    // everything else.
    if (info->navigation_policy == blink::kWebNavigationPolicyDownload) {
