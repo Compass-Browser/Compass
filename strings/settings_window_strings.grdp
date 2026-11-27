@@ -58,6 +58,12 @@
   <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_UPDATE_CHANNEL_DETAIL" desc="Explains the update channels. Beta and Canary are channel names.">
     Beta and Canary get new features first, with more bugs.
   </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_SIDEBAR_NOTICE" desc="About pane switch: whether the sidebar shows a card when an update is ready to install.">
+    Show updates in the sidebar
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_SIDEBAR_NOTICE_DETAIL" desc="Explains the switch that shows a card in the sidebar when an update is ready to install.">
+    When an update is ready, offer to relaunch at the bottom of the sidebar.
+  </message>
   <message name="IDS_COMPASS_SETTINGS_WINDOW_ABOUT_UPDATE_READY" desc="Update row label when a new version was downloaded.">
     An update is ready
   </message>

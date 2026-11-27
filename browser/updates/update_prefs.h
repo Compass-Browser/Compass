@@ -12,7 +12,8 @@ class PrefService;
 
 namespace compass::updates {
 
-// Local State prefs: the update channel (kUpdateChannelPref, "stable").
+// Local State prefs: the update channel (kUpdateChannelPref, "stable") and
+// the sidebar's "update ready" card (kUpdateSidebarNoticePref, on).
 void RegisterUpdatePrefs(PrefRegistrySimple* registry);
 
 // The channel |local_state| picks: kChannelStable, kChannelBeta or

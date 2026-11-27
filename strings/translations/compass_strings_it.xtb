@@ -122,6 +122,7 @@
 <translation id="1555130319947370107">Blu</translation>
 <translation id="1556359609085810287">Aggiungi immagine…</translation>
 <translation id="1559504330307834889">Usa una scorciatoia senza spazi che nessun altro motore di ricerca usa.</translation>
+<translation id="156485444968529017">Riavvia Compass per completare</translation>
 <translation id="156679947651677625">macOS chiederà se Compass può usare “Arc Safe Storage”, la chiave con cui Arc cripta i tuoi cookie e le tue password. Scegli <ph name="BEGIN_BOLD"/>Consenti sempre<ph name="END_BOLD"/> (o Consenti) per permettere a Compass di importarli.</translation>
 <translation id="1573271591339697829">Chiudi Arc, poi scegli Importa di nuovo gli Easel.</translation>
 <translation id="1576267000826801835">Questo dispositivo è stato rimosso dalla sincronizzazione su un altro dispositivo. I suoi dati restano qui. Esci dalla sincronizzazione per configurarla di nuovo.</translation>
@@ -542,6 +543,7 @@
 <translation id="3673140321746889341">L’elemento è tuo: eliminalo invece per tutti.</translation>
 <translation id="3675481471213573741">Ardesia</translation>
 <translation id="3679035082291999691">Il caricamento della pagina ha richiesto troppo tempo.</translation>
+<translation id="3685185363911132916">Quando un aggiornamento è pronto, proponi di riavviare in fondo alla barra laterale.</translation>
 <translation id="3686225439406983871">Facoltativo.</translation>
 <translation id="3691089693793767375">{COUNT, plural, =1 {1 scheda, in Oggi} other {# schede, in Oggi}}</translation>
 <translation id="3693482992786874836">Il numero della carta non è valido.</translation>
@@ -1027,6 +1029,7 @@
 <translation id="6233818009514043932">Il blocco annunci non è in esecuzione</translation>
 <translation id="6235740675267446435">Insieme agli script della pagina</translation>
 <translation id="6247152910634872706">Organizzazione</translation>
+<translation id="624789221780392884">Aggiornamento pronto</translation>
 <translation id="6248988683584659830">Cerca nelle impostazioni</translation>
 <translation id="6257369973741098042">Compilazione</translation>
 <translation id="6262356275065446953">Ultima sincronizzazione: <ph name="TIME"/>.</translation>
@@ -1248,6 +1251,7 @@
 <translation id="729054986716892672">Cartella live</translation>
 <translation id="7294581508092033596">Faccine ed emozioni</translation>
 <translation id="7298374817219964957">Rimuovi dalle fissate</translation>
+<translation id="7304412402135115155">Mostra gli aggiornamenti nella barra laterale</translation>
 <translation id="7304745401856427269">Elimina <ph name="SITE"/></translation>
 <translation id="7306974669133233046">ChatGPT ha rifiutato l’accesso (HTTP <ph name="CODE"/>).</translation>
 <translation id="7307767869992803255">Chiave API</translation>

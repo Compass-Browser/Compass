@@ -19,6 +19,12 @@ TEST(UpdatePrefsTest, StableByDefault) {
   EXPECT_EQ(kChannelStable, UpdateChannel(prefs));
 }
 
+TEST(UpdatePrefsTest, SidebarNoticeOnByDefault) {
+  TestingPrefServiceSimple prefs;
+  RegisterUpdatePrefs(prefs.registry());
+  EXPECT_TRUE(prefs.GetBoolean(kUpdateSidebarNoticePref));
+}
+
 TEST(UpdatePrefsTest, PickedChannels) {
   TestingPrefServiceSimple prefs;
   RegisterUpdatePrefs(prefs.registry());

@@ -104,6 +104,8 @@ build_webui("build") {
     "speaker_icon.ts",
     "theme_editor.html.ts",
     "theme_editor.ts",
+    "update_notice.html.ts",
+    "update_notice.ts",
   ]
 
   # Compass's settings sections (settings/page_base.ts): native elements whose
@@ -131,6 +133,7 @@ build_webui("build") {
     "preview.css",
     "space_editor/app.css",
     "theme_editor.css",
+    "update_notice.css",
   ]
 
   webui_context_type = "trusted"

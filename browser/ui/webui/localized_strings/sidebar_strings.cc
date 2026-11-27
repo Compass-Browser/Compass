@@ -383,6 +383,9 @@ void AddSidebarLocalizedStrings(content::WebUIDataSource *source) {
       {"themeEditorMoreColors", IDS_COMPASS_THEME_EDITOR_MORE_COLORS},
       {"themeEditorPalette", IDS_COMPASS_THEME_EDITOR_PALETTE},
       {"themeEditorTranslucency", IDS_COMPASS_THEME_EDITOR_TRANSLUCENCY},
+      {"updateNoticeDetail", IDS_COMPASS_UPDATE_NOTICE_DETAIL},
+      {"updateNoticeRelaunch", IDS_COMPASS_UPDATE_NOTICE_RELAUNCH},
+      {"updateNoticeTitle", IDS_COMPASS_UPDATE_NOTICE_TITLE},
   };
   source->AddLocalizedStrings(kStrings);
 }

@@ -213,6 +213,7 @@ ${this.archiveOpen_ ? html`
         </div>`)}
     </div>
   </div>` : nothing}
+<compass-update-notice .ready="${this.updateReady_}"></compass-update-notice>
 <compass-now-playing .items="${this.nowPlaying_}"></compass-now-playing>
 <div id="spaces" role="tablist" aria-label="${i18n('sidebarSpaces')}">
   ${repeat(this.spaces_, (space: Space) => space.id, (space: Space) => html`

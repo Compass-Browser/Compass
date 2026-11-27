@@ -181,6 +181,8 @@ source_set("ui") {
     "webui/sidebar/sidebar_page_handler.h",
     "webui/sidebar/space_mojo.cc",
     "webui/sidebar/space_mojo.h",
+    "webui/sidebar/update_notice.cc",
+    "webui/sidebar/update_notice.h",
     "webui/space_editor/space_editor_ui.cc",
     "webui/space_editor/space_editor_ui.h",
     "webui/sync/compass_sync_page_handler.cc",
@@ -312,6 +314,7 @@ source_set("ui") {
     "//chrome/browser/ui/webui:theme_source",
     "//chrome/browser/ui/webui:webui_util",
     "//chrome/browser/ui/webui/top_chrome",
+    "//chrome/browser/upgrade_detector",
     "//chrome/common",
     "//compass/browser/adblock",
     "//compass/browser/prefs",
@@ -610,6 +613,7 @@ source_set("browser_tests") {
     "webui/select_popup_browsertest.cc",
     "webui/settings/settings_sections_browsertest.cc",
     "webui/sidebar/now_playing_browsertest.cc",
+    "webui/sidebar/update_notice_browsertest.cc",
   ]
   if (is_posix) {
     sources += [ "claude/mcp_bridge_browsertest.cc" ]

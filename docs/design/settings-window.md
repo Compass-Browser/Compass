@@ -417,7 +417,9 @@ and short rows, and anything long or rarely used is one row away, behind a ›.
   (Compass's, `compass::updates::CompassVersion()`, with the channel, and
   Chromium's), the update row (Check for Updates or Relaunch to Update), the
   update channel (`compass.update_channel`: stable, beta, canary;
-  docs/design/updates.md), and the open-source licenses. It draws its own
+  docs/design/updates.md), whether the sidebar says when an update is ready
+  (`compass.update_sidebar_notice`, docs/design/sidebar.md, "Update ready"),
+  and the open-source licenses. It draws its own
   heading instead of the window's pane header.
 - **Routing:** upstream's `performance`, `accessibility` and `reset` are the
   Advanced pane (`advanced?focus=…`); `help` is About.

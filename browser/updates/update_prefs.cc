@@ -12,6 +12,7 @@ namespace compass::updates {
 
 void RegisterUpdatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(kUpdateChannelPref, kChannelStable);
+  registry->RegisterBooleanPref(kUpdateSidebarNoticePref, true);
 }
 
 std::string_view UpdateChannel(const PrefService& local_state) {

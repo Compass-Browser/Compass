@@ -60,6 +60,7 @@
 #include "compass/browser/ui/webui/sidebar/live_plugin_mojo.h"
 #include "compass/browser/ui/webui/sidebar/now_playing_tracker.h"
 #include "compass/browser/ui/webui/sidebar/space_mojo.h"
+#include "compass/browser/ui/webui/sidebar/update_notice.h"
 #include "compass/browser/window_sync/space_directory.h"
 #include "compass/browser/window_sync/space_service.h"
 #include "compass/browser/window_sync/undo_close.h"
@@ -325,6 +326,8 @@ SidebarPageHandler::SidebarPageHandler(
     now_playing_ = std::make_unique<NowPlayingTracker>(
         browser_, base::BindRepeating(&SidebarPageHandler::SendNowPlaying,
                                       base::Unretained(this)));
+    update_notice_ = std::make_unique<UpdateNotice>(base::BindRepeating(
+        &SidebarPageHandler::SendUpdateReady, base::Unretained(this)));
   }
 }
 
@@ -358,6 +361,7 @@ void SidebarPageHandler::StopObserving() {
   observed_space_ = nullptr;
   tab_strip_model()->RemoveObserver(this);
   now_playing_.reset();
+  update_notice_.reset();
 }
 
 void SidebarPageHandler::RequestTree() {
@@ -380,6 +384,7 @@ void SidebarPageHandler::RequestTree() {
   }
   SendArchive();
   SendNowPlaying();
+  SendUpdateReady();
   SendTidyState(/*force=*/true);
 }
 
@@ -1018,6 +1023,22 @@ void SidebarPageHandler::ActOnNowPlaying(
       {Mojo::kShowTab, Action::kShowTab},
   });
   now_playing_->Act(id, kActions.at(action));
+}
+
+void SidebarPageHandler::ActOnUpdateNotice(
+    sidebar::mojom::UpdateNoticeAction action) {
+  // Only while it shows: the page can be behind.
+  if (!update_notice_ || !update_notice_->ShouldShow()) {
+    return;
+  }
+  switch (action) {
+    case sidebar::mojom::UpdateNoticeAction::kRelaunch:
+      UpdateNotice::Relaunch();
+      return;
+    case sidebar::mojom::UpdateNoticeAction::kDismiss:
+      update_notice_->Dismiss();
+      return;
+  }
 }
 
 std::unique_ptr<ui::SimpleMenuModel> SidebarPageHandler::CreateContextMenu(
@@ -1839,6 +1860,10 @@ void SidebarPageHandler::SendNowPlaying() {
     }
   }
   page_->SetNowPlaying(std::move(items));
+}
+
+void SidebarPageHandler::SendUpdateReady() {
+  page_->SetUpdateReady(update_notice_ && update_notice_->ShouldShow());
 }
 
 void SidebarPageHandler::GetLivePlugins(GetLivePluginsCallback callback) {

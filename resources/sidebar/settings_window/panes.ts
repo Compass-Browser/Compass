@@ -536,6 +536,11 @@ export const PANES: Pane[] = [
           keywords: 'beta canary stable'
         },
         {
+          id: 'sidebarNotice',
+          label: i18n('aboutPaneSidebarNotice'),
+          keywords: 'update ready relaunch restart notification sidebar'
+        },
+        {
           id: 'licenses',
           label: i18n('aboutPaneLicenses'),
           keywords: 'credits third party'

@@ -113,6 +113,7 @@ constexpr AllowedPref kAllowedPrefs[] = {
      false},
     {::prefs::kCaretBrowsingEnabled, base::Value::Type::BOOLEAN, false},
     {updates::kUpdateChannelPref, base::Value::Type::STRING, true},
+    {updates::kUpdateSidebarNoticePref, base::Value::Type::BOOLEAN, true},
     // Privacy › Clear browsing data: the choices, kept for next time.
     {::browsing_data::prefs::kDeleteTimePeriod, base::Value::Type::INTEGER,
      false},

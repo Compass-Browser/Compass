@@ -194,6 +194,8 @@ class FakePage : public sidebar::mojom::Page {
   // No tracker without a page: see now_playing_browsertest.cc.
   void SetNowPlaying(
       std::vector<sidebar::mojom::NowPlayingPtr> items) override {}
+  // Nor an update notice: see update_notice_browsertest.cc.
+  void SetUpdateReady(bool ready) override {}
   void Swipe(sidebar::mojom::SwipePhase phase, float delta_x) override {}
 
   sidebar::mojom::TreePtr TakeTree() { return std::move(tree_); }

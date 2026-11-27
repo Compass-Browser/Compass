@@ -189,7 +189,8 @@ and `bin/` the tools.
   versions, so when only Compass changed it reports the running version
   plus `.1`, and `updater::CurrentlyInstalledVersion()` returns the same
   value (`updater_no_updater.cc` patch), so the poller doesn't reset it. The
-  app menu then offers "Relaunch to update", as in Chrome.
+  app menu then offers "Relaunch to update", as in Chrome, and the sidebar
+  shows its "update ready" card (docs/design/sidebar.md, "Update ready").
 - **Relaunch:** `AttemptRestartInternal()` asks `compass::updates::Updater`
   first (`application_lifetime_desktop.cc` patch). With an update downloaded,
   Sparkle installs it and opens the app again; Chromium sets `kWasRestarted`

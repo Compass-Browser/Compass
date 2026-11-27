@@ -26,6 +26,10 @@ inline constexpr char kChannelCanary[] = "canary";
 // Local State: the channel the user picked (one of the above).
 inline constexpr char kUpdateChannelPref[] = "compass.update_channel";
 
+// Local State: whether the sidebar says when an update is ready (true).
+inline constexpr char kUpdateSidebarNoticePref[] =
+    "compass.update_sidebar_notice";
+
 // What the About page shows.
 enum class CheckStatus {
   kChecking,

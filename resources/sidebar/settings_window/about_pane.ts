@@ -17,6 +17,7 @@ import type {PrefValue} from './prefs.js';
 import {prefs} from './prefs.js';
 
 export const PREF_UPDATE_CHANNEL = 'compass.update_channel';
+export const PREF_UPDATE_SIDEBAR_NOTICE = 'compass.update_sidebar_notice';
 
 export interface Choice<T> {
   value: T;
@@ -30,7 +31,8 @@ export const UPDATE_CHANNELS: Array<Choice<string>> = [
 ];
 
 // About (docs/design/settings-window.md): Compass's icon, name and version,
-// its updates and update channel, and the open-source licenses. The last
+// its updates, update channel and the sidebar's "update ready" card, and the
+// open-source licenses. The last
 // pane, and the one chrome://settings/help shows.
 export class CompassSettingsAboutPaneElement extends CrLitElement {
   static get is() {
@@ -76,7 +78,8 @@ export class CompassSettingsAboutPaneElement extends CrLitElement {
     this.focus_ =
         new URLSearchParams(window.location.search).get('focus') || '';
     prefs.addListener(this.prefListener_);
-    prefs.load([PREF_UPDATE_CHANNEL]).then(() => this.prefsVersion_++);
+    prefs.load([PREF_UPDATE_CHANNEL, PREF_UPDATE_SIDEBAR_NOTICE])
+        .then(() => this.prefsVersion_++);
     this.handler_.getAbout().then(
         ({about}: {about: AboutInfo}) => this.about_ = about);
     this.listenerId_ =
@@ -113,6 +116,10 @@ export class CompassSettingsAboutPaneElement extends CrLitElement {
   protected getString_(name: string): string {
     const value = prefs.get(name)?.value;
     return typeof value === 'string' ? value : '';
+  }
+
+  protected getBool_(name: string): boolean {
+    return prefs.get(name)?.value === true;
   }
 
   protected isEnforced_(name: string): boolean {
@@ -225,6 +232,11 @@ export class CompassSettingsAboutPaneElement extends CrLitElement {
 
   protected onChannelChange_(e: Event) {
     prefs.set(PREF_UPDATE_CHANNEL, (e.target as HTMLSelectElement).value);
+  }
+
+  protected onSidebarNoticeChange_(e: Event) {
+    prefs.set(PREF_UPDATE_SIDEBAR_NOTICE,
+              (e.target as HTMLInputElement).checked);
   }
 }
 

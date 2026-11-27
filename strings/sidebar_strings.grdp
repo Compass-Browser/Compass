@@ -979,6 +979,15 @@
   <message name="IDS_COMPASS_NOW_PLAYING_UNMUTE" desc="Media control: unmute.">
     Unmute
   </message>
+  <message name="IDS_COMPASS_UPDATE_NOTICE_TITLE" desc="Sidebar card shown when a Compass update was downloaded: its title.">
+    Update ready
+  </message>
+  <message name="IDS_COMPASS_UPDATE_NOTICE_DETAIL" desc="Sidebar card shown when a Compass update was downloaded: what to do.">
+    Relaunch Compass to finish
+  </message>
+  <message name="IDS_COMPASS_UPDATE_NOTICE_RELAUNCH" desc="Sidebar card shown when a Compass update was downloaded: the button that installs it and opens Compass again.">
+    Relaunch
+  </message>
   <message name="IDS_COMPASS_SPACE_EDITOR_THEME" desc="Space editor: the row and page for a space's theme (its colors).">
     Theme
   </message>

@@ -55,6 +55,7 @@ namespace compass {
 
 class ClosedEntries;
 class NowPlayingTracker;
+class UpdateNotice;
 class SidebarContextMenu;
 class SidebarHoverCard;
 class TabStripBridge;
@@ -235,6 +236,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void ShowContextMenu(const std::string& id, int32_t x, int32_t y) override;
   void ActOnNowPlaying(const std::string& id,
                        sidebar::mojom::NowPlayingAction action) override;
+  void ActOnUpdateNotice(sidebar::mojom::UpdateNoticeAction action) override;
   void GetLivePlugins(GetLivePluginsCallback callback) override;
   void GetLiveFolderSource(const std::string& id,
                            GetLiveFolderSourceCallback callback) override;
@@ -369,6 +371,7 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
       const GURL& url);
   send_tab_to_self::SendTabToSelfModel* send_tab_model();
   void SendNowPlaying();
+  void SendUpdateReady();
   // Whether Today's header offers Tidy, and whether one is on its way
   // (Page.TidyChanged()); sent when it changed, or with |force|.
   void SendTidyState(bool force = false);
@@ -435,6 +438,8 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // The window's now playing widgets. Only with a page: unit tests have no
   // media session service.
   std::unique_ptr<NowPlayingTracker> now_playing_;
+  // The "update ready" card. Only with a page, as the now playing widgets.
+  std::unique_ptr<UpdateNotice> update_notice_;
   mojo::Receiver<sidebar::mojom::PageHandler> receiver_;
   mojo::Remote<sidebar::mojom::Page> page_;
 

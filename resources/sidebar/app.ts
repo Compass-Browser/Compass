@@ -12,6 +12,7 @@ import {getFaviconUrl} from './favicon.js';
 import {i18n, i18nF, i18nPlural} from './i18n.js';
 import './node.js';
 import './now_playing.js';
+import './update_notice.js';
 import type {CompassSidebarPreviewElement} from './preview.js';
 import './preview.js';
 import type {SpaceSymbol} from './space_icons.js';
@@ -177,6 +178,7 @@ export class CompassSidebarAppElement extends CrLitElement {
       activeSpaceId_: {type: String},
       archive_: {type: Array},
       nowPlaying_: {type: Array},
+      updateReady_: {type: Boolean},
       archiveOpen_: {type: Boolean},
       previews_: {type: Array},
       liveEditor_: {type: Object},
@@ -213,6 +215,9 @@ export class CompassSidebarAppElement extends CrLitElement {
   // The now playing widgets above the spaces (docs/design/sidebar.md, "Now
   // playing").
   protected accessor nowPlaying_: NowPlaying[] = [];
+  // The "update ready" card above them (docs/design/sidebar.md, "Update
+  // ready").
+  protected accessor updateReady_: boolean = false;
   protected accessor archiveOpen_: boolean = false;
   // Tidy Today (docs/design/ai-sidebar.md): offered in Today's header, and
   // waiting for Claude.
@@ -348,6 +353,8 @@ export class CompassSidebarAppElement extends CrLitElement {
           (entries: ArchivedEntry[]) => this.archive_ = entries),
       router.setNowPlaying.addListener(
           (items: NowPlaying[]) => this.nowPlaying_ = items),
+      router.setUpdateReady.addListener(
+          (ready: boolean) => this.updateReady_ = ready),
       router.swipe.addListener(this.onSwipe_.bind(this)),
       router.startRename.addListener((id: string) => {
         this.getRow_(id)?.closest('compass-sidebar-node')?.startRename(id);

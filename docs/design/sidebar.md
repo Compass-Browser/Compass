@@ -1019,6 +1019,31 @@ every widget when there are several, to tell them apart.
 - The page side is `compass-now-playing` (`now_playing.ts`).
 - Tests: `NowPlayingBrowserTest.*`.
 
+## Update ready
+
+Once an update is downloaded and waits for a relaunch, a card above the
+now playing widgets says so, drawn like them: an accent badge, "Update
+ready", and a Relaunch button (docs/design/updates.md).
+
+- `UpdateNotice` (`browser/ui/webui/sidebar/`), one per sidebar page,
+  observes upstream's `BuildState`, which both updaters feed the moment an
+  update is staged (Sparkle's ready-to-install on macOS, the installed
+  version monitor seeing `pv` on Windows). So the card comes at once, not
+  at the upgrade detector's first notification stage like the app menu's
+  item. Only `kNormalUpdate`: an enterprise rollback isn't offered.
+- It shows while the Local State pref `compass.update_sidebar_notice` (on
+  by default) is on: the About pane's "Show updates in the sidebar" switch.
+- × hides it in every window until a newer version is staged (the
+  dismissed version is process-wide; a relaunch forgets it).
+- Relaunch is `chrome::AttemptRestart()`, as the About pane's: on macOS
+  Sparkle installs first, on Windows the relaunch swaps in
+  `new_compass.exe`.
+- `Page.SetUpdateReady()` after the tree and on changes;
+  `PageHandler.ActOnUpdateNotice()` for the buttons, ignored unless the
+  card shows. The page side is `compass-update-notice`
+  (`update_notice.ts`).
+- Tests: `UpdateNoticeBrowserTest.*`.
+
 ## Folder collapse state
 
 Whether a folder is collapsed is part of the model, as in Arc: a

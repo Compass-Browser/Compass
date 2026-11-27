@@ -7,7 +7,7 @@ import {html} from '//resources/lit/v3_0/lit.rollup.js';
 import {i18n} from '../i18n.js';
 
 import type {CompassSettingsAboutPaneElement} from './about_pane.js';
-import {PREF_UPDATE_CHANNEL} from './about_pane.js';
+import {PREF_UPDATE_CHANNEL, PREF_UPDATE_SIDEBAR_NOTICE} from './about_pane.js';
 
 export function getHtml(this: CompassSettingsAboutPaneElement) {
   // clang-format off
@@ -61,6 +61,19 @@ export function getHtml(this: CompassSettingsAboutPaneElement) {
           </option>`)}
       </select>
     </div>
+    <label class="row control-row" data-row="sidebarNotice">
+      <span class="tile" data-color="blue">
+        <compass-settings-icon name="sidebar"></compass-settings-icon>
+      </span>
+      <span class="row-text">
+        <span class="row-label">${i18n('aboutPaneSidebarNotice')}</span>
+        <span class="row-detail">${i18n('aboutPaneSidebarNoticeDetail')}</span>
+      </span>
+      <input type="checkbox" class="switch"
+          .checked="${this.getBool_(PREF_UPDATE_SIDEBAR_NOTICE)}"
+          ?disabled="${this.isEnforced_(PREF_UPDATE_SIDEBAR_NOTICE)}"
+          @change="${this.onSidebarNoticeChange_}">
+    </label>
   </div>
 </section>
 

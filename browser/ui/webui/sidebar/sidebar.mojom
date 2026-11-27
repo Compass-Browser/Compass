@@ -276,6 +276,15 @@ enum NowPlayingAction {
   kShowTab,
 };
 
+// What the "update ready" card's buttons do (docs/design/sidebar.md,
+// "Update ready").
+enum UpdateNoticeAction {
+  // Installs the update and opens the browser again.
+  kRelaunch,
+  // Hides the card in every window until a newer update is ready.
+  kDismiss,
+};
+
 // Bootstraps the connection; called once by the page.
 interface PageHandlerFactory {
   CreatePageHandler(pending_remote<Page> page,
@@ -507,6 +516,8 @@ interface PageHandler {
 
   // A now playing widget's button. Ignored for a widget that's gone.
   ActOnNowPlaying(string id, NowPlayingAction action);
+  // The "update ready" card's buttons.
+  ActOnUpdateNotice(UpdateNoticeAction action);
 
   // Live folders (docs/design/live-folders.md). The plugins New Live Folder
   // offers.
@@ -586,6 +597,10 @@ interface Page {
   // The window's now playing widgets, top to bottom. Sent after the tree, and
   // whenever they change.
   SetNowPlaying(array<NowPlaying> items);
+  // Whether the "update ready" card shows above the now playing widgets: an
+  // update is downloaded and waits for a relaunch, the About page's switch
+  // is on and the card wasn't closed. Sent after the tree, and on changes.
+  SetUpdateReady(bool ready);
   // A two-finger swipe across the sidebar (docs/design/spaces.md,
   // "Swiping"), told by the browser so vertical scrolls never wait on the
   // page: kBegin, then kUpdate with how far the fingers moved right since
