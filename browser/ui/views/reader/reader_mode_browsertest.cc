@@ -4,6 +4,7 @@
 
 #include "compass/browser/ui/views/reader/reader_mode.h"
 
+#include <memory>
 #include <string>
 
 #include "base/files/file_path.h"
@@ -12,6 +13,7 @@
 #include "base/test/run_until.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -279,6 +281,19 @@ IN_PROC_BROWSER_TEST_F(ReaderModeBrowserTest, Commands) {
   WaitForReaderView(tab);
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), kToggleReaderModeCommand));
   EXPECT_FALSE(state(tab)->showing());
+}
+
+// The page context menu's "Open in reading mode" opens Compass's Reader,
+// not Chromium's side panel.
+IN_PROC_BROWSER_TEST_F(ReaderModeBrowserTest, ContextMenuOpensReader) {
+  ASSERT_NO_FATAL_FAILURE(Load(browser(), ArticleUrl()));
+  content::WebContents* tab = active_contents();
+  std::unique_ptr<TestRenderViewContextMenu> menu =
+      TestRenderViewContextMenu::Create(tab, ArticleUrl());
+  ASSERT_TRUE(menu->IsItemPresent(IDC_CONTENT_CONTEXT_OPEN_IN_READING_MODE));
+  menu->ExecuteCommand(IDC_CONTENT_CONTEXT_OPEN_IN_READING_MODE, 0);
+  WaitForReaderView(tab);
+  EXPECT_TRUE(ReaderMode::From(browser())->IsShowing());
 }
 
 // The view's settings stay for the next article.

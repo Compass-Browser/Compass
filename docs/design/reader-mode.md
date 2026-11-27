@@ -229,7 +229,9 @@ with the fixtures served by the embedded test server:
   `Commands`, `SettingsAreRemembered`: a new document leaves Reader; a link
   in the article loads in the tab; switching away takes the view away and
   back brings it; the Reader command and upstream's Reading mode commands
-  toggle it; the theme and font chosen stay for the next article.
+  toggle it; the page context menu's "Open in reading mode" opens it
+  (`ContextMenuOpensReader`); the theme and font chosen stay for the next
+  article.
 - `Incognito`: Reader works in an Incognito window.
 - The keys: `ShortcutsTableTest` and `CompassShortcutsBrowserTest`
   (`ArcShortcuts` on Windows and Linux, its macOS twin in
