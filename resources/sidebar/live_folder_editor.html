@@ -1,0 +1,41 @@
+<!doctype html>
+<html dir="$i18n{textdirection}" lang="$i18n{language}">
+  <head>
+    <meta charset="utf-8">
+    <title>$i18n{liveFoldersNewTitle}</title>
+    <link rel="stylesheet" href="chrome://resources/css/text_defaults_md.css">
+    <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome">
+    <style>
+      /* The space editor's look (space_editor.html): the browser sets the
+         colors (bubble_look.ts), so the page matches the bubble's frame. */
+      :root {
+        color-scheme: light dark;
+        --background: #f4f4f6;
+        --card: #fff;
+        --pill: #fff;
+        --track: rgba(0, 0, 0, 0.07);
+        --hairline: rgba(0, 0, 0, 0.1);
+        --text: #1d1d1f;
+        --text-dim: #6e6e73;
+        --accent: #007aff;
+        --danger: #d70015;
+      }
+
+      :root[dark] {
+        --danger: #ff6961;
+      }
+
+      html,
+      body {
+        background: var(--background);
+        color: var(--text);
+        font-size: 13px;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <compass-live-folder-editor-app></compass-live-folder-editor-app>
+    <script type="module" src="live_folder_editor/app.js"></script>
+  </body>
+</html>

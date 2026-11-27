@@ -13,8 +13,6 @@
 #include "base/containers/fixed_flat_map.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/json/json_reader.h"
-#include "base/json/json_writer.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -53,11 +51,11 @@
 #include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/little_window/little_window.h"
+#include "compass/browser/ui/views/live_folder_editor_bubble/live_folder_editor_bubble.h"
 #include "compass/browser/ui/views/share_bubble/share_bubble.h"
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "compass/browser/ui/views/space_editor_bubble/space_editor_bubble.h"
-#include "compass/browser/ui/webui/sidebar/live_plugin_mojo.h"
 #include "compass/browser/ui/webui/sidebar/now_playing_tracker.h"
 #include "compass/browser/ui/webui/sidebar/space_mojo.h"
 #include "compass/browser/ui/webui/sidebar/update_notice.h"
@@ -130,27 +128,6 @@ void CollectLiveFolderIds(const SidebarNode& node,
   for (const auto& child : node.children()) {
     CollectLiveFolderIds(*child, ids);
   }
-}
-
-sidebar::mojom::LivePluginPtr ToMojoPlugin(const LivePlugin& plugin,
-                                           const LiveFolderStore* store) {
-  const LivePluginManifest& manifest = plugin.manifest;
-  auto result = sidebar::mojom::LivePlugin::New();
-  result->id = manifest.id;
-  result->name = manifest.name;
-  result->description = manifest.description;
-  result->icon_url = plugin.IconUrl();
-  result->config = ToMojoConfigFields(manifest.config);
-  for (const auto& secret : manifest.secrets) {
-    result->secrets.push_back(sidebar::mojom::LiveSecretField::New(
-        secret.key, secret.label, secret.help, secret.optional,
-        store && store->HasSecret(manifest.id, secret.key)));
-  }
-  // The manifest's patterns; placeholders show as the field they name.
-  result->cookie_hosts = manifest.cookies;
-  result->builtin = plugin.builtin;
-  result->local = plugin.local;
-  return result;
 }
 
 sidebar::mojom::AudioState ToMojoAudio(LiveTabRegistry::AudioState audio) {
@@ -1866,96 +1843,33 @@ void SidebarPageHandler::SendUpdateReady() {
   page_->SetUpdateReady(update_notice_ && update_notice_->ShouldShow());
 }
 
-void SidebarPageHandler::GetLivePlugins(GetLivePluginsCallback callback) {
-  LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
-  if (!service) {
-    std::move(callback).Run({});
+void SidebarPageHandler::EditLiveFolder(
+    const std::optional<std::string>& parent_id,
+    const std::optional<std::string>& folder_id,
+    int32_t x,
+    int32_t y,
+    int32_t width,
+    int32_t height) {
+  SidebarContextMenu* menu = context_menu();
+  if (!menu) {
     return;
   }
-  // Local plugins change on disk: read them again each time.
-  service->RescanPlugins(base::BindOnce(
-      [](base::WeakPtr<SidebarPageHandler> handler,
-         GetLivePluginsCallback callback) {
-        std::vector<sidebar::mojom::LivePluginPtr> plugins;
-        LiveFolderService* service =
-            handler ? LiveFolderService::Get(handler->browser_->GetProfile())
-                    : nullptr;
-        if (service) {
-          for (const LivePlugin& plugin : service->registry().plugins()) {
-            // Preview-only plugins (compass.gmail) can't fill a folder;
-            // Settings › Plugins lists them.
-            if (!plugin.manifest.folder) {
-              continue;
-            }
-            plugins.push_back(ToMojoPlugin(plugin, &service->store()));
-          }
-        }
-        std::move(callback).Run(std::move(plugins));
-      },
-      weak_factory_.GetWeakPtr(), std::move(callback)));
-}
-
-void SidebarPageHandler::OpenLivePluginsFolder() {
-  if (LiveFolderService* service =
-          LiveFolderService::Get(browser_->GetProfile())) {
-    service->OpenPluginsFolder();
-  }
-}
-
-void SidebarPageHandler::GetLiveFolderSource(
-    const std::string& id,
-    GetLiveFolderSourceCallback callback) {
-  SidebarNode* node = FindNode(id);
-  LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
-  if (!node || !node->is_live_folder() || !service) {
-    std::move(callback).Run(nullptr);
+  // Checked again when it saves.
+  if (folder_id) {
+    SidebarNode* folder = FindNode(*folder_id);
+    if (!folder || !folder->is_live_folder()) {
+      return;
+    }
+  } else if (parent_id) {
+    SidebarNode* parent = FindNode(*parent_id);
+    if (!parent || !space_model().CanAddLiveFolder(parent)) {
+      return;
+    }
+  } else {
     return;
   }
-  const LiveSource& source = *node->live_source();
-  std::move(callback).Run(sidebar::mojom::LiveFolderSource::New(
-      source.plugin_id, base::UTF16ToUTF8(node->title()),
-      base::WriteJson(source.config).value_or("{}"),
-      service->store().CookiesGranted(node->id()),
-      source.plugin_url.is_valid() ? source.plugin_url.spec() : std::string(),
-      source.plugin_sha256));
-}
-
-void SidebarPageHandler::SaveLiveFolder(sidebar::mojom::LiveFolderEditPtr edit,
-                                        SaveLiveFolderCallback callback) {
-  LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
-  if (!service) {
-    std::move(callback).Run(
-        l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDERS_UNAVAILABLE));
-    return;
-  }
-  std::optional<base::Value> config =
-      base::JSONReader::Read(edit->config_json, base::JSON_PARSE_RFC);
-  if (!config || !config->is_dict()) {
-    std::move(callback).Run(
-        l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDERS_SETTINGS_UNREADABLE));
-    return;
-  }
-  std::map<std::string, std::string> secrets(edit->secrets.begin(),
-                                             edit->secrets.end());
-  if (edit->folder_id) {
-    SidebarNode* folder = FindNode(*edit->folder_id);
-    auto result = service->EditLiveFolder(folder, std::move(config->GetDict()),
-                                          secrets, edit->grant_cookies);
-    std::move(callback).Run(result.has_value() ? std::string()
-                                               : result.error());
-    return;
-  }
-  SpaceModel& space = space_model();
-  SidebarNode* parent =
-      edit->parent_id ? FindNode(*edit->parent_id) : space.pinned_root();
-  if (!parent || !space.Contains(parent)) {
-    parent = space.pinned_root();
-  }
-  auto result = service->CreateLiveFolder(
-      space, parent, parent->children().size(), base::UTF8ToUTF16(edit->title),
-      edit->plugin_id, std::move(config->GetDict()), secrets,
-      edit->grant_cookies);
-  std::move(callback).Run(result.has_value() ? std::string() : result.error());
+  ShowLiveFolderEditorBubble(browser_, parent_id, folder_id,
+                             menu->ToScreen(gfx::Rect(x, y, width, height)));
 }
 
 void SidebarPageHandler::RefreshLiveFolder(const std::string& id) {
@@ -1964,53 +1878,6 @@ void SidebarPageHandler::RefreshLiveFolder(const std::string& id) {
   if (node && node->is_live_folder() && service) {
     service->Refresh(node->id());
   }
-}
-
-void SidebarPageHandler::PreviewLivePlugin(
-    const std::string& url,
-    PreviewLivePluginCallback callback) {
-  LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
-  if (!service) {
-    std::move(callback).Run(nullptr, l10n_util::GetStringUTF8(
-                                         IDS_COMPASS_LIVE_FOLDERS_UNAVAILABLE));
-    return;
-  }
-  service->PreviewPlugin(
-      GURL(url),
-      base::BindOnce(
-          [](PreviewLivePluginCallback callback,
-             base::expected<LivePluginPackage, std::string> package) {
-            if (!package.has_value()) {
-              std::move(callback).Run(nullptr, package.error());
-              return;
-            }
-            std::move(callback).Run(ToMojoPluginPreview(*package),
-                                    std::string());
-          },
-          std::move(callback)));
-}
-
-void SidebarPageHandler::InstallLivePlugin(
-    const std::string& url,
-    const std::string& sha256,
-    InstallLivePluginCallback callback) {
-  LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
-  if (!service) {
-    std::move(callback).Run(
-        l10n_util::GetStringUTF8(IDS_COMPASS_LIVE_FOLDERS_UNAVAILABLE));
-    return;
-  }
-  service->InstallPlugin(GURL(url), sha256, std::move(callback));
-}
-
-void SidebarPageHandler::RemoveLivePlugin(const std::string& id,
-                                          RemoveLivePluginCallback callback) {
-  LiveFolderService* service = LiveFolderService::Get(browser_->GetProfile());
-  if (!service) {
-    std::move(callback).Run();
-    return;
-  }
-  service->RemovePlugin(id, std::move(callback));
 }
 
 void SidebarPageHandler::OnLiveFolderStateChanged(const base::Uuid& folder_id) {

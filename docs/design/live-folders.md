@@ -440,6 +440,16 @@ conformance case, `github/preview-*`, `gmail/preview-*`, `LiveResultTest.Preview
   count on a collapsed folder.
 - New Live Folder… beside New Folder: plugin picker, then a form built from
   `manifest.config` and `secrets`, and the cookie grant when the plugin asks.
+  The editor (New Live Folder…, Edit Source…, installing a plugin from its
+  manifest's URL, removing one, opening the plugins folder) is a WebUI bubble
+  beside the sidebar, in the space editor's look, pointing at the row or
+  button it's for (chrome://compass-live-folder-editor/?parent= or ?folder=;
+  `browser/ui/views/live_folder_editor_bubble/`,
+  `browser/ui/webui/live_folder_editor/`, `resources/sidebar/live_folder_editor/`).
+  The sidebar asks for it with `PageHandler.EditLiveFolder(parent, folder,
+  rect)`; the context menu's entries come back to the page first
+  (`Page.ShowLiveFolderEditor`) for the row's rect. Esc backs out of a
+  plugin's form and the install review, then closes it.
 - Folder context menu: Refresh, Edit Source…, Mark All Seen, Convert to
   Normal Folder.
 - Settings › Plugins (docs/design/settings.md, "Plugins"): every plugin

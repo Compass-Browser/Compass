@@ -237,20 +237,13 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void ActOnNowPlaying(const std::string& id,
                        sidebar::mojom::NowPlayingAction action) override;
   void ActOnUpdateNotice(sidebar::mojom::UpdateNoticeAction action) override;
-  void GetLivePlugins(GetLivePluginsCallback callback) override;
-  void GetLiveFolderSource(const std::string& id,
-                           GetLiveFolderSourceCallback callback) override;
-  void SaveLiveFolder(sidebar::mojom::LiveFolderEditPtr edit,
-                      SaveLiveFolderCallback callback) override;
+  void EditLiveFolder(const std::optional<std::string>& parent_id,
+                      const std::optional<std::string>& folder_id,
+                      int32_t x,
+                      int32_t y,
+                      int32_t width,
+                      int32_t height) override;
   void RefreshLiveFolder(const std::string& id) override;
-  void PreviewLivePlugin(const std::string& url,
-                         PreviewLivePluginCallback callback) override;
-  void InstallLivePlugin(const std::string& url,
-                         const std::string& sha256,
-                         InstallLivePluginCallback callback) override;
-  void RemoveLivePlugin(const std::string& id,
-                        RemoveLivePluginCallback callback) override;
-  void OpenLivePluginsFolder() override;
 
   // LiveFolderService::Observer:
   void OnLiveFolderStateChanged(const base::Uuid& folder_id) override;

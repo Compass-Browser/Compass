@@ -519,24 +519,13 @@ interface PageHandler {
   // The "update ready" card's buttons.
   ActOnUpdateNotice(UpdateNoticeAction action);
 
-  // Live folders (docs/design/live-folders.md). The plugins New Live Folder
-  // offers.
-  GetLivePlugins() => (array<LivePlugin> plugins);
-  // Live folder |id|'s source, for the editor; null if it isn't one.
-  GetLiveFolderSource(string id) => (LiveFolderSource? source);
-  // Makes or changes a live folder; answers an error for the user, or empty.
-  SaveLiveFolder(LiveFolderEdit edit) => (string error);
+  // Live folders (docs/design/live-folders.md). Shows the live folder
+  // editor in a bubble beside the sidebar, pointing at |x|, |y|, |width|,
+  // |height| (the row or button it's for, in the page's coordinates): for a
+  // new folder in |parent_id|, or for folder |folder_id|.
+  EditLiveFolder(string? parent_id, string? folder_id, int32 x, int32 y,
+                 int32 width, int32 height);
   RefreshLiveFolder(string id);
-  // Fetches the plugin whose manifest is at |url| for review: null and an
-  // error for the user if it can't.
-  PreviewLivePlugin(string url) => (LivePluginPreview? preview, string error);
-  // Installs it if it's still the reviewed one (|sha256|); answers an
-  // error, or empty.
-  InstallLivePlugin(string url, string sha256) => (string error);
-  RemoveLivePlugin(string id) => ();
-  // Shows <user data>/Compass Plugins (made if need be) in the file manager:
-  // a folder put there with a manifest.json is a local plugin.
-  OpenLivePluginsFolder();
 };
 
 // Implemented by the page; the browser pushes the model's changes through it,
@@ -572,8 +561,8 @@ interface Page {
   // A live folder started or finished refreshing. Sent for every live folder
   // after the tree.
   LiveFolderStateChanged(string id, LiveFolderState state);
-  // "New Live Folder…" or "Edit Source…" was chosen: shows the live folder
-  // editor for a new folder in |parent_id|, or for folder |folder_id|.
+  // "New Live Folder…" or "Edit Source…" was chosen: the page answers
+  // EditLiveFolder() with the row it's for.
   ShowLiveFolderEditor(string? parent_id, string? folder_id);
   ActiveNodeChanged(string? id);
   // The window's space's archived entries, most recent first. Sent after the

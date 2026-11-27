@@ -182,11 +182,6 @@ export function getHtml(this: CompassSidebarAppElement) {
           @click="${this.onToastCloseClick_}">&times;</button>
     </div>` : nothing}
 </div>
-${this.liveEditor_ ? html`
-  <compass-live-folder-editor .parentId="${this.liveEditor_.parentId}"
-      .folderId="${this.liveEditor_.folderId}"
-      @close="${this.onLiveEditorClose_}">
-  </compass-live-folder-editor>` : nothing}
 ${this.archiveOpen_ ? html`
   <div id="archive" role="dialog" aria-label="${i18n('sidebarArchivedTabs')}"
       @keydown="${this.onArchiveKeydown_}">

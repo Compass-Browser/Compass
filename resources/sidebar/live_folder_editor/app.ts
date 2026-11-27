@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The live folder editor: New Live Folder… (pick a plugin, then fill in its
+// chrome://compass-live-folder-editor/: the live folder editor, in a bubble
+// beside the sidebar. New Live Folder… (pick a plugin, then fill in its
 // form) and Edit Source…, and installing plugins (review what one reaches
 // and asks for, then install it) or removing them. Local plugins are
 // folders put into the plugins folder, which the editor opens; the list
@@ -11,13 +12,16 @@
 // this device only) and, if it wants them, consent to send the profile's
 // cookies to its hosts (docs/design/live-folders.md, "UI").
 
+import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {SidebarBrowserProxy} from '../browser_proxy.js';
+import {applyBubbleLook} from '../bubble_look.js';
 import {i18n, i18nF} from '../i18n.js';
 import type {LiveConfigField, LivePlugin, LivePluginPreview} from '../sidebar.mojom-webui.js';
 
-import {getHtml} from './editor.html.js';
+import {getCss} from './app.css.js';
+import {getHtml} from './app.html.js';
+import {LiveFolderEditorBrowserProxy} from './browser_proxy.js';
 
 export type FieldValue = string|boolean;
 
@@ -29,9 +33,13 @@ function idOf(e: Event): string {
   return (e.currentTarget as HTMLElement).dataset['id'] ?? '';
 }
 
-export class CompassLiveFolderEditorElement extends CrLitElement {
+export class CompassLiveFolderEditorAppElement extends CrLitElement {
   static get is() {
-    return 'compass-live-folder-editor';
+    return 'compass-live-folder-editor-app';
+  }
+
+  static override get styles() {
+    return getCss();
   }
 
   override render() {
@@ -40,6 +48,7 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
 
   static override get properties() {
     return {
+      loaded: {type: Boolean},
       parentId: {type: String},
       folderId: {type: String},
       plugins: {type: Array},
@@ -57,7 +66,9 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
     };
   }
 
-  // For a new folder: where it goes. For an edit: the folder.
+  // Until the target and the plugins are in: the bubble shows then.
+  accessor loaded: boolean = false;
+  // For a new folder: where it goes. For an edit: the folder (the URL's).
   accessor parentId: string|null = null;
   accessor folderId: string|null = null;
   // What the template shows and edits.
@@ -77,7 +88,8 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
   accessor missingPluginUrl: string = '';
   private missingPluginSha256_ = '';
 
-  private handler_ = SidebarBrowserProxy.getInstance().handler;
+  private handler_ = LiveFolderEditorBrowserProxy.getInstance().handler;
+  private shown_ = false;
   // Back from the file manager: local plugins may have been added.
   private onWindowFocus_ = () => {
     if (!this.folderId && !this.plugin && !this.installOpen) {
@@ -87,18 +99,40 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    this.load_();
+    ColorChangeUpdater.forDocument().start();
+    window.matchMedia('(prefers-color-scheme: dark)')
+        .addEventListener('change', () => this.applyLook_());
     window.addEventListener('focus', this.onWindowFocus_);
+    document.addEventListener('keydown', this.onKeydown_);
+    this.start_();
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('focus', this.onWindowFocus_);
+    document.removeEventListener('keydown', this.onKeydown_);
   }
 
-  // In the light DOM: the app's styles apply.
-  override createRenderRoot() {
-    return this;
+  private async start_() {
+    await this.applyLook_();
+    const {parentId, folderId} = await this.handler_.getTarget();
+    this.parentId = parentId;
+    this.folderId = folderId;
+    document.title = this.dialogLabel();
+    await this.load_();
+    this.loaded = true;
+    await this.updateComplete;
+    if (!this.shown_) {
+      this.shown_ = true;
+      this.handler_.showUI();
+    }
+    // A form's first field; the plugin list waits for a click or Tab.
+    this.shadowRoot.querySelector<HTMLElement>('input')?.focus();
+  }
+
+  private async applyLook_() {
+    const {look} = await this.handler_.getLook();
+    applyBubbleLook(look);
   }
 
   private async load_() {
@@ -253,12 +287,30 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
     this.error = '';
   }
 
-  onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      this.close();
+  // Back from the install review or a new folder's form, then closes.
+  hasBack(): boolean {
+    return this.installOpen || (!!this.plugin && !this.folderId);
+  }
+
+  onHeaderBackClick() {
+    if (this.installOpen) {
+      this.onInstallCancelClick();
+    } else {
+      this.onBackClick();
     }
   }
+
+  private onKeydown_ = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || e.defaultPrevented) {
+      return;
+    }
+    e.preventDefault();
+    if (this.hasBack()) {
+      this.onHeaderBackClick();
+    } else {
+      this.close();
+    }
+  };
 
   onInstallPluginClick() {
     this.openInstall_('');
@@ -375,15 +427,15 @@ export class CompassLiveFolderEditorElement extends CrLitElement {
   }
 
   close() {
-    this.fire('close');
+    this.handler_.close();
   }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'compass-live-folder-editor': CompassLiveFolderEditorElement;
+    'compass-live-folder-editor-app': CompassLiveFolderEditorAppElement;
   }
 }
 
 customElements.define(
-    CompassLiveFolderEditorElement.is, CompassLiveFolderEditorElement);
+    CompassLiveFolderEditorAppElement.is, CompassLiveFolderEditorAppElement);

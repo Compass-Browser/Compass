@@ -16,7 +16,6 @@ import './update_notice.js';
 import type {CompassSidebarPreviewElement} from './preview.js';
 import './preview.js';
 import type {SpaceSymbol} from './space_icons.js';
-import './live_folders/editor.js';
 import type {LiveNode} from './node.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX} from './space_icons.js';
 import {ARCHIVE_DELAYS} from './space_options.js';
@@ -181,7 +180,6 @@ export class CompassSidebarAppElement extends CrLitElement {
       updateReady_: {type: Boolean},
       archiveOpen_: {type: Boolean},
       previews_: {type: Array},
-      liveEditor_: {type: Object},
       tidyAvailable_: {type: Boolean},
       tidyBusy_: {type: Boolean},
       toast_: {type: Object},
@@ -191,11 +189,6 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   // Shared items this profile lost (docs/design/sync.md, "Rooms: clients").
   protected accessor roomNotices_: RoomNotice[] = [];
-
-  // The live folder editor, while it's open: for a new folder in
-  // |parentId|, or for folder |folderId| (docs/design/live-folders.md).
-  protected accessor liveEditor_:
-      {parentId: string|null, folderId: string|null}|null = null;
 
   // The profile's favorites, shared by its spaces (a root of tabs).
   protected accessor favorites_: Node|null = null;
@@ -346,7 +339,8 @@ export class CompassSidebarAppElement extends CrLitElement {
           }),
       router.showLiveFolderEditor.addListener(
           (parentId: string|null, folderId: string|null) =>
-              this.liveEditor_ = {parentId, folderId}),
+              this.editLiveFolder_(
+                  parentId, folderId, this.getRow_((folderId ?? parentId)!))),
       router.activeNodeChanged.addListener(
           (id: string|null) => this.activeId_ = id),
       router.setArchive.addListener(
@@ -814,14 +808,25 @@ export class CompassSidebarAppElement extends CrLitElement {
   }
 
   // At the end of Pinned.
-  protected onNewLiveFolderClick_() {
+  protected onNewLiveFolderClick_(e: Event) {
     if (this.pinned_) {
-      this.liveEditor_ = {parentId: this.pinned_.id, folderId: null};
+      this.editLiveFolder_(
+          this.pinned_.id, null, e.currentTarget as HTMLElement);
     }
   }
 
-  protected onLiveEditorClose_() {
-    this.liveEditor_ = null;
+  // The live folder editor opens in a bubble beside the sidebar, pointing
+  // at the row (or button) it's for (docs/design/live-folders.md, "UI").
+  private editLiveFolder_(
+      parentId: string|null, folderId: string|null, anchor: HTMLElement|null) {
+    // A root (Pinned) has no row: the section's header stands for it.
+    const target = anchor ??
+        this.shadowRoot.querySelector<HTMLElement>('#newLiveFolder') ??
+        this.shadowRoot.querySelector<HTMLElement>('#sections');
+    const rect = target?.getBoundingClientRect() ?? new DOMRect();
+    this.browserProxy_.handler.editLiveFolder(
+        parentId, folderId, Math.round(rect.left), Math.round(rect.top),
+        Math.round(rect.width), Math.round(rect.height));
   }
 
   // A board, with its tab pinned at the end of Pinned and shown
