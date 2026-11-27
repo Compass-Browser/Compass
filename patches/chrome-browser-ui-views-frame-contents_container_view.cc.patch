@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/contents_container_view.cc b/chrome/browser/ui/views/frame/contents_container_view.cc
-index 413b2f626db33f5c834d0e184786626bdea0e8b2..608d1257417e5f3f611fd5ab53a9b6c2414c72f9 100644
+index 413b2f626db33f5c834d0e184786626bdea0e8b2..b6a7b409324273a82b31ab8598edacff81c90711 100644
 --- a/chrome/browser/ui/views/frame/contents_container_view.cc
 +++ b/chrome/browser/ui/views/frame/contents_container_view.cc
 @@ -32,6 +32,7 @@
@@ -10,7 +10,22 @@ index 413b2f626db33f5c834d0e184786626bdea0e8b2..608d1257417e5f3f611fd5ab53a9b6c2
  #include "components/search/ntp_features.h"
  #include "content/public/browser/web_contents.h"
  #include "ui/accessibility/accessibility_features.h"
-@@ -366,7 +367,10 @@ void ContentsContainerView::ApplyWatermarkSettings(
+@@ -307,7 +308,13 @@ void ContentsContainerView::SetBorderRoundedCornersFrom(
+ }
+ 
+ void ContentsContainerView::UpdateBorderRoundedCorners() {
+-  SetBorderRoundedCornersFrom(rounded_corner_radii_);
++  gfx::RoundedCornersF radii = rounded_corner_radii_;
++  // Compass: development mode's bar, when there's one, holds the top corners.
++  if (compass::GetContentsTopBarHeight(this)) {
++    radii.set_upper_left(0);
++    radii.set_upper_right(0);
++  }
++  SetBorderRoundedCornersFrom(radii);
+ }
+ 
+ void ContentsContainerView::ChildVisibilityChanged(View* child) {
+@@ -366,7 +373,10 @@ void ContentsContainerView::ApplyWatermarkSettings(
  void ContentsContainerView::UpdateDevToolsDockedPlacement() {
    DevToolsDockedPlacement placement = DevToolsDockedPlacement::kUnknown;
    gfx::Rect contents_view_bounds = GetContentsViewBounds();
@@ -22,7 +37,7 @@ index 413b2f626db33f5c834d0e184786626bdea0e8b2..608d1257417e5f3f611fd5ab53a9b6c2
  
    // If contents_webview has the same bounds as webview_container, it either
    // means that devtools are not open or devtools are open in a separate
-@@ -478,6 +482,9 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
+@@ -478,6 +488,9 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
    }
  
    gfx::Rect full_contents_bounds = GetContentsBounds();

@@ -100,7 +100,8 @@ The bar takes the top of the pane: upstream's
 `ContentsContainerView::CalculateProposedLayout()` takes
 `compass::GetContentsTopBarHeight()` off the contents' bounds, so the page
 and docked DevTools sit below it. The bar paints the card's top corners
-(window-frame.md).
+(window-frame.md), so `UpdateBorderRoundedCorners()` squares the page's and
+DevTools' top corners while it's there.
 
 ## Requests before DevTools
 

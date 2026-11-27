@@ -35,6 +35,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
+#include "ui/views/controls/native/native_view_host.h"
 #include "ui/views/controls/textfield/textfield.h"
 
 namespace compass {
@@ -99,6 +101,9 @@ IN_PROC_BROWSER_TEST_F(DevModeBrowserTest, BarTakesTheTopOfThePane) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   EXPECT_FALSE(bar());
   const int page_top = pane()->contents_view()->y();
+  const gfx::RoundedCornersF radii =
+      pane()->contents_view()->holder()->GetNativeViewCornerRadii();
+  EXPECT_GT(radii.upper_left(), 0);
 
   ASSERT_TRUE(dev_mode::AddHost(prefs(), "127.0.0.1"));
   ASSERT_TRUE(base::test::RunUntil([&] { return bar() != nullptr; }));
@@ -108,6 +113,14 @@ IN_PROC_BROWSER_TEST_F(DevModeBrowserTest, BarTakesTheTopOfThePane) {
     return pane()->contents_view()->y() == page_top + DevModeBar::kHeight;
   }));
   EXPECT_EQ(bar()->bounds().bottom(), pane()->contents_view()->y());
+  // The bar holds the card's top corners, so the page's go square; its
+  // bottom ones stay the card's.
+  const gfx::RoundedCornersF with_bar =
+      pane()->contents_view()->holder()->GetNativeViewCornerRadii();
+  EXPECT_EQ(with_bar.upper_left(), 0);
+  EXPECT_EQ(with_bar.upper_right(), 0);
+  EXPECT_EQ(with_bar.lower_left(), radii.lower_left());
+  EXPECT_EQ(with_bar.lower_right(), radii.lower_right());
 
   // Another page on the site: the URL follows.
   const GURL other = embedded_test_server()->GetURL("/title2.html");
@@ -121,6 +134,8 @@ IN_PROC_BROWSER_TEST_F(DevModeBrowserTest, BarTakesTheTopOfThePane) {
   ASSERT_TRUE(base::test::RunUntil([&] { return bar() == nullptr; }));
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return pane()->contents_view()->y() == page_top; }));
+  EXPECT_EQ(pane()->contents_view()->holder()->GetNativeViewCornerRadii(),
+            radii);
 }
 
 // The URL can be edited: Enter goes there, a javascript: URL doesn't run,
