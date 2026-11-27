@@ -1,3 +1,1 @@
-- Compass in Italian: with Italian as your phone's language, everything in Compass is in Italian.
-- The AI chat answers in the language you write in.
-- "Ask Claude", "Ask GPT", "Ask Gemini" or "Ask AI": the command bar and the page menu name the provider you chose.
+- Built on Chromium 159.0.8154.34, with its security fixes.

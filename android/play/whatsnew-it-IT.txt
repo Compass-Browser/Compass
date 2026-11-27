@@ -1,3 +1,1 @@
-- Compass in italiano: con l'italiano come lingua del telefono, tutto Compass è in italiano.
-- La chat con l'AI risponde nella lingua in cui scrivi.
-- "Chiedi a Claude", "Chiedi a GPT", "Chiedi a Gemini" o "Chiedi all'AI": la barra dei comandi e il menu della pagina nominano il provider scelto.
+- Basato su Chromium 159.0.8154.34, con le sue correzioni di sicurezza.
