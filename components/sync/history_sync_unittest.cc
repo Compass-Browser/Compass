@@ -253,9 +253,6 @@ class TestBrowsingHistoryDriver : public history::BrowsingHistoryDriver {
       const std::vector<history::ExpireHistoryArgs>& expire_list) override {}
   bool AllowHistoryDeletions() override { return true; }
   bool ShouldHideWebHistoryUrl(const GURL& url) override { return false; }
-  history::WebHistoryService* GetWebHistoryService() override {
-    return nullptr;
-  }
   void ShouldShowNoticeAboutOtherFormsOfBrowsingHistory(
       const syncer::SyncService* sync_service,
       history::WebHistoryService* history_service,
@@ -276,9 +273,9 @@ TEST_F(CompassHistoryDeleteDirectivesTest, RemoveVisitsUnderLocalSync) {
   syncer::TestSyncService sync_service;
   sync_service.SetLocalSyncEnabled(true);
   TestBrowsingHistoryDriver driver;
-  history::BrowsingHistoryService service(&driver, history_service_.get(),
-                                          &sync_service,
-                                          /*device_info_tracker=*/nullptr);
+  history::BrowsingHistoryService service(
+      &driver, history_service_.get(), /*web_history=*/nullptr, &sync_service,
+      /*device_info_tracker=*/nullptr, /*critical_action_provider=*/nullptr);
   service.RemoveVisits(OneVisit());
   history::BlockUntilHistoryProcessesPendingRequests(history_service_.get());
 
@@ -295,9 +292,9 @@ TEST_F(CompassHistoryDeleteDirectivesTest, RemoveVisitsWithoutLocalSync) {
   syncer::TestSyncService sync_service;
   ASSERT_FALSE(sync_service.IsLocalSyncEnabled());
   TestBrowsingHistoryDriver driver;
-  history::BrowsingHistoryService service(&driver, history_service_.get(),
-                                          &sync_service,
-                                          /*device_info_tracker=*/nullptr);
+  history::BrowsingHistoryService service(
+      &driver, history_service_.get(), /*web_history=*/nullptr, &sync_service,
+      /*device_info_tracker=*/nullptr, /*critical_action_provider=*/nullptr);
   service.RemoveVisits(OneVisit());
   history::BlockUntilHistoryProcessesPendingRequests(history_service_.get());
   EXPECT_TRUE(Directives().empty());

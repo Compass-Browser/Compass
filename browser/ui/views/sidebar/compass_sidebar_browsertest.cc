@@ -31,6 +31,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
+#include "chrome/browser/infobars/confirm_infobar_creation_allowlist.h"
 #include "chrome/browser/infobars/simple_alert_infobar_creator.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
@@ -1707,6 +1708,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
     SetBrowser(shown);
     if (i == 1) {
       CreateSimpleAlertInfoBar(
+          ConfirmInfoBarCreationAllowlist::GetPassKeyForTesting(),
           infobars::ContentInfoBarManager::FromWebContents(
               shown->GetTabStripModel()->GetActiveWebContents()),
           infobars::InfoBarDelegate::TEST_INFOBAR, nullptr, u"Infobar",

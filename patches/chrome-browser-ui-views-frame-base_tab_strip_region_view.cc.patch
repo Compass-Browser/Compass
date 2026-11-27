@@ -1,0 +1,43 @@
+diff --git a/chrome/browser/ui/views/frame/base_tab_strip_region_view.cc b/chrome/browser/ui/views/frame/base_tab_strip_region_view.cc
+index 0425c6b55a8bb707c202d63692f9ac0c1a97c868..1aeb401a28c298a67f6534c416efe429c289f0ee 100644
+--- a/chrome/browser/ui/views/frame/base_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/base_tab_strip_region_view.cc
+@@ -601,17 +601,24 @@ void BaseTabStripRegionView::OnChildrenAdded(
+     }
+   }
+   hover_tab_selector_->CancelTabTransition();
+-  tab_strip_view_->OnChildrenAdded(handles);
++  // Compass: its sidebar replaces the tab strip view (as 157 checked).
++  if (tab_strip_view_) {
++    tab_strip_view_->OnChildrenAdded(handles);
++  }
+ }
+ 
+ void BaseTabStripRegionView::OnChildrenRemoved() {
+   hover_tab_selector_->CancelTabTransition();
+-  tab_strip_view_->OnChildrenRemoved();
++  if (tab_strip_view_) {
++    tab_strip_view_->OnChildrenRemoved();
++  }
+ }
+ 
+ void BaseTabStripRegionView::OnChildMoved(TabCollectionNode* moved_node) {
+   hover_tab_selector_->CancelTabTransition();
+-  tab_strip_view_->OnChildMoved(moved_node);
++  if (tab_strip_view_) {
++    tab_strip_view_->OnChildMoved(moved_node);
++  }
+ }
+ 
+ void BaseTabStripRegionView::OnActiveTabChanged(
+@@ -620,7 +627,9 @@ void BaseTabStripRegionView::OnActiveTabChanged(
+     hover_card_controller_->UpdateHoverCard(
+         nullptr, HoverCardUpdateType::kSelectionChanged);
+   }
+-  tab_strip_view_->OnActiveTabChanged(active_tab);
++  if (tab_strip_view_) {
++    tab_strip_view_->OnActiveTabChanged(active_tab);
++  }
+ }
+ 
+ 
