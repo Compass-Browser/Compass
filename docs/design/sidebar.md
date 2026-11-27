@@ -463,8 +463,10 @@ pinned entry. That covers the last window of the profile and quitting; other
 windows hand their tabs off first. Restorable URLs only, as above.
 
 **Tabs Chrome restores take over their entries.** Chrome's own session
-restore ("Continue where you left off", crash recovery) and reopening a
-closed tab bring back tabs with their history. Without help, each would
+restore ("Continue where you left off", also after a crash) and reopening a
+closed tab bring back tabs with their history. After a crash with any other
+startup setting Compass shows no "Restore pages?" bubble: the sidebar has
+the tabs already, unloaded (`chromium_src/chrome/browser/ui/views/session_crashed_bubble_view.cc`). Without help, each would
 become a new Today entry next to its saved, unloaded one. A tab whose last
 committed entry `IsRestored()` takes over the first unloaded entry with its
 URL, pinned first, depth first (`RestoredTabMatcher`). The file loads in the
