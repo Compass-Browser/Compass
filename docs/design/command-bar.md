@@ -41,6 +41,15 @@ view side: it shows the bubble centered over the top of the content area,
 with no arrow, and pushes the mode and the starting text to the page when
 it opens.
 
+Closing it doesn't rely on activation alone. Upstream's bubble closes when
+it loses activation, but one that never got it (the empty page asked for
+the bar while the window was still coming forward, so the window, not the
+bubble, became key) stayed until it was clicked into and then away. While
+the bubble shows, `CommandBar` watches the window: a mouse press anywhere
+in it outside the bubble closes the bar (a window `EventMonitor`), and the
+window becoming active with the bubble still inactive activates the bubble,
+so Esc and typing reach it. Test: `CommandBarBrowserTest.PressOutsideCloses`.
+
 `WebUIContentsWrapperT` checks the controller's name against the
 `WebUIName` histogram variants, so a one-line patch adds
 `.CompassCommandBar` there.

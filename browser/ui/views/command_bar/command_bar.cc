@@ -8,7 +8,9 @@
 #include <string>
 #include <utility>
 
+#include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "compass/browser/ui/app_menu_sync.h"
 #include "compass/browser/ui/compass_command_ids.h"
@@ -41,6 +43,7 @@
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/webview/webview.h"
+#include "ui/views/event_monitor.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
@@ -80,6 +83,7 @@ CommandBar::CommandBar(BrowserWindowInterface* browser)
       scoped_data_holder_(browser->GetUnownedUserDataHost(), *this) {}
 
 CommandBar::~CommandBar() {
+  StopWatching();
   Close();
 }
 
@@ -119,7 +123,10 @@ void CommandBar::Show(Mode mode) {
       browser_->GetWindow()->GetNativeWindow()));
   bubble_ = bubble->GetWeakPtr();
   // Hidden until the page has shown the new state (ShowUI()).
-  views::BubbleDialogDelegateView::CreateBubble(std::move(bubble));
+  views::Widget* widget =
+      views::BubbleDialogDelegateView::CreateBubble(std::move(bubble));
+  StopWatching();
+  bubble_observation_.Observe(widget);
 
   if (CommandBarPageHandler* handler = GetPageHandler()) {
     handler->Open(mode_, text_);
@@ -128,10 +135,90 @@ void CommandBar::Show(Mode mode) {
 }
 
 void CommandBar::Close() {
+  StopWatching();
   if (bubble_ && bubble_->GetWidget()) {
     bubble_->GetWidget()->CloseNow();
   }
   bubble_ = nullptr;
+}
+
+void CommandBar::OnWidgetVisibilityChanged(views::Widget* widget,
+                                           bool visible) {
+  if (!bubble_observation_.IsObservingSource(widget) || !visible) {
+    return;
+  }
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!browser_view || !browser_view->GetWidget()) {
+    return;
+  }
+  if (!press_monitor_) {
+    press_monitor_ = views::EventMonitor::CreateWindowMonitor(
+        this, browser_view->GetWidget()->GetNativeWindow(),
+        {ui::EventType::kMousePressed});
+  }
+  if (!window_observation_.IsObserving()) {
+    window_observation_.Observe(browser_view->GetWidget());
+  }
+  ActivateIfWindowActive();
+}
+
+void CommandBar::OnWidgetActivationChanged(views::Widget* widget,
+                                           bool active) {
+  // The window came forward with the bubble showing but not active (it
+  // showed while the window was still coming forward): give it the typing,
+  // so Esc and a click away close it as usual.
+  if (active && window_observation_.IsObservingSource(widget)) {
+    ActivateIfWindowActive();
+  }
+}
+
+void CommandBar::OnWidgetDestroying(views::Widget* widget) {
+  StopWatching();
+}
+
+void CommandBar::OnEvent(const ui::Event& event) {
+  if (press_monitor_) {
+    OnWindowPress(press_monitor_->GetLastMouseLocation());
+  }
+}
+
+void CommandBar::OnWindowPress(const gfx::Point& screen_point) {
+  if (!IsShowing()) {
+    return;
+  }
+  if (bubble_->GetWidget()->GetWindowBoundsInScreen().Contains(
+          screen_point)) {
+    return;
+  }
+  // Closing destroys the monitor that's calling: after it returns.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](base::WeakPtr<CommandBar> bar,
+             base::WeakPtr<WebUIBubbleDialogView> bubble) {
+            // Unless it closed meanwhile, or another bubble opened.
+            if (bar && bubble && bar->bubble_.get() == bubble.get()) {
+              bar->Close();
+            }
+          },
+          weak_factory_.GetWeakPtr(), bubble_));
+}
+
+void CommandBar::ActivateIfWindowActive() {
+  if (!IsShowing() || !window_observation_.IsObserving()) {
+    return;
+  }
+  views::Widget* bubble_widget = bubble_->GetWidget();
+  if (window_observation_.GetSource()->IsActive() &&
+      !bubble_widget->IsActive() && !bubble_widget->IsClosed()) {
+    bubble_widget->Activate();
+  }
+}
+
+void CommandBar::StopWatching() {
+  press_monitor_.reset();
+  bubble_observation_.Reset();
+  window_observation_.Reset();
 }
 
 bool CommandBar::IsShowing() const {

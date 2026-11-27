@@ -6,11 +6,13 @@
 
 #include <string>
 
+#include "base/run_loop.h"
 #include "base/test/run_until.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/web_contents.h"
@@ -21,6 +23,9 @@
 #include "content/public/browser/web_contents_delegate.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/vector2d.h"
+#include "ui/views/widget/widget.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "compass/browser/sidebar/space_list.h"
 #include "compass/browser/sidebar/space_model.h"
@@ -153,6 +158,27 @@ IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, EscapeCloses) {
   EXPECT_EQ(contents->GetDelegate()->PreHandleKeyboardEvent(contents, escape),
             content::KeyboardEventProcessingResult::HANDLED);
 
+  EXPECT_TRUE(base::test::RunUntil([&] { return !bar()->IsShowing(); }));
+  // Nothing was opened.
+  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
+}
+
+// A press elsewhere in the window closes the bar even when the bubble never
+// got the activation (shown while the window was still coming forward), and
+// one on the bar doesn't.
+IN_PROC_BROWSER_TEST_F(CommandBarBrowserTest, PressOutsideCloses) {
+  ASSERT_TRUE(OpenWith(IDC_NEW_TAB));
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  const gfx::Rect window = browser_view->GetWidget()->GetWindowBoundsInScreen();
+
+  // On the bar: it stays.
+  content::WebContents* page = bar()->web_contents_for_testing();
+  bar()->OnWindowPress(page->GetContainerBounds().CenterPoint());
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(bar()->IsShowing());
+
+  // At the window's bottom left corner, well away from the bar: it closes.
+  bar()->OnWindowPress(window.bottom_left() + gfx::Vector2d(4, -4));
   EXPECT_TRUE(base::test::RunUntil([&] { return !bar()->IsShowing(); }));
   // Nothing was opened.
   EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
