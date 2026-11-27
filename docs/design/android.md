@@ -252,11 +252,10 @@ It costs:
     (`ChromeThinWebViewInitializer::AttachTabHelpers()`: autofill, content
     settings, permission prompts on), and a tab adopting it adds the rest. Open moves the
     page to the window's compositor and the ThinWebView goes after.
-    ThinWebView already makes the page a tab for the performance manager,
-    which the adopting tab's `TabFeatures` would do again (a `CHECK`, seen
-    in the emulator) unless the page has the popup blocker it attaches with
-    it; `PeekBridge.prepareForTab()` (`peek_bridge.cc`) gives the card's
-    page that helper as it comes in.
+    ThinWebView already makes the page a tab for the performance manager;
+    since Chromium 159 the adopting tab's `TabFeatures` sees that and
+    doesn't do it again (before, Compass gave the card's page the popup
+    blocker early to avoid a `CHECK`; 159 made the blocker a tab feature).
   - Tried in the emulator: a long press's Peek, × and Open; a link from
     another app at a cold start and with Compass running, Open in Home (a
     Today entry, no reload) and back to close. Not yet tried: a pinned

@@ -18,7 +18,6 @@ group("android") {
     ":easel_bridge",
     ":extension_unlock_bridge",
     ":passwords_bridge",
-    ":peek_bridge",
     ":pip_bridge",
     ":reader",
     ":rooms_bridge",
@@ -178,17 +177,6 @@ source_set("passwords_bridge") {
     "//compass/android:jni_headers",
     "//components/keyed_service/core",
     "//components/password_manager/core/browser/password_store:password_store_interface",
-  ]
-}
-
-# Peek's page, readied for a tab to adopt (docs/design/android.md, "Peek").
-source_set("peek_bridge") {
-  sources = [ "peek_bridge.cc" ]
-  deps = [
-    "//base",
-    "//compass/android:jni_headers",
-    "//components/blocked_content",
-    "//content/public/browser",
   ]
 }
 

@@ -192,7 +192,6 @@ public class Peek implements PeekUi.Listener {
                         .setContextMenuPopulatorFactory(menu)
                         .setSupportTheming(true)
                         .build());
-        PeekBridge.prepareForTab(contents);
         // Passwords and addresses fill in the card as in a tab: the keyboard's accessory takes
         // the card's page for the current one while it shows.
         ManualFillingComponent.CompassPage.setSupplier(() -> mContents);
