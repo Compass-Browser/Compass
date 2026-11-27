@@ -843,11 +843,6 @@ void SidebarHeader::ReturnToolbarControls() {
   if (!toolbar_ || !HoldsToolbarControls()) {
     return;
   }
-  if (pinned_divider_) {
-    pinned_divider_->SetPreferredSize(pinned_divider_size_);
-    pinned_divider_->SetProperty(views::kMarginsKey, pinned_divider_margins_);
-    pinned_divider_ = nullptr;
-  }
   // In reverse, so each index is the one the view had.
   for (auto it = moved_views_.rbegin(); it != moved_views_.rend(); ++it) {
     toolbar_->AddChildViewAt(
@@ -855,6 +850,14 @@ void SidebarHeader::ReturnToolbarControls() {
         std::min(it->toolbar_index, toolbar_->children().size()));
   }
   moved_views_.clear();
+  // Back in the toolbar first: from here, the size change lays out the
+  // header, which asks the window's animations (gone when the window
+  // closes).
+  if (pinned_divider_) {
+    pinned_divider_->SetPreferredSize(pinned_divider_size_);
+    pinned_divider_->SetProperty(views::kMarginsKey, pinned_divider_margins_);
+    pinned_divider_ = nullptr;
+  }
   // Lays out BrowserView too, which shows or hides the toolbar.
   toolbar_->InvalidateLayout();
   PreferredSizeChanged();
