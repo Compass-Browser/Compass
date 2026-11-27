@@ -98,6 +98,21 @@ public nonisolated struct SyncPb_ClientCommand: Sendable {
   /// Clears the value of `maxCommitBatchSize`. Subsequent reads from it will return its default value.
   public mutating func clearMaxCommitBatchSize() {self._maxCommitBatchSize = nil}
 
+  /// Soft limit on the total size in bytes of `EntitySpecifics` committed in a
+  /// single commit message (once a batch reaches or exceeds this threshold, no
+  /// further entities are added to the batch). Note that the client measures
+  /// each entity's size using the serialized size of `EntitySpecifics` (with an
+  /// adjustment for encryption / base64 overhead on Nigori-encrypted types),
+  /// which excludes other `SyncEntity` envelope fields.
+  public var maxTargetCommitBatchSpecificsBytes: Int32 {
+    get {_maxTargetCommitBatchSpecificsBytes ?? 0}
+    set {_maxTargetCommitBatchSpecificsBytes = newValue}
+  }
+  /// Returns true if `maxTargetCommitBatchSpecificsBytes` has been explicitly set.
+  public var hasMaxTargetCommitBatchSpecificsBytes: Bool {self._maxTargetCommitBatchSpecificsBytes != nil}
+  /// Clears the value of `maxTargetCommitBatchSpecificsBytes`. Subsequent reads from it will return its default value.
+  public mutating func clearMaxTargetCommitBatchSpecificsBytes() {self._maxTargetCommitBatchSpecificsBytes = nil}
+
   /// Number of seconds to delay before the throttled client should retry.
   public var throttleDelaySeconds: Int32 {
     get {_throttleDelaySeconds ?? 0}
@@ -161,6 +176,7 @@ public nonisolated struct SyncPb_ClientCommand: Sendable {
   fileprivate var _setSyncPollInterval: Int32? = nil
   fileprivate var _setSyncLongPollInterval: Int32? = nil
   fileprivate var _maxCommitBatchSize: Int32? = nil
+  fileprivate var _maxTargetCommitBatchSpecificsBytes: Int32? = nil
   fileprivate var _throttleDelaySeconds: Int32? = nil
   fileprivate var _clientInvalidationHintBufferSize: Int32? = nil
   fileprivate var _extensionTypesMaxTokens: Int32? = nil
@@ -213,7 +229,7 @@ nonisolated extension SyncPb_CustomNudgeDelay: SwiftProtobuf.Message, SwiftProto
 
 nonisolated extension SyncPb_ClientCommand: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ClientCommand"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}set_sync_poll_interval\0\u{3}set_sync_long_poll_interval\0\u{3}max_commit_batch_size\0\u{4}\u{2}throttle_delay_seconds\0\u{3}client_invalidation_hint_buffer_size\0\u{4}\u{2}custom_nudge_delays\0\u{3}extension_types_max_tokens\0\u{3}extension_types_refill_interval_seconds\0\u{3}extension_types_depleted_quota_nudge_delay_seconds\0\u{b}sessions_commit_delay_seconds\0\u{b}gu_retry_delay_seconds\0\u{c}\u{4}\u{1}\u{c}\u{7}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}set_sync_poll_interval\0\u{3}set_sync_long_poll_interval\0\u{3}max_commit_batch_size\0\u{4}\u{2}throttle_delay_seconds\0\u{3}client_invalidation_hint_buffer_size\0\u{4}\u{2}custom_nudge_delays\0\u{3}extension_types_max_tokens\0\u{3}extension_types_refill_interval_seconds\0\u{3}extension_types_depleted_quota_nudge_delay_seconds\0\u{3}max_target_commit_batch_specifics_bytes\0\u{b}sessions_commit_delay_seconds\0\u{b}gu_retry_delay_seconds\0\u{c}\u{4}\u{1}\u{c}\u{7}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -230,6 +246,7 @@ nonisolated extension SyncPb_ClientCommand: SwiftProtobuf.Message, SwiftProtobuf
       case 9: try { try decoder.decodeSingularInt32Field(value: &self._extensionTypesMaxTokens) }()
       case 10: try { try decoder.decodeSingularInt32Field(value: &self._extensionTypesRefillIntervalSeconds) }()
       case 11: try { try decoder.decodeSingularInt32Field(value: &self._extensionTypesDepletedQuotaNudgeDelaySeconds) }()
+      case 12: try { try decoder.decodeSingularInt32Field(value: &self._maxTargetCommitBatchSpecificsBytes) }()
       default: break
       }
     }
@@ -267,6 +284,9 @@ nonisolated extension SyncPb_ClientCommand: SwiftProtobuf.Message, SwiftProtobuf
     try { if let v = self._extensionTypesDepletedQuotaNudgeDelaySeconds {
       try visitor.visitSingularInt32Field(value: v, fieldNumber: 11)
     } }()
+    try { if let v = self._maxTargetCommitBatchSpecificsBytes {
+      try visitor.visitSingularInt32Field(value: v, fieldNumber: 12)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -274,6 +294,7 @@ nonisolated extension SyncPb_ClientCommand: SwiftProtobuf.Message, SwiftProtobuf
     if lhs._setSyncPollInterval != rhs._setSyncPollInterval {return false}
     if lhs._setSyncLongPollInterval != rhs._setSyncLongPollInterval {return false}
     if lhs._maxCommitBatchSize != rhs._maxCommitBatchSize {return false}
+    if lhs._maxTargetCommitBatchSpecificsBytes != rhs._maxTargetCommitBatchSpecificsBytes {return false}
     if lhs._throttleDelaySeconds != rhs._throttleDelaySeconds {return false}
     if lhs._clientInvalidationHintBufferSize != rhs._clientInvalidationHintBufferSize {return false}
     if lhs.customNudgeDelays != rhs.customNudgeDelays {return false}

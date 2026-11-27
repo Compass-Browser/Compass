@@ -235,12 +235,26 @@ public nonisolated struct SyncPb_PageContext: Sendable {
   /// Clears the value of `scrollPosition`. Subsequent reads from it will return its default value.
   public mutating func clearScrollPosition() {self._scrollPosition = nil}
 
+  /// The URL of the tab being shared. Used to verify that an
+  /// `encrypted_page_context` belongs to the enclosing `SendTabToSelfSpecifics`
+  /// entry.
+  /// New in M159.
+  public var url: String {
+    get {_url ?? String()}
+    set {_url = newValue}
+  }
+  /// Returns true if `url` has been explicitly set.
+  public var hasURL: Bool {self._url != nil}
+  /// Clears the value of `url`. Subsequent reads from it will return its default value.
+  public mutating func clearURL() {self._url = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _formFieldInfo: SyncPb_FormFieldInfo? = nil
   fileprivate var _scrollPosition: SyncPb_ScrollPosition? = nil
+  fileprivate var _url: String? = nil
 }
 
 public nonisolated struct SyncPb_FormFieldInfo: Sendable {
@@ -739,7 +753,7 @@ nonisolated extension SyncPb_SendTabToSelfSpecifics: SwiftProtobuf.Message, Swif
 
 nonisolated extension SyncPb_PageContext: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PageContext"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}form_field_info\0\u{3}scroll_position\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}form_field_info\0\u{3}scroll_position\0\u{1}url\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -749,6 +763,7 @@ nonisolated extension SyncPb_PageContext: SwiftProtobuf.Message, SwiftProtobuf._
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._formFieldInfo) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._scrollPosition) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._url) }()
       default: break
       }
     }
@@ -765,12 +780,16 @@ nonisolated extension SyncPb_PageContext: SwiftProtobuf.Message, SwiftProtobuf._
     try { if let v = self._scrollPosition {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    try { if let v = self._url {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: SyncPb_PageContext, rhs: SyncPb_PageContext) -> Bool {
     if lhs._formFieldInfo != rhs._formFieldInfo {return false}
     if lhs._scrollPosition != rhs._scrollPosition {return false}
+    if lhs._url != rhs._url {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

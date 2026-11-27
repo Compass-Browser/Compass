@@ -224,6 +224,15 @@ public nonisolated struct SyncPb_EntityMetadata: @unchecked Sendable {
   /// Clears the value of `deletionOrigin`. Subsequent reads from it will return its default value.
   public mutating func clearDeletionOrigin() {_uniqueStorage()._deletionOrigin = nil}
 
+  public var attachmentMetadata: SyncPb_EntityMetadata.AttachmentMetadata {
+    get {_storage._attachmentMetadata ?? SyncPb_EntityMetadata.AttachmentMetadata()}
+    set {_uniqueStorage()._attachmentMetadata = newValue}
+  }
+  /// Returns true if `attachmentMetadata` has been explicitly set.
+  public var hasAttachmentMetadata: Bool {_storage._attachmentMetadata != nil}
+  /// Clears the value of `attachmentMetadata`. Subsequent reads from it will return its default value.
+  public mutating func clearAttachmentMetadata() {_uniqueStorage()._attachmentMetadata = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Metadata used for shared data types. Must not be present for regular data
@@ -295,6 +304,80 @@ public nonisolated struct SyncPb_EntityMetadata: @unchecked Sendable {
     fileprivate var _lastUpdateAttribution: SyncPb_EntityMetadata.CollaborationMetadata.Attribution? = nil
   }
 
+  /// Local metadata for an attachment associated with this entity. Tracks the
+  /// state of an outgoing attachment upload before the entity is committed to
+  /// the Sync server.
+  public nonisolated struct AttachmentMetadata: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Sync wire-protocol attachment metadata associated with this entity. Once
+    /// the commit succeeds, `temporary_blob_id` is cleared while the attachment
+    /// metadata itself is retained.
+    public var attachment: SyncPb_Attachment {
+      get {_attachment ?? SyncPb_Attachment()}
+      set {_attachment = newValue}
+    }
+    /// Returns true if `attachment` has been explicitly set.
+    public var hasAttachment: Bool {self._attachment != nil}
+    /// Clears the value of `attachment`. Subsequent reads from it will return its default value.
+    public mutating func clearAttachment() {self._attachment = nil}
+
+    public var pendingUpload: SyncPb_EntityMetadata.AttachmentMetadata.PendingUpload {
+      get {_pendingUpload ?? SyncPb_EntityMetadata.AttachmentMetadata.PendingUpload()}
+      set {_pendingUpload = newValue}
+    }
+    /// Returns true if `pendingUpload` has been explicitly set.
+    public var hasPendingUpload: Bool {self._pendingUpload != nil}
+    /// Clears the value of `pendingUpload`. Subsequent reads from it will return its default value.
+    public mutating func clearPendingUpload() {self._pendingUpload = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    /// State of an outgoing attachment upload while it is queued or in progress.
+    /// Cleared once the upload finishes and `attachment.temporary_blob_id` is
+    /// populated, or if the upload is cancelled.
+    public nonisolated struct PendingUpload: Sendable {
+      // SwiftProtobuf.Message conformance is added in an extension below. See the
+      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+      // methods supported on all messages.
+
+      /// Local file path of the attachment.
+      public var filePath: String {
+        get {_filePath ?? String()}
+        set {_filePath = newValue}
+      }
+      /// Returns true if `filePath` has been explicitly set.
+      public var hasFilePath: Bool {self._filePath != nil}
+      /// Clears the value of `filePath`. Subsequent reads from it will return its default value.
+      public mutating func clearFilePath() {self._filePath = nil}
+
+      /// Active resumable upload session URL (`X-Goog-Upload-URL`) while the
+      /// upload is in progress.
+      public var uploadURL: String {
+        get {_uploadURL ?? String()}
+        set {_uploadURL = newValue}
+      }
+      /// Returns true if `uploadURL` has been explicitly set.
+      public var hasUploadURL: Bool {self._uploadURL != nil}
+      /// Clears the value of `uploadURL`. Subsequent reads from it will return its default value.
+      public mutating func clearUploadURL() {self._uploadURL = nil}
+
+      public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+      public init() {}
+
+      fileprivate var _filePath: String? = nil
+      fileprivate var _uploadURL: String? = nil
+    }
+
+    public init() {}
+
+    fileprivate var _attachment: SyncPb_Attachment? = nil
+    fileprivate var _pendingUpload: SyncPb_EntityMetadata.AttachmentMetadata.PendingUpload? = nil
+  }
+
   public init() {}
 
   fileprivate var _storage = _StorageClass.defaultInstance
@@ -306,7 +389,7 @@ fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_EntityMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".EntityMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}client_tag_hash\0\u{3}server_id\0\u{3}is_deleted\0\u{3}sequence_number\0\u{3}acked_sequence_number\0\u{3}server_version\0\u{3}creation_time\0\u{3}modification_time\0\u{3}specifics_hash\0\u{3}base_specifics_hash\0\u{3}unique_position\0\u{3}bookmark_favicon_hash\0\u{3}possibly_trimmed_base_specifics\0\u{3}deleted_by_version\0\u{1}collaboration\0\u{3}deletion_origin\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}client_tag_hash\0\u{3}server_id\0\u{3}is_deleted\0\u{3}sequence_number\0\u{3}acked_sequence_number\0\u{3}server_version\0\u{3}creation_time\0\u{3}modification_time\0\u{3}specifics_hash\0\u{3}base_specifics_hash\0\u{3}unique_position\0\u{3}bookmark_favicon_hash\0\u{3}possibly_trimmed_base_specifics\0\u{3}deleted_by_version\0\u{1}collaboration\0\u{3}deletion_origin\0\u{3}attachment_metadata\0")
 
   fileprivate class _StorageClass {
     var _clientTagHash: String? = nil
@@ -325,6 +408,7 @@ nonisolated extension SyncPb_EntityMetadata: SwiftProtobuf.Message, SwiftProtobu
     var _deletedByVersion: String? = nil
     var _collaboration: SyncPb_EntityMetadata.CollaborationMetadata? = nil
     var _deletionOrigin: SyncPb_DeletionOrigin? = nil
+    var _attachmentMetadata: SyncPb_EntityMetadata.AttachmentMetadata? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -351,6 +435,7 @@ nonisolated extension SyncPb_EntityMetadata: SwiftProtobuf.Message, SwiftProtobu
       _deletedByVersion = source._deletedByVersion
       _collaboration = source._collaboration
       _deletionOrigin = source._deletionOrigin
+      _attachmentMetadata = source._attachmentMetadata
     }
   }
 
@@ -385,6 +470,7 @@ nonisolated extension SyncPb_EntityMetadata: SwiftProtobuf.Message, SwiftProtobu
         case 14: try { try decoder.decodeSingularStringField(value: &_storage._deletedByVersion) }()
         case 15: try { try decoder.decodeSingularMessageField(value: &_storage._collaboration) }()
         case 16: try { try decoder.decodeSingularMessageField(value: &_storage._deletionOrigin) }()
+        case 17: try { try decoder.decodeSingularMessageField(value: &_storage._attachmentMetadata) }()
         default: break
         }
       }
@@ -445,6 +531,9 @@ nonisolated extension SyncPb_EntityMetadata: SwiftProtobuf.Message, SwiftProtobu
       try { if let v = _storage._deletionOrigin {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
       } }()
+      try { if let v = _storage._attachmentMetadata {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 17)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -470,6 +559,7 @@ nonisolated extension SyncPb_EntityMetadata: SwiftProtobuf.Message, SwiftProtobu
         if _storage._deletedByVersion != rhs_storage._deletedByVersion {return false}
         if _storage._collaboration != rhs_storage._collaboration {return false}
         if _storage._deletionOrigin != rhs_storage._deletionOrigin {return false}
+        if _storage._attachmentMetadata != rhs_storage._attachmentMetadata {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -552,6 +642,84 @@ nonisolated extension SyncPb_EntityMetadata.CollaborationMetadata.Attribution: S
 
   public static func ==(lhs: SyncPb_EntityMetadata.CollaborationMetadata.Attribution, rhs: SyncPb_EntityMetadata.CollaborationMetadata.Attribution) -> Bool {
     if lhs._obfuscatedGaiaID != rhs._obfuscatedGaiaID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_EntityMetadata.AttachmentMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = SyncPb_EntityMetadata.protoMessageName + ".AttachmentMetadata"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}attachment\0\u{3}pending_upload\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._attachment) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._pendingUpload) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._attachment {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._pendingUpload {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_EntityMetadata.AttachmentMetadata, rhs: SyncPb_EntityMetadata.AttachmentMetadata) -> Bool {
+    if lhs._attachment != rhs._attachment {return false}
+    if lhs._pendingUpload != rhs._pendingUpload {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_EntityMetadata.AttachmentMetadata.PendingUpload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = SyncPb_EntityMetadata.AttachmentMetadata.protoMessageName + ".PendingUpload"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}file_path\0\u{3}upload_url\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._filePath) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._uploadURL) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._filePath {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._uploadURL {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_EntityMetadata.AttachmentMetadata.PendingUpload, rhs: SyncPb_EntityMetadata.AttachmentMetadata.PendingUpload) -> Bool {
+    if lhs._filePath != rhs._filePath {return false}
+    if lhs._uploadURL != rhs._uploadURL {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -39,29 +39,6 @@ public nonisolated struct SyncPb_NigoriKey: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Note that M78 and before rely on the name being populated, at least for
-  /// the main encrypted keybag within NigoriSpecifics.
-  ///
-  /// NOTE: This field was marked as deprecated in the .proto file.
-  public var deprecatedName: String {
-    get {_deprecatedName ?? String()}
-    set {_deprecatedName = newValue}
-  }
-  /// Returns true if `deprecatedName` has been explicitly set.
-  public var hasDeprecatedName: Bool {self._deprecatedName != nil}
-  /// Clears the value of `deprecatedName`. Subsequent reads from it will return its default value.
-  public mutating func clearDeprecatedName() {self._deprecatedName = nil}
-
-  /// NOTE: This field was marked as deprecated in the .proto file.
-  public var deprecatedUserKey: Data {
-    get {_deprecatedUserKey ?? Data()}
-    set {_deprecatedUserKey = newValue}
-  }
-  /// Returns true if `deprecatedUserKey` has been explicitly set.
-  public var hasDeprecatedUserKey: Bool {self._deprecatedUserKey != nil}
-  /// Clears the value of `deprecatedUserKey`. Subsequent reads from it will return its default value.
-  public mutating func clearDeprecatedUserKey() {self._deprecatedUserKey = nil}
-
   public var encryptionKey: Data {
     get {_encryptionKey ?? Data()}
     set {_encryptionKey = newValue}
@@ -84,8 +61,6 @@ public nonisolated struct SyncPb_NigoriKey: Sendable {
 
   public init() {}
 
-  fileprivate var _deprecatedName: String? = nil
-  fileprivate var _deprecatedUserKey: Data? = nil
   fileprivate var _encryptionKey: Data? = nil
   fileprivate var _macKey: Data? = nil
 }
@@ -536,7 +511,7 @@ fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_NigoriKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NigoriKey"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}deprecated_name\0\u{3}deprecated_user_key\0\u{3}encryption_key\0\u{3}mac_key\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{3}encryption_key\0\u{3}mac_key\0\u{b}name\0\u{b}deprecated_name\0\u{b}user_key\0\u{b}deprecated_user_key\0\u{c}\u{1}\u{1}\u{c}\u{2}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -544,8 +519,6 @@ nonisolated extension SyncPb_NigoriKey: SwiftProtobuf.Message, SwiftProtobuf._Me
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self._deprecatedName) }()
-      case 2: try { try decoder.decodeSingularBytesField(value: &self._deprecatedUserKey) }()
       case 3: try { try decoder.decodeSingularBytesField(value: &self._encryptionKey) }()
       case 4: try { try decoder.decodeSingularBytesField(value: &self._macKey) }()
       default: break
@@ -558,12 +531,6 @@ nonisolated extension SyncPb_NigoriKey: SwiftProtobuf.Message, SwiftProtobuf._Me
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._deprecatedName {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._deprecatedUserKey {
-      try visitor.visitSingularBytesField(value: v, fieldNumber: 2)
-    } }()
     try { if let v = self._encryptionKey {
       try visitor.visitSingularBytesField(value: v, fieldNumber: 3)
     } }()
@@ -574,8 +541,6 @@ nonisolated extension SyncPb_NigoriKey: SwiftProtobuf.Message, SwiftProtobuf._Me
   }
 
   public static func ==(lhs: SyncPb_NigoriKey, rhs: SyncPb_NigoriKey) -> Bool {
-    if lhs._deprecatedName != rhs._deprecatedName {return false}
-    if lhs._deprecatedUserKey != rhs._deprecatedUserKey {return false}
     if lhs._encryptionKey != rhs._encryptionKey {return false}
     if lhs._macKey != rhs._macKey {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}

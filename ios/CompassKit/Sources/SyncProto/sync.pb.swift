@@ -441,25 +441,6 @@ public nonisolated struct SyncPb_ClientStatus: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Flag to indicate if the client has detected hierarchy conflcits.  The flag
-  /// is left unset if update application has not been attempted yet.
-  ///
-  /// The server should attempt to resolve any hierarchy conflicts when this flag
-  /// is set.  The client may not assume that any particular action will be
-  /// taken.  There is no guarantee the problem will be addressed in a reasonable
-  /// amount of time.
-  /// TODO(crbug.com/40833583): Deprecated in M103.
-  ///
-  /// NOTE: This field was marked as deprecated in the .proto file.
-  public var hierarchyConflictDetected: Bool {
-    get {_hierarchyConflictDetected ?? false}
-    set {_hierarchyConflictDetected = newValue}
-  }
-  /// Returns true if `hierarchyConflictDetected` has been explicitly set.
-  public var hasHierarchyConflictDetected: Bool {self._hierarchyConflictDetected != nil}
-  /// Clears the value of `hierarchyConflictDetected`. Subsequent reads from it will return its default value.
-  public mutating func clearHierarchyConflictDetected() {self._hierarchyConflictDetected = nil}
-
   /// Whether the client has full sync (or, sync the feature) enabled or not.
   public var isSyncFeatureEnabled: Bool {
     get {_isSyncFeatureEnabled ?? false}
@@ -474,7 +455,6 @@ public nonisolated struct SyncPb_ClientStatus: Sendable {
 
   public init() {}
 
-  fileprivate var _hierarchyConflictDetected: Bool? = nil
   fileprivate var _isSyncFeatureEnabled: Bool? = nil
 }
 
@@ -724,20 +704,6 @@ public nonisolated struct SyncPb_CommitResponse: Sendable {
     /// Clears the value of `errorMessage`. Subsequent reads from it will return its default value.
     public mutating func clearErrorMessage() {self._errorMessage = nil}
 
-    /// Last modification time (in milliseconds since Unix epoch).  Allows the
-    /// server to override the client-supplied mtime during a commit operation.
-    /// TODO(crbug.com/40751358): Delete this field too.
-    ///
-    /// NOTE: This field was marked as deprecated in the .proto file.
-    public var mtime: Int64 {
-      get {_mtime ?? 0}
-      set {_mtime = newValue}
-    }
-    /// Returns true if `mtime` has been explicitly set.
-    public var hasMtime: Bool {self._mtime != nil}
-    /// Clears the value of `mtime`. Subsequent reads from it will return its default value.
-    public mutating func clearMtime() {self._mtime = nil}
-
     /// Datatype specific error (if any).
     public var datatypeSpecificError: SyncPb_CommitResponse.EntryResponse.DatatypeSpecificError {
       get {_datatypeSpecificError ?? SyncPb_CommitResponse.EntryResponse.DatatypeSpecificError()}
@@ -747,6 +713,17 @@ public nonisolated struct SyncPb_CommitResponse: Sendable {
     public var hasDatatypeSpecificError: Bool {self._datatypeSpecificError != nil}
     /// Clears the value of `datatypeSpecificError`. Subsequent reads from it will return its default value.
     public mutating func clearDatatypeSpecificError() {self._datatypeSpecificError = nil}
+
+    /// If the commit updated an attachment, echoes back the server-assigned
+    /// modification time of the attachment (in milliseconds since Unix epoch).
+    public var attachmentModificationTimeUnixEpochMillis: Int64 {
+      get {_attachmentModificationTimeUnixEpochMillis ?? 0}
+      set {_attachmentModificationTimeUnixEpochMillis = newValue}
+    }
+    /// Returns true if `attachmentModificationTimeUnixEpochMillis` has been explicitly set.
+    public var hasAttachmentModificationTimeUnixEpochMillis: Bool {self._attachmentModificationTimeUnixEpochMillis != nil}
+    /// Clears the value of `attachmentModificationTimeUnixEpochMillis`. Subsequent reads from it will return its default value.
+    public mutating func clearAttachmentModificationTimeUnixEpochMillis() {self._attachmentModificationTimeUnixEpochMillis = nil}
 
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -790,8 +767,8 @@ public nonisolated struct SyncPb_CommitResponse: Sendable {
     fileprivate var _idString: String? = nil
     fileprivate var _version: Int64? = nil
     fileprivate var _errorMessage: String? = nil
-    fileprivate var _mtime: Int64? = nil
     fileprivate var _datatypeSpecificError: SyncPb_CommitResponse.EntryResponse.DatatypeSpecificError? = nil
+    fileprivate var _attachmentModificationTimeUnixEpochMillis: Int64? = nil
   }
 
   public init() {}
@@ -1405,7 +1382,7 @@ nonisolated extension SyncPb_ChipBag: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 nonisolated extension SyncPb_ClientStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ClientStatus"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}hierarchy_conflict_detected\0\u{3}is_sync_feature_enabled\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}is_sync_feature_enabled\0\u{b}hierarchy_conflict_detected\0\u{c}\u{1}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1413,7 +1390,6 @@ nonisolated extension SyncPb_ClientStatus: SwiftProtobuf.Message, SwiftProtobuf.
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularBoolField(value: &self._hierarchyConflictDetected) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self._isSyncFeatureEnabled) }()
       default: break
       }
@@ -1425,9 +1401,6 @@ nonisolated extension SyncPb_ClientStatus: SwiftProtobuf.Message, SwiftProtobuf.
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._hierarchyConflictDetected {
-      try visitor.visitSingularBoolField(value: v, fieldNumber: 1)
-    } }()
     try { if let v = self._isSyncFeatureEnabled {
       try visitor.visitSingularBoolField(value: v, fieldNumber: 2)
     } }()
@@ -1435,7 +1408,6 @@ nonisolated extension SyncPb_ClientStatus: SwiftProtobuf.Message, SwiftProtobuf.
   }
 
   public static func ==(lhs: SyncPb_ClientStatus, rhs: SyncPb_ClientStatus) -> Bool {
-    if lhs._hierarchyConflictDetected != rhs._hierarchyConflictDetected {return false}
     if lhs._isSyncFeatureEnabled != rhs._isSyncFeatureEnabled {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -1637,7 +1609,7 @@ nonisolated extension SyncPb_CommitResponse.ResponseType: SwiftProtobuf._ProtoNa
 
 nonisolated extension SyncPb_CommitResponse.EntryResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = SyncPb_CommitResponse.protoMessageName + ".EntryResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}response_type\0\u{3}id_string\0\u{2}\u{3}version\0\u{4}\u{3}error_message\0\u{1}mtime\0\u{3}datatype_specific_error\0\u{b}parent_id_string\0\u{b}position_in_parent\0\u{b}name\0\u{b}non_unique_name\0\u{c}\u{4}\u{1}\u{c}\u{5}\u{1}\u{c}\u{7}\u{1}\u{c}\u{8}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}response_type\0\u{3}id_string\0\u{2}\u{3}version\0\u{4}\u{3}error_message\0\u{4}\u{2}datatype_specific_error\0\u{3}attachment_modification_time_unix_epoch_millis\0\u{b}parent_id_string\0\u{b}position_in_parent\0\u{b}name\0\u{b}non_unique_name\0\u{b}mtime\0\u{c}\u{4}\u{1}\u{c}\u{5}\u{1}\u{c}\u{7}\u{1}\u{c}\u{8}\u{1}\u{c}\u{a}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1649,8 +1621,8 @@ nonisolated extension SyncPb_CommitResponse.EntryResponse: SwiftProtobuf.Message
       case 3: try { try decoder.decodeSingularStringField(value: &self._idString) }()
       case 6: try { try decoder.decodeSingularInt64Field(value: &self._version) }()
       case 9: try { try decoder.decodeSingularStringField(value: &self._errorMessage) }()
-      case 10: try { try decoder.decodeSingularInt64Field(value: &self._mtime) }()
       case 11: try { try decoder.decodeSingularMessageField(value: &self._datatypeSpecificError) }()
+      case 12: try { try decoder.decodeSingularInt64Field(value: &self._attachmentModificationTimeUnixEpochMillis) }()
       default: break
       }
     }
@@ -1673,11 +1645,11 @@ nonisolated extension SyncPb_CommitResponse.EntryResponse: SwiftProtobuf.Message
     try { if let v = self._errorMessage {
       try visitor.visitSingularStringField(value: v, fieldNumber: 9)
     } }()
-    try { if let v = self._mtime {
-      try visitor.visitSingularInt64Field(value: v, fieldNumber: 10)
-    } }()
     try { if let v = self._datatypeSpecificError {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+    } }()
+    try { if let v = self._attachmentModificationTimeUnixEpochMillis {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 12)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1687,8 +1659,8 @@ nonisolated extension SyncPb_CommitResponse.EntryResponse: SwiftProtobuf.Message
     if lhs._idString != rhs._idString {return false}
     if lhs._version != rhs._version {return false}
     if lhs._errorMessage != rhs._errorMessage {return false}
-    if lhs._mtime != rhs._mtime {return false}
     if lhs._datatypeSpecificError != rhs._datatypeSpecificError {return false}
+    if lhs._attachmentModificationTimeUnixEpochMillis != rhs._attachmentModificationTimeUnixEpochMillis {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

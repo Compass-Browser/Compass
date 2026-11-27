@@ -68,17 +68,17 @@ public nonisolated struct SyncPb_CryptographerData: Sendable {
   /// Clears the value of `keyBag`. Subsequent reads from it will return its default value.
   public mutating func clearKeyBag() {self._keyBag = nil}
 
-  /// Default key is the key, that should be used for encryption. Can be empty
+  /// Primary key is the key that should be used for encryption. Can be empty
   /// in case we have pending keys (waiting for explicit passphrase, or client
   /// didn't received keystore keys).
-  public var defaultKeyName: String {
-    get {_defaultKeyName ?? String()}
-    set {_defaultKeyName = newValue}
+  public var primaryKeyName: String {
+    get {_primaryKeyName ?? String()}
+    set {_primaryKeyName = newValue}
   }
-  /// Returns true if `defaultKeyName` has been explicitly set.
-  public var hasDefaultKeyName: Bool {self._defaultKeyName != nil}
-  /// Clears the value of `defaultKeyName`. Subsequent reads from it will return its default value.
-  public mutating func clearDefaultKeyName() {self._defaultKeyName = nil}
+  /// Returns true if `primaryKeyName` has been explicitly set.
+  public var hasPrimaryKeyName: Bool {self._primaryKeyName != nil}
+  /// Clears the value of `primaryKeyName`. Subsequent reads from it will return its default value.
+  public mutating func clearPrimaryKeyName() {self._primaryKeyName = nil}
 
   /// Contains cross user sharing related keys.
   public var crossUserSharingKeys: SyncPb_CrossUserSharingKeys {
@@ -95,7 +95,7 @@ public nonisolated struct SyncPb_CryptographerData: Sendable {
   public init() {}
 
   fileprivate var _keyBag: SyncPb_LocalNigoriKeyBag? = nil
-  fileprivate var _defaultKeyName: String? = nil
+  fileprivate var _primaryKeyName: String? = nil
   fileprivate var _crossUserSharingKeys: SyncPb_CrossUserSharingKeys? = nil
 }
 
@@ -242,18 +242,6 @@ public nonisolated struct SyncPb_NigoriModel: @unchecked Sendable {
   /// Clears the value of `pendingKeystoreDecryptorToken`. Subsequent reads from it will return its default value.
   public mutating func clearPendingKeystoreDecryptorToken() {_uniqueStorage()._pendingKeystoreDecryptorToken = nil}
 
-  /// Contains the name of the latest available trusted vault key that was used
-  /// as the default encryption key. Resets when the client go out of pending
-  /// decryption state and transits to other passphrase types.
-  public var lastDefaultTrustedVaultKeyName: String {
-    get {_storage._lastDefaultTrustedVaultKeyName ?? String()}
-    set {_uniqueStorage()._lastDefaultTrustedVaultKeyName = newValue}
-  }
-  /// Returns true if `lastDefaultTrustedVaultKeyName` has been explicitly set.
-  public var hasLastDefaultTrustedVaultKeyName: Bool {_storage._lastDefaultTrustedVaultKeyName != nil}
-  /// Clears the value of `lastDefaultTrustedVaultKeyName`. Subsequent reads from it will return its default value.
-  public mutating func clearLastDefaultTrustedVaultKeyName() {_uniqueStorage()._lastDefaultTrustedVaultKeyName = nil}
-
   /// Some debug-only fields for passphrase type TRUSTED_VAULT_PASSPHRASE.
   public var trustedVaultDebugInfo: SyncPb_NigoriSpecifics.TrustedVaultDebugInfo {
     get {_storage._trustedVaultDebugInfo ?? SyncPb_NigoriSpecifics.TrustedVaultDebugInfo()}
@@ -394,7 +382,7 @@ nonisolated extension SyncPb_LocalNigoriKeyBag: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension SyncPb_CryptographerData: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CryptographerData"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_bag\0\u{3}default_key_name\0\u{3}cross_user_sharing_keys\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}key_bag\0\u{3}primary_key_name\0\u{3}cross_user_sharing_keys\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -403,7 +391,7 @@ nonisolated extension SyncPb_CryptographerData: SwiftProtobuf.Message, SwiftProt
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._keyBag) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self._defaultKeyName) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._primaryKeyName) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._crossUserSharingKeys) }()
       default: break
       }
@@ -418,7 +406,7 @@ nonisolated extension SyncPb_CryptographerData: SwiftProtobuf.Message, SwiftProt
     try { if let v = self._keyBag {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
-    try { if let v = self._defaultKeyName {
+    try { if let v = self._primaryKeyName {
       try visitor.visitSingularStringField(value: v, fieldNumber: 2)
     } }()
     try { if let v = self._crossUserSharingKeys {
@@ -429,7 +417,7 @@ nonisolated extension SyncPb_CryptographerData: SwiftProtobuf.Message, SwiftProt
 
   public static func ==(lhs: SyncPb_CryptographerData, rhs: SyncPb_CryptographerData) -> Bool {
     if lhs._keyBag != rhs._keyBag {return false}
-    if lhs._defaultKeyName != rhs._defaultKeyName {return false}
+    if lhs._primaryKeyName != rhs._primaryKeyName {return false}
     if lhs._crossUserSharingKeys != rhs._crossUserSharingKeys {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -477,7 +465,7 @@ nonisolated extension SyncPb_CustomPassphraseKeyDerivationParams: SwiftProtobuf.
 
 nonisolated extension SyncPb_NigoriModel: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NigoriModel"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}cryptographer_data\0\u{4}\u{2}pending_keys\0\u{3}passphrase_type\0\u{3}keystore_migration_time\0\u{3}custom_passphrase_time\0\u{3}custom_passphrase_key_derivation_params\0\u{3}encrypt_everything\0\u{3}encrypted_types_specifics_field_number\0\u{3}keystore_key\0\u{3}pending_keystore_decryptor_token\0\u{3}last_default_trusted_vault_key_name\0\u{3}trusted_vault_debug_info\0\u{3}cross_user_sharing_public_key\0\u{b}current_keystore_key_name\0\u{c}\u{2}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}cryptographer_data\0\u{4}\u{2}pending_keys\0\u{3}passphrase_type\0\u{3}keystore_migration_time\0\u{3}custom_passphrase_time\0\u{3}custom_passphrase_key_derivation_params\0\u{3}encrypt_everything\0\u{3}encrypted_types_specifics_field_number\0\u{3}keystore_key\0\u{3}pending_keystore_decryptor_token\0\u{4}\u{2}trusted_vault_debug_info\0\u{3}cross_user_sharing_public_key\0\u{b}current_keystore_key_name\0\u{b}last_default_trusted_vault_key_name\0\u{c}\u{2}\u{1}\u{c}\u{c}\u{1}")
 
   fileprivate class _StorageClass {
     var _cryptographerData: SyncPb_CryptographerData? = nil
@@ -490,7 +478,6 @@ nonisolated extension SyncPb_NigoriModel: SwiftProtobuf.Message, SwiftProtobuf._
     var _encryptedTypesSpecificsFieldNumber: [Int32] = []
     var _keystoreKey: [String] = []
     var _pendingKeystoreDecryptorToken: SyncPb_EncryptedData? = nil
-    var _lastDefaultTrustedVaultKeyName: String? = nil
     var _trustedVaultDebugInfo: SyncPb_NigoriSpecifics.TrustedVaultDebugInfo? = nil
     var _crossUserSharingPublicKey: SyncPb_CrossUserSharingPublicKey? = nil
 
@@ -513,7 +500,6 @@ nonisolated extension SyncPb_NigoriModel: SwiftProtobuf.Message, SwiftProtobuf._
       _encryptedTypesSpecificsFieldNumber = source._encryptedTypesSpecificsFieldNumber
       _keystoreKey = source._keystoreKey
       _pendingKeystoreDecryptorToken = source._pendingKeystoreDecryptorToken
-      _lastDefaultTrustedVaultKeyName = source._lastDefaultTrustedVaultKeyName
       _trustedVaultDebugInfo = source._trustedVaultDebugInfo
       _crossUserSharingPublicKey = source._crossUserSharingPublicKey
     }
@@ -544,7 +530,6 @@ nonisolated extension SyncPb_NigoriModel: SwiftProtobuf.Message, SwiftProtobuf._
         case 9: try { try decoder.decodeRepeatedInt32Field(value: &_storage._encryptedTypesSpecificsFieldNumber) }()
         case 10: try { try decoder.decodeRepeatedStringField(value: &_storage._keystoreKey) }()
         case 11: try { try decoder.decodeSingularMessageField(value: &_storage._pendingKeystoreDecryptorToken) }()
-        case 12: try { try decoder.decodeSingularStringField(value: &_storage._lastDefaultTrustedVaultKeyName) }()
         case 13: try { try decoder.decodeSingularMessageField(value: &_storage._trustedVaultDebugInfo) }()
         case 14: try { try decoder.decodeSingularMessageField(value: &_storage._crossUserSharingPublicKey) }()
         default: break
@@ -589,9 +574,6 @@ nonisolated extension SyncPb_NigoriModel: SwiftProtobuf.Message, SwiftProtobuf._
       try { if let v = _storage._pendingKeystoreDecryptorToken {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
       } }()
-      try { if let v = _storage._lastDefaultTrustedVaultKeyName {
-        try visitor.visitSingularStringField(value: v, fieldNumber: 12)
-      } }()
       try { if let v = _storage._trustedVaultDebugInfo {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
       } }()
@@ -617,7 +599,6 @@ nonisolated extension SyncPb_NigoriModel: SwiftProtobuf.Message, SwiftProtobuf._
         if _storage._encryptedTypesSpecificsFieldNumber != rhs_storage._encryptedTypesSpecificsFieldNumber {return false}
         if _storage._keystoreKey != rhs_storage._keystoreKey {return false}
         if _storage._pendingKeystoreDecryptorToken != rhs_storage._pendingKeystoreDecryptorToken {return false}
-        if _storage._lastDefaultTrustedVaultKeyName != rhs_storage._lastDefaultTrustedVaultKeyName {return false}
         if _storage._trustedVaultDebugInfo != rhs_storage._trustedVaultDebugInfo {return false}
         if _storage._crossUserSharingPublicKey != rhs_storage._crossUserSharingPublicKey {return false}
         return true

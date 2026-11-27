@@ -29,7 +29,7 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
-/// Access token wrapping an encrypted container key and key name.
+/// Access token wrapping an encrypted payload and key name.
 public nonisolated struct SyncPb_TabContextContainerAccessToken: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -44,14 +44,14 @@ public nonisolated struct SyncPb_TabContextContainerAccessToken: Sendable {
   /// Clears the value of `name`. Subsequent reads from it will return its default value.
   public mutating func clearName() {self._name = nil}
 
-  public var encryptedContainerKey: Data {
-    get {_encryptedContainerKey ?? Data()}
-    set {_encryptedContainerKey = newValue}
+  public var encryptedPayload: Data {
+    get {_encryptedPayload ?? Data()}
+    set {_encryptedPayload = newValue}
   }
-  /// Returns true if `encryptedContainerKey` has been explicitly set.
-  public var hasEncryptedContainerKey: Bool {self._encryptedContainerKey != nil}
-  /// Clears the value of `encryptedContainerKey`. Subsequent reads from it will return its default value.
-  public mutating func clearEncryptedContainerKey() {self._encryptedContainerKey = nil}
+  /// Returns true if `encryptedPayload` has been explicitly set.
+  public var hasEncryptedPayload: Bool {self._encryptedPayload != nil}
+  /// Clears the value of `encryptedPayload`. Subsequent reads from it will return its default value.
+  public mutating func clearEncryptedPayload() {self._encryptedPayload = nil}
 
   public var expireTime: SwiftProtobuf.Google_Protobuf_Timestamp {
     get {_expireTime ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
@@ -64,10 +64,33 @@ public nonisolated struct SyncPb_TabContextContainerAccessToken: Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
+  /// Plaintext structure serialized and encrypted into `encrypted_payload`
+  /// using the ephemeral key identified by `name`.
+  public nonisolated struct Payload: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var containerKey: SyncPb_AgileSymmetricKeySet {
+      get {_containerKey ?? SyncPb_AgileSymmetricKeySet()}
+      set {_containerKey = newValue}
+    }
+    /// Returns true if `containerKey` has been explicitly set.
+    public var hasContainerKey: Bool {self._containerKey != nil}
+    /// Clears the value of `containerKey`. Subsequent reads from it will return its default value.
+    public mutating func clearContainerKey() {self._containerKey = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _containerKey: SyncPb_AgileSymmetricKeySet? = nil
+  }
+
   public init() {}
 
   fileprivate var _name: String? = nil
-  fileprivate var _encryptedContainerKey: Data? = nil
+  fileprivate var _encryptedPayload: Data? = nil
   fileprivate var _expireTime: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
@@ -77,7 +100,7 @@ fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_TabContextContainerAccessToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".TabContextContainerAccessToken"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{3}encrypted_container_key\0\u{3}expire_time\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{3}encrypted_payload\0\u{3}expire_time\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -86,7 +109,7 @@ nonisolated extension SyncPb_TabContextContainerAccessToken: SwiftProtobuf.Messa
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self._name) }()
-      case 2: try { try decoder.decodeSingularBytesField(value: &self._encryptedContainerKey) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self._encryptedPayload) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._expireTime) }()
       default: break
       }
@@ -101,7 +124,7 @@ nonisolated extension SyncPb_TabContextContainerAccessToken: SwiftProtobuf.Messa
     try { if let v = self._name {
       try visitor.visitSingularStringField(value: v, fieldNumber: 1)
     } }()
-    try { if let v = self._encryptedContainerKey {
+    try { if let v = self._encryptedPayload {
       try visitor.visitSingularBytesField(value: v, fieldNumber: 2)
     } }()
     try { if let v = self._expireTime {
@@ -112,8 +135,42 @@ nonisolated extension SyncPb_TabContextContainerAccessToken: SwiftProtobuf.Messa
 
   public static func ==(lhs: SyncPb_TabContextContainerAccessToken, rhs: SyncPb_TabContextContainerAccessToken) -> Bool {
     if lhs._name != rhs._name {return false}
-    if lhs._encryptedContainerKey != rhs._encryptedContainerKey {return false}
+    if lhs._encryptedPayload != rhs._encryptedPayload {return false}
     if lhs._expireTime != rhs._expireTime {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_TabContextContainerAccessToken.Payload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = SyncPb_TabContextContainerAccessToken.protoMessageName + ".Payload"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}container_key\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._containerKey) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._containerKey {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_TabContextContainerAccessToken.Payload, rhs: SyncPb_TabContextContainerAccessToken.Payload) -> Bool {
+    if lhs._containerKey != rhs._containerKey {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

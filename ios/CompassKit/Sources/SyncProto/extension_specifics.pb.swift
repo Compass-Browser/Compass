@@ -158,6 +158,17 @@ public nonisolated struct SyncPb_ExtensionSpecifics: Sendable {
   /// crbug.com/372186532.
   public var disableReasonsList: [Int32] = []
 
+  /// Whether or not host permissions for the extension should be withheld
+  /// ("On click" vs. "Always on all sites").
+  public var withholdPermissions: Bool {
+    get {_withholdPermissions ?? false}
+    set {_withholdPermissions = newValue}
+  }
+  /// Returns true if `withholdPermissions` has been explicitly set.
+  public var hasWithholdPermissions: Bool {self._withholdPermissions != nil}
+  /// Clears the value of `withholdPermissions`. Subsequent reads from it will return its default value.
+  public mutating func clearWithholdPermissions() {self._withholdPermissions = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -172,6 +183,7 @@ public nonisolated struct SyncPb_ExtensionSpecifics: Sendable {
   fileprivate var _installedByCustodian: Bool? = nil
   fileprivate var _allUrlsEnabled: Bool? = nil
   fileprivate var _disableReasons: Int32? = nil
+  fileprivate var _withholdPermissions: Bool? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -180,7 +192,7 @@ fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_ExtensionSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ExtensionSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}version\0\u{3}update_url\0\u{1}enabled\0\u{3}incognito_enabled\0\u{1}name\0\u{3}remote_install\0\u{3}installed_by_custodian\0\u{3}all_urls_enabled\0\u{3}disable_reasons\0\u{3}disable_reasons_list\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}version\0\u{3}update_url\0\u{1}enabled\0\u{3}incognito_enabled\0\u{1}name\0\u{3}remote_install\0\u{3}installed_by_custodian\0\u{3}all_urls_enabled\0\u{3}disable_reasons\0\u{3}disable_reasons_list\0\u{3}withhold_permissions\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -199,6 +211,7 @@ nonisolated extension SyncPb_ExtensionSpecifics: SwiftProtobuf.Message, SwiftPro
       case 9: try { try decoder.decodeSingularBoolField(value: &self._allUrlsEnabled) }()
       case 10: try { try decoder.decodeSingularInt32Field(value: &self._disableReasons) }()
       case 11: try { try decoder.decodeRepeatedInt32Field(value: &self.disableReasonsList) }()
+      case 12: try { try decoder.decodeSingularBoolField(value: &self._withholdPermissions) }()
       default: break
       }
     }
@@ -242,6 +255,9 @@ nonisolated extension SyncPb_ExtensionSpecifics: SwiftProtobuf.Message, SwiftPro
     if !self.disableReasonsList.isEmpty {
       try visitor.visitRepeatedInt32Field(value: self.disableReasonsList, fieldNumber: 11)
     }
+    try { if let v = self._withholdPermissions {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 12)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -257,6 +273,7 @@ nonisolated extension SyncPb_ExtensionSpecifics: SwiftProtobuf.Message, SwiftPro
     if lhs._allUrlsEnabled != rhs._allUrlsEnabled {return false}
     if lhs._disableReasons != rhs._disableReasons {return false}
     if lhs.disableReasonsList != rhs.disableReasonsList {return false}
+    if lhs._withholdPermissions != rhs._withholdPermissions {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

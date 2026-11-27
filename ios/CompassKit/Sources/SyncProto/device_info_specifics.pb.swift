@@ -319,10 +319,10 @@ public nonisolated struct SyncPb_FeatureSpecificFields: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Tracks whether the SendTabToSelf feature is enabled on the device. For this
-  /// to be true, two things must be true: (1) The receiving side of the feature
-  /// must be enabled on the device (2) The user has enabled sync for this
-  /// feature.
+  /// Tracks whether the SendTabToSelf feature is enabled on the device.
+  /// Deprecated in M158; unconditionally true on Chrome clients since M101.
+  /// TODO(crbug.com/573435919): Reserve this field once M157 passes the Sync
+  /// client support horizon.
   public var sendTabToSelfReceivingEnabled: Bool {
     get {_sendTabToSelfReceivingEnabled ?? false}
     set {_sendTabToSelfReceivingEnabled = newValue}
@@ -722,12 +722,23 @@ public nonisolated struct SyncPb_PersonalContextSpecificFields: Sendable {
   /// Clears the value of `serializedTinkKeyset`. Subsequent reads from it will return its default value.
   public mutating func clearSerializedTinkKeyset() {self._serializedTinkKeyset = nil}
 
+  /// Whether the device is eligible for SPII (e.g. passport, driver's license).
+  public var eligibleForSpii: Bool {
+    get {_eligibleForSpii ?? false}
+    set {_eligibleForSpii = newValue}
+  }
+  /// Returns true if `eligibleForSpii` has been explicitly set.
+  public var hasEligibleForSpii: Bool {self._eligibleForSpii != nil}
+  /// Clears the value of `eligibleForSpii`. Subsequent reads from it will return its default value.
+  public mutating func clearEligibleForSpii() {self._eligibleForSpii = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _p256DhV2: Data? = nil
   fileprivate var _serializedTinkKeyset: Data? = nil
+  fileprivate var _eligibleForSpii: Bool? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -1294,7 +1305,7 @@ nonisolated extension SyncPb_GooglePlayServicesVersionInfo: SwiftProtobuf.Messag
 
 nonisolated extension SyncPb_PersonalContextSpecificFields: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PersonalContextSpecificFields"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}p256dh_v2\0\u{3}serialized_tink_keyset\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}p256dh_v2\0\u{3}serialized_tink_keyset\0\u{3}eligible_for_spii\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1304,6 +1315,7 @@ nonisolated extension SyncPb_PersonalContextSpecificFields: SwiftProtobuf.Messag
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBytesField(value: &self._p256DhV2) }()
       case 2: try { try decoder.decodeSingularBytesField(value: &self._serializedTinkKeyset) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self._eligibleForSpii) }()
       default: break
       }
     }
@@ -1320,12 +1332,16 @@ nonisolated extension SyncPb_PersonalContextSpecificFields: SwiftProtobuf.Messag
     try { if let v = self._serializedTinkKeyset {
       try visitor.visitSingularBytesField(value: v, fieldNumber: 2)
     } }()
+    try { if let v = self._eligibleForSpii {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: SyncPb_PersonalContextSpecificFields, rhs: SyncPb_PersonalContextSpecificFields) -> Bool {
     if lhs._p256DhV2 != rhs._p256DhV2 {return false}
     if lhs._serializedTinkKeyset != rhs._serializedTinkKeyset {return false}
+    if lhs._eligibleForSpii != rhs._eligibleForSpii {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

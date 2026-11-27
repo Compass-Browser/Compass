@@ -70,29 +70,6 @@ public nonisolated struct SyncPb_SyncCycleCompletedEventInfo: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// These new conflict counters replace the ones above.
-  /// TODO(crbug.com/40833583): Deprecated in M103.
-  ///
-  /// NOTE: This field was marked as deprecated in the .proto file.
-  public var numEncryptionConflicts: Int32 {
-    get {_numEncryptionConflicts ?? 0}
-    set {_numEncryptionConflicts = newValue}
-  }
-  /// Returns true if `numEncryptionConflicts` has been explicitly set.
-  public var hasNumEncryptionConflicts: Bool {self._numEncryptionConflicts != nil}
-  /// Clears the value of `numEncryptionConflicts`. Subsequent reads from it will return its default value.
-  public mutating func clearNumEncryptionConflicts() {self._numEncryptionConflicts = nil}
-
-  /// NOTE: This field was marked as deprecated in the .proto file.
-  public var numHierarchyConflicts: Int32 {
-    get {_numHierarchyConflicts ?? 0}
-    set {_numHierarchyConflicts = newValue}
-  }
-  /// Returns true if `numHierarchyConflicts` has been explicitly set.
-  public var hasNumHierarchyConflicts: Bool {self._numHierarchyConflicts != nil}
-  /// Clears the value of `numHierarchyConflicts`. Subsequent reads from it will return its default value.
-  public mutating func clearNumHierarchyConflicts() {self._numHierarchyConflicts = nil}
-
   /// No longer sent since M24.
   public var numSimpleConflicts: Int32 {
     get {_numSimpleConflicts ?? 0}
@@ -122,18 +99,6 @@ public nonisolated struct SyncPb_SyncCycleCompletedEventInfo: Sendable {
   /// Clears the value of `numUpdatesDownloaded`. Subsequent reads from it will return its default value.
   public mutating func clearNumUpdatesDownloaded() {self._numUpdatesDownloaded = nil}
 
-  /// TODO(crbug.com/40833583): Deprecated in M103.
-  ///
-  /// NOTE: This field was marked as deprecated in the .proto file.
-  public var numReflectedUpdatesDownloaded: Int32 {
-    get {_numReflectedUpdatesDownloaded ?? 0}
-    set {_numReflectedUpdatesDownloaded = newValue}
-  }
-  /// Returns true if `numReflectedUpdatesDownloaded` has been explicitly set.
-  public var hasNumReflectedUpdatesDownloaded: Bool {self._numReflectedUpdatesDownloaded != nil}
-  /// Clears the value of `numReflectedUpdatesDownloaded`. Subsequent reads from it will return its default value.
-  public mutating func clearNumReflectedUpdatesDownloaded() {self._numReflectedUpdatesDownloaded = nil}
-
   /// `caller_info` was mostly replaced by `get_updates_origin`; now it only
   /// contains the `notifications_enabled` flag.
   public var callerInfo: SyncPb_GetUpdatesCallerInfo {
@@ -158,12 +123,9 @@ public nonisolated struct SyncPb_SyncCycleCompletedEventInfo: Sendable {
 
   public init() {}
 
-  fileprivate var _numEncryptionConflicts: Int32? = nil
-  fileprivate var _numHierarchyConflicts: Int32? = nil
   fileprivate var _numSimpleConflicts: Int32? = nil
   fileprivate var _numServerConflicts: Int32? = nil
   fileprivate var _numUpdatesDownloaded: Int32? = nil
-  fileprivate var _numReflectedUpdatesDownloaded: Int32? = nil
   fileprivate var _callerInfo: SyncPb_GetUpdatesCallerInfo? = nil
   fileprivate var _getUpdatesOrigin: SyncPb_SyncEnums.GetUpdatesOrigin? = nil
 }
@@ -309,7 +271,7 @@ nonisolated extension SyncPb_TypeHint: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension SyncPb_SyncCycleCompletedEventInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SyncCycleCompletedEventInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{4}num_encryption_conflicts\0\u{3}num_hierarchy_conflicts\0\u{3}num_simple_conflicts\0\u{3}num_server_conflicts\0\u{3}num_updates_downloaded\0\u{3}num_reflected_updates_downloaded\0\u{3}caller_info\0\u{4}\u{2}get_updates_origin\0\u{b}syncer_stuck\0\u{b}num_blocking_conflicts\0\u{b}num_non_blocking_conflicts\0\u{b}source_info\0\u{c}\u{1}\u{1}\u{c}\u{2}\u{1}\u{c}\u{3}\u{1}\u{c}\u{b}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{6}num_simple_conflicts\0\u{3}num_server_conflicts\0\u{3}num_updates_downloaded\0\u{4}\u{2}caller_info\0\u{4}\u{2}get_updates_origin\0\u{b}syncer_stuck\0\u{b}num_blocking_conflicts\0\u{b}num_non_blocking_conflicts\0\u{b}num_encryption_conflicts\0\u{b}num_hierarchy_conflicts\0\u{b}num_reflected_updates_downloaded\0\u{b}source_info\0\u{c}\u{1}\u{1}\u{c}\u{2}\u{1}\u{c}\u{3}\u{1}\u{c}\u{4}\u{1}\u{c}\u{5}\u{1}\u{c}\u{9}\u{1}\u{c}\u{b}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -317,12 +279,9 @@ nonisolated extension SyncPb_SyncCycleCompletedEventInfo: SwiftProtobuf.Message,
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 4: try { try decoder.decodeSingularInt32Field(value: &self._numEncryptionConflicts) }()
-      case 5: try { try decoder.decodeSingularInt32Field(value: &self._numHierarchyConflicts) }()
       case 6: try { try decoder.decodeSingularInt32Field(value: &self._numSimpleConflicts) }()
       case 7: try { try decoder.decodeSingularInt32Field(value: &self._numServerConflicts) }()
       case 8: try { try decoder.decodeSingularInt32Field(value: &self._numUpdatesDownloaded) }()
-      case 9: try { try decoder.decodeSingularInt32Field(value: &self._numReflectedUpdatesDownloaded) }()
       case 10: try { try decoder.decodeSingularMessageField(value: &self._callerInfo) }()
       case 12: try { try decoder.decodeSingularEnumField(value: &self._getUpdatesOrigin) }()
       default: break
@@ -335,12 +294,6 @@ nonisolated extension SyncPb_SyncCycleCompletedEventInfo: SwiftProtobuf.Message,
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._numEncryptionConflicts {
-      try visitor.visitSingularInt32Field(value: v, fieldNumber: 4)
-    } }()
-    try { if let v = self._numHierarchyConflicts {
-      try visitor.visitSingularInt32Field(value: v, fieldNumber: 5)
-    } }()
     try { if let v = self._numSimpleConflicts {
       try visitor.visitSingularInt32Field(value: v, fieldNumber: 6)
     } }()
@@ -349,9 +302,6 @@ nonisolated extension SyncPb_SyncCycleCompletedEventInfo: SwiftProtobuf.Message,
     } }()
     try { if let v = self._numUpdatesDownloaded {
       try visitor.visitSingularInt32Field(value: v, fieldNumber: 8)
-    } }()
-    try { if let v = self._numReflectedUpdatesDownloaded {
-      try visitor.visitSingularInt32Field(value: v, fieldNumber: 9)
     } }()
     try { if let v = self._callerInfo {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
@@ -363,12 +313,9 @@ nonisolated extension SyncPb_SyncCycleCompletedEventInfo: SwiftProtobuf.Message,
   }
 
   public static func ==(lhs: SyncPb_SyncCycleCompletedEventInfo, rhs: SyncPb_SyncCycleCompletedEventInfo) -> Bool {
-    if lhs._numEncryptionConflicts != rhs._numEncryptionConflicts {return false}
-    if lhs._numHierarchyConflicts != rhs._numHierarchyConflicts {return false}
     if lhs._numSimpleConflicts != rhs._numSimpleConflicts {return false}
     if lhs._numServerConflicts != rhs._numServerConflicts {return false}
     if lhs._numUpdatesDownloaded != rhs._numUpdatesDownloaded {return false}
-    if lhs._numReflectedUpdatesDownloaded != rhs._numReflectedUpdatesDownloaded {return false}
     if lhs._callerInfo != rhs._callerInfo {return false}
     if lhs._getUpdatesOrigin != rhs._getUpdatesOrigin {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}

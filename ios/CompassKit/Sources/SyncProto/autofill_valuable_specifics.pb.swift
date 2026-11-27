@@ -1410,9 +1410,10 @@ public nonisolated struct SyncPb_AutofillValuableSpecifics: @unchecked Sendable 
 
   /// Opaque legal message token issued by Google Wallet. This token certifies
   /// that the user was shown the necessary notices and disclosures prior to
-  /// upserting the pass into Wallet. It is transient and only set during upsert
-  /// operations, never persisted. It will only exist for public non-readonly
-  /// passes.
+  /// upserting the pass into Wallet. It is only set during initial upsert
+  /// commits and is not persisted by the sync server or across clients (though
+  /// the client temporarily stores it in `EntityTable` until the commit
+  /// succeeds). It will only exist for public non-readonly passes.
   public var legalMessageToken: Data {
     get {_storage._legalMessageToken ?? Data()}
     set {_uniqueStorage()._legalMessageToken = newValue}

@@ -12,6 +12,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 import SwiftProtobuf
 
 // If the compiler emits an error on this type, it is because this file
@@ -48,12 +53,26 @@ public nonisolated struct SyncPb_EncryptedTabContextContainerSpecifics: Sendable
   /// Clears the value of `encryptionKey`. Subsequent reads from it will return its default value.
   public mutating func clearEncryptionKey() {self._encryptionKey = nil}
 
+  /// Present only for ephemeral containers, where `encryption_key` is not
+  /// uploaded to the Sync server. Contains a serialized
+  /// `TabContextContainerAccessToken` proto wrapping the container's encryption
+  /// key using a short-lived server-minted ephemeral key.
+  public var containerAccessToken: Data {
+    get {_containerAccessToken ?? Data()}
+    set {_containerAccessToken = newValue}
+  }
+  /// Returns true if `containerAccessToken` has been explicitly set.
+  public var hasContainerAccessToken: Bool {self._containerAccessToken != nil}
+  /// Clears the value of `containerAccessToken`. Subsequent reads from it will return its default value.
+  public mutating func clearContainerAccessToken() {self._containerAccessToken = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _uuid: String? = nil
   fileprivate var _encryptionKey: SyncPb_AgileSymmetricKeySet? = nil
+  fileprivate var _containerAccessToken: Data? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -62,7 +81,7 @@ fileprivate nonisolated let _protobuf_package = "sync_pb"
 
 nonisolated extension SyncPb_EncryptedTabContextContainerSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".EncryptedTabContextContainerSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{3}encryption_key\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{3}encryption_key\0\u{3}container_access_token\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -72,6 +91,7 @@ nonisolated extension SyncPb_EncryptedTabContextContainerSpecifics: SwiftProtobu
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self._uuid) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._encryptionKey) }()
+      case 3: try { try decoder.decodeSingularBytesField(value: &self._containerAccessToken) }()
       default: break
       }
     }
@@ -88,12 +108,16 @@ nonisolated extension SyncPb_EncryptedTabContextContainerSpecifics: SwiftProtobu
     try { if let v = self._encryptionKey {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    try { if let v = self._containerAccessToken {
+      try visitor.visitSingularBytesField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: SyncPb_EncryptedTabContextContainerSpecifics, rhs: SyncPb_EncryptedTabContextContainerSpecifics) -> Bool {
     if lhs._uuid != rhs._uuid {return false}
     if lhs._encryptionKey != rhs._encryptionKey {return false}
+    if lhs._containerAccessToken != rhs._containerAccessToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -290,6 +290,17 @@ public nonisolated struct SyncPb_CompassSpace: Sendable {
   /// Clears the value of `appearance`. Subsequent reads from it will return its default value.
   public mutating func clearAppearance() {self._appearance = nil}
 
+  /// How much of what's behind the window shows through the sidebar and the
+  /// frame, 0 to 1; absent = 0 (opaque).
+  public var translucency: Double {
+    get {_translucency ?? 0}
+    set {_translucency = newValue}
+  }
+  /// Returns true if `translucency` has been explicitly set.
+  public var hasTranslucency: Bool {self._translucency != nil}
+  /// Clears the value of `translucency`. Subsequent reads from it will return its default value.
+  public mutating func clearTranslucency() {self._translucency = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -305,6 +316,7 @@ public nonisolated struct SyncPb_CompassSpace: Sendable {
   fileprivate var _intensity: Double? = nil
   fileprivate var _grain: Double? = nil
   fileprivate var _appearance: Int32? = nil
+  fileprivate var _translucency: Double? = nil
 }
 
 /// A color of a space's gradient.
@@ -2003,7 +2015,7 @@ nonisolated extension SyncPb_CompassSpacesSpecifics: SwiftProtobuf.Message, Swif
 
 nonisolated extension SyncPb_CompassSpace: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompassSpace"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}name\0\u{1}color\0\u{1}icon\0\u{3}directory_position\0\u{3}profile_uuid\0\u{3}archive_after_seconds\0\u{3}color_rgb\0\u{1}gradient\0\u{1}intensity\0\u{1}grain\0\u{1}appearance\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}name\0\u{1}color\0\u{1}icon\0\u{3}directory_position\0\u{3}profile_uuid\0\u{3}archive_after_seconds\0\u{3}color_rgb\0\u{1}gradient\0\u{1}intensity\0\u{1}grain\0\u{1}appearance\0\u{1}translucency\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2023,6 +2035,7 @@ nonisolated extension SyncPb_CompassSpace: SwiftProtobuf.Message, SwiftProtobuf.
       case 10: try { try decoder.decodeSingularDoubleField(value: &self._intensity) }()
       case 11: try { try decoder.decodeSingularDoubleField(value: &self._grain) }()
       case 12: try { try decoder.decodeSingularInt32Field(value: &self._appearance) }()
+      case 13: try { try decoder.decodeSingularDoubleField(value: &self._translucency) }()
       default: break
       }
     }
@@ -2069,6 +2082,9 @@ nonisolated extension SyncPb_CompassSpace: SwiftProtobuf.Message, SwiftProtobuf.
     try { if let v = self._appearance {
       try visitor.visitSingularInt32Field(value: v, fieldNumber: 12)
     } }()
+    try { if let v = self._translucency {
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 13)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2085,6 +2101,7 @@ nonisolated extension SyncPb_CompassSpace: SwiftProtobuf.Message, SwiftProtobuf.
     if lhs._intensity != rhs._intensity {return false}
     if lhs._grain != rhs._grain {return false}
     if lhs._appearance != rhs._appearance {return false}
+    if lhs._translucency != rhs._translucency {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

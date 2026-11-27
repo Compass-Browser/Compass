@@ -118,17 +118,7 @@ public nonisolated struct SyncPb_AutofillEntitySuppressionSpecifics: Sendable {
   /// Clears the value of `entitySuppressionKey`. Subsequent reads from it will return its default value.
   public mutating func clearEntitySuppressionKey() {self._entitySuppressionKey = nil}
 
-  /// Schema version when suppressed.
-  public var schemaVersion: Int32 {
-    get {_schemaVersion ?? 0}
-    set {_schemaVersion = newValue}
-  }
-  /// Returns true if `schemaVersion` has been explicitly set.
-  public var hasSchemaVersion: Bool {self._schemaVersion != nil}
-  /// Clears the value of `schemaVersion`. Subsequent reads from it will return its default value.
-  public mutating func clearSchemaVersion() {self._schemaVersion = nil}
-
-  /// The time the suppression was created.
+  /// The time the metadata entry was created.
   public var creationTimeWindowsEpochMicros: Int64 {
     get {_creationTimeWindowsEpochMicros ?? 0}
     set {_creationTimeWindowsEpochMicros = newValue}
@@ -139,7 +129,10 @@ public nonisolated struct SyncPb_AutofillEntitySuppressionSpecifics: Sendable {
   public mutating func clearCreationTimeWindowsEpochMicros() {self._creationTimeWindowsEpochMicros = nil}
 
   /// The leading bits of a SHA-256 hash of the entity type and the merge
-  /// constraint values of the suppressed entity.
+  /// constraint values of the suppressed entity. Deprecated in M159; replaced by
+  /// `suppression`.
+  ///
+  /// NOTE: This field was marked as deprecated in the .proto file.
   public var entitySuppressionHash: UInt32 {
     get {_entitySuppressionHash ?? 0}
     set {_entitySuppressionHash = newValue}
@@ -149,13 +142,88 @@ public nonisolated struct SyncPb_AutofillEntitySuppressionSpecifics: Sendable {
   /// Clears the value of `entitySuppressionHash`. Subsequent reads from it will return its default value.
   public mutating func clearEntitySuppressionHash() {self._entitySuppressionHash = nil}
 
+  public var metadataEntry: SyncPb_AutofillEntitySuppressionSpecifics.OneOf_MetadataEntry? = nil
+
+  /// Metadata for an entity whose suggestions were suppressed by the user.
+  /// Replaces `entity_suppression_hash` in M159.
+  public var suppression: SyncPb_AutofillEntitySuppressionSpecifics.Suppression {
+    get {
+      if case .suppression(let v)? = metadataEntry {return v}
+      return SyncPb_AutofillEntitySuppressionSpecifics.Suppression()
+    }
+    set {metadataEntry = .suppression(newValue)}
+  }
+
+  /// Metadata for an entity whose extracted values were confirmed by the user.
+  public var confirmation: SyncPb_AutofillEntitySuppressionSpecifics.Confirmation {
+    get {
+      if case .confirmation(let v)? = metadataEntry {return v}
+      return SyncPb_AutofillEntitySuppressionSpecifics.Confirmation()
+    }
+    set {metadataEntry = .confirmation(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public nonisolated enum OneOf_MetadataEntry: Equatable, Sendable {
+    /// Metadata for an entity whose suggestions were suppressed by the user.
+    /// Replaces `entity_suppression_hash` in M159.
+    case suppression(SyncPb_AutofillEntitySuppressionSpecifics.Suppression)
+    /// Metadata for an entity whose extracted values were confirmed by the user.
+    case confirmation(SyncPb_AutofillEntitySuppressionSpecifics.Confirmation)
+
+  }
+
+  public nonisolated struct Suppression: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// The leading bits of a SHA-256 hash of the entity type and the merge
+    /// constraint values of the suppressed entity.
+    public var hash: UInt32 {
+      get {_hash ?? 0}
+      set {_hash = newValue}
+    }
+    /// Returns true if `hash` has been explicitly set.
+    public var hasHash: Bool {self._hash != nil}
+    /// Clears the value of `hash`. Subsequent reads from it will return its default value.
+    public mutating func clearHash() {self._hash = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _hash: UInt32? = nil
+  }
+
+  public nonisolated struct Confirmation: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// The leading bits of a SHA-256 hash of the entity type and the attribute
+    /// types and values of the user-confirmed entity.
+    public var hash: UInt32 {
+      get {_hash ?? 0}
+      set {_hash = newValue}
+    }
+    /// Returns true if `hash` has been explicitly set.
+    public var hasHash: Bool {self._hash != nil}
+    /// Clears the value of `hash`. Subsequent reads from it will return its default value.
+    public mutating func clearHash() {self._hash = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _hash: UInt32? = nil
+  }
 
   public init() {}
 
   fileprivate var _guid: String? = nil
   fileprivate var _entitySuppressionKey: SyncPb_EntitySuppressionKey? = nil
-  fileprivate var _schemaVersion: Int32? = nil
   fileprivate var _creationTimeWindowsEpochMicros: Int64? = nil
   fileprivate var _entitySuppressionHash: UInt32? = nil
 }
@@ -244,7 +312,7 @@ nonisolated extension SyncPb_EntitySuppressionKey.Attribute: SwiftProtobuf.Messa
 
 nonisolated extension SyncPb_AutofillEntitySuppressionSpecifics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AutofillEntitySuppressionSpecifics"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}guid\0\u{3}entity_suppression_key\0\u{3}schema_version\0\u{3}creation_time_windows_epoch_micros\0\u{3}entity_suppression_hash\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}guid\0\u{3}entity_suppression_key\0\u{4}\u{2}creation_time_windows_epoch_micros\0\u{3}entity_suppression_hash\0\u{1}suppression\0\u{1}confirmation\0\u{b}schema_version\0\u{c}\u{3}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -254,9 +322,34 @@ nonisolated extension SyncPb_AutofillEntitySuppressionSpecifics: SwiftProtobuf.M
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self._guid) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._entitySuppressionKey) }()
-      case 3: try { try decoder.decodeSingularInt32Field(value: &self._schemaVersion) }()
       case 4: try { try decoder.decodeSingularInt64Field(value: &self._creationTimeWindowsEpochMicros) }()
       case 5: try { try decoder.decodeSingularUInt32Field(value: &self._entitySuppressionHash) }()
+      case 6: try {
+        var v: SyncPb_AutofillEntitySuppressionSpecifics.Suppression?
+        var hadOneofValue = false
+        if let current = self.metadataEntry {
+          hadOneofValue = true
+          if case .suppression(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.metadataEntry = .suppression(v)
+        }
+      }()
+      case 7: try {
+        var v: SyncPb_AutofillEntitySuppressionSpecifics.Confirmation?
+        var hadOneofValue = false
+        if let current = self.metadataEntry {
+          hadOneofValue = true
+          if case .confirmation(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.metadataEntry = .confirmation(v)
+        }
+      }()
       default: break
       }
     }
@@ -273,24 +366,100 @@ nonisolated extension SyncPb_AutofillEntitySuppressionSpecifics: SwiftProtobuf.M
     try { if let v = self._entitySuppressionKey {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
-    try { if let v = self._schemaVersion {
-      try visitor.visitSingularInt32Field(value: v, fieldNumber: 3)
-    } }()
     try { if let v = self._creationTimeWindowsEpochMicros {
       try visitor.visitSingularInt64Field(value: v, fieldNumber: 4)
     } }()
     try { if let v = self._entitySuppressionHash {
       try visitor.visitSingularUInt32Field(value: v, fieldNumber: 5)
     } }()
+    switch self.metadataEntry {
+    case .suppression?: try {
+      guard case .suppression(let v)? = self.metadataEntry else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    }()
+    case .confirmation?: try {
+      guard case .confirmation(let v)? = self.metadataEntry else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    }()
+    case nil: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: SyncPb_AutofillEntitySuppressionSpecifics, rhs: SyncPb_AutofillEntitySuppressionSpecifics) -> Bool {
     if lhs._guid != rhs._guid {return false}
     if lhs._entitySuppressionKey != rhs._entitySuppressionKey {return false}
-    if lhs._schemaVersion != rhs._schemaVersion {return false}
     if lhs._creationTimeWindowsEpochMicros != rhs._creationTimeWindowsEpochMicros {return false}
     if lhs._entitySuppressionHash != rhs._entitySuppressionHash {return false}
+    if lhs.metadataEntry != rhs.metadataEntry {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_AutofillEntitySuppressionSpecifics.Suppression: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = SyncPb_AutofillEntitySuppressionSpecifics.protoMessageName + ".Suppression"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self._hash) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._hash {
+      try visitor.visitSingularUInt32Field(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_AutofillEntitySuppressionSpecifics.Suppression, rhs: SyncPb_AutofillEntitySuppressionSpecifics.Suppression) -> Bool {
+    if lhs._hash != rhs._hash {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension SyncPb_AutofillEntitySuppressionSpecifics.Confirmation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = SyncPb_AutofillEntitySuppressionSpecifics.protoMessageName + ".Confirmation"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self._hash) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._hash {
+      try visitor.visitSingularUInt32Field(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: SyncPb_AutofillEntitySuppressionSpecifics.Confirmation, rhs: SyncPb_AutofillEntitySuppressionSpecifics.Confirmation) -> Bool {
+    if lhs._hash != rhs._hash {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
