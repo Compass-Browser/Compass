@@ -68,6 +68,13 @@ void RegisterFeatureOverrides(variations::FeatureOverrides& overrides) {
   // upstream's session restore.
   overrides.DisableFeature(features::kSessionRestoreInfobar);
 #endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  // No "Make Compass your default PDF viewer?" infobar, at startup or on a
+  // PDF: Compass doesn't nag about defaults (the default browser prompt is
+  // off too, chromium_src/.../default_browser_prompt.cc).
+  overrides.DisableFeature(features::kPdfInfoBar);
+#endif
 }
 
 }  // namespace compass
