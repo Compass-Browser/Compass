@@ -1,6 +1,5 @@
-Compass in italiano, e un'AI che risponde nella tua lingua.
+Sincronizzazione con Compass su Chromium 159.
 
-- Con l'italiano come lingua dell'iPhone (o di Compass, in Impostazioni › App › Compass › Lingua), tutto Compass è in italiano: la barra laterale, la barra dei comandi, il menu della pagina, le Impostazioni, la sincronizzazione, i widget e l'estensione di condivisione.
-- La chat con l'AI risponde nella lingua in cui scrivi, o in quella dell'iPhone quando non è chiara.
-- La barra dei comandi e la chat dicono "Chiedi a Claude", "Chiedi a GPT", "Chiedi a Gemini" o "Chiedi all'AI" a seconda del provider scelto, e le Impostazioni la chiamano "l'AI".
-- Segnalaci: testi ancora in inglese, italiano che suona male o viene tagliato, e pulsanti che non ci stanno più.
+- Compass per Mac, Windows, Linux e Android ora è basato su Chromium 159; la sincronizzazione di questa build parla il suo protocollo aggiornato.
+- Gli spazi mantengono la loro trasparenza (impostata nell'editor del tema di uno spazio sul computer) quando si sincronizzano tramite questo iPhone.
+- Controlla, con un Compass per computer o Android alla 20261127.0209: spazi, elementi fissati e Oggi, cronologia e Invia ai tuoi dispositivi, in entrambe le direzioni. Segnalaci ciò che non arriva, arriva due volte o ricompare dopo averlo eliminato.
