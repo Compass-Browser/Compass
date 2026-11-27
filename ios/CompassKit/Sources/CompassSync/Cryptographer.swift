@@ -56,7 +56,9 @@ public struct Cryptographer: Sendable {
       throw CryptographerError.malformedKeybag
     }
     let keys = decoded.key.compactMap {
-      Nigori(encryptionKey: $0.encryptionKey, macKey: $0.macKey, userKey: $0.deprecatedUserKey)
+      // Chromium 159 dropped NigoriKey's deprecated name and user key; 157
+      // already ignored a missing one, so neither is read or written.
+      Nigori(encryptionKey: $0.encryptionKey, macKey: $0.macKey)
     }
     self.init(keys: keys, defaultKeyName: keybag.keyName)
     guard self.keys[defaultKeyName] != nil else { throw CryptographerError.malformedKeybag }
@@ -74,8 +76,6 @@ public struct Cryptographer: Sendable {
 
     var keys = SyncPb_EncryptionKeys()
     var proto = SyncPb_NigoriKey()
-    proto.deprecatedName = key.keyName
-    proto.deprecatedUserKey = key.userKey ?? Data(count: Nigori.keySize)
     proto.encryptionKey = key.encryptionKey
     proto.macKey = key.macKey
     keys.key = [proto]

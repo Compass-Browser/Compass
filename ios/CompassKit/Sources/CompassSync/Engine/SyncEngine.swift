@@ -378,7 +378,8 @@ public actor SyncEngine {
           }
           meta.serverID = entry.idString
           meta.baseVersion = entry.version
-          meta.serverMtime = entry.mtime
+          // Chromium 159's EntryResponse has no mtime; the next update's
+          // entity brings it (above).
           if meta.sequence == sent.sequence { meta.pending = nil }
         case .conflict:
           needsRefetch = true
