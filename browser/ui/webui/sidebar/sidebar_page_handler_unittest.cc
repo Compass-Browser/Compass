@@ -172,10 +172,6 @@ class FakePage : public sidebar::mojom::Page {
   void ActiveNodeChanged(const std::optional<std::string>& id) override {
     events_.push_back("active " + (id ? hosts_[*id] : "none"));
   }
-  void SetArchive(
-      std::vector<sidebar::mojom::ArchivedEntryPtr> entries) override {
-    archive_ = std::move(entries);
-  }
   void StartRename(const std::string& id) override {
     events_.push_back("rename " + id);
   }
@@ -203,9 +199,6 @@ class FakePage : public sidebar::mojom::Page {
   // Space names, comma separated, the window's in brackets, other profiles'
   // starred.
   const std::string& spaces() const { return spaces_; }
-  const std::vector<sidebar::mojom::ArchivedEntryPtr>& archive() const {
-    return archive_;
-  }
   uint32_t archive_after_hours() const { return archive_after_hours_; }
   bool synced() const { return synced_; }
   bool tidy_available() const { return tidy_available_; }
@@ -239,7 +232,6 @@ class FakePage : public sidebar::mojom::Page {
   std::vector<std::string> toasts_;
   int32_t last_undo_tidy_id_ = 0;
   std::vector<sidebar::mojom::ProfileOptionPtr> profiles_;
-  std::vector<sidebar::mojom::ArchivedEntryPtr> archive_;
 };
 
 std::vector<std::string> Hosts(const sidebar::mojom::Node& parent) {
@@ -1115,7 +1107,7 @@ TEST_F(SidebarPageHandlerTest, SetSpaceSynced) {
   EXPECT_TRUE(space_model().synced());
 }
 
-TEST_F(SidebarPageHandlerTest, ArchivesAndRestores) {
+TEST_F(SidebarPageHandlerTest, SetsTheArchiveDelay) {
   const std::string id = space_model().id().AsLowercaseString();
   EXPECT_EQ(page_.archive_after_hours(), 12u);
   handler_remote_->SetArchiveAfter(id, 24);
@@ -1124,30 +1116,6 @@ TEST_F(SidebarPageHandlerTest, ArchivesAndRestores) {
   Settle();
   EXPECT_EQ(page_.archive_after_hours(), 24u);
   EXPECT_EQ(space_model().archive_after(), base::Hours(24));
-
-  // b.test isn't shown.
-  space_model().Archive(space_model().today_root()->children()[1].get(),
-                        base::Time::Now());
-  Settle();
-  ASSERT_EQ(page_.archive().size(), 1u);
-  EXPECT_EQ(page_.archive()[0]->tabs[0]->url, GURL("https://b.test/"));
-  EXPECT_EQ(tab_strip_model()->count(), 1);
-
-  handler_remote_->RestoreArchived(page_.archive()[0]->id);
-  Settle();
-  EXPECT_THAT(page_.archive(), IsEmpty());
-  ASSERT_EQ(space_model().today_root()->children().size(), 2u);
-  EXPECT_EQ(tab_strip_model()->count(), 2);
-  EXPECT_EQ(tab_strip_model()->GetActiveWebContents()->GetVisibleURL(),
-            GURL("https://b.test/"));
-
-  space_model().Archive(space_model().today_root()->children()[1].get(),
-                        base::Time::Now());
-  Settle();
-  ASSERT_EQ(page_.archive().size(), 1u);
-  handler_remote_->ClearArchive();
-  Settle();
-  EXPECT_THAT(page_.archive(), IsEmpty());
 }
 
 TEST_F(SidebarPageHandlerTest, SendsTheFavoritesInTheTree) {

@@ -88,6 +88,7 @@
 #include "compass/browser/ui/views/sidebar/sidebar_context_menu.h"
 #include "compass/browser/ui/views/sidebar/sidebar_hover_card.h"
 #include "compass/browser/ui/views/sidebar/tab_preview_view.h"
+#include "compass/browser/ui/views/archive_bubble/archive_bubble.h"
 #include "compass/browser/ui/views/space_editor_bubble/space_editor_bubble.h"
 #include "compass/browser/live_folders/live_plugin_package.h"
 #include "compass/browser/ui/live_folders/live_folder_service.h"
@@ -3485,13 +3486,21 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ArchivePanel) {
                                                     .Append("Two")
                                                     .Append("Three"))));
 
-  // The panel lists it; clicking it brings it back.
-  EXPECT_EQ("One", content::EvalJs(contents, R"(
+  // The archive button opens the bubble, which lists it; clicking it
+  // brings it back and closes the bubble.
+  ASSERT_TRUE(content::ExecJs(contents, R"(
+      document.querySelector('compass-sidebar-app').shadowRoot
+          .querySelector('#archiveButton').click();)"));
+  ASSERT_TRUE(base::test::RunUntil([] {
+    content::WebContents* bubble = GetArchiveContentsForTesting();
+    return bubble && content::WaitForLoadStop(bubble);
+  }));
+  EXPECT_EQ("One", content::EvalJs(GetArchiveContentsForTesting(), R"(
     (async () => {
-      const root = document.querySelector('compass-sidebar-app').shadowRoot;
-      root.querySelector('#archiveButton').click();
+      const root = () =>
+          document.querySelector('compass-archive-app').shadowRoot;
       let entry;
-      while (!(entry = root.querySelector('.archived'))) {
+      while (!(entry = root().querySelector('.archived'))) {
         await new Promise(r => setTimeout(r, 20));
       }
       const title = entry.title;
@@ -3503,6 +3512,8 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ArchivePanel) {
            tabs->GetActiveWebContents()->GetTitle() == u"One";
   }));
   EXPECT_TRUE(model.archive().empty());
+  EXPECT_TRUE(
+      base::test::RunUntil([] { return !GetArchiveContentsForTesting(); }));
 }
 
 // Window sync across real windows (docs/design/sidebar.md, "Window sync").

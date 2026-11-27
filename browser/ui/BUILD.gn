@@ -120,6 +120,8 @@ source_set("ui") {
     "views/sidebar/space_icon_image.h",
     "views/sidebar/tab_preview_view.cc",
     "views/sidebar/tab_preview_view.h",
+    "views/archive_bubble/archive_bubble.cc",
+    "views/archive_bubble/archive_bubble.h",
     "views/live_folder_editor_bubble/live_folder_editor_bubble.cc",
     "views/live_folder_editor_bubble/live_folder_editor_bubble.h",
     "views/space_editor_bubble/space_editor_bubble.cc",
@@ -185,6 +187,8 @@ source_set("ui") {
     "webui/sidebar/space_mojo.h",
     "webui/sidebar/update_notice.cc",
     "webui/sidebar/update_notice.h",
+    "webui/archive/archive_ui.cc",
+    "webui/archive/archive_ui.h",
     "webui/live_folder_editor/live_folder_editor_ui.cc",
     "webui/live_folder_editor/live_folder_editor_ui.h",
     "webui/space_editor/space_editor_ui.cc",
@@ -205,6 +209,7 @@ source_set("ui") {
 
     # chrome://easel, which the registry adds
     # (webui/compass_web_ui_registry.cc).
+    "//compass/browser/ui/webui/archive:mojo_bindings",
     "//compass/browser/ui/webui/bubble:mojo_bindings",
     "//compass/browser/ui/webui/easel",
     "//compass/browser/ui/webui/find_bar:mojo_bindings",
@@ -613,6 +618,7 @@ source_set("browser_tests") {
     "views/share_bubble/share_bubble_browsertest.cc",
     "views/sidebar/compass_sidebar_browsertest.cc",
     "views/sidebar/sidebar_header_browsertest.cc",
+    "views/archive_bubble/archive_bubble_browsertest.cc",
     "views/live_folder_editor_bubble/live_folder_editor_bubble_browsertest.cc",
     "views/space_editor_bubble/space_editor_bubble_browsertest.cc",
     "webui/claude/claude_settings_handler_browsertest.cc",

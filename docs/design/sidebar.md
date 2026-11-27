@@ -591,19 +591,29 @@ yet; that wants SQLite (D12).
 **Restoring** puts the entry back at the end of Today, unloaded, and opens it
 in the foreground (a split opens its first pane).
 
-**UI.** Today gets a header with an archive button. It opens a panel over the
-sections with the archived entries, their age, a × to drop one and Clear.
+**UI.** Today gets a header with an archive button. It opens the archive in a
+bubble beside the sidebar, pointing at the button, in the space editor's look
+(chrome://compass-archive; `browser/ui/views/archive_bubble/`,
+`browser/ui/webui/archive/`, `resources/sidebar/archive/`): the archived
+entries with their age, × on the row under the pointer to drop one, and Clear.
+Clicking one brings it back and closes the bubble; the button again, or Esc,
+closes it. Empty, it says when entries are archived. The bubble follows the
+window to another space.
 The space editor (spaces.md, "UI") has "Archive Today tabs after": 12 hours, 24 hours, 7 days,
 30 days or never. The file stores it as `"archive_after_hours"` (0 for never).
 
 Mojo: `Space.archive_after_hours`; `PageHandler.SetArchiveAfter(space_id,
-hours)`, `RestoreArchived(id)`, `RemoveArchived(id)`, `ClearArchive()`;
-`Page.SetArchive(entries)`, sent after the tree and on every change.
+hours)` and `ToggleArchive(rect)`. The bubble's `archive.mojom`:
+`GetArchive()` (entries and the delay), `RestoreArchived(id)`,
+`RemoveArchived(id)`, `ClearArchive()`, and `Page.ArchiveChanged()` on every
+change or space switch.
 
 **Tests:** model (idle entries, splits, never, the cap, restoring),
 serializer (last active, delay and archive round trip; older files get the
-default), a bridge test (unseen tabs close and archive, the shown one stays)
-and a page handler test.
+default), a bridge test (unseen tabs close and archive, the shown one stays),
+a page handler test for the delay, `ArchiveBubbleBrowserTest` (empty hint,
+toggling) and `CompassSidebarBrowserTest.ArchivePanel` (restoring from the
+bubble).
 
 ## Undo closing
 

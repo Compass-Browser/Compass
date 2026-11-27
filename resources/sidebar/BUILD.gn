@@ -17,6 +17,7 @@ build_webui("build") {
     "arc_import.html",
     "boosts.html",
     "claude_chat.html",
+    "archive.html",
     "command_bar.html",
     "compass_sync.html",
     "empty.html",
@@ -35,6 +36,9 @@ build_webui("build") {
   ts_files = [
     "app.html.ts",
     "app.ts",
+    "archive/app.html.ts",
+    "archive/app.ts",
+    "archive/browser_proxy.ts",
     "browser_proxy.ts",
     "bubble_look.ts",
     "claude_chat/app.html.ts",
@@ -126,6 +130,7 @@ build_webui("build") {
 
   css_files = [
     "app.css",
+    "archive/app.css",
     "claude_chat/app.css",
     "claude_chat/turn.css",
     "command_bar/app.css",
@@ -151,6 +156,7 @@ build_webui("build") {
   ]
 
   mojo_files_deps = [
+    "//compass/browser/ui/webui/archive:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/bubble:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/claude:mojo_bindings_ts__generator",
     "//compass/browser/ui/webui/command_bar:mojo_bindings_ts__generator",
@@ -163,6 +169,7 @@ build_webui("build") {
     "//compass/browser/ui/webui/sync:mojo_bindings_ts__generator",
   ]
   mojo_files = [
+    "$root_gen_dir/compass/browser/ui/webui/archive/archive.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/bubble/bubble.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/claude/chat.mojom-webui.ts",
     "$root_gen_dir/compass/browser/ui/webui/claude/claude.mojom-webui.ts",

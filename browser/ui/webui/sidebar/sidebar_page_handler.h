@@ -224,9 +224,10 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
 
   // rooms::RoomService::Observer:
   void OnRoomsChanged() override;
-  void RestoreArchived(const std::string& id) override;
-  void RemoveArchived(const std::string& id) override;
-  void ClearArchive() override;
+  void ToggleArchive(int32_t x,
+                     int32_t y,
+                     int32_t width,
+                     int32_t height) override;
   void ShowHoverCard(const std::string& id,
                      int32_t row_top,
                      int32_t row_height) override;
@@ -286,7 +287,6 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   void OnNodeShortTitleChanged(const SidebarNode& node) override;
   void OnNodeWillBeRemoved(const SidebarNode& node) override;
   void OnNodeWillMoveToSpace(const SidebarNode& node) override;
-  void OnArchiveChanged(const SpaceModel& space) override;
 
   // SpaceList::Observer:
   void OnSpaceAdded(SpaceModel& space) override;
@@ -357,7 +357,6 @@ class SidebarPageHandler : public sidebar::mojom::PageHandler,
   // Node.badge_count for |node|'s live tab in |registry|.
   int32_t BadgeCount(const SidebarNode& node, const LiveTabRegistry& registry);
   void SendSpaces();
-  void SendArchive();
   // The devices |url| can be sent to, most recently active first, or none
   // if sync doesn't offer sending it.
   std::vector<syncer::RemoteDeviceInfo> GetSendTargets(

@@ -1,0 +1,40 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// chrome://compass-archive/: the window's space's archived Today entries, in
+// a bubble beside the sidebar, pointing at Today's archive button
+// (docs/design/sidebar.md, "Today auto-archive").
+module compass.archive.mojom;
+
+import "compass/browser/ui/webui/bubble/bubble.mojom";
+import "compass/browser/ui/webui/sidebar/sidebar.mojom";
+
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};
+
+interface PageHandler {
+  // The window's space's archived entries, most recent first, and how long
+  // a Today entry may go unseen before it's archived (0: never).
+  GetArchive() => (array<compass.sidebar.mojom.ArchivedEntry> entries,
+                   uint32 archive_after_hours);
+  // Puts the entry back at the end of Today, opens it in the foreground and
+  // closes the bubble.
+  RestoreArchived(string id);
+  RemoveArchived(string id);
+  ClearArchive();
+
+  GetLook() => (compass.bubble.mojom.Look look);
+  // The list is drawn: the bubble shows (it's hidden until then).
+  ShowUI();
+  // Closes the bubble.
+  Close();
+};
+
+interface Page {
+  // The archive changed, or the window shows another space: the page asks
+  // again.
+  ArchiveChanged();
+};

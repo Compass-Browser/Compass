@@ -48,6 +48,7 @@
 #include "compass/browser/sync/compass_sync_service_factory.h"
 #include "compass/browser/ui/easels/easel_capture.h"
 #include "compass/browser/ui/live_folders/live_plugin_registry.h"
+#include "compass/browser/ui/views/archive_bubble/archive_bubble.h"
 #include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/little_window/little_window.h"
@@ -359,7 +360,6 @@ void SidebarPageHandler::RequestTree() {
         id.AsLowercaseString(),
         ToMojoLiveState(service ? service->GetState(id) : nullptr));
   }
-  SendArchive();
   SendNowPlaying();
   SendUpdateReady();
   SendTidyState(/*force=*/true);
@@ -837,35 +837,14 @@ void SidebarPageHandler::SetSpaceSynced(const std::string& space_id,
   }
 }
 
-void SidebarPageHandler::RestoreArchived(const std::string& id) {
-  const base::Uuid uuid = base::Uuid::ParseLowercase(id);
-  if (!uuid.is_valid()) {
-    return;
+void SidebarPageHandler::ToggleArchive(int32_t x,
+                                       int32_t y,
+                                       int32_t width,
+                                       int32_t height) {
+  if (SidebarContextMenu* menu = context_menu()) {
+    ToggleArchiveBubble(browser_,
+                        menu->ToScreen(gfx::Rect(x, y, width, height)));
   }
-  SpaceModel& space = space_model();
-  SidebarNode* entry =
-      space.Unarchive(uuid, space.today_root()->children().size());
-  if (!entry) {
-    return;
-  }
-  // A split opens its first pane.
-  SidebarNode* tab = entry->type() == SidebarNode::Type::kSplit
-                         ? entry->children()[0].get()
-                         : entry;
-  if (tabs::TabInterface* live = bridge().OpenNode(tab)) {
-    tab_strip_model()->ActivateTabAt(tab_strip_model()->GetIndexOfTab(live));
-  }
-}
-
-void SidebarPageHandler::RemoveArchived(const std::string& id) {
-  const base::Uuid uuid = base::Uuid::ParseLowercase(id);
-  if (uuid.is_valid()) {
-    space_model().RemoveArchived(uuid);
-  }
-}
-
-void SidebarPageHandler::ClearArchive() {
-  space_model().ClearArchive();
 }
 
 void SidebarPageHandler::ShowHoverCard(const std::string& id,
@@ -1611,10 +1590,6 @@ void SidebarPageHandler::OnNodeWillMoveToSpace(const SidebarNode& node) {
   page_->NodeRemoved(node.id().AsLowercaseString());
 }
 
-void SidebarPageHandler::OnArchiveChanged(const SpaceModel& space) {
-  SendArchive();
-}
-
 void SidebarPageHandler::OnSpaceAdded(SpaceModel& space) {
   // The directory relays the list's changes too.
   if (!uses_directory_) {
@@ -1802,21 +1777,6 @@ void SidebarPageHandler::SendSpaces() {
   }
   page_->SetSpaces(std::move(spaces), space_model().id().AsLowercaseString(),
                    std::move(profiles));
-}
-
-void SidebarPageHandler::SendArchive() {
-  std::vector<sidebar::mojom::ArchivedEntryPtr> entries;
-  for (const ArchivedEntry& entry : space_model().archive()) {
-    auto mojo_entry = sidebar::mojom::ArchivedEntry::New();
-    mojo_entry->id = entry.id.AsLowercaseString();
-    mojo_entry->archived_at = entry.archived_at.InMillisecondsFSinceUnixEpoch();
-    for (const ArchivedEntry::Tab& tab : entry.tabs) {
-      mojo_entry->tabs.push_back(sidebar::mojom::ArchivedTab::New(
-          base::UTF16ToUTF8(tab.title), tab.url));
-    }
-    entries.push_back(std::move(mojo_entry));
-  }
-  page_->SetArchive(std::move(entries));
 }
 
 void SidebarPageHandler::SendNowPlaying() {

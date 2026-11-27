@@ -18,8 +18,7 @@ import './preview.js';
 import type {SpaceSymbol} from './space_icons.js';
 import type {LiveNode} from './node.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX} from './space_icons.js';
-import {ARCHIVE_DELAYS} from './space_options.js';
-import type {ArchivedEntry, ArchivedTab, LiveFolder, LiveFolderState, Node, NowPlaying, RoomNotice, Space, Tree} from './sidebar.mojom-webui.js';
+import type {LiveFolder, LiveFolderState, Node, NowPlaying, RoomNotice, Space, Tree} from './sidebar.mojom-webui.js';
 import {AudioState, NodeType, SwipePhase} from './sidebar.mojom-webui.js';
 
 // Where a dragged entry, or a dropped link, would land: the slot |index| among |parent|'s
@@ -53,8 +52,6 @@ export interface Toast {
 }
 // Crossing the gap between two rows doesn't hide the card.
 const HOVER_CARD_HIDE_DELAY_MS = 100;
-
-const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined, {numeric: 'auto'});
 
 // The drag data of a space button dragged along the switcher.
 const SPACE_DRAG_TYPE = 'application/x-compass-space';
@@ -175,10 +172,8 @@ export class CompassSidebarAppElement extends CrLitElement {
       activeId_: {type: String},
       spaces_: {type: Array},
       activeSpaceId_: {type: String},
-      archive_: {type: Array},
       nowPlaying_: {type: Array},
       updateReady_: {type: Boolean},
-      archiveOpen_: {type: Boolean},
       previews_: {type: Array},
       tidyAvailable_: {type: Boolean},
       tidyBusy_: {type: Boolean},
@@ -204,14 +199,12 @@ export class CompassSidebarAppElement extends CrLitElement {
   protected accessor activeId_: string|null = null;
   protected accessor spaces_: Space[] = [];
   protected accessor activeSpaceId_: string = '';
-  protected accessor archive_: ArchivedEntry[] = [];
   // The now playing widgets above the spaces (docs/design/sidebar.md, "Now
   // playing").
   protected accessor nowPlaying_: NowPlaying[] = [];
   // The "update ready" card above them (docs/design/sidebar.md, "Update
   // ready").
   protected accessor updateReady_: boolean = false;
-  protected accessor archiveOpen_: boolean = false;
   // Tidy Today (docs/design/ai-sidebar.md): offered in Today's header, and
   // waiting for Claude.
   protected accessor tidyAvailable_: boolean = false;
@@ -343,8 +336,6 @@ export class CompassSidebarAppElement extends CrLitElement {
                   parentId, folderId, this.getRow_((folderId ?? parentId)!))),
       router.activeNodeChanged.addListener(
           (id: string|null) => this.activeId_ = id),
-      router.setArchive.addListener(
-          (entries: ArchivedEntry[]) => this.archive_ = entries),
       router.setNowPlaying.addListener(
           (items: NowPlaying[]) => this.nowPlaying_ = items),
       router.setUpdateReady.addListener(
@@ -368,7 +359,6 @@ export class CompassSidebarAppElement extends CrLitElement {
     document.addEventListener('dragover', this.onDocumentDragover_);
     document.addEventListener('drop', this.onDocumentDrop_);
     document.addEventListener('dragleave', this.onDocumentDragleave_);
-    document.addEventListener('pointerdown', this.onDocumentPointerdown_);
     document.addEventListener('contextmenu', this.onDocumentContextmenu_);
     // Passive: scrolling never waits for it (swipes come from the browser,
     // Page.Swipe()).
@@ -382,7 +372,6 @@ export class CompassSidebarAppElement extends CrLitElement {
     document.removeEventListener('dragover', this.onDocumentDragover_);
     document.removeEventListener('drop', this.onDocumentDrop_);
     document.removeEventListener('dragleave', this.onDocumentDragleave_);
-    document.removeEventListener('pointerdown', this.onDocumentPointerdown_);
     document.removeEventListener('contextmenu', this.onDocumentContextmenu_);
     this.removeEventListener('wheel', this.onWheel_);
     this.wheelAxis_ = null;
@@ -431,61 +420,14 @@ export class CompassSidebarAppElement extends CrLitElement {
         Math.round(rect.width), Math.round(rect.height));
   }
 
-  private onDocumentPointerdown_ = (e: PointerEvent) => {
-    const path = e.composedPath();
-    // The archive button toggles the panel itself.
-    const archive = this.shadowRoot.querySelector('#archive');
-    const archiveButton = this.shadowRoot.querySelector('#archiveButton');
-    if (archive && !path.includes(archive) &&
-        !(archiveButton && path.includes(archiveButton))) {
-      this.archiveOpen_ = false;
-    }
-  };
-
-  protected isArchiveEmpty_(): boolean {
-    return this.archive_.length === 0;
-  }
-
-  protected onArchiveButtonClick_() {
-    this.archiveOpen_ = !this.archiveOpen_;
-  }
-
-  protected onArchiveKeydown_(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
-      this.archiveOpen_ = false;
-    }
-  }
-
-  protected getArchiveHint_(): string {
-    const hours = this.spaces_.find(space => this.isActiveSpace_(space))
-                      ?.archiveAfterHours ?? 0;
-    if (hours === 0) {
-      return i18n('sidebarArchiveOff');
-    }
-    const delay = ARCHIVE_DELAYS.find(delay => delay.hours === hours)?.label ??
-        i18nPlural('spaceOptionsHours', hours);
-    return i18nF('sidebarArchiveEmpty', delay);
-  }
-
-  // A split shows its panes' titles side by side.
-  protected getArchivedTitle_(entry: ArchivedEntry): string {
-    return entry.tabs.map((tab: ArchivedTab) => tab.title || tab.url)
-        .join(' | ');
-  }
-
-  protected getArchivedUrl_(entry: ArchivedEntry): string {
-    return entry.tabs[0]?.url ?? '';
-  }
-
-  protected getArchivedAge_(entry: ArchivedEntry): string {
-    const minutes = (entry.archivedAt - Date.now()) / 60000;
-    if (minutes > -60) {
-      return RELATIVE_TIME.format(Math.round(minutes), 'minute');
-    }
-    if (minutes > -24 * 60) {
-      return RELATIVE_TIME.format(Math.round(minutes / 60), 'hour');
-    }
-    return RELATIVE_TIME.format(Math.round(minutes / (24 * 60)), 'day');
+  // Today's archive button: the archive opens in a bubble beside the
+  // sidebar, pointing at it (docs/design/sidebar.md, "Today auto-archive").
+  // A second click closes it.
+  protected onArchiveButtonClick_(e: Event) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    this.browserProxy_.handler.toggleArchive(
+        Math.round(rect.left), Math.round(rect.top), Math.round(rect.width),
+        Math.round(rect.height));
   }
 
   protected getFaviconUrl_(url: string, size: number = 16): string {
@@ -498,21 +440,6 @@ export class CompassSidebarAppElement extends CrLitElement {
     return this.spaces_.find(space => space.id === this.activeSpaceId_)
                ?.profileId ??
         null;
-  }
-
-  protected onArchivedClick_(e: Event) {
-    this.browserProxy_.handler.restoreArchived(
-        (e.currentTarget as HTMLElement).dataset['archivedId']!);
-  }
-
-  protected onRemoveArchivedClick_(e: Event) {
-    e.stopPropagation();
-    this.browserProxy_.handler.removeArchived(
-        (e.currentTarget as HTMLElement).dataset['archivedId']!);
-  }
-
-  protected onClearArchiveClick_() {
-    this.browserProxy_.handler.clearArchive();
   }
 
   protected isActiveSpace_(space: Space): boolean {
@@ -1443,8 +1370,7 @@ export class CompassSidebarAppElement extends CrLitElement {
         if (this.slide_?.switched && this.slide_.hasTree) {
           this.endSlide_();
         }
-        if (this.slide_ || this.archiveOpen_ ||
-            this.draggingId_) {
+        if (this.slide_ || this.draggingId_) {
           this.wheelAxis_ = 'done';
         } else {
           this.wheelAxis_ = 'x';

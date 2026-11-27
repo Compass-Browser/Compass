@@ -370,7 +370,7 @@ struct ArchivedEntry {
 
 // Browser-side handler for requests from chrome://compass-sidebar.
 interface PageHandler {
-  // Answered with Page.SetSpaces(), Page.SetTree() and Page.SetArchive(), on
+  // Answered with Page.SetSpaces() and Page.SetTree(), on
   // the same pipe as the diffs, so the page sees them in order.
   RequestTree();
   // The page has taken the tree of Page.SetTree(); sent after each one.
@@ -490,11 +490,10 @@ interface PageHandler {
   // Drops a room notice's banner.
   DismissRoomNotice(string room_id);
 
-  // The window's space's archive. Restoring puts the entry back at the end of
-  // Today and opens it in the foreground.
-  RestoreArchived(string id);
-  RemoveArchived(string id);
-  ClearArchive();
+  // Today's archive button: shows the window's space's archive in a bubble
+  // beside the sidebar, pointing at |x|, |y|, |width|, |height| (the button,
+  // in the page's coordinates), or closes it if it's open.
+  ToggleArchive(int32 x, int32 y, int32 width, int32 height);
 
   // The pointer rests on tab node |id|'s row, which spans |row_top| to
   // |row_top| + |row_height| in the page: shows its hover card next to it, or
@@ -565,9 +564,6 @@ interface Page {
   // EditLiveFolder() with the row it's for.
   ShowLiveFolderEditor(string? parent_id, string? folder_id);
   ActiveNodeChanged(string? id);
-  // The window's space's archived entries, most recent first. Sent after the
-  // tree, and whenever they change.
-  SetArchive(array<ArchivedEntry> entries);
   // Rename was chosen in folder |id|'s context menu: shows its name for
   // editing, as a double-click does.
   StartRename(string id);

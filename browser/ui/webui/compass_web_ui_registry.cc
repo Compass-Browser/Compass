@@ -10,6 +10,8 @@
 #include "content/public/browser/web_ui_browser_interface_broker_registry.h"
 #include "content/public/browser/webui_config_map.h"
 #include "compass/browser/ui/webui/arc_import/compass_arc_import_ui.h"
+#include "compass/browser/ui/webui/archive/archive.mojom.h"
+#include "compass/browser/ui/webui/archive/archive_ui.h"
 #include "compass/browser/ui/webui/claude/chat.mojom.h"
 #include "compass/browser/ui/webui/claude/claude.mojom.h"
 #include "compass/browser/ui/webui/claude/claude_chat_ui.h"
@@ -55,6 +57,8 @@ void RegisterWebUIConfigs(content::WebUIConfigMap& map) {
   map.AddWebUIConfig(std::make_unique<CompassSpaceEditorUIConfig>());
   // The live folder editor, in a bubble (docs/design/live-folders.md, "UI").
   map.AddWebUIConfig(std::make_unique<CompassLiveFolderEditorUIConfig>());
+  // A space's archive, in a bubble (docs/design/sidebar.md).
+  map.AddWebUIConfig(std::make_unique<CompassArchiveUIConfig>());
   // Easels (docs/design/easels.md); Android registers it too
   // (browser/android/android_web_ui_configs.cc).
   map.AddWebUIConfig(std::make_unique<easel::EaselUIConfig>());
@@ -99,6 +103,8 @@ void PopulateWebUIInterfaceBrokers(
       .Add<space_editor::mojom::PageHandlerFactory>();
   registry.ForWebUI<CompassLiveFolderEditorUI>()
       .Add<live_folder_editor::mojom::PageHandlerFactory>();
+  registry.ForWebUI<CompassArchiveUI>()
+      .Add<archive::mojom::PageHandlerFactory>();
   registry.ForWebUI<easel::EaselUI>()
       .Add<easel::mojom::PageHandlerFactory>();
 
