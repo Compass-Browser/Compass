@@ -1,4 +1,3 @@
-- Compass ora è in italiano.
-- Crea il tuo server di sincronizzazione gratuito su Cloudflare da Impostazioni > Sincronizzazione: accedi a Cloudflare e Compass fa il resto.
-- Invita gli amici sul tuo server con un link, e vedi o rimuovi chi lo usa.
-- Unisciti al server di un amico dal suo link di invito.
+- Compass in italiano: con l'italiano come lingua del telefono, tutto Compass è in italiano.
+- La chat con l'AI risponde nella lingua in cui scrivi.
+- "Chiedi a Claude", "Chiedi a GPT", "Chiedi a Gemini" o "Chiedi all'AI": la barra dei comandi e il menu della pagina nominano il provider scelto.

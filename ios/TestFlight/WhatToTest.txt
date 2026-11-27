@@ -1,6 +1,6 @@
-Your own free sync server, on Cloudflare.
+Compass in Italian, and an AI that answers in your language.
 
-- Settings › Sync › "No Server? Set Up a Free One on Cloudflare": Compass sets up a sync server in your own Cloudflare account and starts sync on it. Sign in with Cloudflare (or paste an API token), and choose whether phones get notifications through Compass's push relay.
-- "I Have an Invite": paste an invite link a friend made to sync on their server.
-- If the server is yours, "People on Your Server" lists the friends you invited: make an invite link and share it, remove someone, revoke an unused invite, turn phone notifications on or off, and update the server when a newer version is ready.
-- Please report: sign-in pages that don't load or don't finish, setup errors (with the message shown), and invite links that don't work.
+- With Italian as your iPhone's language (or Compass's, in Settings › Apps › Compass › Language), everything in Compass is in Italian: the sidebar, the command bar, the page menu, Settings, sync, the widgets and the Share extension.
+- The AI chat answers in the language you write in, or your iPhone's when that isn't clear.
+- The command bar and the chat say "Ask Claude", "Ask GPT", "Ask Gemini" or "Ask AI" for the provider you chose, and Settings call it "the AI".
+- Please report: text still in English, Italian that reads wrong or is cut off, and buttons that no longer fit.

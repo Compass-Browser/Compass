@@ -1,6 +1,6 @@
-Il tuo server di sincronizzazione gratuito, su Cloudflare.
+Compass in italiano, e un'AI che risponde nella tua lingua.
 
-- Settings › Sync › "No Server? Set Up a Free One on Cloudflare": Compass crea un server di sincronizzazione nel tuo account Cloudflare e avvia la sincronizzazione. Accedi con Cloudflare (o incolla un token API) e scegli se i telefoni ricevono le notifiche tramite il relay push di Compass.
-- "I Have an Invite": incolla il link di invito di un amico per sincronizzare sul suo server.
-- Se il server è tuo, "People on Your Server" elenca gli amici che hai invitato: crea un link di invito e condividilo, rimuovi qualcuno, revoca un invito non usato, attiva o disattiva le notifiche sui telefoni e aggiorna il server quando c'è una versione nuova.
-- Segnalaci: pagine di accesso che non si caricano o non finiscono, errori durante la creazione (con il messaggio mostrato) e link di invito che non funzionano.
+- Con l'italiano come lingua dell'iPhone (o di Compass, in Impostazioni › App › Compass › Lingua), tutto Compass è in italiano: la barra laterale, la barra dei comandi, il menu della pagina, le Impostazioni, la sincronizzazione, i widget e l'estensione di condivisione.
+- La chat con l'AI risponde nella lingua in cui scrivi, o in quella dell'iPhone quando non è chiara.
+- La barra dei comandi e la chat dicono "Chiedi a Claude", "Chiedi a GPT", "Chiedi a Gemini" o "Chiedi all'AI" a seconda del provider scelto, e le Impostazioni la chiamano "l'AI".
+- Segnalaci: testi ancora in inglese, italiano che suona male o viene tagliato, e pulsanti che non ci stanno più.
