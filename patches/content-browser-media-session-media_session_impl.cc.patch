@@ -1,0 +1,57 @@
+diff --git a/content/browser/media/session/media_session_impl.cc b/content/browser/media/session/media_session_impl.cc
+index 4d45fb044ca8e29cd5585875c929252875920d2f..2c0f7cae60f8b6f3dabfc526fbe1c767c52dfdd1 100644
+--- a/content/browser/media/session/media_session_impl.cc
++++ b/content/browser/media/session/media_session_impl.cc
+@@ -28,6 +28,7 @@
+ #include "content/public/browser/media_session_client.h"
+ #include "content/public/browser/media_session_player_observer.h"
+ #include "content/public/browser/navigation_handle.h"
++#include "content/public/browser/page.h"
+ #include "content/public/browser/render_frame_host.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/browser/web_contents_delegate.h"
+@@ -64,6 +65,18 @@ using media_session::mojom::MediaSessionInfo;
+ 
+ namespace {
+ 
++// Compass: automatic picture-in-picture from the primary main frame or a
++// same-origin frame of the primary page, as Zoom's web client runs its call
++// (compass/browser/picture_in_picture/call_pip.cc); cross-origin frames stay
++// out, as upstream's main-frame-only check meant.
++bool IsAllowedAutoPictureInPictureFrame(RenderFrameHost* frame) {
++  return frame &&
++         (frame->IsInPrimaryMainFrame() ||
++          (frame->GetPage().IsPrimary() &&
++           frame->GetLastCommittedOrigin() ==
++               frame->GetMainFrame()->GetLastCommittedOrigin()));
++}
++
+ // The minimum layout size of the video in the viewport (in CSS pixels) required
+ // to allow browser-initiated Auto-Picture-in-Picture.
+ //
+@@ -1374,8 +1387,9 @@ void MediaSessionImpl::EnterAutoPictureInPicture() {
+     MaybeEnterBrowserInitiatedAutomaticPictureInPicture();
+     return;
+   }
+-  if (!routed_service_->GetRenderFrameHost() ||
+-      !routed_service_->GetRenderFrameHost()->IsInPrimaryMainFrame()) {
++  // Compass: or a same-origin frame of it (IsAllowedAutoPictureInPictureFrame).
++  if (!IsAllowedAutoPictureInPictureFrame(
++          routed_service_->GetRenderFrameHost())) {
+     return;
+   }
+ 
+@@ -1962,10 +1976,11 @@ void MediaSessionImpl::RebuildAndNotifyActionsChanged() {
+   // If the website has specified an action handler for 'enterpictureinpicture',
+   // then we should expose EnterAutoPictureInPicture as an available action if
+   // the routed service is in the primary main frame.
++  // Compass: or a same-origin frame of it (IsAllowedAutoPictureInPictureFrame).
+   if (actions.contains(
+           media_session::mojom::MediaSessionAction::kEnterPictureInPicture)) {
+-    if (routed_service_ && routed_service_->GetRenderFrameHost() &&
+-        routed_service_->GetRenderFrameHost()->IsInPrimaryMainFrame()) {
++    if (routed_service_ && IsAllowedAutoPictureInPictureFrame(
++                               routed_service_->GetRenderFrameHost())) {
+       actions.insert(
+           media_session::mojom::MediaSessionAction::kEnterAutoPictureInPicture);
+     }

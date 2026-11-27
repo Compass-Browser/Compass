@@ -219,7 +219,7 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, BoostsSection) {
             "Boosts");
   EXPECT_EQ(WaitFor("deepQuery('compass-boosts-page .boosts-badge')"
                     "?.textContent"),
-            "by Claude");
+            "by AI");
   EXPECT_EQ(WaitFor("deepQuery('compass-boosts-page #boostForm')?.hidden === "
                     "false && "
                     "deepQuery('compass-boosts-page #boostMatch')?.value"),
@@ -279,7 +279,7 @@ IN_PROC_BROWSER_TEST_F(SettingsSectionsBrowserTest, ClaudeSection) {
   OpenSection("claude");
   EXPECT_EQ(WaitFor("deepQuery('compass-claude-page .compass-title')"
                     "?.textContent"),
-            "Claude");
+            "AI");
   EXPECT_EQ(WaitFor("deepQuery('compass-claude-page #keySaved')?.hidden"),
             true);
   EXPECT_EQ(WaitFor("deepQuery('compass-claude-page #model')?.value"),

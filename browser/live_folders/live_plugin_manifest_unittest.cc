@@ -116,7 +116,7 @@ TEST(LivePluginManifestTest, BuiltinsParse) {
     EXPECT_TRUE(base::PathExists(dir.AppendASCII(manifest->entry))) << dir;
     ++count;
   }
-  EXPECT_EQ(count, 4);
+  EXPECT_EQ(count, 5);  // calendar, github, gmail, rss, web-list
 }
 
 // Tab previews: the same rules as plugins/runtime/manifest.js and the
