@@ -1,20 +1,20 @@
 diff --git a/chrome/browser/chrome_browser_main_android.cc b/chrome/browser/chrome_browser_main_android.cc
-index 91ca9fcee02c946e895b1c67da95b394977286d0..18d41da032d0fac9a5893c0f440a9f18eb09f8fc 100644
+index 9562d936cb6a93f365b7f286614beab67288e911..80699f02105f9f81bbefd269c1a62c8555466506 100644
 --- a/chrome/browser/chrome_browser_main_android.cc
 +++ b/chrome/browser/chrome_browser_main_android.cc
-@@ -62,8 +62,13 @@ int ChromeBrowserMainPartsAndroid::PreCreateThreads() {
+@@ -63,11 +63,10 @@ int ChromeBrowserMainPartsAndroid::PreCreateThreads() {
  
  void ChromeBrowserMainPartsAndroid::PostProfileInit(Profile* profile,
                                                      bool is_initial_profile) {
--  DCHECK(is_initial_profile);  // No multiprofile on Android, only the initial
--                               // call should happen.
-+  // Compass: profiles of the sync chain after the initial one get the common
-+  // per-profile setup only; the rest is the app's, done once
+-  // Only the initial profile is loaded unless profile startup supports
+-  // multiple profiles.
+-  CHECK(
+-      is_initial_profile || profiles::IsAndroidMultiprofileStartupDataEnabled(),
+-      base::NotFatalUntil::M162);
++  // Compass: profiles of the sync chain after the initial one are expected
++  // (no CHECK for upstream's multiprofile startup data); they get the common
++  // per-profile setup only, the rest is the app's, done once
 +  // (compass/docs/design/android.md, "Profiles").
-+  if (!is_initial_profile) {
-+    ChromeBrowserMainParts::PostProfileInit(profile, is_initial_profile);
-+    return;
-+  }
+   ChromeBrowserMainParts::PostProfileInit(profile, is_initial_profile);
  
-   // Get the OS Data Saver setting. This will be needed later on, so we want to
-   // fetch this setting as soon as possible to avoid blocking on it.
+   // The Android-specific work below is process-wide, or only for the initial

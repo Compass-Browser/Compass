@@ -248,8 +248,9 @@ It costs:
   - How: the page is a WebContents of the source tab's profile (incognito
     too) in a `ThinWebView`, as Chrome's preview page
     (`EphemeralTabCoordinator`): a view with its own compositor, which
-    attaches the tab helpers a tab has (`TabHelpers::AttachTabHelpers()`,
-    permission prompts on), so a tab adopting it has them. Open moves the
+    attaches the helpers a page needs there
+    (`ChromeThinWebViewInitializer::AttachTabHelpers()`: autofill, content
+    settings, permission prompts on), and a tab adopting it adds the rest. Open moves the
     page to the window's compositor and the ThinWebView goes after.
     ThinWebView already makes the page a tab for the performance manager,
     which the adopting tab's `TabFeatures` would do again (a `CHECK`, seen

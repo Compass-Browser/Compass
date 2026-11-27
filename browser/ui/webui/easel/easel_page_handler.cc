@@ -273,7 +273,7 @@ void EaselPageHandler::OpenUrl(const std::string& url) {
   // space), on Android a tab next to this one.
   contents_->OpenURL(
       content::OpenURLParams(gurl, content::Referrer(),
-                             WindowOpenDisposition::NEW_FOREGROUND_TAB,
+                             WindowOpenDisposition::kNewForegroundTab,
                              ui::PAGE_TRANSITION_LINK,
                              /*is_renderer_initiated=*/false),
       /*navigation_handle_callback=*/{});

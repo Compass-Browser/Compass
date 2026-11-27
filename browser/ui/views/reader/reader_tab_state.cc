@@ -372,7 +372,7 @@ content::WebContents* ReaderTabState::OpenURLFromTab(
         params.url.SchemeIs(url::kMailToScheme))) {
     return nullptr;
   }
-  if (params.disposition == WindowOpenDisposition::CURRENT_TAB) {
+  if (params.disposition == WindowOpenDisposition::kCurrentTab) {
     // The tab goes there, which leaves Reader (PrimaryPageChanged()).
     content::NavigationController::LoadURLParams load(params.url);
     load.transition_type = ui::PAGE_TRANSITION_LINK;

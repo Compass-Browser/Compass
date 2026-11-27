@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/views/frame/browser_view.h
-index e7bfac16bd39904c3c8acb16b90797e732797309..b09a17c7c319dd0f8fff5b4d96e996880d74387e 100644
+index 39f1b1c4311eabf5253579509d7f6810a2c0e652..87c06c4ec52a920e8fec3cc13cf5e8c34be693dc 100644
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
-@@ -126,6 +126,11 @@ class NativeViewHost;
+@@ -127,6 +127,11 @@ class NativeViewHost;
  class WebView;
  }  // namespace views
  
@@ -14,7 +14,7 @@ index e7bfac16bd39904c3c8acb16b90797e732797309..b09a17c7c319dd0f8fff5b4d96e99688
  ///////////////////////////////////////////////////////////////////////////////
  // BrowserView
  //
-@@ -827,6 +832,8 @@ class BrowserView : public BrowserWindow,
+@@ -842,6 +847,8 @@ class BrowserView : public BrowserWindow,
    void DeleteBrowserWindow() final;
  
   private:

@@ -1,8 +1,8 @@
 diff --git a/tools/metrics/histograms/metadata/sync/enums.xml b/tools/metrics/histograms/metadata/sync/enums.xml
-index 186f055a45206d01c402248b3711e8a23b364924..2f1d525a343c6497de2980d47cba0b4551507cb8 100644
+index cff900c260132281600d3ef55adaf74f2b70f582..7a938e0a189aa8c9c6fb3d44223681a385028dd4 100644
 --- a/tools/metrics/histograms/metadata/sync/enums.xml
 +++ b/tools/metrics/histograms/metadata/sync/enums.xml
-@@ -1073,6 +1073,7 @@ chromium-metrics-reviews@google.com.
+@@ -1079,6 +1079,7 @@ chromium-metrics-reviews@google.com.
    <int value="83" label="Notebook"/>
    <int value="84" label="Journey"/>
    <int value="85" label="Autofill Entity Suppression"/>

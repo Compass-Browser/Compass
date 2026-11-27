@@ -1,17 +1,16 @@
 diff --git a/chrome/browser/ui/views/bubble_anchor_util_views.cc b/chrome/browser/ui/views/bubble_anchor_util_views.cc
-index c9a9e72e45c9800cbcb2ac5091cf70205cdcae1f..f0cf7cefb1d3f356a4e3ec095e17a81570dfc117 100644
+index 97995fe36d6860cf9cacb5667ad5398185afc167..97e866a0285e5ed9d7585f9475676d207ea83658 100644
 --- a/chrome/browser/ui/views/bubble_anchor_util_views.cc
 +++ b/chrome/browser/ui/views/bubble_anchor_util_views.cc
-@@ -4,6 +4,8 @@
+@@ -7,6 +7,7 @@
+ #include <optional>
  
- #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
- 
+ #include "base/check.h"
 +#include "compass/browser/ui/views/sidebar/sidebar_header.h"
-+
  #include "base/feature_list.h"
+ #include "base/i18n/rtl.h"
  #include "build/build_config.h"
- #include "chrome/browser/ui/browser_element_identifiers.h"
-@@ -37,6 +39,11 @@ AnchorConfiguration GetPageInfoAnchorConfiguration(
+@@ -99,6 +100,11 @@ AnchorConfiguration GetPageInfoAnchorConfiguration(
      BrowserWindowInterface* browser,
      Anchor anchor) {
    BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);

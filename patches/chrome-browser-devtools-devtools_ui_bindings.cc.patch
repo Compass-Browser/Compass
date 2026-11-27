@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/devtools/devtools_ui_bindings.cc b/chrome/browser/devtools/devtools_ui_bindings.cc
-index 11d60fabf3fc2af2c10d26bc2f17fcaf7b74e7e1..576e8f411cbc3fb7b5e26c06a79918203fb5b0da 100644
+index 833b788f58679673b80650b38ae772685fd7aea2..27f488ebced413f677164f172cccfebf74069ab9 100644
 --- a/chrome/browser/devtools/devtools_ui_bindings.cc
 +++ b/chrome/browser/devtools/devtools_ui_bindings.cc
 @@ -46,6 +46,7 @@
@@ -10,7 +10,7 @@ index 11d60fabf3fc2af2c10d26bc2f17fcaf7b74e7e1..576e8f411cbc3fb7b5e26c06a7991820
  #include "chrome/browser/infobars/browser_infobar_manager.h"
  #include "chrome/browser/infobars/infobar_features.h"
  #include "chrome/browser/infobars/infobar_spec.h"
-@@ -888,6 +889,8 @@ DevToolsUIBindings::DevToolsUIBindings(content::WebContents* web_contents)
+@@ -928,6 +929,8 @@ DevToolsUIBindings::DevToolsUIBindings(content::WebContents* web_contents)
  }
  
  DevToolsUIBindings::~DevToolsUIBindings() {
@@ -19,7 +19,7 @@ index 11d60fabf3fc2af2c10d26bc2f17fcaf7b74e7e1..576e8f411cbc3fb7b5e26c06a7991820
    if (!session_id_for_logging_.is_empty()) {
      metrics::structured::StructuredMetricsClient::Record(
          metrics::structured::events::v2::dev_tools::SessionEnd()
-@@ -962,6 +965,9 @@ void DevToolsUIBindings::DispatchProtocolMessage(
+@@ -1002,6 +1005,9 @@ void DevToolsUIBindings::DispatchProtocolMessage(
                                message.size());
    if (message_sp.length() < kMaxMessageChunkSize) {
      CallClientMethod("DevToolsAPI", "dispatchMessage", base::Value(message_sp));
@@ -29,7 +29,7 @@ index 11d60fabf3fc2af2c10d26bc2f17fcaf7b74e7e1..576e8f411cbc3fb7b5e26c06a7991820
      return;
    }
  
-@@ -2372,6 +2378,28 @@ void DevToolsUIBindings::DispatchProtocolMessageFromDevToolsFrontend(
+@@ -2415,6 +2421,28 @@ void DevToolsUIBindings::DispatchProtocolMessageFromDevToolsFrontend(
    if (!agent_host_) {
      return;
    }

@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/sync/sync_service_factory.cc b/chrome/browser/sync/sync_service_factory.cc
-index 64323bef78dd3822ed299f75f5d7bbcfc636c46c..e2ccaf3eb77748f9f5a6d71bdaed9048042a2622 100644
+index 1d58ad6539c1bdb247258cc59f627efb754535ac..fbbcdbef45cb0a6d8b9e252513a6d8bcf87b9905 100644
 --- a/chrome/browser/sync/sync_service_factory.cc
 +++ b/chrome/browser/sync/sync_service_factory.cc
 @@ -84,6 +84,7 @@

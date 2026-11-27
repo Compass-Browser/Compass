@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/cocoa/main_menu_builder.mm b/chrome/browser/ui/cocoa/main_menu_builder.mm
-index 047674248727a122fb3aee712981eefd0a4c3049..a7817d8098000c580a75404063341c0663f4c6ff 100644
+index 5e507eb268a573f8dd8f2b68facffe2c85344e0c..8c30473fee457a0f666bcce153e15589ccdf9426 100644
 --- a/chrome/browser/ui/cocoa/main_menu_builder.mm
 +++ b/chrome/browser/ui/cocoa/main_menu_builder.mm
 @@ -29,6 +29,9 @@

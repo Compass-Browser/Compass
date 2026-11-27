@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/page_info/page_info_main_view.cc b/chrome/browser/ui/views/page_info/page_info_main_view.cc
-index 877b22f59603125dcdfa66cce26737522a91f6e9..a23d6461080bf2c6efb0404a870890325496f224 100644
+index c479b2de38e5a54bdee7aa43001b6b26875246b9..87b3abdd9c8ff648cab8a02ddd86450b7df0e297 100644
 --- a/chrome/browser/ui/views/page_info/page_info_main_view.cc
 +++ b/chrome/browser/ui/views/page_info/page_info_main_view.cc
 @@ -28,6 +28,8 @@
@@ -11,7 +11,7 @@ index 877b22f59603125dcdfa66cce26737522a91f6e9..a23d6461080bf2c6efb0404a87089032
  #include "chrome/browser/ui/views/sub_apps_permission_explanation.h"
  #include "chrome/browser/vr/vr_tab_helper.h"
  #include "chrome/common/url_constants.h"
-@@ -179,6 +181,11 @@ PageInfoMainView::PageInfoMainView(
+@@ -181,6 +183,11 @@ PageInfoMainView::PageInfoMainView(
    SetProperty(views::kElementIdentifierKey, kMainLayoutElementId);
  
    site_settings_view_ = AddChildView(CreateContainerView());

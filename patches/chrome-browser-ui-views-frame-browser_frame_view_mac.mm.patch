@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
-index 09c735790df77a0ce13dbf21add6115ed5ff23c5..956082765e0682c933290c39e383c8a0562960ad 100644
+index 8615eb60acaf1a7a9a23a08b505577c8eefb700b..c2ce205448bae08d2e41a41f52a98f3de89e9c03 100644
 --- a/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_frame_view_mac.mm
 @@ -47,6 +47,7 @@
@@ -10,7 +10,7 @@ index 09c735790df77a0ce13dbf21add6115ed5ff23c5..956082765e0682c933290c39e383c8a0
  #include "components/prefs/pref_service.h"
  #include "components/remote_cocoa/common/native_widget_ns_window.mojom.h"
  #include "ui/base/hit_test.h"
-@@ -507,6 +508,12 @@ void BrowserFrameViewMac::OnPaint(gfx::Canvas* canvas) {
+@@ -515,6 +516,12 @@ void BrowserFrameViewMac::OnPaint(gfx::Canvas* canvas) {
      return;
    }
  

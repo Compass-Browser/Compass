@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/picture_in_picture/BUILD.gn b/chrome/browser/picture_in_picture/BUILD.gn
-index 347f802c0a24a394eb9b651cfe0fdef55ec5cc24..910fcb444c11e09f05011f79150995a04fd7179b 100644
+index b91867f489696701b08683156f173e03604e0c56..0e3106b162b396c00c722fba8169dac475981689 100644
 --- a/chrome/browser/picture_in_picture/BUILD.gn
 +++ b/chrome/browser/picture_in_picture/BUILD.gn
 @@ -108,9 +108,11 @@ source_set("impl") {

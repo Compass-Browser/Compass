@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.cc b/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.cc
-index 931bdaed37f0499849338174e718b6fc23a49765..c359648a34c2e0296528404a57c7a0bf68a3be65 100644
+index 4eb92203f69338bab1a918655d530660cc3117f3..903ba5dffdadeeed19b58c37f3b72bf1386f7df9 100644
 --- a/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.cc
 +++ b/chrome/browser/ui/tabs/vertical_tab_strip_state_controller_impl.cc
 @@ -57,6 +57,10 @@ VerticalTabStripStateControllerImpl::VerticalTabStripStateControllerImpl(

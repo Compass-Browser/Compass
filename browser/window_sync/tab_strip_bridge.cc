@@ -223,7 +223,7 @@ tabs::TabInterface* TabStripBridge::ReopenNode(
       base::AutoReset<raw_ptr<SidebarNode>> adopting(&adopting_node_,
                                                      tab_node);
       service->RestoreEntryById(context, *history,
-                                WindowOpenDisposition::NEW_FOREGROUND_TAB);
+                                WindowOpenDisposition::kNewForegroundTab);
     }
   }
   // Restored, it's there; a pane brings the rest of its split.
@@ -297,8 +297,8 @@ tabs::TabInterface* TabStripBridge::OpenTabNode(SidebarNode* tab_node,
                        ? tab_node->url()
                        : GURL(chrome::kChromeUINewTabURL);
   NavigateParams params(browser_, url, ui::PAGE_TRANSITION_AUTO_BOOKMARK);
-  params.disposition = foreground ? WindowOpenDisposition::NEW_FOREGROUND_TAB
-                                  : WindowOpenDisposition::NEW_BACKGROUND_TAB;
+  params.disposition = foreground ? WindowOpenDisposition::kNewForegroundTab
+                                  : WindowOpenDisposition::kNewBackgroundTab;
   params.tabstrip_index = index;
   base::AutoReset<raw_ptr<SidebarNode>> adopting(&adopting_node_, tab_node);
   Navigate(&params);
@@ -1331,7 +1331,7 @@ void TabStripBridge::InsertPlaceholder(SidebarNode* node, int index) {
   }
   NavigateParams params(browser_, GURL(kPlaceholderURL),
                         ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.disposition = WindowOpenDisposition::kNewForegroundTab;
   params.tabstrip_index = std::min(index, tab_strip_model_->count());
   base::AutoReset<raw_ptr<SidebarNode>> placeholder(&placeholder_node_, node);
   Navigate(&params);

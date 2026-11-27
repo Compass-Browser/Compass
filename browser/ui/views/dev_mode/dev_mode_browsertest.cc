@@ -170,13 +170,13 @@ IN_PROC_BROWSER_TEST_F(DevModeBrowserTest, ReloadSkipsTheCache) {
   const GURL url = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
-  chrome::Reload(browser(), WindowOpenDisposition::CURRENT_TAB);
+  chrome::Reload(browser(), WindowOpenDisposition::kCurrentTab);
   EXPECT_TRUE(content::WaitForLoadStop(contents()));
   EXPECT_NE(LastCacheControl("/title1.html"), "no-cache");
 
   ASSERT_TRUE(dev_mode::AddHost(prefs(), "127.0.0.1"));
   const size_t before = RequestCount("/title1.html");
-  chrome::Reload(browser(), WindowOpenDisposition::CURRENT_TAB);
+  chrome::Reload(browser(), WindowOpenDisposition::kCurrentTab);
   EXPECT_TRUE(content::WaitForLoadStop(contents()));
   ASSERT_GT(RequestCount("/title1.html"), before);
   EXPECT_EQ(LastCacheControl("/title1.html"), "no-cache");

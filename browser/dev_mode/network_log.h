@@ -53,7 +53,7 @@ class NetworkLog {
 // Every tab's development mode helper on the desktop: records the tab's
 // requests (NetworkLog) while its page is on a site in development mode.
 // Attached by upstream's tab helpers (see
-// patches/chrome-browser-ui-tab_helpers.cc.patch).
+// patches/chrome-browser-ui-tabs-tab_features.cc.patch).
 class DevModeTabHelper : public content::WebContentsObserver,
                          public content::WebContentsUserData<DevModeTabHelper> {
  public:

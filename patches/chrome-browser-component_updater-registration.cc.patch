@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/component_updater/registration.cc b/chrome/browser/component_updater/registration.cc
-index 9cf5a226c7f7482430f92df85b149c551f18a690..cdd6d0cda8ce7ffda7939a5f436b677dc52f4afa 100644
+index 78a34df1df1f1f0118c55b6601e5fdf8e2a45de6..68b76ce38372630ff41ac678968a49913c307092 100644
 --- a/chrome/browser/component_updater/registration.cc
 +++ b/chrome/browser/component_updater/registration.cc
-@@ -152,7 +152,8 @@ void RegisterComponentsForUpdate() {
+@@ -153,7 +153,8 @@ void RegisterComponentsForUpdate() {
    RegisterWidevineCdmComponent(cus);
  #endif  // BUILDFLAG(ENABLE_WIDEVINE_CDM_COMPONENT)
  

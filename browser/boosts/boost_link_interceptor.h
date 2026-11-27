@@ -19,8 +19,8 @@ namespace compass::boosts {
 // settings never open off the record), and adds the Boost to the profile.
 // docs/design/boosts.md, "Sharing".
 //
-// Attaches the helper that does it. Upstream's TabHelpers::AttachTabHelpers()
-// calls this for every tab (see patches/chrome-browser-ui-tab_helpers.cc.patch).
+// Attaches the helper that does it. Upstream's TabFeatures::Init()
+// calls this for every tab (see patches/chrome-browser-ui-tabs-tab_features.cc.patch).
 void AttachBoostLinkInterceptor(content::WebContents* web_contents);
 
 }  // namespace compass::boosts

@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-index a281709c54cd71589a57e0360ec757c0c38efb08..acbb83d301395ced08ceb65e9ddc8110e7a44041 100644
+index 1887208972a6f0b89b28b40e666434aefbd1b94f..bc9f5147e0483010d10845cb3578b773adb87d8d 100644
 --- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
 +++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-@@ -259,6 +259,19 @@
+@@ -260,6 +260,19 @@
  #include "chrome/browser/sync/local_or_syncable_bookmark_sync_service_factory.h"
  #include "chrome/browser/sync/prefs/cross_device_pref_tracker/cross_device_pref_tracker_factory.h"
  #include "chrome/browser/sync/sync_service_factory.h"
@@ -22,7 +22,7 @@ index a281709c54cd71589a57e0360ec757c0c38efb08..acbb83d301395ced08ceb65e9ddc8110
  #include "chrome/browser/sync/user_event_service_factory.h"
  #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
  #include "chrome/browser/themes/theme_service_factory.h"
-@@ -1517,6 +1530,28 @@ void ChromeBrowserMainExtraPartsProfiles::
+@@ -1522,6 +1535,28 @@ void ChromeBrowserMainExtraPartsProfiles::
    sync_file_system::SyncFileSystemServiceFactory::GetInstance();
  #endif
    SyncServiceFactory::GetInstance();

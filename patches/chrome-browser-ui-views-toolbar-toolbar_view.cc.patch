@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-index 184ae3e5bc4e2338553fb8aee789fb2b1b75c9b1..9540ed860eb8953ec6995176743f2a5e22555f62 100644
+index e100adfcc856496dc0bc7769b3bc053ca0c96551..6361f24f80bcde4ee4320bda53771e9d2ebc9375 100644
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
 @@ -4,6 +4,9 @@
@@ -12,7 +12,7 @@ index 184ae3e5bc4e2338553fb8aee789fb2b1b75c9b1..9540ed860eb8953ec6995176743f2a5e
  #include <algorithm>
  #include <memory>
  #include <utility>
-@@ -345,7 +348,9 @@ void ToolbarView::Init() {
+@@ -355,7 +358,9 @@ void ToolbarView::Init() {
      location_bar_view = std::make_unique<LocationBarView>(
          browser_, browser_->GetProfile(),
          chrome::BrowserCommandController::From(browser_), this,
@@ -23,7 +23,7 @@ index 184ae3e5bc4e2338553fb8aee789fb2b1b75c9b1..9540ed860eb8953ec6995176743f2a5e
    }
  
    // Make sure the toolbar shows by default.
-@@ -1263,6 +1268,10 @@ void ToolbarView::ResetTabState(WebContents* tab) {
+@@ -1306,6 +1311,10 @@ void ToolbarView::ResetTabState(WebContents* tab) {
  }
  
  void ToolbarView::SetPaneFocusAndFocusAppMenu() {
@@ -34,7 +34,7 @@ index 184ae3e5bc4e2338553fb8aee789fb2b1b75c9b1..9540ed860eb8953ec6995176743f2a5e
    AppMenuControl* app_menu_control = GetAppMenuControl();
    if (app_menu_control) {
      app_menu_control->Focus(GetAsAccessiblePaneView());
-@@ -1996,6 +2005,10 @@ gfx::Rect ToolbarView::GetFindBarBoundingBox(int contents_bottom) {
+@@ -2038,6 +2047,10 @@ gfx::Rect ToolbarView::GetFindBarBoundingBox(int contents_bottom) {
  }
  
  void ToolbarView::FocusToolbar() {
@@ -45,7 +45,7 @@ index 184ae3e5bc4e2338553fb8aee789fb2b1b75c9b1..9540ed860eb8953ec6995176743f2a5e
    SetPaneFocus(nullptr);
    if (toolbar_webview_) {
      toolbar_webview_->AdjustForToolbarFocus();
-@@ -2033,7 +2046,7 @@ views::BubbleAnchor ToolbarView::GetBubbleAnchor(
+@@ -2075,7 +2088,7 @@ views::BubbleAnchor ToolbarView::GetBubbleAnchor(
    if (anchor_not_drawn && browser_view_) {
      auto* top_container = browser_view_->top_container();
      CHECK(top_container);
@@ -54,7 +54,7 @@ index 184ae3e5bc4e2338553fb8aee789fb2b1b75c9b1..9540ed860eb8953ec6995176743f2a5e
    }
    return anchor;
  }
-@@ -2043,7 +2056,7 @@ views::BubbleAnchor ToolbarView::GetPageActionBubbleAnchor(
+@@ -2085,7 +2098,7 @@ views::BubbleAnchor ToolbarView::GetPageActionBubbleAnchor(
    page_actions::PageActionViewInterface* view =
        GetPageActionViewInterface(action_id);
    if (view) {

@@ -251,7 +251,7 @@ IN_PROC_BROWSER_TEST_F(ReaderModeBrowserTest, TabSwitchKeepsReader) {
   ReaderMode::From(browser())->Toggle();
   WaitForReaderView(tab);
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), NotArticleUrl(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      browser(), NotArticleUrl(), WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_NE(active_contents(), tab);
   EXPECT_TRUE(

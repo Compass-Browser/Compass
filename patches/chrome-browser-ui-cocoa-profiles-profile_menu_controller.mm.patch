@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/cocoa/profiles/profile_menu_controller.mm b/chrome/browser/ui/cocoa/profiles/profile_menu_controller.mm
-index 6538d613475ec60b5b5313ae9f2a95866ac2397c..943b56810932276afe5287f589519623a9916907 100644
+index 73db64b8e82626a20c7afda06f8e0db289e5426b..75428960424994742b99377be68a9d5e15a800a2 100644
 --- a/chrome/browser/ui/cocoa/profiles/profile_menu_controller.mm
 +++ b/chrome/browser/ui/cocoa/profiles/profile_menu_controller.mm
 @@ -302,7 +302,10 @@ class Observer : public BrowserCollectionObserver, public AvatarMenuObserver {

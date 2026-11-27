@@ -21,9 +21,9 @@ action("assets") {
 }
 
 # Picture-in-picture for Teams and Zoom calls. Upstream's tab helpers
-# (//chrome/browser/ui:tab_helpers_impl) depend on this target (see
+# (//chrome/browser/ui/tabs:impl) depend on this target (see
 # patches/chrome-browser-ui-BUILD.gn.patch and
-# patches/chrome-browser-ui-tab_helpers.cc.patch).
+# patches/chrome-browser-ui-tabs-tab_features.cc.patch).
 source_set("call_pip") {
   sources = [
     "call_pip.cc",

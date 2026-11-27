@@ -1,8 +1,8 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ChromeContextMenuPopulator.java b/chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ChromeContextMenuPopulator.java
-index 97bd52057ec0e8cc661d8175d36adc2481749c96..f2f9209623d75191f7c862ebf18dcf77bdb4d52a 100644
+index 44274b0b8f1d1aab2ce06f0eead39287da8bc3b6..7f8d8d497169023c2100674a3fa3ffa8dda1fafc 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ChromeContextMenuPopulator.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ChromeContextMenuPopulator.java
-@@ -623,6 +623,12 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
+@@ -656,6 +656,12 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                      && !isEmptyUrl(mParams.getUrl())
                      && UrlUtilities.isAcceptedScheme(mParams.getUrl())) {
                  if (mMode == ContextMenuMode.NORMAL) {
@@ -15,7 +15,7 @@ index 97bd52057ec0e8cc661d8175d36adc2481749c96..f2f9209623d75191f7c862ebf18dcf77
                      boolean isIncognitoForced = IncognitoUtils.isIncognitoModeForced(getProfile());
                      ListItem openInNewTabItem =
                              createManagedListItem(Item.OPEN_IN_NEW_TAB, isIncognitoForced);
-@@ -681,6 +687,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
+@@ -714,6 +720,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                      maybeRecordBooleanUkm("ContextMenuAndroid.Shown", "LinkWithInterestFor");
                  }
                  if ((mMode == ContextMenuMode.NORMAL

@@ -3700,7 +3700,7 @@ void CompassSyncService::OpenLoginPage(const GURL& url) {
     return;
   }
   NavigateParams params(window, url, ui::PAGE_TRANSITION_LINK);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.disposition = WindowOpenDisposition::kNewForegroundTab;
   Navigate(&params);
   if (params.navigated_or_inserted_contents) {
     login_tab_ = params.navigated_or_inserted_contents->GetWeakPtr();

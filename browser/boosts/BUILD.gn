@@ -44,9 +44,9 @@ source_set("share") {
 
 if (!is_android) {
   # A tab opening a Boost link gets the settings' import preview. Upstream's
-  # tab helpers (//chrome/browser/ui:tab_helpers_impl) depend on this target
+  # tab helpers (//chrome/browser/ui/tabs:impl) depend on this target
   # (see patches/chrome-browser-ui-BUILD.gn.patch and
-  # patches/chrome-browser-ui-tab_helpers.cc.patch).
+  # patches/chrome-browser-ui-tabs-tab_features.cc.patch).
   source_set("link") {
     sources = [
       "boost_link_interceptor.cc",

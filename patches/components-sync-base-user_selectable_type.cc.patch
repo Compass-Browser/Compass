@@ -1,8 +1,8 @@
 diff --git a/components/sync/base/user_selectable_type.cc b/components/sync/base/user_selectable_type.cc
-index f0b7fb20c009381ed4d2963038adf06185081898..eb29d3b1e0ba14da76b460b3a00e5d12b0cfbfae 100644
+index 6d6d315ac6197985b044536094261235f06ba793..37da668028d93a0abf1a2c4e556a1f569b4b0f9b 100644
 --- a/components/sync/base/user_selectable_type.cc
 +++ b/components/sync/base/user_selectable_type.cc
-@@ -51,7 +51,9 @@ UserSelectableTypeInfo GetUserSelectableTypeInfo(
+@@ -52,7 +52,9 @@ UserSelectableTypeInfo GetUserSelectableTypeInfo(
    // TODO(crbug.com/445840788): In CL #3, map CONTEXTUAL_TASK to an existing
    // selectable type or to a new one. The first option should be trivial, the
    // second requires touching UI code across platforms.

@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/profiles/BUILD.gn b/chrome/browser/profiles/BUILD.gn
-index f569264cf0e530634f9e064054511b25ca2273d2..626fbdf9626c9fb98bc9b85f128158a84fcde24c 100644
+index b4ba2767a973db62482bdae5c46f6767d24df25b..c548327ba4d89b6123f9eb33181fdfd2d58ded11 100644
 --- a/chrome/browser/profiles/BUILD.gn
 +++ b/chrome/browser/profiles/BUILD.gn
-@@ -567,6 +567,7 @@ source_set("profile_io_data") {
+@@ -588,6 +588,7 @@ source_set("profile_io_data") {
    sources = [ "profile_io_data.cc" ]
  
    deps = [
@@ -10,8 +10,8 @@ index f569264cf0e530634f9e064054511b25ca2273d2..626fbdf9626c9fb98bc9b85f128158a8
      "//base",
      "//chrome/common",
      "//chrome/common:buildflags",
-@@ -910,6 +911,22 @@ source_set("profiles_extra_parts_impl") {
-     "//services/network/public/cpp",
+@@ -932,6 +933,22 @@ source_set("profiles_extra_parts_impl") {
+     "//third_party/blink/public:buildflags",
      "//ui/webui:buildflags",
    ]
 +  # Compass sync's keyed service factory.

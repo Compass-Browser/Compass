@@ -1,16 +1,16 @@
 diff --git a/components/history/core/browser/browsing_history_service.cc b/components/history/core/browser/browsing_history_service.cc
-index 65af28275b195edb14cff72729768f1b6ea75f2f..ad07554b6f2c60e9a6f579a10d2f7845b5731fa7 100644
+index d4309fd6f3bdbe674ae219a89e4ca16f96b0a6a0..565bc1fdb92cda9df4513bfc7a59c3a36d1884f1 100644
 --- a/components/history/core/browser/browsing_history_service.cc
 +++ b/components/history/core/browser/browsing_history_service.cc
-@@ -465,7 +465,10 @@ void BrowsingHistoryService::RemoveVisits(
+@@ -509,7 +509,10 @@ void BrowsingHistoryService::RemoveVisits(
      expire_args.restrict_app_id = entry.app_id;
  
      // TODO(dubroy): Figure out the proper way to handle an error here.
--    if (web_history && local_history_) {
+-    if (local_history_ && web_history_ && web_history_->IsEnabled()) {
 +    // Compass: local sync has no web history, but syncs delete directives.
-+    if ((web_history ||
-+         (sync_service_ && sync_service_->IsLocalSyncEnabled())) &&
-+        local_history_) {
++    if (local_history_ &&
++        ((web_history_ && web_history_->IsEnabled()) ||
++         (sync_service_ && sync_service_->IsLocalSyncEnabled()))) {
        local_history_->ProcessLocalDeleteDirective(delete_directive);
      }
  

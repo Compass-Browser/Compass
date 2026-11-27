@@ -1,8 +1,8 @@
 diff --git a/chrome/renderer/chrome_content_renderer_client.cc b/chrome/renderer/chrome_content_renderer_client.cc
-index f209aa840543e393a79896230df2069f50c584d4..28c377bc7572f86226a922db8580312696329ebd 100644
+index 52f120d73c45b9a7be1486e8c9c5de5cbf4e1a05..d7b42263a12fe94c3e2352cd9240587b80e7a656 100644
 --- a/chrome/renderer/chrome_content_renderer_client.cc
 +++ b/chrome/renderer/chrome_content_renderer_client.cc
-@@ -122,6 +122,7 @@
+@@ -117,6 +117,7 @@
  #include "components/spellcheck/spellcheck_buildflags.h"
  #include "components/subresource_filter/content/renderer/subresource_filter_agent.h"
  #include "components/subresource_filter/content/renderer/unverified_ruleset_dealer.h"
@@ -10,7 +10,7 @@ index f209aa840543e393a79896230df2069f50c584d4..28c377bc7572f86226a922db85803126
  #include "components/subresource_filter/core/common/common_features.h"
  #include "components/surface_embed/common/features.h"
  #include "components/surface_embed/renderer/create_plugin.h"
-@@ -792,6 +793,9 @@ void ChromeContentRendererClient::RenderFrameCreated(
+@@ -806,6 +807,9 @@ void ChromeContentRendererClient::RenderFrameCreated(
          new subresource_filter::SubresourceFilterAgent(
              render_frame, subresource_filter_ruleset_dealer_.get());
      subresource_filter_agent->Initialize();

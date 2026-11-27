@@ -1,19 +1,18 @@
 diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-index 1e34f398af7c05e1290c22270343b3fe03b7687b..409c33c1a607c1d8654c2ab5082cdef757a9f51b 100644
+index 76fae29e58107f66ffc0539387735647c212f336..88d48019acbcd74d60463f4f28d0de4b811716ce 100644
 --- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-@@ -97,6 +97,10 @@
- #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+@@ -92,6 +92,9 @@
+ #include "components/app_restore/full_restore_utils.h"
  #endif
  
 +#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 +#include "compass/browser/ui/views/little_window/little_window.h"
 +#endif
-+
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
  #include "chrome/browser/search_integrity/search_integrity.h"
  #include "chrome/browser/search_integrity/search_integrity_factory.h"
-@@ -105,6 +109,19 @@
+@@ -100,6 +103,19 @@
  
  namespace {
  
@@ -33,7 +32,7 @@ index 1e34f398af7c05e1290c22270343b3fe03b7687b..409c33c1a607c1d8654c2ab5082cdef7
  // Utility functions ----------------------------------------------------------
  
  // On ChromeOS Ash check the previous apps launching history info to decide
-@@ -543,14 +560,48 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
+@@ -544,14 +560,48 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
    const bool whats_new_enabled =
        whats_new::ShouldShowForState(local_state, promotions_enabled);
  
@@ -82,7 +81,7 @@ index 1e34f398af7c05e1290c22270343b3fe03b7687b..409c33c1a607c1d8654c2ab5082cdef7
      return;
    }
    BrowserOpenBehaviorOptions behavior_options = 0;
-@@ -597,6 +648,9 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
+@@ -598,6 +648,9 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
  
    BrowserWindowInterface* browser = RestoreOrCreateBrowser(
        tabs, behavior, restore_options, process_startup, is_post_crash_launch);

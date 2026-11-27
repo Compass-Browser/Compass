@@ -21,8 +21,8 @@ namespace compass {
 // "Chrome" in the text and labels of its buttons, and keeps doing so as the
 // page changes them. docs/design/branding.md "Web Store".
 
-// Attaches the helper that does it. Upstream's TabHelpers::AttachTabHelpers()
-// calls this for every tab (see patches/chrome-browser-ui-tab_helpers.cc.patch).
+// Attaches the helper that does it. Upstream's TabFeatures::Init()
+// calls this for every tab (see patches/chrome-browser-ui-tabs-tab_features.cc.patch).
 void AttachWebStoreBranding(content::WebContents* web_contents);
 
 // Whether |url| is a Chrome Web Store page.

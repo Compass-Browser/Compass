@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
-index 59bdfa1e118091ea37ba235fb47b05797fdb16ed..9fa3166311876fee06b8a481cfec8b242ac3e464 100644
+index 454bc05a5dc135d4863fce4a0b92a5660175563d..16e0c96e36e080a1a0180bcce45f7f80fce780db 100644
 --- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
 +++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
-@@ -75,6 +75,10 @@
+@@ -74,6 +74,10 @@
  #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
  #include "extensions/common/constants.h"
  #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -13,9 +13,9 @@ index 59bdfa1e118091ea37ba235fb47b05797fdb16ed..9fa3166311876fee06b8a481cfec8b24
  namespace {
  
  constexpr int kWindowIconImageSize = 16;
-@@ -589,6 +593,20 @@ void PictureInPictureBrowserFrameView::AddedToWidget() {
-   PictureInPictureWindowManager::GetInstance()->OnPictureInPictureWindowShown(
-       this);
+@@ -601,6 +605,20 @@ void PictureInPictureBrowserFrameView::AddedToWidget() {
+         this);
+   }
  
 +#if BUILDFLAG(IS_MAC)
 +  // Compass: float over other apps' fullscreen spaces too, and take clicks

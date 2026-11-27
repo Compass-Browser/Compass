@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/chrome_views_delegate.cc b/chrome/browser/ui/views/chrome_views_delegate.cc
-index 8704f190c55a26ec3ebf577fb044ed1e2fb04044..81f6b4c1e4860a08ea24c40635bee49c0d57d09d 100644
+index d3456eba031456cc624f256d414dd5f748a687ca..37d495bf43c5683981eb993dc989cf049e955865 100644
 --- a/chrome/browser/ui/views/chrome_views_delegate.cc
 +++ b/chrome/browser/ui/views/chrome_views_delegate.cc
 @@ -4,6 +4,8 @@

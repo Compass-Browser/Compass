@@ -208,7 +208,7 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, SettingsURLOpensTheWindow) {
   const int tabs = tab_count();
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("chrome://settings/links?add=example.com"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_NO_WAIT);
   ASSERT_TRUE(base::test::RunUntil([&] { return !!window(); }));
   ASSERT_TRUE(base::test::RunUntil([&] { return tab_count() == tabs; }));

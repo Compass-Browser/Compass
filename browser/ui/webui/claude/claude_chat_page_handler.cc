@@ -866,7 +866,7 @@ void ClaudeChatPageHandler::SetModel(const std::string& model) {
 void ClaudeChatPageHandler::OpenLink(const std::string& url) {
   const GURL link(url);
   if (link.is_valid() && link.SchemeIsHTTPOrHTTPS()) {
-    browser_->OpenGURL(link, WindowOpenDisposition::NEW_FOREGROUND_TAB);
+    browser_->OpenGURL(link, WindowOpenDisposition::kNewForegroundTab);
   }
 }
 

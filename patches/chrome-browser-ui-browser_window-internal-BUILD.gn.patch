@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/browser_window/internal/BUILD.gn b/chrome/browser/ui/browser_window/internal/BUILD.gn
-index bbf731f6eda43ad882726f444e9c4e31509fba8b..39537bb0cc4d4407fd30acdc2491cfd13cac95d8 100644
+index 4801306a04c54049eb498a83e2f49b9b3aa404bf..e0bc742e12c4de75892098e747beed5b2ae626a1 100644
 --- a/chrome/browser/ui/browser_window/internal/BUILD.gn
 +++ b/chrome/browser/ui/browser_window/internal/BUILD.gn
-@@ -178,6 +178,9 @@ source_set("internal") {
+@@ -176,6 +176,9 @@ source_set("internal") {
        "//components/saved_tab_groups/public",
        "//components/search",
      ]

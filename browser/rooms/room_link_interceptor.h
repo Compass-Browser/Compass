@@ -29,8 +29,8 @@ GURL JoinPageUrlFor(const std::string& fragment);
 // loaded yet (a link from another app, a new tab), else in a new tab next to
 // it. The fragment (the room's key and the invite's secret) never reaches a
 // server. As BoostLinkInterceptor; docs/design/sync.md, "Rooms: clients".
-// Upstream's TabHelpers::AttachTabHelpers() calls this for every tab (see
-// patches/chrome-browser-ui-tab_helpers.cc.patch).
+// Upstream's TabFeatures::Init() calls this for every tab (see
+// patches/chrome-browser-ui-tabs-tab_features.cc.patch).
 void AttachRoomLinkInterceptor(content::WebContents* web_contents);
 
 }  // namespace compass::rooms

@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/sync/tab_contents_synced_tab_delegate.cc b/chrome/browser/ui/sync/tab_contents_synced_tab_delegate.cc
-index 747cfdb43c4153df179181b32a3e5ee17941efb8..74615ec7756d0fc7d5dcee1ed0a4da10138df61b 100644
+index d77a8e4e57fb764999f7fce34a910c0a4082d6be..819120dc8d2ec8f785436f90a4a0cd4d1ced51a7 100644
 --- a/chrome/browser/ui/sync/tab_contents_synced_tab_delegate.cc
 +++ b/chrome/browser/ui/sync/tab_contents_synced_tab_delegate.cc
-@@ -20,6 +20,10 @@
+@@ -19,6 +19,10 @@
  #include "content/public/browser/web_contents.h"
  #include "extensions/buildflags/buildflags.h"
  
@@ -13,7 +13,7 @@ index 747cfdb43c4153df179181b32a3e5ee17941efb8..74615ec7756d0fc7d5dcee1ed0a4da10
  #if BUILDFLAG(ENABLE_EXTENSIONS)
  #include "chrome/browser/apps/app_service/web_contents_app_id_utils.h"
  #endif
-@@ -148,6 +152,13 @@ bool TabContentsSyncedTabDelegate::ShouldSync(
+@@ -135,6 +139,13 @@ bool TabContentsSyncedTabDelegate::ShouldSync(
      return false;
    }
  
@@ -25,5 +25,5 @@ index 747cfdb43c4153df179181b32a3e5ee17941efb8..74615ec7756d0fc7d5dcee1ed0a4da10
 +#endif
 +
    if (ProfileHasChildAccount()) {
- #if BUILDFLAG(IS_ANDROID)
      auto* blocked_navigations = GetBlockedNavigations();
+     if (blocked_navigations && !blocked_navigations->empty()) {

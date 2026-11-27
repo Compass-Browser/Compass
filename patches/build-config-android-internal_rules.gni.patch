@@ -1,12 +1,12 @@
 diff --git a/build/config/android/internal_rules.gni b/build/config/android/internal_rules.gni
-index 59ada1ede34466b46f6bc486bd4756dc6e37dfec..d1120a01d59862730f1013e0263488146cfadd08 100644
+index 15b770db3b446cfb609c010c5b1dbbb5eb5a05cf..8cff78c043043b9f597cc9e5275004a16b830e06 100644
 --- a/build/config/android/internal_rules.gni
 +++ b/build/config/android/internal_rules.gni
-@@ -3975,6 +3975,7 @@ if (enable_java_templates) {
+@@ -4115,6 +4115,7 @@ if (enable_java_templates) {
            "*/AsyncTabParamsManagerImpl.kt",
            "//third_party/androidx/*",
            "//chrome/browser/ui/android/bricks/internal/*",
 +          "//compass/android/*",
            "//android_webview/javatests/*",
+           "//third_party/jni_zero/test/*",
          ]
-         _found_kt = filter_exclude(_abs_kt_files, _kt_allowlist)

@@ -1,5 +1,5 @@
 diff --git a/components/sync/base/data_type.h b/components/sync/base/data_type.h
-index 8251ca7fa4125a51cadbb60599ea2438169c2d80..8e0a88bb32de412a7c370f460098cdabcee4ea77 100644
+index 8ac4a4acca3553461235442c5e86a9a41a78a651..873f4c39c41821f6428f4f7e9c9b7911cd9400c8 100644
 --- a/components/sync/base/data_type.h
 +++ b/components/sync/base/data_type.h
 @@ -202,7 +202,11 @@ enum DataType {
@@ -27,10 +27,10 @@ index 8251ca7fa4125a51cadbb60599ea2438169c2d80..8e0a88bb32de412a7c370f460098cdab
  };
  // LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncDataTypes)
  
-@@ -352,7 +359,10 @@ inline constexpr DataTypeSet AlwaysPreferredUserTypes() {
-           SKILL,
-           AI_THREAD,
+@@ -354,7 +361,10 @@ inline constexpr DataTypeSet AlwaysPreferredUserTypes() {
            GEMINI_THREAD,
+           ENCRYPTED_TAB_CONTEXT_CONTAINER,
+           ENCRYPTED_TAB_CONTEXT_ITEM,
 -          AUTOFILL_ENTITY_SUPPRESSION};
 +          AUTOFILL_ENTITY_SUPPRESSION,
 +          // Compass: not a user-selectable type; held back by its controller

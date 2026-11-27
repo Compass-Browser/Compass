@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc b/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
-index 2e02cc461e5048073b61064061e8a5b5260afb75..95cf9d60560e6716a35738007bf9b09ab4ecc10f 100644
+index b89a449b1c201f2fd9108af8a0f663399e80ae1c..d0c35925fc632d8f32257f9e47897d18fed08bb8 100644
 --- a/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
 +++ b/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
-@@ -113,6 +113,9 @@
+@@ -114,6 +114,9 @@
  #include "chrome/browser/ui/overscroll_pref_manager.h"
  #endif  // defined(USE_AURA)
  
@@ -12,20 +12,21 @@ index 2e02cc461e5048073b61064061e8a5b5260afb75..95cf9d60560e6716a35738007bf9b09a
  #if BUILDFLAG(IS_CHROMEOS)
  #include "chrome/browser/ui/settings_window_manager_chromeos.h"
  #endif
-@@ -542,6 +545,12 @@ content::WebContents* BrowserWebContentsDelegate::OpenURLFromTab(
+@@ -615,6 +618,13 @@ content::WebContents* BrowserWebContentsDelegate::OpenURLFromTab(
                                    std::move(navigation_handle_callback));
    }
  
 +  // Compass: Option+click on a link peeks at it (or downloads it).
-+  if (params.disposition == WindowOpenDisposition::SAVE_TO_DISK && source) {
++  if (params.disposition == ui::mojom::WindowOpenDisposition::kSaveToDisk &&
++      source) {
 +    compass::PeekOrDownload(&browser_.get(), source, params);
 +    return nullptr;
 +  }
 +
-   // If the source is already split, navigate the other pane instead of
-   // creating a new tab. Return |source| so that WebContentsImpl::OpenURL()
-   // sees new_contents == this and skips the DidOpenRequestedURL notification,
-@@ -720,6 +729,12 @@ content::WebContents* BrowserWebContentsDelegate::AddNewContents(
+   tabs::TabInterface* const source_tab =
+       source ? tabs::TabInterface::MaybeGetFromContents(source) : nullptr;
+   const bool is_already_split =
+@@ -798,6 +808,12 @@ content::WebContents* BrowserWebContentsDelegate::AddNewContents(
      return nullptr;
    }
  
@@ -38,7 +39,7 @@ index 2e02cc461e5048073b61064061e8a5b5260afb75..95cf9d60560e6716a35738007bf9b09a
    // If a backgrounded actor task triggered a new tab/popup, don't interrupt the
    // user.
    if (source && actor::IsRunningBackgroundActorTask(*source)) {
-@@ -737,6 +752,10 @@ content::WebContents* BrowserWebContentsDelegate::AddNewContents(
+@@ -816,6 +832,10 @@ content::WebContents* BrowserWebContentsDelegate::AddNewContents(
  
  void BrowserWebContentsDelegate::ActivateContents(
      content::WebContents* contents) {

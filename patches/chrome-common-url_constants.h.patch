@@ -1,5 +1,5 @@
 diff --git a/chrome/common/url_constants.h b/chrome/common/url_constants.h
-index 1bbf3afad91dd927bc7d9f1fe0d7ba69a507959b..ff71b0bba751feecb4ecef5209ac29d136df34ac 100644
+index 1f8b6ec78e837a9ad736df8ebd9ad4cb1c531fb5..ac9d5d337cf80a40698457b5ec13cdcbfcd9c5d3 100644
 --- a/chrome/common/url_constants.h
 +++ b/chrome/common/url_constants.h
 @@ -91,7 +91,8 @@ inline constexpr char kChromeHelpViaKeyboardURL[] =

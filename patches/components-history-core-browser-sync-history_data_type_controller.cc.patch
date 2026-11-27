@@ -1,8 +1,8 @@
 diff --git a/components/history/core/browser/sync/history_data_type_controller.cc b/components/history/core/browser/sync/history_data_type_controller.cc
-index fd2ff8758f0e8b02cea3d89bb9476c6cf7649d53..a9f65bde779827e5eda8480d3295a6bceef5b5d3 100644
+index 21640e7cfb16a3479cbcade1736937d662f18db2..fb355deb2e3c971c470f973927dd547916fba33c 100644
 --- a/components/history/core/browser/sync/history_data_type_controller.cc
 +++ b/components/history/core/browser/sync/history_data_type_controller.cc
-@@ -62,7 +62,10 @@ syncer::DataTypeController::PreconditionState
+@@ -51,7 +51,10 @@ syncer::DataTypeController::PreconditionState
  HistoryDataTypeController::GetPreconditionState(
      const PreconditionContext& context) const {
    // syncer::HISTORY doesn't support custom passphrase encryption.

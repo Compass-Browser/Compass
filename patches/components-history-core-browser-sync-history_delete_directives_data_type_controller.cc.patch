@@ -1,5 +1,5 @@
 diff --git a/components/history/core/browser/sync/history_delete_directives_data_type_controller.cc b/components/history/core/browser/sync/history_delete_directives_data_type_controller.cc
-index 154bd84a1c6a3dab8fe3172b3bab0ba46020d001..1209c24485176a333e8a00edf3399c4d60eda194 100644
+index cdb3597a15ed29a28036a9bc9d56eded741f31ab..ff2e2d0a09fbf1534c9467a933f03d8f60341ab8 100644
 --- a/components/history/core/browser/sync/history_delete_directives_data_type_controller.cc
 +++ b/components/history/core/browser/sync/history_delete_directives_data_type_controller.cc
 @@ -8,6 +8,7 @@
@@ -7,10 +7,10 @@ index 154bd84a1c6a3dab8fe3172b3bab0ba46020d001..1209c24485176a333e8a00edf3399c4d
  #include "base/memory/weak_ptr.h"
  #include "components/history/core/browser/history_service.h"
 +#include "components/history/core/browser/sync/delete_directive_handler.h"
- #include "components/sync/base/features.h"
  #include "components/sync/model/data_type_store_service.h"
  #include "components/sync/service/sync_service.h"
-@@ -56,7 +57,16 @@ HistoryDeleteDirectivesDataTypeController::
+ #include "components/sync/service/sync_user_settings.h"
+@@ -43,7 +44,16 @@ HistoryDeleteDirectivesDataTypeController::
                sync_service,
                pref_service,
                HistoryDataTypeControllerHelper::AccountManagedStatusPolicy::
@@ -28,10 +28,10 @@ index 154bd84a1c6a3dab8fe3172b3bab0ba46020d001..1209c24485176a333e8a00edf3399c4d
  
  HistoryDeleteDirectivesDataTypeController::
      ~HistoryDeleteDirectivesDataTypeController() = default;
-@@ -65,7 +75,9 @@ syncer::DataTypeController::PreconditionState
+@@ -52,7 +62,9 @@ syncer::DataTypeController::PreconditionState
  HistoryDeleteDirectivesDataTypeController::GetPreconditionState(
      const PreconditionContext& context) const {
-   DCHECK(CalledOnValidThread());
+   DCHECK(CalledOnValidSequence());
 -  if (helper_.sync_service()->GetUserSettings()->IsEncryptEverythingEnabled()) {
 +  // Compass: custom passphrase allowed with local sync, as for HISTORY.
 +  if (helper_.sync_service()->GetUserSettings()->IsEncryptEverythingEnabled() &&

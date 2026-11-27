@@ -103,7 +103,7 @@ void CloudflareSignIn::Start(Callback callback) {
     return;
   }
   NavigateParams params(window, request_.url, ui::PAGE_TRANSITION_LINK);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.disposition = WindowOpenDisposition::kNewForegroundTab;
   Navigate(&params);
   if (!params.navigated_or_inserted_contents) {
     Finish(std::nullopt,

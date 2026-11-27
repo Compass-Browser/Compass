@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/signin/account_consistency_mode_manager.cc b/chrome/browser/signin/account_consistency_mode_manager.cc
-index 7d4c893cbcd995c48a00631f9cbfd736fb188e63..637b1bbab3279a4e511dc94480191e40188518de 100644
+index 04b273a20e8cfb5fd4ecf9081ba940f17848b905..0a2641f559d2f4672f4612d1f530488139d232fe 100644
 --- a/chrome/browser/signin/account_consistency_mode_manager.cc
 +++ b/chrome/browser/signin/account_consistency_mode_manager.cc
 @@ -64,6 +64,11 @@ bool IsBrowserSigninAllowedByCommandLine() {

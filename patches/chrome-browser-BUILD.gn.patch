@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..286ebda849d81c938de475edda8a199f443164c6 100644
+index 668ab11f76ac1fad82aa882cb840cdbc0f40b7bb..84afa2c889626beabcce38fac5aca3e261722c2c 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -1046,6 +1046,10 @@ source_set("core") {
+@@ -1043,6 +1043,10 @@ source_set("core") {
    }
  
    deps = [
@@ -13,7 +13,7 @@ index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..286ebda849d81c938de475edda8a199f
      ":active_use_util",
      ":after_startup_task_utils",
      ":bad_message",
-@@ -1435,6 +1439,11 @@ source_set("core") {
+@@ -1452,6 +1456,11 @@ source_set("core") {
      "//ui/webui/resources/cr_components/color_change_listener:mojom",
      "//ui/webui/tracked_element",
    ]
@@ -25,7 +25,7 @@ index 814b9d649a31646c7bc072d882a5e11b70d5d6d6..286ebda849d81c938de475edda8a199f
  
    if (enable_webui_ntp) {
      deps += [
-@@ -2827,6 +2836,13 @@ source_set("browser") {
+@@ -2840,6 +2849,13 @@ source_set("browser") {
      "//ui/webui",
      "//ui/webui:buildflags",
    ]

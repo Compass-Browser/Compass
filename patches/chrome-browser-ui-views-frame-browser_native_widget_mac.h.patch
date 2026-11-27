@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.h b/chrome/browser/ui/views/frame/browser_native_widget_mac.h
-index c1ffa079a86d21a2e451d8023e1c9610b28f6fdb..29f252420bfeaf07059b124a5785d6676e993c0d 100644
+index 7c85a2167497313f036717fc0203c60ab8a5c724..ff49ec7d3f6ee633dc8d1813ee13da50eefe794d 100644
 --- a/chrome/browser/ui/views/frame/browser_native_widget_mac.h
 +++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.h
-@@ -37,6 +37,10 @@ class FrameTimingDetails;
+@@ -38,6 +38,10 @@ class FrameTimingDetails;
  //  BrowserNativeWidgetMac is a NativeWidgetMac subclass that provides
  //  the window frame for the Chrome browser window.
  //
@@ -13,7 +13,7 @@ index c1ffa079a86d21a2e451d8023e1c9610b28f6fdb..29f252420bfeaf07059b124a5785d667
  class BrowserNativeWidgetMac : public views::NativeWidgetMac,
                                 public BrowserNativeWidget,
                                 public CommandObserver {
-@@ -105,6 +109,9 @@ class BrowserNativeWidgetMac : public views::NativeWidgetMac,
+@@ -107,6 +111,9 @@ class BrowserNativeWidgetMac : public views::NativeWidgetMac,
    void EnabledStateChangedForCommand(int id, bool enabled) override;
  
   private:

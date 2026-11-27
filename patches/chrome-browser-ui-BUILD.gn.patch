@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 1e352a02e9720c91917e329c22674fdd33451f4b..d6948c71a1ad571e733fe9a57dcec036a9acee1f 100644
+index 9469400d339f8bedf5d60617fbd0b3a84d3305d8..3ac4615ec9e8b9ab5972b944c01bc0d958bf8ba4 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -614,6 +614,8 @@ if (!is_android) {
+@@ -607,6 +607,8 @@ if (!is_android) {
      sources = [ "unload_controller.cc" ]
      public_deps = [ ":unload_controller" ]
      deps = [
@@ -11,7 +11,7 @@ index 1e352a02e9720c91917e329c22674fdd33451f4b..d6948c71a1ad571e733fe9a57dcec036
        ":browser_commands",
        ":browser_live_tab_context",
        ":browser_manager_service",
-@@ -678,6 +680,8 @@ if (!is_android) {
+@@ -676,6 +678,8 @@ if (!is_android) {
      sources = [ "browser_command_controller.cc" ]
      public_deps = [ ":browser_command_controller" ]
      deps = [
@@ -20,7 +20,7 @@ index 1e352a02e9720c91917e329c22674fdd33451f4b..d6948c71a1ad571e733fe9a57dcec036
        ":accelerator_table",
        ":browser_actions",
        ":browser_commands",
-@@ -827,6 +831,11 @@ if (!is_android) {
+@@ -826,6 +830,11 @@ if (!is_android) {
      sources = [ "browser_commands.cc" ]
      public_deps = [ ":browser_commands" ]
      deps = [
@@ -32,7 +32,7 @@ index 1e352a02e9720c91917e329c22674fdd33451f4b..d6948c71a1ad571e733fe9a57dcec036
        ":accelerator_utils_headers",
        ":browser_command_controller",
        ":browser_init_state",
-@@ -1118,6 +1127,14 @@ source_set("accelerator_table") {
+@@ -1105,6 +1114,14 @@ source_set("accelerator_table") {
      "//ui/events:event_constants",
      "//ui/events:events_base",
    ]
@@ -47,23 +47,7 @@ index 1e352a02e9720c91917e329c22674fdd33451f4b..d6948c71a1ad571e733fe9a57dcec036
    if (is_mac) {
      deps += [ "//chrome/browser:global_keyboard_shortcuts_mac" ]
    }
-@@ -1437,6 +1454,15 @@ source_set("tab_helpers_impl") {
-     "//ui/accessibility:ax_base",
-     "//ui/webui:buildflags",
-   ]
-+  if (!is_android) {
-+    deps += [
-+      "//compass/browser/boosts:link",
-+      "//compass/browser/dev_mode:devtools_hooks",
-+      "//compass/browser/picture_in_picture:call_pip",
-+      "//compass/browser/rooms:link_interceptor",
-+      "//compass/browser/web_store",
-+    ]
-+  }
- 
-   if (is_android) {
-     deps += [
-@@ -1506,6 +1532,8 @@ if (!is_android) {
+@@ -1350,6 +1367,8 @@ if (!is_android) {
    source_set("core") {
      sources = [ "browser.cc" ]
      deps = [

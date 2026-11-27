@@ -1,19 +1,18 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
-index a6e265da6e007857cea8a1ccaea3abfc16fd5459..5cda6950de9574558e313365ad981d06f5795566 100644
+index 4de5939da4edaac599cb5a03fbcaa77c7dea4b71..d30bdd43864b21f9999793ece192181f50b31e7c 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
-@@ -2541,7 +2541,9 @@ public class ToolbarManager
-     /** Enable the bottom controls. */
-     public void enableBottomControls() {
+@@ -2570,7 +2570,8 @@ public class ToolbarManager
          enableTabGroupUiControls();
--        if (BottomBarConfigUtils.isBottomBarEnabled(mActivity)) {
+         BottomBarMetrics.maybeRecordEnabledState(mActivity);
+         // Use the state from activity creation; the activity recreates if it changes later.
+-        if (mBottomBarHostManager != null) {
 +        // Compass: its shell's bar is the bottom bar (docs/design/android.md).
-+        if (BottomBarConfigUtils.isBottomBarEnabled(mActivity)
-+                && !it.cipi1965.compass.CompassShell.isPresent()) {
++        if (mBottomBarHostManager != null && !it.cipi1965.compass.CompassShell.isPresent()) {
              enableBottomBar();
-         }
-     }
-@@ -2748,7 +2750,8 @@ public class ToolbarManager
+         } else if (BottomBarConfigUtils.isEligibleForEducationDialog(mActivity)) {
+             mBottomBarEducationDialogCoordinator =
+@@ -2796,7 +2797,8 @@ public class ToolbarManager
  
          ViewStub extensionsToolbarStub =
                  mControlContainer.findViewById(R.id.extensions_toolbar_container_stub);

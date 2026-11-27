@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/android/tabstrip/java/src/org/chromium/chrome/browser/tabstrip/TabStripTopControlLayer.java b/chrome/browser/ui/android/tabstrip/java/src/org/chromium/chrome/browser/tabstrip/TabStripTopControlLayer.java
-index 73d18ff796b6444878ed0461170f4a6bc669e51c..13fa35f2a1fc65143a28bec6366c4855f82d5842 100644
+index f60d13c646f99a3e101c921b62fde946283f339d..b07af235f76964105452bc1c7e569dc277180e0a 100644
 --- a/chrome/browser/ui/android/tabstrip/java/src/org/chromium/chrome/browser/tabstrip/TabStripTopControlLayer.java
 +++ b/chrome/browser/ui/android/tabstrip/java/src/org/chromium/chrome/browser/tabstrip/TabStripTopControlLayer.java
-@@ -188,6 +188,8 @@ public class TabStripTopControlLayer implements TopControlLayer, TabStripTransit
+@@ -187,6 +187,8 @@ public class TabStripTopControlLayer implements TopControlLayer, TabStripTransit
  
      @Override
      public int getTopControlVisibility() {

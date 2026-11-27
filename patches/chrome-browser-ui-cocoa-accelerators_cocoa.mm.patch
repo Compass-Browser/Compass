@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/cocoa/accelerators_cocoa.mm b/chrome/browser/ui/cocoa/accelerators_cocoa.mm
-index 12d6be60e250efa15872027b297baab899e250c9..25618bd688e9150208173ae0bc17115cb82df2d2 100644
+index 7182077016dc6e932a039a6f0fd75f939dca50a9..212c0e66a732d260202324f648286126b03ee0b4 100644
 --- a/chrome/browser/ui/cocoa/accelerators_cocoa.mm
 +++ b/chrome/browser/ui/cocoa/accelerators_cocoa.mm
 @@ -16,6 +16,7 @@
@@ -12,7 +12,7 @@ index 12d6be60e250efa15872027b297baab899e250c9..25618bd688e9150208173ae0bc17115c
  #import "ui/events/keycodes/keyboard_code_conversion_mac.h"
 @@ -151,6 +152,8 @@ AcceleratorsCocoa::AcceleratorsCocoa() {
        std::make_pair(IDC_FULLSCREEN, AcceleratorForEnterFullscreen()));
-   DCHECK(result.second);
+   CHECK(result.second, base::NotFatalUntil::M162);
  
 +  compass::AdjustMenuAccelerators(accelerators_);
 +

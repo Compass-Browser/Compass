@@ -1,0 +1,16 @@
+diff --git a/chrome/browser/ui/tabs/BUILD.gn b/chrome/browser/ui/tabs/BUILD.gn
+index ef685bab09e4f8d58a5fba3470a1a72184e38689..6b216f3e3042d59077dbc50c613f05a41cbaf7f8 100644
+--- a/chrome/browser/ui/tabs/BUILD.gn
++++ b/chrome/browser/ui/tabs/BUILD.gn
+@@ -537,6 +537,11 @@ if (!is_android) {
+     }
+ 
+     deps = [
++      "//compass/browser/boosts:link",
++      "//compass/browser/dev_mode:devtools_hooks",
++      "//compass/browser/picture_in_picture:call_pip",
++      "//compass/browser/rooms:link_interceptor",
++      "//compass/browser/web_store",
+       ":tab_group",
+       ":tab_model",
+       ":tab_strip",

@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
-index cd1fc2e4db79b41e843f4f30a8a6814210dc5a88..3ca405664fa0c054ad198f0f1c4685384794d9cf 100644
+index 381d236026e51b5239125a512d41186aebccdeb7..b1ba9be578263cc47ba2096badf1465539942b55 100644
 --- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
 +++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
 @@ -4,6 +4,8 @@
@@ -11,7 +11,7 @@ index cd1fc2e4db79b41e843f4f30a8a6814210dc5a88..3ca405664fa0c054ad198f0f1c468538
  #include <stddef.h>
  
  #include <algorithm>
-@@ -1316,6 +1318,9 @@ void RenderViewContextMenu::InitMenu() {
+@@ -1350,6 +1352,9 @@ void RenderViewContextMenu::InitMenu() {
                                        params_.selection_text.empty() &&
                                        !params_.is_editable;
      AppendPageItems();
@@ -21,7 +21,7 @@ index cd1fc2e4db79b41e843f4f30a8a6814210dc5a88..3ca405664fa0c054ad198f0f1c468538
    }
  
    if (content_type_->SupportsGroup(ContextMenuContentType::ITEM_GROUP_LINK)) {
-@@ -3426,6 +3431,9 @@ void RenderViewContextMenu::AppendLiveCaptionItem() {
+@@ -3529,6 +3534,9 @@ void RenderViewContextMenu::AppendLiveCaptionItem() {
  // Menu delegate functions -----------------------------------------------------
  
  bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
@@ -31,7 +31,7 @@ index cd1fc2e4db79b41e843f4f30a8a6814210dc5a88..3ca405664fa0c054ad198f0f1c468538
  #if BUILDFLAG(IS_CHROMEOS)
    // Disable context menu in locked fullscreen mode to prevent users from
    // exiting this mode (the menu is not really disabled as the user can still
-@@ -3861,6 +3869,11 @@ void RenderViewContextMenu::OpenURLWithExtraHeaders(
+@@ -3967,6 +3975,11 @@ void RenderViewContextMenu::OpenURLWithExtraHeaders(
  }
  
  void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {

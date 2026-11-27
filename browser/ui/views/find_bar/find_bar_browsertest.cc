@@ -124,7 +124,7 @@ IN_PROC_BROWSER_TEST_F(FindBarBrowserTest, EachTabKeepsItsBar) {
 
   // Another tab: no bar.
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL(kPage), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      browser(), GURL(kPage), WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   EXPECT_TRUE(base::test::RunUntil([&] { return !bar()->IsShowing(); }));
 
@@ -160,7 +160,7 @@ IN_PROC_BROWSER_TEST_F(FindBarBrowserTest, CommandsGoToTheCompassBar) {
       FindBarController::From(browser())->find_bar()->IsFindBarVisible());
   // Also on a tab switch, where it looks for tabs with an open bar.
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL(kPage), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      browser(), GURL(kPage), WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   browser()->tab_strip_model()->ActivateTabAt(0);
   EXPECT_TRUE(base::test::RunUntil([&] { return bar()->IsShowing(); }));

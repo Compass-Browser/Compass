@@ -253,7 +253,7 @@ void ClaudeSettingsHandler::SignInWithChatGPT(
             // A tab of the browser: it's the system browser here.
             NavigateParams params(profile.get(), url,
                                   ui::PAGE_TRANSITION_LINK);
-            params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+            params.disposition = WindowOpenDisposition::kNewForegroundTab;
             params.window_action = NavigateParams::WindowAction::kShowWindow;
             Navigate(&params);
           },

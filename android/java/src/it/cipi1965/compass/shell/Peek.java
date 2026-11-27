@@ -60,8 +60,9 @@ import java.util.concurrent.CompletableFuture;
  * and Open in <space>.
  *
  * <p>The page is a WebContents of the source's profile in a ThinWebView, as Chrome's "Preview
- * page" (EphemeralTabCoordinator), which has its own compositor; ThinWebView attaches the tab
- * helpers a tab has (TabHelpers::AttachTabHelpers), so the page keeps them when a tab adopts it
+ * page" (EphemeralTabCoordinator), which has its own compositor; ThinWebView attaches the
+ * helpers a page needs there (ChromeThinWebViewInitializer::AttachTabHelpers(): autofill, content
+ * settings, permission prompts), and a tab adopting it adds the rest
  * (ChromeTabCreator.createTabWithWebContents()).
  */
 public class Peek implements PeekUi.Listener {

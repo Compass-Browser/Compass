@@ -1,5 +1,5 @@
 diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
-index f1d133b6cda978b105c6110b279fdd75a1b2f061..000aed77284a63fe4199fedf7b5429bf34a6c8bb 100644
+index e7bfa73b4d0581e742f7e9e31192538e0df9d134..2db917fc43e748a55e672ef52038098025b27120 100644
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
 @@ -32,6 +32,8 @@ import("//tools/resources/generate_resource_allowlist.gni")
@@ -75,7 +75,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..000aed77284a63fe4199fedf7b5429bf
      extra_substitutions = [
        "CHROMIUM_BUNDLE_ID=$chrome_mac_bundle_id",
        "CHROMIUM_SHORT_NAME=$chrome_product_short_name",
-@@ -569,8 +582,22 @@ if (is_win) {
+@@ -573,8 +586,22 @@ if (is_win) {
        ":chrome_app_strings_bundle_data",
        ":chrome_resources",
        ":chrome_versioned_bundle_data",
@@ -98,7 +98,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..000aed77284a63fe4199fedf7b5429bf
      if (enable_updater) {
        bundle_deps += [ ":chromium_updater_privileged_helper" ]
      }
-@@ -673,12 +700,12 @@ if (is_win) {
+@@ -689,12 +716,12 @@ if (is_win) {
    }
  
    bundle_data("chrome_app_icon") {
@@ -113,7 +113,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..000aed77284a63fe4199fedf7b5429bf
      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
    }
  
-@@ -1706,9 +1733,11 @@ copy("visual_elements_resources") {
+@@ -1723,9 +1750,11 @@ copy("visual_elements_resources") {
    sources = [
      "//chrome/app/theme/$branding_path_component/win/tiles/Logo.png",
      "//chrome/app/theme/$branding_path_component/win/tiles/SmallLogo.png",
@@ -126,7 +126,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..000aed77284a63fe4199fedf7b5429bf
    if (is_chrome_branded) {
      sources += [
        "//chrome/app/theme/$branding_path_component/win/tiles/LogoBeta.png",
-@@ -1723,6 +1752,12 @@ copy("visual_elements_resources") {
+@@ -1740,6 +1769,12 @@ copy("visual_elements_resources") {
    outputs = [ "$root_out_dir/{{source_file_part}}" ]
  }
  
@@ -139,7 +139,7 @@ index f1d133b6cda978b105c6110b279fdd75a1b2f061..000aed77284a63fe4199fedf7b5429bf
  group("resources") {
    public_deps = [
      "//chrome/browser:resources",
-@@ -1860,7 +1895,9 @@ if (is_win && enable_resource_allowlist_generation) {
+@@ -1877,7 +1912,9 @@ if (is_win && enable_resource_allowlist_generation) {
  }
  
  if (is_linux || is_chromeos) {

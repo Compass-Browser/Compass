@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/download/download_crx_util.cc b/chrome/browser/download/download_crx_util.cc
-index 77e32a025e1086f24fa2c7549438ecdb9f7019f5..5c0fe75036d92be3486a35c85f8ee3051af56457 100644
+index d6c2c8d29f2014c3deff7d7833348d2e20d3e9e8..940e664f09d4d501160dbc372336667d31e6ed3d 100644
 --- a/chrome/browser/download/download_crx_util.cc
 +++ b/chrome/browser/download/download_crx_util.cc
 @@ -15,7 +15,9 @@

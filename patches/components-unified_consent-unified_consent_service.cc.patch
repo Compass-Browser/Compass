@@ -1,8 +1,8 @@
 diff --git a/components/unified_consent/unified_consent_service.cc b/components/unified_consent/unified_consent_service.cc
-index d0f8974a250a0992fae0eec512c8f5c0b3155713..afa2bfa59cd91c3cafb060908e50e2cf3c56fc32 100644
+index 9544444172e3ec573a5f52b10d94eca1a363b525..1b68874fe08b304cc5c29a2a226acf4c999739b4 100644
 --- a/components/unified_consent/unified_consent_service.cc
 +++ b/components/unified_consent/unified_consent_service.cc
-@@ -206,6 +206,13 @@ void UnifiedConsentService::RegisterPrefs(
+@@ -197,6 +197,13 @@ void UnifiedConsentService::RegisterPrefs(
  
  void UnifiedConsentService::SetUrlKeyedAnonymizedDataCollectionEnabled(
      bool enabled) {

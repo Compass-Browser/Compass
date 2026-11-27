@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/profiles/profile_menu_view.cc b/chrome/browser/ui/views/profiles/profile_menu_view.cc
-index 2dbce542556bf5e8141dae5a634e56916f77da0c..645a805641a2f71d0a03384c617594ab4e3a0272 100644
+index cea9a0572a71e3fa6fe5627113d08d4f61ac574a..1e635b632ae4995dc237f844bfb4d7ce4a2f95c2 100644
 --- a/chrome/browser/ui/views/profiles/profile_menu_view.cc
 +++ b/chrome/browser/ui/views/profiles/profile_menu_view.cc
-@@ -1226,7 +1226,7 @@ void ProfileMenuView::BuildFeatureButtons() {
+@@ -1196,7 +1196,7 @@ void ProfileMenuView::BuildFeatureButtons() {
     !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSync))
        ? MaybeBuildChromeAccountSettingsButton()
        : MaybeBuildChromeAccountSettingsButtonWithSync();

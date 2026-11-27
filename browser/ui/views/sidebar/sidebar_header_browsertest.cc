@@ -287,7 +287,7 @@ IN_PROC_BROWSER_TEST_F(SidebarHeaderBrowserTest, PillFollowsTheActiveTab) {
   EXPECT_EQ(pill_text(), u"a.test");
 
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("about:blank"), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      browser(), GURL("about:blank"), WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   EXPECT_EQ(pill_text(), u"Search or enter URL");
 

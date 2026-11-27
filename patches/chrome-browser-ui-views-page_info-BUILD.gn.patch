@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/page_info/BUILD.gn b/chrome/browser/ui/views/page_info/BUILD.gn
-index d6e74b52c8f5ba8d69c7e9413528ca159f027c69..c9b19cd8ccd720643262d4f22f9d37279e073266 100644
+index 978a682c5d9ffe5cfaaea21d6620e55f89ada2b5..39608333b9bbd1a0f3e50b2e078af38e6be893ff 100644
 --- a/chrome/browser/ui/views/page_info/BUILD.gn
 +++ b/chrome/browser/ui/views/page_info/BUILD.gn
-@@ -102,6 +102,10 @@ source_set("impl") {
+@@ -104,6 +104,10 @@ source_set("impl") {
      "//chrome/browser/ui/views/file_system_access",
      "//chrome/browser/ui/views/frame:browser_view_header",
      "//chrome/browser/vr",
@@ -11,5 +11,5 @@ index d6e74b52c8f5ba8d69c7e9413528ca159f027c69..c9b19cd8ccd720643262d4f22f9d3727
 +    # and the popup's look.
 +    "//compass/browser/ui:page_info_hooks",
      "//components/content_settings/browser/ui",
-     "//components/dom_distiller/core",
      "//components/omnibox/browser:vector_icons",
+     "//components/page_info/core",

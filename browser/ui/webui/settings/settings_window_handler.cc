@@ -278,7 +278,7 @@ void SettingsWindowHandler::OpenUrl(const GURL& url) {
     return;
   }
   NavigateParams params(profile_.get(), url, ui::PAGE_TRANSITION_LINK);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.disposition = WindowOpenDisposition::kNewForegroundTab;
   params.window_action = NavigateParams::WindowAction::kShowWindow;
   Navigate(&params);
 }

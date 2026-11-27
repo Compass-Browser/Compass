@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
-index ce3cc119e6c3cd99cc797039ac14d3a4d39b827c..e6f196eca3fab075f9bb5e82b77485dd866e5b1d 100644
+index ff67d9b69d9027e5723cc6fc86dd67bbf27fd581..f91b1082f69e5e1a125bbdcf15a7bacbcb816a63 100644
 --- a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
 +++ b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
-@@ -48,6 +48,10 @@
+@@ -49,6 +49,10 @@
  #include "chrome/common/chrome_features.h"
  #include "chrome/common/chrome_switches.h"
  #include "chrome/common/pref_names.h"
@@ -13,7 +13,7 @@ index ce3cc119e6c3cd99cc797039ac14d3a4d39b827c..e6f196eca3fab075f9bb5e82b77485dd
  #include "components/captive_portal/content/captive_portal_service.h"
  #include "components/captive_portal/core/buildflags.h"
  #include "components/contextual_tasks/public/features.h"
-@@ -310,6 +314,11 @@ void CreateAndAddChromeThrottlesForNavigation(
+@@ -320,6 +324,11 @@ void CreateAndAddChromeThrottlesForNavigation(
  #endif  // BUILDFLAG(IS_ANDROID)
    }
  
@@ -25,7 +25,7 @@ index ce3cc119e6c3cd99cc797039ac14d3a4d39b827c..e6f196eca3fab075f9bb5e82b77485dd
    DSEPrewarmNavigationThrottle::MaybeCreateAndAdd(registry);
    if (!features::IsDsePreload2Enabled()) {
      SearchPrefetchNavigationThrottle::MaybeCreateAndAdd(registry);
-@@ -404,6 +413,8 @@ void CreateAndAddChromeThrottlesForNavigation(
+@@ -414,6 +423,8 @@ void CreateAndAddChromeThrottlesForNavigation(
    SupervisedUserGoogleAuthNavigationThrottle::MaybeCreateAndAdd(registry);
    supervised_user::ClassifyUrlNavigationThrottle::MaybeCreateAndAdd(registry);
  

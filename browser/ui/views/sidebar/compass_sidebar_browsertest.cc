@@ -1029,7 +1029,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, WindowFrame) {
 
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ListsTabs) {
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("about:blank"), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      browser(), GURL("about:blank"), WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   EXPECT_EQ(browser()->tab_strip_model()->count(), 2);
@@ -1042,7 +1042,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ListsTabs) {
 
 IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, ClickingATabActivatesIt) {
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("about:blank"), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      browser(), GURL("about:blank"), WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   TabStripModel* model = browser()->tab_strip_model();
   ASSERT_EQ(model->active_index(), 1);
@@ -1090,7 +1090,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
       browser(), GURL("data:text/html,<title>One</title>")));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("data:text/html,<title>Two</title>"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   content::WebContents* contents = sidebar_contents();
   ASSERT_EQ(true,
@@ -1182,7 +1182,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, PinnedCloseUnloadsAtOnce) {
       browser(), GURL("data:text/html,<title>One</title>")));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("data:text/html,<title>Two</title>"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   content::WebContents* contents = sidebar_contents();
   ASSERT_EQ(true,
@@ -1244,7 +1244,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, DragToPinnedPinsATab) {
       browser(), GURL("data:text/html,<title>One</title>")));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("data:text/html,<title>Two</title>"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   content::WebContents* contents = sidebar_contents();
   ASSERT_EQ(true,
@@ -1319,7 +1319,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
       browser(), GURL("data:text/html,<title>One</title>")));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("data:text/html,<title>Two</title>"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   content::WebContents* contents = sidebar_contents();
   ASSERT_EQ(true,
@@ -2050,7 +2050,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest,
       browser(), GURL("data:text/html,<title>One</title>")));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("data:text/html,<title>Two</title>"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   content::WebContents* two = browser()->tab_strip_model()->GetActiveWebContents();
   WindowFeatures* features = WindowFeatures::From(browser());
@@ -2531,7 +2531,7 @@ void OpenThreeTabs(BrowserWindowInterface* browser, content::WebContents* sideba
     ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
         browser,
         GURL(std::string("data:text/html,<title>") + title + "</title>"),
-        WindowOpenDisposition::NEW_FOREGROUND_TAB,
+        WindowOpenDisposition::kNewForegroundTab,
         ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   }
   ASSERT_EQ(true,
@@ -2671,7 +2671,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, RecentTabsSwitcherFits) {
     ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
         browser(),
         GURL(std::string("data:text/html,<title>") + title + "</title>"),
-        WindowOpenDisposition::NEW_FOREGROUND_TAB,
+        WindowOpenDisposition::kNewForegroundTab,
         ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   }
   // As narrow as the window goes (680 on macOS).
@@ -2819,7 +2819,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, SplitsOfFourShowSideBySide) {
   OpenThreeTabs(browser(), contents);
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("data:text/html,<title>Four</title>"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   SpaceModel& model = WindowFeatures::From(browser())->space_model();
   ASSERT_TRUE(base::test::RunUntil(
@@ -3119,7 +3119,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarBrowserTest, HoverCardCompassScheme) {
                                            GURL("chrome://version/")));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("data:text/html,<title>Two</title>"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   SidebarHoverCard* card = SidebarHoverCard::FromWebContents(contents);
   ASSERT_TRUE(card);
@@ -3197,7 +3197,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarPreviewBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), inbox));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("data:text/html,<title>Two</title>"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_EQ(true, content::EvalJs(contents,
                                   content::JsReplace(kWaitForTitles,
@@ -3294,7 +3294,7 @@ IN_PROC_BROWSER_TEST_F(CompassSidebarPreviewBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), inbox));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("data:text/html,<title>Two</title>"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_EQ(true, content::EvalJs(contents,
                                   content::JsReplace(kWaitForTitles,

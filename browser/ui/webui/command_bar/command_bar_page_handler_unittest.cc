@@ -598,7 +598,7 @@ TEST_F(CommandBarPageHandlerTest, ReportsTheOmniboxLog) {
                            base::NumberToString(log->selection.line) + " " +
                            log->final_destination_url.spec());
             EXPECT_EQ(log->disposition,
-                      WindowOpenDisposition::NEW_FOREGROUND_TAB);
+                      WindowOpenDisposition::kNewForegroundTab);
             EXPECT_GE(log->elapsed_time_since_user_first_modified_omnibox,
                       base::TimeDelta());
           }));

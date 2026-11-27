@@ -1,5 +1,5 @@
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/app/tab_activity_glue/ActivityTabWebContentsDelegateAndroid.java b/chrome/android/java/src/org/chromium/chrome/browser/app/tab_activity_glue/ActivityTabWebContentsDelegateAndroid.java
-index 4bd6a1d641286cace66b504fb6915f8c23e81504..8d52ec50c2db80892df256779834fb665a8f040e 100644
+index 3f81b20569299830092fd44a4720886a657c200f..1b349b09da0b83b3c91b20d09ca96f8fd653c446 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/app/tab_activity_glue/ActivityTabWebContentsDelegateAndroid.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/app/tab_activity_glue/ActivityTabWebContentsDelegateAndroid.java
 @@ -270,6 +270,12 @@ public class ActivityTabWebContentsDelegateAndroid extends TabWebContentsDelegat
