@@ -38,6 +38,13 @@ android_library("hook_java") {
   ]
 }
 
+declare_args() {
+  # The release's versionCode (`compass play prepare`), for the APK and every
+  # module of the bundle; empty: Chromium's. Chromium 159 removed
+  # android_override_version_code, which did this for every APK.
+  compass_android_version_code = ""
+}
+
 # For //compass/browser/android: the natives of the Java bridges.
 generate_jni("jni_headers") {
   sources = [
@@ -179,7 +186,7 @@ android_library("java") {
     ":symbols_resources",
     "//base:base_java",
     "//build/android:build_java",
-    "//cc/mojom:mojom_java",
+    "//cc/mojom:android_mojo_bindings_java",
     "//chrome/android:chrome_java",
     "//chrome/browser/android/content:java",
     "//chrome/browser/browser_controls/android:java",
@@ -247,7 +254,7 @@ android_library("java") {
     "//third_party/androidx:androidx_lifecycle_lifecycle_runtime_java",
     "//third_party/androidx:androidx_savedstate_savedstate_java",
     "//third_party/jni_zero:jni_zero_java",
-    "//third_party/kotlin_stdlib:kotlin_stdlib_java",
+    "//third_party/android_deps:kotlin_stdlib_java",
     "//base/version_info/android:version_constants_java",
     "//ui/android:ui_no_recycler_view_java",
     "//url:gurl_java",
@@ -440,6 +447,9 @@ android_assets("license_assets") {
 }
 
 chrome_public_apk_or_module_tmpl("compass_apk") {
+  if (compass_android_version_code != "") {
+    version_code = compass_android_version_code
+  }
   target_type = "android_apk"
   apk_name = "Compass"
   manifest_package = "it.cipi1965.compass"
@@ -462,8 +472,11 @@ chrome_public_apk_or_module_tmpl("compass_apk") {
 # manifest's extra definitions (widgets, tile, autofill) go to that split's
 # manifest (definitions_in_split). The APK above stays, for tests and the
 # GitHub release. Both take their versionCode from
-# android_override_version_code (`compass play prepare`).
+# compass_android_version_code (`compass play prepare`).
 chrome_public_apk_or_module_tmpl("compass_bundle__base_bundle_module") {
+  if (compass_android_version_code != "") {
+    version_code = compass_android_version_code
+  }
   target_type = "android_app_bundle_module"
   manifest_package = "it.cipi1965.compass"
   jinja_input = "//compass/android/AndroidManifest.xml"
@@ -483,6 +496,9 @@ chrome_public_apk_or_module_tmpl("compass_bundle__base_bundle_module") {
 }
 
 chrome_bundle("compass_bundle") {
+  if (compass_android_version_code != "") {
+    version_code = compass_android_version_code
+  }
   bundle_name = "Compass"
   base_module_target = ":compass_bundle__base_bundle_module"
   manifest_package = "it.cipi1965.compass"

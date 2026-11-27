@@ -396,7 +396,7 @@ tools/compass play status    # every track and its releases
   with every release until 2099, stays under Play's limit of 2100000000,
   and above Chromium's own codes (about 810000000 for 157), which the first
   GitHub APKs had. `compass play prepare` writes it to args.gn as
-  `android_override_version_code`, which sets every module of the bundle
+  `compass_android_version_code` (android/BUILD.gn), which sets every module of the bundle
   and the APK; it changes no native code, so the build after it only
   repackages. The **versionName** stays Chromium's (`159.0.8154.34`):
   Android's `version_info` reads the browser's version from the manifest,
