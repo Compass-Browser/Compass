@@ -1,13 +1,14 @@
 diff --git a/chrome/browser/chrome_browser_main.cc b/chrome/browser/chrome_browser_main.cc
-index 41b28743dfe526afd45efe1dda643e3750b28a11..320f30ff97d61492bd8cf6ce21b165c99dad5986 100644
+index 41b28743dfe526afd45efe1dda643e3750b28a11..16d2d2b0f51d15e9f9b6f4b0063fd3ece3778fd8 100644
 --- a/chrome/browser/chrome_browser_main.cc
 +++ b/chrome/browser/chrome_browser_main.cc
-@@ -4,6 +4,14 @@
+@@ -4,6 +4,15 @@
  
  #include "chrome/browser/chrome_browser_main.h"
  
 +#include "compass/browser/adblock/adblock_hooks.h"
 +#if !BUILDFLAG(IS_ANDROID)
++#include "compass/browser/ui/color/compass_color_mixers.h"
 +#include "compass/browser/updates/start_updater.h"
 +#endif
 +#if BUILDFLAG(IS_WIN)
@@ -17,7 +18,7 @@ index 41b28743dfe526afd45efe1dda643e3750b28a11..320f30ff97d61492bd8cf6ce21b165c9
  #include <memory>
  #include <string>
  #include <string_view>
-@@ -229,6 +237,7 @@
+@@ -229,6 +238,7 @@
  #include "chrome/browser/infobars/infobar_features.h"
  #include "chrome/browser/mac/chrome_browser_main_extra_parts_mac.h"
  #include "chrome/browser/shutdown_watchdog_mac.h"
@@ -25,7 +26,19 @@ index 41b28743dfe526afd45efe1dda643e3750b28a11..320f30ff97d61492bd8cf6ce21b165c9
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
  #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
  #include "chrome/browser/ui/cocoa/keystone_infobar_delegate.h"
-@@ -1380,6 +1389,9 @@ int ChromeBrowserMainParts::PreCreateThreadsImpl() {
+@@ -1078,6 +1088,11 @@ void ChromeBrowserMainParts::ToolkitInitialized() {
+       base::BindRepeating(color::AddComponentsColorMixers));
+   ui::ColorProviderManager::Get().AppendColorProviderInitializer(
+       base::BindRepeating(AddChromeColorMixers));
++#if !BUILDFLAG(IS_ANDROID)
++  // Compass: menus in the bubbles' look (compass_color_mixers.h).
++  ui::ColorProviderManager::Get().AppendColorProviderInitializer(
++      base::BindRepeating(compass::AddCompassColorMixers));
++#endif
+ 
+   InitializeActionIdStringMapping();
+ }
+@@ -1380,6 +1395,9 @@ int ChromeBrowserMainParts::PreCreateThreadsImpl() {
    if (!base::PathExists(user_native_messaging_dir)) {
      base::CreateDirectory(user_native_messaging_dir);
    }
@@ -35,7 +48,7 @@ index 41b28743dfe526afd45efe1dda643e3750b28a11..320f30ff97d61492bd8cf6ce21b165c9
  #endif
  
  #if BUILDFLAG(IS_MAC)
-@@ -1765,6 +1777,17 @@ void ChromeBrowserMainParts::PostBrowserStart() {
+@@ -1765,6 +1783,17 @@ void ChromeBrowserMainParts::PostBrowserStart() {
  
    browser_process_->browser_policy_connector()->OnBrowserStarted();
  

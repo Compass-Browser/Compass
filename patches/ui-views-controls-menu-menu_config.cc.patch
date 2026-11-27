@@ -1,0 +1,25 @@
+diff --git a/ui/views/controls/menu/menu_config.cc b/ui/views/controls/menu/menu_config.cc
+index a711c503287a7e58e4719a6c061bc7b70641f336..28762a146bec52d7c9548d9606767efd2e4e6907 100644
+--- a/ui/views/controls/menu/menu_config.cc
++++ b/ui/views/controls/menu/menu_config.cc
+@@ -93,6 +93,20 @@ void MenuConfig::InitCommon() {
+   separator_height = 17;
+   separator_spacing_height = 4;
+   use_outer_border = false;
++
++  // Compass: the bubbles' look (compass/browser/ui/color/
++  // compass_color_mixers.h for the colors). Rows highlight as rounded tiles
++  // inset from the menu's edges, as the sidebar's and the bubbles' do, and
++  // the menu's corners match the bubbles'.
++  menu_horizontal_border_size = 6;
++  rounded_menu_vertical_border_size = 6;
++  item_corner_radius = 7;
++  item_horizontal_border_padding = 8;
++  item_vertical_margin = 5;
++  separator_height = 13;
++  separator_horizontal_border_padding = 8;
++  corner_radius = 12;
++  auxiliary_corner_radius = 10;
+ }
+ 
+ // static

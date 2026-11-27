@@ -11,6 +11,7 @@ if (!is_android) {
       "//compass/browser/boosts",
       "//compass/browser/shortcuts",
       "//compass/browser/sidebar",
+      "//compass/browser/ui/color",
       "//compass/browser/updates",
       "//compass/browser/win",
     ]
@@ -30,6 +31,7 @@ source_set("feature_overrides") {
     "//chrome/browser/ui:ui_features",
     "//chrome/common:chrome_features",
     "//components/autofill/core/common:features",
+    "//components/lens:features",
     "//components/network_time",
     "//components/omnibox/browser:aim_eligibility_service_features",
     "//components/signin/public/base:signin_switches",

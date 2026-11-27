@@ -19,6 +19,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
+#include "components/lens/lens_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/webui_config_map.h"
@@ -82,8 +83,9 @@ IN_PROC_BROWSER_TEST_F(CompassRemovedFeaturesBrowserTest,
   EXPECT_TRUE(controller->ShouldDisplayVerticalTabs());
 }
 
-// The app menu has no profile row, no tab groups menu and no "Search tabs"
-// under More tools; History has no "Your devices".
+// The app menu has no profile row, no tab groups menu, no Google Lens
+// ("Search this tab with Image Search") and no "Search tabs", Name Window
+// or Customize Chrome under More tools; History has no "Your devices".
 IN_PROC_BROWSER_TEST_F(CompassRemovedFeaturesBrowserTest, AppMenuLeavesOut) {
   EXPECT_FALSE(chrome::SupportsCommand(browser(), IDC_TAB_SEARCH));
   EXPECT_FALSE(chrome::ExecuteCommand(browser(), IDC_TAB_SEARCH));
@@ -96,15 +98,28 @@ IN_PROC_BROWSER_TEST_F(CompassRemovedFeaturesBrowserTest, AppMenuLeavesOut) {
       model.GetIndexOfCommandId(AppMenuModel::kSavedTabGroupsMenuPlaceholder));
   EXPECT_TRUE(model.GetIndexOfCommandId(AppMenuModel::kRecentTabsMenuPlaceholder));
 
+  EXPECT_FALSE(model.GetIndexOfCommandId(IDC_CONTENT_CONTEXT_LENS_OVERLAY));
+
   ToolsMenuModel tools(&model, browser());
   EXPECT_TRUE(tools.GetItemCount());
-  EXPECT_FALSE(tools.GetIndexOfCommandId(IDC_TAB_SEARCH));
+  for (int command : {IDC_TAB_SEARCH, IDC_NAME_WINDOW,
+                      IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL}) {
+    EXPECT_FALSE(tools.GetIndexOfCommandId(command)) << command;
+    EXPECT_FALSE(chrome::SupportsCommand(browser(), command)) << command;
+  }
 
   RecentTabsSubMenuModel history(/*accelerator_provider=*/nullptr, browser());
   const std::u16string devices = l10n_util::GetStringUTF16(IDS_YOUR_DEVICES);
   for (size_t i = 0; i < history.GetItemCount(); ++i) {
     EXPECT_NE(history.GetLabelAt(i), devices) << i;
   }
+}
+
+// Google Lens is off: the page's menu has no "Search with Google Lens"
+// either (feature_overrides.cc).
+IN_PROC_BROWSER_TEST_F(CompassRemovedFeaturesBrowserTest, NoGoogleLens) {
+  EXPECT_FALSE(base::FeatureList::IsEnabled(lens::features::kLensOverlay));
+  EXPECT_FALSE(base::FeatureList::IsEnabled(lens::features::kLensStandalone));
 }
 
 }  // namespace

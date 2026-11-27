@@ -8,6 +8,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_features.h"
 #include "components/autofill/core/common/autofill_debug_features.h"
+#include "components/lens/lens_features.h"
 #include "components/network_time/network_time_tracker.h"
 #include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/signin/public/base/signin_switches.h"
@@ -51,6 +52,13 @@ void RegisterFeatureOverrides(variations::FeatureOverrides& overrides) {
       autofill::features::debug::kAutofillServerCommunication);
   // Gemini in the browser.
   overrides.DisableFeature(features::kGlic);
+#if !BUILDFLAG(IS_ANDROID)
+  // Google Lens: the app menu's "Search this tab with Image Search", the page
+  // menu's "Search with Google Lens" and "Search image with Google Lens"
+  // (an image keeps "Search image with <engine>").
+  overrides.DisableFeature(lens::features::kLensOverlay);
+  overrides.DisableFeature(lens::features::kLensStandalone);
+#endif
   // Asks accounts.google.com which Google accounts the cookies hold only when
   // a Google cookie changes, not at launch: there's no browser sign-in.
   overrides.EnableFeature(switches::kAvoidAutoTriggerListAccountsOnStale);

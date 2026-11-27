@@ -49,6 +49,14 @@ bubble_look.h`, which the share bubble uses too: sync.md, "UI (desktop)"):
   radius and a thin frame so white pages don't melt into the background.
 - Scrolling contents paint on an opaque layer (labels require it), so the
   scrollers' background is the tinted color itself, not transparent.
+- Views menus (the app menu, its submenus, comboboxes' lists) take the
+  same look: the background, text and hairlines from
+  `compass::AddCompassColorMixers()` (`browser/ui/color/`; a window's color
+  key carries its space's tint as its user color, and a menu takes its
+  window's key), the highlight the text color at 10 %, as a 7-pixel rounded
+  tile 6 pixels in from the menu's edges, 12-pixel corners
+  (`ui-views-controls-menu-menu_config.cc.patch`). Menus macOS draws
+  itself (most context menus) keep the system's look.
 
 ### Downloads
 

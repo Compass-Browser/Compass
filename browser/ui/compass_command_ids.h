@@ -56,7 +56,9 @@ inline bool IsCompassCommand(int id) {
 // list (pinned tabs are the bookmarks), horizontal tabs (the sidebar is the
 // tab strip), tab search (the command bar finds tabs), the app menu's
 // profile row (a space picks its profile), and tab groups: the app menu's
-// groups menu and the macOS Tab menu's Group Tab (folders are its groups).
+// groups menu and the macOS Tab menu's Group Tab (folders are its groups),
+// naming windows (a window shows a space, named already) and Customize
+// Chrome's side panel (a space's theme is in its editor).
 // BrowserCommandController reports them unsupported, so no menu, shortcut
 // or caller can run them, and the menus leave them out.
 inline bool IsRemovedCommand(int id) {
@@ -82,6 +84,8 @@ inline bool IsRemovedCommand(int id) {
     case IDC_SAVED_TAB_GROUPS_MENU:
     case IDC_WINDOW_GROUP_TAB:
     case IDC_GROUP_TARGET_TAB:
+    case IDC_NAME_WINDOW:
+    case IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL:
       return true;
     default:
       return false;

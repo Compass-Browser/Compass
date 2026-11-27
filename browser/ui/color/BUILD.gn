@@ -1,0 +1,31 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Compass's color mixers, which ChromeBrowserMainParts adds after upstream's
+# (see patches/chrome-browser-chrome_browser_main.cc.patch).
+source_set("color") {
+  sources = [
+    "compass_color_mixers.cc",
+    "compass_color_mixers.h",
+  ]
+  deps = [
+    "//base",
+    "//skia",
+    "//ui/color",
+    "//ui/gfx",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "compass_color_mixers_unittest.cc" ]
+  deps = [
+    ":color",
+    "//base",
+    "//skia",
+    "//testing/gtest",
+    "//ui/color",
+    "//ui/gfx",
+  ]
+}

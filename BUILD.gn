@@ -28,6 +28,7 @@ test("compass_unittests") {
     "//compass/browser/sidebar:unit_tests",
     "//compass/browser/sync:unit_tests",
     "//compass/browser/ui:unit_tests",
+    "//compass/browser/ui/color:unit_tests",
     "//compass/browser/ui/easels:unit_tests",
     "//compass/browser/ui/webui/easel:unit_tests",
     "//compass/browser/updates:unit_tests",
