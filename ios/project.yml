@@ -17,6 +17,9 @@ settings:
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
+    # BergamotKit (page translation's engine) has arm64 only: simulators on
+    # Apple silicon.
+    "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
 packages:
   CompassKit:
     path: CompassKit
@@ -73,6 +76,9 @@ targets:
       # Page translation's page script, shared with the desktop
       # (docs/design/translation.md, "The shared page translator").
       - path: ../common/translate/page_translator.js
+        buildPhase: resources
+      # Compass's model manifest, the desktop's.
+      - path: ../browser/translate/models.json
         buildPhase: resources
       # Live folder plugins: the SDK, the runtime scripts and the built-ins,
       # shared with the desktop (docs/design/live-folders.md). Folders at
@@ -148,6 +154,10 @@ targets:
         product: CompassRooms
       - package: CompassKit
         product: CompassTranslate
+      # The translation engine (tools/translation/build_ios.py builds it;
+      # not checked in), static.
+      - framework: Frameworks/BergamotKit.xcframework
+        embed: false
     info:
       path: App/Info.plist
       properties:

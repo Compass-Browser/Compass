@@ -25,9 +25,20 @@ final class PageTranslation {
   enum Step: Equatable {
     /// In another language: the button offers to translate.
     case offered
+    /// Downloading Compass's models for it first: bytes received of total.
+    case downloading(received: Int64, total: Int64)
     case translating
     case translated
     case failed
+
+    /// Translating, downloading included: the button shows progress and
+    /// its tap shows the original.
+    var isBusy: Bool {
+      switch self {
+      case .downloading, .translating: true
+      default: false
+      }
+    }
   }
 
   struct State: Equatable {
@@ -39,13 +50,40 @@ final class PageTranslation {
     var url: URL
   }
 
+  /// Which engine translates a pair (docs/design/translation.md, "Engines").
+  enum Engine: Equatable {
+    /// Apple's Translation framework (iOS 18 and later, on a device).
+    case apple
+    /// Bergamot with Compass's models (CompassTranslator).
+    case compass
+  }
+
+  /// The question before Compass's first model download (the desktop's
+  /// "Asking first"), shown by BrowserScreen.
+  struct Consent: Identifiable {
+    let id = UUID()
+    /// The download, in megabytes.
+    let megabytes: Int
+    let answer: (Bool) -> Void
+  }
+
+  /// UserDefaults: "apple" (the default) or "compass" (Compass's own models
+  /// only), Settings › General › Translation.
+  static let engineKey = "TranslateEngine"
+
   /// By tab; a tab with nothing to offer has none.
   private(set) var states: [String: State] = [:]
   let prefs = TranslationPrefs()
+  var consent: Consent?
 
-  /// Languages Apple translates on this device, for Translate To (filled
-  /// once, on first use).
+  /// The engine each pair ("de>en") went to, for the page's batches.
+  @ObservationIgnored private var engines: [String: Engine] = [:]
+
+  /// The languages Translate To offers: Apple's and Compass's (filled on
+  /// first use).
   private(set) var languages: [String] = []
+
+  var prefersApple: Bool { UserDefaults.standard.string(forKey: Self.engineKey) != "compass" }
 
   func state(_ id: String, _ view: WKWebView?) -> State? {
     guard let state = states[id], view?.url == state.url else { return nil }
@@ -55,7 +93,7 @@ final class PageTranslation {
   /// A page loaded: its language, and whether to offer or (Always
   /// Translate) translate it.
   func check(_ id: String, _ view: WKWebView) {
-    guard let url = view.url, TranslateScripts.isWebPage(url), Self.isAvailable else {
+    guard let url = view.url, TranslateScripts.isWebPage(url) else {
       states[id] = nil
       return
     }
@@ -71,6 +109,11 @@ final class PageTranslation {
         return
       }
       let target = prefs.always[source] ?? PageLanguage.target(source: source, preferred: preferred)
+      // Only what an engine can translate.
+      guard await engine(source, target) != nil else {
+        states[id] = nil
+        return
+      }
       states[id] = State(step: .offered, source: source, target: target, url: url)
       // Debug: `-CompassTranslate YES` translates every offered page.
       #if DEBUG
@@ -87,23 +130,91 @@ final class PageTranslation {
     if let state = states[id], state.url != view.url { states[id] = nil }
   }
 
+  /// Apple's when it has the pair on this device (unless the user wants
+  /// Compass's own), else Compass's; nil when neither does.
+  func engine(_ source: String, _ target: String) async -> Engine? {
+    #if DEBUG
+      if UserDefaults.standard.bool(forKey: "CompassTranslateFake") { return .compass }
+    #endif
+    if prefersApple, #available(iOS 18.0, *), await AppleTranslator.supports(source, target) { return .apple }
+    if CompassTranslator.shared.translates(source, target) { return .compass }
+    return nil
+  }
+
   /// Translates the tab's page into `target` (the state's when nil),
-  /// starting from the original if it's translated already.
+  /// starting from the original if it's translated already. With
+  /// Compass's engine, its models download first, after asking once.
   func translate(_ id: String, _ view: WKWebView, to target: String? = nil) {
     guard var state = state(id, view) else { return }
     if let target { state.target = target }
     state.step = .translating
     states[id] = state
-    let (source, url) = (state.source, state.url)
+    let (source, url, goal) = (state.source, state.url, state.target)
+    let current = { [weak self] in self?.states[id]?.url == url && self?.states[id]?.target == goal }
     Task {
-      let ok = await TranslateScripts.start(view, source: source, target: state.target)
-      guard view.url == url, states[id]?.target == state.target else { return }
-      log.info("translate \(source, privacy: .public)→\(state.target, privacy: .public): \(ok ? "ok" : "failed", privacy: .public)")
+      guard let engine = await engine(source, goal) else {
+        if current() { states[id]?.step = .failed }
+        return
+      }
+      engines["\(source)>\(goal)"] = engine
+      if engine == .compass {
+        #if DEBUG
+          let fake = UserDefaults.standard.bool(forKey: "CompassTranslateFake")
+        #else
+          let fake = false
+        #endif
+        let missing = fake ? [] : CompassTranslator.shared.missing(source, goal)
+        if !missing.isEmpty {
+          guard await askToDownload(missing) else {
+            if current() { states[id]?.step = .offered }
+            return
+          }
+          if current() { states[id]?.step = .downloading(received: 0, total: 0) }
+          do {
+            try await CompassTranslator.shared.install(missing) { received, total in
+              Task { @MainActor [weak self] in
+                guard let state = self?.states[id], state.url == url, state.target == goal, state.step.isBusy
+                else { return }
+                self?.states[id]?.step = .downloading(received: received, total: total)
+              }
+            }
+          } catch {
+            log.error("download \(missing, privacy: .public): \(String(describing: error), privacy: .public)")
+            if current() { states[id]?.step = .failed }
+            return
+          }
+          guard current(), states[id]?.step.isBusy == true else { return }
+          states[id]?.step = .translating
+        }
+      }
+      let ok = await TranslateScripts.start(view, source: source, target: goal)
+      guard view.url == url, current(), states[id]?.step.isBusy == true else { return }
+      log.info("translate \(source, privacy: .public)→\(goal, privacy: .public): \(ok ? "ok" : "failed", privacy: .public)")
       states[id]?.step = ok ? .translated : .failed
     }
   }
 
-  /// Back to the page as it was.
+  /// Asks before the first download; true once the user agreed.
+  private func askToDownload(_ languages: [String]) async -> Bool {
+    if CompassTranslator.shared.downloadsAllowed { return true }
+    let bytes = CompassTranslator.shared.packs?.downloadSize(languages) ?? 0
+    let megabytes = max(1, Int((bytes + 500_000) / 1_000_000))
+    let yes = await withCheckedContinuation { done in
+      consent?.answer(false)
+      // Answered once: the alert's dismissal answers again.
+      var answered = false
+      consent = Consent(megabytes: megabytes) { yes in
+        guard !answered else { return }
+        answered = true
+        done.resume(returning: yes)
+      }
+    }
+    consent = nil
+    if yes { CompassTranslator.shared.downloadsAllowed = true }
+    return yes
+  }
+
+  /// Back to the page as it was (a download goes on, for next time).
   func showOriginal(_ id: String, _ view: WKWebView) {
     guard state(id, view) != nil else { return }
     states[id]?.step = .offered
@@ -119,28 +230,24 @@ final class PageTranslation {
   func neverTranslate(_ id: String, _ view: WKWebView, site: Bool) {
     guard let state = state(id, view) else { return }
     if site { prefs.setNeverSite(state.url) } else { prefs.setNever(state.source) }
-    if state.step == .translated || state.step == .translating { Task { await TranslateScripts.restore(view) } }
+    if state.step != .offered { Task { await TranslateScripts.restore(view) } }
     states[id] = nil
   }
 
   func isAlways(_ state: State) -> Bool { prefs.always[state.source] != nil }
 
-  /// The languages Translate To offers: Apple's, by name.
+  /// The languages Translate To offers: Apple's and Compass's, by name.
   func loadLanguages() async {
-    guard languages.isEmpty, #available(iOS 18.0, *) else { return }
-    let codes = Set(await AppleTranslator.supportedCodes().compactMap(PageLanguage.normalize))
+    guard languages.isEmpty else { return }
+    var codes = CompassTranslator.shared.languages
+    if prefersApple, #available(iOS 18.0, *) {
+      codes.formUnion(await AppleTranslator.supportedCodes().compactMap(PageLanguage.normalize))
+    }
     languages = codes.sorted { Self.name($0).localizedCompare(Self.name($1)) == .orderedAscending }
   }
 
   static func name(_ code: String) -> String {
     Locale.current.localizedString(forIdentifier: code) ?? code
-  }
-
-  /// Apple's Translation framework: iOS 18 and later. Bergamot, for
-  /// iOS 17 and the languages Apple lacks, comes later (T6b).
-  static var isAvailable: Bool {
-    if #available(iOS 18.0, *) { return true }
-    return false
   }
 
   /// A batch from the page's engine: `{source, target, segments: [{text,
@@ -155,23 +262,34 @@ final class PageTranslation {
       PlainTextBatch.Segment(text: $0["text"] as? String ?? "", html: $0["html"] as? Bool ?? false)
     }
     let batch = PlainTextBatch(segments)
-    // Debug: `-CompassTranslateFake YES` upper-cases instead (the
-    // simulator has no Apple Translation), to check the page and the UI.
+    // Debug: `-CompassTranslateFake YES` upper-cases instead, to check the
+    // page and the UI without models.
     #if DEBUG
       if UserDefaults.standard.bool(forKey: "CompassTranslateFake") {
         return (batch.translations(from: batch.strings.map { $0.uppercased() }).map { $0 as Any? ?? NSNull() }, nil)
       }
     #endif
-    guard #available(iOS 18.0, *) else { return (nil, "unsupported") }
-    do {
-      let results = try await AppleTranslator.shared.translate(batch.strings, from: source, to: target)
-      return (batch.translations(from: results).map { $0 as Any? ?? NSNull() }, nil)
-    } catch AppleTranslator.Failure.unsupported {
-      log.error("\(source, privacy: .public)→\(target, privacy: .public): unsupported")
+    let pair = "\(source)>\(target)"
+    if engines[pair] == nil { engines[pair] = await engine(source, target) }
+    switch engines[pair] {
+    case .compass:
+      // Bergamot takes HTML as it is.
+      guard let results = await CompassTranslator.shared.translate(segments, from: source, to: target) else {
+        log.error("\(source, privacy: .public)→\(target, privacy: .public): no Compass translator")
+        return (nil, "failed")
+      }
+      return (results.map { $0 as Any? ?? NSNull() }, nil)
+    case .apple:
+      guard #available(iOS 18.0, *) else { return (nil, "unsupported") }
+      do {
+        let results = try await AppleTranslator.shared.translate(batch.strings, from: source, to: target)
+        return (batch.translations(from: results).map { $0 as Any? ?? NSNull() }, nil)
+      } catch {
+        log.error("\(source, privacy: .public)→\(target, privacy: .public): \(String(describing: error), privacy: .public)")
+        return (nil, "failed")
+      }
+    case nil:
       return (nil, "unsupported")
-    } catch {
-      log.error("\(source, privacy: .public)→\(target, privacy: .public): \(String(describing: error), privacy: .public)")
-      return (nil, "failed")
     }
   }
 }
@@ -449,7 +567,7 @@ extension AppModel {
   /// ⌘⇧Y and the page menu's tile: translate, or back to the original.
   func toggleTranslation() {
     guard let state = shownTranslation else { return }
-    if state.step == .translated || state.step == .translating { showOriginalShown() } else { translateShown() }
+    if state.step == .translated || state.step.isBusy { showOriginalShown() } else { translateShown() }
   }
 
   func alwaysTranslateShown(_ on: Bool) {
@@ -490,7 +608,7 @@ struct TranslateButton: View {
           Label(String(localized: "Translate To", comment: "Translate menu: a submenu of languages to translate the page into."), systemImage: "globe")
         }
       }
-      if state.step == .translated || state.step == .translating {
+      if state.step == .translated || state.step.isBusy {
         Button(String(localized: "Show Original", comment: "Translate menu: put the page back in its own language."), systemImage: "arrow.uturn.backward") {
           app.showOriginalShown()
         }
@@ -512,7 +630,12 @@ struct TranslateButton: View {
       }
     } label: {
       Group {
-        if state.step == .translating {
+        if case .downloading(let received, let total) = state.step, total > 0 {
+          ProgressView(value: Double(received), total: Double(total))
+            .progressViewStyle(.circular)
+            .controlSize(.small)
+            .tint(tint)
+        } else if state.step.isBusy {
           ProgressView().controlSize(.small)
         } else {
           Image(systemName: "translate")
@@ -527,7 +650,7 @@ struct TranslateButton: View {
       switch state.step {
       case .offered: app.translateShown()
       case .failed: app.translateShown()
-      case .translating, .translated: app.showOriginalShown()
+      case .downloading, .translating, .translated: app.showOriginalShown()
       }
     }
     .padding(.leading, 2)
@@ -548,13 +671,22 @@ struct TranslateButton: View {
     let language = PageTranslation.name(state.source)
     switch state.step {
     case .offered: return String(localized: "Translate from \(language)", comment: "Address bar's translate button: translate the page. The argument is a language name.")
+    case .downloading(let received, let total):
+      let (got, all) = Self.megabytes(received, total)
+      return String(localized: "Downloading \(language) for translation: \(got) of \(all) MB", comment: "Address bar's translate button while the language the page needs downloads, before it is translated. The arguments: a language name, then megabytes received and the total.")
     case .translating: return String(localized: "Translating…", comment: "Address bar's translate button while the page translates.")
     case .translated: return String(localized: "Translated from \(language)", comment: "Address bar's translate button on a translated page. The argument is a language name.")
     case .failed: return String(localized: "This page couldn't be translated", comment: "Address bar's translate button after translating failed.")
     }
   }
 
+  /// Whole megabytes, at least 1 of the total.
+  static func megabytes(_ received: Int64, _ total: Int64) -> (Int, Int) {
+    (Int(received / 1_000_000), max(1, Int((total + 500_000) / 1_000_000)))
+  }
+
   private func header(_ state: PageTranslation.State) -> String {
+    if case .downloading = state.step { return label }
     let language = PageTranslation.name(state.source)
     if state.step == .translated {
       return String(localized: "Translated from \(language)", comment: "Address bar's translate button on a translated page. The argument is a language name.")

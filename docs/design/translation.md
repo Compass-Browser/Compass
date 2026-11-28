@@ -3,8 +3,10 @@
 Status: T1 to T5 done (2026-11-28): the engine on macOS arm64, Windows
 x64 and Linux x64; language packs from the mirror; the shared page
 translator; page translation on the desktop (verified on macOS); its
-settings and privacy notes. T6a (2026-11-28): iOS with Apple's
-Translation framework, the page and the UI; Bergamot on iOS (T6b) next.
+settings and privacy notes. T6 (2026-11-28): iOS with Apple's
+Translation framework first and Bergamot after it, the page, the UI and
+Settings; Apple's engine still to try on a device. T7 (the other 20
+languages) next.
 Based on Chromium 159.0.8154.34.
 
 ## Goal
@@ -595,7 +597,7 @@ code.
   button is filled, and its menu has the target language, Show Original,
   and "Always Translate <language>".
 
-### Where it is (T6a)
+### Where it is (T6)
 
 - `CompassKit/Sources/CompassTranslate` (tested on the Mac,
   `CompassTranslateTests`): `PageLanguage` (codes, detection from `lang`
@@ -625,6 +627,44 @@ code.
   translating, which checks the page script, the bridge and the button in
   the simulator (done 2026-11-28 on German Wikipedia: text upper-cased in
   place, links kept, the button filled).
+- **Bergamot on iOS (T6b).** `tools/translation/build_ios.py` builds
+  `ios/Frameworks/BergamotKit.xcframework` (not checked in; `compass ios
+  build`, `sim` and `archive` run it when it's missing): it asks the Mac
+  arm64 build's GN for the engine's targets and zstd's (about 270, 481
+  files: Bergamot, Marian, ssplit, PCRE2, SentencePiece, protobuf-lite,
+  ruy, cpuinfo, Abseil, zstd), their sources, defines and include folders,
+  and compiles them with Xcode's clang and Apple's libc++ (Chromium's
+  libc++ flags and `_LIBCPP_`/`CR_` defines dropped) for `arm64-apple-ios17`
+  and its simulator, 36 MB each, static. No Chromium iOS checkout needed;
+  the generated files come from the Mac build's gen/. Simulators are arm64
+  only (`EXCLUDED_ARCHS` x86_64). Its C API is
+  `components/translatekit/ios/bergamot_kit.h` (engine, packages,
+  translator, translate, and `bk_zstd_decompress_file()`, since Apple's
+  Compression framework has no zstd).
+- `BergamotPacks` (CompassTranslate, tested with a fake server): the
+  desktop's `models.json` (bundled), a pack per language other than
+  English with both directions, each file's size and SHA-256 checked
+  compressed and decompressed, staged and moved into place, progress across
+  the packs. `CompassTranslator` (App): the packs in Application
+  Support/Compass/Translation/ (excluded from backups), downloads with
+  `URLSession` and a progress delegate, a `BKEngine` with two workers,
+  translators per pair, `bk_translate()` off the main thread with HTML
+  segments in Bergamot's HTML mode.
+- **Which engine** (`PageTranslation.engine()`): Apple's when "Translate
+  With" is Apple and `LanguageAvailability` doesn't say unsupported (on a
+  device, iOS 18+), else Compass's when the manifest has the pair, else the
+  page isn't offered. The first Compass download asks (an alert with the
+  size, `TranslateModelDownloadsAllowed`), and the button shows a
+  determinate ring while it downloads, its label "Downloading German for
+  translation: 12 of 45 MB".
+- **Settings › Translation:** Offer to Translate Pages; Translate With
+  (Apple, then Compass / Compass Only; iOS 18+); Download Languages When
+  Needed; Compass's languages with Remove; the Never Translate languages
+  and sites, swipe to delete.
+- **Checked** in the simulator (2026-11-28): German Wikipedia, Apple
+  unsupported there, so Bergamot: the German pack downloaded from the
+  mirror and the page translated into English with its links, about 14 s
+  from launch. Apple's engine needs a device.
 
 ## Android
 

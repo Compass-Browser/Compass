@@ -1281,6 +1281,12 @@ def cmd_ios(layout: Layout, args) -> None:
     ios_external(args, args.build)
     return
   run([ios / 'scripts' / 'fetch_boringssl.sh'], ios)
+  # Page translation's engine, built from the Chromium checkout's Mac
+  # build (tools/translation/build_ios.py); not checked in.
+  if (args.action != 'test' and
+      not (ios / 'Frameworks' / 'BergamotKit.xcframework').exists()):
+    run([sys.executable, layout.root / 'tools' / 'translation' / 'build_ios.py'],
+        layout.root)
   if args.action == 'archive':
     if args.external and not args.upload:
       raise CommandError('--external needs --upload')

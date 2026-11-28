@@ -728,6 +728,17 @@
         }
       }
     },
+    "A translate button shows in the address bar on pages in a language you don't read (your iPhone's preferred languages)." : {
+      "comment" : "Settings › Translation: footer of Offer to Translate Pages.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un pulsante di traduzione compare nella barra degli indirizzi nelle pagine in una lingua che non leggi (le lingue preferite dell'iPhone)."
+          }
+        }
+      }
+    },
     "A video playing with sound keeps playing in a window when you leave its tab" : {
       "localizations" : {
         "it" : {
@@ -1392,6 +1403,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apple Intelligence è disattivata nelle Impostazioni di sistema."
+          }
+        }
+      }
+    },
+    "Apple's models are shared with Safari and managed in the Settings app. Compass's own models translate the languages Apple doesn't, and everything when you choose Compass Only. Both stay on this device." : {
+      "comment" : "Settings › Translation: footer of Translate With.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I modelli di Apple sono condivisi con Safari e si gestiscono nell'app Impostazioni. I modelli di Compass traducono le lingue che Apple non supporta, e tutto se scegli Solo Compass. Entrambi restano su questo dispositivo."
+          }
+        }
+      }
+    },
+    "Apple, Then Compass" : {
+      "comment" : "Settings › Translation › Translate With: Apple's Translation first, Compass's models for the rest.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple, poi Compass"
           }
         }
       }
@@ -2237,6 +2270,17 @@
         }
       }
     },
+    "Compass Only" : {
+      "comment" : "Settings › Translation › Translate With: only Compass's own models.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo Compass"
+          }
+        }
+      }
+    },
     "Compass Tab" : {
       "localizations" : {
         "it" : {
@@ -2322,6 +2366,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Compass si sincronizza solo mentre è aperto, quindi le modifiche dagli altri dispositivi compaiono quando lo apri."
+          }
+        }
+      }
+    },
+    "Compass translates this page on your device with Firefox's open translation models. This language is downloaded once (about %lld MB) from Compass's server, which sees your IP address and which language you download, never the page." : {
+      "comment" : "Body of the alert asking whether Compass may download translation languages. Firefox is Mozilla's browser; its translation models are what Compass uses. The argument is a size in megabytes.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compass traduce questa pagina sul dispositivo con i modelli di traduzione aperti di Firefox. Questa lingua viene scaricata una volta (circa %lld MB) dal server di Compass, che vede il tuo indirizzo IP e quale lingua scarichi, mai la pagina."
+          }
+        }
+      }
+    },
+    "Compass's Languages" : {
+      "comment" : "Settings › Translation: section of Compass's downloaded languages.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lingue di Compass"
           }
         }
       }
@@ -2889,12 +2955,45 @@
         }
       }
     },
+    "Download Languages When Needed" : {
+      "comment" : "Settings › Translation: download Compass's language models without asking first.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scarica le lingue quando servono"
+          }
+        }
+      }
+    },
+    "Download translation languages?" : {
+      "comment" : "Title of the alert asking, the first time a page translation needs a language that isn't downloaded, whether Compass may download translation languages.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scaricare le lingue di traduzione?"
+          }
+        }
+      }
+    },
     "Downloaded from their publishers and checked for updates once a day." : {
       "localizations" : {
         "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Scaricati dai loro autori e controllati una volta al giorno per gli aggiornamenti."
+          }
+        }
+      }
+    },
+    "Downloading %@ for translation: %lld of %lld MB" : {
+      "comment" : "Address bar's translate button while the language the page needs downloads, before it is translated. The arguments: a language name, then megabytes received and the total.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download della lingua per la traduzione (%1$@): %2$lld di %3$lld MB"
           }
         }
       }
@@ -3433,6 +3532,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trova…"
+          }
+        }
+      }
+    },
+    "Firefox's open translation models, downloaded from Compass's server once per language (about 45 MB each). The server sees your IP address and which language, never the page." : {
+      "comment" : "Settings › Translation: footer of Compass's Languages.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I modelli di traduzione aperti di Firefox, scaricati dal server di Compass una volta per lingua (circa 45 MB ciascuna). Il server vede il tuo indirizzo IP e quale lingua, mai la pagina."
           }
         }
       }
@@ -4969,6 +5079,17 @@
         }
       }
     },
+    "Never Translate" : {
+      "comment" : "Settings › Translation: section of languages never offered for translation.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non tradurre mai"
+          }
+        }
+      }
+    },
     "Never Translate %@" : {
       "comment" : "Translate menu: don't offer to translate pages in this language any more. The argument is a language name.",
       "localizations" : {
@@ -4976,6 +5097,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Non tradurre mai: %@"
+          }
+        }
+      }
+    },
+    "Never Translate These Sites" : {
+      "comment" : "Settings › Translation: section of sites never offered for translation.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non tradurre mai questi siti"
           }
         }
       }
@@ -5580,6 +5712,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Disattivato: l’AI lavora solo con la pagina di cui stai parlando. Attivato: può anche leggere e aprire le altre schede. Le pagine web possono contenere testo scritto per ingannarla, quindi attivalo solo quando ti serve."
+          }
+        }
+      }
+    },
+    "Offer to Translate Pages" : {
+      "comment" : "Settings › Translation: switch for the translate button on pages in other languages.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proponi di tradurre le pagine"
           }
         }
       }
@@ -9326,6 +9469,17 @@
         }
       }
     },
+    "Translate With" : {
+      "comment" : "Settings › Translation: which engine translates pages.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduci con"
+          }
+        }
+      }
+    },
     "Translate from %@" : {
       "comment" : "Address bar's translate button: translate the page. The argument is a language name.",
       "localizations" : {
@@ -9355,6 +9509,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Traduzione in corso…"
+          }
+        }
+      }
+    },
+    "Translation" : {
+      "comment" : "Settings: the page translation settings.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduzione"
           }
         }
       }

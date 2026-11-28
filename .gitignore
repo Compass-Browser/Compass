@@ -9,3 +9,5 @@ __pycache__/
 /third_party/sparkle/
 # Written by `compass build` for Windows releases (tools/compass_tool/cli.py).
 /build/mojom_message_id_salt
+# BergamotKit.xcframework, built by tools/translation/build_ios.py.
+/ios/Frameworks/

@@ -66,6 +66,23 @@ struct BrowserScreen: View {
     content
       // Apple's translation sessions (Translation.swift), invisible.
       .background { TranslationHost() }
+      // Before Compass's first model download (Translation.swift).
+      .alert(
+        String(localized: "Download translation languages?", comment: "Title of the alert asking, the first time a page translation needs a language that isn't downloaded, whether Compass may download translation languages."),
+        isPresented: Binding(
+          get: { app.services.translation.consent != nil },
+          set: { if !$0 { app.services.translation.consent?.answer(false) } }),
+        presenting: app.services.translation.consent
+      ) { consent in
+        Button(String(localized: "Download", comment: "Button in the alert asking whether Compass may download translation languages: agree and go on translating.")) {
+          consent.answer(true)
+        }
+        Button(String(localized: "Not Now", comment: "Button in the alert asking whether Compass may download translation languages: don't download now; the page isn't translated."), role: .cancel) {
+          consent.answer(false)
+        }
+      } message: { consent in
+        Text(String(localized: "Compass translates this page on your device with Firefox's open translation models. This language is downloaded once (about \(consent.megabytes) MB) from Compass's server, which sees your IP address and which language you download, never the page.", comment: "Body of the alert asking whether Compass may download translation languages. Firefox is Mozilla's browser; its translation models are what Compass uses. The argument is a size in megabytes."))
+      }
       .overlay {
         if let flight, let menuCenter {
           DownloadFlight(phase: flight, target: menuCenter)
@@ -675,7 +692,7 @@ struct BrowserScreen: View {
       }
     }
     if let state = app.shownTranslation {
-      if state.step == .translated || state.step == .translating {
+      if state.step == .translated || state.step.isBusy {
         Button(String(localized: "Show Original", comment: "Translate menu: put the page back in its own language."), systemImage: "translate") {
           app.showOriginalShown()
         }

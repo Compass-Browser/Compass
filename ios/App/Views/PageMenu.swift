@@ -42,7 +42,7 @@ struct PageMenu: View {
         // Page translation (Translation.swift): dimmed when the page is in
         // a language the user reads.
         let translation = app.shownTranslation
-        let translated = translation?.step == .translated || translation?.step == .translating
+        let translated = translation?.step == .translated || translation?.step.isBusy == true
         Tile(title: String(localized: "Translate", comment: "Page menu tile: translate the page, or show the original when it's translated."), symbol: "translate", on: translated) {
           dismiss()
           app.toggleTranslation()
