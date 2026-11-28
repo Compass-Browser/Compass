@@ -161,7 +161,8 @@ def mirrored(file):
   try:
     with urllib.request.urlopen(request, timeout=60) as response:
       return int(response.headers.get('Content-Length', -1)) == file['size']
-  except urllib.error.HTTPError:
+  except (urllib.error.URLError, OSError):
+    # Not there, or the mirror isn't reachable yet (a new bucket's domain).
     return False
 
 
