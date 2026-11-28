@@ -77,6 +77,15 @@ class PageTranslatorHost
 void AskForModelDownloads(content::WebContents* web_contents,
                           base::OnceCallback<void(bool)> callback);
 
+// A language the page needs is downloading: `received` of `total` bytes,
+// then finished (or failed). Defined by the UI layer: the desktop's pill
+// button (TranslationTabState), Android's message
+// (browser/android/translate_messages.cc).
+void ShowModelDownloadProgress(content::WebContents* web_contents,
+                               int64_t received,
+                               int64_t total);
+void ModelDownloadFinished(content::WebContents* web_contents);
+
 }  // namespace compass::translate
 
 #endif  // COMPASS_BROWSER_TRANSLATE_PAGE_TRANSLATOR_HOST_H_

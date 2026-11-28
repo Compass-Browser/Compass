@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/global_features.h b/chrome/browser/global_features.h
+index 71c24f2345ab2c2dd4a59af4d23441a6090dbe8f..6c952c69604f1533d44b10b1d985b19a2e2255ac 100644
+--- a/chrome/browser/global_features.h
++++ b/chrome/browser/global_features.h
+@@ -378,12 +378,13 @@ class GlobalFeatures {
+       unexportable_key_obsolete_profile_garbage_collector_;
+ #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+ 
+-#if !BUILDFLAG(IS_ANDROID)
+-  std::unique_ptr<child_module::ChildModuleManager> child_module_manager_;
+-
++  // Compass: Android too (docs/design/translation.md, "Android").
+   std::unique_ptr<on_device_translation::OnDeviceTranslationInstaller>
+       on_device_translation_installer_;
+ 
++#if !BUILDFLAG(IS_ANDROID)
++  std::unique_ptr<child_module::ChildModuleManager> child_module_manager_;
++
+   std::unique_ptr<ProfileLaunchObserver> profile_launch_observer_;
+ 
+   std::unique_ptr<smart_restart::SmartRestartMetricsObserver>

@@ -664,6 +664,8 @@
   <!-- PageMenuUi.kt -->
   <string name="compass_menu_find">Find</string>
   <string name="compass_menu_reader">Reader</string>
+  <!-- Page menu tile: translate the page (Chrome's translation, on the device). -->
+  <string name="compass_menu_translate">Translate</string>
   <!-- "Ask Claude", "Ask GPT", "Ask Gemini" (AiNames.kt); "Ask AI" for a server with no name of its own. -->
   <string name="compass_ask_named">Ask %1$s</string>
   <string name="compass_ask_ai">Ask AI</string>

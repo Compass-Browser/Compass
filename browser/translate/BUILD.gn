@@ -87,7 +87,6 @@ source_set("page_translator_host") {
   ]
   deps = [
     ":page_translation",
-    ":tab_state",
     ":translate",
     "//base",
     "//chrome/browser:browser_process",
@@ -143,61 +142,63 @@ source_set("translatekit_library") {
   ]
 }
 
-source_set("unit_tests") {
-  testonly = true
-  sources = [
-    "translatekit_library_unittest.cc",
-    "translation_manifest_unittest.cc",
-    "translation_pack_installer_unittest.cc",
-  ]
-  deps = [
-    ":translate",
-    ":translatekit_library",
-    "//base",
-    "//base/test:test_support",
-    "//components/on_device_translation:features",
-    "//components/on_device_translation:public",
-    "//components/prefs:test_support",
-    "//crypto",
-    "//net",
-    "//services/network:test_support",
-    "//services/network/public/cpp",
-    "//testing/gtest",
-    "//third_party/zstd:compress",
-  ]
-  data_deps = [ "//compass/components/translatekit:compass_translatekit" ]
-}
+if (!is_android) {
+  source_set("unit_tests") {
+    testonly = true
+    sources = [
+      "translatekit_library_unittest.cc",
+      "translation_manifest_unittest.cc",
+      "translation_pack_installer_unittest.cc",
+    ]
+    deps = [
+      ":translate",
+      ":translatekit_library",
+      "//base",
+      "//base/test:test_support",
+      "//components/on_device_translation:features",
+      "//components/on_device_translation:public",
+      "//components/prefs:test_support",
+      "//crypto",
+      "//net",
+      "//services/network:test_support",
+      "//services/network/public/cpp",
+      "//testing/gtest",
+      "//third_party/zstd:compress",
+    ]
+    data_deps = [ "//compass/components/translatekit:compass_translatekit" ]
+  }
 
-source_set("browser_tests") {
-  testonly = true
-  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-  sources = [
-    "page_translation_browsertest.cc",
-    "translatekit_browsertest.cc",
-  ]
-  deps = [
-    ":tab_state",
-    ":translate",
-    ":translatekit_library",
-    "//base",
-    "//chrome/browser",
-    "//chrome/browser:browser_process",
-    "//chrome/browser/profiles:profile",
-    "//chrome/browser/translate",
-    "//chrome/browser/translate:test_support",
-    "//chrome/test:test_support",
-    "//chrome/test:test_support_ui",
-    "//compass/browser/ui",
-    "//components/language/core/browser",
-    "//components/on_device_translation:features",
-    "//components/prefs",
-    "//components/translate/content/browser",
-    "//components/translate/core/browser",
-    "//components/web_modal",
-    "//content/test:test_support",
-    "//net:test_support",
-    "//testing/gtest",
-    "//ui/views",
-  ]
-  data_deps = [ "//compass/components/translatekit:compass_translatekit" ]
-}
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [
+      "page_translation_browsertest.cc",
+      "translatekit_browsertest.cc",
+    ]
+    deps = [
+      ":tab_state",
+      ":translate",
+      ":translatekit_library",
+      "//base",
+      "//chrome/browser",
+      "//chrome/browser:browser_process",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/translate",
+      "//chrome/browser/translate:test_support",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//compass/browser/ui",
+      "//components/language/core/browser",
+      "//components/on_device_translation:features",
+      "//components/prefs",
+      "//components/translate/content/browser",
+      "//components/translate/core/browser",
+      "//components/web_modal",
+      "//content/test:test_support",
+      "//net:test_support",
+      "//testing/gtest",
+      "//ui/views",
+    ]
+    data_deps = [ "//compass/components/translatekit:compass_translatekit" ]
+  }
+}  # !is_android

@@ -659,6 +659,7 @@
   <!-- PageMenuUi.kt -->
   <string name="compass_menu_find">Trova</string>
   <string name="compass_menu_reader">Lettura</string>
+  <string name="compass_menu_translate">Traduci</string>
   <string name="compass_ask_named">Chiedi a %1$s</string>
   <string name="compass_ask_ai">Chiedi all’AI</string>
   <string name="compass_menu_unpin">Non fissare</string>

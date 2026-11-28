@@ -11,6 +11,7 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.translate.TranslateBridge;
 
 import java.util.Collections;
 
@@ -46,6 +47,7 @@ public class PageMenu implements PageMenuUi.Listener {
         mState.setAskTitle(AiNames.askTitle(mActivity.getResources(), mBar.aiProvider()));
         mState.setPinned(tab != null && mBar.pinnedNodeFor(tab.getId()) != null);
         mState.setInReader(mBar.inReader());
+        mState.setCanTranslate(tab != null && TranslateBridge.canManuallyTranslate(tab, false));
         mState.setTint(mBar.spaceTint());
         mState.setExtensions(
                 tab != null && tab.isIncognito() ? Collections.emptyList() : mBar.extensionActions());
@@ -96,6 +98,11 @@ public class PageMenu implements PageMenuUi.Listener {
     @Override
     public void onReader() {
         then(mBar::toggleReader);
+    }
+
+    @Override
+    public void onTranslate() {
+        then(mBar::translatePage);
     }
 
     @Override

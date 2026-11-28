@@ -20,7 +20,7 @@
 // Declares TranslateURLFetcherImpl under its own name, before the renaming.
 #include "net/http/http_request_headers.h"
 
-#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_IOS)
 #include "compass/browser/translate/page_translation.h"
 
 namespace translate {
@@ -59,7 +59,7 @@ class CompassTranslateScriptFetcher : public TranslateUrlFetcher {
 }  // namespace translate
 
 #define TranslateURLFetcherImpl CompassTranslateScriptFetcher
-#endif  // !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_IOS)
 
 #include "src/components/translate/core/browser/translate_script.cc"
 

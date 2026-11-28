@@ -12,6 +12,7 @@
 #include "chrome/browser/ui/tab_modal_confirm_dialog.h"
 #include "chrome/browser/ui/tab_modal_confirm_dialog_delegate.h"
 #include "compass/browser/translate/page_translator_host.h"
+#include "compass/browser/translate/translation_tab_state.h"
 #include "compass/strings/grit/compass_strings.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -66,6 +67,23 @@ void AskForModelDownloads(content::WebContents* web_contents,
   TabModalConfirmDialog::Create(
       std::make_unique<ModelDownloadDialog>(web_contents, std::move(callback)),
       web_contents);
+}
+
+void ShowModelDownloadProgress(content::WebContents* web_contents,
+                               int64_t received,
+                               int64_t total) {
+  if (web_contents) {
+    TranslationTabState::GetOrCreateForWebContents(web_contents)
+        ->SetDownloading(received, total);
+  }
+}
+
+void ModelDownloadFinished(content::WebContents* web_contents) {
+  if (TranslationTabState* state =
+          web_contents ? TranslationTabState::FromWebContents(web_contents)
+                       : nullptr) {
+    state->DownloadFinished();
+  }
 }
 
 }  // namespace compass::translate

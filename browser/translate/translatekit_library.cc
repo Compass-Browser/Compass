@@ -46,6 +46,17 @@ base::FilePath GetBundledTranslateKitLibrary() {
     }
   }
 #endif
+#if BUILDFLAG(IS_ANDROID)
+  // In the APK (compass/android/BUILD.gn's loadable_modules), not on disk:
+  // the native library folder's path is what upstream wants (absolute),
+  // and the service opens the file by name (patch of
+  // translate_kit_client.cc), which the linker finds in the APK.
+  base::FilePath native_dir;
+  if (base::PathService::Get(base::DIR_MODULE, &native_dir)) {
+    return native_dir.Append(kLibraryName);
+  }
+  return base::FilePath();
+#else
   // Windows: the versioned folder with chrome.dll. Linux: next to the
   // binary. Every platform's out dir.
   base::FilePath module_dir;
@@ -56,6 +67,7 @@ base::FilePath GetBundledTranslateKitLibrary() {
     }
   }
   return base::FilePath();
+#endif
 }
 
 void UseBundledTranslateKit(base::CommandLine& command_line) {

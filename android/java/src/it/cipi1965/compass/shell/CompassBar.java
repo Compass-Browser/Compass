@@ -945,6 +945,11 @@ public class CompassBar implements CompassBarUi.Actions {
         if (mReader != null) mReader.toggle();
     }
 
+    /** Chrome's Translate menu item: the page into the user's language, or its message. */
+    void translatePage() {
+        chromeAction("translate_id");
+    }
+
     @Override
     public void findInPage() {
         // Compass's find bar: Chrome's is part of the toolbar the shell hides.

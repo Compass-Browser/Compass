@@ -72,6 +72,8 @@ object PageMenuUi {
 
         fun onReader()
 
+        fun onTranslate()
+
         fun onAskClaude()
 
         fun onCaptureToEasel()
@@ -134,6 +136,15 @@ private fun PageMenuSheet(state: PageMenuState, listener: PageMenuUi.Listener) {
                 selected = state.inReader,
             ) {
                 listener.onReader()
+            }
+            // Page translation (docs/design/translation.md, "Android"): Chrome's own, on Compass's
+            // engine and models.
+            Tile(
+                stringResource(R.string.compass_menu_translate),
+                R.drawable.compass_sym_translate,
+                enabled = state.canTranslate,
+            ) {
+                listener.onTranslate()
             }
             if (!state.incognito) Tile(state.askTitle, R.drawable.compass_sym_auto_awesome) { listener.onAskClaude() }
             Tile(

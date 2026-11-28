@@ -1,0 +1,18 @@
+diff --git a/components/on_device_translation/service/translate_kit_client.cc b/components/on_device_translation/service/translate_kit_client.cc
+index 3431fca66f2682bb8c8251f914f0a926ea8919e2..9239978e37f0ec6ed6506fb765066e5e933edee7 100644
+--- a/components/on_device_translation/service/translate_kit_client.cc
++++ b/components/on_device_translation/service/translate_kit_client.cc
+@@ -137,7 +137,13 @@ std::unique_ptr<TranslateKitClient> TranslateKitClient::CreateForTest(
+ 
+ TranslateKitClient::TranslateKitClient(const base::FilePath& library_path,
+                                        base::PassKey<TranslateKitClient>)
++#if BUILDFLAG(IS_ANDROID)
++      // Compass: the library stays in the APK, where the linker finds it by
++      // name, not at the path in the native library folder.
++    : lib_(library_path.BaseName()),
++#else
+     : lib_(library_path),
++#endif
+       get_translate_kit_version_func_(
+           reinterpret_cast<GetTranslateKitVersionFn>(
+               lib_.GetFunctionPointer("GetTranslateKitVersion"))),

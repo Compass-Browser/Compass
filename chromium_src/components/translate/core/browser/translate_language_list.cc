@@ -18,7 +18,7 @@
 // their own names, before the renaming.
 #include "components/translate/core/common/translate_language_matcher.h"
 
-#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_IOS)
 #include "compass/browser/translate/page_translation.h"
 
 namespace translate {
@@ -47,7 +47,7 @@ std::vector<base::i18n::LanguageTag> CompassSupportedLanguages() {
 
 #define TranslateURLFetcherImpl CompassNoLanguageListFetcher
 #define GetDefaultSupportedLanguages CompassSupportedLanguages
-#endif  // !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_IOS)
 
 #include "src/components/translate/core/browser/translate_language_list.cc"
 

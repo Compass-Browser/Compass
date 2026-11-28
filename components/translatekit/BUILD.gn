@@ -53,6 +53,12 @@ shared_library("compass_translatekit") {
     "//build/config/compiler:rtti",
     "//compass/third_party/bergamot:bergamot_warnings",
   ]
+
+  # Android hides every symbol but JNI_OnLoad by default; the service
+  # looks up the TranslateKit ABI by name.
+  if (is_android) {
+    configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+  }
 }
 
 # Translates stdin with the models in a folder of packages, for trying the

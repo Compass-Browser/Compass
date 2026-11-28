@@ -14,7 +14,6 @@
 #include "chrome/browser/on_device_translation/service_controller_manager_factory.h"
 #include "compass/browser/translate/page_translation.h"
 #include "compass/browser/translate/translation_pack_installer.h"
-#include "compass/browser/translate/translation_tab_state.h"
 #include "compass/components/translatekit/html_marker.h"
 #include "components/on_device_translation/component_manager.h"
 #include "components/on_device_translation/public/language_pack.h"
@@ -158,16 +157,17 @@ void PageTranslatorHost::InstallNext(std::unique_ptr<Request> request) {
     return;
   }
   const LanguagePackKey key = request->missing.back();
-  // The pill shows how far the download is (TranslationTabState).
+  // The UI shows how far the download is (the desktop's pill, Android's
+  // message).
   PackInstaller::Get().OnProgress(
       key, base::BindRepeating(
                [](base::WeakPtr<PageTranslatorHost> self, int64_t received,
                   int64_t total) {
                  if (self) {
-                   TranslationTabState::GetOrCreateForWebContents(
+                   ShowModelDownloadProgress(
                        content::WebContents::FromRenderFrameHost(
-                           &self->render_frame_host()))
-                       ->SetDownloading(received, total);
+                           &self->render_frame_host()),
+                       received, total);
                  }
                },
                weak_factory_.GetWeakPtr()));
@@ -182,10 +182,8 @@ void PageTranslatorHost::InstallNext(std::unique_ptr<Request> request) {
 
 void PageTranslatorHost::OnPackInstalled(std::unique_ptr<Request> request,
                                          bool ok) {
-  if (TranslationTabState* state = TranslationTabState::FromWebContents(
-          content::WebContents::FromRenderFrameHost(&render_frame_host()))) {
-    state->DownloadFinished();
-  }
+  ModelDownloadFinished(
+      content::WebContents::FromRenderFrameHost(&render_frame_host()));
   if (!ok) {
     request->Fail(mojom::PageTranslationResult::kFailed);
     return;

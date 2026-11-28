@@ -6,7 +6,8 @@ translator; page translation on the desktop (verified on macOS); its
 settings and privacy notes. T6 (2026-11-28): iOS with Apple's
 Translation framework first and Bergamot after it, the page, the UI and
 Settings; Apple's engine still to try on a device. T7 (2026-11-28):
-Bergamot's other 19 languages on the desktop. Android (T8) next.
+Bergamot's other 19 languages on the desktop. T8 (2026-11-28): Android,
+translating in the emulator.
 Based on Chromium 159.0.8154.34.
 
 ## Goal
@@ -678,12 +679,50 @@ code.
 
 ## Android
 
-Upstream builds the on-device service only on desktop
-(`enable_on_device_translation`). Android needs that flag turned on
-(patch), the library built for arm64 and x86-64 into the APK, the service
-process on Android, and upstream's Android translate UI (the message bar
-and its menu), which already talks to `TranslateManager`. Later, after
-desktop and iOS (T6).
+Upstream's page translation, its message bar and its Translate menu
+action, on Compass's engine and models, as on the desktop (T8).
+
+- **Turned on:** `enable_on_device_translation` includes Android (patch of
+  `features.gni`). Upstream's code has no Android branches, but two spots
+  assumed it was desktop-only: `GlobalFeatures` declared the installer
+  under `!IS_ANDROID` (patch moves it out), and the TranslatorAPIAllowed
+  policy has no Android key (patch keeps that handler desktop-only).
+  Upstream runs the service without a sandbox on Android
+  (`kOnDeviceTranslationSandbox` is `kNoSandbox` there), so it reads the
+  packs in the app's data like any app code.
+- **The library:** `libcompass_translatekit.so` (Bergamot with ruy's GEMM
+  for arm64, 5 MB) goes in the APK and the bundle's base module as a
+  `loadable_module` (`asset_deps`, which keeps native targets out of
+  Java's graph). Android hides every symbol but `JNI_OnLoad` by default
+  (`hide_all_but_jni_onload`), so the library drops that config to export
+  the TranslateKit ABI. The libraries stay in the APK, not on disk: Compass
+  passes `<native library folder>/libcompass_translatekit.so` (upstream
+  wants an absolute path) and the service opens it by file name (patch of
+  `translate_kit_client.cc`), which the linker finds in the APK.
+- **Compass's code:** `//compass/browser/android` links
+  `//compass/browser/translate` and `:page_translator_host` (public, for the
+  chromium_src binders and installer), and the language list and script
+  overrides now apply to Android. `compassTranslate` was already in the
+  renderer.
+- **Asking first:** a tab-modal dialog (`ui::ModalDialogWrapper` with a
+  `DialogModel`, the desktop's strings), one per tab for every batch
+  waiting on it. A message (the first try) stacked behind upstream's
+  "Translating page" message, where its button couldn't be tapped.
+- **Progress:** a Chrome message ("Translating…", "12/45 MB",
+  `MessageIdentifier::DOWNLOAD_PROGRESS`), updated as it downloads and
+  dismissed when it ends (`ShowModelDownloadProgress()`,
+  `ModelDownloadFinished()`, which page_translator_host.h declares and the
+  desktop's pill implements too). Known gap: it stacks behind upstream's
+  "Translating page" message, so only its edge shows.
+- **Translate in the page menu:** Compass's menu replaces Chrome's, so its
+  Translate tile (`PageMenuUi`, enabled when
+  `TranslateBridge.canManuallyTranslate()`) runs Chrome's own
+  `translate_id` action. Upstream's message bar offers it on its own too.
+- **Checked** in the arm64 emulator (2026-11-28): German Wikipedia, the
+  menu's Translate, the dialog, Download: the German pack came from the
+  mirror and the page turned to English with its links, under 30 s. The
+  language list (translate-internals) has all 58 languages. Not yet: the
+  packs in Android's settings, and a device.
 
 ## Privacy
 
