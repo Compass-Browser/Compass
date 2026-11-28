@@ -1,6 +1,7 @@
 # Page translation
 
-Status: designed 2026-11-28, not started. Based on Chromium 159.0.8154.34.
+Status: designed 2026-11-28; T1 started (native spike done, see "Spike").
+Based on Chromium 159.0.8154.34.
 
 ## Goal
 
@@ -47,15 +48,22 @@ puts it back at once.
 
 - **Source:** `mozilla/translations`, `inference/` (Bergamot 0.6.0, the
   revision Firefox pins in `toolkit/components/translations/bergamot-translator/moz.yaml`),
-  vendored in `third_party/bergamot/` with its MPL-2.0 `LICENSE` and a
-  README naming the revision. Marian's own third-party code comes with it
-  (intgemm, ruy, sentencepiece, simde, yaml-cpp, spdlog, ssplit-cpp with
-  PCRE2), each with its license. Unused parts (fbgemm, faiss, nccl, the
-  WASM glue, emsdk) are left out.
+  vendored in `third_party/bergamot/` (about 600 files, 8 MB) by
+  `tools/translation/update_bergamot.py`, which fetches each project at its
+  pinned revision, copies what inference needs and applies
+  `third_party/bergamot/patches/`. Its README lists each part, revision and
+  license: Bergamot (MPL-2.0), Marian (MIT), intgemm, simd_utils, onnxjs's
+  GEMM, ssplit-cpp (Apache-2.0), PCRE2 10.49, and Marian's small
+  third-party code (CLI11, yaml-cpp, spdlog, Pathie, phf, mio, cnpy,
+  half_float).
 - **Built with GN**, not CMake (`third_party/bergamot/BUILD.gn`), with
-  Chromium's toolchain: zlib and protobuf are Chromium's own; PCRE2 is
-  vendored. Firefox only ships the WASM build, so no native platform is
-  tested upstream; we test our own.
+  Chromium's toolchain. `WASM_COMPATIBLE_SOURCE` is defined, as in
+  Firefox's build: it compiles out Marian's training code, faiss, LSH and
+  gzip input, so those aren't vendored. ruy, cpuinfo, zlib, SentencePiece
+  (v0.2.2, which has the `Load` and `LoadFromSerializedProto` Marian uses),
+  protobuf and eigen are Chromium's own rather than Marian's copies.
+  Firefox only ships the WASM build, so no native platform is tested
+  upstream; we test our own.
 - **Matrix maths:**
   - x86-64 (Windows, Linux, Intel Macs): intgemm for the int8 model,
     dispatching at run time between SSSE3, AVX2 and AVX-512; the float
@@ -71,6 +79,36 @@ puts it back at once.
 - **Pivoting:** every model is to or from English. A pair without English
   (Italian to German) runs two models through `pivotMultiple()`, as Firefox
   and Chromium both do.
+
+### Spike (2026-11-28, macOS arm64)
+
+Bergamot 0.6.0 (`mozilla/translations` `eea6e5a8`) built natively with
+its own CMake, Apple clang, ruy and Accelerate, and Firefox's German→English
+model (`translations-models-v2`, version 3.0, `base-memory`, the hashes as
+in the record) with Firefox's settings:
+
+- **Builds after four fixes**, all from newer compilers, none in the
+  engine: SentencePiece's trainer (`constexpr` of an out-of-range enum; the
+  trainer isn't needed), Marian's `-Werror` (variable-length arrays in
+  `ExceptionWithCallStack.cpp`), Marian's old zlib (`fdopen` defined away
+  on macOS; Chromium's zlib replaces it), and Marian's platform defines
+  (`ARM`, `SSE`, `FMA`, `COMPILE_CPU`, `BLAS_FOUND`, and `<fenv.h>`) not
+  reaching the translator's own files. The GN build sets them itself.
+- **Speed** on an M5 Max, 2,100 words of news text, every sentence unique
+  (Bergamot caches sentences): 1.5 s on 1 thread (about 1,400 words a
+  second), 0.55 s on 4, no gain past 4. A short paragraph, model load
+  included: 0.4 s.
+- **Memory:** about 210 MB resident for one model.
+- **Quality:** good on news text; HTML mode keeps links (with their
+  attributes), bold and `<br>` in place; an inline tag can take a neighbour's
+  punctuation (`After that<em>, restart</em>`), as in Firefox.
+- **Sources compiled:** 242 files, of which ruy, cpuinfo and zlib come
+  from Chromium in the GN build, and SentencePiece's protobuf-lite from
+  Chromium's protobuf if its version allows. Marian also compiles its
+  training code and faiss when not built for WASM; the GN build should
+  leave them out if nothing at inference reaches them.
+- Not yet tried: x86-64 (intgemm, and the float GEMM without a BLAS),
+  Windows, Linux.
 
 ### The TranslateKit ABI
 
