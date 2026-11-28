@@ -137,7 +137,7 @@ Features other browsers have that Compass doesn't, checked against the code:
 
 | Missing | Who has it | State in Compass |
 |---|---|---|
-| On-device translation | Crest, Ardia, Orion, Zen, Vivaldi, Edge, Lilo | Not started. Reader mode is done, desktop and iOS (docs/design/reader-mode.md) |
+| On-device translation | Crest, Ardia, Orion, Zen, Vivaldi, Edge, Lilo | Designed, not started (docs/design/translation.md). Reader mode is done, desktop and iOS (docs/design/reader-mode.md) |
 | Full-quality DRM video | Chrome, Edge, Arc, Dia, Crest, Cra (Ardia for streaming sites) | Blocked: no Widevine VMP signature (docs/design/widevine.md) |
 | Tree-style tabs on the phone | Orion | Desktop only: iOS and Android show the desktop's tab trees as folders |
 | Android release | Vivaldi, Edge | In closed testing on Google Play (beta); production needs 12 testers for 14 days first |
