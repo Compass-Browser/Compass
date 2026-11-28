@@ -259,6 +259,7 @@ final class AppServices {
         self.translation.pageChanged(id, view)
       }
     }
+    translation.liveView = { [weak self] id in self?.tabs.live[id] }
     tabs.onTranslateMessage = { [weak self] body in
       guard let self else { return (nil, "no translator") }
       return await self.translation.received(body)

@@ -78,6 +78,10 @@ final class PageTranslation {
 
   /// The engine each pair ("de>en") went to, for the page's batches.
   @ObservationIgnored private var engines: [String: Engine] = [:]
+  /// Pairs whose Apple session failed (the user closed iOS's download
+  /// sheet, say): their remaining batches fail at once instead of opening
+  /// a session, and the sheet, again for each. A new Translate clears it.
+  @ObservationIgnored private var stopped: Set<String> = []
 
   /// The languages Translate To offers: Apple's and Compass's (filled on
   /// first use).
@@ -150,6 +154,7 @@ final class PageTranslation {
     state.step = .translating
     states[id] = state
     let (source, url, goal) = (state.source, state.url, state.target)
+    stopped.remove("\(source)>\(goal)")
     let current = { [weak self] in self?.states[id]?.url == url && self?.states[id]?.target == goal }
     Task {
       guard let engine = await engine(source, goal) else {
@@ -214,6 +219,19 @@ final class PageTranslation {
     return yes
   }
 
+  /// Apple's session for `pair` failed: the pages translating it stop and
+  /// offer again, with what was translated put back.
+  private func stopTranslating(_ pair: String) {
+    guard stopped.insert(pair).inserted else { return }
+    for (id, state) in states where "\(state.source)>\(state.target)" == pair && state.step.isBusy {
+      states[id]?.step = .offered
+      if let view = liveView?(id) { Task { await TranslateScripts.restore(view) } }
+    }
+  }
+
+  /// A tab's web view (AppServices sets it).
+  @ObservationIgnored var liveView: ((String) -> WKWebView?)?
+
   /// Back to the page as it was (a download goes on, for next time).
   func showOriginal(_ id: String, _ view: WKWebView) {
     guard state(id, view) != nil else { return }
@@ -270,6 +288,7 @@ final class PageTranslation {
       }
     #endif
     let pair = "\(source)>\(target)"
+    if stopped.contains(pair) { return (nil, "failed") }
     if engines[pair] == nil { engines[pair] = await engine(source, target) }
     switch engines[pair] {
     case .compass:
@@ -286,6 +305,7 @@ final class PageTranslation {
         return (batch.translations(from: results).map { $0 as Any? ?? NSNull() }, nil)
       } catch {
         log.error("\(source, privacy: .public)→\(target, privacy: .public): \(String(describing: error), privacy: .public)")
+        stopTranslating(pair)
         return (nil, "failed")
       }
     case nil:
