@@ -34,6 +34,7 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerS
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerType;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerVisibility;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.translate.TranslateBridge;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.lifecycle.DestroyObserver;
 import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
@@ -943,6 +944,19 @@ public class CompassBar implements CompassBarUi.Actions {
     @Override
     public void toggleReader() {
         if (mReader != null) mReader.toggle();
+    }
+
+    /** Chrome's Translate menu item: the page into the user's language, or its message. */
+    void translatePage() {
+        chromeAction("translate_id");
+        // Chrome queues a manual translation until it knows the page's language. A page
+        // moved here from a peek has none (its detection ran there), and won't detect it
+        // again by itself: a reload does, and the queued translation runs then.
+        Tab tab = mActivity.getActivityTab();
+        if (tab != null && !tab.isLoading() && tab.getWebContents() != null
+                && TranslateBridge.getCurrentLanguage(tab).isEmpty()) {
+            tab.reload();
+        }
     }
 
     @Override

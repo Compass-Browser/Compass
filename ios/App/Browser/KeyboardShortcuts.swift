@@ -78,6 +78,10 @@ struct BrowserCommands: Commands {
       Button(app?.shownReader != nil ? "Hide Reader" : "Show Reader") { app?.toggleReader() }
         .keyboardShortcut("r", modifiers: [.command, .option])
         .disabled(peek != nil || app?.shownTab == nil)
+      // Page translation (Translation.swift), the Mac's keys.
+      Button(String(localized: "Translate Page", comment: "Address menu and page menu: translate the page into the user's language.")) { app?.toggleTranslation() }
+        .keyboardShortcut("y", modifiers: [.command, .shift])
+        .disabled(peek != nil || app?.shownTranslation == nil)
     }
     CommandMenu("History") {
       Button("Back") { webView?.goBack() }

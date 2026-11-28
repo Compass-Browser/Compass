@@ -86,6 +86,8 @@ final class TabManager: NSObject {
   var onPageClosed: ((WKWebView) -> Void)?
   /// A message from the password script: (body, tab ID, page URL).
   var onPasswordMessage: ((Any, String, URL?) -> Void)?
+  /// A batch from page translation's engine (Translation.swift), answered.
+  var onTranslateMessage: ((Any) async -> (Any?, String?))?
   /// A picture-in-picture window's "back to the page" (AutoPiP): tab ID.
   var onPictureInPictureRestore: ((String) -> Void)?
   /// A playing video scrolled off screen (true), or the one Compass moved
@@ -226,6 +228,10 @@ final class TabManager: NSObject {
       // Incognito, which keeps no Boost store on the desktop either.
       if !incognito { BoostInjector.shared.attach(configuration.userContentController) }
       configuration.userContentController.add(MessageProxy(self), contentWorld: AutoPiP.world, name: AutoPiP.handler)
+      // Page translation's engine (Translation.swift), Incognito too: it
+      // stays on the device.
+      configuration.userContentController.addScriptMessageHandler(
+        TranslateMessageProxy(self), contentWorld: PageTranslation.world, name: PageTranslation.handler)
       view = WKWebView(
         frame: .zero,
         configuration: extensions?.configure(configuration, for: url) ?? configuration)

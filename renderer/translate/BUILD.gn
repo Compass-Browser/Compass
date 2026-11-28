@@ -1,0 +1,23 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# compassTranslate in a frame's translate world (docs/design/
+# translation.md, "The engine from the page"). Created by
+# ChromeContentRendererClient (patch).
+source_set("translate") {
+  sources = [
+    "page_translator_bindings.cc",
+    "page_translator_bindings.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/common",
+    "//compass/common/translate:mojom",
+    "//content/public/renderer",
+    "//gin",
+    "//mojo/public/cpp/bindings",
+    "//third_party/blink/public:blink",
+    "//v8",
+  ]
+}

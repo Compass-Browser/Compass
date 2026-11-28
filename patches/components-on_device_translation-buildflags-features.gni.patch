@@ -1,0 +1,14 @@
+diff --git a/components/on_device_translation/buildflags/features.gni b/components/on_device_translation/buildflags/features.gni
+index ce4ecffcbf0014cf9e949de335d59bec42d5d594..51ff30d8fabfe42e6d196ecb6a39404bf4520382 100644
+--- a/components/on_device_translation/buildflags/features.gni
++++ b/components/on_device_translation/buildflags/features.gni
+@@ -5,5 +5,8 @@
+ declare_args() {
+   # On Device Translation is still not supported on other platforms.
+   # TODO(crbug.com/364795294): Support other platforms.
+-  enable_on_device_translation = is_mac || is_win || is_linux || is_chromeos
++  # Compass: Android too, with Compass's library (docs/design/translation.md,
++  # "Android").
++  enable_on_device_translation =
++      is_mac || is_win || is_linux || is_chromeos || is_android
+ }

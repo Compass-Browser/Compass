@@ -7,9 +7,21 @@
 # Kotlin shell (//compass/android) talks to. //chrome/browser links it on
 # Android (patches/chrome-browser-BUILD.gn.patch).
 
+import("//components/on_device_translation/buildflags/features.gni")
+
 assert(is_android)
 
 group("android") {
+  # Page translation (docs/design/translation.md, "Android"): the browser's
+  # half, which chromium_src's binders and installer reach into, so public.
+  public_deps = []
+  if (enable_on_device_translation) {
+    public_deps += [
+      ":translate_messages",
+      "//compass/browser/translate",
+      "//compass/browser/translate:page_translator_host",
+    ]
+  }
   deps = [
     ":adblock_bridge",
     ":claude_bridge",
@@ -297,4 +309,23 @@ source_set("easel_bridge") {
     "//ui/base",
     "//url",
   ]
+}
+
+if (enable_on_device_translation) {
+  # Page translation's question and download progress, as Chrome's
+  # messages (translate_messages.cc).
+  source_set("translate_messages") {
+    sources = [ "translate_messages.cc" ]
+    deps = [
+      "//base",
+      "//base:i18n",
+      "//chrome/browser/translate",
+      "//compass/browser/translate:page_translator_host",
+      "//compass/strings:compass_strings",
+      "//components/messages/android",
+      "//content/public/browser",
+      "//ui/android",
+      "//ui/base",
+    ]
+  }
 }

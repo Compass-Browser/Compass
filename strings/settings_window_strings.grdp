@@ -340,6 +340,21 @@
   <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_REMOVE" desc="Accessible name of the button removing a preferred language.">
     Remove <ph name="LANGUAGE">$1<ex>Italian</ex></ph>
   </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_TRANSLATION_TITLE" desc="Title of the group, in the Languages settings, about page translation's downloaded languages.">
+    Translation
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_DOWNLOAD_TRANSLATIONS" desc="Switch in the Languages settings: whether Compass may download a translation language when translating a page needs one.">
+    Download translation languages
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_DOWNLOAD_TRANSLATIONS_DETAIL" desc="Explanation under the switch allowing translation languages to be downloaded. Compass's server is where the languages come from.">
+    When a page needs one, from Compass's server (about 45 MB each). Pages are translated on this device.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_NO_TRANSLATION_PACKS" desc="Shown in the Languages settings when no translation language has been downloaded.">
+    No languages downloaded yet.
+  </message>
+  <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_REMOVE_ALL_TRANSLATION_PACKS" desc="Button in the Languages settings deleting every downloaded translation language.">
+    Remove All
+  </message>
   <message name="IDS_COMPASS_SETTINGS_WINDOW_LANGUAGES_TRANSLATE" desc="Label of the switch offering to translate pages in a language.">
     Translate
   </message>

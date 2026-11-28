@@ -1,16 +1,26 @@
 diff --git a/chrome/renderer/chrome_content_renderer_client.cc b/chrome/renderer/chrome_content_renderer_client.cc
-index 52f120d73c45b9a7be1486e8c9c5de5cbf4e1a05..d7b42263a12fe94c3e2352cd9240587b80e7a656 100644
+index 52f120d73c45b9a7be1486e8c9c5de5cbf4e1a05..8d07424e2f76052a8efd71976d7dde812676f1fd 100644
 --- a/chrome/renderer/chrome_content_renderer_client.cc
 +++ b/chrome/renderer/chrome_content_renderer_client.cc
-@@ -117,6 +117,7 @@
+@@ -117,6 +117,8 @@
  #include "components/spellcheck/spellcheck_buildflags.h"
  #include "components/subresource_filter/content/renderer/subresource_filter_agent.h"
  #include "components/subresource_filter/content/renderer/unverified_ruleset_dealer.h"
 +#include "compass/renderer/adblock/cosmetic_filter_agent.h"
++#include "compass/renderer/translate/page_translator_bindings.h"
  #include "components/subresource_filter/core/common/common_features.h"
  #include "components/surface_embed/common/features.h"
  #include "components/surface_embed/renderer/create_plugin.h"
-@@ -806,6 +807,9 @@ void ChromeContentRendererClient::RenderFrameCreated(
+@@ -799,6 +801,8 @@ void ChromeContentRendererClient::RenderFrameCreated(
+ 
+   // Owned by |render_frame|.
+   new page_load_metrics::MetricsRenderFrameObserver(render_frame);
++  // Compass: page translation's engine in the translate world.
++  compass::translate::PageTranslatorBindings::Create(render_frame);
+   // There is no render thread, thus no UnverifiedRulesetDealer in
+   // ChromeRenderViewTests.
+   if (subresource_filter_ruleset_dealer_) {
+@@ -806,6 +810,9 @@ void ChromeContentRendererClient::RenderFrameCreated(
          new subresource_filter::SubresourceFilterAgent(
              render_frame, subresource_filter_ruleset_dealer_.get());
      subresource_filter_agent->Initialize();

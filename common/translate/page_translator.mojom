@@ -1,0 +1,34 @@
+// Copyright 2026 The Compass Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module compass.mojom;
+
+// A part of a page to translate (common/translate/page_translator.js): plain
+// text, or a block's HTML with numbered elements.
+struct TranslationSegment {
+  string text;
+  bool html;
+};
+
+enum PageTranslationResult {
+  kOk,
+  // No model for the pair, or a language Compass can't translate.
+  kUnsupportedLanguage,
+  // The user didn't agree to download the languages it needs.
+  kDeclined,
+  // The download or the engine failed.
+  kFailed,
+};
+
+// The page translator's engine on the desktop: the translate isolated world
+// of a frame asks the browser, which translates on the device with
+// libcompass_translatekit (docs/design/translation.md, "The engine from the
+// page"). Bound per frame, for web pages.
+interface PageTranslator {
+  // `translations` has one entry per segment, null for one that failed,
+  // when `result` is kOk; it's empty otherwise.
+  Translate(string source_language, string target_language,
+            array<TranslationSegment> segments)
+      => (PageTranslationResult result, array<string?> translations);
+};

@@ -59,6 +59,9 @@ struct SettingsView: View {
           NavigationLink { PasswordsView() } label: {
             SettingsLabel("Passwords", "key.fill", .gray)
           }
+          NavigationLink { TranslationSettingsView() } label: {
+            SettingsLabel("Translation", "translate", .blue)
+          }
           NavigationLink { ClaudeSettingsView() } label: {
             HStack {
               SettingsLabel("AI", "sparkles", .orange)

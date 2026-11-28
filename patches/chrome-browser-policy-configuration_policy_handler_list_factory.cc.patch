@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/policy/configuration_policy_handler_list_factory.cc b/chrome/browser/policy/configuration_policy_handler_list_factory.cc
+index fcd09ba6ee775b805759eff970bd531449e04f7d..1df1ef94a64a46f94ba05c9a95e8a72c744ded22 100644
+--- a/chrome/browser/policy/configuration_policy_handler_list_factory.cc
++++ b/chrome/browser/policy/configuration_policy_handler_list_factory.cc
+@@ -428,7 +428,8 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
+   { key::kTranslateEnabled,
+     translate::prefs::kOfferTranslateEnabled,
+     base::Value::Type::BOOLEAN },
+-#if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
++// Compass: the policy is desktop-only, as on-device translation was.
++#if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION) && !BUILDFLAG(IS_ANDROID)
+   { key::kTranslatorAPIAllowed,
+     prefs::kTranslatorAPIAllowed,
+     base::Value::Type::BOOLEAN },

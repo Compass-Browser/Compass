@@ -578,8 +578,9 @@ TEST(ArcEaselsRealTest, DISABLED_RealArcEasels) {
           base::Environment::Create()->GetVar("ARC_FIRESTORE")) {
     dir = base::FilePath::FromUTF8Unsafe(*path);
   } else {
-#if BUILDFLAG(IS_WIN)
-    // Where Arc for Windows keeps the cache isn't known: give ARC_FIRESTORE.
+#if !BUILDFLAG(IS_MAC)
+    // Where Arc for Windows keeps the cache isn't known, and there's no Arc
+    // for Linux (whose base has no DIR_APP_DATA): give ARC_FIRESTORE.
     GTEST_SKIP() << "set ARC_FIRESTORE to Arc's firestore cache folder";
 #else
     base::FilePath app_support;

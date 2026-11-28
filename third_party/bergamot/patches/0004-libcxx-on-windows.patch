@@ -1,0 +1,40 @@
+diff --git a/third_party/bergamot/marian/src/common/utils.cpp b/third_party/bergamot/marian/src/common/utils.cpp
+index 7262404..8d815a0 100644
+--- a/third_party/bergamot/marian/src/common/utils.cpp
++++ b/third_party/bergamot/marian/src/common/utils.cpp
+@@ -215,7 +215,7 @@ bool endsWith(const std::string& text, const std::string& suffix) {
+ 
+ // @TODO: sort these functions into a separate header.
+ std::u32string utf8ToUnicodeString(std::string const& s) {
+-#ifdef _MSC_VER // workaround for a known bug in VS CRT
++#if defined(_MSC_VER) && !defined(_LIBCPP_VERSION) // workaround for a known bug in VS CRT
+   std::wstring_convert<std::codecvt_utf8<unsigned int/*char32_t*/>, unsigned int/*char32_t*/> converter;
+   auto res = converter.from_bytes(s);
+   return std::u32string(res.begin(), res.end());
+@@ -226,7 +226,7 @@ std::u32string utf8ToUnicodeString(std::string const& s) {
+ }
+ 
+ std::string utf8FromUnicodeString(const std::u32string& s) {
+-#ifdef _MSC_VER // workaround for a known bug in VS CRT
++#if defined(_MSC_VER) && !defined(_LIBCPP_VERSION) // workaround for a known bug in VS CRT
+   std::wstring_convert<std::codecvt_utf8<unsigned int/*char32_t*/>, unsigned int/*char32_t*/> converter;
+   std::basic_string<unsigned int> si(s.begin(), s.end());
+   return converter.to_bytes(si);
+@@ -237,7 +237,7 @@ std::string utf8FromUnicodeString(const std::u32string& s) {
+ }
+ 
+ std::u16string utf8ToUtf16String(std::string const& s) {
+-#ifdef _MSC_VER // workaround for a known bug in VS CRT
++#if defined(_MSC_VER) && !defined(_LIBCPP_VERSION) // workaround for a known bug in VS CRT
+   std::wstring_convert<std::codecvt_utf8<wchar_t/*char16_t*/>, wchar_t/*char16_t*/> converter;
+   auto res = converter.from_bytes(s);
+   return std::u16string(res.begin(), res.end());
+@@ -248,7 +248,7 @@ std::u16string utf8ToUtf16String(std::string const& s) {
+ }
+ 
+ std::string utf8FromUtf16String(const std::u16string& s) {
+-#ifdef _MSC_VER // workaround for a known bug in VS CRT
++#if defined(_MSC_VER) && !defined(_LIBCPP_VERSION) // workaround for a known bug in VS CRT
+   std::wstring_convert<std::codecvt_utf8<wchar_t/*char16_t*/>, wchar_t/*char16_t*/> converter;
+   std::basic_string<wchar_t> si(s.begin(), s.end());
+   return converter.to_bytes(si);

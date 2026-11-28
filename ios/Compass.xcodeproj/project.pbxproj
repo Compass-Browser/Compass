@@ -15,6 +15,9 @@
 		04F16ED8C0EBE26DA0C0FDFF /* ExtensionUnlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2F2338E9181C42B8CEECE3 /* ExtensionUnlock.swift */; };
 		0539AD95725B66B031F68FCB /* Intents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4F82A3BEBB78D75AD38C677 /* Intents.swift */; };
 		058C3D9270F3C7D817B430CD /* CompassShared in Frameworks */ = {isa = PBXBuildFile; productRef = 6194B1C4C57689CEEBCBFB45 /* CompassShared */; };
+		05A8A5BB79ABE75123D72A03 /* TranslationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C8BCF686A84348240F4990 /* TranslationSettingsView.swift */; };
+		06C329948E259B3888FF807C /* page_translator.js in Resources */ = {isa = PBXBuildFile; fileRef = F4A8DA718FAE83A4D30CE8D2 /* page_translator.js */; };
+		09BBCE02D6027CCD05D32AC7 /* models.json in Resources */ = {isa = PBXBuildFile; fileRef = 0336C6A08016F9001B027BE1 /* models.json */; };
 		0B0677B675C2C7D395C3700F /* ClaudeSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C58E338C0AAD40A46BE75135 /* ClaudeSettings.swift */; };
 		0BA524C95ED44728317C8441 /* ClaudeMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02496055CC5CED2F7938BBFE /* ClaudeMemoryStore.swift */; };
 		0D43D327D6BB8094F0C4FF17 /* WebExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61ECC282E1FE4CE7DC880E7B /* WebExtensions.swift */; };
@@ -82,6 +85,7 @@
 		6051656C54697F2B82E55D4F /* SpaceWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D1140EA2AAC75EC3EC819CF /* SpaceWidget.swift */; };
 		60D32768A50D0D762FDB522C /* BoostInjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA66EDD62DA7EDDCAE8EC28 /* BoostInjector.swift */; };
 		61F53E6DCCDA62783431CF91 /* CompassCrypto in Frameworks */ = {isa = PBXBuildFile; productRef = 6CF1BD16AA45CC47E4C07023 /* CompassCrypto */; };
+		63ABC9D8E9C68D2A5FC32B41 /* CompassTranslate in Frameworks */ = {isa = PBXBuildFile; productRef = 649CC13F13F3B0A4E8E5A0BF /* CompassTranslate */; };
 		64CA3F065598517990DDC91F /* CopyLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07E3C1165A078F77341564E3 /* CopyLink.swift */; };
 		64E325502103288EB0F1FDA9 /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 99C073EE9AD43CFE72B157D2 /* AuthenticationServices.framework */; };
 		65C9ED1C39D147C47CAC6E01 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58BE0BDD0E3F4C261658827 /* ShareSheet.swift */; };
@@ -103,6 +107,7 @@
 		86BE32EE9DABB442ECFD8C3B /* SiteSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E181E09464F119B3A59058 /* SiteSettingsView.swift */; };
 		86F9E9B9B581BE4BEFDF5E8C /* SyncController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29EEA337DD801A959B39B43F /* SyncController.swift */; };
 		8A8DC9D49E3B69DB1870AEB8 /* Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7AF403DBCF719F2BAF33C80 /* Reader.swift */; };
+		8B796E927F140C88F6BFAC87 /* Translation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66530F3A0CD37F4F9A5685FE /* Translation.swift */; };
 		8DAFAAAC75CDF3AB68D09D02 /* DownloadsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D248EE47245F87391C4DDC09 /* DownloadsTests.swift */; };
 		8E292FD1B0506116F383F4DC /* ThemeEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7D505209A3DEBBAC3E6B6C /* ThemeEditorTests.swift */; };
 		9063D67CA8F47F572E0DFE97 /* ExtensionPackage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B8330DEB6EB26B4DBFA4BF /* ExtensionPackage.swift */; };
@@ -154,11 +159,13 @@
 		D4B8E15F68B8C746C443EA7C /* CompassClaude in Frameworks */ = {isa = PBXBuildFile; productRef = 24FEC5B35F68102FF9D4F4D3 /* CompassClaude */; };
 		D4D41D0A674BE84B26C94009 /* AppLinksUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B2F18EB9330372B8926E97 /* AppLinksUITests.swift */; };
 		D59D110F086F2AB829D97E75 /* CloudflareViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8804941572C42DBEA67AD7AA /* CloudflareViews.swift */; };
+		D624BDF8E37998B8DD185D46 /* BergamotKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AD73EF2A5DA33A12AF195E24 /* BergamotKit.xcframework */; };
 		D9D8815C4107DF4474DC2FD4 /* CompassSync in Frameworks */ = {isa = PBXBuildFile; productRef = 15AEEA8D528A69A946C7E01B /* CompassSync */; };
 		DC7CC89BA34E3FCF8F18A976 /* KeyboardShortcutsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E5E4C521DD74CEBD175150 /* KeyboardShortcutsTests.swift */; };
 		DF5A2FEAA7314FD697E62C7A /* ClaudeChatSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 950B2D1C1AF0CBC338C181A6 /* ClaudeChatSheet.swift */; };
 		DFB02BF326D4B44B34C55AF8 /* ThemeEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65277AB39215D86443B8364F /* ThemeEditor.swift */; };
 		DFC3D119FC6F0613E9500099 /* Readability-readerable.js in Resources */ = {isa = PBXBuildFile; fileRef = 956236B2B30A91963A11AA21 /* Readability-readerable.js */; };
+		E21409D65E8C9DFB59E5C51A /* CompassTranslator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F22146FD6140393AB327D80 /* CompassTranslator.swift */; };
 		E6A8C6CFAB98F899DF90C305 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 45E93C90C51068E1A924E9F6 /* Localizable.xcstrings */; };
 		E7DA38301889CC7FB624865F /* SwipeUpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B8B87DF6F679445ECBA6DD3 /* SwipeUpTests.swift */; };
 		E960631CBDED4865888BC99D /* DownloadActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 217A2B9DD3B37AE3A8F454AC /* DownloadActivityAttributes.swift */; };
@@ -244,6 +251,7 @@
 
 /* Begin PBXFileReference section */
 		02496055CC5CED2F7938BBFE /* ClaudeMemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeMemoryStore.swift; sourceTree = "<group>"; };
+		0336C6A08016F9001B027BE1 /* models.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = models.json; sourceTree = "<group>"; };
 		038811C2E63EC30BEA8EE872 /* SwipeTabsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeTabsTests.swift; sourceTree = "<group>"; };
 		0655D4DC672C6C26B715EF5E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		07E3C1165A078F77341564E3 /* CopyLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyLink.swift; sourceTree = "<group>"; };
@@ -305,6 +313,7 @@
 		5B0DDC37D80E42A05260EDEF /* AutoPiPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPiPTests.swift; sourceTree = "<group>"; };
 		5BEABA7BC320887A692FA4D5 /* Compass.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = Compass.icon; sourceTree = "<group>"; };
 		5D8BE98AA2B25948FFDAB6AC /* ClaudeChat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeChat.swift; sourceTree = "<group>"; };
+		5F22146FD6140393AB327D80 /* CompassTranslator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompassTranslator.swift; sourceTree = "<group>"; };
 		61ECC282E1FE4CE7DC880E7B /* WebExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebExtensions.swift; sourceTree = "<group>"; };
 		624E0261C6D1E934507BE3C7 /* PageMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageMenuTests.swift; sourceTree = "<group>"; };
 		630D7B8B76E3F74C7B07BAEC /* TabPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabPickerTests.swift; sourceTree = "<group>"; };
@@ -312,6 +321,7 @@
 		63E181E09464F119B3A59058 /* SiteSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteSettingsView.swift; sourceTree = "<group>"; };
 		64FC512558C2C01A7ED2091D /* RoomsDebug.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomsDebug.swift; sourceTree = "<group>"; };
 		65277AB39215D86443B8364F /* ThemeEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeEditor.swift; sourceTree = "<group>"; };
+		66530F3A0CD37F4F9A5685FE /* Translation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Translation.swift; sourceTree = "<group>"; };
 		66F0EE58F8587923AB5AD207 /* Downloads+Background.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Downloads+Background.swift"; sourceTree = "<group>"; };
 		6794D1252E649F6B927EAEF2 /* SearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchEngine.swift; sourceTree = "<group>"; };
 		6C26E8DD20C168CA5D31BE92 /* QuickWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickWidgets.swift; sourceTree = "<group>"; };
@@ -349,6 +359,7 @@
 		9CD2DC1E11776C2339B48651 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		9DE6C8DC44C7ED9327CF5E0C /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		9F4313D13751DA68130C8883 /* BoostsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoostsTests.swift; sourceTree = "<group>"; };
+		A0C8BCF686A84348240F4990 /* TranslationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationSettingsView.swift; sourceTree = "<group>"; };
 		A41B59BC81621FE63D557277 /* DataViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataViews.swift; sourceTree = "<group>"; };
 		A428D217F58C86C24A69CB9B /* EaselScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EaselScreen.swift; sourceTree = "<group>"; };
 		A5B2F18EB9330372B8926E97 /* AppLinksUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLinksUITests.swift; sourceTree = "<group>"; };
@@ -360,6 +371,7 @@
 		A8C35F219C3A1C8829DE5B66 /* EaselCaptureOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EaselCaptureOverlay.swift; sourceTree = "<group>"; };
 		AB05A6D3B56627E1982B0874 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		AD52168629F96C8A4ABCDBDF /* Favicons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Favicons.swift; sourceTree = "<group>"; };
+		AD73EF2A5DA33A12AF195E24 /* BergamotKit.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = BergamotKit.xcframework; path = Frameworks/BergamotKit.xcframework; sourceTree = "<group>"; };
 		B2BC6E0535E2713607366ECF /* ShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareView.swift; sourceTree = "<group>"; };
 		B5928005DDC40E352DA4F6D9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B660A02532A9FB9A9CD50958 /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
@@ -401,6 +413,7 @@
 		F188A7034D3418F6B730DD18 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		F222E653F398E0E5BA8C9748 /* TabPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabPicker.swift; sourceTree = "<group>"; };
 		F4A5EB9B8FCF536C41FE6951 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F4A8DA718FAE83A4D30CE8D2 /* page_translator.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = page_translator.js; sourceTree = "<group>"; };
 		F4F82A3BEBB78D75AD38C677 /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
 		F6F455A5FE97B15637D3D416 /* sdk */ = {isa = PBXFileReference; lastKnownFileType = folder; name = sdk; path = ../plugins/sdk; sourceTree = SOURCE_ROOT; };
 		F8EFD6EB825EB023B36C4979 /* app_links.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = app_links.html; sourceTree = "<group>"; };
@@ -453,6 +466,8 @@
 				3234A062A7A49C79603CF768 /* CompassBoosts in Frameworks */,
 				EA113997A31A4342A59BCA42 /* CompassEasels in Frameworks */,
 				22CD3DAD46948F787CE98EBC /* CompassRooms in Frameworks */,
+				63ABC9D8E9C68D2A5FC32B41 /* CompassTranslate in Frameworks */,
+				D624BDF8E37998B8DD185D46 /* BergamotKit.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -479,6 +494,7 @@
 			isa = PBXGroup;
 			children = (
 				6CEAA10D12A16F57BDBB4C52 /* assets */,
+				D1F2FB9F6336ED0E08BF0CC2 /* browser */,
 				4F0C5B3D82248C2BC7C58226 /* common */,
 				61D4EF5379B94238FE356564 /* plugins */,
 				EA7B78CBC4A2AA54A49CABC7 /* server */,
@@ -511,6 +527,7 @@
 			isa = PBXGroup;
 			children = (
 				99C073EE9AD43CFE72B157D2 /* AuthenticationServices.framework */,
+				AD73EF2A5DA33A12AF195E24 /* BergamotKit.xcframework */,
 				71E0DA10C9C7101FC286EA17 /* SwiftUI.framework */,
 				D1EF8B1ADDE7286C61000241 /* WidgetKit.framework */,
 			);
@@ -571,6 +588,7 @@
 				C8BB8F1084F6E93774B80C08 /* claude */,
 				D0311C3A6F0E46A62FC02C3C /* picture_in_picture */,
 				8225691737D21D7DAC3589EF /* reader */,
+				D682488411B7D16DB072DAAF /* translate */,
 			);
 			path = common;
 			sourceTree = "<group>";
@@ -594,6 +612,7 @@
 				F222E653F398E0E5BA8C9748 /* TabPicker.swift */,
 				F00421F26DEF62FA9775146B /* Theme.swift */,
 				65277AB39215D86443B8364F /* ThemeEditor.swift */,
+				A0C8BCF686A84348240F4990 /* TranslationSettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -669,6 +688,14 @@
 				A428D217F58C86C24A69CB9B /* EaselScreen.swift */,
 			);
 			path = Easels;
+			sourceTree = "<group>";
+		};
+		AB895DEA41EAE7D9AE55F64B /* translate */ = {
+			isa = PBXGroup;
+			children = (
+				0336C6A08016F9001B027BE1 /* models.json */,
+			);
+			path = translate;
 			sourceTree = "<group>";
 		};
 		B469E0DBFCE48FC1538DAAE7 /* Extensions */ = {
@@ -838,20 +865,38 @@
 			path = Widgets;
 			sourceTree = "<group>";
 		};
+		D1F2FB9F6336ED0E08BF0CC2 /* browser */ = {
+			isa = PBXGroup;
+			children = (
+				AB895DEA41EAE7D9AE55F64B /* translate */,
+			);
+			path = browser;
+			sourceTree = "<group>";
+		};
 		D3B3BFB50B54351850942339 /* Browser */ = {
 			isa = PBXGroup;
 			children = (
 				C653E784866DBD8FD0997D3B /* AutoPiP.swift */,
 				2B2B8A168816D005B0C1644F /* BrowserScreen.swift */,
+				5F22146FD6140393AB327D80 /* CompassTranslator.swift */,
 				07E3C1165A078F77341564E3 /* CopyLink.swift */,
 				44957DA68D5128D0EA074A29 /* DesktopViewport.swift */,
 				34CDC0A0103008C3D8F55371 /* DevModeBar.swift */,
 				E273ECD01682DC815F533A3A /* KeyboardShortcuts.swift */,
 				27B64020D5018ABB32C63EBF /* Peek.swift */,
 				A7AF403DBCF719F2BAF33C80 /* Reader.swift */,
+				66530F3A0CD37F4F9A5685FE /* Translation.swift */,
 				32AD0FC2A4DD49EA6D182F11 /* WebView.swift */,
 			);
 			path = Browser;
+			sourceTree = "<group>";
+		};
+		D682488411B7D16DB072DAAF /* translate */ = {
+			isa = PBXGroup;
+			children = (
+				F4A8DA718FAE83A4D30CE8D2 /* page_translator.js */,
+			);
+			path = translate;
 			sourceTree = "<group>";
 		};
 		D77E968C3602EBDAEB448C6D /* Claude */ = {
@@ -999,6 +1044,7 @@
 				1980E8CE8C789AC0100CEC88 /* CompassBoosts */,
 				CF238BA3C44C00A2F24A8CED /* CompassEasels */,
 				258EBBC162B5B522E0E5917D /* CompassRooms */,
+				649CC13F13F3B0A4E8E5A0BF /* CompassTranslate */,
 			);
 			productName = Compass;
 			productReference = 1BF57BA01F2477CA55BC7407 /* Compass.app */;
@@ -1216,7 +1262,9 @@
 				A8BCFC55EB0526B1CFD64478 /* call_pip.js in Resources */,
 				24E40BBE7B497BB5B32FFFCF /* compass-sync.js in Resources */,
 				97F8CA7D9347F36905BB59FB /* compass-sync.version in Resources */,
+				09BBCE02D6027CCD05D32AC7 /* models.json in Resources */,
 				20C733E6D24771768DED90B4 /* page_agent.js in Resources */,
+				06C329948E259B3888FF807C /* page_translator.js in Resources */,
 				B41D0D587E6016C40EA07D2C /* reader.css in Resources */,
 				43A24F1DC062D13FB5E9E349 /* reader.html in Resources */,
 				1B90BEAD09592B593A934F92 /* reader.js in Resources */,
@@ -1265,6 +1313,7 @@
 				D59D110F086F2AB829D97E75 /* CloudflareViews.swift in Sources */,
 				4968D00362621422D48BCA8B /* CommandBar.swift in Sources */,
 				BAA3D08129B2943432ABDB40 /* CompassApp.swift in Sources */,
+				E21409D65E8C9DFB59E5C51A /* CompassTranslator.swift in Sources */,
 				2C5574A13A87E56973CDD495 /* ContentBlocking.swift in Sources */,
 				64CA3F065598517990DDC91F /* CopyLink.swift in Sources */,
 				D046A20E1300E3C323FEDA9C /* DataViews.swift in Sources */,
@@ -1322,6 +1371,8 @@
 				5C6419DC7D700689132E42F4 /* TabPicker.swift in Sources */,
 				017915037F4DAC4C17921D93 /* Theme.swift in Sources */,
 				DFB02BF326D4B44B34C55AF8 /* ThemeEditor.swift in Sources */,
+				8B796E927F140C88F6BFAC87 /* Translation.swift in Sources */,
+				05A8A5BB79ABE75123D72A03 /* TranslationSettingsView.swift in Sources */,
 				0D43D327D6BB8094F0C4FF17 /* WebExtensions.swift in Sources */,
 				1586D6151BCB7A670E2EF90C /* WebView.swift in Sources */,
 			);
@@ -1478,6 +1529,7 @@
 				DEVELOPMENT_TEAM = 4M33B5HNDS;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -1512,6 +1564,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = App/Compass.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"Frameworks\"",
+				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1581,6 +1637,7 @@
 				DEVELOPMENT_TEAM = 4M33B5HNDS;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -1693,6 +1750,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = App/Compass.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"Frameworks\"",
+				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1923,6 +1984,10 @@
 		6194B1C4C57689CEEBCBFB45 /* CompassShared */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CompassShared;
+		};
+		649CC13F13F3B0A4E8E5A0BF /* CompassTranslate */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CompassTranslate;
 		};
 		6CF1BD16AA45CC47E4C07023 /* CompassCrypto */ = {
 			isa = XCSwiftPackageProductDependency;

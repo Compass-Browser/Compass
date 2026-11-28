@@ -34,6 +34,8 @@
 #include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "compass/browser/sidebar/space_list.h"
+#include "compass/browser/translate/translation_pack_installer.h"
+#include "components/on_device_translation/public/language_pack.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/sync/compass_sync_service.h"
 #include "compass/browser/sync/compass_sync_service_factory.h"
@@ -951,6 +953,61 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, LanguagesEditor) {
   ASSERT_TRUE(base::test::RunUntil([&] {
     return !HasAcceptLanguage(prefs, "is");
   }));
+}
+
+// General › Languages › Translation (docs/design/translation.md, T5): a
+// downloaded language is listed with its size and removed through
+// upstream's installer, which forgets it and deletes its folder; the switch
+// is the consent to download.
+IN_PROC_BROWSER_TEST_F(SettingsWindowBrowserTest, TranslationLanguages) {
+  using on_device_translation::GetComponentPathPrefName;
+  using on_device_translation::GetLanguagePackComponentConfig;
+  using on_device_translation::GetRegisteredFlagPrefName;
+  using on_device_translation::LanguagePackKey;
+  PrefService* local_state = g_browser_process->local_state();
+  const auto& config = GetLanguagePackComponentConfig(LanguagePackKey::kDe_En);
+  base::FilePath pack =
+      translate::PackInstaller::Get().packs_dir().AppendASCII("de_en");
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(base::CreateDirectory(pack.AppendASCII("de-en")));
+    ASSERT_TRUE(base::WriteFile(pack.AppendASCII("de-en").AppendASCII(
+                                    "model.bin"),
+                                std::string(3 * 1000 * 1000, 'x')));
+  }
+  local_state->SetFilePath(GetComponentPathPrefName(config), pack);
+  local_state->SetBoolean(GetRegisteredFlagPrefName(config), true);
+
+  chrome::ShowSettingsSubPage(browser(), "languages");
+  ASSERT_TRUE(window());
+  ASSERT_TRUE(content::WaitForLoadStop(window()->web_contents()));
+  // "3 MB", in the UI's language.
+  EXPECT_EQ(WaitFor("(() => { const row = document.querySelector("
+                    "'[data-pack-row=\"de_en\"]'); return !!row && "
+                    "/3/.test(row.querySelector('.row-detail').textContent); "
+                    "})()"),
+            true);
+
+  ASSERT_FALSE(local_state->GetBoolean(translate::kModelDownloadsAllowed));
+  ASSERT_TRUE(content::ExecJs(window()->web_contents(),
+                              "document.getElementById('downloadTranslations')"
+                              ".click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return local_state->GetBoolean(translate::kModelDownloadsAllowed);
+  }));
+
+  ASSERT_TRUE(content::ExecJs(
+      window()->web_contents(),
+      "document.querySelector('[data-pack=\"de_en\"]').click();"));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return local_state->GetFilePath(GetComponentPathPrefName(config)).empty();
+  }));
+  EXPECT_FALSE(local_state->GetBoolean(GetRegisteredFlagPrefName(config)));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    return !base::PathExists(pack);
+  }));
+  EXPECT_EQ(WaitFor("!document.querySelector('[data-pack-row]')"), true);
 }
 
 // Passwords › the card and address editors (phase 5d): a card is refused

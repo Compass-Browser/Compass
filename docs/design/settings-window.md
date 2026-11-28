@@ -219,6 +219,15 @@ and short rows, and anything long or rarely used is one row away, behind a ›.
   `BlockLanguage()`/`UnblockLanguage()`; a language added starts blocked, as
   upstream's), with `intl.accept_languages` and
   `translate_blocked_languages` observed (`Page.LanguagesChanged()`).
+  Then **Translation** (docs/design/translation.md, "Packs on the
+  device"): "Download translation languages" (local state
+  `compass.translate.model_downloads_allowed`, the consent page
+  translation asks for), the downloaded languages with their size and
+  Remove, and Remove All. Browser side: `GetTranslationPacks()` reads
+  upstream's installed packs and their folders' sizes;
+  `RemoveTranslationPack()` and `RemoveAllTranslationPacks()` go through
+  upstream's `ComponentManager`, and so Compass's installer; the consent
+  and every pack's path pref are observed (`Page.LanguagesChanged()`).
   Spell check's own languages (Windows and Linux) aren't listed yet.
 - Upstream's `search`, `defaultBrowser`, `downloads`, `appearance` and
   `fonts` sub-pages open General at their rows.

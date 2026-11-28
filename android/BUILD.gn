@@ -13,6 +13,7 @@ import("//extensions/buildflags/buildflags.gni")
 assert(enable_extensions_core,
        "Compass for Android builds with is_desktop_android (config/args/android.gn)")
 import("//third_party/jni_zero/jni_zero.gni")
+import("//components/on_device_translation/buildflags/features.gni")
 import("//chrome/android/chrome_public_apk_tmpl.gni")
 import("//chrome/android/modules/chrome_bundle_tmpl.gni")
 import("//chrome/android/modules/chrome_feature_modules.gni")
@@ -186,6 +187,7 @@ android_library("java") {
     "//build/android:build_java",
     "//cc/mojom:android_mojo_bindings_java",
     "//chrome/android:chrome_java",
+    "//chrome/browser/language/android:java",
     "//chrome/browser/android/content:java",
     "//chrome/browser/browser_controls/android:java",
     "//chrome/browser/keyboard_accessory/android/java",
@@ -458,6 +460,12 @@ chrome_public_apk_or_module_tmpl("compass_apk") {
     ":java",
     ":license_assets",
   ]
+  if (enable_on_device_translation) {
+    # Page translation's engine (docs/design/translation.md, "Android"):
+    # asset_deps, not deps, which keep native targets out of Java's graph.
+    asset_deps = [ "//compass/components/translatekit:compass_translatekit" ]
+    loadable_modules = [ "$root_out_dir/libcompass_translatekit.so" ]
+  }
 }
 
 # The app bundle for Google Play (docs/building.md, "Android releases (Google
@@ -491,6 +499,10 @@ chrome_public_apk_or_module_tmpl("compass_bundle__base_bundle_module") {
     ":icon_resources",
     ":license_assets",
   ]
+  if (enable_on_device_translation) {
+    asset_deps = [ "//compass/components/translatekit:compass_translatekit" ]
+    loadable_modules = [ "$root_out_dir/libcompass_translatekit.so" ]
+  }
 }
 
 chrome_bundle("compass_bundle") {

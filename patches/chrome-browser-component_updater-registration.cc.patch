@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/component_updater/registration.cc b/chrome/browser/component_updater/registration.cc
-index 78a34df1df1f1f0118c55b6601e5fdf8e2a45de6..68b76ce38372630ff41ac678968a49913c307092 100644
+index 78a34df1df1f1f0118c55b6601e5fdf8e2a45de6..8e3599b59c6cf301d7f8227559de934ac57c57c5 100644
 --- a/chrome/browser/component_updater/registration.cc
 +++ b/chrome/browser/component_updater/registration.cc
 @@ -153,7 +153,8 @@ void RegisterComponentsForUpdate() {
@@ -12,3 +12,25 @@ index 78a34df1df1f1f0118c55b6601e5fdf8e2a45de6..68b76ce38372630ff41ac678968a4991
    RegisterOnDeviceHeadSuggestComponent(
        cus, g_browser_process->GetApplicationLocale());
    RegisterOptimizationHintsComponent(cus);
+@@ -203,17 +204,10 @@ void RegisterComponentsForUpdate() {
+ 
+   RegisterCommerceHeuristicsComponent(cus);
+ 
+-#if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
+-  // TODO(crbug.com/364795294): Support other platforms.
+-  RegisterTranslateKitComponent(cus, g_browser_process->local_state(),
+-                                /*force_install=*/false,
+-                                /*registered_callback=*/base::OnceClosure(),
+-                                /*on_ready_callback=*/base::DoNothing());
+-  RegisterTranslateKitLanguagePackComponentsForUpdate(
+-      cus, g_browser_process->local_state());
+-  RegisterTranslateKitLanguagePackComponentsForAutoDownload(
+-      cus, g_browser_process->local_state());
+-#endif  // BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
++  // Compass: on-device translation runs Compass's library with Mozilla's
++  // models (docs/design/translation.md), not Google's TranslateKit
++  // components: none are registered, so none are fetched or updated, even
++  // for the packs Compass's installer marks registered.
+ 
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+     BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)

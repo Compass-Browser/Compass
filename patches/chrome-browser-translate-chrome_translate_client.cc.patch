@@ -1,0 +1,43 @@
+diff --git a/chrome/browser/translate/chrome_translate_client.cc b/chrome/browser/translate/chrome_translate_client.cc
+index 59bd91ccbf186e53727dd7e162890a578341f840..a986c2156827090764c477fe1863b24235bf9293 100644
+--- a/chrome/browser/translate/chrome_translate_client.cc
++++ b/chrome/browser/translate/chrome_translate_client.cc
+@@ -87,6 +87,10 @@
+ #include "ui/base/l10n/l10n_util.h"
+ #endif
+ 
++#if !BUILDFLAG(IS_ANDROID)
++// Compass: the pill's translate button (ShowTranslateUI()).
++#include "compass/browser/translate/translation_tab_state.h"
++#endif
+ namespace {
+ using metrics::TranslateEventProto;
+ 
+@@ -400,6 +404,14 @@ bool ChromeTranslateClient::ShowTranslateUI(
+ #else
+   CHECK(TranslateService::IsTranslateBubbleEnabled(),
+         base::NotFatalUntil::M163);
++  // Compass: the pill's translate button instead of the bubble, where the
++  // window has a pill (docs/design/translation.md, "What the user sees").
++  if (compass::translate::TranslationTabState::OnTranslateStep(
++          web_contents(), step, source_language, target_language,
++          error_type)) {
++    translate_manager_->GetActiveTranslateMetricsLogger()->LogUIChange(true);
++    return true;
++  }
+   // Bubble UI.
+   if (step == translate::TRANSLATE_STEP_BEFORE_TRANSLATE &&
+       translate_manager_->ShouldSuppressBubbleUI(target_language)) {
+@@ -441,6 +453,12 @@ ChromeTranslateClient::GetAcceptLanguagesService() {
+ }
+ 
+ #if BUILDFLAG(IS_ANDROID)
++bool ChromeTranslateClient::ShowCompassDownloadProgress(
++    const std::u16string& progress) {
++  return translate_message_ &&
++         translate_message_->ShowCompassDownloadProgress(progress);
++}
++
+ void ChromeTranslateClient::ManualTranslateWhenReady() {
+   if (GetLanguageState().source_language().empty()) {
+     manual_translate_on_ready_ = true;

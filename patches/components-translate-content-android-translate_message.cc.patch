@@ -1,0 +1,52 @@
+diff --git a/components/translate/content/android/translate_message.cc b/components/translate/content/android/translate_message.cc
+index 4e29bd1cbfe9ed575bdb196bf4066abe132eb4d4..f931306de398eb367a6c7792e6975da56b38456d 100644
+--- a/components/translate/content/android/translate_message.cc
++++ b/components/translate/content/android/translate_message.cc
+@@ -241,14 +241,17 @@ void TranslateMessage::ShowTranslateStep(TranslateStep step,
+         // separate title string indicating that the translation is in progress
+         // instead of the default "Translate page?" title used in the
+         // before-translate state.
+-        title = base::android::ConvertUTF16ToJavaString(
+-            env, l10n_util::GetStringUTF16(
+-                     IDS_TRANSLATE_MESSAGE_TRANSLATING_COLD_OPEN_TITLE));
++        compass_translating_title_ = l10n_util::GetStringUTF16(
++            IDS_TRANSLATE_MESSAGE_TRANSLATING_COLD_OPEN_TITLE);
+       } else {
+-        title = base::android::ConvertUTF16ToJavaString(
+-            env, l10n_util::GetStringUTF16(
+-                     IDS_TRANSLATE_MESSAGE_BEFORE_TRANSLATE_TITLE));
++        compass_translating_title_ = l10n_util::GetStringUTF16(
++            IDS_TRANSLATE_MESSAGE_BEFORE_TRANSLATE_TITLE);
+       }
++      title = base::android::ConvertUTF16ToJavaString(
++          env, compass_translating_title_);
++      compass_translating_description_ = l10n_util::GetStringFUTF16(
++          IDS_TRANSLATE_MESSAGE_DESCRIPTION, source_language_display_name,
++          target_language_display_name);
+       description = GetDefaultMessageDescription(
+           env, source_language_display_name, target_language_display_name);
+       primary_button_text = nullptr;
+@@ -294,6 +297,23 @@ void TranslateMessage::ShowTranslateStep(TranslateStep step,
+                        /*has_overflow_menu=*/true);
+ }
+ 
++bool TranslateMessage::ShowCompassDownloadProgress(
++    const std::u16string& progress) {
++  if (state_ != State::kTranslating) {
++    return false;
++  }
++  JNIEnv* env = base::android::AttachCurrentThread();
++  const std::u16string description =
++      progress.empty()
++          ? compass_translating_description_
++          : compass_translating_description_ + u" \u00B7 " + progress;
++  bridge_->ShowMessage(
++      env, base::android::ConvertUTF16ToJavaString(env, compass_translating_title_),
++      base::android::ConvertUTF16ToJavaString(env, description),
++      /*primary_button_text=*/nullptr, /*has_overflow_menu=*/true);
++  return true;
++}
++
+ void TranslateMessage::HandlePrimaryAction(JNIEnv* env) {
+   has_been_interacted_with_ = true;
+   is_translation_eligible_for_auto_always_translate_ = false;

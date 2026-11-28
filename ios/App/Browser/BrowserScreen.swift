@@ -64,6 +64,25 @@ struct BrowserScreen: View {
   var body: some View {
     @Bindable var app = app
     content
+      // Apple's translation sessions (Translation.swift), invisible.
+      .background { TranslationHost() }
+      // Before Compass's first model download (Translation.swift).
+      .alert(
+        String(localized: "Download translation languages?", comment: "Title of the alert asking, the first time a page translation needs a language that isn't downloaded, whether Compass may download translation languages."),
+        isPresented: Binding(
+          get: { app.services.translation.consent != nil },
+          set: { if !$0 { app.services.translation.consent?.answer(false) } }),
+        presenting: app.services.translation.consent
+      ) { consent in
+        Button(String(localized: "Download", comment: "Button in the alert asking whether Compass may download translation languages: agree and go on translating.")) {
+          consent.answer(true)
+        }
+        Button(String(localized: "Not Now", comment: "Button in the alert asking whether Compass may download translation languages: don't download now; the page isn't translated."), role: .cancel) {
+          consent.answer(false)
+        }
+      } message: { consent in
+        Text(String(localized: "Compass translates this page on your device with Firefox's open translation models. This language is downloaded once (about \(consent.megabytes) MB) from Compass's server, which sees your IP address and which language you download, never the page.", comment: "Body of the alert asking whether Compass may download translation languages. Firefox is Mozilla's browser; its translation models are what Compass uses. The argument is a size in megabytes."))
+      }
       .overlay {
         if let flight, let menuCenter {
           DownloadFlight(phase: flight, target: menuCenter)
@@ -592,8 +611,9 @@ struct BrowserScreen: View {
           .foregroundStyle(app.shownTab == nil ? .secondary : .primary)
           .lineLimit(1)
       }
-      // Room for the Reader button, both sides so the host stays centered.
-      .padding(.horizontal, showsReaderButton ? 40 : 14)
+      // Room for the Reader and translate buttons, both sides so the host
+      // stays centered.
+      .padding(.horizontal, showsReaderButton || app.shownTranslation != nil ? 40 : 14)
       .frame(maxWidth: .infinity)
       .frame(height: 44)
       .addressPillBackground()
@@ -606,7 +626,14 @@ struct BrowserScreen: View {
     .overlay(alignment: .trailing) {
       if showsReaderButton { readerButton.transition(.scale.combined(with: .opacity)) }
     }
+    // Page translation (Translation.swift): at the address's start.
+    .overlay(alignment: .leading) {
+      if let state = app.shownTranslation {
+        TranslateButton(state: state, tint: tint).transition(.scale.combined(with: .opacity))
+      }
+    }
     .animation(.snappy(duration: 0.2), value: showsReaderButton)
+    .animation(.snappy(duration: 0.2), value: app.shownTranslation != nil)
   }
 
   /// The shown page reads as an article, or its reader is up.
@@ -662,6 +689,17 @@ struct BrowserScreen: View {
     if app.shownReader != nil || app.canShowReader {
       Button(app.shownReader != nil ? "Hide Reader" : "Show Reader", systemImage: "book") {
         app.toggleReader()
+      }
+    }
+    if let state = app.shownTranslation {
+      if state.step == .translated || state.step.isBusy {
+        Button(String(localized: "Show Original", comment: "Translate menu: put the page back in its own language."), systemImage: "translate") {
+          app.showOriginalShown()
+        }
+      } else {
+        Button(String(localized: "Translate Page", comment: "Address menu and page menu: translate the page into the user's language."), systemImage: "translate") {
+          app.translateShown()
+        }
       }
     }
     if let site {

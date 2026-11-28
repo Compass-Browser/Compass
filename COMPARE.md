@@ -75,7 +75,7 @@ since October 2025).
 | **Web content** | | | | | | | | | | | | | |
 | Chrome extensions, desktop / phone | ✅ / ✅ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | ❌ Firefox add-ons | ✅ / ❌ | ✅ / ❌ | ~ / ❌ | ✅ / ❌ | ✅ / ✅ also Firefox add-ons |
 | Built-in ad blocker | ✅ EasyList, EasyPrivacy and cookie banners on desktop, Android and iPhone; your own lists on desktop and Android (docs/design/ad-blocker.md) | ✅ both engines, Mac, iPhone, iPad | ✅ uBlock Origin, cookie banners, your own lists | ✅ cookie banners, your own lists; Mac and iPhone | ❌ | ❌ | ✅ per profile | ❌ | ✅ | ~ | ✅ | ✅ | ✅ |
-| Reader mode, on-device translation | ~ Reader mode; translation not yet | ✅ Reader on WebKit pages, translation in both engines | ✅ translation on macOS 26 | ~ Google translation on the Mac; Reader and on-device translation on iPhone | ❌ | ? | ~ Reader View | ✅ | ✅ | ✅ | ? | ✅ | ✅ on-device on macOS 26+ |
+| Reader mode, on-device translation | ✅ Reader mode; translation on the desktop (Firefox's models, iPhone not yet) | ✅ Reader on WebKit pages, translation in both engines | ✅ translation on macOS 26 | ~ Google translation on the Mac; Reader and on-device translation on iPhone | ❌ | ? | ~ Reader View | ✅ | ✅ | ✅ | ? | ✅ | ✅ on-device on macOS 26+ |
 | Full-quality DRM video | ❌ no Widevine VMP | ✅ FairPlay through WebKit | ~ FairPlay through WebKit for streaming sites | ✅ FairPlay through WebKit when Widevine fails | ✅ | ✅ | ~ Widevine since 2.13 | ~ | ✅ | ✅ | ✅ | ~ FairPlay, no Widevine | ? |
 | Mail, calendar, web panels | ❌ | ❌ | ❌ | ~ preview cards on favorites (Gmail, Outlook, Google Calendar…) | ❌ | ❌ | ❌ | ❌ | ✅ | ~ | ❌ | ❌ | ? |
 | **AI** | | | | | | | | | | | | | |
@@ -114,7 +114,8 @@ replacement, also with spaces, Peek, small windows, splits and an MCP server.
 Crest has, Compass doesn't:
 
 - A WebKit engine per site: full-quality DRM video on those pages.
-- On-device page translation.
+- On-device page translation on iPhone and iPad (Compass has it on the
+  desktop).
 - Import from a few more browsers (Opera, Comet and others).
 - Private Spaces locked with Face ID or Touch ID, and Sub-Spaces.
 - An App Store release for iPhone and iPad, and a Homebrew cask.
@@ -137,7 +138,7 @@ Features other browsers have that Compass doesn't, checked against the code:
 
 | Missing | Who has it | State in Compass |
 |---|---|---|
-| On-device translation | Crest, Ardia, Orion, Zen, Vivaldi, Edge, Lilo | Not started. Reader mode is done, desktop and iOS (docs/design/reader-mode.md) |
+| On-device translation on the phone | Crest, Ardia, Orion, Zen, Vivaldi, Edge, Lilo | Desktop done (Mac, Windows, Linux); iOS and Android next (docs/design/translation.md) |
 | Full-quality DRM video | Chrome, Edge, Arc, Dia, Crest, Cra (Ardia for streaming sites) | Blocked: no Widevine VMP signature (docs/design/widevine.md) |
 | Tree-style tabs on the phone | Orion | Desktop only: iOS and Android show the desktop's tab trees as folders |
 | Android release | Vivaldi, Edge | In closed testing on Google Play (beta); production needs 12 testers for 14 days first |

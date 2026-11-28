@@ -1,0 +1,28 @@
+diff --git a/components/translate/content/android/translate_message.h b/components/translate/content/android/translate_message.h
+index efa1392d99e15b7d21147f6fcd361986f18c5208..8cbca303efc52c47b17d9ceb23ec5e21da25384f 100644
+--- a/components/translate/content/android/translate_message.h
++++ b/components/translate/content/android/translate_message.h
+@@ -46,6 +46,12 @@ class TranslateMessage {
+                          const std::string& source_language,
+                          const std::string& target_language);
+ 
++  // Compass: while translating, `progress` after the message's description
++  // ("German to English · 12/45 MB"), as a language Compass's engine needs
++  // downloads; empty for the description alone. False when no translating
++  // message shows.
++  bool ShowCompassDownloadProgress(const std::u16string& progress);
++
+   // Called by Java in response to the user clicking the primary button.
+   void HandlePrimaryAction(JNIEnv* env);
+   // Called by Java in response to the message being dismissed.
+@@ -161,6 +167,10 @@ class TranslateMessage {
+   std::unique_ptr<TranslateUIDelegate> ui_delegate_;
+   raw_ptr<TranslateUILanguagesManager> ui_languages_manager_;
+   State state_ = State::kDismissed;
++  // Compass: the translating message's title and description, for
++  // ShowCompassDownloadProgress().
++  std::u16string compass_translating_title_;
++  std::u16string compass_translating_description_;
+ 
+   // Keeps track of whether or not this TranslateMessage has ever been
+   // interacted with in any way aside from dismissing it.

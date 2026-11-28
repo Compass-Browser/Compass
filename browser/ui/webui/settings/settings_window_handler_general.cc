@@ -8,7 +8,9 @@
 // FontHandler, SystemHandler, ProfileInfoHandler, ManageProfileHandler) do
 // for chrome://settings, over the window's Mojo interface.
 
+#include <algorithm>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/files/file_path.h"
@@ -33,8 +35,13 @@
 #include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
 #include "chrome/browser/ui/webui/settings/settings_utils.h"
 #include "chrome/common/pref_names.h"
+#include "compass/browser/translate/translation_manifest.h"
+#include "compass/browser/translate/translation_pack_installer.h"
 #include "compass/browser/ui/webui/settings/settings_window_handler.h"
 #include "compass/strings/grit/compass_strings.h"
+#include "components/on_device_translation/component_manager.h"
+#include "components/on_device_translation/public/language_pack.h"
+#include "components/on_device_translation/public/supported_languages.h"
 #include "components/prefs/pref_service.h"
 #include "components/search_engines/choice_made_location.h"
 #include "components/search_engines/template_url.h"
@@ -316,19 +323,19 @@ void SettingsWindowHandler::OnTemplateURLServiceChanged() {
 // Languages -------------------------------------------------------------------
 
 void SettingsWindowHandler::GetLanguages(GetLanguagesCallback callback) {
-  std::vector<translate::TranslateLanguageInfo> infos;
-  translate::TranslatePrefs::GetLanguageInfoList(
+  std::vector<::translate::TranslateLanguageInfo> infos;
+  ::translate::TranslatePrefs::GetLanguageInfoList(
       g_browser_process->GetApplicationLocale(),
       profile_->GetPrefs()->GetBoolean(
           ::translate::prefs::kOfferTranslateEnabled),
       &infos);
   std::vector<sidebar::mojom::LanguageInfoPtr> catalog;
-  for (const translate::TranslateLanguageInfo& info : infos) {
+  for (const ::translate::TranslateLanguageInfo& info : infos) {
     catalog.push_back(sidebar::mojom::LanguageInfo::New(
         info.code, info.display_name, info.native_display_name,
         info.supports_translate));
   }
-  std::unique_ptr<translate::TranslatePrefs> translate_prefs =
+  std::unique_ptr<::translate::TranslatePrefs> translate_prefs =
       ChromeTranslateClient::CreateTranslatePrefs(profile_->GetPrefs());
   std::vector<sidebar::mojom::PreferredLanguagePtr> preferred;
   for (const base::i18n::LanguageTag& tag :
@@ -350,7 +357,7 @@ void SettingsWindowHandler::AddLanguage(const std::string& code) {
 }
 
 void SettingsWindowHandler::RemoveLanguage(const std::string& code) {
-  std::unique_ptr<translate::TranslatePrefs> translate_prefs =
+  std::unique_ptr<::translate::TranslatePrefs> translate_prefs =
       ChromeTranslateClient::CreateTranslatePrefs(profile_->GetPrefs());
   std::optional<base::i18n::LanguageTag> tag =
       base::i18n::GetLanguageTagFromString(code);
@@ -361,7 +368,7 @@ void SettingsWindowHandler::RemoveLanguage(const std::string& code) {
 }
 
 void SettingsWindowHandler::MoveLanguage(const std::string& code, bool up) {
-  std::unique_ptr<translate::TranslatePrefs> translate_prefs =
+  std::unique_ptr<::translate::TranslatePrefs> translate_prefs =
       ChromeTranslateClient::CreateTranslatePrefs(profile_->GetPrefs());
   std::vector<std::string> enabled;
   for (const base::i18n::LanguageTag& tag :
@@ -370,18 +377,108 @@ void SettingsWindowHandler::MoveLanguage(const std::string& code, bool up) {
   }
   translate_prefs->RearrangeLanguage(
       code,
-      up ? translate::TranslatePrefs::kUp : translate::TranslatePrefs::kDown,
+      up ? ::translate::TranslatePrefs::kUp : ::translate::TranslatePrefs::kDown,
       /*offset=*/1, enabled);
 }
 
 void SettingsWindowHandler::SetTranslateOffered(const std::string& code,
                                                 bool offered) {
-  std::unique_ptr<translate::TranslatePrefs> translate_prefs =
+  std::unique_ptr<::translate::TranslatePrefs> translate_prefs =
       ChromeTranslateClient::CreateTranslatePrefs(profile_->GetPrefs());
   if (offered) {
     translate_prefs->UnblockLanguage(code);
   } else {
     translate_prefs->BlockLanguage(code);
+  }
+}
+
+// Translation languages -------------------------------------------------------
+
+namespace {
+
+using on_device_translation::LanguagePackKey;
+
+std::optional<LanguagePackKey> FindPack(const std::string& code) {
+  for (const auto& [key, config] :
+       on_device_translation::kLanguagePackComponentConfigMap) {
+    if (on_device_translation::GetPackageInstallDirName(key) == code) {
+      return key;
+    }
+  }
+  return std::nullopt;
+}
+
+}  // namespace
+
+void SettingsWindowHandler::GetTranslationPacks(
+    GetTranslationPacksCallback callback) {
+  PrefService* local_state = g_browser_process->local_state();
+  const bool allowed = local_state->GetBoolean(compass::translate::kModelDownloadsAllowed);
+  const std::string locale = g_browser_process->GetApplicationLocale();
+  std::vector<sidebar::mojom::TranslationPackPtr> packs;
+  std::vector<base::FilePath> paths;
+  for (LanguagePackKey key :
+       on_device_translation::ComponentManager::GetInstalledLanguagePacks()) {
+    const auto& config = on_device_translation::GetLanguagePackComponentConfig(key);
+    const std::string language = compass::translate::ToModelLanguage(
+        on_device_translation::ToLanguageCode(
+            on_device_translation::NonEnglishSupportedLanguageFromLanguagePackKey(
+                key)));
+    packs.push_back(sidebar::mojom::TranslationPack::New(
+        on_device_translation::GetPackageInstallDirName(key),
+        base::UTF16ToUTF8(
+            l10n_util::GetDisplayNameForLocale(language, locale, true)),
+        0));
+    paths.push_back(local_state->GetFilePath(
+        on_device_translation::GetComponentPathPrefName(config)));
+  }
+  // Their sizes, off the UI thread.
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(
+          [](std::vector<base::FilePath> paths) {
+            std::vector<int64_t> sizes;
+            for (const base::FilePath& path : paths) {
+              sizes.push_back(path.empty() ? 0
+                                           : base::ComputeDirectorySize(path));
+            }
+            return sizes;
+          },
+          std::move(paths)),
+      base::BindOnce(
+          [](GetTranslationPacksCallback callback, bool allowed,
+             std::vector<sidebar::mojom::TranslationPackPtr> packs,
+             std::vector<int64_t> sizes) {
+            for (size_t i = 0; i < packs.size(); ++i) {
+              packs[i]->size_bytes = sizes[i];
+            }
+            std::ranges::sort(packs, {}, [](const auto& pack) {
+              return pack->name;
+            });
+            std::move(callback).Run(allowed, std::move(packs));
+          },
+          std::move(callback), allowed, std::move(packs)));
+}
+
+void SettingsWindowHandler::SetTranslationDownloadsAllowed(bool allowed) {
+  g_browser_process->local_state()->SetBoolean(
+      compass::translate::kModelDownloadsAllowed, allowed);
+}
+
+void SettingsWindowHandler::RemoveTranslationPack(const std::string& code) {
+  // Through upstream's installer (and so Compass's), which tells the
+  // service.
+  if (std::optional<LanguagePackKey> key = FindPack(code)) {
+    on_device_translation::ComponentManager::GetInstance()
+        .UninstallTranslateKitLanguagePackComponent(*key);
+  }
+}
+
+void SettingsWindowHandler::RemoveAllTranslationPacks() {
+  for (LanguagePackKey key :
+       on_device_translation::ComponentManager::GetInstalledLanguagePacks()) {
+    on_device_translation::ComponentManager::GetInstance()
+        .UninstallTranslateKitLanguagePackComponent(key);
   }
 }
 

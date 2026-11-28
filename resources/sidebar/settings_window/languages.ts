@@ -6,7 +6,7 @@ import './icon.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {LanguageInfo, PreferredLanguage} from '../sidebar.mojom-webui.js';
+import type {LanguageInfo, PreferredLanguage, TranslationPack} from '../sidebar.mojom-webui.js';
 
 import {SettingsWindowBrowserProxy} from './browser_proxy.js';
 import {getHtml} from './languages.html.js';
@@ -14,7 +14,9 @@ import {getHtml} from './languages.html.js';
 // General › Languages (docs/design/settings-window.md, phase 5c): the
 // preferred languages in order (move, remove, whether to offer translating
 // pages in each), and the languages to add. As TranslatePrefs keeps them
-// (intl.accept_languages, translate_blocked_languages). Fires "close" for
+// (intl.accept_languages, translate_blocked_languages). Then page
+// translation's downloaded languages and whether it may download them
+// (docs/design/translation.md, "Packs on the device"). Fires "close" for
 // the way back.
 export class CompassSettingsLanguagesElement extends CrLitElement {
   static get is() {
@@ -30,12 +32,16 @@ export class CompassSettingsLanguagesElement extends CrLitElement {
       catalog_: {type: Array},
       preferred_: {type: Array},
       filter_: {type: String},
+      downloadsAllowed_: {type: Boolean},
+      packs_: {type: Array},
     };
   }
 
   protected accessor catalog_: LanguageInfo[] = [];
   protected accessor preferred_: PreferredLanguage[] = [];
   protected accessor filter_: string = '';
+  protected accessor downloadsAllowed_: boolean = false;
+  protected accessor packs_: TranslationPack[] = [];
 
   private handler_ = SettingsWindowBrowserProxy.getInstance().handler;
   private listenerId_: number|null = null;
@@ -104,6 +110,16 @@ export class CompassSettingsLanguagesElement extends CrLitElement {
              l.code.toLowerCase().startsWith(filter)));
   }
 
+  // "45 MB", in the page's language.
+  protected formatSize_(bytes: bigint|number): string {
+    const megabytes = Math.max(1, Math.round(Number(bytes) / 1e6));
+    return new Intl.NumberFormat(document.documentElement.lang || undefined, {
+      style: 'unit',
+      unit: 'megabyte',
+      maximumFractionDigits: 0,
+    }).format(megabytes);
+  }
+
   // Events.
 
   protected onBackClick_() {
@@ -139,10 +155,27 @@ export class CompassSettingsLanguagesElement extends CrLitElement {
         (e.currentTarget as HTMLElement).dataset['code']!);
   }
 
+  protected onDownloadsChange_(e: Event) {
+    this.handler_.setTranslationDownloadsAllowed(
+        (e.target as HTMLInputElement).checked);
+  }
+
+  protected onRemovePackClick_(e: Event) {
+    this.handler_.removeTranslationPack(
+        (e.currentTarget as HTMLElement).dataset['pack']!);
+  }
+
+  protected onRemoveAllPacksClick_() {
+    this.handler_.removeAllTranslationPacks();
+  }
+
   private async load_() {
-    const {catalog, preferred} = await this.handler_.getLanguages();
+    const [{catalog, preferred}, {downloadsAllowed, packs}] = await Promise.all(
+        [this.handler_.getLanguages(), this.handler_.getTranslationPacks()]);
     this.catalog_ = catalog;
     this.preferred_ = preferred;
+    this.downloadsAllowed_ = downloadsAllowed;
+    this.packs_ = packs;
   }
 }
 

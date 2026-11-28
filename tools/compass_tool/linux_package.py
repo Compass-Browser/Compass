@@ -34,7 +34,9 @@ EXECUTABLES = {
     'chrome-sandbox': 'chrome_sandbox',
 }
 LIBRARIES = ('libEGL.so', 'libGLESv2.so', 'libvk_swiftshader.so',
-             'libvulkan.so.1')
+             'libvulkan.so.1',
+             # On-device translation's engine (docs/design/translation.md).
+             'libcompass_translatekit.so')
 DATA_FILES = ('chrome_100_percent.pak', 'chrome_200_percent.pak',
               'headless_command_resources.pak', 'resources.pak',
               'icudtl.dat', 'snapshot_blob.bin', 'v8_context_snapshot.bin',

@@ -50,7 +50,14 @@ class LabelButton;
 class WidgetDelegate;
 }  // namespace views
 
+namespace views {
+class ContextMenuController;
+}  // namespace views
+
 namespace compass {
+
+class TranslateContextMenu;
+class TranslatePillMenu;
 
 // The vertical tab strip region's top: upstream's row (traffic lights,
 // collapse button, combo button) plus back, forward and reload at the row's
@@ -111,6 +118,15 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   // (docs/design/reader-mode.md), highlighted in Reader.
   void UpdateReaderButton();
 
+  // Shows the translate button from the active tab's TranslationTabState
+  // (docs/design/translation.md, "What the user sees"): offering, the
+  // download's progress, translated, or failed.
+  void UpdateTranslateButton();
+
+  // Whether the header has its pill now: vertical tabs, not laid out
+  // collapsed. Without it, upstream's translate bubble stays.
+  bool HasPill() const;
+
   // After a switch to another profile's space (sidebar_swap.cc): this
   // window's header grows or shrinks from |old|'s height to its own, and
   // its extensions and pinned actions fade in, instead of the page under it
@@ -130,6 +146,7 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   views::LabelButton* pill_for_testing() { return pill_; }
   views::ImageButton* site_info_button_for_testing() { return site_info_; }
   views::ImageButton* reader_button_for_testing() { return reader_; }
+  views::LabelButton* translate_button_for_testing() { return translate_; }
   WebAppContentSettingsContainer* content_settings_for_testing() {
     return content_settings_;
   }
@@ -214,6 +231,12 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   void OnPillPressed();
   void OnSiteInfoPressed();
   void OnReaderPressed();
+  void OnTranslatePressed();
+  // The translate button's menu (TranslatePillMenu), from its press or a
+  // right-click.
+  void ShowTranslateMenu();
+  // Its width in the pill, when it shows.
+  int TranslateButtonWidth() const;
 
   const raw_ptr<tabs::VerticalTabStripStateController> state_controller_;
   const raw_ptr<BrowserWindowInterface> browser_;
@@ -228,6 +251,11 @@ class SidebarHeader : public VerticalTabStripTopContainer,
   // Inside the pill, at its right: the content setting icons, then Reader.
   raw_ptr<WebAppContentSettingsContainer> content_settings_ = nullptr;
   raw_ptr<views::ImageButton> reader_ = nullptr;
+  // Before Reader: page translation.
+  raw_ptr<views::LabelButton> translate_ = nullptr;
+  bool show_translate_ = false;
+  std::unique_ptr<TranslatePillMenu> translate_menu_;
+  std::unique_ptr<TranslateContextMenu> translate_context_menu_;
   // Whether the Reader button shows, and whether the tab is in Reader.
   bool show_reader_ = false;
   bool reader_showing_ = false;

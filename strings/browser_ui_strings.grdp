@@ -365,6 +365,57 @@
   </message>
 
   <!-- Reader (Compass's reading mode) -->
+  <message name="IDS_COMPASS_TRANSLATE_DOWNLOAD_TITLE" desc="Title of the dialog asking, the first time a page translation needs a language that isn't downloaded, whether Compass may download translation languages.">
+    Download translation languages?
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_DOWNLOAD_MESSAGE" desc="Body of the dialog asking whether Compass may download translation languages. Firefox is Mozilla's browser; its translation models are what Compass uses. Compass's server is where Compass downloads them from.">
+    Compass translates pages on this device with Firefox's open translation models. Each language is downloaded once (about 45 MB) from Compass's server, which sees your IP address and which language you download, never the page.
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_DOWNLOAD_ACCEPT" desc="Button in the dialog asking whether Compass may download translation languages: agree and go on translating.">
+    Download
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_DOWNLOAD_CANCEL" desc="Button in the dialog asking whether Compass may download translation languages: don't download now; the page isn't translated, and Compass asks again next time.">
+    Not Now
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_HEADER_TRANSLATE_FROM" desc="Tooltip of the translate button in the sidebar's address pill, on a page in another language: translate it into the user's language.">
+    Translate from <ph name="LANGUAGE">$1<ex>German</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_HEADER_TRANSLATING" desc="Tooltip of the translate button in the sidebar's address pill while the page is being translated.">
+    Translating…
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_HEADER_TRANSLATE_PROGRESS" desc="Beside the translate button in the sidebar's address pill while a translation language downloads: megabytes downloaded of the total. Short: it fits in the pill.">
+    <ph name="RECEIVED">$1<ex>12</ex></ph>/<ph name="TOTAL">$2<ex>45</ex></ph> MB
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_HEADER_TRANSLATE_DOWNLOADING" desc="Tooltip of the translate button in the sidebar's address pill while the language the page needs downloads, before it is translated.">
+    Downloading <ph name="LANGUAGE">$1<ex>German</ex></ph> for translation: <ph name="RECEIVED">$2<ex>12</ex></ph> of <ph name="TOTAL">$3<ex>45</ex></ph> MB
+  </message>
+  <message name="IDS_COMPASS_SIDEBAR_HEADER_TRANSLATE_FAILED" desc="Tooltip of the translate button in the sidebar's address pill when the page couldn't be translated; clicking it shows a menu with Try Again.">
+    This page couldn't be translated
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_MENU_TRANSLATED_FROM" desc="Header of the translate button's menu on a translated page, and the button's tooltip: the language the page was in.">
+    Translated from <ph name="LANGUAGE">$1<ex>German</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_MENU_PAGE_IN" desc="Header of the translate button's menu on a page that isn't translated: the language the page is in.">
+    Page in <ph name="LANGUAGE">$1<ex>German</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_MENU_TRANSLATE_TO" desc="In the translate button's menu: a submenu of languages to translate the page into.">
+    Translate To
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_MENU_SHOW_ORIGINAL" desc="In the translate button's menu on a translated page: put the page back in its original language.">
+    Show Original
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_MENU_TRY_AGAIN" desc="In the translate button's menu when the page couldn't be translated: translate it again.">
+    Try Again
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_MENU_ALWAYS" desc="Check item in the translate button's menu: translate pages in this language without asking.">
+    Always Translate <ph name="LANGUAGE">$1<ex>German</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_MENU_NEVER" desc="In the translate button's menu: don't offer to translate pages in this language any more.">
+    Never Translate <ph name="LANGUAGE">$1<ex>German</ex></ph>
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_MENU_NEVER_SITE" desc="In the translate button's menu: don't offer to translate this site's pages any more.">
+    Never Translate This Site
+  </message>
   <message name="IDS_COMPASS_READER_PARSE_FAILED" desc="Shown in Reader, Compass&#x27;s reading mode, when the page&#x27;s article couldn&#x27;t be extracted.">
     This page couldn't be read (it may still be loading).
   </message>

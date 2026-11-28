@@ -43,6 +43,8 @@
 #include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/views/dev_mode/dev_mode_controller.h"
 #include "compass/browser/ui/views/reader/reader_mode.h"
+#include "chrome/browser/translate/chrome_translate_client.h"
+#include "components/translate/core/browser/translate_manager.h"
 #include "compass/browser/ui/webui/settings/settings_sections.h"
 #include "compass/browser/ui/zap/zap_session.h"
 #include "compass/browser/window_sync/space_directory.h"
@@ -129,6 +131,10 @@ constexpr CommandInfo kCommands[] = {
      "reader"},
     {CommandBarCommand::kLeaveReaderMode,
      IDS_COMPASS_COMMAND_BAR_LEAVE_READER_MODE, "reader"},
+    {CommandBarCommand::kTranslatePage, IDS_COMPASS_COMMAND_BAR_TRANSLATE_PAGE,
+     "translate"},
+    {CommandBarCommand::kShowOriginal, IDS_COMPASS_COMMAND_BAR_SHOW_ORIGINAL,
+     "translate"},
     {CommandBarCommand::kDevMode, IDS_COMPASS_COMMAND_BAR_DEV_MODE, "code"},
     {CommandBarCommand::kLeaveDevMode, IDS_COMPASS_COMMAND_BAR_LEAVE_DEV_MODE,
      "code"},
@@ -1018,6 +1024,21 @@ void CommandBarPageHandler::RunCommand(CommandBarCommand command) {
         reader_mode->Toggle();
       }
       break;
+    case CommandBarCommand::kTranslatePage:
+    case CommandBarCommand::kShowOriginal:
+      if (tabs::TabInterface* tab = browser_->GetActiveTabInterface()) {
+        if (ChromeTranslateClient* client =
+                ChromeTranslateClient::FromWebContents(tab->GetContents())) {
+          if (command == CommandBarCommand::kShowOriginal) {
+            client->GetTranslateManager()->RevertTranslation();
+          } else {
+            // As the page's "Translate to …": the bubble, translating.
+            client->GetTranslateManager()->ShowTranslateUI(
+                /*auto_translate=*/true, /*triggered_from_menu=*/true);
+          }
+        }
+      }
+      break;
     case CommandBarCommand::kDevMode:
     case CommandBarCommand::kLeaveDevMode:
       if (DevModeController* dev_mode = DevModeController::From(browser_)) {
@@ -1110,6 +1131,22 @@ bool CommandBarPageHandler::IsCommandAvailable(
     case CommandBarCommand::kLeaveReaderMode: {
       ReaderMode* reader_mode = ReaderMode::From(browser_);
       return reader_mode && reader_mode->IsShowing();
+    }
+    case CommandBarCommand::kTranslatePage:
+    case CommandBarCommand::kShowOriginal: {
+      tabs::TabInterface* tab = browser_->GetActiveTabInterface();
+      ChromeTranslateClient* client =
+          tab ? ChromeTranslateClient::FromWebContents(tab->GetContents())
+              : nullptr;
+      if (!client) {
+        return false;
+      }
+      const bool translated = client->GetLanguageState().IsPageTranslated();
+      if (command == CommandBarCommand::kShowOriginal) {
+        return translated;
+      }
+      return !translated &&
+             client->GetTranslateManager()->CanManuallyTranslate();
     }
     case CommandBarCommand::kDevMode: {
       DevModeController* dev_mode = DevModeController::From(browser_);

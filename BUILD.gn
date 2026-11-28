@@ -39,7 +39,11 @@ test("compass_unittests") {
     "//compass/renderer/adblock:unit_tests",
   ]
   if (is_mac || is_win || is_linux) {
-    deps += [ "//compass/browser/downloads_folder:unit_tests" ]
+    deps += [
+      "//compass/browser/downloads_folder:unit_tests",
+      "//compass/browser/translate:unit_tests",
+      "//compass/components/translatekit:unit_tests",
+    ]
   }
   if (is_mac) {
     deps += [ "//compass/components/os_crypt:unit_tests" ]
@@ -63,10 +67,13 @@ test("compass_browsertests") {
     "//compass/browser/prefs:browser_tests",
     "//compass/browser/ui:browser_tests",
     "//compass/browser/ui/easels:browser_tests",
-    "//compass/browser/ui/zap:browser_tests",
     "//compass/browser/ui/webui/easel:browser_tests",
+    "//compass/browser/ui/zap:browser_tests",
     "//compass/browser/web_store:browser_tests",
   ]
+  if (is_mac || is_win || is_linux) {
+    deps += [ "//compass/browser/translate:browser_tests" ]
+  }
   if (is_mac) {
     # Headless runs don't take the user's focus.
     sources = [ "test/headless_no_activation_mac.mm" ]

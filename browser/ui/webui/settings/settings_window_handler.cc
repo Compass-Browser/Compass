@@ -24,6 +24,8 @@
 #include "chrome/common/webui_url_constants.h"
 #include "compass/browser/adblock/adblock_prefs.h"
 #include "compass/browser/prefs/compass_prefs.h"
+#include "compass/browser/translate/translation_pack_installer.h"
+#include "components/on_device_translation/public/language_pack.h"
 #include "compass/browser/sidebar/space_model.h"
 #include "compass/browser/ui/views/settings_window/settings_window.h"
 #include "compass/browser/updates/update_hooks.h"
@@ -202,6 +204,19 @@ SettingsWindowHandler::SettingsWindowHandler(
                                     handler->page_->LanguagesChanged();
                                   },
                                   base::Unretained(this)));
+  }
+  // Page translation's consent and packs, for General › Languages: a pack's
+  // path pref changes when it's installed or removed.
+  translation_prefs_.Init(g_browser_process->local_state());
+  auto translation_changed = base::BindRepeating(
+      [](SettingsWindowHandler* handler) { handler->page_->LanguagesChanged(); },
+      base::Unretained(this));
+  translation_prefs_.Add(compass::translate::kModelDownloadsAllowed,
+                         translation_changed);
+  for (const auto& [key, config] :
+       on_device_translation::kLanguagePackComponentConfigMap) {
+    translation_prefs_.Add(on_device_translation::GetComponentPathPrefName(*config),
+                           translation_changed);
   }
   if (HostContentSettingsMap* map =
           HostContentSettingsMapFactory::GetForProfile(profile_)) {

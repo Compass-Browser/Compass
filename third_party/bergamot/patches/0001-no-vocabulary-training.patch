@@ -1,0 +1,18 @@
+diff --git a/third_party/bergamot/marian/src/data/sentencepiece_vocab.cpp b/third_party/bergamot/marian/src/data/sentencepiece_vocab.cpp
+index d406a58..1bbcf79 100644
+--- a/third_party/bergamot/marian/src/data/sentencepiece_vocab.cpp
++++ b/third_party/bergamot/marian/src/data/sentencepiece_vocab.cpp
+@@ -172,10 +172,9 @@ public:
+       << " " << options_->get<std::string>("sentencepiece-options"); // these are SentencePiece command line options
+ 
+     // Train the SentencePiece model
+-    const auto status = sentencepiece::SentencePieceTrainer::Train(command.str());
+-    ABORT_IF(!status.ok(),
+-             "SentencePiece vocabulary error: {}",
+-             status.ToString());
++    // Compass: Chromium's SentencePiece has no trainer, and translation never
++    // trains vocabularies.
++    ABORT("SentencePiece vocabulary training isn't built: {}", command.str());
+ 
+     LOG(info, "[SentencePiece] Removing {}", vocabPath + ".vocab");
+     ABORT_IF(remove((vocabPath + ".vocab").c_str()) != 0,

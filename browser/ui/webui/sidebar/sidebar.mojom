@@ -1005,6 +1005,16 @@ struct LanguageInfo {
   bool supports_translate;
 };
 
+// A downloaded translation language (docs/design/translation.md, "Packs on
+// the device"): both directions with English.
+struct TranslationPack {
+  // The pack's folder name ("de_en").
+  string code;
+  // The language that isn't English, in the browser's language.
+  string name;
+  int64 size_bytes;
+};
+
 // One of the user's preferred languages, in their order.
 struct PreferredLanguage {
   string code;
@@ -1204,7 +1214,8 @@ interface SettingsWindowPage {
   ContentSettingsChanged();
   DefaultBrowserChanged(DefaultBrowserState state);
   SearchEnginesChanged(SearchEngines engines);
-  // The preferred languages or their translation changed.
+  // The preferred languages, their translation, or the downloaded
+  // translation languages changed.
   LanguagesChanged();
   // A profile was added, removed or renamed, or its spaces changed.
   ProfilesChanged(array<ProfileDetails> profiles);
@@ -1270,6 +1281,13 @@ interface SettingsWindowHandler {
   // One place up or down the list.
   MoveLanguage(string code, bool up);
   SetTranslateOffered(string code, bool offered);
+  // General › Languages › Translation: whether page translation may
+  // download languages, and the ones downloaded, by name.
+  GetTranslationPacks() =>
+      (bool downloads_allowed, array<TranslationPack> packs);
+  SetTranslationDownloadsAllowed(bool allowed);
+  RemoveTranslationPack(string code);
+  RemoveAllTranslationPacks();
   // The download folder as shown ("~/Downloads").
   GetDownloadLocation() => (string location);
   // A folder picker for the download folder; the pref changes if one is

@@ -87,6 +87,10 @@ enum class CommandBarCommand {
   // (docs/design/reader-mode.md).
   kReaderMode,
   kLeaveReaderMode,
+  // Upstream's translate bubble, translating the page into the user's
+  // language, and back (docs/design/translation.md, "What the user sees").
+  kTranslatePage,
+  kShowOriginal,
   // Turns development mode on for the active tab's site, or off
   // (docs/design/dev-mode.md): a web page.
   kDevMode,

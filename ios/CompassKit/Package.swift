@@ -35,6 +35,9 @@ let package = Package(
     // Shared spaces, folders and easels: room crypto and invite links
     // (docs/design/sync.md, "Rooms: crypto and links").
     .library(name: "CompassRooms", targets: ["CompassRooms"]),
+    // Page translation's rules: languages, HTML for text-only engines,
+    // the user's choices (docs/design/translation.md, "iOS").
+    .library(name: "CompassTranslate", targets: ["CompassTranslate"]),
   ],
   dependencies: [
     // Must match the protoc-gen-swift that generated Sources/SyncProto
@@ -65,6 +68,7 @@ let package = Package(
     .target(
       name: "CompassLiveFolders",
       resources: [.copy("Resources/jsc_globals.js"), .process("Localizable.xcstrings")]),
+    .target(name: "CompassTranslate"),
     .target(name: "CompassBoosts", resources: [.process("Localizable.xcstrings")]),
     .target(name: "CompassEasels", dependencies: ["SyncProto"], resources: [.process("Localizable.xcstrings")]),
     // Sharing with other people: the client, the room crypto, and the sync
@@ -85,6 +89,7 @@ let package = Package(
     .testTarget(name: "CompassOnDeviceTests", dependencies: ["CompassOnDevice"]),
     .testTarget(name: "CompassLiveFoldersTests", dependencies: ["CompassLiveFolders"]),
     .testTarget(name: "CompassBoostsTests", dependencies: ["CompassBoosts"]),
+    .testTarget(name: "CompassTranslateTests", dependencies: ["CompassTranslate"]),
     .testTarget(name: "CompassEaselsTests", dependencies: ["CompassEasels"]),
     .testTarget(
       name: "CompassRoomsTests",

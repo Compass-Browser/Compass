@@ -1,5 +1,5 @@
 diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
-index e7bfa73b4d0581e742f7e9e31192538e0df9d134..2db917fc43e748a55e672ef52038098025b27120 100644
+index e7bfa73b4d0581e742f7e9e31192538e0df9d134..d979d5c454c64f4a24748a33cb79f593aca7fb31 100644
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
 @@ -32,6 +32,8 @@ import("//tools/resources/generate_resource_allowlist.gni")
@@ -48,7 +48,21 @@ index e7bfa73b4d0581e742f7e9e31192538e0df9d134..2db917fc43e748a55e672ef520380980
    } else {
      _chrome_output_name = "chrome"
    }
-@@ -246,6 +251,9 @@ if (!is_android && !is_mac) {
+@@ -178,6 +183,13 @@ if (!is_android && !is_mac) {
+     data = [ "$root_out_dir/resources.pak" ]
+     data_deps = []
+ 
++    # Compass: on-device translation's engine, next to chrome.dll or the
++    # binary (docs/design/translation.md, "Where the library lives").
++    if (is_win || is_linux) {
++      data_deps +=
++          [ "//compass/components/translatekit:compass_translatekit" ]
++    }
++
+     if (is_win || is_linux || is_chromeos) {
+       deps += [ "//components/webapps/isolated_web_apps:scheme" ]
+     }
+@@ -246,6 +258,9 @@ if (!is_android && !is_mac) {
          "//chrome/notification_helper",
          "//chrome/windows_services/elevated_tracing_service",
          "//components/crash/win:chrome_wer",
@@ -58,7 +72,7 @@ index e7bfa73b4d0581e742f7e9e31192538e0df9d134..2db917fc43e748a55e672ef520380980
        ]
  
        if (is_chrome_branded) {
-@@ -540,10 +548,15 @@ if (is_win) {
+@@ -540,10 +555,15 @@ if (is_win) {
      }
    }
  
@@ -75,7 +89,7 @@ index e7bfa73b4d0581e742f7e9e31192538e0df9d134..2db917fc43e748a55e672ef520380980
      extra_substitutions = [
        "CHROMIUM_BUNDLE_ID=$chrome_mac_bundle_id",
        "CHROMIUM_SHORT_NAME=$chrome_product_short_name",
-@@ -573,8 +586,22 @@ if (is_win) {
+@@ -573,8 +593,22 @@ if (is_win) {
        ":chrome_app_strings_bundle_data",
        ":chrome_resources",
        ":chrome_versioned_bundle_data",
@@ -98,7 +112,7 @@ index e7bfa73b4d0581e742f7e9e31192538e0df9d134..2db917fc43e748a55e672ef520380980
      if (enable_updater) {
        bundle_deps += [ ":chromium_updater_privileged_helper" ]
      }
-@@ -689,12 +716,12 @@ if (is_win) {
+@@ -689,12 +723,12 @@ if (is_win) {
    }
  
    bundle_data("chrome_app_icon") {
@@ -113,7 +127,18 @@ index e7bfa73b4d0581e742f7e9e31192538e0df9d134..2db917fc43e748a55e672ef520380980
      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
    }
  
-@@ -1723,9 +1750,11 @@ copy("visual_elements_resources") {
+@@ -1423,6 +1457,10 @@ if (is_win) {
+ 
+     bundle_deps += [ ":vulkan_loader_binaries" ]
+ 
++    # Compass: on-device translation's engine, in Libraries
++    # (docs/design/translation.md, "Where the library lives").
++    bundle_deps += [ "//compass/components/translatekit:bundle_data" ]
++
+     if (enable_separate_renderer_binary) {
+       bundle_deps += [ ":chrome_renderer_library" ]
+     }
+@@ -1723,9 +1761,11 @@ copy("visual_elements_resources") {
    sources = [
      "//chrome/app/theme/$branding_path_component/win/tiles/Logo.png",
      "//chrome/app/theme/$branding_path_component/win/tiles/SmallLogo.png",
@@ -126,7 +151,7 @@ index e7bfa73b4d0581e742f7e9e31192538e0df9d134..2db917fc43e748a55e672ef520380980
    if (is_chrome_branded) {
      sources += [
        "//chrome/app/theme/$branding_path_component/win/tiles/LogoBeta.png",
-@@ -1740,6 +1769,12 @@ copy("visual_elements_resources") {
+@@ -1740,6 +1780,12 @@ copy("visual_elements_resources") {
    outputs = [ "$root_out_dir/{{source_file_part}}" ]
  }
  
@@ -139,7 +164,7 @@ index e7bfa73b4d0581e742f7e9e31192538e0df9d134..2db917fc43e748a55e672ef520380980
  group("resources") {
    public_deps = [
      "//chrome/browser:resources",
-@@ -1877,7 +1912,9 @@ if (is_win && enable_resource_allowlist_generation) {
+@@ -1877,7 +1923,9 @@ if (is_win && enable_resource_allowlist_generation) {
  }
  
  if (is_linux || is_chromeos) {
