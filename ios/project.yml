@@ -70,6 +70,10 @@ targets:
         buildPhase: resources
       - path: ../common/reader/reader_view.js
         buildPhase: resources
+      # Page translation's page script, shared with the desktop
+      # (docs/design/translation.md, "The shared page translator").
+      - path: ../common/translate/page_translator.js
+        buildPhase: resources
       # Live folder plugins: the SDK, the runtime scripts and the built-ins,
       # shared with the desktop (docs/design/live-folders.md). Folders at
       # the bundle's top, laid out as plugins/ is: a "plugins" folder would
@@ -142,6 +146,8 @@ targets:
         product: CompassEasels
       - package: CompassKit
         product: CompassRooms
+      - package: CompassKit
+        product: CompassTranslate
     info:
       path: App/Info.plist
       properties:

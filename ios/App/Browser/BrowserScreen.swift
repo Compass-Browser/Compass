@@ -64,6 +64,8 @@ struct BrowserScreen: View {
   var body: some View {
     @Bindable var app = app
     content
+      // Apple's translation sessions (Translation.swift), invisible.
+      .background { TranslationHost() }
       .overlay {
         if let flight, let menuCenter {
           DownloadFlight(phase: flight, target: menuCenter)
@@ -592,8 +594,9 @@ struct BrowserScreen: View {
           .foregroundStyle(app.shownTab == nil ? .secondary : .primary)
           .lineLimit(1)
       }
-      // Room for the Reader button, both sides so the host stays centered.
-      .padding(.horizontal, showsReaderButton ? 40 : 14)
+      // Room for the Reader and translate buttons, both sides so the host
+      // stays centered.
+      .padding(.horizontal, showsReaderButton || app.shownTranslation != nil ? 40 : 14)
       .frame(maxWidth: .infinity)
       .frame(height: 44)
       .addressPillBackground()
@@ -606,7 +609,14 @@ struct BrowserScreen: View {
     .overlay(alignment: .trailing) {
       if showsReaderButton { readerButton.transition(.scale.combined(with: .opacity)) }
     }
+    // Page translation (Translation.swift): at the address's start.
+    .overlay(alignment: .leading) {
+      if let state = app.shownTranslation {
+        TranslateButton(state: state, tint: tint).transition(.scale.combined(with: .opacity))
+      }
+    }
     .animation(.snappy(duration: 0.2), value: showsReaderButton)
+    .animation(.snappy(duration: 0.2), value: app.shownTranslation != nil)
   }
 
   /// The shown page reads as an article, or its reader is up.
@@ -662,6 +672,17 @@ struct BrowserScreen: View {
     if app.shownReader != nil || app.canShowReader {
       Button(app.shownReader != nil ? "Hide Reader" : "Show Reader", systemImage: "book") {
         app.toggleReader()
+      }
+    }
+    if let state = app.shownTranslation {
+      if state.step == .translated || state.step == .translating {
+        Button(String(localized: "Show Original", comment: "Translate menu: put the page back in its own language."), systemImage: "translate") {
+          app.showOriginalShown()
+        }
+      } else {
+        Button(String(localized: "Translate Page", comment: "Address menu and page menu: translate the page into the user's language."), systemImage: "translate") {
+          app.translateShown()
+        }
       }
     }
     if let site {

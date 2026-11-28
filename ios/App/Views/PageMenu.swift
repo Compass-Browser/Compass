@@ -39,6 +39,16 @@ struct PageMenu: View {
         }
         .disabled(app.shownReader == nil && !app.canShowReader)
         .accessibilityIdentifier("MenuReader")
+        // Page translation (Translation.swift): dimmed when the page is in
+        // a language the user reads.
+        let translation = app.shownTranslation
+        let translated = translation?.step == .translated || translation?.step == .translating
+        Tile(title: String(localized: "Translate", comment: "Page menu tile: translate the page, or show the original when it's translated."), symbol: "translate", on: translated) {
+          dismiss()
+          app.toggleTranslation()
+        }
+        .disabled(translation == nil)
+        .accessibilityIdentifier("MenuTranslate")
         // Not in incognito (as the desktop).
         if !(tab.map { app.tabs.isIncognito($0.id) } ?? false) {
         Tile(title: ClaudeSettings.shared.provider.askTitle, symbol: "sparkles") {

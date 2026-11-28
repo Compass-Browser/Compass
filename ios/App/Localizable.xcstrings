@@ -1239,6 +1239,17 @@
         }
       }
     },
+    "Always Translate %@" : {
+      "comment" : "Translate menu: translate pages in this language without asking. The argument is a language name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduci sempre: %@"
+          }
+        }
+      }
+    },
     "An Anthropic API key from console.anthropic.com, or a key for the endpoint under Advanced. It stays in this device's Keychain. A token from `claude setup-token` uses your Claude subscription, only with the risks below accepted." : {
       "comment" : "Settings → AI: footer under the API Key field.",
       "localizations" : {
@@ -4958,6 +4969,28 @@
         }
       }
     },
+    "Never Translate %@" : {
+      "comment" : "Translate menu: don't offer to translate pages in this language any more. The argument is a language name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non tradurre mai: %@"
+          }
+        }
+      }
+    },
+    "Never Translate This Site" : {
+      "comment" : "Translate menu: don't offer to translate this site's pages any more.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non tradurre mai questo sito"
+          }
+        }
+      }
+    },
     "Never for This Site" : {
       "localizations" : {
         "it" : {
@@ -6125,6 +6158,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pagina allegata"
+          }
+        }
+      }
+    },
+    "Page in %@" : {
+      "comment" : "Translate menu header: the language the page is in. The argument is a language name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lingua della pagina: %@"
           }
         }
       }
@@ -7662,6 +7706,17 @@
         }
       }
     },
+    "Show Original" : {
+      "comment" : "Translate menu: put the page back in its own language.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra originale"
+          }
+        }
+      }
+    },
     "Show Other Tabs" : {
       "localizations" : {
         "it" : {
@@ -9063,6 +9118,17 @@
         }
       }
     },
+    "This page couldn't be translated" : {
+      "comment" : "Address bar's translate button after translating failed.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile tradurre questa pagina"
+          }
+        }
+      }
+    },
     "This page has no article." : {
       "comment" : "Reader: the page has no article to show.",
       "localizations" : {
@@ -9223,6 +9289,83 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Troppi tentativi di accesso. Attendi qualche minuto."
+          }
+        }
+      }
+    },
+    "Translate" : {
+      "comment" : "Page menu tile: translate the page, or show the original when it's translated.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduci"
+          }
+        }
+      }
+    },
+    "Translate Page" : {
+      "comment" : "Address menu and page menu: translate the page into the user's language.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduci pagina"
+          }
+        }
+      }
+    },
+    "Translate To" : {
+      "comment" : "Translate menu: a submenu of languages to translate the page into.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduci in"
+          }
+        }
+      }
+    },
+    "Translate from %@" : {
+      "comment" : "Address bar's translate button: translate the page. The argument is a language name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduci (lingua: %@)"
+          }
+        }
+      }
+    },
+    "Translated from %@" : {
+      "comment" : "Address bar's translate button on a translated page. The argument is a language name.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lingua originale: %@"
+          }
+        }
+      }
+    },
+    "Translating…" : {
+      "comment" : "Address bar's translate button while the page translates.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduzione in corso…"
+          }
+        }
+      }
+    },
+    "Try Again" : {
+      "comment" : "Translate menu: translate the page again after it failed.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riprova"
           }
         }
       }

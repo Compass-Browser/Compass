@@ -186,6 +186,12 @@ async function engine(segments) {
   await T.idle();
   T.restore();
 
+  // sample(): the lang attribute and the text, cut.
+  const sampled = T.sample(30);
+  check('sample lang', sampled.lang === 'de', sampled);
+  check('sample text', sampled.text.length === 30 &&
+        sampled.text.startsWith('Seite zum Testen'), sampled);
+
   // A failing engine leaves the page as it is.
   T.start({source: 'de', target: 'fr', engine: async () => {
     throw new Error('no');

@@ -22,6 +22,10 @@
 //   __compassTranslator.idle()      Promise: nothing left to translate
 //   __compassTranslator.started()   Promise: the first batch is back (the
 //                                   first screen), or nothing to translate
+//   __compassTranslator.sample(max) {lang, text}: the page's lang attribute
+//                                   and up to max characters of its text,
+//                                   for platforms that detect the language
+//                                   themselves (iOS)
 
 (() => {
   'use strict';
@@ -724,6 +728,20 @@
     return new Promise(resolve => state.firstWaiters.push(resolve));
   }
 
+  function sample(max = 2000) {
+    const lang = document.documentElement.getAttribute('lang') ||
+        document.querySelector('meta[http-equiv="content-language" i]')
+            ?.getAttribute('content') ||
+        '';
+    const body = document.body;
+    const text = ((document.title || '') + '\n' +
+                  (body ? body.innerText || body.textContent || '' : ''))
+                     .replace(/\s+/g, ' ')
+                     .trim()
+                     .slice(0, max);
+    return {lang, text};
+  }
+
   globalThis.__compassTranslator =
-      {start, stop, restore, progress, idle, started};
+      {start, stop, restore, progress, idle, started, sample};
 })();

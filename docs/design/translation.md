@@ -3,7 +3,8 @@
 Status: T1 to T5 done (2026-11-28): the engine on macOS arm64, Windows
 x64 and Linux x64; language packs from the mirror; the shared page
 translator; page translation on the desktop (verified on macOS); its
-settings and privacy notes. iOS (T6) next.
+settings and privacy notes. T6a (2026-11-28): iOS with Apple's
+Translation framework, the page and the UI; Bergamot on iOS (T6b) next.
 Based on Chromium 159.0.8154.34.
 
 ## Goal
@@ -593,6 +594,37 @@ code.
   languages; ⌘⇧Y with a hardware keyboard (the Mac's keys). Translated, the
   button is filled, and its menu has the target language, Show Original,
   and "Always Translate <language>".
+
+### Where it is (T6a)
+
+- `CompassKit/Sources/CompassTranslate` (tested on the Mac,
+  `CompassTranslateTests`): `PageLanguage` (codes, detection from `lang`
+  and `NLLanguageRecognizer`, the text winning when it's sure, which pages
+  to offer, the target), `HTMLSegment`/`PlainTextBatch` (an HTML segment's
+  text runs one string each for Apple, the markup kept, entities
+  unescaped and escaped back), `TranslationPrefs` (UserDefaults
+  `TranslateAlways`, `TranslateNever`, `TranslateNeverSites`,
+  `TranslateOffer`).
+- `App/Browser/Translation.swift`: `PageTranslation` (per tab: offered,
+  translating, translated, failed; checked when a page loads, Incognito
+  too), `TranslateScripts` (`page_translator.js` in the `CompassTranslate`
+  world; `sample()` for detection, `start()` waiting for `started()`),
+  the engine's batches through `WKScriptMessageHandlerWithReply`
+  (`compassTranslate`), `AppleTranslator` and `TranslationHost` (a hidden
+  view per window running `.translationTask`; the session stays in the
+  host's task and serves the pair's queued batches until 30 s without
+  one; a new pair sets a new configuration).
+- UI: `TranslateButton` at the address pill's start (tap: translate, or
+  Show Original; its menu: Translate To, Show Original or Try Again,
+  Always Translate, Never Translate the language or the site); the
+  address's long-press menu; a Translate tile in the page menu; ⌘⇧Y.
+- **The simulator has no Apple Translation** ("Translation isn't supported
+  on the current device", `TranslationErrorDomain` 11): the Apple engine
+  needs a device. Debug flags: `-CompassTranslate YES` translates every
+  offered page, `-CompassTranslateFake YES` upper-cases instead of
+  translating, which checks the page script, the bridge and the button in
+  the simulator (done 2026-11-28 on German Wikipedia: text upper-cased in
+  place, links kept, the button filled).
 
 ## Android
 
