@@ -31,6 +31,7 @@
 #include "compass/browser/ui/webui/command_bar/command_bar_page_handler.h"
 #include "compass/browser/ui/views/claude/claude_panel.h"
 #include "compass/browser/ui/views/dev_mode/dev_mode_controller.h"
+#include "compass/browser/ui/views/frame/window_frame.h"
 #include "compass/browser/ui/views/little_window/little_window.h"
 #include "compass/browser/ui/views/peek/peek.h"
 #include "compass/browser/ui/views/reader/reader_mode.h"
@@ -38,16 +39,21 @@
 #include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/window_sync/undo_close.h"
 #include "compass/common/compass_url.h"
+#include "third_party/skia/include/core/SkColor.h"
+#include "ui/color/color_variant.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/bubble/bubble_anchor.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
+#include "ui/views/controls/webview/web_contents_set_background_color.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/event_monitor.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
+#include "ui/views/window/frame_view.h"
+#include "ui/views/window/non_client_view.h"
 #include "url/gurl.h"
 
 namespace compass {
@@ -121,10 +127,24 @@ void CommandBar::Show(Mode mode) {
       views::BubbleBorder::TOP_CENTER);
   bubble->set_parent_window(platform_util::GetViewForWindow(
       browser_->GetWindow()->GetNativeWindow()));
+  const bool translucent = IsBubbleBackdropSupported();
+  if (translucent) {
+    // What's behind the window shows through the frame and the page
+    // (GetOrCreateContents()), blurred, as through a translucent sidebar.
+    bubble->SetBackgroundColor(ui::ColorVariant(SK_ColorTRANSPARENT));
+  }
   bubble_ = bubble->GetWeakPtr();
   // Hidden until the page has shown the new state (ShowUI()).
   views::Widget* widget =
       views::BubbleDialogDelegateView::CreateBubble(std::move(bubble));
+  if (translucent && widget->non_client_view() &&
+      widget->non_client_view()->frame_view()) {
+    // Under the page, inside the bubble's shadow.
+    AddBubbleBackdrop(
+        widget,
+        widget->non_client_view()->frame_view()->GetBoundsForClientView(),
+        bubble_->GetCornerRadius());
+  }
   StopWatching();
   bubble_observation_.Observe(widget);
 
@@ -246,6 +266,12 @@ WebUIContentsWrapper* CommandBar::GetOrCreateContents() {
         IDS_TASK_MANAGER_TOOL_PREFIX);
     // The page asks for its window when it connects, which is later.
     webui::SetBrowserWindowInterface(contents_->web_contents(), browser_);
+    if (IsBubbleBackdropSupported()) {
+      // The bubble's backdrop shows through the page's tinted background
+      // (command_bar.html).
+      views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
+          contents_->web_contents(), SK_ColorTRANSPARENT);
+    }
   }
   return contents_.get();
 }

@@ -18,6 +18,7 @@ class BrowserWindowInterface;
 
 namespace gfx {
 class Point;
+class Rect;
 }  // namespace gfx
 
 namespace views {
@@ -129,6 +130,17 @@ void RemoveWindowBackdrop(views::Widget* widget);
 // The platform's half: the backdrop under |widget|'s window, and the window
 // and compositor not opaque, or back to opaque.
 void SetWindowBackdrop(views::Widget* widget, bool on);
+
+// A bubble's backdrop: what's behind |widget|'s window, blurred, in the
+// material of the sidebar's (the frame's when translucent), under |bounds|
+// (in the widget's coordinates, outside the bubble's own shadow) with
+// |corner_radius| corners. It keeps its distance from the window's edges as
+// the window resizes. Only macOS: Windows draws a system backdrop under a
+// whole window, not a bubble's rounded part of one.
+bool IsBubbleBackdropSupported();
+void AddBubbleBackdrop(views::Widget* widget,
+                       const gfx::Rect& bounds,
+                       int corner_radius);
 
 }  // namespace compass
 

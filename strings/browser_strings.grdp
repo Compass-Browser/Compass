@@ -753,17 +753,11 @@
   <message name="IDS_COMPASS_COMMAND_BAR_LEAVE_DEV_MODE" desc="Command bar command: turn off development mode.">
     Leave Development Mode
   </message>
-  <message name="IDS_COMPASS_COMMAND_BAR_ACTION_RUN" desc="Label at the end of a command bar row: pressing Enter runs the command.">
-    Run
-  </message>
   <message name="IDS_COMPASS_COMMAND_BAR_ACTION_ASK" desc="Label at the end of a command bar row: pressing Enter asks Claude the typed question.">
     Ask
   </message>
   <message name="IDS_COMPASS_COMMAND_BAR_ACTION_ANSWER" desc="Label at the end of a command bar row: pressing Enter has Claude answer the question in the command bar.">
     Answer
-  </message>
-  <message name="IDS_COMPASS_COMMAND_BAR_ACTION_SEARCH" desc="Label at the end of a command bar row: pressing Enter searches the web.">
-    Search
   </message>
   <message name="IDS_COMPASS_COMMAND_BAR_ACTION_SWITCH_TO_TAB" desc="Label at the end of a command bar row: pressing Enter switches to the open tab.">
     Switch to tab

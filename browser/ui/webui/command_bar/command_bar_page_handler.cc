@@ -542,6 +542,14 @@ void CommandBarPageHandler::Rebuild() {
     result->action = item.action;
     result->icon_url = item.icon_url;
     result->command_symbol = item.command_symbol;
+    if (item.match) {
+      result->fill_text =
+          base::UTF16ToUTF8(ToCompassText(item.match->fill_into_edit));
+    } else if (item.kind == ResultKind::kEntry) {
+      result->fill_text = ToCompassURL(item.icon_url).spec();
+    } else if (item.kind == ResultKind::kOtherDeviceTab) {
+      result->fill_text = ToCompassURL(item.url).spec();
+    }
     if (item.kind == ResultKind::kAskClaude) {
       std::string title;
       std::string host;
@@ -573,9 +581,9 @@ CommandBarPageHandler::Item CommandBarPageHandler::MatchItem(
   item.kind = search ? ResultKind::kSearch : ResultKind::kNavigate;
   item.title = ToCompassText(match.contents);
   item.subtitle = match.description;
-  item.action = l10n_util::GetStringUTF8(
-      search ? IDS_COMPASS_COMMAND_BAR_ACTION_SEARCH : IDS_COMPASS_OPEN);
+  // A search row has no label at its end: the glyph says what it does.
   if (!search) {
+    item.action = l10n_util::GetStringUTF8(IDS_COMPASS_OPEN);
     item.icon_url = match.destination_url;
   }
   item.match = match;
@@ -716,7 +724,6 @@ void CommandBarPageHandler::AddCommandItems(std::vector<Item>& items,
     Item item;
     item.kind = ResultKind::kCommand;
     item.title = name;
-    item.action = l10n_util::GetStringUTF8(IDS_COMPASS_COMMAND_BAR_ACTION_RUN);
     item.command = info.command;
     item.command_symbol = info.symbol;
     AssignId(item, "c:" + base::NumberToString(static_cast<int>(info.command)));

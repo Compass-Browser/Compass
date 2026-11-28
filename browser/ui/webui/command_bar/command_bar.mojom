@@ -56,6 +56,11 @@ struct Result {
   // page's command_icons.ts knows ("settings", "history"...); the page
   // shows "›" for one it doesn't. Empty for other kinds.
   string command_symbol;
+  // What the field shows while the row is selected with the arrow keys, as
+  // the omnibox's fill_into_edit: the query of a search, the URL of a page.
+  // Empty for spaces, commands and Claude's rows: the field keeps the typed
+  // text.
+  string fill_text;
 };
 
 // Bootstraps the connection; called once by the page.

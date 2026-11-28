@@ -18,6 +18,7 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "compass/browser/ui/views/command_bar/command_bar.h"
+#include "compass/browser/ui/views/frame/window_frame.h"
 #include "compass/browser/ui/webui/command_bar/command_bar_page_handler.h"
 #include "compass/grit/compass_sidebar_resources.h"
 #include "compass/grit/compass_sidebar_resources_map.h"
@@ -43,6 +44,9 @@ CommandBarUI::CommandBarUI(content::WebUI* web_ui)
   webui::SetupWebUIDataSource(source, kCompassSidebarResources,
                               IDR_COMPASS_SIDEBAR_COMMAND_BAR_HTML);
   AddSidebarPakLocalizedStrings(source);
+  // The bubble has a backdrop the page's background lets through
+  // (CommandBar::Show()).
+  source->AddBoolean("translucent", IsBubbleBackdropSupported());
 
   content::URLDataSource::Add(
       profile, std::make_unique<FaviconSource>(

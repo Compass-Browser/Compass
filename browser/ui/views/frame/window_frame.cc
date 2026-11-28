@@ -218,4 +218,14 @@ bool IsWindowBackdropSupported() {
 void SetWindowBackdrop(views::Widget* widget, bool on) {}
 #endif
 
+#if !BUILDFLAG(IS_MAC)
+bool IsBubbleBackdropSupported() {
+  return false;
+}
+
+void AddBubbleBackdrop(views::Widget* widget,
+                       const gfx::Rect& bounds,
+                       int corner_radius) {}
+#endif
+
 }  // namespace compass

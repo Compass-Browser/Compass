@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
+import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {Result} from '../command_bar.mojom-webui.js';
@@ -66,6 +67,12 @@ export class CompassCommandBarAppElement extends CrLitElement {
 
   // What the user typed, without the inline autocompletion.
   private typed_: string = '';
+  // The inline autocompletion the field shows after |typed_|, if any.
+  private completion_: string = '';
+  // The arrow keys moved off the first row: the field shows the selected
+  // row's text (Result.fillText), as the omnibox does, until the user types
+  // or comes back to the first row.
+  private filled_: boolean = false;
   // Set by Open(): the browser shows the bubble once the first results for
   // the new text are rendered, so it opens at its final size.
   private showPending_: boolean = false;
@@ -79,6 +86,9 @@ export class CompassCommandBarAppElement extends CrLitElement {
     super.connectedCallback();
     // Follows the window's theme, which follows its space.
     ColorChangeUpdater.forDocument().start();
+    // The bubble's backdrop shows through the background (command_bar.html).
+    document.documentElement.toggleAttribute(
+        'translucent', loadTimeData.getBoolean('translucent'));
     const router = this.browserProxy_.callbackRouter;
     this.listenerIds_ = [
       router.open.addListener(this.onOpen_.bind(this)),
@@ -112,6 +122,8 @@ export class CompassCommandBarAppElement extends CrLitElement {
   private onOpen_(mode: Mode, text: string) {
     this.mode_ = mode;
     this.typed_ = text;
+    this.completion_ = '';
+    this.filled_ = false;
     this.results_ = [];
     this.selectedIndex_ = 0;
     this.clearAnswer_();
@@ -131,16 +143,35 @@ export class CompassCommandBarAppElement extends CrLitElement {
     if (text !== this.typed_) {
       return;
     }
+    // A later pass while the arrows filled the field from a row: that row
+    // stays selected if it's still there; otherwise back to the first.
+    const filledId =
+        this.filled_ ? this.results_[this.selectedIndex_]?.id : undefined;
     this.results_ = results;
-    this.selectedIndex_ = 0;
-
-    // Complete the text in the field, selected, while the caret is at its end.
-    const input = this.input_;
-    if (inlineAutocompletion && input.value === this.typed_ &&
-        input.selectionStart === this.typed_.length &&
-        input.selectionEnd === this.typed_.length) {
-      input.value = this.typed_ + inlineAutocompletion;
-      input.setSelectionRange(this.typed_.length, input.value.length);
+    const kept = filledId === undefined ?
+        -1 :
+        results.findIndex(result => result.id === filledId);
+    if (kept > 0) {
+      this.selectedIndex_ = kept;
+      this.completion_ = inlineAutocompletion;
+    } else if (this.filled_) {
+      this.selectedIndex_ = 0;
+      this.filled_ = false;
+      this.completion_ = inlineAutocompletion;
+      this.showTyped_();
+    } else {
+      this.selectedIndex_ = 0;
+      // Complete the text in the field, selected, while the caret is at its
+      // end.
+      const input = this.input_;
+      if (input.value === this.typed_ &&
+          input.selectionStart === this.typed_.length &&
+          input.selectionEnd === this.typed_.length) {
+        this.completion_ = inlineAutocompletion;
+        this.showTyped_();
+      } else if (!this.hasCompletion_()) {
+        this.completion_ = '';
+      }
     }
 
     if (this.showPending_) {
@@ -155,6 +186,8 @@ export class CompassCommandBarAppElement extends CrLitElement {
     // A new line: the results again.
     this.clearAnswer_();
     this.typed_ = this.input_.value;
+    this.completion_ = '';
+    this.filled_ = false;
     // After a deletion, completing would put back what was just deleted.
     this.browserProxy_.handler.query(
         this.typed_, e.inputType.startsWith('delete'));
@@ -182,6 +215,7 @@ export class CompassCommandBarAppElement extends CrLitElement {
         if (count) {
           const step = e.key === 'ArrowDown' ? 1 : -1;
           this.selectedIndex_ = (this.selectedIndex_ + step + count) % count;
+          this.fillField_();
           this.scrollSelectedIntoView_();
         }
         break;
@@ -295,16 +329,52 @@ export class CompassCommandBarAppElement extends CrLitElement {
         i18n('commandBarAboutPageOff');
   }
 
+  // Whether the field shows an inline completion: selected after the
+  // typed text, as onSetResults_() put it.
+  private hasCompletion_(): boolean {
+    const input = this.input_;
+    return input.value.length > this.typed_.length &&
+        input.value.startsWith(this.typed_) &&
+        input.selectionStart === this.typed_.length &&
+        input.selectionEnd === input.value.length;
+  }
+
+  // The typed text and its inline completion, selected, as the first row
+  // (the default match) has them.
+  private showTyped_() {
+    const input = this.input_;
+    input.value = this.typed_ + this.completion_;
+    input.setSelectionRange(this.typed_.length, input.value.length);
+  }
+
+  // Up and Down, as the omnibox: the field shows the selected row's text
+  // (a search's query, a page's URL; the typed text for rows without one),
+  // caret at its end, without querying it; the first row brings back the
+  // typed text and its completion. Typing goes on from what the field shows.
+  private fillField_() {
+    if (this.selectedIndex_ === 0) {
+      if (this.filled_) {
+        this.filled_ = false;
+        this.showTyped_();
+      }
+      return;
+    }
+    const input = this.input_;
+    input.value =
+        this.results_[this.selectedIndex_]?.fillText || this.typed_;
+    input.setSelectionRange(input.value.length, input.value.length);
+    this.filled_ = true;
+  }
+
   // Tab: the field's inline completion becomes typed text, caret at its end;
   // without one, a selected search suggestion fills the field. Then queries
   // the new text, so more words can follow.
   private takeCompletion_() {
     const input = this.input_;
     let text = '';
-    if (input.value.length > this.typed_.length &&
-        input.value.startsWith(this.typed_) &&
-        input.selectionStart === this.typed_.length &&
-        input.selectionEnd === input.value.length) {
+    if (this.hasCompletion_() ||
+        (this.filled_ && input.value !== this.typed_)) {
+      // The completion, or the row the arrows filled the field from.
       text = input.value;
     } else {
       const result = this.results_[this.selectedIndex_];
@@ -319,6 +389,8 @@ export class CompassCommandBarAppElement extends CrLitElement {
     input.value = text;
     input.setSelectionRange(text.length, text.length);
     this.typed_ = text;
+    this.completion_ = '';
+    this.filled_ = false;
     this.browserProxy_.handler.query(text, false);
   }
 
@@ -381,11 +453,14 @@ export class CompassCommandBarAppElement extends CrLitElement {
     return symbol.viewBox || COMMAND_SYMBOL_VIEW_BOX;
   }
 
+  // A search row shows the field's magnifier, not a glyph.
+  protected isSearch_(result: Result): boolean {
+    return result.kind === ResultKind.kSearch;
+  }
+
   // The glyph rows without a favicon or a space icon show.
   protected getGlyph_(result: Result): string {
     switch (result.kind) {
-      case ResultKind.kSearch:
-        return '⌕';
       case ResultKind.kSpace:
         return '◐';
       case ResultKind.kCommand:
