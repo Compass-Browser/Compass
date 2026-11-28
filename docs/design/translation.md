@@ -12,7 +12,8 @@ puts it back at once.
 
 - **On the device.** The page's text never leaves the computer or phone.
   The only network traffic is downloading a language's model, once, from
-  Mozilla's servers, and only after the user has agreed to that.
+  Compass's mirror of Firefox's models, and only after the user has agreed
+  to that.
   Translation works in Incognito and offline once the model is downloaded.
 - **One engine on every platform:** Mozilla's Bergamot (Marian), which
   Firefox Translations uses, with Firefox's open models. On iPhone and
@@ -202,91 +203,108 @@ executable's `data_deps` (Windows, Linux) and `linux_package.py`'s
 
 ## Language models
 
-### Mozilla's models, from Mozilla's servers
+### Firefox's models, from Compass's mirror
 
 - Mozilla publishes the models in Remote Settings, collection
-  `translations-models-v2`: 115 directions (57 from English, 58 into it,
-  Norwegian Nynorsk into English only), each a model (`*.intgemm.alphas.bin`,
-  about 30 MB), a vocabulary (`vocab.*.spm`, or one per side) and a lexical
-  shortlist we don't use. Files are zstd-compressed, with SHA-256 hashes
-  before and after decompression.
-- **Compass downloads them from Mozilla's CDN**, as Firefox does:
-  `https://firefox-settings-attachments.cdn.mozilla.net/<attachment.location>`.
-  Compass hosts nothing. Mozilla sees the download (below, "Asking
-  first").
-- **`tools/translation/update_models.py`** reads the collection
-  (`https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/translations-models-v2/records`),
-  picks the newest record per direction and file type (records with a
-  `filter_expression` only when it's Android's and nothing else exists),
-  downloads and checks each file, and writes **`translate/models.json`**:
-  per direction, the files with their name, type, attachment location,
-  sizes and both hashes, and the model version. The manifest is checked in
+  `translations-models-v2`: 114 directions (57 from English, 57 into it,
+  on 2026-11-28), each a model (`*.intgemm.alphas.bin`, about 30 MB), a
+  vocabulary (`vocab.*.spm`, or one per side) and a lexical shortlist we
+  don't use. Files are zstd-compressed, with SHA-256 hashes before and
+  after decompression.
+- **Not from Mozilla's CDN.** It answers 406 to any User-Agent containing
+  "Chrome" (Firefox's, Safari's, curl's and a bare `Mozilla/5.0` get the
+  file), which reads as Mozilla turning Chromium browsers away on purpose;
+  Compass doesn't work around it.
+- **Compass's mirror:** the `translation/` folder of the `compass-assets`
+  R2 bucket, served as `https://assets.compassbrowser.org/translation/`
+  (the bucket and domain are for other features' files too). Each file
+  keeps its path on Mozilla's CDN
+  (`main-workspace/translations-models-v2/<uuid>.zst`), is uploaded once
+  and never replaced or removed, so every Compass ever built finds its
+  files. About 2.5 GB in all, within R2's free tier, with free egress.
+- **`tools/translation/update_models.py`** reads the collection, picks one
+  set per direction (the newest version, then the largest architecture:
+  base, base-memory, tiny; records with no `filter_expression`, or one
+  that only leaves Android out; a model and one vocabulary or one per
+  side), and writes **`browser/translate/models.json`**: the mirror's URL
+  and, per direction, the files with their type, path, sizes and both
+  hashes. `--upload` copies to the mirror every file it lacks, after
+  checking both hashes (`--verify` only checks). The manifest is checked in
   and built into Compass (`build/embed_text.py`), so a build downloads
-  exactly the files it was tested with, and a file whose hash doesn't
-  match is refused.
-- **When Mozilla removes a file.** Attachment locations stay while their
-  record does, but Mozilla replaces models with newer versions. A pinned
-  file that's gone (404) makes Compass read the collection itself, once a
-  day at most, and take that direction's current record instead. It's
-  checked against the record's hashes, over TLS from Mozilla's own server,
-  and kept until a Compass update's manifest names it. The tool runs before
-  each Chromium rebase, so a release's manifest is rarely more than a
-  month old.
+  exactly the files it was made with, and a file that doesn't match is
+  refused. Run it before each Chromium rebase.
 - License: MPL-2.0 (the archived `mozilla/firefox-translations-models`
   says so; the v2 records have no license field). `about:credits` lists it.
   To confirm before shipping (open question).
 
 ### Packs on the device
 
-- **A pack is one direction**, so Italian to English is one download and
-  English to Italian another. Upstream's packs are both directions of an
-  English pair; `LanguagePackKey` stays as it is and Compass's installer
-  maps each key to two directions, downloaded as needed.
-- **Where:** `<user data>/Compass Translation/<from>-<to>/` (shared by the
-  profiles, so Incognito uses the same files).
-- **When:** a pack downloads the first time the user translates a page
-  that needs it, once they've agreed to downloads from Mozilla (below).
-  Compass never downloads models on its own. "Always translate <language>" downloads
-  ahead for the next page. The bubble shows "Translating…" during the
-  download, and a page that waits more than 2 s gets the progress
-  ("Downloading Italian, 12 of 31 MB"). A download that fails shows
-  upstream's translation error with Try Again.
-- **`TranslationPacks`** (`browser/translate/translation_packs.{h,cc}`,
-  global, replaces upstream's component-updater installer through a
-  `chromium_src` override of `OnDeviceTranslationInstallerImpl`): downloads
-  with `SimpleURLLoader` to a temporary file, decompresses with Chromium's
-  zstd, checks the SHA-256 against the manifest, then moves the folder into
-  place. Upstream's prefs (`on_device_translation.translate_kit_packages.*`)
-  record what's installed, so the service and `chrome://on-device-translation-internals`
-  see the packs.
+- **A pack is upstream's: both directions of a pair with English**
+  (`LanguagePackKey`, German is `de_en`), so installing one downloads two
+  models (about 45 MB). Upstream asks for a pack, not a direction.
+- **Where:** `<user data>/Compass Translation/<pack>/<from>-<to>/`
+  (`de_en/de-en/model.bin`, `vocab.spm`), in upstream's language codes;
+  the manifest uses Mozilla's (`iw` is `he`, `no` is `nb`, `zh` is
+  `zh-Hans`; `ToModelLanguage()`). Shared by the profiles, so Incognito
+  uses the same files.
+- **When:** a pack downloads the first time something needs it (the user
+  translating a page, or a website's `Translator.create()` with a user
+  gesture), once the user has agreed to downloads (below). Compass never
+  downloads models on its own. T4 adds the bubble's progress and errors.
+- **`PackInstaller`** (`browser/translate/translation_pack_installer.
+  {h,cc}`, global): downloads each file with `SimpleURLLoader` to a
+  temporary file (models are past the 5 MB a string download takes),
+  checks size and SHA-256, decompresses with Chromium's zstd, checks the
+  result's size and SHA-256, and writes it into a staging folder; once all
+  are in, the staging folder replaces the pack's. A file that's missing or
+  doesn't match fails the install and leaves nothing behind.
+- **Upstream unchanged around it.** Upstream's installer would register a
+  Google component per pack; a `chromium_src` override of
+  `installer_impl.cc` renames its two calls
+  (`RegisterTranslateKitLanguagePackComponent`,
+  `UninstallTranslateKitLanguagePackComponent`) to Compass's stand-ins
+  (`language_pack_installer_shim.{h,cc}`), which call `PackInstaller`. It
+  then records the pack in upstream's own prefs
+  (`on_device_translation.translate_kit_packages.*`: the path and the
+  registered flag), so upstream's installer, service and
+  `chrome://on-device-translation-internals` see it as installed. The
+  startup registration of Google's TranslateKit components is gone
+  (`registration.cc` patch): it would otherwise ask Google to update every
+  pack marked registered.
 - **Updates:** a Compass update with a newer manifest downloads the new
-  files of installed packs the next time they're used, then removes the old
-  ones.
+  files of installed packs the next time they're used, then removes the
+  old ones (not yet).
 - **Settings**, General › Languages (settings-window.md): "Translation
   languages", the downloaded packs, each with its size and Remove, and
-  "Remove all". A pack not used for 90 days is removed by itself.
+  "Remove all" (T5).
+- **Tests:** `TranslationManifestTest` (the built-in manifest has every
+  pack upstream knows, both ways; parsing refuses http, bad hashes and
+  paths that leave the folder) and `PackInstallerTest` (both directions
+  installed and recorded, nothing requested without consent, a file that
+  doesn't match or is missing, a 6 MB model, uninstall), with a test URL
+  loader factory.
 
 ### Asking first
 
-Nothing is downloaded from Mozilla until the user agrees, once for the
-browser (not per profile or per language):
+No model is downloaded until the user agrees, once for the browser (not
+per profile or per language):
 
 - **The question** comes the first time a translation needs a pack, before
   any request: a dialog from the translate bubble (desktop) or a sheet
-  (iOS): "Download translation languages from Mozilla? Compass translates
-  pages on this device with Firefox's open translation models. Each
-  language is downloaded once from Mozilla's servers (about 30 MB), which
-  see your IP address and which language is downloaded, but never the
-  page." Buttons: **Download** and **Not Now**. A link opens the privacy
-  page's section on it.
+  (iOS): "Download translation languages? Compass translates pages on
+  this device with Firefox's open translation models. Each language is
+  downloaded once (about 45 MB) from Compass's server, which sees your IP
+  address and which language is downloaded, but never the page." Buttons:
+  **Download** and **Not Now**. A link opens the privacy page's section on
+  it.
 - **Download** sets `compass.translate.model_downloads_allowed` (a
   local-state pref, so every profile shares it, as the packs do; doesn't
   sync) and goes on with the translation. **Not Now** cancels the
   translation (the bubble goes back to its first state) and asks again the
   next time the user chooses Translate. A page offered for translation
   never asks by itself: only the user's Translate does.
-- **Settings**, General › Languages: "Download translation languages from
-  Mozilla", a switch for the same pref. Turning it off stops downloads in
+- **Settings**, General › Languages: "Download translation languages", a
+  switch for the same pref. Turning it off stops downloads in
   progress; packs already downloaded keep working, and Remove all deletes
   them.
 - **Incognito** asks the same question and the answer applies to the
@@ -443,7 +461,7 @@ follows the approach of Firefox's `translations-document.sys.mjs`
   languages, Bergamot 58), and on iOS 17, which has no Translation
   framework. It's the desktop's library, built as a static XCFramework
   (`ios/Frameworks/BergamotKit`) with a small Swift wrapper in `CompassKit`
-  (`CompassTranslate`). The packs come from Mozilla with the same manifest,
+  (`CompassTranslate`). The packs come from the mirror with the same manifest,
   into Application Support/Compass/Translation/; there is no sandbox to
   work around.
 - **Settings → General → Translation:** "Translate with" Apple (when
@@ -478,12 +496,11 @@ desktop and iOS (T6).
 
 ## Privacy
 
-- privacy.md gets a row: model downloads from Mozilla's CDN
-  (`firefox-settings-attachments.cdn.mozilla.net`, and
-  `firefox.settings.services.mozilla.com` when a pinned file is gone),
-  which see the IP address and which language, nothing about the page.
-  Only after the user agreed ("Asking first") and chose to translate.
-  Mozilla's privacy notice covers those servers, not Compass's.
+- privacy.md gets a row: model downloads from
+  `assets.compassbrowser.org` (Cloudflare R2), which sees the IP address
+  and which language, nothing about the page. Only after the user agreed
+  ("Asking first") and something asked for the language. Nothing goes to
+  Mozilla or Google.
 - No text, URL or language ever goes to a server. Detection and
   translation run on the device.
 - In Incognito nothing is kept beyond the session except the downloaded
@@ -500,7 +517,7 @@ shared glossary. Upstream's bubble strings already have Italian.
 | | Work | Done when |
 |---|---|---|
 | T1 | Bergamot vendored and built with GN; `libcompass_translatekit` with the ABI and the HTML marker, shipped and signed; the service pointed at it | The library translates text and HTML through its ABI on Mac arm64, Windows x64 and Linux x64; the service loads it in a browser (the web `Translator` API with a pack from the command line) |
-| T2 | `update_models.py` and `models.json`; `TranslationPacks` (download, check, install, remove, update, a removed file); the question and its switch | Unit tests with a fake server; nothing is requested before the user agrees; packs install from Mozilla's CDN |
+| T2 | `update_models.py` and `models.json`; the mirror; `PackInstaller` (download, check, install, remove) behind upstream's installer; consent pref; no Google components | Unit tests with a fake server; nothing is requested before the user agrees; packs install from the mirror in the app. The question's UI is T4's, its switch T5's |
 | T3 | `common/translate/page_translator.js` and its test page | `RESULT PASS` in Chromium headless |
 | T4 | Desktop: translation turned on, CLD3, the script without fetch, `PageTranslator` mojo and bindings, the language list, the command bar entries | Browser tests: the bubble translates a German test page into English with a fake library, Show Original restores it, Always Translate works, nothing goes to Google |
 | T5 | Settings: translation languages; privacy.md; COMPARE.md | Settings browser test |
@@ -520,9 +537,5 @@ the test data by `tools/translation/fetch_test_pack.py` rather than checked in.
 - **Windows on Arm:** ruy under MSVC/clang-cl is untried upstream.
 - **The models' license** for the current v2 models: confirm MPL-2.0 with
   Mozilla.
-- **Mozilla's terms:** Firefox's CDN isn't offered as a public service.
-  Downloads are one-off, small in number and the same files Firefox
-  fetches, but ask Mozilla before a stable release; if they object, the
-  manifest's locations can point at a mirror without other changes.
 - **Upstream's CPU check:** Chrome refuses on-device translation on some
   low-end machines; check what applies to our library.

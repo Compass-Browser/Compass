@@ -17,6 +17,9 @@ if (!is_android) {
       "//compass/browser/updates",
       "//compass/browser/win",
     ]
+    if (enable_on_device_translation) {
+      public_deps += [ "//compass/browser/translate" ]
+    }
   }
 }
 

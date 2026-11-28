@@ -31,12 +31,18 @@ void RegisterCompassProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref("compass.rooms.display_name", std::string());
 }
 
-void RegisterCompassLocalStatePrefs(PrefRegistrySimple *registry) {
+void RegisterCompassLocalStatePrefs(PrefRegistrySimple* registry) {
   // Sync's switches, for every profile of this device
   // (compass::sync::prefs::kDisabledTypes, components/sync/pref_names.h;
   // docs/design/sync.md, "Per profile or device-wide"). By name here: this
   // target stays clear of sync's.
   registry->RegisterListPref("compass.sync.disabled_types");
+  // Downloads of translation models, agreed to once for the whole
+  // browser (compass::translate::kModelDownloadsAllowed,
+  // browser/translate/translation_pack_installer.h; docs/design/
+  // translation.md, "Asking first"). By name, as above.
+  registry->RegisterBooleanPref("compass.translate.model_downloads_allowed",
+                                false);
 }
 
 void MigrateCompassProfilePrefs(PrefService* prefs) {

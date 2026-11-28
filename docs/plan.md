@@ -6,7 +6,8 @@ it belongs.
 
 - **Page translation** (docs/design/translation.md): on the device, with
   Bergamot behind Chromium's TranslateKit service, and Apple's Translation
-  first on iOS; models from Mozilla's CDN once the user agrees. Milestones T1–T8.
+  first on iOS; Firefox's models from Compass's mirror once the user
+  agrees. Milestones T1–T8.
 - **Claude in the sidebar** (docs/design/ai-sidebar.md): names for link
   folders, Tidy Today, shorter tab titles, Ask in the command bar; off by
   default. Milestones A1–A7.

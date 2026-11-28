@@ -8,6 +8,48 @@ import("//components/on_device_translation/buildflags/features.gni")
 
 assert(enable_on_device_translation)
 
+# browser/translate/models.json, the models Compass downloads, as
+# kModelsJson in models_json.h (tools/translation/update_models.py writes it).
+action("models_json") {
+  script = "//compass/build/embed_text.py"
+  inputs = [ "models.json" ]
+  outputs = [ "$target_gen_dir/models_json.h" ]
+  args = [
+    "--out",
+    rebase_path(outputs[0], root_build_dir),
+    "--namespace",
+    "compass::translate",
+    "kModelsJson=" + rebase_path(inputs[0], root_build_dir),
+  ]
+}
+
+# Language packs from Mozilla, installed for upstream's service.
+source_set("translate") {
+  sources = [
+    "language_pack_installer_shim.cc",
+    "language_pack_installer_shim.h",
+    "translation_manifest.cc",
+    "translation_manifest.h",
+    "translation_pack_installer.cc",
+    "translation_pack_installer.h",
+  ]
+  public_deps = [ ":translatekit_library" ]
+  deps = [
+    ":models_json",
+    "//base",
+    "//chrome/browser:browser_process",
+    "//chrome/common:constants",
+    "//components/on_device_translation:public",
+    "//components/prefs",
+    "//crypto",
+    "//net",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+    "//third_party/zstd:decompress",
+    "//url",
+  ]
+}
+
 # Finds libcompass_translatekit and points upstream's service at it.
 source_set("translatekit_library") {
   sources = [
@@ -22,12 +64,25 @@ source_set("translatekit_library") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "translatekit_library_unittest.cc" ]
+  sources = [
+    "translatekit_library_unittest.cc",
+    "translation_manifest_unittest.cc",
+    "translation_pack_installer_unittest.cc",
+  ]
   deps = [
+    ":translate",
     ":translatekit_library",
     "//base",
+    "//base/test:test_support",
     "//components/on_device_translation:features",
+    "//components/on_device_translation:public",
+    "//components/prefs:test_support",
+    "//crypto",
+    "//net",
+    "//services/network:test_support",
+    "//services/network/public/cpp",
     "//testing/gtest",
+    "//third_party/zstd:compress",
   ]
   data_deps = [ "//compass/components/translatekit:compass_translatekit" ]
 }
