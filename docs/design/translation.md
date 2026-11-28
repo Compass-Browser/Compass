@@ -115,6 +115,15 @@ in the record) with Firefox's settings:
 - **Windows x64** (win1, an i9-7980XE, so intgemm's AVX-512 path; the
   `fast` build): the same translation word for word, 1.67 s on 1 worker,
   0.69 s on 4, 0.68 s on 8; the model loads in 160 ms.
+- **In the app** (Debug, bundled): startup finds the library in the
+  framework's Libraries, the sandboxed service loads it, and a page's
+  `Translator.create({sourceLanguage: 'de', targetLanguage: 'en'})`
+  translates, with the package from `--translate-kit-packages`. Upstream
+  calls a pair "available" only when both languages are among the
+  profile's; otherwise it's "downloadable", and `create()` wants a user
+  gesture even with the package installed. Page translation (T4) asks
+  through Compass's own interface, not the web API, so the rule doesn't
+  apply to it.
 - **Bugs native use found**, both patched (third_party/bergamot/README.md,
   "Local changes"): Bergamot freed the model's memory after the first
   worker loaded it, so the others crashed on an empty model (Firefox runs
