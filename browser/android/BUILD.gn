@@ -319,6 +319,7 @@ if (enable_on_device_translation) {
     deps = [
       "//base",
       "//base:i18n",
+      "//chrome/browser/translate",
       "//compass/browser/translate:page_translator_host",
       "//compass/strings:compass_strings",
       "//components/messages/android",

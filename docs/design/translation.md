@@ -708,19 +708,31 @@ action, on Compass's engine and models, as on the desktop (T8).
   `DialogModel`, the desktop's strings), one per tab for every batch
   waiting on it. A message (the first try) stacked behind upstream's
   "Translating page" message, where its button couldn't be tapped.
-- **Progress:** a Chrome message ("Translating…", "12/45 MB",
-  `MessageIdentifier::DOWNLOAD_PROGRESS`), updated as it downloads and
-  dismissed when it ends (`ShowModelDownloadProgress()`,
-  `ModelDownloadFinished()`, which page_translator_host.h declares and the
-  desktop's pill implements too). Known gap: it stacks behind upstream's
-  "Translating page" message, so only its edge shows.
+- **Progress:** in upstream's translate message itself, after its
+  description: "Spanish to English · 33/46 MB" (patches of
+  `translate_message.{h,cc}`, `TranslateMessage::ShowCompassDownloadProgress()`,
+  and `chrome_translate_client.{h,cc}`, which passes it on), restored when
+  the download ends (`ShowModelDownloadProgress()`, `ModelDownloadFinished()`,
+  which page_translator_host.h declares and the desktop's pill implements
+  too). A message of Compass's own (`DOWNLOAD_PROGRESS`) stacked behind
+  upstream's, where only its edge showed; it's left for when upstream's
+  isn't translating.
 - **Translate in the page menu:** Compass's menu replaces Chrome's, so its
   Translate tile (`PageMenuUi`, enabled when
   `TranslateBridge.canManuallyTranslate()`) runs Chrome's own
   `translate_id` action. Upstream's message bar offers it on its own too.
+  Chrome queues a manual translation until it knows the page's language;
+  a page moved into a space from a peek has none (its detection ran in the
+  peek) and never detects it again, so the tile reloads such a page
+  (finished loading, `TranslateBridge.getCurrentLanguage()` empty) and the
+  queued translation runs once it's detected. Six tiles leave "Ask Claude"
+  two lines.
 - **Checked** in the arm64 emulator (2026-11-28): German Wikipedia, the
   menu's Translate, the dialog, Download: the German pack came from the
-  mirror and the page turned to English with its links, under 30 s. The
+  mirror and the page turned to English with its links, under 30 s.
+  Spanish, opened from another app into a peek, then Open in Home and the
+  menu's Translate: reloaded, "Spanish to English · 33/46 MB" in
+  upstream's message, then "Page translated". The
   language list (translate-internals) has all 58 languages. Not yet: the
   packs in Android's settings, and a device.
 

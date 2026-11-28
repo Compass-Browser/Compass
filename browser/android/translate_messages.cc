@@ -18,6 +18,7 @@
 #include "base/i18n/number_formatting.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/translate/chrome_translate_client.h"
 #include "compass/browser/translate/page_translator_host.h"
 #include "compass/strings/grit/compass_strings.h"
 #include "components/messages/android/message_dispatcher_bridge.h"
@@ -42,7 +43,8 @@ constexpr long kProgressMs = 10 * 60 * 1000;
 class TranslateMessages
     : public content::WebContentsUserData<TranslateMessages> {
  public:
-  ~TranslateMessages() override { DismissProgress(); }
+  // Not upstream's message: its client may be gone with the tab.
+  ~TranslateMessages() override { DismissOwnProgress(); }
 
   void Ask(base::OnceCallback<void(bool)> callback) {
     // One question for every request waiting (the page sends batches in
@@ -94,6 +96,15 @@ class TranslateMessages
         base::FormatNumber(std::max<int64_t>(1, (total + mb / 2) / mb));
     const std::u16string text = l10n_util::GetStringFUTF16(
         IDS_COMPASS_SIDEBAR_HEADER_TRANSLATE_PROGRESS, got, all);
+    // In upstream's "Translating page" message when it shows ("German to
+    // English · 12/45 MB"): a message of our own would stack behind it.
+    if (ChromeTranslateClient* client =
+            ChromeTranslateClient::FromWebContents(&GetWebContents());
+        client && client->ShowCompassDownloadProgress(text)) {
+      in_translate_message_ = true;
+      DismissOwnProgress();
+      return;
+    }
     if (progress_) {
       progress_->SetDescription(text);
       return;
@@ -115,6 +126,17 @@ class TranslateMessages
   }
 
   void DismissProgress() {
+    if (in_translate_message_) {
+      in_translate_message_ = false;
+      if (ChromeTranslateClient* client =
+              ChromeTranslateClient::FromWebContents(&GetWebContents())) {
+        client->ShowCompassDownloadProgress(std::u16string());
+      }
+    }
+    DismissOwnProgress();
+  }
+
+  void DismissOwnProgress() {
     if (progress_) {
       messages::MessageDispatcherBridge::Get()->DismissMessage(
           progress_.get(), messages::DismissReason::UNKNOWN);
@@ -141,6 +163,8 @@ class TranslateMessages
 
   std::vector<base::OnceCallback<void(bool)>> answers_;
   bool asking_ = false;
+  // The progress shows in upstream's translate message.
+  bool in_translate_message_ = false;
   std::unique_ptr<messages::MessageWrapper> progress_;
 
   base::WeakPtrFactory<TranslateMessages> weak_factory_{this};

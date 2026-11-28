@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LifecycleOwner
@@ -258,10 +259,18 @@ private fun RowScope.Tile(
             .clickable(enabled = enabled, onClick = onClick)
             .alpha(if (enabled) 1f else 0.38f),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
     ) {
         Sym(icon, 20f, content)
-        Text(label, style = MaterialTheme.typography.labelMedium, color = content, maxLines = 1)
+        // Two lines: six tiles leave "Ask Claude" (or "Chiedi a Claude") too
+        // little width for one.
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = content,
+            maxLines = 2,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

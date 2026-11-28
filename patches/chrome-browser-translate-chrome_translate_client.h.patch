@@ -1,0 +1,15 @@
+diff --git a/chrome/browser/translate/chrome_translate_client.h b/chrome/browser/translate/chrome_translate_client.h
+index d8fdad34e6ddd49ef532d071f7c7d26683d5f49d..f8d6615d8d889fcb610d96d92b6e7ba743479cd8 100644
+--- a/chrome/browser/translate/chrome_translate_client.h
++++ b/chrome/browser/translate/chrome_translate_client.h
+@@ -110,6 +110,10 @@ class ChromeTranslateClient
+   // Trigger a manual translation when the necessary state (e.g. source
+   // language) is ready.
+   void ManualTranslateWhenReady();
++  // Compass: a language download's progress in the translating message
++  // (TranslateMessage::ShowCompassDownloadProgress()). False when none
++  // shows.
++  bool ShowCompassDownloadProgress(const std::u16string& progress);
+ #endif
+   void SetPredefinedTargetLanguage(const base::i18n::LanguageTag& language,
+                                    bool should_auto_translate);
