@@ -16,7 +16,10 @@ log on the right.
 
 import base64
 import collections
-import curses
+try:
+  import curses
+except ImportError:  # Windows' Python has none; only the live view needs it.
+  curses = None
 import datetime
 import json
 import os
@@ -1020,7 +1023,8 @@ class View:
   ESCAPES = {'[A': curses.KEY_UP, 'OA': curses.KEY_UP,
              '[B': curses.KEY_DOWN, 'OB': curses.KEY_DOWN,
              '[5~': curses.KEY_PPAGE, '[6~': curses.KEY_NPAGE,
-             '[F': curses.KEY_END, 'OF': curses.KEY_END, '[4~': curses.KEY_END}
+             '[F': curses.KEY_END, 'OF': curses.KEY_END,
+             '[4~': curses.KEY_END} if curses else {}
 
   def _key(self, screen) -> int:
     """A key, with the arrow and page keys curses' terminfo didn't decode
@@ -1143,6 +1147,9 @@ def main(version: Optional[str], out: Path, depot_tools: Path,
   if not version:
     raise ValueError('no release-mac-*.log in %s: which version? '
                      '(compass monitor <version>)' % out)
+  if not once and not curses:
+    raise ValueError('the live view needs curses, which this Python lacks '
+                     '(Windows): use --once')
   monitor = Monitor(version, out, depot_tools)
   if once:
     # The slow sources once, in the foreground.
