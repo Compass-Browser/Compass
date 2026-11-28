@@ -1,1 +1,2 @@
-- Built on Chromium 159.0.8154.34, with its security fixes.
+- Translate pages on your device: Translate in the page menu, or Chrome's offer on pages in other languages. Compass downloads each language once (about 45 MB) after asking, and shows the download's progress; nothing about the page leaves the phone.
+- 58 languages, from Firefox's open translation models.

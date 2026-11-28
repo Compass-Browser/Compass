@@ -1,5 +1,6 @@
-Sync with Compass on Chromium 159.
+Page translation, on your iPhone.
 
-- Compass for Mac, Windows, Linux and Android is now built on Chromium 159; this build's sync speaks its updated sync protocol.
-- Spaces keep their translucency (set in a space's theme editor on the desktop) when they sync through this iPhone.
-- Please check, with a desktop or Android Compass on 20261127.0209: spaces, pinned entries and Today, history, and Send to Your Devices, both ways. Report anything that doesn't arrive, arrives twice, or comes back after you deleted it.
+- On a page in a language you don't read, a translate button shows at the start of the address bar. Tap it to translate; tap again for the original. Long-press it for Translate To, Always Translate and Never Translate.
+- Compass translates with its own models (Firefox's, 58 languages), downloaded once per language after asking, with a progress ring in the button; Apple's Translation takes the languages Compass doesn't have. Settings › Translation can put Apple first, and lists the downloaded languages.
+- Also: Translate in the page menu, Translate Page in the address bar's menu, ⌘⇧Y with a keyboard.
+- Please try a few sites in other languages and tell us about pages that translate badly, lose their layout or links, or never finish.

@@ -1,1 +1,2 @@
-- Basato su Chromium 159.0.8154.34, con le sue correzioni di sicurezza.
+- Traduci le pagine sul dispositivo: Traduci nel menu della pagina, o la proposta di Chrome sulle pagine in altre lingue. Compass scarica ogni lingua una volta (circa 45 MB) dopo averlo chiesto e mostra l'avanzamento del download; nulla della pagina lascia il telefono.
+- 58 lingue, con i modelli di traduzione aperti di Firefox.

@@ -1,5 +1,6 @@
-Sincronizzazione con Compass su Chromium 159.
+Traduzione delle pagine, sul tuo iPhone.
 
-- Compass per Mac, Windows, Linux e Android ora è basato su Chromium 159; la sincronizzazione di questa build parla il suo protocollo aggiornato.
-- Gli spazi mantengono la loro trasparenza (impostata nell'editor del tema di uno spazio sul computer) quando si sincronizzano tramite questo iPhone.
-- Controlla, con un Compass per computer o Android alla 20261127.0209: spazi, elementi fissati e Oggi, cronologia e Invia ai tuoi dispositivi, in entrambe le direzioni. Segnalaci ciò che non arriva, arriva due volte o ricompare dopo averlo eliminato.
+- Su una pagina in una lingua che non leggi, all'inizio della barra degli indirizzi compare un pulsante di traduzione. Toccalo per tradurre; toccalo di nuovo per l'originale. Tienilo premuto per Traduci in, Traduci sempre e Non tradurre mai.
+- Compass traduce con i suoi modelli (quelli di Firefox, 58 lingue), scaricati una volta per lingua dopo averlo chiesto, con un anello di avanzamento nel pulsante; Traduzione di Apple si occupa delle lingue che Compass non ha. Impostazioni › Traduzione può mettere Apple al primo posto ed elenca le lingue scaricate.
+- Inoltre: Traduci nel menu della pagina, Traduci pagina nel menu della barra degli indirizzi, ⌘⇧Y con una tastiera.
+- Prova qualche sito in altre lingue e segnalaci le pagine tradotte male, che perdono impaginazione o link, o che non finiscono mai.
