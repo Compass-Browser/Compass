@@ -1,6 +1,8 @@
 # Page translation
 
-Status: designed 2026-11-28; T1 started (native spike done, see "Spike").
+Status: T1 done (2026-11-28: the engine on macOS arm64, Windows x64 and
+Linux x64, and in the Mac app); T2's code done, the mirror not yet
+uploaded.
 Based on Chromium 159.0.8154.34.
 
 ## Goal
@@ -113,9 +115,13 @@ in the record) with Firefox's settings:
   0.29 s on 4 (none faster on 6); the model loads in about 85 ms; German
   to Italian through English, 0.54 s. A Debug build (bounds-checked
   libc++) translates the same page without a check firing.
-- **Windows x64** (win1, an i9-7980XE, so intgemm's AVX-512 path; the
-  `fast` build): the same translation word for word, 1.67 s on 1 worker,
-  0.69 s on 4, 0.68 s on 8; the model loads in 160 ms.
+- **Windows x64** (win1, an i9-7980XE, so intgemm's AVX-512 path): the
+  same translation word for word; 1.76 s on 1 worker and 0.79 s on 4 in the
+  official Release build (0.68 s on 8 in `fast`: nothing past 4); the model
+  loads in 160 ms. All `TranslateKit*` tests pass, real models included.
+- **Linux x64** (the same machine, in WSL): 1.84 s on 1 worker, 1.04 s on
+  4; all `TranslateKit*` tests pass. The model takes 1.5 s to load there,
+  read across WSL's `/mnt/c`.
 - **In the app** (Debug, bundled): startup finds the library in the
   framework's Libraries, the sandboxed service loads it, and a page's
   `Translator.create({sourceLanguage: 'de', targetLanguage: 'en'})`
