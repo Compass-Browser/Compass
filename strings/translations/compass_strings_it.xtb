@@ -219,6 +219,7 @@
 <translation id="195346441909629810">Mostra Lettura</translation>
 <translation id="1957361862474275259">{COUNT, plural, =1 {Non è stato possibile decriptare 1 cookie o password, che non è stato importato: potresti dover accedere di nuovo ad alcuni siti.} other {Non è stato possibile decriptare # cookie e password, che non sono stati importati: potresti dover accedere di nuovo ad alcuni siti.}}</translation>
 <translation id="1959105419009680088">Picture in picture quando esci dalla finestra</translation>
+<translation id="1963227389609234879">Rimuovi tutte</translation>
 <translation id="1974060860693918893">Avanzate</translation>
 <translation id="1975147110319751692">Verifica dell’account Cloudflare…</translation>
 <translation id="1975500003782052650">Download recenti</translation>
@@ -459,6 +460,7 @@
 <translation id="3187543081707553986">Elimina per tutti</translation>
 <translation id="3189486816928273790">Sta pensando…</translation>
 <translation id="3192432733605957847">Riavvia Compass per completare</translation>
+<translation id="3194537956767667502">Scarica le lingue di traduzione</translation>
 <translation id="3194638923503618887">Ripeti chiusura scheda (fuori dal testo)</translation>
 <translation id="3199966510073134558">Modifica cartella live</translation>
 <translation id="3202250770929823093">Non fai più parte di questa condivisione.</translation>
@@ -1047,6 +1049,7 @@
 <translation id="6282194474023008486">Codice postale</translation>
 <translation id="6283928502629989406">Download (<ph name="PATH"/>)</translation>
 <translation id="6284652193729350524">Proponi di tradurre: <ph name="LANGUAGE"/></translation>
+<translation id="6293240046911486958">Nessuna lingua scaricata.</translation>
 <translation id="6295613096702030863">Il tuo nome per la condivisione</translation>
 <translation id="6302661287897119265">Filtra</translation>
 <translation id="6303506280465011146">Ricerca di “<ph name="QUERY"/>”</translation>
@@ -1257,6 +1260,7 @@
 <translation id="7304412402135115155">Mostra gli aggiornamenti nella barra laterale</translation>
 <translation id="7304745401856427269">Elimina <ph name="SITE"/></translation>
 <translation id="7306974669133233046">ChatGPT ha rifiutato l’accesso (HTTP <ph name="CODE"/>).</translation>
+<translation id="7307148095043330730">Quando una pagina ne ha bisogno, dal server di Compass (circa 45 MB ciascuna). Le pagine vengono tradotte su questo dispositivo.</translation>
 <translation id="7307767869992803255">Chiave API</translation>
 <translation id="7309481128507285774">Salvataggio di un plug-in</translation>
 <translation id="7320917487132677777">Come Compass apre, cerca, scarica e mostra le pagine.</translation>
@@ -1394,6 +1398,7 @@
 <translation id="7887334752153342268">Duplica</translation>
 <translation id="7897327921693450144">Cartelle live</translation>
 <translation id="7910272758515933537">La chiave è stata rifiutata (401). Controllala, insieme al tipo di autenticazione. Un token di `claude setup-token` potrebbe essere scaduto: creane uno nuovo.</translation>
+<translation id="7912974581251770345">Traduzione</translation>
 <translation id="7913412408804940318">Prestazioni, accessibilità e strumenti per sviluppatori.</translation>
 <translation id="7921782882718083488">Riassumi questa pagina</translation>
 <translation id="7932002473555099401">Aggiungere CSS e JavaScript ai siti che gli chiedi di modificare, su tutti i tuoi dispositivi.</translation>

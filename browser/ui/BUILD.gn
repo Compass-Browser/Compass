@@ -514,12 +514,16 @@ source_set("ui") {
   }
 
   # Page translation's question before a download (docs/design/
-  # translation.md, "Asking, on the desktop").
+  # translation.md, "Asking, on the desktop"), and its languages in
+  # General › Languages.
   if (enable_on_device_translation) {
     sources += [ "translate/model_download_dialog.cc" ]
     deps += [
       "//chrome/browser/ui:tab_modal_confirm_dialog_delegate",
+      "//compass/browser/translate",
       "//compass/browser/translate:page_translator_host",
+      "//components/on_device_translation",
+      "//components/on_device_translation:public",
     ]
   }
 }
@@ -733,6 +737,13 @@ source_set("browser_tests") {
     "//chrome/browser/ui/views:bubble_anchor_util_views",
     "//chrome/browser/ui/zoom",
   ]
+  if (enable_on_device_translation) {
+    # SettingsWindowBrowserTest.TranslationLanguages.
+    deps += [
+      "//compass/browser/translate",
+      "//components/on_device_translation:public",
+    ]
+  }
   if (is_win || is_linux) {
     # The windows' shortcuts, Compass's and the user's.
     sources += [ "views/frame/browser_view_accelerators_browsertest.cc" ]

@@ -54,6 +54,46 @@ export function getHtml(this: CompassSettingsLanguagesElement) {
   </div>
 </section>
 
+<section class="row-group" id="translation">
+  <h2 class="group-title">${i18n('languagesTranslationTitle')}</h2>
+  <div class="group">
+    <div class="row control-row">
+      <span class="row-text">
+        <span class="row-label">${i18n('languagesDownloadTranslations')}</span>
+        <span class="row-detail">
+          ${i18n('languagesDownloadTranslationsDetail')}
+        </span>
+      </span>
+      <input type="checkbox" class="switch" id="downloadTranslations"
+          aria-label="${i18n('languagesDownloadTranslations')}"
+          .checked="${this.downloadsAllowed_}"
+          @change="${this.onDownloadsChange_}">
+    </div>
+    ${this.packs_.map(pack => html`
+      <div class="row control-row" data-pack-row="${pack.code}">
+        <span class="row-text">
+          <span class="row-label">${pack.name}</span>
+          <span class="row-detail">${this.formatSize_(pack.sizeBytes)}</span>
+        </span>
+        <button class="pill small" data-pack="${pack.code}"
+            aria-label="${i18nF('languagesRemove', pack.name)}"
+            @click="${this.onRemovePackClick_}">
+          ${i18n('remove')}
+        </button>
+      </div>`)}
+    <div class="row" ?hidden="${this.packs_.length > 0}">
+      <span class="row-detail">${i18n('languagesNoTranslationPacks')}</span>
+    </div>
+    <div class="row control-row" ?hidden="${this.packs_.length < 2}">
+      <span class="row-text"></span>
+      <button class="pill small" id="removeAllPacks"
+          @click="${this.onRemoveAllPacksClick_}">
+        ${i18n('languagesRemoveAllTranslationPacks')}
+      </button>
+    </div>
+  </div>
+</section>
+
 <section class="row-group">
   <div class="group-header">
     <h2 class="group-title">${i18n('languagesAddLanguage')}</h2>

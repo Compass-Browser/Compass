@@ -105,6 +105,10 @@ class SettingsWindowHandler
   void RemoveLanguage(const std::string& code) override;
   void MoveLanguage(const std::string& code, bool up) override;
   void SetTranslateOffered(const std::string& code, bool offered) override;
+  void GetTranslationPacks(GetTranslationPacksCallback callback) override;
+  void SetTranslationDownloadsAllowed(bool allowed) override;
+  void RemoveTranslationPack(const std::string& code) override;
+  void RemoveAllTranslationPacks() override;
   void GetDownloadLocation(GetDownloadLocationCallback callback) override;
   void ChooseDownloadLocation() override;
   void GetFonts(GetFontsCallback callback) override;
@@ -287,6 +291,8 @@ class SettingsWindowHandler
   PrefChangeRegistrar profile_prefs_;
   PrefChangeRegistrar language_prefs_;
   PrefChangeRegistrar local_prefs_;
+  // Page translation's consent and installed packs (local state).
+  PrefChangeRegistrar translation_prefs_;
   base::ScopedObservation<SpaceList, SpaceList::Observer> space_observation_{
       this};
   // Whether it observes the directory, which can go first (with the profile

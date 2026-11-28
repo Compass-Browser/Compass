@@ -42,6 +42,9 @@ leaves features at their defaults plus Compass's overrides.
 | URL-keyed data collection | page URLs to the search engine | never turned on automatically (`patches/components-unified_consent-unified_consent_service.cc.patch`) |
 | Browser sign-in (Dice) | `accounts.google.com` | `CanEnableDiceForBuild()` is false (`patches/chrome-browser-signin-account_consistency_mode_manager.cc.patch`), even with an OAuth client from the environment: `signin.allowed` is false at every start and there's no account consistency |
 | "Google services settings" in the profile menu | — | removed (`patches/chrome-browser-ui-views-profiles-profile_menu_view.cc.patch`) |
+| Page translation's script and language list | `translate.googleapis.com` | Compass's own script, built in (`chromium_src/components/translate/core/browser/translate_script.cc`), and its built-in list of the languages it has models for, never fetched (`translate_language_list.cc` override; docs/design/translation.md) |
+| TranslateKit and its language packs | Google's component updater | never registered (`patches/chrome-browser-component_updater-registration.cc.patch`): Compass ships its own library and installs its own packs |
+| Page language detection model | Optimization Guide | not used: CLD3, built in (`chromium_src/components/translate/core/common/translate_util.cc`) |
 
 The pref defaults only apply while the user hasn't changed the setting, and
 Settings still has them.
@@ -76,6 +79,7 @@ persistence"). Not a privacy matter, listed here with the other startup bar.
 | Safe Browsing (`safebrowsing.googleapis.com`) | Phishing and malware protection. Without an API key it sends `key=dummytoken`, so Google likely rejects the list updates: it needs a key or a proxy to work (open item) |
 | Component updater (`update.googleapis.com`, `edgedl.me.gvt1.com`) | CRLSet revocations, Certificate Transparency logs, file type policies, origin trials. Not Google's subresource filter ruleset: the ad blocker's lists take its place (docs/design/ad-blocker.md) |
 | Filter list downloads (`easylist.to`, `secure.fanboy.co.nz`, lists the user adds) | The ad blocker, at most once a day for each list, without cookies; none while it's off (docs/design/ad-blocker.md) |
+| Translation languages (`assets.compassbrowser.org/translation/`, Compass's mirror of Firefox's models, on Cloudflare R2) | On-device page translation: a language (about 45 MB) the first time a page or a site needs it, without cookies, and only once the user agreed ("Download translation languages?", or Settings › Languages › Translation; local state `compass.translate.model_downloads_allowed`, off). The server sees the IP address and which language, never the page; translation itself runs on the device (docs/design/translation.md) |
 | Google as the default search engine, with suggestions | The user's choice; any engine can be set in Settings |
 
 ## Checking it

@@ -1,8 +1,9 @@
 # Page translation
 
-Status: T1 to T4 done (2026-11-28): the engine on macOS arm64, Windows
+Status: T1 to T5 done (2026-11-28): the engine on macOS arm64, Windows
 x64 and Linux x64; language packs from the mirror; the shared page
-translator; page translation on the desktop (verified on macOS).
+translator; page translation on the desktop (verified on macOS); its
+settings and privacy notes. iOS (T6) next.
 Based on Chromium 159.0.8154.34.
 
 ## Goal
@@ -282,9 +283,11 @@ executable's `data_deps` (Windows, Linux) and `linux_package.py`'s
 - **Updates:** a Compass update with a newer manifest downloads the new
   files of installed packs the next time they're used, then removes the
   old ones (not yet).
-- **Settings**, General › Languages (settings-window.md): "Translation
-  languages", the downloaded packs, each with its size and Remove, and
-  "Remove all" (T5).
+- **Settings**, General › Languages › Translation (settings-window.md):
+  the switch below ("Asking first"), the downloaded packs, each with its
+  size and Remove, and Remove All, which go through upstream's
+  `ComponentManager` (and so `PackInstaller::Uninstall()`), so the service
+  forgets them. `SettingsWindowBrowserTest.TranslationLanguages`.
 - **Tests:** `TranslationManifestTest` (the built-in manifest has every
   pack upstream knows, both ways; parsing refuses http, bad hashes and
   paths that leave the folder) and `PackInstallerTest` (both directions
@@ -311,10 +314,10 @@ per profile or per language):
   translation (the bubble goes back to its first state) and asks again the
   next time the user chooses Translate. A page offered for translation
   never asks by itself: only the user's Translate does.
-- **Settings**, General › Languages: "Download translation languages", a
-  switch for the same pref. Turning it off stops downloads in
-  progress; packs already downloaded keep working, and Remove all deletes
-  them.
+- **Settings**, General › Languages › Translation: "Download translation
+  languages", a switch for the same pref. Turning it off stops new
+  downloads (one already running finishes); packs already downloaded keep
+  working, and Remove All deletes them.
 - **Incognito** asks the same question and the answer applies to the
   whole browser, as said in the dialog.
 - **Policy:** an admin can set it with the pref, as with any other.
@@ -579,7 +582,7 @@ desktop and iOS (T6).
 
 ## Privacy
 
-- privacy.md gets a row: model downloads from
+- privacy.md has a row (Kept on purpose): model downloads from
   `assets.compassbrowser.org` (Cloudflare R2), which sees the IP address
   and which language, nothing about the page. Only after the user agreed
   ("Asking first") and something asked for the language. Nothing goes to
