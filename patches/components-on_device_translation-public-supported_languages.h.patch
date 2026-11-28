@@ -1,0 +1,42 @@
+diff --git a/components/on_device_translation/public/supported_languages.h b/components/on_device_translation/public/supported_languages.h
+index f4d21daa2bbf124a757de45d9091649bdd83176d..38d83ea5c65d6baedf930bf747ce4ac60728df80 100644
+--- a/components/on_device_translation/public/supported_languages.h
++++ b/components/on_device_translation/public/supported_languages.h
+@@ -64,7 +64,27 @@ enum class SupportedLanguage {
+   kTa = 36,
+   kTe = 37,
+   kMr = 38,
+-  kMaxValue = kMr,
++  // Compass: Bergamot's other languages (docs/design/translation.md, T7).
++  kAf = 39,
++  kAz = 40,
++  kBe = 41,
++  kBs = 42,
++  kCa = 43,
++  kEt = 44,
++  kEu = 45,
++  kFa = 46,
++  kGl = 47,
++  kGu = 48,
++  kIs = 49,
++  kLv = 50,
++  kMl = 51,
++  kMs = 52,
++  kSq = 53,
++  kSr = 54,
++  kTl = 55,
++  kUg = 56,
++  kUr = 57,
++  kMaxValue = kUr,
+ };
+ // LINT.ThenChange(//tools/metrics/histograms/metadata/translate/enums.xml:SupportedLanguage)
+ 
+@@ -75,6 +95,8 @@ static constexpr auto kSupportedLanguageCodes =
+         "nl", "pl", "pt", "ru", "th", "tr", "vi", "zh", "zh-Hant", "bg",
+         "cs", "da", "el", "fi", "hr", "hu", "id", "iw", "lt",      "no",
+         "ro", "sk", "sl", "sv", "uk", "kn", "ta", "te", "mr",
++        // Compass.
++        "af", "az", "be", "bs", "ca", "et", "eu", "fa", "gl", "gu", "is", "lv", "ml", "ms", "sq", "sr", "tl", "ug", "ur",
+     });
+ static_assert(std::size(kSupportedLanguageCodes) ==
+                   static_cast<unsigned>(SupportedLanguage::kMaxValue) + 1,

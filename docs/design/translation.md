@@ -5,8 +5,8 @@ x64 and Linux x64; language packs from the mirror; the shared page
 translator; page translation on the desktop (verified on macOS); its
 settings and privacy notes. T6 (2026-11-28): iOS with Apple's
 Translation framework first and Bergamot after it, the page, the UI and
-Settings; Apple's engine still to try on a device. T7 (the other 20
-languages) next.
+Settings; Apple's engine still to try on a device. T7 (2026-11-28):
+Bergamot's other 19 languages on the desktop. Android (T8) next.
 Based on Chromium 159.0.8154.34.
 
 ## Goal
@@ -336,10 +336,18 @@ per profile or per language):
 
 Chromium's pack languages (`language_pack.h`: English and 38 others) are
 all among Bergamot's, some under other codes (`iw` is `he`, `no` is `nb`,
-`zh` is `zh-Hans`); a table in `translation_packs.cc` maps them. Phase 1
-offers those. Bergamot's other 20 (af, az, be, bs, ca, et, eu, fa, gl, gu,
-is, lv, ml, ms, sq, sr, tl, ug, ur, and nn into English only) need new
-`LanguagePackKey`s, a patch of `language_pack.{h,cc}` (T7).
+`zh` is `zh-Hans`); a table in `translation_packs.cc` maps them. Bergamot's
+other 19 (af, az, be, bs, ca, et, eu, fa, gl, gu, is, lv, ml, ms, sq, sr,
+tl, ug, ur) are new `SupportedLanguage`s and `LanguagePackKey`s (patches of
+`supported_languages.{h,cc}` and `language_pack.h`, T7), after upstream's,
+so upstream's values don't move; their component keys are placeholders,
+since Compass installs every pack from its mirror. Chrome's list calls
+Filipino `fil`, mapped to the packs' `tl`. Nynorsk (`nn`, which Firefox
+has into English only and the pinned manifest doesn't) goes to the Bokmål
+pack, as before. iOS offers every language in the manifest. Checked: the
+manifest test finds both directions for every key, the bubble's list has
+Afrikaans, Catalan, Filipino and Urdu, and Catalan translates
+(`translatekit_cli`, "Bon dia…" → "Good morning…").
 
 The translate bubble's language list comes from Google's server
 (`TranslateLanguageList`), which Compass never asks. A `chromium_src`

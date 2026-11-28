@@ -1,0 +1,62 @@
+diff --git a/components/on_device_translation/public/supported_languages.cc b/components/on_device_translation/public/supported_languages.cc
+index 8a58e7e30c7bc3bfedc1954bdcdeebb98952cfcc..84752b6d622d6cb5a224a1afa1352fb9186b7e62 100644
+--- a/components/on_device_translation/public/supported_languages.cc
++++ b/components/on_device_translation/public/supported_languages.cc
+@@ -32,7 +32,27 @@ inline constexpr auto kSupportedLanguageCodeMap = base::MakeFixedFlatMap<
+      {SupportedLanguage::kSl, "sl"},          {SupportedLanguage::kSv, "sv"},
+      {SupportedLanguage::kUk, "uk"},          {SupportedLanguage::kKn, "kn"},
+      {SupportedLanguage::kTa, "ta"},          {SupportedLanguage::kTe, "te"},
+-     {SupportedLanguage::kMr, "mr"}});
++     {SupportedLanguage::kMr, "mr"},
++     // Compass.
++     {SupportedLanguage::kAf, "af"},
++     {SupportedLanguage::kAz, "az"},
++     {SupportedLanguage::kBe, "be"},
++     {SupportedLanguage::kBs, "bs"},
++     {SupportedLanguage::kCa, "ca"},
++     {SupportedLanguage::kEt, "et"},
++     {SupportedLanguage::kEu, "eu"},
++     {SupportedLanguage::kFa, "fa"},
++     {SupportedLanguage::kGl, "gl"},
++     {SupportedLanguage::kGu, "gu"},
++     {SupportedLanguage::kIs, "is"},
++     {SupportedLanguage::kLv, "lv"},
++     {SupportedLanguage::kMl, "ml"},
++     {SupportedLanguage::kMs, "ms"},
++     {SupportedLanguage::kSq, "sq"},
++     {SupportedLanguage::kSr, "sr"},
++     {SupportedLanguage::kTl, "tl"},
++     {SupportedLanguage::kUg, "ug"},
++     {SupportedLanguage::kUr, "ur"}});
+ static_assert(std::size(kSupportedLanguageCodeMap) ==
+                   static_cast<unsigned>(SupportedLanguage::kMaxValue) + 1,
+               "All languages must be in kSupportedLanguageCodeMap.");
+@@ -60,7 +80,27 @@ inline constexpr auto kSupportedLanguageCodeInverseMap = base::MakeFixedFlatMap<
+      {"sl", SupportedLanguage::kSl},          {"sv", SupportedLanguage::kSv},
+      {"uk", SupportedLanguage::kUk},          {"kn", SupportedLanguage::kKn},
+      {"ta", SupportedLanguage::kTa},          {"te", SupportedLanguage::kTe},
+-     {"mr", SupportedLanguage::kMr}});
++     {"mr", SupportedLanguage::kMr},
++     // Compass.
++     {"af", SupportedLanguage::kAf},
++     {"az", SupportedLanguage::kAz},
++     {"be", SupportedLanguage::kBe},
++     {"bs", SupportedLanguage::kBs},
++     {"ca", SupportedLanguage::kCa},
++     {"et", SupportedLanguage::kEt},
++     {"eu", SupportedLanguage::kEu},
++     {"fa", SupportedLanguage::kFa},
++     {"gl", SupportedLanguage::kGl},
++     {"gu", SupportedLanguage::kGu},
++     {"is", SupportedLanguage::kIs},
++     {"lv", SupportedLanguage::kLv},
++     {"ml", SupportedLanguage::kMl},
++     {"ms", SupportedLanguage::kMs},
++     {"sq", SupportedLanguage::kSq},
++     {"sr", SupportedLanguage::kSr},
++     {"tl", SupportedLanguage::kTl},
++     {"ug", SupportedLanguage::kUg},
++     {"ur", SupportedLanguage::kUr}});
+ static_assert(std::size(kSupportedLanguageCodeInverseMap) ==
+                   static_cast<unsigned>(SupportedLanguage::kMaxValue) + 1,
+               "All languages must be in kSupportedLanguageCodeInverseMap.");

@@ -155,6 +155,11 @@ IN_PROC_BROWSER_TEST_F(PageTranslationBrowserTest, OffersTranslation) {
   EXPECT_TRUE(has("de"));
   EXPECT_TRUE(has("it"));
   EXPECT_TRUE(has("en"));
+  // Bergamot's languages Chrome had no pack for (T7), Filipino as "fil".
+  EXPECT_TRUE(has("af"));
+  EXPECT_TRUE(has("ca"));
+  EXPECT_TRUE(has("fil"));
+  EXPECT_TRUE(has("ur"));
   EXPECT_FALSE(has("jw"));  // Javanese: no model.
   EXPECT_FALSE(has("la"));  // Latin: no model.
 }

@@ -28,6 +28,9 @@ std::optional<std::string> ToOnDeviceLanguage(std::string_view language) {
     result = "iw";
   } else if (code == "nb" || code == "no" || code == "nn") {
     result = "no";
+  } else if (code == "fil" || code == "tl") {
+    // Chrome's language list says "fil"; the packs, "tl".
+    result = "tl";
   } else {
     result = code.substr(0, code.find('-'));
   }
