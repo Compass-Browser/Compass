@@ -72,8 +72,13 @@ struct Node {
   // (docs/design/live-folders.md, "Badges"): 0 for none, -1 for some
   // without a number.
   int32 badge_count;
-  // Whether a folder shows only its own row. The same in every window.
+  // Whether a folder shows only its own row (a tab tree: only its head's).
+  // The same in every window.
   bool collapsed;
+  // A folder that's a tab tree (docs/design/sidebar.md, "Tree-style tabs"):
+  // the page draws its first entry, a tab or a split, as its row, with a
+  // disclosure, and the rest of its entries under it.
+  bool tab_tree;
   // Set for a live folder.
   LiveFolder? live_folder;
   // A live folder's entry, and whether it came with a refresh and hasn't
@@ -541,8 +546,10 @@ interface Page {
   NodeAdded(string parent_id, uint32 index, Node node);
   // |index| is counted after the node left its old parent.
   NodeMoved(string id, string new_parent_id, uint32 index);
+  // |tab_tree|: as Node.tab_tree (a folder made a tab tree, restored as one,
+  // or made a plain folder).
   NodeChanged(string id, string title, string custom_title, url.mojom.Url url,
-              bool collapsed);
+              bool collapsed, bool tab_tree);
   NodeRemoved(string id);
   NodeLiveChanged(string id, bool live);
   NodeAudioChanged(string id, AudioState audio);

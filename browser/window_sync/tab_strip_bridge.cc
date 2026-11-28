@@ -38,6 +38,7 @@
 #include "compass/browser/window_sync/empty_tab.h"
 #include "compass/browser/window_sync/live_tab_registry.h"
 #include "compass/browser/window_sync/restored_tab_matcher.h"
+#include "compass/browser/window_sync/undo_close.h"
 #include "compass/browser/window_sync/window_features.h"
 #include "compass/strings/grit/compass_strings.h"
 #include "components/sessions/core/tab_restore_service.h"
@@ -968,17 +969,17 @@ bool TabStripBridge::GetLinkFolderPlace(tabs::TabInterface* tab,
 
   base::AutoReset<bool> updating(&updating_, true);
   if (today->Contains(opener_entry)) {
-    SidebarNode* parent = opener_entry->parent();
-    if (parent->type() != SidebarNode::Type::kFolder) {
-      // The opener's own folder takes its place.
-      parent = space_model_->AddFolder(today, today->GetIndexOf(opener_entry),
-                                       GetLinkFolderTitle(*opener_entry));
-      // Claude may name it (docs/design/ai-sidebar.md); only this device
-      // asks.
-      space_model_->MarkLinkFolder(parent);
-      space_model_->Move(opener_entry, parent, 0);
+    // Tree-style tabs (docs/design/sidebar.md): under the opener, in the tab
+    // tree it heads, made in its place if it heads none. An opener that's
+    // itself under another tab gets its own tree there.
+    SidebarNode* tree = SpaceModel::GetTabTreeHeadedBy(opener_entry);
+    if (!tree) {
+      tree = space_model_->AddTabTree(opener_entry,
+                                      GetLinkFolderTitle(*opener_entry));
     }
-    place_after_previous(parent, parent->GetIndexOf(opener_entry) + 1);
+    // The new tab shows.
+    space_model_->SetCollapsed(tree, false);
+    place_after_previous(tree, 1);
     return true;
   }
   // Pinned entries and favorites stay put; their links gather in a folder
@@ -1073,10 +1074,44 @@ void TabStripBridge::RemoveNodeForTab(tabs::TabInterface* tab,
       return;
     }
   } else {
+    SidebarNode* tree = SpaceModel::GetTabTreeHeadedBy(node);
+    // Part of a bigger close (Clear, its folder deleted): that one takes
+    // care of the tree.
+    if (tree && closed_entries_ &&
+        closed_entries_->TakeExpectedClose(node->id())) {
+      closed_entries_->ExpectClose(node->id());
+      tree = nullptr;
+    }
+    if (tree) {
+      CloseTabTree(tree, *node, shown, history);
+      return;
+    }
     RecordClose(*space_model_, *node, shown, history);
   }
   base::AutoReset<bool> updating(&updating_, true);
   space_model_->Remove(node);
+}
+
+void TabStripBridge::CloseTabTree(SidebarNode* tree,
+                                  const SidebarNode& head,
+                                  bool shown,
+                                  std::optional<SessionID> history) {
+  // Not |updating_|: the tree's other tabs here close as it goes
+  // (OnNodeWillBeRemoved()). The head's is closing, already without a node.
+  if (!closed_entries_) {
+    space_model_->Remove(tree);
+    return;
+  }
+  // One step: Cmd+Z brings the tree back whole.
+  ClosedEntries::ScopedStep step(*closed_entries_);
+  closed_entries_->RecordRemoval(*space_model_, *tree);
+  // The other live tabs close as the tree goes (here and in other windows).
+  ExpectLiveTabsToClose(*registry_, *tree, *closed_entries_);
+  closed_entries_->SetOpen(head.id(), shown);
+  if (history) {
+    closed_entries_->SetHistory(head.id(), history->id());
+  }
+  space_model_->Remove(tree);
 }
 
 void TabStripBridge::RecordClose(SpaceModel& model,

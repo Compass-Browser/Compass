@@ -397,32 +397,64 @@ TEST_F(TabStripBridgeTest, ClosingAPinnedPaneKeepsItsSplit) {
             tab_strip_model()->GetTabAtIndex(1)->GetSplit());
 }
 
-TEST_F(TabStripBridgeTest, LinksGatherWithTheirOpenerInAFolder) {
+TEST_F(TabStripBridgeTest, LinksGoUnderTheirOpenerInATabTree) {
   OpenTabs({"a.test", "b.test"});
   tab_strip_model()->ActivateTabAt(0);
 
   OpenLinkInBackground("c.test");
   OpenLinkInBackground("d.test");
 
-  // The opener's folder takes its place, named after it; links follow it in
-  // the order they were opened.
+  // A tab tree headed by the opener takes its place, named after it (for
+  // clients that show it as a folder); links follow the opener in the order
+  // they were opened.
   EXPECT_THAT(Hosts(space_model().today_root()),
               ElementsAre("{a.test,c.test,d.test}", "b.test"));
-  EXPECT_FALSE(TodayAt(0)->title().empty());
-  // Named after its opener, and Claude may name it (docs/design/
-  // ai-sidebar.md).
-  EXPECT_EQ(TodayAt(0)->name_source(), SidebarNode::NameSource::kOpener);
-  EXPECT_TRUE(TodayAt(0)->link_folder_here());
+  const SidebarNode* tree = TodayAt(0);
+  EXPECT_TRUE(tree->tab_tree());
+  EXPECT_FALSE(tree->title().empty());
+  EXPECT_EQ(tree->name_source(), SidebarNode::NameSource::kOpener);
+  // Its name doesn't show: Claude doesn't name it.
+  EXPECT_FALSE(tree->link_folder_here());
   EXPECT_THAT(StripHosts(), ElementsAre("a.test", "c.test", "d.test",
                                         "b.test"));
   // The opener stays active.
   EXPECT_EQ(tab_strip_model()->active_index(), 0);
 
-  // A link from a tab in the folder stays in it.
+  // A link from a tab under the opener goes under that tab, in a tree of
+  // its own.
   tab_strip_model()->ActivateTabAt(2);
   OpenLinkInBackground("e.test");
   EXPECT_THAT(Hosts(space_model().today_root()),
-              ElementsAre("{a.test,c.test,d.test,e.test}", "b.test"));
+              ElementsAre("{a.test,c.test,{d.test,e.test}}", "b.test"));
+  EXPECT_TRUE(tree->children()[2]->tab_tree());
+  EXPECT_THAT(StripHosts(), ElementsAre("a.test", "c.test", "d.test",
+                                        "e.test", "b.test"));
+}
+
+TEST_F(TabStripBridgeTest, ClosingATabClosesTheTabsUnderIt) {
+  OpenTabs({"a.test", "b.test"});
+  tab_strip_model()->ActivateTabAt(0);
+  OpenLinkInBackground("c.test");
+  OpenLinkInBackground("e.test");
+  tab_strip_model()->ActivateTabAt(1);
+  OpenLinkInBackground("d.test");
+  ASSERT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("{a.test,{c.test,d.test},e.test}", "b.test"));
+  ASSERT_THAT(StripHosts(), ElementsAre("a.test", "c.test", "d.test",
+                                        "e.test", "b.test"));
+
+  // c.test closes with d.test, under it; a.test keeps e.test.
+  tab_strip_model()->CloseWebContentsAt(1, CLOSE_NONE);
+  Settle();
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("{a.test,e.test}", "b.test"));
+  EXPECT_THAT(StripHosts(), ElementsAre("a.test", "e.test", "b.test"));
+
+  // a.test closes with all of its tree.
+  tab_strip_model()->CloseWebContentsAt(0, CLOSE_NONE);
+  Settle();
+  EXPECT_THAT(Hosts(space_model().today_root()), ElementsAre("b.test"));
+  EXPECT_THAT(StripHosts(), ElementsAre("b.test"));
 }
 
 TEST_F(TabStripBridgeTest, LinksFromPinnedEntriesGatherAtTheTopOfToday) {
@@ -740,6 +772,30 @@ TEST_F(TabStripBridgeTest, UndoReopensAPinnedTabOnThePageItShowed) {
   EXPECT_EQ(pinned->url(), GURL("https://z.test/"));
   EXPECT_EQ(pinned->saved_url(), GURL("https://b.test/"));
   EXPECT_EQ(tab_strip_model()->GetActiveTab(), tab);
+}
+
+TEST_F(TabStripBridgeTest, UndoBringsBackAClosedTabTreeWhole) {
+  OpenTabs({"a.test", "b.test"});
+  tab_strip_model()->ActivateTabAt(0);
+  OpenLinkInBackground("c.test");
+  OpenLinkInBackground("d.test");
+  const base::Uuid tree = TodayAt(0)->id();
+  ASSERT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("{a.test,c.test,d.test}", "b.test"));
+
+  tab_strip_model()->CloseWebContentsAt(0, CLOSE_USER_GESTURE);
+  Settle();
+  ASSERT_THAT(Hosts(space_model().today_root()), ElementsAre("b.test"));
+
+  // One step brings back the tree, as a tree.
+  ASSERT_TRUE(UndoClose(browser()));
+  Settle();
+  EXPECT_THAT(Hosts(space_model().today_root()),
+              ElementsAre("{a.test,c.test,d.test}", "b.test"));
+  SidebarNode* restored = space_model().FindById(tree);
+  ASSERT_TRUE(restored);
+  EXPECT_TRUE(restored->tab_tree());
+  EXPECT_FALSE(CanUndoClose(browser()));
 }
 
 TEST_F(TabStripBridgeTest, UndoPutsAClosedPaneBackInItsSplit) {

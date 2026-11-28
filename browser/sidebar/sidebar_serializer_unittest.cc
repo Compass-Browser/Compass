@@ -146,6 +146,35 @@ TEST(SidebarSerializerTest, RoundTripsTodayFolders) {
   EXPECT_TRUE(restored.today_root()->children()[0]->collapsed());
 }
 
+TEST(SidebarSerializerTest, RoundTripsTabTrees) {
+  SpaceModel model;
+  SidebarNode* today = model.today_root();
+  SidebarNode* news = model.AddTab(today, 0, GURL("https://news.test/"),
+                                   u"News");
+  SidebarNode* tree = model.AddTabTree(news, u"News");
+  SidebarNode* story = model.AddTab(tree, 1, GURL("https://story.test/"),
+                                    u"Story");
+  model.AddTab(model.AddTabTree(story, u"Story"), 1,
+               GURL("https://more.test/"), u"More");
+  model.SetCollapsed(tree, true);
+  // One whose head isn't saved (a new tab page): the next entry heads it.
+  SidebarNode* blank = model.AddTab(today, 1, GURL("chrome://newtab/"),
+                                    u"New Tab");
+  model.AddTab(model.AddTabTree(blank, u"Blank"), 1,
+               GURL("https://other.test/"), u"Other");
+
+  SpaceModel restored;
+  DeserializeSpace(SerializeSpace(model), restored);
+
+  EXPECT_EQ(Describe(restored.today_root()),
+            "News{News,Story{Story,More}},Blank{Other}");
+  const SidebarNode* restored_tree = restored.today_root()->children()[0].get();
+  EXPECT_TRUE(restored_tree->tab_tree());
+  EXPECT_TRUE(restored_tree->collapsed());
+  EXPECT_TRUE(restored_tree->children()[1]->tab_tree());
+  EXPECT_TRUE(restored.today_root()->children()[1]->tab_tree());
+}
+
 // Where a folder's name came from (docs/design/ai-sidebar.md), and the name
 // Undo Name goes back to. Whether this device made it isn't saved.
 TEST(SidebarSerializerTest, RoundTripsNameSources) {

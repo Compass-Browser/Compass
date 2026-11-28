@@ -170,6 +170,12 @@ class TabStripBridge : public TabStripModelObserver,
  private:
   // Points the unloaded |node| of |model| back at its saved URL and title,
   // if it has one.
+  // Closing |head|, the tab |tree| heads, closes the tree's other tabs too
+  // (docs/design/sidebar.md, "Tree-style tabs"), as one Cmd+Z step.
+  void CloseTabTree(SidebarNode* tree,
+                    const SidebarNode& head,
+                    bool shown,
+                    std::optional<SessionID> history);
   void GoBackToSavedUrl(SpaceModel& model, SidebarNode* node);
 
   // Adds a Today node for |tab|, which the strip just inserted at |index|.

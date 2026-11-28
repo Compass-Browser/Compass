@@ -227,6 +227,13 @@ void FillNodeContent(const SidebarNode& node, sync_pb::CompassNode& proto) {
       proto.clear_collapsed();
     }
   }
+  if (proto.tab_tree() != node.tab_tree()) {
+    if (node.tab_tree()) {
+      proto.set_tab_tree(true);
+    } else {
+      proto.clear_tab_tree();
+    }
+  }
   const SidebarNode::NameSource name_source =
       node.type() == Type::kFolder ? node.name_source()
                                    : SidebarNode::NameSource::kUser;
@@ -2872,6 +2879,7 @@ SidebarNode* CompassSpacesSyncBridge::CopyNode(SpaceModel& model,
       for (const auto& child : node.children()) {
         CopyNode(model, *child, copy, copy->children().size());
       }
+      model.SetTabTree(copy, node.tab_tree());
       break;
     case Type::kRoot:
       NOTREACHED();
@@ -3433,6 +3441,7 @@ void ApplyNodeContent(SpaceModel& model,
       model.SetTitle(node, title);
     }
     model.SetCollapsed(node, remote.collapsed());
+    model.SetTabTree(node, remote.tab_tree() && !node->is_live_folder());
     // Whose name it is: a name the user gave on another device stops
     // Claude here too.
     if (std::optional<SidebarNode::NameSource> name_source =

@@ -143,6 +143,11 @@ message CompassNode {
   // Not set: the user's, which Claude never changes; so a client without
   // it (an older one) leaves every name alone.
   optional int32 name_source = 16;
+  // TODAY folders: a tab tree (docs/design/sidebar.md, "Tree-style tabs"),
+  // drawn as its first entry, a tab or a split, with the rest of its entries
+  // under that one. A client without it shows a plain folder named after the
+  // first entry's page, and keeps this field when it changes the node.
+  optional bool tab_tree = 17;
 }
 
 // Where a live folder's entries come from (compass::LiveSource).

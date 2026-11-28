@@ -513,10 +513,18 @@ void SpaceModel::MoveNode(SidebarNode* node,
   for (auto& observer : observers_) {
     observer.OnNodeMoved(*node, *old_parent, old_index);
   }
-  if (old_parent != new_parent && old_parent->type() == Type::kSplit) {
-    NormalizeSplit(old_parent);
-  } else if (old_parent != new_parent) {
-    CloseIfEmptyTodayFolder(old_parent);
+  PlainTabTreesOutsideToday(node);
+  const bool into_tab_tree = new_parent->tab_tree_;
+  const base::Uuid new_parent_id = new_parent->id();
+  if (old_parent != new_parent) {
+    // May reshape |new_parent| (a tab tree left with only its head gives
+    // way to it), so it's found again after.
+    OnEntryLeft(old_parent);
+  }
+  if (into_tab_tree) {
+    if (SidebarNode* tree = FindById(new_parent_id)) {
+      NormalizeTabTree(tree, /*left=*/false);
+    }
   }
 }
 
@@ -545,12 +553,9 @@ void SpaceModel::MoveToSpace(SidebarNode* node,
     observer.OnNodeWillMoveToSpace(*node);
   }
   SidebarNode* parent = node->parent();
-  target.AddNode(new_parent, index, parent->Remove(node));
-  if (parent->type() == Type::kSplit) {
-    NormalizeSplit(parent);
-  } else {
-    CloseIfEmptyTodayFolder(parent);
-  }
+  SidebarNode* moved = target.AddNode(new_parent, index, parent->Remove(node));
+  target.PlainTabTreesOutsideToday(moved);
+  OnEntryLeft(parent);
 }
 
 bool SpaceModel::CanSplit(const SidebarNode* target,
@@ -617,11 +622,7 @@ void SpaceModel::Remove(SidebarNode* node) {
   }
   SidebarNode* parent = node->parent();
   parent->Remove(node);
-  if (parent->type() == Type::kSplit) {
-    NormalizeSplit(parent);
-  } else {
-    CloseIfEmptyTodayFolder(parent);
-  }
+  OnEntryLeft(parent);
 }
 
 void SpaceModel::SetTitle(SidebarNode* node, std::u16string title) {
@@ -875,6 +876,44 @@ void SpaceModel::UpdateLiveItems(SidebarNode* node) {
   }
 }
 
+SidebarNode* SpaceModel::AddTabTree(SidebarNode* entry, std::u16string title) {
+  CHECK(entry->type() == Type::kTab || entry->type() == Type::kSplit);
+  CHECK(today_root_->Contains(entry));
+  SidebarNode* parent = entry->parent();
+  CHECK_NE(parent->type(), Type::kSplit);
+  auto tree = std::make_unique<SidebarNode>(Type::kFolder, std::move(title),
+                                            GURL());
+  tree->tab_tree_ = true;
+  // Named after its page, as a link folder: a client that shows it as a
+  // folder may let Claude rename it.
+  tree->name_source_ = SidebarNode::NameSource::kOpener;
+  SidebarNode* added =
+      AddNode(parent, parent->GetIndexOf(entry), std::move(tree));
+  Move(entry, added, 0);
+  return added;
+}
+
+void SpaceModel::SetTabTree(SidebarNode* folder, bool tab_tree) {
+  CHECK_EQ(folder->type(), Type::kFolder);
+  if (folder->tab_tree_ == tab_tree) {
+    return;
+  }
+  folder->tab_tree_ = tab_tree;
+  for (auto& observer : observers_) {
+    observer.OnNodeChanged(*folder);
+  }
+}
+
+// static
+SidebarNode* SpaceModel::GetTabTreeHeadedBy(const SidebarNode* entry) {
+  SidebarNode* parent = entry ? entry->parent() : nullptr;
+  if (!parent || parent->type() != Type::kFolder || !parent->tab_tree_ ||
+      parent->children()[0].get() != entry) {
+    return nullptr;
+  }
+  return parent;
+}
+
 void SpaceModel::SetCollapsed(SidebarNode* folder, bool collapsed) {
   CHECK_EQ(folder->type(), Type::kFolder);
   if (folder->collapsed_ == collapsed) {
@@ -1101,11 +1140,66 @@ void SpaceModel::NormalizeSplit(SidebarNode* split) {
   }
 }
 
-void SpaceModel::CloseIfEmptyTodayFolder(SidebarNode* parent) {
+bool SpaceModel::CloseIfEmptyTodayFolder(SidebarNode* parent) {
   // Remove() goes on up the parents.
   if (g_keep_empty_folders == 0 && parent->type() == Type::kFolder &&
       parent->children().empty() && today_root_->Contains(parent)) {
     Remove(parent);
+    return true;
+  }
+  return false;
+}
+
+void SpaceModel::OnEntryLeft(SidebarNode* parent) {
+  if (parent->type() == Type::kSplit) {
+    NormalizeSplit(parent);
+  } else if (!CloseIfEmptyTodayFolder(parent)) {
+    NormalizeTabTree(parent, /*left=*/true);
+  }
+}
+
+void SpaceModel::NormalizeTabTree(SidebarNode* folder, bool left) {
+  if (g_keep_empty_folders != 0 || folder->type() != Type::kFolder ||
+      !folder->tab_tree_ || folder->children().empty()) {
+    return;
+  }
+  if (!today_root_->Contains(folder)) {
+    SetTabTree(folder, false);
+    return;
+  }
+  SidebarNode* head = folder->children()[0].get();
+  if (head->type() == Type::kFolder) {
+    if (!head->tab_tree_) {
+      // Nothing to head it.
+      SetTabTree(folder, false);
+      return;
+    }
+    // A tab tree heading this one (its head closed, say): its entries take
+    // its place, its own head first. It's removed with its last entry,
+    // and isn't reshaped as they leave.
+    head->tab_tree_ = false;
+    const size_t count = head->children().size();
+    for (size_t i = 0; i < count; ++i) {
+      MoveNode(head->children()[0].get(), folder, i);
+    }
+    return;
+  }
+  if (left && folder->children().size() == 1) {
+    // Only its head is left: it takes the tree's place, which closes as it
+    // empties.
+    SidebarNode* parent = folder->parent();
+    MoveNode(head, parent, parent->GetIndexOf(folder));
+  }
+}
+
+void SpaceModel::PlainTabTreesOutsideToday(SidebarNode* node) {
+  if (g_keep_empty_folders != 0 || node->type() != Type::kFolder ||
+      today_root_->Contains(node)) {
+    return;
+  }
+  SetTabTree(node, false);
+  for (const auto& child : node->children()) {
+    PlainTabTreesOutsideToday(child.get());
   }
 }
 
@@ -1124,6 +1218,10 @@ SidebarNode* SpaceModel::AddNode(SidebarNode* parent,
   UpdateLiveItems(added);
   for (auto& observer : observers_) {
     observer.OnNodeAdded(*added);
+  }
+  // A folder that goes in first leaves a tab tree nothing to head it.
+  if (index == 0 && added->type() == Type::kFolder && !added->tab_tree_) {
+    NormalizeTabTree(parent, /*left=*/false);
   }
   return added;
 }

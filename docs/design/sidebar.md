@@ -1210,26 +1210,24 @@ tests `SplitsShowSideBySide`, `DropOnATabSplitsThem` and
 ## Link folders
 
 Links opened in the background from a page in the sidebar (Cmd+click,
-middle click, "Open Link in New Tab") gather with that page in a Today
-folder, so a page's tabs stay together:
+middle click, "Open Link in New Tab") stay with that page:
 
-- The opener in Today, not in a folder: a folder named after it (its name
-  or title, else its host) takes its place, holding the opener and then the
-  link. A split opener goes in whole.
-- The opener in a Today folder (made this way or by hand): the link joins
-  that folder.
+- The opener in Today, anywhere (loose, in a folder, or under another tab):
+  the link goes under it, as tree-style tabs do (see "Tree-style tabs"
+  below).
 - The opener pinned or a favorite: it stays put; its links gather in a
   folder at the top of Today, named after it, which later links reuse
   while it's there (`TabStripBridge::link_folders_`, per window, not
   saved).
-- Within the folder, a link goes after the one the opener opened before
-  (the tab before it in the strip, which upstream already puts after the
-  opener's other links), else right after the opener.
+- Among the opener's links, a link goes after the one the opener opened
+  before (the tab before it in the strip, which upstream already puts after
+  the opener's other links), else right after the opener.
 
 Android adds a link's entry itself, with `LinkFolders`
-(`browser/sidebar/link_folders.h`; android.md, "Link folders (P11)"): the
-same rules, with the opener's previous link remembered rather than read off
-the strip. iOS has the same in Swift.
+(`browser/sidebar/link_folders.h`; android.md, "Link folders (P11)"), and
+iOS with the same in Swift. Both still put a Today opener's links in a
+plain folder with it (a link from a tab in that folder joins it); they
+show the desktop's tab trees as folders named after their first page.
 
 `TabStripBridge::GetLinkFolderPlace()` decides, when the strip inserts the
 tab: not active, a `PAGE_TRANSITION_LINK` navigation, and an opener with a
@@ -1250,11 +1248,84 @@ names link folders this device made, in Today, whose name isn't the user's,
 at 3, 6 and 12 entries, 5 s after their last change. The folder's menu has
 **Undo Name** while its name is Claude's (and the one before is known), and
 **Suggest a Name** otherwise, with that switch on. The page shows Claude's
-new names with a sparkle on the folder's icon (`Page.FolderNamed()`).
+new names with a sparkle on the folder's icon (`Page.FolderNamed()`). On
+the desktop, a Today page's links make a tab tree, whose name doesn't show
+and which Claude doesn't name, so there it names only the folders of pinned
+entries' and favorites' links.
 
-**Tests:** `TabStripBridgeTest.LinksGatherWithTheirOpenerInAFolder`,
+**Tests:** `TabStripBridgeTest.LinksGoUnderTheirOpenerInATabTree`,
 `LinksFromPinnedEntriesGatherAtTheTopOfToday`,
 `ForegroundAndTypedTabsDontMakeFolders`; `LinkFoldersTest` (Android's).
+
+## Tree-style tabs
+
+On the desktop, a page's background links go under it, and links from those
+under them, as deep as they go:
+
+```
+Today
+▾ Hacker News
+    Article A
+  ▾ Article B
+      Link from B
+    Article C
+```
+
+**Model.** A tab with tabs under it is a *tab tree*: a Today folder with
+`SidebarNode::tab_tree()` set, whose first entry (a tab or a split) is its
+*head* and the rest its children. No new node type, so the strip order,
+archiving, Clear, moving between spaces, sync and older clients work on it
+as on any folder; a client that doesn't know the flag shows a folder named
+after the head's page (`AddTabTree()` names it so, `NameSource::kOpener`).
+`SpaceModel` keeps a tree headed (`NormalizeTabTree()`, after every move,
+add and removal):
+
+- The head is archived, pinned or moved out (or removed by another
+  device, or from the model): the next entry heads the tree. If that's a tab tree itself, its entries take its place, its
+  head first, so the tree stays one level deeper only where it was.
+- Left with only its head, the tree is replaced by it, in its place.
+- A plain folder that goes in first, or a move out of Today (Pin, a drag
+  into Pinned, a shared folder), makes the tree a plain folder, nested
+  trees too.
+- Not while a `KeepEmptyFolders` is alive (sync's apply): another device's
+  changes come in any order, and its own result comes along.
+
+**Placing a link.** `GetLinkFolderPlace()`: an opener in Today that heads a
+tree gets the link in that tree; one that doesn't gets a new tree in its
+place (`AddTabTree()`), wherever it is, under another tab included. The
+tree expands so the new tab shows. Links from pinned entries and favorites
+still gather in a folder at the top of Today.
+
+**Closing.** Closing a head (its ×, Cmd+W, a middle click) closes the tabs
+under it too, in every window (`TabStripBridge::CloseTabTree()`): the
+tree is removed as one Cmd+Z step, which brings it back whole. A head's
+close that's part of a bigger one (Clear, its folder deleted) leaves the
+tree to that one. Closing a tab under a head closes only that tab, and the
+tabs under it.
+
+**Saved and synced.** `"tab_tree": true` in the store (loaded only for a
+Today folder that has a head once its entries are in: a head that wasn't
+saved, a new tab page, leaves the next entry heading it);
+`CompassNode.tab_tree` (17) in sync. Collapsed is the folder's `collapsed`.
+
+**The page.** `Node.tab_tree` tells the page; it draws a tree that has a head
+(`isTabTree()`, node.ts) as its head's row, with a disclosure before the
+favicon (shown on hover, and always while collapsed; the row has
+`aria-expanded`), and the rest indented under it, as a folder's children.
+There's no folder row. The head's row carries `data-drag-id`, the tree's:
+dragging a head drags its tree. Dropping on a head's top half goes before
+the tree; on its bottom half, first under the head (after the tree when
+it's collapsed); its middle still splits. Right and Left on a head expand
+and collapse it, Left on a tab under it goes to the head.
+
+Not yet: dragging a tab onto another to put it under it, iOS and Android
+drawing trees (and their links making them), and Tidy Today taking trees
+as loose entries.
+
+**Tests:** `SpaceModelTest.TabTreesKeepAHead`, `TabTreesAreTodays`;
+`SidebarSerializerTest.RoundTripsTabTrees`;
+`TabStripBridgeTest.LinksGoUnderTheirOpenerInATabTree`,
+`ClosingATabClosesTheTabsUnderIt`, `UndoBringsBackAClosedTabTreeWhole`.
 
 ## Renaming tabs
 

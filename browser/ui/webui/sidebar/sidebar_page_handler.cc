@@ -1498,7 +1498,7 @@ void SidebarPageHandler::OnNodeChanged(const SidebarNode& node) {
   page_->NodeChanged(node.id().AsLowercaseString(),
                      base::UTF16ToUTF8(node.title()),
                      base::UTF16ToUTF8(node.custom_title()), node.url(),
-                     node.collapsed());
+                     node.collapsed(), node.tab_tree());
   if (node.type() == SidebarNode::Type::kTab) {
     page_->NodeLiveItemChanged(node.id().AsLowercaseString(),
                                node.is_live_item(), node.unseen());
@@ -1873,6 +1873,7 @@ sidebar::mojom::NodePtr SidebarPageHandler::ToMojo(
   result->badge_count =
       node.type() == SidebarNode::Type::kTab ? BadgeCount(node, registry) : 0;
   result->collapsed = node.collapsed();
+  result->tab_tree = node.tab_tree();
   result->live_folder = ToMojoLiveFolder(node);
   result->live_item = node.is_live_item();
   result->unseen = node.unseen();

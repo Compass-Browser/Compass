@@ -217,6 +217,13 @@ struct LiveItem {
 //    something has been in it and left. Not while a KeepEmptyFolders is
 //    alive: sync applies another device's changes in an order that can empty
 //    a folder for a moment.
+//  - A tab tree (SidebarNode::tab_tree(), docs/design/sidebar.md, "Tree-style
+//    tabs") is headed by its first entry, a tab or a split. When the head
+//    leaves, the next entry heads it; a tab tree heading it in turn gives
+//    way to its own entries there; a plain folder there makes the tree a
+//    plain folder. A tab tree left with only its head is replaced by it, in
+//    its position, and one moved out of Today becomes a plain folder. Not
+//    while a KeepEmptyFolders is alive.
 //  - Live folders only live in the pinned section, and hold only their
 //    entries: tabs with a live_item_key(), which ReplaceLiveItems() adds,
 //    orders and removes. Nothing else moves in, and entries aren't reordered
@@ -360,6 +367,17 @@ class SpaceModel {
   SidebarNode* AddSplit(SidebarNode* parent,
                         size_t index,
                         const base::Uuid& id = base::Uuid());
+
+  // Tree-style tabs (docs/design/sidebar.md): puts |entry|, a tab or split
+  // in Today (not a split's pane), in a new tab tree in its place, named
+  // |title|, so the tabs opened from it can go under it. Returns the tree.
+  SidebarNode* AddTabTree(SidebarNode* entry, std::u16string title);
+  // Makes |folder| a tab tree or a plain folder, for loading and sync.
+  // Observers see OnNodeChanged().
+  void SetTabTree(SidebarNode* folder, bool tab_tree);
+  // The tab tree |entry| heads, or null: its parent, if that's a tab tree
+  // and |entry| is its first entry.
+  static SidebarNode* GetTabTreeHeadedBy(const SidebarNode* entry);
 
   // Whether a live folder may be added to |parent|: the pinned root, or a
   // plain folder in Pinned. Never in Favorites.
@@ -588,8 +606,20 @@ class SpaceModel {
   // Restores the split invariants after |split| lost a pane.
   void NormalizeSplit(SidebarNode* split);
 
-  // Removes |parent| if it's a Today folder left empty.
-  void CloseIfEmptyTodayFolder(SidebarNode* parent);
+  // Removes |parent| if it's a Today folder left empty, and returns whether
+  // it did.
+  bool CloseIfEmptyTodayFolder(SidebarNode* parent);
+
+  // Restores the folder and split invariants after an entry left |parent|.
+  void OnEntryLeft(SidebarNode* parent);
+
+  // Restores the tab tree invariants of |folder| (a no-op unless it's a tab
+  // tree) after an entry went in, or with |left|, left.
+  void NormalizeTabTree(SidebarNode* folder, bool left);
+
+  // Makes the tab trees in |node|'s subtree plain folders if it's not in
+  // Today.
+  void PlainTabTreesOutsideToday(SidebarNode* node);
 
   // Gives the tabs of |node|'s subtree a saved URL if it's in Pinned and
   // they have none, or clears theirs if it isn't. Observers aren't told: it

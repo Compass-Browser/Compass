@@ -15,6 +15,15 @@ import {AudioState, NodeType} from './sidebar.mojom-webui.js';
 // (Page.LiveFolderStateChanged()).
 export type LiveNode = Node&{liveState?: LiveFolderState};
 
+// Whether |node| is a tab tree the sidebar draws as one (docs/design/
+// sidebar.md, "Tree-style tabs"): its first entry, a tab or a split, as its
+// row, and the rest under it.
+export function isTabTree(node: Node|null|undefined): boolean {
+  const head = node?.children[0];
+  return !!node && node.type === NodeType.kFolder && node.tabTree && !!head &&
+      (head.type === NodeType.kTab || head.type === NodeType.kSplit);
+}
+
 // One sidebar entry: a tab, a split (its panes in a row) or a folder (its
 // children, indented). Renders into the light DOM, so the app's styles and
 // drag and drop handling apply to the rows of the whole tree.
@@ -47,6 +56,10 @@ export class CompassSidebarNodeElement extends CrLitElement {
       // In the Pinned section, where × on an unloaded entry asks for a
       // second click.
       pinned: {type: Boolean},
+      // The tab tree this entry heads (docs/design/sidebar.md, "Tree-style
+      // tabs"), or null: its row gets the tree's disclosure, and dragging it
+      // drags the tree.
+      tree: {type: Object, hasChanged: () => true},
       editingId_: {type: String, state: true},
       armedCloseId_: {type: String, state: true},
     };
@@ -56,6 +69,7 @@ export class CompassSidebarNodeElement extends CrLitElement {
   accessor activeId: string|null = null;
   accessor profileId: string|null = null;
   accessor pinned: boolean = false;
+  accessor tree: Node|null = null;
   // The node whose name shows as an input: this folder or tab, or a pane.
   protected accessor editingId_: string|null = null;
   // The unloaded pinned entry whose × was clicked once: a second click
@@ -96,7 +110,38 @@ export class CompassSidebarNodeElement extends CrLitElement {
   }
 
   protected isFolder_(): boolean {
-    return this.node?.type === NodeType.kFolder;
+    return this.node?.type === NodeType.kFolder && !this.isTabTree_();
+  }
+
+  // A tab tree with a head to draw, in Today; one without, or in Pinned
+  // (where another client may leave one), shows as a folder.
+  protected isTabTree_(): boolean {
+    return !this.pinned && isTabTree(this.node);
+  }
+
+  // A tab tree's first entry, which its row is.
+  protected getTreeHead_(): Node|null {
+    return this.getChildren_()[0] ?? null;
+  }
+
+  // Whether the tree this entry heads has entries under it.
+  protected hasTreeChildren_(): boolean {
+    return !!this.tree && this.tree.children.length > 1;
+  }
+
+  // The head row's aria-expanded, or null where it has none.
+  protected getTreeExpanded_(): string|null {
+    return this.hasTreeChildren_() ? String(!this.tree!.collapsed) : null;
+  }
+
+  protected onTreeToggleClick_(e: Event) {
+    // Not the row's click, which would activate the tab.
+    e.stopPropagation();
+    this.fire('folder-toggle', this.tree!.id);
+  }
+
+  protected onTreeToggleDblclick_(e: Event) {
+    e.stopPropagation();
   }
 
   protected isActive_(node: Node): boolean {

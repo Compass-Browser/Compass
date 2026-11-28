@@ -58,6 +58,8 @@ constexpr char kUrlKey[] = "url";
 constexpr char kChildrenKey[] = "children";
 constexpr char kLastActiveKey[] = "last_active";
 constexpr char kCollapsedKey[] = "collapsed";
+// Present (true) only for a tab tree (SidebarNode::tab_tree()).
+constexpr char kTabTreeKey[] = "tab_tree";
 constexpr char kCustomTitleKey[] = "custom_title";
 constexpr char kMutedKey[] = "muted";
 constexpr char kSavedUrlKey[] = "saved_url";
@@ -202,6 +204,9 @@ std::optional<base::DictValue> SerializeNode(const SidebarNode& node,
       dict.Set(kTypeKey, kFolder);
       if (node.collapsed()) {
         dict.Set(kCollapsedKey, true);
+      }
+      if (node.tab_tree()) {
+        dict.Set(kTabTreeKey, true);
       }
       switch (node.name_source()) {
         case SidebarNode::NameSource::kOpener:
@@ -394,6 +399,14 @@ bool DeserializeNode(const base::DictValue& dict,
                           folder->children().size());
         }
       }
+    }
+    // Once its entries are in, so that it has a head. One that has none
+    // (its entries didn't load) stays a plain folder.
+    if (dict.FindBool(kTabTreeKey).value_or(false) && !live &&
+        !folder->children().empty() &&
+        folder->children()[0]->type() != SidebarNode::Type::kFolder &&
+        model.today_root()->Contains(folder)) {
+      model.SetTabTree(folder, true);
     }
     return true;
   }

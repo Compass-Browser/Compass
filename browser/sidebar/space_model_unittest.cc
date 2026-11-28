@@ -167,6 +167,62 @@ TEST_F(SpaceModelTest, EmptiedTodayFoldersClose) {
   }
 }
 
+TEST_F(SpaceModelTest, TabTreesKeepAHead) {
+  SidebarNode* today = model_.today_root();
+  SidebarNode* a = Tab(today, "a");
+  Tab(today, "z");
+  SidebarNode* tree = model_.AddTabTree(a, u"A");
+  EXPECT_TRUE(tree->tab_tree());
+  EXPECT_EQ(SpaceModel::GetTabTreeHeadedBy(a), tree);
+  EXPECT_THAT(Titles(today), ElementsAre("A", "z"));
+  SidebarNode* b = Tab(tree, "b");
+  SidebarNode* c = Tab(tree, "c");
+  EXPECT_EQ(SpaceModel::GetTabTreeHeadedBy(b), nullptr);
+  SidebarNode* inner = model_.AddTabTree(b, u"B");
+  Tab(inner, "d");
+  EXPECT_THAT(Titles(tree), ElementsAre("a", "B", "c"));
+
+  // The head closes: the next entry heads the tree. That one's a tree too,
+  // so its entries take its place.
+  model_.Remove(a);
+  EXPECT_EQ(today->children()[0].get(), tree);
+  EXPECT_THAT(Titles(tree), ElementsAre("b", "d", "c"));
+  EXPECT_TRUE(tree->tab_tree());
+
+  // Left with only its head, the tree gives way to it.
+  model_.Move(c, today, 2);
+  model_.Remove(tree->children()[1].get());
+  EXPECT_THAT(Titles(today), ElementsAre("b", "z", "c"));
+  EXPECT_EQ(b->parent(), today);
+}
+
+TEST_F(SpaceModelTest, TabTreesAreTodays) {
+  SidebarNode* today = model_.today_root();
+  SidebarNode* tree = model_.AddTabTree(Tab(today, "a"), u"A");
+  Tab(tree, "b");
+
+  // A plain folder first leaves nothing to head it.
+  model_.AddFolder(tree, 0, u"Folder");
+  EXPECT_FALSE(tree->tab_tree());
+
+  // Pinned, a tree is a plain folder, and the trees in it.
+  SidebarNode* other = model_.AddTabTree(Tab(today, "c"), u"C");
+  SidebarNode* nested = model_.AddTabTree(Tab(other, "d"), u"D");
+  Tab(nested, "e");
+  model_.Move(other, model_.pinned_root(), 0);
+  EXPECT_FALSE(other->tab_tree());
+  EXPECT_FALSE(nested->tab_tree());
+
+  // Not while sync applies another device's changes.
+  SidebarNode* kept = model_.AddTabTree(Tab(today, "f"), u"F");
+  SidebarNode* g = Tab(kept, "g");
+  {
+    SpaceModel::KeepEmptyFolders keep;
+    model_.Remove(g);
+    EXPECT_EQ(today->children().back().get(), kept);
+  }
+}
+
 TEST_F(SpaceModelTest, MoveIndexIsCountedAfterDetaching) {
   SidebarNode* a = Tab(model_.today_root(), "a");
   Tab(model_.today_root(), "b");

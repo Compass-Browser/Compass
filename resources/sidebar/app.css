@@ -634,6 +634,67 @@ compass-sidebar-node {
   padding-inline-start: 14px;
 }
 
+/* Tree-style tabs (docs/design/sidebar.md): the disclosure of a tab tree's
+ * head sits in the row's padding, before the favicon. It shows while the
+ * pointer is on the row, and always while the tree is collapsed. */
+.tab.row,
+.split.row {
+  position: relative;
+}
+
+.tree-toggle {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  display: flex;
+  height: 100%;
+  inset-block-start: 0;
+  inset-inline-start: -3px;
+  justify-content: center;
+  opacity: 0;
+  padding: 0;
+  position: absolute;
+  transition: opacity 120ms;
+  width: 13px;
+  z-index: 1;
+}
+
+.row:hover > .tree-toggle,
+.tree-toggle[collapsed] {
+  opacity: 0.6;
+}
+
+.tree-toggle:hover {
+  opacity: 1;
+}
+
+.tree-toggle svg {
+  fill: none;
+  height: 8px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+  transform: rotate(90deg);
+  transition: transform 160ms cubic-bezier(0.3, 0.7, 0.4, 1);
+  width: 8px;
+}
+
+.tree-toggle[collapsed] svg {
+  transform: none;
+}
+
+.tree-toggle[collapsed]:dir(rtl) svg {
+  transform: scaleX(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-toggle svg {
+    transition: none;
+  }
+}
+
 .tab,
 .folder-row,
 #newTab {

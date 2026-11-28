@@ -16,6 +16,7 @@ import './update_notice.js';
 import type {CompassSidebarPreviewElement} from './preview.js';
 import './preview.js';
 import type {SpaceSymbol} from './space_icons.js';
+import {isTabTree} from './node.js';
 import type {LiveNode} from './node.js';
 import {findSpaceSymbol, SPACE_SYMBOL_VIEW_BOX} from './space_icons.js';
 import type {LiveFolder, LiveFolderState, Node, NowPlaying, RoomNotice, Space, Tree} from './sidebar.mojom-webui.js';
@@ -812,6 +813,48 @@ export class CompassSidebarAppElement extends CrLitElement {
     setTimeout(() => row.classList.remove('claude-named'), 1000);
   }
 
+  // Whether the page draws |node| as a tab tree: one in Today (node.ts
+  // draws one in Pinned, which another client may leave there, as a folder).
+  private isDrawnTree_(node: Node|undefined): boolean {
+    if (!isTabTree(node)) {
+      return false;
+    }
+    for (let parent = this.parents_.get(node!.id); parent;
+         parent = this.parents_.get(parent.id)) {
+      if (parent === this.pinned_) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // The tab tree whose head's row |id| is (a pane's: its split's), or null
+  // (docs/design/sidebar.md, "Tree-style tabs").
+  private getTreeHeadedBy_(id: string): Node|null {
+    let entry = this.nodes_.get(id);
+    let parent = entry && this.parents_.get(entry.id);
+    if (entry && parent?.type === NodeType.kSplit) {
+      entry = parent;
+      parent = this.parents_.get(parent.id);
+    }
+    if (!parent || !this.isDrawnTree_(parent)) {
+      return null;
+    }
+    return parent.children[0] === entry ? parent : null;
+  }
+
+  // The ID of the row that stands for |node|: a tab tree's is its head's
+  // (a split head's first pane's).
+  private getRowId_(node: Node): string {
+    if (!this.isDrawnTree_(node)) {
+      return node.id;
+    }
+    const head = node.children[0]!;
+    return head.type === NodeType.kSplit && head.children[0] ?
+        head.children[0].id :
+        head.id;
+  }
+
   private getRow_(id: string): HTMLElement|null {
     return this.shadowRoot.querySelector<HTMLElement>(
         `#favorites .tile[data-node-id="${id}"], ` +
@@ -935,6 +978,9 @@ export class CompassSidebarAppElement extends CrLitElement {
     }
     const isFolder = node.type === NodeType.kFolder;
     const collapsed = node.collapsed;
+    // The tab tree this row heads, with entries under its head.
+    const headed = this.getTreeHeadedBy_(id);
+    const tree = headed && headed.children.length > 1 ? headed : null;
     switch (e.key) {
       case 'ArrowDown':
         rows[Math.min(index + 1, rows.length - 1)]!.focus();
@@ -953,6 +999,10 @@ export class CompassSidebarAppElement extends CrLitElement {
           this.toggleFolder_(id);
         } else if (isFolder && node.children.length > 0) {
           rows[index + 1]?.focus();
+        } else if (tree && tree.collapsed) {
+          this.toggleFolder_(tree.id);
+        } else if (tree) {
+          rows[index + 1]?.focus();
         }
         break;
       case 'ArrowLeft': {
@@ -960,13 +1010,20 @@ export class CompassSidebarAppElement extends CrLitElement {
           this.toggleFolder_(id);
           break;
         }
-        // A pane's split isn't a folder; go on up.
+        if (tree && !tree.collapsed) {
+          this.toggleFolder_(tree.id);
+          break;
+        }
+        // A pane's split isn't a folder, nor is the tree a head heads; go on
+        // up.
         let parent = this.parents_.get(id);
-        while (parent && parent.type === NodeType.kSplit) {
+        while (parent &&
+               (parent.type === NodeType.kSplit ||
+                parent === this.getTreeHeadedBy_(id))) {
           parent = this.parents_.get(parent.id);
         }
         if (parent?.type === NodeType.kFolder) {
-          this.getRow_(parent.id)?.focus();
+          this.getRow_(this.getRowId_(parent))?.focus();
         }
         break;
       }
@@ -1842,7 +1899,8 @@ export class CompassSidebarAppElement extends CrLitElement {
     if (!row || !e.dataTransfer) {
       return;
     }
-    this.draggingId_ = row.dataset['nodeId']!;
+    // A tab tree's head drags its tree.
+    this.draggingId_ = row.dataset['dragId'] ?? row.dataset['nodeId']!;
     this.dragActive_ = true;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', this.draggingId_);
@@ -2023,6 +2081,24 @@ export class CompassSidebarAppElement extends CrLitElement {
           target: row,
           position: 'into',
         };
+      } else if (this.isDrawnTree_(parent) && parent.children[0] === node) {
+        // A tab tree's head: before it is before the tree, and after it the
+        // first entry under it (or after the tree, collapsed).
+        const after = y >= 0.5;
+        const outer = this.parents_.get(parent.id);
+        if (after && !parent.collapsed) {
+          drop = {parent, index: 1, target: row, position: 'after'};
+        } else {
+          if (!outer) {
+            return null;
+          }
+          drop = {
+            parent: outer,
+            index: outer.children.indexOf(parent) + (after ? 1 : 0),
+            target: row,
+            position: after ? 'after' : 'before',
+          };
+        }
       } else {
         const after = y >= 0.5;
         drop = {
@@ -2189,19 +2265,21 @@ export class CompassSidebarAppElement extends CrLitElement {
 
   private onNodeChanged_(
       id: string, title: string, customTitle: string, url: string,
-      collapsed: boolean) {
+      collapsed: boolean, tabTree: boolean) {
     const node = this.nodes_.get(id);
     if (!node) {
       return;
     }
-    if (node.collapsed !== collapsed) {
-      // Another window collapsed or expanded it.
+    if (node.collapsed !== collapsed || node.tabTree !== tabTree) {
+      // Another window collapsed or expanded it, or it became a tab tree
+      // (Cmd+Z brought one back) or a plain folder.
       this.prepareFlip_();
     }
     node.title = title;
     node.customTitle = customTitle;
     node.url = url;
     node.collapsed = collapsed;
+    node.tabTree = tabTree;
     this.requestUpdate();
   }
 

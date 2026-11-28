@@ -849,6 +849,41 @@ TEST_F(CompassSpacesSyncBridgeTest, ConcurrentMovesIntoEachOtherConverge) {
   EXPECT_EQ(b->Push(), 0u);
 }
 
+// A tab tree (docs/design/sidebar.md, "Tree-style tabs") syncs as a folder
+// with tab_tree set; collapsing it is the folder's.
+TEST_F(CompassSpacesSyncBridgeTest, TabTreesRoundTrip) {
+  std::unique_ptr<Device> a = MakeDevice();
+  Populate(*a);
+  a->Join();
+  std::unique_ptr<Device> b = MakeDevice();
+  b->Join();
+
+  SpaceModel& space_a = a->space(0);
+  SidebarNode* today = space_a.today_root();
+  SidebarNode* head =
+      space_a.AddTab(today, 0, GURL("https://news.test/"), u"News");
+  SidebarNode* tree = space_a.AddTabTree(head, u"News");
+  space_a.AddTab(tree, 1, GURL("https://story.test/"), u"Story");
+  a->Push();
+  EXPECT_TRUE(server_.entities[Key(tree->id())].node().tab_tree());
+  EXPECT_FALSE(server_.entities[Key(head->id())].node().has_tab_tree());
+  b->Pull();
+  SidebarNode* tree_b = b->space(0).FindById(tree->id());
+  ASSERT_TRUE(tree_b);
+  EXPECT_TRUE(tree_b->tab_tree());
+  ASSERT_EQ(tree_b->children().size(), 2u);
+  EXPECT_EQ(tree_b->children()[0]->id(), head->id());
+  EXPECT_EQ(b->last_push(), 0u);
+
+  // Made a plain folder on B (by a folder going in first, say).
+  b->space(0).SetTabTree(tree_b, false);
+  EXPECT_EQ(b->Push(), 1u);
+  EXPECT_FALSE(server_.entities[Key(tree->id())].node().has_tab_tree());
+  a->Pull();
+  EXPECT_FALSE(tree->tab_tree());
+  EXPECT_EQ(a->last_push(), 0u);
+}
+
 // Where a folder's name came from (docs/design/ai-sidebar.md) syncs: a name
 // the user gives on one device stops Claude on the others. A folder from a
 // client without the field is the user's.

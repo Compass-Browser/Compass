@@ -124,6 +124,12 @@ class SidebarNode {
   // Whether a folder shows only its own row. Shared by every window, and
   // saved. False for other nodes.
   bool collapsed() const { return collapsed_; }
+  // Whether a folder is a tab tree (docs/design/sidebar.md, "Tree-style
+  // tabs"): drawn as its first entry, a tab or a split, with the rest of its
+  // entries (the tabs opened from it) under that one, and no row of its own.
+  // Saved and synced; a client that doesn't know it shows a plain folder.
+  // False for other nodes.
+  bool tab_tree() const { return tab_tree_; }
   // Whether a tab is muted: its live tab is, and it will be when it next
   // opens. Follows the live tab's mute state, and saved. False for other
   // nodes (docs/design/sidebar.md, "Sound").
@@ -169,6 +175,7 @@ class SidebarNode {
   std::u16string saved_title_;
   base::Time last_active_;
   bool collapsed_ = false;
+  bool tab_tree_ = false;
   bool muted_ = false;
   std::optional<LiveSource> live_source_;
   base::Time live_refreshed_;

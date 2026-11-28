@@ -117,11 +117,13 @@ class FakePage : public sidebar::mojom::Page {
                    const std::string& title,
                    const std::string& custom_title,
                    const GURL& url,
-                   bool collapsed) override {
+                   bool collapsed,
+                   bool tab_tree) override {
     hosts_[id] = std::string(url.host());
     // Folders have no host: their title, and whether they're collapsed.
     events_.push_back("changed " +
-                      (url.is_empty() ? title + (collapsed ? " collapsed" : "")
+                      (url.is_empty() ? title + (collapsed ? " collapsed" : "") +
+                                            (tab_tree ? " tree" : "")
                                       : hosts_[id]));
   }
   void NodeRemoved(const std::string& id) override {
@@ -671,6 +673,22 @@ TEST_F(SidebarPageHandlerTest, ReopenClosedTabCommandUndoes) {
   Settle();
   EXPECT_EQ(space_model().today_root()->children().size(), 3u);
   EXPECT_FALSE(IsBrowserCommandEnabled(browser(), IDC_RESTORE_TAB));
+}
+
+// A folder that becomes a tab tree, or stops being one, tells the page, as
+// Cmd+Z restoring a closed tree does (it comes back a folder first).
+TEST_F(SidebarPageHandlerTest, TabTreeChangesReachThePage) {
+  SidebarNode* head = space_model().today_root()->children()[0].get();
+  SidebarNode* tree = space_model().AddTabTree(head, u"Tree");
+  Settle();
+  page_.TakeEvents();
+
+  space_model().SetTabTree(tree, false);
+  space_model().SetTabTree(tree, true);
+  Settle();
+
+  EXPECT_THAT(page_.TakeEvents(),
+              ElementsAre("changed Tree", "changed Tree tree"));
 }
 
 TEST_F(SidebarPageHandlerTest, FoldersInToday) {

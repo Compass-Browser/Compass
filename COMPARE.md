@@ -56,7 +56,7 @@ since October 2025).
 | Auto-archive of unused tabs | ✅ Today, 12 h default | ✅ Space cleanup, 12 h–30 days | ✅ 12 h–30 days or custom | ✅ Today, 12 h–180 days | ✅ | ~ Clean Up Tabs on Windows | ? | ❌ | ❌ | ❌ | ~ | ✅ 12 h | ? |
 | Rename tabs, mute entries, undo close | ✅ | ~ rename, mute | ✅ | ✅ | ✅ | ~ rename | ? | ✅ | ✅ | ~ | ? | ? | ? |
 | Split view | ✅ up to 4 panes, side by side or stacked | ✅ 2–4 panes | ✅ up to 3, side by side or stacked | ✅ up to 4, side by side or stacked | ✅ up to 4 | ✅ | ✅ up to 4, side by side or stacked | ✅ up to 4 | ✅ tiling | ✅ | ✅ | ✅ up to 4 | ? |
-| Tree-style tabs | ~ nested folders, made by hand | ~ | ~ ⌘-click groups a link with its opener | ~ nested folders, made by hand | ~ | ~ nested groups, made by hand | ❌ | ~ | ~ | ❌ | ~ | ~ | ✅ vertical tree tabs |
+| Tree-style tabs | ✅ desktop: a page's background links go under it, as deep as they go; collapsible | ~ | ~ ⌘-click groups a link with its opener | ~ nested folders, made by hand | ~ | ~ nested groups, made by hand | ❌ | ~ | ~ | ❌ | ~ | ~ | ✅ vertical tree tabs |
 | Custom shortcuts | ✅ | ✅ | ✅ mouse buttons too | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ? | ✅ | ? |
 | Ctrl+Tab in recently used order | ✅ with cards of each tab's preview; W closes one; can be turned off | ? | ✅ an option | ✅ with cards; across spaces with ⌃⌥Tab | ✅ tab switcher | ? | ? | ✅ an option | ✅ with previews | ? | ? | ? | ? |
 | **Arc-style extras** | | | | | | | | | | | | | |
@@ -139,7 +139,7 @@ Features other browsers have that Compass doesn't, checked against the code:
 |---|---|---|
 | On-device translation | Crest, Ardia, Orion, Zen, Vivaldi, Edge, Lilo | Not started. Reader mode is done, desktop and iOS (docs/design/reader-mode.md) |
 | Full-quality DRM video | Chrome, Edge, Arc, Dia, Crest, Cra (Ardia for streaming sites) | Blocked: no Widevine VMP signature (docs/design/widevine.md) |
-| Tree-style tabs | Orion, Vivaldi, Floorp | Partial: folders nest in Pinned and Today, but a new tab doesn't go under the tab that opened it |
+| Tree-style tabs on the phone | Orion | Desktop only: iOS and Android show the desktop's tab trees as folders |
 | Android release | Vivaldi, Edge | In closed testing on Google Play (beta); production needs 12 testers for 14 days first |
 
 ## Sources

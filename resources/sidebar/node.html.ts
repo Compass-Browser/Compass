@@ -14,7 +14,8 @@ export function getHtml(this: CompassSidebarNodeElement) {
   return html`<!--_html_template_start_-->
 ${this.isTab_() ? html`
   <div class="tab row" role="tab" draggable="true" tabindex="-1"
-      data-node-id="${this.node!.id}"
+      data-node-id="${this.node!.id}" data-drag-id="${this.tree?.id ?? nothing}"
+      aria-expanded="${this.getTreeExpanded_() ?? nothing}"
       aria-selected="${this.isActive_(this.node!)}"
       ?active="${this.isActive_(this.node!)}" ?unloaded="${!this.node!.live}"
       ?claude="${this.node!.claude}" ?unseen="${this.node!.unseen}"
@@ -22,6 +23,13 @@ ${this.isTab_() ? html`
       @dblclick="${this.onTabDblclick_}" @mousedown="${this.onTabMousedown_}"
       @auxclick="${this.onTabAuxclick_}"
       @pointerleave="${this.onTabPointerleave_}">
+    ${this.hasTreeChildren_() ? html`
+      <button class="tree-toggle" tabindex="-1" aria-hidden="true"
+          ?collapsed="${this.tree!.collapsed}"
+          @click="${this.onTreeToggleClick_}"
+          @dblclick="${this.onTreeToggleDblclick_}">
+        <svg viewBox="0 0 8 8"><path d="M2.5 1.5L5.5 4L2.5 6.5"></path></svg>
+      </button>` : nothing}
     <img class="favicon" src="${this.getFaviconUrl_(this.node!)}" alt="">
     ${this.isEditing_(this.node!) ? html`
       <input class="title-input tab-title-input" spellcheck="false"
@@ -64,7 +72,15 @@ ${this.isTab_() ? html`
         @pointerleave="${this.onClosePointerleave_}">${this.getCloseGlyph_(this.node!)}</button>
   </div>` : nothing}
 ${this.isSplit_() ? html`
-  <div class="split row" draggable="true" data-node-id="${this.node!.id}">
+  <div class="split row" draggable="true" data-node-id="${this.node!.id}"
+      data-drag-id="${this.tree?.id ?? nothing}">
+    ${this.hasTreeChildren_() ? html`
+      <button class="tree-toggle" tabindex="-1" aria-hidden="true"
+          ?collapsed="${this.tree!.collapsed}"
+          @click="${this.onTreeToggleClick_}"
+          @dblclick="${this.onTreeToggleDblclick_}">
+        <svg viewBox="0 0 8 8"><path d="M2.5 1.5L5.5 4L2.5 6.5"></path></svg>
+      </button>` : nothing}
     ${repeat(this.getChildren_(), (pane: Node) => pane.id, (pane: Node) => html`
       <div class="tab pane" role="tab" tabindex="-1"
           data-node-id="${pane.id}"
@@ -102,6 +118,19 @@ ${this.isSplit_() ? html`
             @pointerleave="${this.onClosePointerleave_}">${this.getCloseGlyph_(pane)}</button>
       </div>`)}
   </div>` : nothing}
+${this.isTabTree_() ? html`
+  <compass-sidebar-node .node="${this.getTreeHead_()}" .tree="${this.node}"
+      .activeId="${this.activeId}" .profileId="${this.profileId}"
+      .pinned="${this.pinned}">
+  </compass-sidebar-node>
+  ${!this.isCollapsed_() ? html`
+    <div class="folder-children tree-children" role="group">
+      ${repeat(this.getChildren_().slice(1), (child: Node) => child.id,
+               (child: Node) => html`
+        <compass-sidebar-node .node="${child}" .activeId="${this.activeId}"
+            .profileId="${this.profileId}" .pinned="${this.pinned}">
+        </compass-sidebar-node>`)}
+    </div>` : nothing}` : nothing}
 ${this.isFolder_() ? html`
   <div class="folder-row row" draggable="true" data-node-id="${this.node!.id}"
       role="treeitem" tabindex="-1" aria-expanded="${!this.isCollapsed_()}"
