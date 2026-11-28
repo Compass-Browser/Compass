@@ -17,7 +17,8 @@ patches that no longer apply.
 
 Left out on purpose:
 - Marian's training code, faiss, LSH, ONNX export and gzip: the build
-  defines WASM_COMPATIBLE_SOURCE, which compiles them out.
+  defines WASM_COMPATIBLE_SOURCE, which compiles them out (the optimizers
+  stay: marian.h includes them).
 - Marian's copies of ruy, cpuinfo, zlib, SentencePiece and its
   protobuf-lite: Chromium's own are used.
 - CUDA, FBGEMM, NCCL, the WASM bindings, emsdk, tests, benchmarks.
@@ -52,8 +53,8 @@ SOURCES = {
 }
 
 MARIAN = 'translations/inference/marian-fork'
-MARIAN_DIRS = ['common', 'data', 'graph', 'layers', 'models', 'rnn',
-               'translator', 'functional']
+MARIAN_DIRS = ['common', 'data', 'graph', 'layers', 'models', 'optimizers',
+               'rnn', 'translator', 'functional']
 SOURCE_PATTERNS = ['*.h', '*.hpp', '*.cpp', '*.cc', '*.c', '*.in', '*.inc']
 
 # (source under the temporary directory, destination under ROOT, patterns
@@ -203,6 +204,9 @@ def main():
     fetch(temp)
     clear()
     print('copied %d files' % copy(temp))
+    # BUILD.gn reads it for Marian's version string.
+    with open(os.path.join(ROOT, 'REVISION'), 'w', encoding='utf-8') as f:
+      f.write(SOURCES['translations'][1] + '\n')
     apply_patches()
   finally:
     if args.keep_temp:

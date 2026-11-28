@@ -1,0 +1,30 @@
+diff --git a/third_party/bergamot/src/translator/logging.h b/third_party/bergamot/src/translator/logging.h
+index ff7f767..faef21a 100644
+--- a/third_party/bergamot/src/translator/logging.h
++++ b/third_party/bergamot/src/translator/logging.h
+@@ -16,7 +16,7 @@ class Logger {
+     }
+   };
+ 
+-  Logger(const Config &config) : marianLoggers_(createLoggers()) {
++  Logger(const Config &config) : marianLoggers_(createFreshLoggers()) {
+     // We are manually creating loggers, because this is usually created in marian as a side-effect of
+     // config-parsing.
+     for (auto &logger : marianLoggers_) {
+@@ -59,6 +59,16 @@ class Logger {
+     }
+   }
+ 
++  // Compass: Marian's ABORT registers "general" itself when it isn't there
++  // (a model that fails to load before any service exists), and spdlog
++  // throws when createLoggers() registers it again. Loggers only route
++  // Marian's messages, so take the names over.
++  static std::vector<std::shared_ptr<spdlog::logger>> createFreshLoggers() {
++    spdlog::drop("general");
++    spdlog::drop("valid");
++    return createLoggers();
++  }
++
+   // Explicit destructor above is an indicator we should not allow this class to copy-construct.
+   Logger &operator=(const Logger &) = delete;
+   Logger(const Logger &) = delete;

@@ -49,7 +49,7 @@ class ThreadPool {
 
     template<class F, class... Args>
     auto enqueue(F&& f, Args&&... args)
-        -> std::future<typename std::result_of<F(Args...)>::type>;
+        -> std::future<typename std::invoke_result<F, Args...>::type>;
     ~ThreadPool();
 
     size_t getNumTasks() const {
@@ -138,9 +138,9 @@ inline void ThreadPool::reserve(size_t threads) {
 // add new work item to the pool
 template<class F, class... Args>
 inline auto ThreadPool::enqueue(F&& f, Args&&... args)
-    -> std::future<typename std::result_of<F(Args...)>::type>
+    -> std::future<typename std::invoke_result<F, Args...>::type>
 {
-  using return_type = typename std::result_of<F(Args...)>::type;
+  using return_type = typename std::invoke_result<F, Args...>::type;
 
   auto inner_task = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
   auto outer_task = [inner_task]() -> return_type {

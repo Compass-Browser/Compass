@@ -11,6 +11,7 @@
 #include "components/lens/lens_features.h"
 #include "components/network_time/network_time_tracker.h"
 #include "components/omnibox/browser/aim_eligibility_service_features.h"
+#include "components/on_device_translation/buildflags/buildflags.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/variations/feature_overrides.h"
 #include "media/base/media_switches.h"
@@ -18,6 +19,11 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/flags/android/chrome_feature_list.h"
+#endif
+
+#if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
+#include "base/command_line.h"
+#include "compass/browser/translate/translatekit_library.h"
 #endif
 
 namespace compass {
@@ -82,6 +88,13 @@ void RegisterFeatureOverrides(variations::FeatureOverrides& overrides) {
   // PDF: Compass doesn't nag about defaults (the default browser prompt is
   // off too, chromium_src/.../default_browser_prompt.cc).
   overrides.DisableFeature(features::kPdfInfoBar);
+#endif
+
+#if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
+  // On-device translation runs Compass's own library, not Google's
+  // TranslateKit component (docs/design/translation.md). Not a feature, but
+  // this runs early in the browser process, before anything translates.
+  UseBundledTranslateKit(*base::CommandLine::ForCurrentProcess());
 #endif
 }
 

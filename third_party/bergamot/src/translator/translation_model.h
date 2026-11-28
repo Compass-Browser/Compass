@@ -1,6 +1,7 @@
 #ifndef SRC_BERGAMOT_TRANSLATION_MODEL_H_
 #define SRC_BERGAMOT_TRANSLATION_MODEL_H_
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -144,6 +145,11 @@ class TranslationModel {
   std::shared_ptr<QualityEstimator> qualityEstimator_;
 
   void loadBackend(size_t idx);
+
+  // Compass: workers load their backends lazily, each from memory_.models.
+  // They load one at a time, and the memory goes once all have loaded.
+  std::mutex loadMutex_;
+  size_t backendsLoaded_{0};
   Ptr<marian::data::CorpusBatch> convertToMarianBatch(Batch& batch);
 
   static std::atomic<size_t> modelCounter_;

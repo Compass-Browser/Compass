@@ -53,4 +53,29 @@ phf, mio, cnpy (MIT), and half_float (BSD, in `umHalf.h`).
 
 ## Local changes
 
-None yet (`patches/`).
+In `patches/`, applied in order by the script:
+
+1. `0001-no-vocabulary-training`: Marian's SentencePiece vocabulary
+   training aborts; Chromium's SentencePiece has no trainer, and
+   translation never trains.
+2. `0002-cxx20-invoke-result`: `std::result_of`, gone in C++20, as
+   `std::invoke_result` (Marian's thread pool, CLI11).
+3. `0003-cxx20-std-format-and-string-view`: Bergamot's `format()` helper
+   renamed `simpleFormat()` (C++20's `std::format` made its calls
+   ambiguous), and the `isContinuation()` overload for Marian's
+   `string_view` removed (it's `std::string_view` now, so the two were one).
+4. `0004-libcxx-on-windows`: Marian's UTF conversions take the portable
+   path with libc++; their workaround for the MSVC library doesn't build
+   with it.
+5. `0005-load-every-worker-backend`: each worker loads its copy of the
+   model under a lock, and the model's memory is freed after the last one.
+   Bergamot freed it after the first (fine in Firefox's single-threaded
+   WASM build), so with more workers the others built no model and
+   crashed, or raced on the vector.
+6. `0006-loggers-after-abort`: a service takes Marian's logger names over.
+   An `ABORT` (a model that won't load) registers "general" itself, and
+   creating a service afterwards threw "logger with name 'general' already
+   exists", so one bad model broke the process for good.
+
+`BUILD.gn` also leaves out Pathie's file streams (unused, and MSVC-only on
+Windows) and turns off the warnings Chromium's flags raise in this code.

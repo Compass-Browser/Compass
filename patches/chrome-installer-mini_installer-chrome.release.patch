@@ -1,5 +1,5 @@
 diff --git a/chrome/installer/mini_installer/chrome.release b/chrome/installer/mini_installer/chrome.release
-index 33e8546206ba676150dd5d8c7bf57d3b5e2f36e1..51827ad962ded285b109519312d23acabb0031f6 100644
+index 33e8546206ba676150dd5d8c7bf57d3b5e2f36e1..1f2eb4c11358fe49245a0127925fbeb94360e090 100644
 --- a/chrome/installer/mini_installer/chrome.release
 +++ b/chrome/installer/mini_installer/chrome.release
 @@ -6,8 +6,9 @@
@@ -21,3 +21,11 @@ index 33e8546206ba676150dd5d8c7bf57d3b5e2f36e1..51827ad962ded285b109519312d23aca
  libEGL.dll: %(VersionDir)s\
  libGLESv2.dll: %(VersionDir)s\
  libLiteRtWebGpuAccelerator.dll: %(VersionDir)s\
+@@ -35,6 +37,7 @@ notification_helper.exe: %(VersionDir)s\
+ optimization_guide_internal.dll: %(VersionDir)s\
+ resources.pak: %(VersionDir)s\
+ vk_swiftshader.dll: %(VersionDir)s\
++compass_translatekit.dll: %(VersionDir)s\
+ vk_swiftshader_icd.json: %(VersionDir)s\
+ vulkan-1.dll: %(VersionDir)s\
+ v8_context_snapshot.bin: %(VersionDir)s\

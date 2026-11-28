@@ -1,0 +1,54 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//components/on_device_translation/buildflags/features.gni")
+
+# On-device page translation (docs/design/translation.md).
+
+assert(enable_on_device_translation)
+
+# Finds libcompass_translatekit and points upstream's service at it.
+source_set("translatekit_library") {
+  sources = [
+    "translatekit_library.cc",
+    "translatekit_library.h",
+  ]
+  deps = [
+    "//base",
+    "//components/on_device_translation:features",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "translatekit_library_unittest.cc" ]
+  deps = [
+    ":translatekit_library",
+    "//base",
+    "//components/on_device_translation:features",
+    "//testing/gtest",
+  ]
+  data_deps = [ "//compass/components/translatekit:compass_translatekit" ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "translatekit_browsertest.cc" ]
+  deps = [
+    ":translatekit_library",
+    "//base",
+    "//chrome/browser",
+    "//chrome/browser/profiles:profile",
+    "//chrome/test:test_support",
+    "//chrome/test:test_support_ui",
+    "//components/language/core/browser",
+    "//components/on_device_translation:features",
+    "//components/prefs",
+    "//content/test:test_support",
+    "//net:test_support",
+    "//testing/gtest",
+  ]
+  data_deps = [ "//compass/components/translatekit:compass_translatekit" ]
+}

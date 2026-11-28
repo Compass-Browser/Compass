@@ -1,0 +1,109 @@
+# Copyright 2026 The Compass Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//components/on_device_translation/buildflags/features.gni")
+import("//testing/test.gni")
+
+# Bergamot behind Chromium's TranslateKit ABI: the library upstream's
+# on-device translation service loads in place of Google's
+# (docs/design/translation.md, "The engine: libcompass_translatekit").
+
+assert(enable_on_device_translation)
+
+source_set("engine") {
+  sources = [
+    "disk_file_source.cc",
+    "disk_file_source.h",
+    "engine.cc",
+    "engine.h",
+  ]
+  public_deps = [ "//compass/third_party/bergamot" ]
+
+  # Bergamot's headers want exceptions and RTTI.
+  configs -= [
+    "//build/config/compiler:no_exceptions",
+    "//build/config/compiler:no_rtti",
+  ]
+  configs += [
+    "//build/config/compiler:exceptions",
+    "//build/config/compiler:rtti",
+    "//compass/third_party/bergamot:bergamot_warnings",
+  ]
+}
+
+shared_library("compass_translatekit") {
+  sources = [
+    "//components/on_device_translation/service/translate_kit_structs.h",
+    "translatekit.cc",
+    "translatekit_export.h",
+    "version.h",
+  ]
+  deps = [
+    ":engine",
+    ":html_marker",
+    "//components/on_device_translation/service:translate_kit_api_proto",
+  ]
+  configs -= [
+    "//build/config/compiler:no_exceptions",
+    "//build/config/compiler:no_rtti",
+  ]
+  configs += [
+    "//build/config/compiler:exceptions",
+    "//build/config/compiler:rtti",
+    "//compass/third_party/bergamot:bergamot_warnings",
+  ]
+}
+
+# Translates stdin with the models in a folder of packages, for trying the
+# engine and timing it: translatekit_cli <packages> <from> <to> [--html]
+# [--workers N]. Each package is a folder named "<language1>-<language2>"
+# holding the direction folders (engine.h).
+executable("translatekit_cli") {
+  testonly = true
+  sources = [ "translatekit_cli.cc" ]
+  deps = [ ":engine" ]
+  configs -= [
+    "//build/config/compiler:no_exceptions",
+    "//build/config/compiler:no_rtti",
+  ]
+  configs += [
+    "//build/config/compiler:exceptions",
+    "//build/config/compiler:rtti",
+    "//compass/third_party/bergamot:bergamot_warnings",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "//components/on_device_translation/service/translate_kit_structs.h",
+    "engine_unittest.cc",
+    "translatekit_abi_unittest.cc",
+  ]
+  deps = [
+    ":engine",
+    ":html_marker",
+    "//base",
+    "//base/test:test_support",
+    "//components/on_device_translation:features",
+    "//components/on_device_translation/service:translate_kit_api_proto",
+    "//testing/gtest",
+  ]
+  data_deps = [ ":compass_translatekit" ]
+}
+
+# For browser code that sends HTML through the service (html_marker.h).
+source_set("html_marker") {
+  sources = [ "html_marker.h" ]
+}
+
+if (is_mac) {
+  # Into Compass Framework.framework/Versions/<v>/Libraries, beside
+  # Chromium's own dylibs; chrome/BUILD.gn's framework bundles it (patch).
+  bundle_data("bundle_data") {
+    sources = [ "$root_out_dir/libcompass_translatekit.dylib" ]
+    outputs = [ "{{bundle_contents_dir}}/Libraries/{{source_file_part}}" ]
+    public_deps = [ ":compass_translatekit" ]
+  }
+}

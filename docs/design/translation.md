@@ -107,32 +107,66 @@ in the record) with Firefox's settings:
   Chromium's protobuf if its version allows. Marian also compiles its
   training code and faiss when not built for WASM; the GN build should
   leave them out if nothing at inference reaches them.
-- Not yet tried: x86-64 (intgemm, and the float GEMM without a BLAS),
-  Windows, Linux.
+- **The GN build** (Chromium's clang and libc++, official Release) is
+  faster still: the same 2,100 words in 0.76 s on 1 worker, 0.48 s on 2,
+  0.29 s on 4 (none faster on 6); the model loads in about 85 ms; German
+  to Italian through English, 0.54 s. A Debug build (bounds-checked
+  libc++) translates the same page without a check firing.
+- **Windows x64** (win1, an i9-7980XE, so intgemm's AVX-512 path; the
+  `fast` build): the same translation word for word, 1.67 s on 1 worker,
+  0.69 s on 4, 0.68 s on 8; the model loads in 160 ms.
+- **Bugs native use found**, both patched (third_party/bergamot/README.md,
+  "Local changes"): Bergamot freed the model's memory after the first
+  worker loaded it, so the others crashed on an empty model (Firefox runs
+  one worker); and a model that failed to load left a logger behind that
+  made every later service creation throw.
 
 ### The TranslateKit ABI
 
-`compass/translate/translatekit/` builds `libcompass_translatekit` (a
-`.dylib` on Mac, `.dll` on Windows, `.so` on Linux). It exports what
-`TranslateKitClient` loads (`translate_kit_client.cc`), with the structs
-of `translate_kit_structs.h`:
+`components/translatekit/` builds `libcompass_translatekit` (a
+`.dylib` on Mac, `.dll` on Windows, `.so` on Linux, about 4.5 MB). It
+exports what `TranslateKitClient` loads (`translate_kit_client.cc`), with
+the structs of `translate_kit_structs.h`, and uses no `//base`:
 
 | Export | Does |
 |---|---|
-| `GetTranslateKitVersion` | Returns `2026.<n>.0.0`. Upstream needs at least `2025.1.10.0` |
-| `InitializeStorageBackend` | Keeps the five file callbacks. The sandbox lets the library open nothing itself: every model file is mapped through them |
-| `CreateTranslateKit` / `DeleteTranslateKit` | One Bergamot `BlockingService` |
-| `TranslateKitSetLanguagePackages` | Reads `TranslateKitLanguagePackageConfig` (language1, language2, virtual path `/N`) and remembers which pack holds which direction |
-| `TranslateKitCreateTranslator` | Loads the model, vocabulary and config for src→tgt (two models when pivoting) from the mapped files |
-| `TranslatorTranslate` | Plain text in, plain text out (the web `Translator` API) |
-| `TranslateKitSplitSentences` | Bergamot's ssplit |
-| `CompassTranslatorTranslateHtml` | **Compass's addition:** HTML in, HTML out, Bergamot's `ResponseOptions.HTML` (tags removed, the text translated, tags put back through the alignments). Used only by page translation |
+| `GetTranslateKitVersion` | `kVersion` (`version.h`), `2026.11.1.0` now: four numbers, at least upstream's `2025.1.10.0`, at most 14 characters. The third goes up when the ABI or the package layout changes |
+| `InitializeStorageBackend` | Keeps the five file callbacks. The sandbox lets the library open nothing itself: every file comes mapped through them, and is copied into Bergamot's aligned memory (the model to 256 bytes, as Marian's int8 code wants) |
+| `CreateTranslateKit` / `DeleteTranslateKit` | An `Engine` (`engine.{h,cc}`): one Bergamot `AsyncService`, shared by its translators, with one worker per core but one, at most 4 (more gave nothing) |
+| `TranslateKitSetLanguagePackages` | Reads `TranslateKitLanguagePackageConfig` (language1, language2, virtual path `/N`) |
+| `TranslateKitCreateTranslator` | Finds the direction's folder in a package of the pair, or two through English, and loads the models (each loaded once, shared). Null without them, or when Marian refuses a model |
+| `TranslatorTranslate` | Text in, text out. Text that starts with the HTML marker is HTML (below) |
+| `TranslateKitSplitSentences` | Bergamot's ssplit, by its rules alone (no per-language prefix lists) |
 
-`TranslateKitClient` loads `CompassTranslatorTranslateHtml` if it's there
-(patch), and the service's `Translator` mojo interface gets
-`TranslateHtml(string) => string?` (patch of
-`on_device_translation_service.mojom` and its implementation). Upstream's
-Google library doesn't have the export, so the patch keeps working with it.
+- **The package layout** (`engine.h`): a package holds a folder per
+  direction it has, `<from>-<to>` in the package's language codes
+  (compared without case, `_` as `-`), with `model.bin` and either
+  `vocab.spm` or `srcvocab.spm` and `trgvocab.spm`. T2's installer writes
+  it.
+- **The model config** is Firefox's, given as YAML with the files in
+  memory, plus two placeholder names under `vocabs`: Marian reads a name
+  per side even when the vocabularies come from memory, and a bounds-
+  checked libc++ stops at the empty list (Firefox's WASM build has no
+  checks).
+- **Errors:** Marian is set to throw instead of exiting
+  (`setThrowExceptionOnAbort`), and every export catches, so a bad model
+  fails one call, not the service.
+- **HTML without patching the service.** Page translation needs
+  Bergamot's HTML mode, but the service's interfaces (the mojom, the
+  client, the browser-side translator) only carry a string. Rather than
+  patch each of them on every rebase, text that starts with U+FDD0 U+FDD1
+  (`kHtmlMarker`, `html_marker.h`; noncharacters, meant for a program's
+  own use) is translated as HTML, with the marker dropped. A web page
+  sending them through the `Translator` API only gets its own text
+  translated as HTML.
+- **Tests:** `TranslateKitEngineTest` (languages, directions, pivoting,
+  broken and missing files) and `TranslateKitAbiTest` (the real library
+  loaded as the service does: every export, a version upstream's own check
+  accepts, packages, file callbacks, sentences, the marker). Both translate
+  for real when `COMPASS_TRANSLATEKIT_TEST_PACKAGES` names a folder with a
+  German→English package (`de-en/de-en/`), and skip that part otherwise.
+- **`translatekit_cli`** (test-only) translates stdin with a folder of
+  packages and prints the timing, to try models and machines.
 
 ### Where the library lives
 
@@ -144,11 +178,18 @@ it updates with Compass:
 - Windows: next to `chrome.dll`, in the versioned folder;
 - Linux: next to the `compass` binary.
 
-`GetTranslateKitLibraryPath()` (`installer_impl.cc`) returns that path
-(`chromium_src` override) unless `--translate-kit-binary-path` says
-otherwise. The macOS sandbox profile already allows reading under the
-library's directory (the parameter set in
-`ChromeContentBrowserClient`), so nothing else changes in the sandbox.
+Every consumer upstream has (the installer's `IsInit()`, `Init()` and
+`GetLibraryPath()`, the service launcher, the macOS sandbox's library
+path) reads `--translate-kit-binary-path` first, upstream's switch for
+developers. So Compass sets it on the browser's command line early at
+startup (`UseBundledTranslateKit()`, `browser/translate/
+translatekit_library.cc`, from `compass::RegisterFeatureOverrides()`),
+unless the user gave one: the service loads Compass's library, and
+Google's TranslateKit component is never registered or downloaded, with
+no change to upstream's files. Packaging: the framework's `bundle_deps`
+and `parts.py`'s dylibs (Mac), `chrome.release` (Windows), the `chrome`
+executable's `data_deps` (Windows, Linux) and `linux_package.py`'s
+`LIBRARIES`.
 
 ## Language models
 
@@ -321,8 +362,8 @@ its own channel:
 - **Browser:** `PageTranslatorHost` gets the profile's
   `OnDeviceTranslationServiceController` (upstream's, one service process
   per origin), asks `TranslationPacks` for the packs, creates or reuses
-  the pair's `Translator`, and sends the segments, plain ones with
-  `Translate()` and HTML ones with `TranslateHtml()`. It caps a request at
+  the pair's `Translator`, and sends the segments with `Translate()`, HTML
+  ones behind `kHtmlMarker` ("The TranslateKit ABI"). It caps a request at
   64 segments and 32 KB, and a frame at 4 requests in flight.
 - **Incognito** uses the same packs and its own service process.
 
@@ -449,7 +490,7 @@ shared glossary. Upstream's bubble strings already have Italian.
 
 | | Work | Done when |
 |---|---|---|
-| T1 | Bergamot vendored and built with GN; `libcompass_translatekit` with the ABI and `CompassTranslatorTranslateHtml`, shipped and signed; `TranslateHtml` in the service | `OnDeviceTranslationBrowserTest`-style test with a real pack translates text and HTML, on Mac arm64, Windows x64 and Linux x64; the web `Translator` API works |
+| T1 | Bergamot vendored and built with GN; `libcompass_translatekit` with the ABI and the HTML marker, shipped and signed; the service pointed at it | The library translates text and HTML through its ABI on Mac arm64, Windows x64 and Linux x64; the service loads it in a browser (the web `Translator` API with a pack from the command line) |
 | T2 | `update_models.py` and `models.json`; `TranslationPacks` (download, check, install, remove, update, a removed file); the question and its switch | Unit tests with a fake server; nothing is requested before the user agrees; packs install from Mozilla's CDN |
 | T3 | `common/translate/page_translator.js` and its test page | `RESULT PASS` in Chromium headless |
 | T4 | Desktop: translation turned on, CLD3, the script without fetch, `PageTranslator` mojo and bindings, the language list, the command bar entries | Browser tests: the bubble translates a German test page into English with a fake library, Show Original restores it, Always Translate works, nothing goes to Google |

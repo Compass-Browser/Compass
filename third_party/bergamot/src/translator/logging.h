@@ -16,7 +16,7 @@ class Logger {
     }
   };
 
-  Logger(const Config &config) : marianLoggers_(createLoggers()) {
+  Logger(const Config &config) : marianLoggers_(createFreshLoggers()) {
     // We are manually creating loggers, because this is usually created in marian as a side-effect of
     // config-parsing.
     for (auto &logger : marianLoggers_) {
@@ -57,6 +57,16 @@ class Logger {
         spdlog::drop(logger->name());
       }
     }
+  }
+
+  // Compass: Marian's ABORT registers "general" itself when it isn't there
+  // (a model that fails to load before any service exists), and spdlog
+  // throws when createLoggers() registers it again. Loggers only route
+  // Marian's messages, so take the names over.
+  static std::vector<std::shared_ptr<spdlog::logger>> createFreshLoggers() {
+    spdlog::drop("general");
+    spdlog::drop("valid");
+    return createLoggers();
   }
 
   // Explicit destructor above is an indicator we should not allow this class to copy-construct.

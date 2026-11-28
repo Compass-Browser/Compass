@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//components/on_device_translation/buildflags/features.gni")
+
 # Everything Compass adds to the browser process. //chrome/browser depends on
 # this target (see patches/chrome-browser-BUILD.gn.patch). Desktop only: on
 # Android these parts come one milestone at a time (docs/design/android.md).
@@ -34,6 +36,7 @@ source_set("feature_overrides") {
     "//components/lens:features",
     "//components/network_time",
     "//components/omnibox/browser:aim_eligibility_service_features",
+    "//components/on_device_translation/buildflags",
     "//components/signin/public/base:signin_switches",
     "//components/variations",
     "//media",
@@ -41,6 +44,9 @@ source_set("feature_overrides") {
   ]
   if (is_android) {
     deps += [ "//chrome/browser/flags:flags_android" ]
+  }
+  if (enable_on_device_translation) {
+    deps += [ "//compass/browser/translate:translatekit_library" ]
   }
 }
 

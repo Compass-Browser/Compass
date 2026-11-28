@@ -114,7 +114,11 @@ void TranslationModel::loadBackend(size_t idx) {
 
   // Similarly to the scorers, there is an extra copy of the model in the MemoryBundle. Since
   // the ExpressionGraph is loaded, it is relatively safe to clear this memory.
-  memory_.models.clear();
+  // Compass: only once every replica has loaded; the WASM build has one, but
+  // with more workers a later one would find no model.
+  if (++backendsLoaded_ == backend_.size()) {
+    memory_.models.clear();
+  }
 }
 
 // Make request process is shared between Async and Blocking workflow of translating.
@@ -219,6 +223,8 @@ void TranslationModel::translateBatch(size_t deviceId, Batch &batch) {
   auto &backend = backend_[deviceId];
 
   if (!backend.initialized) {
+    // Compass: workers share memory_.models (loadBackend()).
+    std::lock_guard<std::mutex> lock(loadMutex_);
     loadBackend(deviceId);
     backend.initialized = true;
   }

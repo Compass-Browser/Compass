@@ -1,0 +1,50 @@
+diff --git a/third_party/bergamot/src/translator/translation_model.h b/third_party/bergamot/src/translator/translation_model.h
+index 19259e5..6fe138e 100644
+--- a/third_party/bergamot/src/translator/translation_model.h
++++ b/third_party/bergamot/src/translator/translation_model.h
+@@ -1,6 +1,7 @@
+ #ifndef SRC_BERGAMOT_TRANSLATION_MODEL_H_
+ #define SRC_BERGAMOT_TRANSLATION_MODEL_H_
+ 
++#include <mutex>
+ #include <string>
+ #include <vector>
+ 
+@@ -144,6 +145,11 @@ class TranslationModel {
+   std::shared_ptr<QualityEstimator> qualityEstimator_;
+ 
+   void loadBackend(size_t idx);
++
++  // Compass: workers load their backends lazily, each from memory_.models.
++  // They load one at a time, and the memory goes once all have loaded.
++  std::mutex loadMutex_;
++  size_t backendsLoaded_{0};
+   Ptr<marian::data::CorpusBatch> convertToMarianBatch(Batch& batch);
+ 
+   static std::atomic<size_t> modelCounter_;
+diff --git a/third_party/bergamot/src/translator/translation_model.cpp b/third_party/bergamot/src/translator/translation_model.cpp
+index d447c51..8216aec 100644
+--- a/third_party/bergamot/src/translator/translation_model.cpp
++++ b/third_party/bergamot/src/translator/translation_model.cpp
+@@ -114,7 +114,11 @@ void TranslationModel::loadBackend(size_t idx) {
+ 
+   // Similarly to the scorers, there is an extra copy of the model in the MemoryBundle. Since
+   // the ExpressionGraph is loaded, it is relatively safe to clear this memory.
+-  memory_.models.clear();
++  // Compass: only once every replica has loaded; the WASM build has one, but
++  // with more workers a later one would find no model.
++  if (++backendsLoaded_ == backend_.size()) {
++    memory_.models.clear();
++  }
+ }
+ 
+ // Make request process is shared between Async and Blocking workflow of translating.
+@@ -219,6 +223,8 @@ void TranslationModel::translateBatch(size_t deviceId, Batch &batch) {
+   auto &backend = backend_[deviceId];
+ 
+   if (!backend.initialized) {
++    // Compass: workers share memory_.models (loadBackend()).
++    std::lock_guard<std::mutex> lock(loadMutex_);
+     loadBackend(deviceId);
+     backend.initialized = true;
+   }

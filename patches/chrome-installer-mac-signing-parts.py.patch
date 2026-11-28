@@ -1,5 +1,5 @@
 diff --git a/chrome/installer/mac/signing/parts.py b/chrome/installer/mac/signing/parts.py
-index 0a3ba9233e99ef67afa8ea34d937f77032964852..4369bb5870594a03521d64457d4c87451ed7a2cd 100644
+index 0a3ba9233e99ef67afa8ea34d937f77032964852..79682bb87ed47e822ba8ef4c5c17de466365bfca 100644
 --- a/chrome/installer/mac/signing/parts.py
 +++ b/chrome/installer/mac/signing/parts.py
 @@ -160,6 +160,51 @@ def get_parts(config):
@@ -54,3 +54,12 @@ index 0a3ba9233e99ef67afa8ea34d937f77032964852..4369bb5870594a03521d64457d4c8745
      }
  
      if config.enable_updater:
+@@ -177,6 +222,8 @@ def get_parts(config):
+         'libaperitif.dylib',
+         'libvk_swiftshader.dylib',
+         'libvulkan.dylib',
++        # Compass: on-device translation's engine.
++        'libcompass_translatekit.dylib',
+     ]
+     if not config.use_static_angle:
+         dylibs.extend(

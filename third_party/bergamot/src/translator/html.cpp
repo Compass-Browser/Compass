@@ -62,10 +62,10 @@ std::string toLowerCase(std::string_view const &input) {
 /// Very simple replacement for std::format introduced in C++20. Only supports
 /// replacing `{}` in the template string with whatever `operator<<` for that
 /// type turns it into.
-std::string format(std::string const &formatTemplate) { return formatTemplate; }
+std::string simpleFormat(std::string const &formatTemplate) { return formatTemplate; }
 
 template <typename Arg>
-std::string format(std::string const &formatTemplate, Arg arg) {
+std::string simpleFormat(std::string const &formatTemplate, Arg arg) {
   std::ostringstream os;
   auto index = formatTemplate.find("{}");
   assert(index != std::string::npos);
@@ -74,11 +74,11 @@ std::string format(std::string const &formatTemplate, Arg arg) {
 }
 
 template <typename Arg, typename... Args>
-std::string format(std::string const &formatTemplate, Arg arg, Args... args) {
+std::string simpleFormat(std::string const &formatTemplate, Arg arg, Args... args) {
   std::ostringstream os;
   auto index = formatTemplate.find("{}");
   assert(index != std::string::npos);
-  os << formatTemplate.substr(0, index) << arg << format(formatTemplate.substr(index + 2), std::forward<Args>(args)...);
+  os << formatTemplate.substr(0, index) << arg << simpleFormat(formatTemplate.substr(index + 2), std::forward<Args>(args)...);
   return os.str();
 }
 
@@ -179,7 +179,7 @@ class TokenFormatter {
 
     for (HTML::Tag const *tag : Reversed(closing)) {
       assert(tag->type == HTML::Tag::ELEMENT);
-      std::string closeTag = format("</{}>", tag->name);
+      std::string closeTag = simpleFormat("</{}>", tag->name);
       html_.insert(offset_ + (closeLeft_ ? 0 : whitespaceSize_), closeTag);
       offset_ += closeTag.size();
       if (closeLeft_) whitespaceOffset_ += closeTag.size();
@@ -190,13 +190,13 @@ class TokenFormatter {
       switch (tag->type) {
         case HTML::Tag::ELEMENT:
         case HTML::Tag::VOID_ELEMENT:
-          openTag = format("<{}{}>{}", tag->name, tag->attributes, tag->data);
+          openTag = simpleFormat("<{}{}>{}", tag->name, tag->attributes, tag->data);
           break;
         case HTML::Tag::COMMENT:
-          openTag = format("<!--{}-->", tag->data);
+          openTag = simpleFormat("<!--{}-->", tag->data);
           break;
         case HTML::Tag::PROCESSING_INSTRUCTION:
-          openTag = format("<?{}?>", tag->data);
+          openTag = simpleFormat("<?{}?>", tag->data);
           break;
         case HTML::Tag::WHITESPACE: {
           // Try to eat two newlines (paragraph break) from our segment
@@ -262,7 +262,7 @@ void consumeIgnoredTag(markup::Scanner &scanner, HTML::Tag &tag, std::string con
       case markup::Scanner::TT_EOF:
         ABORT("Did not find closing tag </{}>", name);
       case markup::Scanner::TT_ATTRIBUTE:
-        tag.attributes += format(" {}=\"{}\"", scanner.attribute(), scanner.value());
+        tag.attributes += simpleFormat(" {}=\"{}\"", scanner.attribute(), scanner.value());
         break;
       default:
         // Not an attribute! Must be something inside the body or the closing
@@ -468,7 +468,7 @@ HTML::HTML(std::string &&source, bool processMarkup, Options &&options) : option
 
       case markup::Scanner::TT_ATTRIBUTE:
         assert(tag != nullptr);
-        tag->attributes += format(" {}=\"{}\"", scanner.attribute(), scanner.value());
+        tag->attributes += simpleFormat(" {}=\"{}\"", scanner.attribute(), scanner.value());
         break;
 
       case markup::Scanner::TT_COMMENT_START:
@@ -702,7 +702,7 @@ void HTML::annotateTagStack(Response const &response, std::vector<SpanIterator> 
       auto const &sentenceQuality = response.qualityScores[sentenceIdx];
       // Create a single <font> tag for this sentence with sentence level info
       Tag *sentenceTag = makeTag({Tag::ELEMENT, "font"});
-      sentenceTag->attributes += format(" x-bergamot-sentence-index=\"{}\" x-bergamot-sentence-score=\"{}\"",
+      sentenceTag->attributes += simpleFormat(" x-bergamot-sentence-index=\"{}\" x-bergamot-sentence-score=\"{}\"",
                                         sentenceIdx, sentenceQuality.sentenceScore);
 
       // Add that tag to all tokens in this sentence.
@@ -713,7 +713,7 @@ void HTML::annotateTagStack(Response const &response, std::vector<SpanIterator> 
       // Add word level <font> tags as well to all tokens that make up a word.
       for (size_t wordIdx = 0; wordIdx < sentenceQuality.wordRanges.size(); ++wordIdx) {
         Tag *wordTag = makeTag({Tag::ELEMENT, "font"});
-        wordTag->attributes += format(" x-bergamot-word-index=\"{}\" x-bergamot-word-score=\"{}\"", wordIdx,
+        wordTag->attributes += simpleFormat(" x-bergamot-word-index=\"{}\" x-bergamot-word-score=\"{}\"", wordIdx,
                                       sentenceQuality.wordScores[wordIdx]);
         auto const &range = sentenceQuality.wordRanges[wordIdx];
         for (size_t tokenIdx = range.begin; tokenIdx < range.end; ++tokenIdx) {
@@ -739,10 +739,6 @@ bool HTML::isContinuation(std::string_view prev, std::string_view str) const {
   if (prev.empty() || str.empty()) return false;
   return options_.continuationDelimiters.find(str[0]) == std::string::npos &&
          options_.continuationDelimiters.find(prev.back()) == std::string::npos;
-}
-
-bool HTML::isContinuation(marian::string_view prev, marian::string_view str) const {
-  return isContinuation(std::string_view(prev.data(), prev.size()), std::string_view(str.data(), str.size()));
 }
 
 /// Selects for each token in `response.target` a best source token from
