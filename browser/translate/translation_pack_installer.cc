@@ -169,6 +169,9 @@ struct PackInstaller::Job {
   std::vector<base::RepeatingClosure> on_ready;
   std::vector<Item> items;
   size_t next = 0;
+  // Compressed bytes in all, and of the files already downloaded.
+  int64_t total = 0;
+  int64_t done = 0;
   base::FilePath staging;
   base::FilePath destination;
   std::string attachments;
@@ -226,6 +229,9 @@ void PackInstaller::Install(Key key,
       job->items.push_back({from + "-" + to, model_from, model_to, file});
     }
   }
+  for (const Job::Item& item : job->items) {
+    job->total += item.file.size;
+  }
   const std::string folder = GetPackageInstallDirName(key);
   job->destination = packs_dir().AppendASCII(folder);
   job->staging = packs_dir().AppendASCII(".staging-" + folder);
@@ -261,6 +267,8 @@ void PackInstaller::Next(Key key) {
   const Job::Item& item = job.items[job.next];
   job.loader = MakeLoader(GURL(job.attachments + item.file.location));
   job.loader->SetAllowHttpErrorResults(true);
+  job.loader->SetOnDownloadProgressCallback(base::BindRepeating(
+      &PackInstaller::ReportProgress, weak_factory_.GetWeakPtr(), key));
   // To a file: models are tens of MB, past what a string download takes.
   job.loader->DownloadToTempFile(
       url_loader_factory().get(),
@@ -299,7 +307,10 @@ void PackInstaller::OnWritten(Key key, bool ok) {
     Finish(key, false);
     return;
   }
-  ++jobs_.at(key)->next;
+  Job& job = *jobs_.at(key);
+  job.done += job.items[job.next].file.size;
+  ReportProgress(key, 0);
+  ++job.next;
   Next(key);
 }
 
@@ -338,7 +349,28 @@ void PackInstaller::OnInstalled(Key key,
   waiters_[key].push_back(std::move(callback));
 }
 
+void PackInstaller::OnProgress(
+    Key key,
+    base::RepeatingCallback<void(int64_t, int64_t)> callback) {
+  progress_[key].push_back(std::move(callback));
+}
+
+void PackInstaller::ReportProgress(Key key, uint64_t current_file_bytes) {
+  auto job = jobs_.find(key);
+  auto callbacks = progress_.find(key);
+  if (job == jobs_.end() || callbacks == progress_.end()) {
+    return;
+  }
+  const int64_t received =
+      std::min(job->second->done + static_cast<int64_t>(current_file_bytes),
+               job->second->total);
+  for (const auto& callback : callbacks->second) {
+    callback.Run(received, job->second->total);
+  }
+}
+
 void PackInstaller::Report(Key key, bool ok) {
+  progress_.erase(key);
   if (auto it = waiters_.find(key); it != waiters_.end()) {
     std::vector<base::OnceCallback<void(bool)>> waiters = std::move(it->second);
     waiters_.erase(it);

@@ -57,6 +57,23 @@ source_set("page_translation") {
   ]
 }
 
+# Where a tab's translation is, for the pill (translation_tab_state.h).
+source_set("tab_state") {
+  sources = [
+    "translation_tab_state.cc",
+    "translation_tab_state.h",
+  ]
+  public_deps = [
+    "//components/translate/content/browser",
+    "//components/translate/core/browser",
+    "//content/public/browser",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/translate",
+  ]
+}
+
 # The browser's end of compassTranslate (page_translator_host.h).
 source_set("page_translator_host") {
   sources = [
@@ -70,6 +87,7 @@ source_set("page_translator_host") {
   ]
   deps = [
     ":page_translation",
+    ":tab_state",
     ":translate",
     "//base",
     "//chrome/browser:browser_process",
@@ -158,6 +176,7 @@ source_set("browser_tests") {
     "translatekit_browsertest.cc",
   ]
   deps = [
+    ":tab_state",
     ":translate",
     ":translatekit_library",
     "//base",
@@ -168,6 +187,7 @@ source_set("browser_tests") {
     "//chrome/browser/translate:test_support",
     "//chrome/test:test_support",
     "//chrome/test:test_support_ui",
+    "//compass/browser/ui",
     "//components/language/core/browser",
     "//components/on_device_translation:features",
     "//components/prefs",
@@ -177,6 +197,7 @@ source_set("browser_tests") {
     "//content/test:test_support",
     "//net:test_support",
     "//testing/gtest",
+    "//ui/views",
   ]
   data_deps = [ "//compass/components/translatekit:compass_translatekit" ]
 }

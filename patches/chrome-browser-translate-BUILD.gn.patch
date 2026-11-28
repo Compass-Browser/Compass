@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/translate/BUILD.gn b/chrome/browser/translate/BUILD.gn
+index 8404f5569a33a6e2deaeee3b35c5192e5d36a150..c83b5c180980a2eab4d88724627956ad9f9fa43e 100644
+--- a/chrome/browser/translate/BUILD.gn
++++ b/chrome/browser/translate/BUILD.gn
+@@ -74,6 +74,8 @@ source_set("impl") {
+ 
+   if (!is_android) {
+     deps += [
++      # Compass: the pill's translate button (ShowTranslateUI()).
++      "//compass/browser/translate:tab_state",
+       "//chrome/browser/ui:browser_tabstrip",
+       "//chrome/browser/ui:browser_window_header",
+       "//chrome/browser/ui/browser_window",

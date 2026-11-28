@@ -517,11 +517,17 @@ source_set("ui") {
   # translation.md, "Asking, on the desktop"), and its languages in
   # General › Languages.
   if (enable_on_device_translation) {
-    sources += [ "translate/model_download_dialog.cc" ]
+    sources += [
+      "translate/model_download_dialog.cc",
+      "views/translate/translate_pill_menu.cc",
+      "views/translate/translate_pill_menu.h",
+    ]
     deps += [
+      "//chrome/browser/translate",
       "//chrome/browser/ui:tab_modal_confirm_dialog_delegate",
       "//compass/browser/translate",
       "//compass/browser/translate:page_translator_host",
+      "//compass/browser/translate:tab_state",
       "//components/on_device_translation",
       "//components/on_device_translation:public",
     ]

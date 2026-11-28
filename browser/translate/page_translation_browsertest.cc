@@ -22,6 +22,8 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "compass/browser/translate/translation_pack_installer.h"
+#include "compass/browser/translate/translation_tab_state.h"
+#include "compass/browser/ui/views/sidebar/sidebar_header.h"
 #include "components/prefs/pref_service.h"
 #include "components/translate/content/browser/translate_waiter.h"
 #include "components/translate/core/browser/translate_download_manager.h"
@@ -32,6 +34,7 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
+#include "ui/views/controls/button/label_button.h"
 
 namespace compass {
 namespace {
@@ -96,6 +99,15 @@ class PageTranslationBrowserTest : public InProcessBrowserTest {
     waiter->Wait();
   }
 
+  compass::translate::TranslationTabState* tab_state() {
+    return compass::translate::TranslationTabState::FromWebContents(
+        contents());
+  }
+
+  views::LabelButton* translate_button() {
+    return SidebarHeader::From(browser())->translate_button_for_testing();
+  }
+
   ChromeTranslateClient* client() {
     return ChromeTranslateClient::FromWebContents(contents());
   }
@@ -128,7 +140,30 @@ IN_PROC_BROWSER_TEST_F(PageTranslationBrowserTest, OffersTranslation) {
   EXPECT_FALSE(has("la"));  // Latin: no model.
 }
 
-// The bubble's Translate: Compass's script in the page, the engine through
+// The pill's translate button offers it, in place of upstream's bubble, and
+// shows a download's progress.
+IN_PROC_BROWSER_TEST_F(PageTranslationBrowserTest, PillButtonOffers) {
+  using Step = compass::translate::TranslationTabState::Step;
+  LoadGermanPage();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return tab_state() && tab_state()->step() == Step::kOffered; }));
+  EXPECT_EQ(tab_state()->source_language(), "de");
+  EXPECT_TRUE(translate_button()->GetVisible());
+  EXPECT_TRUE(translate_button()->GetText().empty());
+
+  tab_state()->SetDownloading(12'300'000, 45'000'000);
+  EXPECT_EQ(translate_button()->GetText(), u"12/45 MB");
+  tab_state()->DownloadFinished();
+  EXPECT_EQ(tab_state()->step(), Step::kTranslating);
+  EXPECT_TRUE(translate_button()->GetText().empty());
+
+  // Another page in the user's language: nothing to offer.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
+  EXPECT_EQ(tab_state()->step(), Step::kNone);
+  EXPECT_FALSE(translate_button()->GetVisible());
+}
+
+// The pill's Translate: Compass's script in the page, the engine through
 // compassTranslate and the browser, then Show Original.
 IN_PROC_BROWSER_TEST_F(PageTranslationBrowserTest, TranslatesAndRestores) {
   if (!TestPackages()) {

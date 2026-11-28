@@ -9,12 +9,15 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/i18n/number_formatting.h"
 #include "base/i18n/rtl.h"
 #include "base/strings/utf_string_conversions.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
@@ -42,13 +45,16 @@
 #include "compass/browser/ui/views/command_bar/command_bar.h"
 #include "compass/browser/ui/views/frame/content_frame.h"
 #include "compass/browser/ui/views/frame/window_frame.h"
+#include "compass/browser/translate/translation_tab_state.h"
 #include "compass/browser/ui/views/reader/reader_mode.h"
+#include "compass/browser/ui/views/translate/translate_pill_menu.h"
 #include "compass/browser/window_sync/empty_tab.h"
 #include "compass/common/compass_url.h"
 #include "compass/strings/grit/compass_strings.h"
 #include "components/omnibox/browser/location_bar_model.h"
 #include "components/security_state/core/security_state.h"
 #include "components/tabs/public/tab_interface.h"
+#include "components/translate/core/browser/translate_manager.h"
 #include "components/url_formatter/url_formatter.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -74,6 +80,7 @@
 #include "ui/views/accessible_pane_view.h"
 #include "ui/views/background.h"
 #include "ui/views/bubble/bubble_border.h"
+#include "ui/views/context_menu_controller.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
@@ -111,6 +118,8 @@ constexpr int kPillHorizontalPadding = 12;
 constexpr int kSiteInfoSize = 24;
 constexpr int kSiteInfoInset = 4;
 constexpr int kSiteInfoIconSize = 16;
+// Between the translate icon and the download's progress beside it.
+constexpr int kTranslateLabelSpacing = 4;
 
 // Arc's URL pill: a faint wash over the sidebar's tint, so the space's
 // color shows through it, darker in light mode and lighter in dark
@@ -249,7 +258,56 @@ const views::ChildLayout* FindChildLayout(const views::ProposedLayout& layout,
   return it == layout.child_layouts.end() ? nullptr : &*it;
 }
 
+// The header of the window `web_contents` is a tab of, if any.
+SidebarHeader* HeaderForContents(content::WebContents* web_contents) {
+  tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(web_contents);
+  BrowserWindowInterface* browser =
+      tab ? tab->GetBrowserWindowInterface() : nullptr;
+  return browser ? SidebarHeader::From(browser) : nullptr;
+}
+
+// Once for the browser: TranslationTabState is in //compass/browser, below
+// the UI.
+void RegisterTranslationCallbacks() {
+  static bool registered = false;
+  if (registered) {
+    return;
+  }
+  registered = true;
+  translate::TranslationTabState::SetChangedCallback(
+      base::BindRepeating([](content::WebContents* web_contents) {
+        tabs::TabInterface* tab =
+            tabs::TabInterface::MaybeGetFromContents(web_contents);
+        SidebarHeader* header = HeaderForContents(web_contents);
+        if (header && tab && tab->IsActivated()) {
+          header->UpdateTranslateButton();
+        }
+      }));
+  translate::TranslationTabState::SetCanShowCallback(
+      base::BindRepeating([](content::WebContents* web_contents) {
+        SidebarHeader* header = HeaderForContents(web_contents);
+        return header && header->HasPill();
+      }));
+}
+
 }  // namespace
+
+// The translate button's right-click: its menu.
+class TranslateContextMenu : public views::ContextMenuController {
+ public:
+  explicit TranslateContextMenu(base::RepeatingClosure show)
+      : show_(std::move(show)) {}
+
+ private:
+  void ShowContextMenuForViewImpl(views::View* source,
+                                  const gfx::Point& point,
+                                  ui::mojom::MenuSourceType source_type) override {
+    show_.Run();
+  }
+
+  base::RepeatingClosure show_;
+};
 
 DEFINE_USER_DATA(SidebarHeader);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SidebarHeader, kSiteInfoButtonElementId);
@@ -303,6 +361,20 @@ SidebarHeader::SidebarHeader(
       &SidebarHeader::OnReaderPressed, base::Unretained(this)));
   reader->SetVisible(false);
   reader_ = AddChildView(std::move(reader));
+  // Hidden until the active tab is in a language to translate.
+  auto translate = std::make_unique<views::LabelButton>(base::BindRepeating(
+      &SidebarHeader::OnTranslatePressed, base::Unretained(this)));
+  translate->SetVisible(false);
+  translate->SetBorder(views::CreateEmptyBorder(0));
+  translate->SetImageLabelSpacing(kTranslateLabelSpacing);
+  translate->SetHorizontalAlignment(gfx::ALIGN_CENTER);
+  translate->SetEnabledTextColors(kColorOmniboxText);
+  translate_context_menu_ = std::make_unique<TranslateContextMenu>(
+      base::BindRepeating(&SidebarHeader::ShowTranslateMenu,
+                          base::Unretained(this)));
+  translate->set_context_menu_controller(translate_context_menu_.get());
+  translate_ = AddChildView(std::move(translate));
+  RegisterTranslationCallbacks();
 
   extensions_slot_ = AddChildView(CreateSlot());
   pinned_actions_slot_ = AddChildView(CreateSlot());
@@ -517,6 +589,17 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
   if (show_reader_) {
     icons_right -= kSiteInfoSize + kButtonGap;
   }
+  // Translate before Reader: an icon, with the download's progress beside
+  // it while a language downloads.
+  const int translate_width = TranslateButtonWidth();
+  layout.child_layouts.emplace_back(
+      translate_.get(), show_translate_,
+      gfx::Rect(icons_right - translate_width,
+                pill_center_y - kSiteInfoSize / 2, translate_width,
+                kSiteInfoSize));
+  if (show_translate_) {
+    icons_right -= translate_width + kButtonGap;
+  }
   const gfx::Size icons_size = content_settings_->GetPreferredSize();
   layout.child_layouts.emplace_back(
       content_settings_.get(), icons_size.width() > 0,
@@ -582,6 +665,7 @@ bool SidebarHeader::IsPositionInWindowCaption(const gfx::Point& point) {
         static_cast<views::View*>(reload_), static_cast<views::View*>(pill_),
         static_cast<views::View*>(site_info_),
         static_cast<views::View*>(reader_),
+        static_cast<views::View*>(translate_),
         static_cast<views::View*>(content_settings_), extensions_slot_.get(),
         pinned_actions_slot_.get(), app_menu_slot_.get()}) {
     if (view->GetVisible() && view->bounds().Contains(point)) {
@@ -895,6 +979,7 @@ void SidebarHeader::UpdateForActiveTab() {
   }
   UpdateContentSettingsIcons();
   UpdateReaderButton();
+  UpdateTranslateButton();
   reload_->ChangeMode(contents && contents->IsLoading()
                           ? ReloadButton::Mode::kStop
                           : ReloadButton::Mode::kReload,
@@ -908,6 +993,9 @@ void SidebarHeader::UpdatePillInsets() {
   int icons_width = content_settings_->GetPreferredSize().width();
   if (show_reader_) {
     icons_width += kSiteInfoSize + (icons_width > 0 ? kButtonGap : 0);
+  }
+  if (show_translate_) {
+    icons_width += TranslateButtonWidth() + (icons_width > 0 ? kButtonGap : 0);
   }
   const int text_right = icons_width > 0
                              ? kSiteInfoInset + icons_width + kSiteInfoInset
@@ -949,6 +1037,132 @@ void SidebarHeader::OnReaderPressed() {
   if (ReaderMode* reader_mode = ReaderMode::From(browser_)) {
     reader_mode->Toggle();
   }
+}
+
+bool SidebarHeader::HasPill() const {
+  return state_controller_->ShouldDisplayVerticalTabs() &&
+         !IsLaidOutCollapsed(width());
+}
+
+int SidebarHeader::TranslateButtonWidth() const {
+  return translate_->GetText().empty()
+             ? kSiteInfoSize
+             : std::max(kSiteInfoSize, translate_->GetPreferredSize().width());
+}
+
+void SidebarHeader::UpdateTranslateButton() {
+  using translate::TranslationTabState;
+  tabs::TabInterface* tab = browser_->GetActiveTabInterface();
+  content::WebContents* contents = tab ? tab->GetContents() : nullptr;
+  TranslationTabState* state =
+      contents ? TranslationTabState::FromWebContents(contents) : nullptr;
+  const TranslationTabState::Step step =
+      state ? state->step() : TranslationTabState::Step::kNone;
+  const bool show = step != TranslationTabState::Step::kNone;
+
+  // Accent while translated or busy, as Reader's book in Reader; the error
+  // color when it failed.
+  ui::ColorId color = kColorOmniboxText;
+  std::u16string label;
+  std::u16string tooltip;
+  const std::u16string language =
+      state ? l10n_util::GetDisplayNameForLocale(
+                  state->source_language(),
+                  g_browser_process->GetApplicationLocale(), true)
+            : std::u16string();
+  switch (step) {
+    case TranslationTabState::Step::kNone:
+      break;
+    case TranslationTabState::Step::kOffered:
+      tooltip = l10n_util::GetStringFUTF16(
+          IDS_COMPASS_SIDEBAR_HEADER_TRANSLATE_FROM, language);
+      break;
+    case TranslationTabState::Step::kTranslating:
+      color = ui::kColorSysPrimary;
+      tooltip =
+          l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_HEADER_TRANSLATING);
+      break;
+    case TranslationTabState::Step::kDownloading: {
+      color = ui::kColorSysPrimary;
+      // "12/45 MB": whole megabytes, at least 1 of the total.
+      const int64_t mb = 1000 * 1000;
+      const std::u16string received =
+          base::FormatNumber(state->received() / mb);
+      const std::u16string total =
+          base::FormatNumber(std::max<int64_t>(1, (state->total() + mb / 2) / mb));
+      label = l10n_util::GetStringFUTF16(
+          IDS_COMPASS_SIDEBAR_HEADER_TRANSLATE_PROGRESS, received, total);
+      tooltip = l10n_util::GetStringFUTF16(
+          IDS_COMPASS_SIDEBAR_HEADER_TRANSLATE_DOWNLOADING, language, received,
+          total);
+      break;
+    }
+    case TranslationTabState::Step::kTranslated:
+      color = ui::kColorSysPrimary;
+      tooltip = l10n_util::GetStringFUTF16(
+          IDS_COMPASS_TRANSLATE_MENU_TRANSLATED_FROM, language);
+      break;
+    case TranslationTabState::Step::kError:
+      color = ui::kColorSysError;
+      tooltip =
+          l10n_util::GetStringUTF16(IDS_COMPASS_SIDEBAR_HEADER_TRANSLATE_FAILED);
+      break;
+  }
+  const bool changed = show != show_translate_ ||
+                       label != translate_->GetText() ||
+                       tooltip != translate_->GetTooltipText();
+  show_translate_ = show;
+  translate_->SetImageModel(
+      views::Button::STATE_NORMAL,
+      ui::ImageModel::FromVectorIcon(kTranslateOldIcon, color,
+                                     kSiteInfoIconSize));
+  translate_->SetText(label);
+  translate_->SetTooltipText(tooltip);
+  translate_->GetViewAccessibility().SetName(tooltip);
+  translate_->SetVisible(show);
+  if (changed) {
+    UpdatePillInsets();
+    InvalidateLayout();
+  }
+}
+
+void SidebarHeader::OnTranslatePressed() {
+  using translate::TranslationTabState;
+  tabs::TabInterface* tab = browser_->GetActiveTabInterface();
+  content::WebContents* contents = tab ? tab->GetContents() : nullptr;
+  TranslationTabState* state =
+      contents ? TranslationTabState::FromWebContents(contents) : nullptr;
+  if (!state) {
+    return;
+  }
+  switch (state->step()) {
+    case TranslationTabState::Step::kOffered:
+      // Into the user's language, as the context menu's "Translate to …".
+      if (ChromeTranslateClient* client =
+              ChromeTranslateClient::FromWebContents(contents)) {
+        client->GetTranslateManager()->ShowTranslateUI(
+            /*auto_translate=*/true, /*triggered_from_menu=*/true);
+      }
+      break;
+    case TranslationTabState::Step::kTranslated:
+    case TranslationTabState::Step::kError:
+      ShowTranslateMenu();
+      break;
+    case TranslationTabState::Step::kNone:
+    case TranslationTabState::Step::kTranslating:
+    case TranslationTabState::Step::kDownloading:
+      break;
+  }
+}
+
+void SidebarHeader::ShowTranslateMenu() {
+  tabs::TabInterface* tab = browser_->GetActiveTabInterface();
+  content::WebContents* contents = tab ? tab->GetContents() : nullptr;
+  if (!contents || !show_translate_) {
+    return;
+  }
+  translate_menu_ = std::make_unique<TranslatePillMenu>(contents);
+  translate_menu_->Show(translate_);
 }
 
 void SidebarHeader::OnPillPressed() {

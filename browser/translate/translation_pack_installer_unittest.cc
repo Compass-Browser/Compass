@@ -193,8 +193,23 @@ TEST_F(PackInstallerTest, DownloadsLargeModels) {
   model.decompressed_hash = Sha256(plain);
   factory_.AddResponse(kCdn + model.location, compressed);
 
+  // The pill's progress: rising, to every file's bytes.
+  int64_t expected_total = 0;
+  for (const auto& [direction, files] : manifest_.directions) {
+    for (const ModelFile& file : files.files) {
+      expected_total += file.size;
+    }
+  }
+  std::vector<std::pair<int64_t, int64_t>> progress;
+  installer_.OnProgress(
+      kGerman, base::BindLambdaForTesting([&](int64_t received, int64_t total) {
+        progress.emplace_back(received, total);
+      }));
   EXPECT_EQ(Install(), true);
   EXPECT_EQ(Read("en-de/model.bin"), plain);
+  ASSERT_FALSE(progress.empty());
+  EXPECT_TRUE(std::ranges::is_sorted(progress));
+  EXPECT_EQ(progress.back(), std::make_pair(expected_total, expected_total));
 }
 
 TEST_F(PackInstallerTest, UninstallForgetsAndDeletes) {

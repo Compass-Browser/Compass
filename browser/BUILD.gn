@@ -21,6 +21,7 @@ if (!is_android) {
       public_deps += [
         "//compass/browser/translate",
         "//compass/browser/translate:page_translator_host",
+        "//compass/browser/translate:tab_state",
       ]
     }
   }

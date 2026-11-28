@@ -68,6 +68,12 @@ class PackInstaller {
   // the next one (an install refused for want of consent says false).
   void OnInstalled(Key key, base::OnceCallback<void(bool)> callback);
 
+  // Runs `callback` with the bytes downloaded so far and in all, while
+  // `key`'s install downloads (the pinned sizes, so the total is exact).
+  // Dropped once the install ends.
+  void OnProgress(Key key,
+                  base::RepeatingCallback<void(int64_t, int64_t)> callback);
+
   // Forgets the pack and deletes its folder.
   void Uninstall(Key key, PrefService* local_state);
 
@@ -91,6 +97,7 @@ class PackInstaller {
   void OnMoved(Key key, bool ok);
   void Finish(Key key, bool ok);
   void Report(Key key, bool ok);
+  void ReportProgress(Key key, uint64_t current_file_bytes);
 
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory();
   const Manifest& manifest() const;
@@ -101,6 +108,8 @@ class PackInstaller {
   base::FilePath packs_dir_for_testing_;
   base::RepeatingCallback<void(Key, bool)> result_callback_;
   std::map<Key, std::vector<base::OnceCallback<void(bool)>>> waiters_;
+  std::map<Key, std::vector<base::RepeatingCallback<void(int64_t, int64_t)>>>
+      progress_;
   base::WeakPtrFactory<PackInstaller> weak_factory_{this};
 };
 

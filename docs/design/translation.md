@@ -450,15 +450,31 @@ fetcher that never fetches.
 
 ### What the user sees
 
-Upstream's, with the anchors command-bar.md describes: the translate
-bubble from the pill when Compass detects a language the user doesn't read
-(the Languages settings' "Offer to translate" switch and each language's
-own switch), Translate, the target language menu, "Always translate",
-"Never translate <language>", "Never translate this site", and "Show
-original". The command bar has "Translate Page" (upstream's bubble,
-translating into the user's language, as the context menu's "Translate
-to …" does) and "Show Original" (`CommandBarCommand::kTranslatePage`,
-`kShowOriginal`), each when it applies.
+Not upstream's translate bubble: a translate button in the address pill,
+before Reader's (`SidebarHeader`, from the tab's `TranslationTabState`).
+`ChromeTranslateClient::ShowTranslateUI()` (patch) hands each translate
+step to `TranslationTabState::OnTranslateStep()`, which keeps it for the
+tab and tells the window's header; upstream's bubble shows only where the
+window has no pill (the sidebar laid out collapsed, or horizontal tabs).
+
+- On a page in a language the user doesn't read (the Languages settings'
+  "Offer to translate" switch and each language's own switch), the button
+  shows; pressing it translates into the user's language.
+- While the language downloads the first time, the button is accent-colored
+  with the download's progress beside it ("12/45 MB", from
+  `PackInstaller::OnProgress()`, every file of the pack counted), so a slow
+  connection shows it moving; then accent-colored while it translates.
+- Translated, pressing it (or right-clicking it) opens a menu
+  (`TranslatePillMenu`): "Translated from <language>", Translate To (the
+  on-device languages), Show Original, Always Translate <language>, Never
+  Translate <language>, Never Translate This Site. A failed translation
+  shows the button in the error color, and its menu has Try Again.
+
+The command bar has "Translate Page" (translating into the user's
+language, as the context menu's "Translate to …" does) and "Show Original"
+(`CommandBarCommand::kTranslatePage`, `kShowOriginal`), each when it
+applies. Translating into another language restores the original first
+(`start()` calls `restore()`).
 
 ### Tests
 
@@ -468,7 +484,9 @@ English, not Javanese or Latin; translating it into English (with a real
 German pack, `COMPASS_TRANSLATEKIT_TEST_PACKAGES`) gives English, with the
 link the same node and its address, and Show Original gives the German
 back; asking for Italian, whose pack isn't there, shows the dialog, and
-closing it leaves the page, the consent and the disk as they were.
+closing it leaves the page, the consent and the disk as they were; the
+pill's button shows on the German page (no bubble), with a download's
+progress, and goes on a page that needs nothing.
 
 ## The shared page translator: `common/translate/`
 

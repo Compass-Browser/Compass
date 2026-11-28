@@ -19,6 +19,7 @@
 <translation id="1068505757538917114"><ph name="SOURCE"/> · versione <ph name="VERSION"/></translation>
 <translation id="1076176485976385390">Naviga nelle pagine con un cursore di testo</translation>
 <translation id="1079314764977154308">Il server di sincronizzazione ha rifiutato la chiave di questo dispositivo.</translation>
+<translation id="1097016918605049747">Impossibile tradurre questa pagina</translation>
 <translation id="1100341197968771382">una scorciatoia integrata</translation>
 <translation id="1102848279370483337">Freccia</translation>
 <translation id="1113115104689692419">Creane uno con l’AI</translation>
@@ -52,6 +53,7 @@
 <translation id="1239905499208563226">Cookie e monitoraggio</translation>
 <translation id="1241131978124823237">Se l’opzione è attiva, può fare richieste a <ph name="SITE"/> a nome tuo, per ciò che la pagina non mostra (o quando la scheda non è caricata).</translation>
 <translation id="124580507225612819">Attiva · Si è verificato un problema</translation>
+<translation id="1256073422845836036">Download della lingua per la traduzione (<ph name="LANGUAGE"/>): <ph name="RECEIVED"/> di <ph name="TOTAL"/> MB</translation>
 <translation id="1272079795634619415">Interrompi</translation>
 <translation id="1274997165432133392">Cookie e altri dati dei siti</translation>
 <translation id="1276831428531350346">aggiornato <ph name="TIME"/></translation>
@@ -238,6 +240,7 @@
 <translation id="2038146667522155575">Impossibile raggiungere il server di sincronizzazione. Controlla la connessione e riprova.</translation>
 <translation id="204896945852119825">Inserisci l’URL del server nelle impostazioni AI di Compass.</translation>
 <translation id="2052159075154647808">Digita il dominio di un sito, come github.com.</translation>
+<translation id="2056149358333807487">Lingua della pagina: <ph name="LANGUAGE"/></translation>
 <translation id="2062461507577434820">Tempo per l’accesso scaduto. Riprova.</translation>
 <translation id="2074527029802029717">Stacca scheda</translation>
 <translation id="2079545284768500474">Annulla</translation>
@@ -278,6 +281,7 @@
 <translation id="2230745189011354558">Il codice di accesso è stato rifiutato. Riprova.</translation>
 <translation id="2234784981527240207">Le schede fissate e di Oggi di ogni spazio, e i preferiti, in un file di preferiti che gli altri browser possono importare.</translation>
 <translation id="223530923557420737">Accedi con Cloudflare</translation>
+<translation id="2245007488813216650">Traduzione in corso…</translation>
 <translation id="2277348798695860037">Accesso a ChatGPT effettuato</translation>
 <translation id="2283340219607151381">Salva e compila gli indirizzi</translation>
 <translation id="2283599456633275070">Viaggi</translation>
@@ -295,6 +299,7 @@
 <translation id="2337752761229532342">Chiudi tutte le schede di Oggi</translation>
 <translation id="2342637294302022028">Stato, provincia o regione</translation>
 <translation id="2344699840450629255">Nessuna pagina.</translation>
+<translation id="2345212124392765439"><ph name="RECEIVED"/>/<ph name="TOTAL"/> MB</translation>
 <translation id="2354001756790975382">Altri preferiti</translation>
 <translation id="2356070529366658676">Chiedi</translation>
 <translation id="2356486750828092012">Plug-in <ph name="PLUGIN"/> salvato</translation>
@@ -502,6 +507,7 @@
 <translation id="3435738964857648380">Sicurezza</translation>
 <translation id="3436730192282757783">Risultato precedente</translation>
 <translation id="3447959677935026021">L’AI non ha trovato niente da raggruppare.</translation>
+<translation id="3463995061235686694">Traduci (lingua: <ph name="LANGUAGE"/>)</translation>
 <translation id="3466804934534685134">Interrompere la condivisione di questo spazio e rimuoverlo per tutti gli altri? Tu lo conservi.</translation>
 <translation id="3469641531337589611">Abbandonare questo Easel? Ne conservi una copia, ma non vedrai le nuove modifiche.</translation>
 <translation id="3469883420924901622">Ancora nessun sito.</translation>
@@ -561,6 +567,7 @@
 <translation id="376496549735496273">Aperta in un’altra finestra</translation>
 <translation id="3778003001552564357">Nuovo spazio</translation>
 <translation id="3778480000181598963">Chiede conferma prima di caricare un sito che non supporta HTTPS.</translation>
+<translation id="3778625847282660625">Traduci in</translation>
 <translation id="3782558568939869343">L’immagine è troppo grande.</translation>
 <translation id="3786400164387471854">Indirizzo del plug-in</translation>
 <translation id="3789841737615482174">Installa</translation>
@@ -595,6 +602,7 @@
 <translation id="3930972162258120884">Indirizzo della pagina</translation>
 <translation id="3934894503292640523">Aggiungi una lingua</translation>
 <translation id="3936622730978434355">Con <ph name="QUERY_MARKER"/> al posto della query.</translation>
+<translation id="3937734102568271121">Traduci sempre: <ph name="LANGUAGE"/></translation>
 <translation id="3941619278205207566">Cloudflare ha rifiutato: <ph name="DETAIL"/></translation>
 <translation id="3950820424414687140">Accedi</translation>
 <translation id="3957175045527710923">Aggiungi un Boost condiviso</translation>
@@ -663,6 +671,7 @@
 <translation id="4304713468139749426">Gestore delle password</translation>
 <translation id="4306414566928973863">Sposta <ph name="SPACE_NAME"/> su</translation>
 <translation id="4308718001970679543">L’AI nel tuo browser: chi risponde e cosa può fare per te.</translation>
+<translation id="4330387663455830245">Non tradurre mai: <ph name="LANGUAGE"/></translation>
 <translation id="4334139056767785807">Uscire dalla sincronizzazione?</translation>
 <translation id="4349466300610158888">Elimina…</translation>
 <translation id="4350065043422286972">Fissate</translation>
@@ -1069,6 +1078,7 @@
 <translation id="636707727606848255">Abbandonare questa cartella? Ne conservi una copia, ma non vedrai le nuove modifiche.</translation>
 <translation id="6371092262877009574">Apri in un altro spazio</translation>
 <translation id="637406999975196449">Persone (<ph name="COUNT"/>)</translation>
+<translation id="6374469231428023295">Riprova</translation>
 <translation id="6396245540664667690">Laguna</translation>
 <translation id="6398563884302288138">Impossibile preparare la richiesta.</translation>
 <translation id="6399962032705774348">Questa carta non può essere modificata qui.</translation>
@@ -1279,6 +1289,7 @@
 <translation id="7368834076925537932">L’aggiornamento è pronto per l’installazione.</translation>
 <translation id="7372509729467126439">I Boost cambiano l’aspetto e il funzionamento dei siti: sono CSS e JavaScript che Compass aggiunge a ogni pagina di un sito, su tutti i tuoi dispositivi. Creali qui o chiedi all’AI (attiva “Creare Boost” nelle impostazioni dell’AI). Il JavaScript di un Boost può leggere e modificare le pagine su cui viene eseguito, quindi tieni solo codice di cui ti fidi. Condividi un Boost come link o come file; i Boost che altri condividono con te sono contrassegnati come Condiviso.</translation>
 <translation id="7374157779560569797">Accesso a ChatGPT non riuscito</translation>
+<translation id="7381262540602648723">Lingua originale: <ph name="LANGUAGE"/></translation>
 <translation id="7385536216722631628">Un Easel condiviso non è più condiviso. La tua copia resta qui.</translation>
 <translation id="738840791756723657">AI</translation>
 <translation id="7393376631934755721">Consenti client MCP</translation>
@@ -1566,6 +1577,7 @@
 <translation id="8779284704003916015">Consenti a Claude Code di usare i propri strumenti</translation>
 <translation id="8782952946547676069">Risparmio memoria</translation>
 <translation id="8797199551262878789">Il browser predefinito è gestito dalla tua organizzazione.</translation>
+<translation id="8797459392481275117">Non tradurre mai questo sito</translation>
 <translation id="8798099450830957504">Predefinito</translation>
 <translation id="8802459921616481935">Sposta nel Cestino</translation>
 <translation id="8803266205232132210">Uno spazio condiviso non è più condiviso. La tua copia resta qui.</translation>

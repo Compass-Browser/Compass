@@ -574,7 +574,9 @@
   }
 
   function start({source, target, engine}) {
-    stop();
+    // Into another language (Translate To): from the original, not from
+    // the last translation.
+    restore();
     state = {
       source, target, engine,
       waiting: [],
