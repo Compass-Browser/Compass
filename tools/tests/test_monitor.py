@@ -62,16 +62,36 @@ class ParseTest(unittest.TestCase):
                      monitor.job_time('compass-linux-20261127-233900'))
     self.assertEqual(monitor.version_time('nope'), 0.0)
 
-  def test_pick_job_takes_the_first_since_the_version(self):
-    jobs = [{'id': 'compass-linux-20261127-184244', 'recipe': 'linux'},
-            {'id': 'compass-linux-20261127-234003', 'recipe': 'linux'},
-            {'id': 'compass-linux-20261128-090000', 'recipe': 'linux'},
+  def test_pick_job_prefers_a_running_one_then_the_newest(self):
+    jobs = [{'id': 'compass-linux-20261127-184244', 'recipe': 'linux',
+             'status': 'ok'},
+            {'id': 'compass-linux-20261127-234003', 'recipe': 'linux',
+             'status': 'ok'},
+            {'id': 'compass-linux-20261128-012851', 'recipe': 'linux',
+             'status': 'running'},
+            {'id': 'compass-linux-20261128-090000', 'recipe': 'linux',
+             'status': 'ok'},
             {'id': 'compass-win-release-build-20261127-233959',
-             'recipe': 'win-release-build'}]
-    self.assertEqual(
-        monitor.pick_job(jobs, 'linux', '20261127.2339')['id'],
-        'compass-linux-20261127-234003')
-    self.assertIsNone(monitor.pick_job(jobs, 'linux', '20261129.0000'))
+             'recipe': 'win-release-build', 'status': 'ok'}]
+    pick = lambda *a: (monitor.pick_job(jobs, 'linux', *a) or {}).get('id')
+    # The stable repackage that's running, not the canary build before it.
+    self.assertEqual(pick('20261127.2339'), 'compass-linux-20261128-012851')
+    # Done, the newest; not a later release's.
+    jobs[2]['status'] = 'ok'
+    self.assertEqual(pick('20261127.2339'), 'compass-linux-20261128-090000')
+    self.assertEqual(pick('20261127.2339', '20261128.0900'),
+                     'compass-linux-20261128-012851')
+    self.assertEqual(pick('20261127.1842', '20261127.2339'),
+                     'compass-linux-20261127-184244')
+    self.assertIsNone(pick('20261129.0000'))
+
+  def test_next_version(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      for v in ('20261127.1842', '20261127.2339', '20261128.0900'):
+        (Path(tmp) / ('release-mac-%s.log' % v)).write_text('')
+      self.assertEqual(monitor.next_version(Path(tmp), '20261127.1842'),
+                       '20261127.2339')
+      self.assertIsNone(monitor.next_version(Path(tmp), '20261128.0900'))
 
 
 class StepsTest(unittest.TestCase):

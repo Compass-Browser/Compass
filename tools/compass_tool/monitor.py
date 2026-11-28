@@ -337,12 +337,30 @@ def query_win(version: str) -> Optional[Dict]:
   return {'jobs': jobs, 'linux': linux}
 
 
-def pick_job(jobs: List[Dict], recipe: str, version: str) -> Optional[Dict]:
-  """The first |recipe| job queued since the release began."""
+def pick_job(jobs: List[Dict], recipe: str, version: str,
+             next_version: Optional[str] = None) -> Optional[Dict]:
+  """The |recipe| job of the release: of those queued since it began (and
+  before |next_version|'s began, if there's a later release), a running or
+  queued one, else the newest. A version gets more than one (promoting
+  Linux to stable repackages it), and the latest is the one to watch."""
   since = version_time(version) - 600
+  until = version_time(next_version) - 600 if next_version else float('inf')
   found = [j for j in jobs if j.get('recipe') == recipe and
-           job_time(j['id']) >= since]
-  return min(found, key=lambda j: job_time(j['id'])) if found else None
+           since <= job_time(j['id']) < until]
+  if not found:
+    return None
+  alive = [j for j in found if j.get('status') in ('running', 'queued')]
+  return max(alive or found, key=lambda j: job_time(j['id']))
+
+
+def next_version(out: Path, version: str) -> Optional[str]:
+  """The first release after |version| with a log in |out|, if any."""
+  later = []
+  for log in out.glob('release-mac-*.log'):
+    match = VERSION_RE.search(log.name)
+    if match and version_time('%s.%s' % match.groups()) > version_time(version):
+      later.append('%s.%s' % match.groups())
+  return min(later, key=version_time) if later else None
 
 
 # Jobs -----------------------------------------------------------------------
@@ -403,6 +421,7 @@ class Monitor:
     self.out = out
     self.depot_tools = depot_tools
     self.mac_log = out / ('release-mac-%s.log' % version)
+    self.next_version = next_version(out, version)
     self.rates: Dict[str, Rate] = collections.defaultdict(Rate)
     self.first_seen: Dict[str, float] = {}
     self.done_seen: Dict[str, float] = {}
@@ -717,7 +736,8 @@ class Monitor:
     for recipe, (title, phases) in self.FARM.items():
       job = Job(title)
       job.steps = [Step(name) for name, _ in phases]
-      found = pick_job(win['jobs'], recipe, self.version) if win else None
+      found = pick_job(win['jobs'], recipe, self.version,
+                         self.next_version) if win else None
       if win is None:
         job.state = WAITING
         job.note = 'asking win1…' if not self.win_error else 'win1 unreachable'
@@ -860,7 +880,8 @@ class Monitor:
   def _publish_win(self, procs: Dict[int, Proc], win: Optional[Dict],
                    assets: Dict) -> Job:
     v = self.version
-    found = pick_job(win['jobs'], 'win-release-build', v) if win else None
+    found = pick_job(win['jobs'], 'win-release-build', v,
+                     self.next_version) if win else None
     folder = BUILDS / (found['id'] if found else 'compass-win-release-build')
     names = ['CompassSetup-%s.exe' % v, 'CompassSetup-%s.json' % v,
              release.win_installer_name(v)]
