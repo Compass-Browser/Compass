@@ -177,7 +177,8 @@ def upload(file, compressed):
          '--remote',
          '--content-type', 'application/zstd',
          '--cache-control', 'public, max-age=31536000, immutable'],
-        check=True, stdout=subprocess.DEVNULL)
+        # In the temporary folder: wrangler leaves a .wrangler cache behind.
+        cwd=temp, check=True, stdout=subprocess.DEVNULL)
 
 
 def each_file(data, action):
