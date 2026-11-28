@@ -464,7 +464,11 @@ window has no pill (the sidebar laid out collapsed, or horizontal tabs).
   with the download's progress beside it ("12/45 MB", from
   `PackInstaller::OnProgress()`, every file of the pack counted), so a slow
   connection shows it moving; then accent-colored while it translates.
-- Translated, pressing it (or right-clicking it) opens a menu
+- The page counts as translated once the first batch (the first screen)
+  is back (`started()` in `page_translator.js`, not `idle()`): the rest
+  goes on as it comes, and the menu's Show Original works from then on.
+- Translated, or still translating, pressing it (or right-clicking it)
+  opens a menu
   (`TranslatePillMenu`): "Translated from <language>", Translate To (the
   on-device languages), Show Original, Always Translate <language>, Never
   Translate <language>, Never Translate This Site. A failed translation
@@ -492,7 +496,8 @@ progress, and goes on a page that needs nothing.
 
 `page_translator.js` defines `__compassTranslator` in the world it runs in:
 `start({source, target, engine})`, `stop()`, `restore()`, `progress()`
-(`{done, pending, failed}`) and `idle()` (a promise for "nothing left").
+(`{done, pending, failed}`), `idle()` (a promise for "nothing left") and
+`started()` (for "the first batch is back").
 `engine` is an async function from segments (`{text, html}`) to their
 translations, `null` for one it couldn't do: `compassTranslate` on the
 desktop, a script message on iOS. It's written for Compass; it follows the

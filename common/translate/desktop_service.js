@@ -50,7 +50,9 @@
         };
         __compassTranslator.start({source, target, engine});
         progress(0, false);
-        __compassTranslator.idle().then(() => {
+        // Translated once the first screen is: the rest goes on as the
+        // page scrolls, and Show Original works from then on.
+        __compassTranslator.started().then(() => {
           const {done, failed} = __compassTranslator.progress();
           if (error && !done) {
             progress(100, true, error);

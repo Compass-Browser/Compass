@@ -20,6 +20,8 @@
 //   __compassTranslator.restore()   stops and puts the original back
 //   __compassTranslator.progress()  {done, pending, failed}
 //   __compassTranslator.idle()      Promise: nothing left to translate
+//   __compassTranslator.started()   Promise: the first batch is back (the
+//                                   first screen), or nothing to translate
 
 (() => {
   'use strict';
@@ -510,6 +512,7 @@
             current.inFlight--;
             if (state === current) {
               missing.forEach(unit => unit.release());
+              firstBack();
               pump();
               settle();
             }
@@ -520,10 +523,21 @@
 
   function settle() {
     if (state && !state.waiting.length && !state.inFlight) {
+      firstBack();
       const waiters = state.idleWaiters;
       state.idleWaiters = [];
       waiters.forEach(resolve => resolve());
     }
+  }
+
+  function firstBack() {
+    if (!state || state.firstBack) {
+      return;
+    }
+    state.firstBack = true;
+    const waiters = state.firstWaiters;
+    state.firstWaiters = [];
+    waiters.forEach(resolve => resolve());
   }
 
   // Our own writes aren't the page changing: their mutation records are
@@ -589,6 +603,8 @@
       generation: 1,
       scheduled: false,
       idleWaiters: [],
+      firstWaiters: [],
+      firstBack: false,
       originalText: new WeakMap(),
       originalAttributes: new WeakMap(),
       originalChildren: new WeakMap(),
@@ -640,6 +656,7 @@
     state.mutations?.disconnect();
     state.intersection?.disconnect();
     state.waiting = [];
+    firstBack();
     const waiters = state.idleWaiters;
     state.idleWaiters = [];
     waiters.forEach(resolve => resolve());
@@ -700,5 +717,13 @@
     return new Promise(resolve => state.idleWaiters.push(resolve));
   }
 
-  globalThis.__compassTranslator = {start, stop, restore, progress, idle};
+  function started() {
+    if (!state || state.stopped || state.firstBack) {
+      return Promise.resolve();
+    }
+    return new Promise(resolve => state.firstWaiters.push(resolve));
+  }
+
+  globalThis.__compassTranslator =
+      {start, stop, restore, progress, idle, started};
 })();

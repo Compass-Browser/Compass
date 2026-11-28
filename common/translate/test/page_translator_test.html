@@ -160,6 +160,32 @@ async function engine(segments) {
         'KLICKEN SIE HIER, UM WEITERZUMACHEN.', text('inline'));
   T.restore();
 
+  // Into another language: from the original, not from the translation.
+  T.start({source: 'de', target: 'en', engine});
+  await T.idle();
+  const quote = async segments => segments.map(({text}) => '«' + text + '»');
+  T.start({source: 'de', target: 'es', engine: quote});
+  await T.idle();
+  check('retranslates the original', text('plain') === '«Geändert»',
+        text('plain'));
+  T.restore();
+  check('restored after retranslating', text('plain') === 'Geändert',
+        text('plain'));
+
+  // started(): once the first batch is back, before the rest.
+  let release;
+  const gate = new Promise(resolve => release = resolve);
+  let batches = 0;
+  T.start({source: 'de', target: 'en', engine: async segments => {
+    if (batches++) await gate;
+    return engine(segments);
+  }});
+  await T.started();
+  check('started after the first batch', T.progress().done > 0, T.progress());
+  release();
+  await T.idle();
+  T.restore();
+
   // A failing engine leaves the page as it is.
   T.start({source: 'de', target: 'fr', engine: async () => {
     throw new Error('no');

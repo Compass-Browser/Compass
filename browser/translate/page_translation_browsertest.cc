@@ -34,7 +34,11 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
+#include "ui/events/event.h"
+#include "ui/events/event_utils.h"
 #include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/menu/menu_controller.h"
+#include "ui/views/widget/widget.h"
 
 namespace compass {
 namespace {
@@ -108,6 +112,21 @@ class PageTranslationBrowserTest : public InProcessBrowserTest {
     return SidebarHeader::From(browser())->translate_button_for_testing();
   }
 
+  // A real left click, through the widget's hit testing.
+  void ClickTranslateButton() {
+    views::Widget* widget = translate_button()->GetWidget();
+    gfx::Point center = translate_button()->GetLocalBounds().CenterPoint();
+    views::View::ConvertPointToWidget(translate_button(), &center);
+    ui::MouseEvent press(ui::EventType::kMousePressed, center, center,
+                         ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                         ui::EF_LEFT_MOUSE_BUTTON);
+    ui::MouseEvent release(ui::EventType::kMouseReleased, center, center,
+                           ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                           ui::EF_LEFT_MOUSE_BUTTON);
+    widget->OnMouseEvent(&press);
+    widget->OnMouseEvent(&release);
+  }
+
   ChromeTranslateClient* client() {
     return ChromeTranslateClient::FromWebContents(contents());
   }
@@ -161,6 +180,57 @@ IN_PROC_BROWSER_TEST_F(PageTranslationBrowserTest, PillButtonOffers) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
   EXPECT_EQ(tab_state()->step(), Step::kNone);
   EXPECT_FALSE(translate_button()->GetVisible());
+}
+
+// Clicking the pill's button translates into the user's language: with
+// the German pack there, at once; without it, first asking to download.
+IN_PROC_BROWSER_TEST_F(PageTranslationBrowserTest, PillButtonTranslates) {
+  using Step = compass::translate::TranslationTabState::Step;
+  LoadGermanPage();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return tab_state() && tab_state()->step() == Step::kOffered; }));
+  ClickTranslateButton();
+  auto* dialogs =
+      web_modal::WebContentsModalDialogManager::FromWebContents(contents());
+  if (TestPackages()) {
+    EXPECT_TRUE(base::test::RunUntil(
+        [&] { return tab_state()->step() == Step::kTranslated; }))
+        << "step " << static_cast<int>(tab_state()->step());
+    EXPECT_NE(Text("plain").find("Good morning"), std::string::npos)
+        << Text("plain");
+    return;
+  }
+  EXPECT_TRUE(base::test::RunUntil([&] { return dialogs->IsDialogActive(); }))
+      << "step " << static_cast<int>(tab_state()->step());
+  EXPECT_EQ(tab_state()->step(), Step::kTranslating);
+  dialogs->CloseAllDialogs();
+}
+
+// On a translated page, clicking the pill's button opens its menu.
+IN_PROC_BROWSER_TEST_F(PageTranslationBrowserTest, PillButtonOpensMenu) {
+  if (!TestPackages()) {
+    GTEST_SKIP() << "COMPASS_TRANSLATEKIT_TEST_PACKAGES isn't set";
+  }
+  using Step = compass::translate::TranslationTabState::Step;
+  LoadGermanPage();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return tab_state() && tab_state()->step() == Step::kOffered; }));
+  auto translated = ::translate::CreateTranslateWaiter(
+      contents(), TranslateWaiter::WaitEvent::kPageTranslated);
+  client()->GetTranslateManager()->TranslatePage("de", "en",
+                                                 /*triggered_from_menu=*/false);
+  translated->Wait();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return tab_state()->step() == Step::kTranslated; }))
+      << "step " << static_cast<int>(tab_state()->step());
+  ASSERT_TRUE(translate_button()->GetVisible());
+
+  ClickTranslateButton();
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return views::MenuController::GetActiveInstance() != nullptr; }));
+  if (views::MenuController* menu = views::MenuController::GetActiveInstance()) {
+    menu->Cancel(views::MenuController::ExitType::kAll);
+  }
 }
 
 // The pill's Translate: Compass's script in the page, the engine through

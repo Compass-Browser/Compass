@@ -438,6 +438,7 @@ views::ProposedLayout SidebarHeader::CalculateProposedLayout(
                               static_cast<views::View*>(pill_.get()),
                               static_cast<views::View*>(site_info_.get()),
                               static_cast<views::View*>(reader_.get()),
+                              static_cast<views::View*>(translate_.get()),
                               extensions_slot_.get(),
                               pinned_actions_slot_.get()}) {
       layout.child_layouts.emplace_back(view, false, gfx::Rect());
@@ -1144,13 +1145,13 @@ void SidebarHeader::OnTranslatePressed() {
             /*auto_translate=*/true, /*triggered_from_menu=*/true);
       }
       break;
+    case TranslationTabState::Step::kTranslating:
+    case TranslationTabState::Step::kDownloading:
     case TranslationTabState::Step::kTranslated:
     case TranslationTabState::Step::kError:
       ShowTranslateMenu();
       break;
     case TranslationTabState::Step::kNone:
-    case TranslationTabState::Step::kTranslating:
-    case TranslationTabState::Step::kDownloading:
       break;
   }
 }

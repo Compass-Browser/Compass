@@ -89,7 +89,7 @@ void TranslatePillMenu::Build() {
   if (translated) {
     model_->AddItemWithStringId(kShowOriginal,
                                 IDS_COMPASS_TRANSLATE_MENU_SHOW_ORIGINAL);
-  } else {
+  } else if (state && state->step() == TranslationTabState::Step::kError) {
     model_->AddItemWithStringId(kTryAgain, IDS_COMPASS_TRANSLATE_MENU_TRY_AGAIN);
   }
   model_->AddSeparator(ui::NORMAL_SEPARATOR);
