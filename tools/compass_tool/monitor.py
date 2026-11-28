@@ -160,9 +160,10 @@ def parse_lsof_offsets(text: str) -> Dict[str, int]:
 def upload_files(args: str) -> List[Path]:
   """The files a `gh release upload <tag> [--clobber] <file>...` sends.
   Paths can hold spaces (Application Support), so the arguments split only
-  where an absolute path starts."""
+  where an absolute path starts: / or, on Windows, a drive (C:\\)."""
   rest = re.sub(r'^.*?gh release upload \S+(?: --clobber)?', '', args)
-  files = [Path(p.strip()) for p in re.split(r' (?=/)', rest) if p.strip()]
+  files = [Path(p.strip())
+           for p in re.split(r' (?=/|[A-Za-z]:[\\/])', rest) if p.strip()]
   return [f for f in files if f.is_file()]
 
 
