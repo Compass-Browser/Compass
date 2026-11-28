@@ -57,11 +57,16 @@ ${this.isAsking_() ? html`
                   this.getCommandSymbol_(result)!)}"
               aria-hidden="true">
             <path d="${this.getCommandSymbol_(result)!.path}"></path>
+          </svg>` : html`${this.isSearch_(result) ? html`
+          <svg class="icon search search-result" viewBox="0 0 16 16"
+              aria-hidden="true">
+            <circle cx="7" cy="7" r="4.5"></circle>
+            <line x1="10.4" y1="10.4" x2="13.5" y2="13.5"></line>
           </svg>` : html`${result.spaceEmoji ? html`
           <span class="icon space-emoji" aria-hidden="true">
             ${result.spaceEmoji}</span>` : html`
           <span class="icon glyph" aria-hidden="true">
-            ${this.getGlyph_(result)}</span>`}`}`}`}
+            ${this.getGlyph_(result)}</span>`}`}`}`}`}
         <span class="title">${result.title}</span>
         ${result.subtitle ? html`
           <span class="subtitle">${result.subtitle}</span>` : nothing}
@@ -72,7 +77,8 @@ ${this.isAsking_() ? html`
             ${i18n('commandBarAboutPage')}
           </button>` :
           nothing}
-        <span class="action">${result.action}</span>
+        ${result.action ? html`
+          <span class="action">${result.action}</span>` : nothing}
       </div>`)}
   </div>` : nothing}`}
 <!--_html_template_end_-->`;

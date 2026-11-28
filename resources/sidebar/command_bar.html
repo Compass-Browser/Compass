@@ -16,6 +16,13 @@
         background-color: var(--color-tab-search-background);
         margin: 0;
       }
+
+      /* Over the bubble's backdrop (what's behind the window, blurred), as
+       * a translucent sidebar over the window's: tinted, not covered. */
+      html[translucent] body {
+        background-color: color-mix(in srgb,
+            var(--color-tab-search-background) 45%, transparent);
+      }
     </style>
   </head>
   <body>

@@ -116,7 +116,15 @@ per change:
   field, as in the omnibox. Tab takes the completion as typed text, caret
   at its end, and queries again, so more words can follow; with no
   completion in the field, Tab fills it with the selected search
-  suggestion. Tab never moves focus out of the field.
+  suggestion. Tab never moves focus out of the field. Up and Down work as
+  in the omnibox: the field shows the selected row's `Result.fill_text`
+  (the match's `fill_into_edit`: a search's query, a page's URL; an
+  entry's or another device's tab's URL; the typed text for spaces,
+  commands and Claude's rows), caret at its end, without querying it.
+  Back on the first row, the typed text and its completion return.
+  Typing goes on from what the field shows; Tab takes it and queries it.
+  A later pass keeps the row the arrows chose while it's still listed.
+  The pointer selects rows without filling the field.
 - **Entries**: favorites and tab nodes of the profile's spaces whose title
   or URL contains every word of the query, at most five: favorites first,
   then the window's space, then the others. Shown as "Switch to". Choosing
@@ -171,6 +179,18 @@ its words are the first words of the command's name, whole ("settings",
 "new space", "chat" for Chat with Claude; not "sett"): Enter then runs it,
 and the default match's completion isn't put in the field. With an empty query in new-entry mode the list is the
 window's Today entries, most recent first, then the commands.
+
+Look: a search row shows the field's magnifier (an SVG, the same size and
+direction), not a glyph. Search and command rows have no label at their
+end (Enter's meaning is plain from the row); entries say "Open" or "Switch
+to tab", the Ask row "Ask" or "Answer". On macOS the bubble is translucent
+like a translucent sidebar: the frame and the page are clear
+(`WebContentsSetBackgroundColor`), and the page's background, at 45%, tints
+an `NSVisualEffectView` in the sidebar's material behind the window
+(`AddBubbleBackdrop()`, `window_frame_mac.mm`), masked to the bubble's
+rounded rectangle inside its shadow. The page learns it from
+`loadTimeData`'s `translucent`. Windows and Linux keep the opaque bubble:
+DWM's backdrop covers a whole window, not a bubble's rounded part.
 
 ### Accepting
 

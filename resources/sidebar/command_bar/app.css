@@ -80,6 +80,15 @@
   color: var(--color-sys-on-primary);
 }
 
+/* A search row's magnifier, as the field's but in the rows' muted color. */
+.search-result {
+  stroke: var(--color-tab-search-secondary-foreground);
+}
+
+.result[selected] .search-result {
+  stroke: color-mix(in srgb, var(--color-sys-on-primary) 75%, transparent);
+}
+
 .result[selected] .subtitle,
 .result[selected] .action,
 .result[selected] .glyph,

@@ -8,6 +8,7 @@
 
 #import "components/remote_cocoa/app_shim/native_widget_mac_nswindow.h"
 #include "ui/color/color_provider_key.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
 #include "ui/views/widget/widget.h"
@@ -85,6 +86,68 @@ void SetWindowBackdrop(views::Widget* widget, bool on) {
     window.backgroundColor = NSColor.windowBackgroundColor;
     window.opaque = YES;
   }
+}
+
+bool IsBubbleBackdropSupported() {
+  return true;
+}
+
+void AddBubbleBackdrop(views::Widget* widget,
+                       const gfx::Rect& bounds,
+                       int corner_radius) {
+  views::NativeWidgetMacNSWindowHost* host =
+      views::NativeWidgetMacNSWindowHost::GetFromNativeWindow(
+          widget->GetNativeWindow());
+  // Browser bubbles are always in this process.
+  NSWindow* window = host ? host->GetInProcessNSWindow() : nil;
+  if (!window) {
+    return;
+  }
+  NSView* content_view = window.contentView;
+  CompassBackdropView* backdrop = FindBackdrop(content_view);
+  if (!backdrop) {
+    backdrop = [[CompassBackdropView alloc] initWithFrame:NSZeroRect];
+    backdrop.material = NSVisualEffectMaterialSidebar;
+    backdrop.blendingMode = NSVisualEffectBlendingModeBehindWindow;
+    // Blurred whether or not the bubble has the activation, as the
+    // window's frame behind it.
+    backdrop.state = NSVisualEffectStateActive;
+    [content_view addSubview:backdrop positioned:NSWindowBelow relativeTo:nil];
+  }
+  // The bubble's rounded rectangle, stretched from its corners.
+  const CGFloat radius = corner_radius;
+  const CGFloat edge = 2 * radius + 1;
+  NSImage* mask = [NSImage
+       imageWithSize:NSMakeSize(edge, edge)
+             flipped:NO
+      drawingHandler:^BOOL(NSRect rect) {
+        [NSColor.blackColor set];
+        [[NSBezierPath bezierPathWithRoundedRect:rect
+                                         xRadius:radius
+                                         yRadius:radius] fill];
+        return YES;
+      }];
+  mask.capInsets = NSEdgeInsetsMake(radius, radius, radius, radius);
+  mask.resizingMode = NSImageResizingModeStretch;
+  backdrop.maskImage = mask;
+
+  const NSRect content_bounds = content_view.bounds;
+  NSRect frame = NSMakeRect(bounds.x(), bounds.y(), bounds.width(),
+                            bounds.height());
+  if (!content_view.isFlipped) {
+    frame.origin.y = NSHeight(content_bounds) - bounds.bottom();
+  }
+  backdrop.frame = frame;
+  // The same distance from each edge as the window grows and shrinks with
+  // its page.
+  backdrop.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+  // The window's mode, which a space can set apart from the system's.
+  backdrop.appearance = [NSAppearance
+      appearanceNamed:widget->GetColorMode() ==
+                              ui::ColorProviderKey::ColorMode::kDark
+                          ? NSAppearanceNameDarkAqua
+                          : NSAppearanceNameAqua];
+  [window invalidateShadow];
 }
 
 void SetCaptionButtonsOpacity(views::Widget* widget, float opacity) {
