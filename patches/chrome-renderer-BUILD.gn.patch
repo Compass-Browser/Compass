@@ -1,12 +1,13 @@
 diff --git a/chrome/renderer/BUILD.gn b/chrome/renderer/BUILD.gn
-index 00fb18e0d1bf9ee3c1d24075472727bd3adefe01..cd93e146484fef2f7a3eb081164fa6225e9cc1e4 100644
+index 00fb18e0d1bf9ee3c1d24075472727bd3adefe01..d9a5e10777c0b09241370e578dcc59e9db1c06ab 100644
 --- a/chrome/renderer/BUILD.gn
 +++ b/chrome/renderer/BUILD.gn
-@@ -196,6 +196,7 @@ static_library("renderer") {
+@@ -196,6 +196,8 @@ static_library("renderer") {
      "//components/security_interstitials/core/common/mojom:",
      "//components/spellcheck:buildflags",
      "//components/subresource_filter/content/renderer",
 +    "//compass/renderer/adblock",
++    "//compass/renderer/translate",
      "//components/subresource_filter/core/common",
      "//components/supervised_user/core/common:buildflags",
      "//components/surface_embed/common",

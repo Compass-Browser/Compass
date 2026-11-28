@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//components/on_device_translation/buildflags/features.gni")
 import("//components/signin/features.gni")
 import("//printing/buildflags/buildflags.gni")
 
@@ -509,6 +510,16 @@ source_set("ui") {
     sources += [
       "arc_import/arc_importer_other.cc",
       "browser_import/app_icon_other.cc",
+    ]
+  }
+
+  # Page translation's question before a download (docs/design/
+  # translation.md, "Asking, on the desktop").
+  if (enable_on_device_translation) {
+    sources += [ "translate/model_download_dialog.cc" ]
+    deps += [
+      "//chrome/browser/ui:tab_modal_confirm_dialog_delegate",
+      "//compass/browser/translate:page_translator_host",
     ]
   }
 }

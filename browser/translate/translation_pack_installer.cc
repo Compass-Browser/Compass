@@ -203,9 +203,7 @@ void PackInstaller::Install(Key key,
   if (!local_state->GetBoolean(kModelDownloadsAllowed)) {
     // Page translation asks first (docs/design/translation.md, "Asking
     // first"); a website's Translator API never starts a download.
-    if (result_callback_) {
-      result_callback_.Run(key, false);
-    }
+    Report(key, false);
     return;
   }
   auto job = std::make_unique<Job>();
@@ -221,9 +219,7 @@ void PackInstaller::Install(Key key,
     const ModelDirection* direction = manifest().Find(model_from, model_to);
     if (!direction) {
       LOG(ERROR) << "No translation model for " << from << "-" << to;
-      if (result_callback_) {
-        result_callback_.Run(key, false);
-      }
+      Report(key, false);
       return;
     }
     for (const ModelFile& file : direction->files) {
@@ -333,6 +329,22 @@ void PackInstaller::Finish(Key key, bool ok) {
     base::ThreadPool::PostTask(
         FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
         base::GetDeletePathRecursivelyCallback(job->staging));
+  }
+  Report(key, ok);
+}
+
+void PackInstaller::OnInstalled(Key key,
+                                base::OnceCallback<void(bool)> callback) {
+  waiters_[key].push_back(std::move(callback));
+}
+
+void PackInstaller::Report(Key key, bool ok) {
+  if (auto it = waiters_.find(key); it != waiters_.end()) {
+    std::vector<base::OnceCallback<void(bool)>> waiters = std::move(it->second);
+    waiters_.erase(it);
+    for (auto& waiter : waiters) {
+      std::move(waiter).Run(ok);
+    }
   }
   if (result_callback_) {
     result_callback_.Run(key, ok);

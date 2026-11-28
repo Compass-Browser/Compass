@@ -2,6 +2,7 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="it">
 <translation id="100641773315815481">Lettura della console</translation>
+<translation id="1008557486741366299">Non ora</translation>
 <translation id="1012969236015189763">Consenti a Claude Code, Claude Desktop e ad altre app MCP su questo computer di usare Compass, con il tuo accesso. Compass chiede conferma prima di ogni nuova app.</translation>
 <translation id="1014035983260785513"><ph name="NAME"/> (tu)</translation>
 <translation id="1016046436643183296">La pagina del plug-in si è interrotta</translation>
@@ -27,6 +28,7 @@
 <translation id="1128591060186966949">Modifica motore di ricerca</translation>
 <translation id="1130188644637295274">Apri in visualizzazione divisa</translation>
 <translation id="1152199683095888390">Aggiungi un’informazione, ad esempio “Vivo a Milano”</translation>
+<translation id="1172865061788101899">Compass traduce le pagine su questo dispositivo con i modelli di traduzione aperti di Firefox. Ogni lingua viene scaricata una sola volta (circa 45 MB) dal server di Compass, che vede il tuo indirizzo IP e quale lingua scarichi, mai la pagina.</translation>
 <translation id="1173134891414581160">Profili importati: <ph name="PROFILES"/>.</translation>
 <translation id="1173894706177603556">Rinomina</translation>
 <translation id="1174133047236966407">Impossibile raggiungere il server (<ph name="TIME"/>).</translation>
@@ -604,6 +606,7 @@
 <translation id="3987993985790029246">Copia link</translation>
 <translation id="3989635538409502728">Esci</translation>
 <translation id="3992684624889376114">Su questa pagina</translation>
+<translation id="3996154692365969509">Scaricare le lingue di traduzione?</translation>
 <translation id="4002066346123236978">Titolo</translation>
 <translation id="4016661850312107269">L’elemento è già condiviso con il numero massimo di persone (50).</translation>
 <translation id="40183136641181088">Inserisci il codice come viene mostrato, ad esempio 7-482913.</translation>
@@ -1299,6 +1302,7 @@
 <translation id="7486154820050725584">Evidenzia l’oggetto attivo</translation>
 <translation id="7499034446907987365">Connetti con</translation>
 <translation id="7507604095951736240">Emoji</translation>
+<translation id="7514365320538308">Scarica</translation>
 <translation id="7518044788376258799">Il tuo Claude Code su questo computer, con accesso tramite il tuo abbonamento a Claude. Compass lo avvia per ogni chat, solo con gli strumenti di Compass.</translation>
 <translation id="7518126057640663803">Esecuzione di JavaScript</translation>
 <translation id="7518308086406150270">Separa schede</translation>
@@ -1453,6 +1457,7 @@
 <translation id="8194520587210949989">Le sue schede aperte si chiudono; le schede fissate e di Oggi vengono spostate.</translation>
 <translation id="8194789002308781382">Cerca, inserisci un URL o un comando…</translation>
 <translation id="8195265224453131880">Intensità</translation>
+<translation id="8197543752516192074">Traduci pagina</translation>
 <translation id="8202211518884578496">Suggerisci un nome</translation>
 <translation id="8207986400090336327">Avvio della sincronizzazione…</translation>
 <translation id="8210170396681840271">Un video o una chiamata in corso passa in Picture in picture quando la sua finestra viene coperta o ridotta a icona, o quando passi a un’altra app.</translation>
@@ -1610,6 +1615,7 @@
 <translation id="9030403843445143218">Usa <ph name="ENGINE"/></translation>
 <translation id="9031680777287747543">Puoi visualizzarne il contenuto.</translation>
 <translation id="9036951813041791370">Archiviate</translation>
+<translation id="9037965129289936994">Mostra originale</translation>
 <translation id="9038940927403120310">Attiva o disattiva schermo intero</translation>
 <translation id="9042392629331729113">Smetterà di sincronizzarsi sul tuo server entro un minuto. I suoi dati restano sui suoi dispositivi. Puoi invitare di nuovo questa persona.</translation>
 <translation id="9048450944153000477">Disattivata</translation>

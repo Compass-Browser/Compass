@@ -1,8 +1,8 @@
 # Page translation
 
-Status: T1, T2 and T3 done (2026-11-28): the engine on macOS arm64,
-Windows x64 and Linux x64; language packs from the mirror, installed and
-translating in the Mac app; the shared page translator.
+Status: T1 to T4 done (2026-11-28): the engine on macOS arm64, Windows
+x64 and Linux x64; language packs from the mirror; the shared page
+translator; page translation on the desktop (verified on macOS).
 Based on Chromium 159.0.8154.34.
 
 ## Goal
@@ -344,38 +344,50 @@ what Compass can translate.
 
 ### Turning translation back on
 
-A patch of `translate_manager.cc` replaces the three API-key checks and the
-offline check with `compass::IsPageTranslationAvailable()`: the build has
-the library. Offline is fine once the pack is there, so a missing pack
-while offline gives the network error then.
+Upstream turns page translation off without Google's API keys: three
+checks in `translate_manager.cc` (offering it, the menu, `IsAvailable()`).
+All three honor upstream's own switch for tests,
+`TranslateManager::SetIgnoreMissingKeyForTesting()`, so Compass sets it at
+startup (`compass::translate::EnablePageTranslation()`, from
+`RegisterFeatureOverrides()`, desktop only): no patch. Upstream's two
+offline checks stay for now, so a device offline isn't offered
+translation even with the pack installed (not yet).
 
 ### Page language
 
 Upstream detects the page's language with a TFLite model from Optimization
-Guide, which needs a Google key; without it, Chromium believes only the
+Guide, which needs a Google key; without it, Chromium believed only the
 page's `lang` attribute and `Content-Language`, which are often wrong or
-missing. Compass turns the model path off (`translate::IsTFLiteLanguageDetectionEnabled()`
-returns false, `chromium_src`), so the renderer uses CLD3, built into
-Chromium and run on the page's text. Nothing is downloaded.
+missing. A `chromium_src` override of `translate_util.cc` makes
+`IsTFLiteLanguageDetectionEnabled()` false, so the renderer uses CLD3,
+built into Chromium and run on the page's text. Nothing is downloaded.
 
 ### The script
 
 Upstream's renderer (`TranslateAgent`) injects one script into the
 translate isolated world and polls `cr.googleTranslate` (`libReady`,
 `finished`, `error`, `errorCode`, `sourceLang`, `translate()`, `revert()`).
-That script is upstream's `translate.js` (`IDR_TRANSLATE_JS`), which
-defines `cr.googleTranslate` around Google's `element.js`.
+That script is upstream's prelude and `translate.js` (`IDR_TRANSLATE_JS`),
+which defines `cr.googleTranslate`, followed by Google's `element.js`,
+fetched.
 
-- **No fetch.** A `chromium_src` override of `TranslateScript::Request()`
-  fills the script from Compass's resources at once, instead of fetching
-  `element.js`: upstream's prelude and `translate.js` as before, then
-  `common/translate/page_translator.js` and `desktop_service.js` in place
-  of Google's.
+- **No fetch.** `TranslateScript` asks a `TranslateUrlFetcher` for
+  `element.js`; a `chromium_src` override of `translate_script.cc` swaps it
+  for one that hands back Compass's script at once (posted, as the script
+  deletes its fetcher in the callback): `common/translate/
+  page_translator.js` and `desktop_service.js`, embedded
+  (`PageTranslateScript()`, `browser/translate/page_translation.cc`).
+  Upstream's prelude and `translate.js` stay; nothing goes to the network.
 - **`desktop_service.js`** provides what `translate.js` wants from Google's
-  library: `google.translate.TranslateService(...)`, whose `isAvailable()`,
-  `translatePage(src, tgt, progress)` and `restore()` call the shared
-  page translator. So upstream's agent, its polling and error codes, and
-  the bubble's states work unchanged.
+  library: `google.translate.TranslateService()`, whose `isAvailable()`,
+  `translatePage(source, target, progress)`, `restore()` and
+  `getDetectedLanguage()` drive the shared page translator, with
+  `compassTranslate.send()` as its engine (wrapped in a promise), then
+  calls `cr.googleTranslate.onTranslateElementLoad()` as Google's script
+  does. It reports finished once the translator is idle, and an
+  unsupported language or a failed engine with `translate.js`'s codes. So
+  upstream's agent, its polling, its errors and the bubble's states work
+  unchanged.
 
 ### The engine from the page
 
@@ -384,23 +396,54 @@ is a poor fit from there: it runs as the page's origin, under the page's
 permissions policy, and wants a user gesture to download. So Compass adds
 its own channel:
 
-- **`compass.mojom.PageTranslator`** (`browser/translate/page_translator.mojom`):
-  `Translate(string source, string target, array<Segment> segments) =>
-  array<string?>`, a segment being `{text, is_html}`. Bound per frame
-  (`RegisterBrowserInterfaceBindersForFrame`), for http(s) and file pages.
-- **Renderer:** `PageTranslatorBindings`
-  (`renderer/translate/page_translator_bindings.{h,cc}`, a
-  `RenderFrameObserver`) installs `compassTranslate.translate(source,
-  target, segments)` (a gin object returning a promise) in the translate
-  isolated world only (`DidCreateScriptContext` with
-  `ISOLATED_WORLD_ID_TRANSLATE`), never in the page's world.
-- **Browser:** `PageTranslatorHost` gets the profile's
-  `OnDeviceTranslationServiceController` (upstream's, one service process
-  per origin), asks `TranslationPacks` for the packs, creates or reuses
-  the pair's `Translator`, and sends the segments with `Translate()`, HTML
-  ones behind `kHtmlMarker` ("The TranslateKit ABI"). It caps a request at
-  64 segments and 32 KB, and a frame at 4 requests in flight.
+- **`compass.mojom.PageTranslator`** (`common/translate/
+  page_translator.mojom`): `Translate(source, target, array<
+  TranslationSegment>) => (PageTranslationResult, array<string?>)`, a
+  segment being `{text, html}`, the result `kOk`,
+  `kUnsupportedLanguage`, `kDeclined` or `kFailed`. Registered with
+  upstream's document binders by a `chromium_src` override of
+  `chrome_browser_interface_binders.cc` (wrapping
+  `PopulateChromeFrameBinders()`); http(s) and file pages only.
+- **Renderer:** `PageTranslatorBindings` (`renderer/translate/
+  page_translator_bindings.{h,cc}`, a `RenderFrameObserver` created by
+  `ChromeContentRendererClient`, patch) installs
+  `compassTranslate.send(source, target, segments, callback)` in the
+  translate isolated world only (`DidCreateScriptContext` with
+  `ISOLATED_WORLD_ID_TRANSLATE`), never in the page's world: at most 64
+  segments and 64 KB a call. The answer calls `callback(result,
+  translations)` through `WebLocalFrame::CallFunctionEvenIfScriptDisabled()`.
+- **Browser:** `PageTranslatorHost` (`browser/translate/
+  page_translator_host.{h,cc}`, a `DocumentService`) maps the languages to
+  upstream's codes (`ToOnDeviceLanguage()`: `he` is `iw`, `nb` is `no`,
+  `zh-TW` is `zh-Hant`), works out the packs the pair needs (one per
+  language that isn't English), and for a missing one: asks the user
+  first if they haven't agreed yet ("Asking first"), then installs it
+  through upstream's `ComponentManager` (and so Compass's installer), so
+  upstream's service hears of it, waiting for `PackInstaller`'s result.
+  Then it creates the pair's translator from upstream's
+  `ServiceControllerManager`, under one origin for all page translation
+  (`chrome://compass-translate`), so a language's models load once for
+  every page, and translates each segment, HTML behind `kHtmlMarker`. A
+  service that goes away mid-batch answers null rather than leaving the
+  page waiting.
 - **Incognito** uses the same packs and its own service process.
+
+### Asking, on the desktop
+
+The question is a tab-modal dialog on the page being translated
+(`browser/ui/translate/model_download_dialog.cc`, `TabModalConfirmDialog`):
+"Download translation languages?", with the text in "Asking first",
+**Download** and **Not Now**. Download sets the pref and goes on; Not Now
+(or Esc, or closing it) makes the translation fail with upstream's
+translation error, and asks again next time.
+
+### Languages
+
+Upstream's bubble lists the languages `TranslateLanguageList` has, a
+built-in list that it refreshes from Google's server. A `chromium_src`
+override of `translate_language_list.cc` filters the built-in list to the
+languages Compass has models for (`CanTranslateLanguage()`) and gives it a
+fetcher that never fetches.
 
 ### What the user sees
 
@@ -409,9 +452,20 @@ bubble from the pill when Compass detects a language the user doesn't read
 (the Languages settings' "Offer to translate" switch and each language's
 own switch), Translate, the target language menu, "Always translate",
 "Never translate <language>", "Never translate this site", and "Show
-original". The command bar gets "Translate Page" and "Show Original"
-(`CommandBarCommand::kTranslatePage`), and the page's context menu keeps
-upstream's "Translate to <language>".
+original". The command bar has "Translate Page" (upstream's bubble,
+translating into the user's language, as the context menu's "Translate
+to …" does) and "Show Original" (`CommandBarCommand::kTranslatePage`,
+`kShowOriginal`), each when it applies.
+
+### Tests
+
+`PageTranslationBrowserTest`: a German page is detected as German and
+offered, without Google's keys; the language list has German, Italian and
+English, not Javanese or Latin; translating it into English (with a real
+German pack, `COMPASS_TRANSLATEKIT_TEST_PACKAGES`) gives English, with the
+link the same node and its address, and Show Original gives the German
+back; asking for Italian, whose pack isn't there, shows the dialog, and
+closing it leaves the page, the consent and the disk as they were.
 
 ## The shared page translator: `common/translate/`
 

@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
@@ -63,6 +64,10 @@ class PackInstaller {
                PrefService* local_state,
                base::RepeatingClosure on_ready);
 
+  // Runs `callback` with the result of `key`'s install: the one running, or
+  // the next one (an install refused for want of consent says false).
+  void OnInstalled(Key key, base::OnceCallback<void(bool)> callback);
+
   // Forgets the pack and deletes its folder.
   void Uninstall(Key key, PrefService* local_state);
 
@@ -85,6 +90,7 @@ class PackInstaller {
   void OnWritten(Key key, bool ok);
   void OnMoved(Key key, bool ok);
   void Finish(Key key, bool ok);
+  void Report(Key key, bool ok);
 
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory();
   const Manifest& manifest() const;
@@ -94,6 +100,7 @@ class PackInstaller {
   raw_ptr<const Manifest> manifest_for_testing_ = nullptr;
   base::FilePath packs_dir_for_testing_;
   base::RepeatingCallback<void(Key, bool)> result_callback_;
+  std::map<Key, std::vector<base::OnceCallback<void(bool)>>> waiters_;
   base::WeakPtrFactory<PackInstaller> weak_factory_{this};
 };
 

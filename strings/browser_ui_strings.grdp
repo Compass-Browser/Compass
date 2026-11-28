@@ -365,6 +365,18 @@
   </message>
 
   <!-- Reader (Compass's reading mode) -->
+  <message name="IDS_COMPASS_TRANSLATE_DOWNLOAD_TITLE" desc="Title of the dialog asking, the first time a page translation needs a language that isn't downloaded, whether Compass may download translation languages.">
+    Download translation languages?
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_DOWNLOAD_MESSAGE" desc="Body of the dialog asking whether Compass may download translation languages. Firefox is Mozilla's browser; its translation models are what Compass uses. Compass's server is where Compass downloads them from.">
+    Compass translates pages on this device with Firefox's open translation models. Each language is downloaded once (about 45 MB) from Compass's server, which sees your IP address and which language you download, never the page.
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_DOWNLOAD_ACCEPT" desc="Button in the dialog asking whether Compass may download translation languages: agree and go on translating.">
+    Download
+  </message>
+  <message name="IDS_COMPASS_TRANSLATE_DOWNLOAD_CANCEL" desc="Button in the dialog asking whether Compass may download translation languages: don't download now; the page isn't translated, and Compass asks again next time.">
+    Not Now
+  </message>
   <message name="IDS_COMPASS_READER_PARSE_FAILED" desc="Shown in Reader, Compass&#x27;s reading mode, when the page&#x27;s article couldn&#x27;t be extracted.">
     This page couldn't be read (it may still be loading).
   </message>

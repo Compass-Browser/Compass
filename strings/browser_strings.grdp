@@ -741,6 +741,12 @@
   <message name="IDS_COMPASS_COMMAND_BAR_LEAVE_READER_MODE" desc="Command bar command: leave reader mode.">
     Leave Reader Mode
   </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_TRANSLATE_PAGE" desc="Command bar command: translate the page into the user's language, on the device.">
+    Translate Page
+  </message>
+  <message name="IDS_COMPASS_COMMAND_BAR_SHOW_ORIGINAL" desc="Command bar command: show a translated page in its original language again.">
+    Show Original
+  </message>
   <message name="IDS_COMPASS_COMMAND_BAR_DEV_MODE" desc="Command bar command: turn on Compass&#x27;s development mode for the current site.">
     Development Mode for This Site
   </message>

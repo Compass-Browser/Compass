@@ -23,6 +23,7 @@
 
 #if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
 #include "base/command_line.h"
+#include "compass/browser/translate/page_translation.h"
 #include "compass/browser/translate/translatekit_library.h"
 #endif
 
@@ -95,6 +96,8 @@ void RegisterFeatureOverrides(variations::FeatureOverrides& overrides) {
   // TranslateKit component (docs/design/translation.md). Not a feature, but
   // this runs early in the browser process, before anything translates.
   UseBundledTranslateKit(*base::CommandLine::ForCurrentProcess());
+  // And page translation runs on it, without Google's keys.
+  translate::EnablePageTranslation();
 #endif
 }
 

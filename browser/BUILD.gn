@@ -18,7 +18,10 @@ if (!is_android) {
       "//compass/browser/win",
     ]
     if (enable_on_device_translation) {
-      public_deps += [ "//compass/browser/translate" ]
+      public_deps += [
+        "//compass/browser/translate",
+        "//compass/browser/translate:page_translator_host",
+      ]
     }
   }
 }
@@ -49,7 +52,10 @@ source_set("feature_overrides") {
     deps += [ "//chrome/browser/flags:flags_android" ]
   }
   if (enable_on_device_translation) {
-    deps += [ "//compass/browser/translate:translatekit_library" ]
+    deps += [
+      "//compass/browser/translate:page_translation",
+      "//compass/browser/translate:translatekit_library",
+    ]
   }
 }
 
