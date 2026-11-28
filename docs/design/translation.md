@@ -1,8 +1,8 @@
 # Page translation
 
-Status: T1 done (2026-11-28: the engine on macOS arm64, Windows x64 and
-Linux x64, and in the Mac app); T2's code done, the mirror not yet
-uploaded.
+Status: T1, T2 and T3 done (2026-11-28): the engine on macOS arm64,
+Windows x64 and Linux x64; language packs from the mirror, installed and
+translating in the Mac app; the shared page translator.
 Based on Chromium 159.0.8154.34.
 
 ## Goal
@@ -227,7 +227,9 @@ executable's `data_deps` (Windows, Linux) and `linux_package.py`'s
   keeps its path on Mozilla's CDN
   (`main-workspace/translations-models-v2/<uuid>.zst`), is uploaded once
   and never replaced or removed, so every Compass ever built finds its
-  files. About 2.5 GB in all, within R2's free tier, with free egress.
+  files. About 2.5 GB in all (232 files, uploaded and checked 2026-11-28),
+  within R2's free tier, with free egress. In the Debug app, a page's
+  `Translator.create()` for German installed `de_en` from it and translated.
 - **`tools/translation/update_models.py`** reads the collection, picks one
   set per direction (the newest version, then the largest architecture:
   base, base-memory, tiny; records with no `filter_expression`, or one
@@ -414,41 +416,62 @@ upstream's "Translate to <language>".
 ## The shared page translator: `common/translate/`
 
 `page_translator.js` defines `__compassTranslator` in the world it runs in:
-`start(source, target, engine)`, `stop()`, `restore()`, `progress()`.
-`engine` is a function from segments to translations: `compassTranslate`
-on the desktop, a script message on iOS. It's written for Compass; it
-follows the approach of Firefox's `translations-document.sys.mjs`
-(MPL-2.0) without copying its code.
+`start({source, target, engine})`, `stop()`, `restore()`, `progress()`
+(`{done, pending, failed}`) and `idle()` (a promise for "nothing left").
+`engine` is an async function from segments (`{text, html}`) to their
+translations, `null` for one it couldn't do: `compassTranslate` on the
+desktop, a script message on iOS. It's written for Compass; it follows the
+approach of Firefox's `translations-document.sys.mjs` (MPL-2.0) without its
+code.
 
-- **Segments.** Block-level elements (`p`, `li`, `h1`–`h6`, `td`, …) are
-  the units. A block whose content is only text goes as text. One with
-  inline markup (links, emphasis, `<br>`) goes as HTML: its child elements
-  are given `data-compass-t="n"` first, and the translation, parsed in an
-  inert `<template>`, is matched back onto the live nodes by those numbers.
-  The page's own elements stay in place, with their listeners and state;
-  only text nodes change.
+- **Units.** An element whose content is text and inline elements (`a`,
+  `b`, `em`, `span`, `br`, `img`, `code`, …) is one unit; inside a block
+  that also holds blocks, each loose run of text is its own. A unit with
+  no elements inside goes as plain text. One with elements goes as HTML: a
+  copy whose elements carry `data-compass-t="n"` and no other attribute,
+  with comments dropped and `code`, `kbd`, `samp`, `var` and
+  `translate="no"` elements emptied, so their words stay as they are.
+- **Writing back.** The translated HTML is parsed in an inert
+  `<template>`; the page's own elements are found by their numbers and put
+  where the translation moved them, and its text goes into the page's own
+  text nodes (new ones only when the translation has more pieces). Links,
+  buttons and their listeners are the same nodes; nothing else about the
+  page's elements changes. An element the engine dropped stays, at the end
+  of its parent.
 - **Skipped:** `translate="no"`, `.notranslate`, `contenteditable`,
-  `code`, `pre`, `kbd`, `samp`, `script`, `style`, `textarea`, `svg`,
-  `math`, form fields' values, and text that's only numbers, symbols or
-  URLs.
-- **Attributes translated:** `title`, `alt`, `placeholder`, `aria-label`,
-  `aria-description`, and the `value` of button inputs.
-- **Visible first.** IntersectionObservers queue the blocks in view first,
-  then the rest of the page in order. Scrolling moves new blocks ahead.
-- **Pages that change.** A MutationObserver translates added content and
-  changed text, and ignores the translator's own writes.
-- **Restore** without a reload: the original text of each changed text
-  node and attribute is kept (in a `WeakMap`), and `restore()` puts it back.
-  A node the page changed since keeps the page's version.
-- **Cache:** per pair and per page, so switching between original and
-  translation, or translating again, costs nothing.
+  `script`, `style`, `noscript`, `template`, `code`, `pre`, `kbd`, `samp`,
+  `var`, `textarea`, `input`, `svg`, `math`, media and frames, form
+  fields' values, and text without letters, or that's only a web or email
+  address.
+- **Also translated:** the title; `title`, `alt`, `placeholder`,
+  `aria-label` and `aria-description`; button inputs' `value`; options'
+  text, where an option without a `value` gets its original text as one
+  first, so the form still submits it.
+- **Order.** Units go in batches (16, or about 6,000 characters), two at a
+  time. An IntersectionObserver puts what's in view (and half a screen
+  around it) first; the rest follow in the page's order.
+- **Pages that change.** A MutationObserver queues added content, text the
+  page writes over a translation (sent on its own), and translatable
+  attributes it sets. The translator's own writes are dropped from the
+  observer's records as it makes them.
+- **Restore** without a reload: the original text of every text node it
+  wrote, every attribute, and the child list of every element it
+  rearranged are kept, and `restore()` puts them back. A text node the page
+  changed since keeps the page's version.
+- **Cache:** per pair, for the page's life, so translating again, or after
+  restoring, costs nothing.
 - **Frames:** each frame runs its own copy; upstream's agent already
   starts translation in every frame.
 - **Tests:** `common/translate/test/page_translator_test.html`, run with
-  `--headless=new --dump-dom`, as `page_agent_test.html` is
-  (`RESULT PASS`), with a fake engine that upper-cases text: markup
-  survives, skipped elements stay, attributes are translated, restore
-  brings back the original, added content is translated.
+  `--headless=new --virtual-time-budget=10000 --dump-dom`, as
+  `page_agent_test.html` is (`RESULT PASS`), with a fake engine that
+  upper-cases text and, given "swap", swaps two elements: plain, inline
+  and mixed text; a link that's the same node, with its href, class and
+  listener; reordered elements; code kept in a sentence; every skipped
+  kind; attributes, button values, options and their values; text far
+  below the fold; added and changed content; restore (structure, text,
+  attributes, a bare option's value, the page's own change kept); the
+  cache; and a failing engine.
 
 ## iOS
 

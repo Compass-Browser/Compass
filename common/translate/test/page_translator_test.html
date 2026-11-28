@@ -1,0 +1,179 @@
+<!doctype html>
+<!-- Self-checking test for page_translator.js. Run headless (no window, no
+     focus):
+     out/<build>/Compass --headless=new --use-mock-keychain --no-first-run \
+       --user-data-dir=$(mktemp -d) --allow-file-access-from-files \
+       --virtual-time-budget=10000 \
+       --dump-dom file://$PWD/common/translate/test/page_translator_test.html \
+       | grep RESULT
+     It prints "RESULT PASS" or "RESULT FAIL" with the failed checks. The
+     engine is a fake that upper-cases text (and, given "swap", swaps two
+     elements as a real translation may reorder them). -->
+<html lang="de"><head><meta charset="utf-8"><title>Seite zum Testen</title></head>
+<body>
+<h1 id="h">Willkommen</h1>
+<p id="plain">Ein einfacher Satz.</p>
+<p id="inline">Klicken Sie <a id="link" href="/hilfe" class="x">hier</a>, um <b>weiterzumachen</b>.</p>
+<p id="swap">Zuerst <i id="first">eins</i> dann <b id="second">zwei</b> swap.</p>
+<p id="code">Rufen Sie <code id="fn">getWert()</code> auf.</p>
+<div id="mixed">Vorher <p id="inner">Mitte</p> nachher</div>
+<p id="no" translate="no">Nicht übersetzen</p>
+<p class="notranslate" id="nocls">Auch nicht</p>
+<div contenteditable id="edit">Bearbeitbar</div>
+<pre id="pre">Vorformatiert</pre>
+<p id="numbers">1.234,56 €</p>
+<p id="url">https://example.com/pfad</p>
+<img id="img" alt="Ein Bild" title="Bildtitel" src="data:,">
+<input id="field" placeholder="Name eingeben" value="Wert">
+<input id="submit" type="submit" value="Absenden">
+<textarea id="area">Textfeld</textarea>
+<select id="sel"><option id="opt" value="eins">Erste Wahl</option><option id="bare">Zweite Wahl</option></select>
+<div id="far" style="margin-top: 5000px">Weit unten</div>
+<p id="later"></p>
+<script src="../page_translator.js"></script>
+<script>
+const T = __compassTranslator, failures = [];
+const check = (name, cond, detail) => {
+  if (!cond) failures.push(name + ': ' + JSON.stringify(detail));
+};
+const $ = id => document.getElementById(id);
+const text = id => $(id).textContent;
+
+let calls = 0, segmentsSeen = 0;
+async function engine(segments) {
+  calls++;
+  segmentsSeen += segments.length;
+  return segments.map(({text, html}) => {
+    if (!html) return text.toUpperCase();
+    const template = document.createElement('template');
+    template.innerHTML = text;
+    const walker = document.createTreeWalker(template.content,
+                                             NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      walker.currentNode.data = walker.currentNode.data.toUpperCase();
+    }
+    if (/swap/i.test(text)) {
+      const [a, b] = template.content.querySelectorAll('[data-compass-t]');
+      const marker = document.createComment('');
+      a.replaceWith(marker);
+      b.replaceWith(a);
+      marker.replaceWith(b);
+    }
+    return template.innerHTML;
+  });
+}
+
+(async () => {
+  let clicked = 0;
+  $('link').addEventListener('click', e => { e.preventDefault(); clicked++; });
+  const link = $('link');
+
+  T.start({source: 'de', target: 'en', engine});
+  await T.idle();
+
+  check('plain', text('plain') === 'EIN EINFACHER SATZ.', text('plain'));
+  check('heading', text('h') === 'WILLKOMMEN', text('h'));
+  check('title', document.title === 'SEITE ZUM TESTEN', document.title);
+  check('inline text', text('inline') === 'KLICKEN SIE HIER, UM WEITERZUMACHEN.',
+        text('inline'));
+  check('link is the same node', $('link') === link && link.isConnected);
+  check('link keeps href and class',
+        link.getAttribute('href') === '/hilfe' && link.className === 'x',
+        link.outerHTML);
+  link.click();
+  check('link keeps its listener', clicked === 1, clicked);
+  check('no numbers left behind',
+        !document.querySelector('[data-compass-t]'));
+  check('elements reordered',
+        $('swap').firstElementChild === $('second') &&
+        text('first') === 'EINS' && text('second') === 'ZWEI',
+        $('swap').innerHTML);
+  check('code kept', text('fn') === 'getWert()' &&
+        text('code').startsWith('RUFEN SIE'), $('code').innerHTML);
+  check('mixed text', text('mixed').includes('VORHER') &&
+        text('mixed').includes('NACHHER') && text('inner') === 'MITTE',
+        text('mixed'));
+  check('translate=no', text('no') === 'Nicht übersetzen', text('no'));
+  check('notranslate', text('nocls') === 'Auch nicht', text('nocls'));
+  check('contenteditable', text('edit') === 'Bearbeitbar', text('edit'));
+  check('pre', text('pre') === 'Vorformatiert', text('pre'));
+  check('numbers', text('numbers') === '1.234,56 €', text('numbers'));
+  check('url', text('url') === 'https://example.com/pfad', text('url'));
+  check('alt and title', $('img').alt === 'EIN BILD' &&
+        $('img').title === 'BILDTITEL', $('img').outerHTML);
+  check('placeholder', $('field').placeholder === 'NAME EINGEBEN',
+        $('field').placeholder);
+  check('field value kept', $('field').value === 'Wert', $('field').value);
+  check('button value', $('submit').value === 'ABSENDEN', $('submit').value);
+  check('textarea kept', $('area').value === 'Textfeld', $('area').value);
+  check('option text', text('opt') === 'ERSTE WAHL', text('opt'));
+  check('option value kept', $('opt').value === 'eins', $('opt').value);
+  check('bare option submits its original', $('bare').value === 'Zweite Wahl' &&
+        text('bare') === 'ZWEITE WAHL', $('bare').outerHTML);
+  check('far below too', text('far') === 'WEIT UNTEN', text('far'));
+  check('progress', T.progress().pending === 0 && T.progress().done > 10,
+        T.progress());
+
+  // Added later: translated as it comes.
+  $('later').textContent = 'Später hinzugefügt';
+  const added = document.createElement('p');
+  added.id = 'added';
+  added.innerHTML = 'Neu <em>dazu</em>';
+  document.body.append(added);
+  await new Promise(r => setTimeout(r, 50));
+  await T.idle();
+  check('added text', text('later') === 'SPÄTER HINZUGEFÜGT', text('later'));
+  check('added element', text('added') === 'NEU DAZU', text('added'));
+
+  // The page changes a translation: its new text is sent.
+  $('plain').firstChild.data = 'Geändert';
+  await new Promise(r => setTimeout(r, 50));
+  await T.idle();
+  check('changed by the page', text('plain') === 'GEÄNDERT', text('plain'));
+
+  // Restore: the original, with the page's own change kept.
+  $('h').firstChild.data = 'Vom Skript';
+  T.restore();
+  check('restored inline', text('inline') ===
+        'Klicken Sie hier, um weiterzumachen.', text('inline'));
+  check('restored order', $('swap').firstElementChild === $('first'),
+        $('swap').innerHTML);
+  check('restored attributes', $('img').alt === 'Ein Bild' &&
+        $('field').placeholder === 'Name eingeben' &&
+        $('submit').value === 'Absenden', $('img').alt);
+  check('restored title', document.title === 'Seite zum Testen',
+        document.title);
+  check('restored added', text('added') === 'Neu dazu', text('added'));
+  check('page change kept', text('h') === 'Vom Skript', text('h'));
+  check('link still the same node', $('link') === link);
+  check('restored option', text('opt') === 'Erste Wahl', text('opt'));
+  check('restored bare option', !$('bare').hasAttribute('value') &&
+        text('bare') === 'Zweite Wahl', $('bare').outerHTML);
+
+  // Again: from the cache, no new engine calls for the same text.
+  const before = calls;
+  $('h').firstChild.data = 'Willkommen';
+  T.start({source: 'de', target: 'en', engine});
+  await T.idle();
+  check('cached', calls === before, {before, calls});
+  check('translated again', text('inline') ===
+        'KLICKEN SIE HIER, UM WEITERZUMACHEN.', text('inline'));
+  T.restore();
+
+  // A failing engine leaves the page as it is.
+  T.start({source: 'de', target: 'fr', engine: async () => {
+    throw new Error('no');
+  }});
+  await T.idle();
+  check('failure leaves text', text('plain') === 'Geändert', text('plain'));
+  check('failures counted', T.progress().failed > 0, T.progress());
+  T.restore();
+})().catch(e => failures.push('threw: ' + e + ' ' + e.stack)).finally(() => {
+  const out = document.createElement('pre');
+  out.id = 'result';
+  out.textContent = 'RESULT ' +
+      (failures.length ? 'FAIL\n' + failures.join('\n') : 'PASS');
+  document.body.append(out);
+});
+</script>
+</body></html>
