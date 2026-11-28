@@ -976,6 +976,19 @@ def _release(layout: Layout, args) -> None:
                                            product_name(layout)), manifest)
 
 
+def cmd_monitor(layout: Layout, args) -> None:
+  """`monitor [<version>]`: a live view of a desktop release
+  (compass_tool/monitor.py). It only reads."""
+  from . import monitor  # curses, only for this command
+  try:
+    text = monitor.main(args.version, layout.src / 'out', layout.depot_tools,
+                        once=args.once)
+  except ValueError as e:
+    raise CommandError(str(e))
+  if text:
+    print(text)
+
+
 def keep_symbols(archive, manifest: Optional[dict] = None) -> None:
   """Keeps a release's symbols (compass_tool/symbols.py). A failure only
   warns: the release is out by then."""
@@ -1659,6 +1672,15 @@ def parser() -> argparse.ArgumentParser:
   add_skip_patches(s)
   add_jobs_argument(s)
   s.set_defaults(func=cmd_release)
+
+  s = sub.add_parser('monitor', help='watch a desktop release as it runs: '
+                     'the Mac build and publish, win1\'s Windows and Linux '
+                     'jobs, the copies, deltas and uploads (q quits)')
+  s.add_argument('version', nargs='?',
+                 help='default: the newest out/release-mac-<version>.log')
+  s.add_argument('--once', action='store_true',
+                 help='print one snapshot as text and exit')
+  s.set_defaults(func=cmd_monitor)
 
   s = sub.add_parser('sync-server', help='run the sync server (server/) '
                      'locally for development')

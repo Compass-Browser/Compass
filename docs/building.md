@@ -643,6 +643,37 @@ Everything is on GitHub; the macOS and Windows update feeds aren't touched.
 - `--no-upload` lists what it would publish. Publishing needs `gh` signed in
   with write access to the repository.
 
+### Watching a release
+
+`tools/compass monitor [<version>]` shows a desktop release while it runs,
+in the layout of CongressManager's build runner: the jobs on the left with
+their steps, state and time, and the selected job's details and log on the
+right. Without a version, it takes the newest
+`out/release-mac-<version>.log`. It only reads; nothing it does changes the
+release.
+
+- **Mac (this Mac):** the steps of `release publish`, taken from its log and
+  its child processes: each CPU's build, with siso's done/total steps
+  (`siso ps`), rate and ETA, then the universal app, signing and notarizing
+  (with the notary checks so far), the deltas (made of expected, with the
+  one being written growing), the GitHub upload, the feeds, the cask and the
+  symbols.
+- **Windows and Linux builds (win1):** the first `win-release-build` and
+  `linux` farm jobs queued since the version's time. One SSH round trip every
+  8 s reads each job's state, the end of its log (ninja's `[done/total]`, for
+  the rate and ETA) and its artifacts.
+- **Windows and Linux publish:** the files fetched or copied back
+  (`~/Builds/compass/<job>/`, `~/Builds/compass/linux-<version>/`) against
+  win1's sizes, the `publish-win`/`publish-linux` run and its log
+  (`out/{win,linux}-publish-<version>.log`), and which assets the GitHub
+  release has.
+- **Uploads:** the files `gh release upload` was given and their total; the
+  bytes sent so far come from `nettop` (per process, no sudo), with the rate
+  and ETA, and how far gh has read each file from `lsof -o`.
+
+↑↓ pick a job, PgUp/PgDn scroll its log, End follows it again, r refreshes,
+q quits. `--once` prints one snapshot as text instead.
+
 ## Troubleshooting
 
 - **A change to an override isn't picked up:** run `compass build` rather than
