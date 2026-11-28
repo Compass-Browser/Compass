@@ -67,8 +67,9 @@ final class PageTranslation {
     let answer: (Bool) -> Void
   }
 
-  /// UserDefaults: "apple" (the default) or "compass" (Compass's own models
-  /// only), Settings › General › Translation.
+  /// UserDefaults: "compass" (the default: Compass's own models first,
+  /// Apple's for the pairs Compass lacks) or "apple" (Apple's first),
+  /// Settings › Translation.
   static let engineKey = "TranslateEngine"
 
   /// By tab; a tab with nothing to offer has none.
@@ -87,7 +88,7 @@ final class PageTranslation {
   /// first use).
   private(set) var languages: [String] = []
 
-  var prefersApple: Bool { UserDefaults.standard.string(forKey: Self.engineKey) != "compass" }
+  var prefersApple: Bool { UserDefaults.standard.string(forKey: Self.engineKey) == "apple" }
 
   func state(_ id: String, _ view: WKWebView?) -> State? {
     guard let state = states[id], view?.url == state.url else { return nil }
@@ -134,15 +135,17 @@ final class PageTranslation {
     if let state = states[id], state.url != view.url { states[id] = nil }
   }
 
-  /// Apple's when it has the pair on this device (unless the user wants
-  /// Compass's own), else Compass's; nil when neither does.
+  /// Compass's when its manifest has the pair, else Apple's when it has it
+  /// on this device (the other way round when the user prefers Apple);
+  /// nil when neither does.
   func engine(_ source: String, _ target: String) async -> Engine? {
     #if DEBUG
       if UserDefaults.standard.bool(forKey: "CompassTranslateFake") { return .compass }
     #endif
-    if prefersApple, #available(iOS 18.0, *), await AppleTranslator.supports(source, target) { return .apple }
-    if CompassTranslator.shared.translates(source, target) { return .compass }
-    return nil
+    let compass = CompassTranslator.shared.translates(source, target)
+    if compass && !prefersApple { return .compass }
+    if #available(iOS 18.0, *), await AppleTranslator.supports(source, target) { return .apple }
+    return compass ? .compass : nil
   }
 
   /// Translates the tab's page into `target` (the state's when nil),
@@ -258,7 +261,7 @@ final class PageTranslation {
   func loadLanguages() async {
     guard languages.isEmpty else { return }
     var codes = CompassTranslator.shared.languages
-    if prefersApple, #available(iOS 18.0, *) {
+    if #available(iOS 18.0, *) {
       codes.formUnion(await AppleTranslator.supportedCodes().compactMap(PageLanguage.normalize))
     }
     languages = codes.sorted { Self.name($0).localizedCompare(Self.name($1)) == .orderedAscending }

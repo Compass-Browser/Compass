@@ -1407,17 +1407,6 @@
         }
       }
     },
-    "Apple's models are shared with Safari and managed in the Settings app. Compass's own models translate the languages Apple doesn't, and everything when you choose Compass Only. Both stay on this device." : {
-      "comment" : "Settings › Translation: footer of Translate With.",
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I modelli di Apple sono condivisi con Safari e si gestiscono nell'app Impostazioni. I modelli di Compass traducono le lingue che Apple non supporta, e tutto se scegli Solo Compass. Entrambi restano su questo dispositivo."
-          }
-        }
-      }
-    },
     "Apple, Then Compass" : {
       "comment" : "Settings › Translation › Translate With: Apple's Translation first, Compass's models for the rest.",
       "localizations" : {
@@ -2270,17 +2259,6 @@
         }
       }
     },
-    "Compass Only" : {
-      "comment" : "Settings › Translation › Translate With: only Compass's own models.",
-      "localizations" : {
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Solo Compass"
-          }
-        }
-      }
-    },
     "Compass Tab" : {
       "localizations" : {
         "it" : {
@@ -2388,6 +2366,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lingue di Compass"
+          }
+        }
+      }
+    },
+    "Compass's own models translate most languages; Apple's translate the ones Compass doesn't, or go first if you choose. Apple's models are shared with Safari and managed in the Settings app. Both stay on this device." : {
+      "comment" : "Settings › Translation: footer of Translate With.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I modelli di Compass traducono la maggior parte delle lingue; quelli di Apple traducono le lingue che Compass non supporta, o vengono usati per primi se lo scegli. I modelli di Apple sono condivisi con Safari e si gestiscono nell'app Impostazioni. Entrambi restano su questo dispositivo."
+          }
+        }
+      }
+    },
+    "Compass, Then Apple" : {
+      "comment" : "Settings › Translation › Translate With: Compass's own models first, Apple's Translation for the rest.",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compass, poi Apple"
           }
         }
       }

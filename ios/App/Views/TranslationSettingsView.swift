@@ -10,7 +10,7 @@ import SwiftUI
 /// and the languages and sites never offered.
 struct TranslationSettingsView: View {
   @AppStorage(TranslationPrefs.offerKey) private var offers = true
-  @AppStorage(PageTranslation.engineKey) private var engine = "apple"
+  @AppStorage(PageTranslation.engineKey) private var engine = "compass"
   @AppStorage(CompassTranslator.downloadsAllowedKey) private var downloadsAllowed = false
   @State private var installed: [String] = []
   @State private var never: [String] = []
@@ -28,11 +28,11 @@ struct TranslationSettingsView: View {
       if #available(iOS 18.0, *) {
         Section {
           Picker("Translate With", selection: $engine) {
+            Text("Compass, Then Apple").tag("compass")
             Text("Apple, Then Compass").tag("apple")
-            Text("Compass Only").tag("compass")
           }
         } footer: {
-          Text("Apple's models are shared with Safari and managed in the Settings app. Compass's own models translate the languages Apple doesn't, and everything when you choose Compass Only. Both stay on this device.")
+          Text("Compass's own models translate most languages; Apple's translate the ones Compass doesn't, or go first if you choose. Apple's models are shared with Safari and managed in the Settings app. Both stay on this device.")
         }
       }
       Section {

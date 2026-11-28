@@ -658,15 +658,17 @@ code.
   `URLSession` and a progress delegate, a `BKEngine` with two workers,
   translators per pair, `bk_translate()` off the main thread with HTML
   segments in Bergamot's HTML mode.
-- **Which engine** (`PageTranslation.engine()`): Apple's when "Translate
-  With" is Apple and `LanguageAvailability` doesn't say unsupported (on a
-  device, iOS 18+), else Compass's when the manifest has the pair, else the
-  page isn't offered. The first Compass download asks (an alert with the
+- **Which engine** (`PageTranslation.engine()`, changed 2026-11-28 at the
+  user's request): Compass's (Bergamot) when the manifest has the pair,
+  else Apple's when `LanguageAvailability` doesn't say unsupported (on a
+  device, iOS 18+), else the page isn't offered. "Translate With: Apple,
+  Then Compass" swaps the order. Translate To lists both engines'
+  languages. The first Compass download asks (an alert with the
   size, `TranslateModelDownloadsAllowed`), and the button shows a
   determinate ring while it downloads, its label "Downloading German for
   translation: 12 of 45 MB".
 - **Settings › Translation:** Offer to Translate Pages; Translate With
-  (Apple, then Compass / Compass Only; iOS 18+); Download Languages When
+  (Compass, Then Apple, the default / Apple, Then Compass; iOS 18+); Download Languages When
   Needed; Compass's languages with Remove; the Never Translate languages
   and sites, swipe to delete.
 - **Checked** in the simulator (2026-11-28): German Wikipedia, Apple
